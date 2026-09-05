@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
   SKIP_REASONS,
+  classifyPathJoinSegments,
   classifyRepoRelativeString,
   collectRepoSegments,
   collectSweepTargets,
@@ -96,6 +97,18 @@ import {
  * pre-fix shape.
  *
  * The remaining 18 references across 6 files are unchanged and still the owner's call.
+ *
+ * 2026-09-05: the disclosed single-trailing-literal-segment blind spot in class 3 (`path.join(REPO_ROOT,
+ * "src")`, one argument, no `/` of its own) is now closed — `classifyPathJoinSegments` in
+ * `lib/dead-path-sweep.ts` classifies a lone trailing literal the same way it classifies two or more,
+ * instead of discarding anything under two before classification ever ran. That gap had a live,
+ * previously-undetected victim: `development/scripts/rewrite-deep-imports.ts:50`'s
+ * `path.join(REPO_ROOT, "src")` — `src/` at repo root has been gone since the restructure, so this
+ * unwired (no `package.json`/CI reference) codemod tool's `SRC_ROOT` was silently dead. Fixed to
+ * `path.join(REPO_ROOT, "apps", "website", "src")`, matching this repo's `#src/*` import-alias mapping
+ * (`package.json`'s `"imports"` field) and every prior repoint of this same rot. See the `closed:` and
+ * `historical:` tests below for the proof, both that the new classifier catches this shape and that a
+ * fresh sweep of the fixed file now finds nothing.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
@@ -426,57 +439,84 @@ test("dropLeadingParentSegments strips only the leading .. run, keeping a .. tha
   assert.deepEqual(dropLeadingParentSegments(["src"]), ["src"]);
 });
 
-test("known limitation: a SINGLE meaningful segment in a path.join/resolve call — the pre-2026-09-03 check-outbox-bridge.ts SRC_DIR shape — is still invisible to every class, on purpose", () => {
+/** The pre-fix form of `rewrite-deep-imports.ts:50` (this task's own diff) — a SINGLE trailing literal
+ *  segment (`"src"`) passed to `path.join(REPO_ROOT, ...)`, same call shape as the historical
+ *  `check-outbox-bridge.ts` SRC_DIR fixture above. `src/` at repo root has been gone since the 2026-09
+ *  restructure; this line was silently dead because `rewrite-deep-imports.ts` is a one-shot codemod
+ *  tool wired into neither `package.json` nor CI, so nothing ever ran it to notice. */
+const REWRITE_DEEP_IMPORTS_SRC_ROOT_BEFORE_FIX = `const SRC_ROOT = path.join(REPO_ROOT, "src");
+`;
+
+test("closed: a SINGLE meaningful segment in a path.join/path.resolve call is no longer invisible — closes the check-outbox-bridge.ts / rewrite-deep-imports.ts blind spot", () => {
   const segments = collectRepoSegments(REPO_ROOT);
 
-  // classes 1 (imports) and 2 (hardcoded strings) see nothing: "src" alone has no "/".
+  // classes 1 (imports) and 2 (hardcoded strings) still see nothing: "src" alone has no "/". Only
+  // class 3 (path.join/path.resolve call extraction) can see this shape at all.
   assert.deepEqual(extractRelativeImportSpecifiers(CHECK_OUTBOX_BRIDGE_BEFORE_20260903), []);
   assert.deepEqual(repoRelativePathsIn(CHECK_OUTBOX_BRIDGE_BEFORE_20260903, segments), []);
 
-  // class 3 extracts the call's trailing literal run, but a single meaningful segment ("src") stays
-  // exactly as ambiguous as a bare string literal — the same precision-over-recall reason class 2
-  // never treats a bare "src" as a path (`no-path-separator`; `path.join(x, "dist")`, `path.join(x,
-  // "node_modules")` etc. are common and legitimate, and neither is a repo-root-relative reference).
-  // This IS a real gap this task's fix did not close: check-outbox-bridge.ts's SRC_DIR bug is fixed in
-  // the source (verified by actually running `check:outbox-bridge`, see this task's report), but a
-  // sweep re-run today would NOT have caught the pre-fix single-segment shape on its own — only the
-  // two-segment `check-capability-inventory.ts` SERVER_DIR shape (next test) is within class 3's
-  // detection boundary. Disclosed here rather than silently left unproven.
-  const [candidate] = extractPathJoinSegments(CHECK_OUTBOX_BRIDGE_BEFORE_20260903);
-  assert.ok(candidate, "expected one path.join call");
-  assert.deepEqual(dropLeadingParentSegments(candidate.segments), ["src"]);
+  // classifyPathJoinSegments (unlike classifyRepoRelativeString) omits the `no-path-separator` rule,
+  // because a path.join/path.resolve ARGUMENT is a path segment by construction — a single trailing
+  // literal carries the same restructure-sensitive meaning as two or more. "dist"/"node_modules"/etc.
+  // stay safe because collectRepoSegments prunes them, not because of a segment-count floor.
+  const [outboxCandidate] = extractPathJoinSegments(CHECK_OUTBOX_BRIDGE_BEFORE_20260903);
+  assert.ok(outboxCandidate, "expected one path.join call");
+  const outboxMeaningful = dropLeadingParentSegments(outboxCandidate.segments);
+  assert.deepEqual(outboxMeaningful, ["src"]);
+  assert.deepEqual(classifyPathJoinSegments(outboxMeaningful, { knownRepoSegments: segments }), {
+    kind: "repo-relative-path",
+    repoRelative: "src",
+  });
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist("src"))), false, "src unexpectedly exists at repo root");
+
+  // Same shape, a REAL live victim this task found and fixed (not just a historical fixture):
+  // rewrite-deep-imports.ts's own pre-fix SRC_ROOT line, reaches the identical classification.
+  const [rewriteCandidate] = extractPathJoinSegments(REWRITE_DEEP_IMPORTS_SRC_ROOT_BEFORE_FIX);
+  assert.ok(rewriteCandidate);
+  const rewriteMeaningful = dropLeadingParentSegments(rewriteCandidate.segments);
+  assert.deepEqual(rewriteMeaningful, ["src"]);
+  assert.deepEqual(classifyPathJoinSegments(rewriteMeaningful, { knownRepoSegments: segments }), {
+    kind: "repo-relative-path",
+    repoRelative: "src",
+  });
+
+  // Proven end to end through the real sweep against today's (fixed) file: a fresh sweep finds nothing
+  // wrong with rewrite-deep-imports.ts, because the fix below is already live in the source tree.
+  const currentFindings = sweepFiles({ repoRoot: REPO_ROOT, files: ["development/scripts/rewrite-deep-imports.ts"] });
+  assert.deepEqual(currentFindings, []);
 });
 
-test("historical [direct]: the pre-2026-09-03 SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT", () => {
-  // check-outbox-bridge.ts's SRC_DIR was a SINGLE meaningful segment ("src"), which classifyRepoRelativeString
-  // itself never runs on for class 3 (sweepOneFile requires 2+ meaningful segments — see its own
-  // comment). Its deadness was real, but caught operationally (see check-outbox-bridge.log in this
-  // task's report) rather than by this specific unit boundary. SERVER_DIR is the two-segment case class
-  // 3 actually classifies:
+test("historical [direct]: the pre-fix SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT — both the one-segment and two-segment forms", () => {
+  // check-outbox-bridge.ts's SRC_DIR was a SINGLE meaningful segment ("src") — proven reachable by
+  // classifyPathJoinSegments in the test above. SERVER_DIR is the two-segment case, same classifier:
   const [candidate] = extractPathJoinSegments(CHECK_CAPABILITY_INVENTORY_SERVER_DIR_BEFORE_20260903);
   assert.ok(candidate);
   const meaningful = dropLeadingParentSegments(candidate.segments);
   assert.deepEqual(meaningful, ["src", "server"]);
 
-  const classified = classifyRepoRelativeString(meaningful.join("/"), { knownRepoSegments: collectRepoSegments(REPO_ROOT) });
+  const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: collectRepoSegments(REPO_ROOT) });
   assert.deepEqual(classified, { kind: "repo-relative-path", repoRelative: "src/server" });
   assert.equal(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist("src/server"))), false, "src/server unexpectedly exists");
 });
 
-test("historical: the current check-outbox-bridge.ts and check-capability-inventory.ts path.join/path.resolve calls resolve, so the checks above are not trivially true", () => {
+test("historical: the current check-outbox-bridge.ts, check-capability-inventory.ts, and rewrite-deep-imports.ts path.join/path.resolve calls resolve, so the checks above are not trivially true", () => {
   const segments = collectRepoSegments(REPO_ROOT);
-  const outboxSource = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/check-outbox-bridge.ts"), "utf8");
-  const inventorySource = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/check-capability-inventory.ts"), "utf8");
+  const files = [
+    "development/scripts/check-outbox-bridge.ts",
+    "development/scripts/check-capability-inventory.ts",
+    "development/scripts/rewrite-deep-imports.ts",
+  ];
 
-  for (const source of [outboxSource, inventorySource]) {
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");
     for (const candidate of extractPathJoinSegments(source)) {
       const meaningful = dropLeadingParentSegments(candidate.segments);
-      if (meaningful.length < 2) continue;
-      const classified = classifyRepoRelativeString(meaningful.join("/"), { knownRepoSegments: segments });
+      if (meaningful.length < 1) continue;
+      const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: segments });
       if (classified.kind !== "repo-relative-path") continue;
       assert.ok(
         fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(classified.repoRelative))),
-        `${classified.repoRelative} should exist after this task's repoint`
+        `${classified.repoRelative} should exist after this task's repoint (found in ${file})`
       );
     }
   }

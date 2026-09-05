@@ -552,6 +552,55 @@ export function classifyRepoRelativeString(value: string, options: ClassifyOptio
   return { kind: "repo-relative-path", repoRelative };
 }
 
+/**
+ * `RAW_SKIP_RULES` minus `no-path-separator`, for classifying the segments joined from a
+ * `path.join`/`path.resolve` call (class 3, `classifyPathJoinSegments` below).
+ *
+ * `no-path-separator` exists to protect class 2 (a bare string literal floating in code, e.g. a mime
+ * type or a directory-name filter) from being mistaken for a path — a standalone `"src"` is genuinely
+ * ambiguous. A `path.join`/`path.resolve` ARGUMENT is never that: passing a literal to that call is
+ * always constructing a path segment, whether the call has one trailing literal (`path.join(REPO_ROOT,
+ * "src")`) or several (`path.join(REPO_ROOT, "apps", "website", "src")`). Excluding this one rule is
+ * what lets `classifyPathJoinSegments` see the single-segment shape at all; every other rule
+ * (glob/regex metacharacters, whitespace, scoped-package/`#`/`:` specifiers, absolute paths, `../`
+ * escapes) still applies unchanged, because those describe the LITERAL's shape, not its argument count.
+ */
+const PATH_JOIN_SKIP_RULES: readonly SkipRule[] = RAW_SKIP_RULES.filter((rule) => rule.reason !== "no-path-separator");
+
+/**
+ * Classifies the trailing literal segments of one `path.join`/`path.resolve` call (after
+ * `dropLeadingParentSegments`) the same way `classifyRepoRelativeString` classifies a standalone
+ * string literal, minus the `no-path-separator` exemption (see `PATH_JOIN_SKIP_RULES`).
+ *
+ * This is what closes the sweep's disclosed single-segment blind spot (`check-outbox-bridge.ts`'s old
+ * `path.join(REPO_ROOT, "src")`, and the still-live `rewrite-deep-imports.ts:50`
+ * `path.join(REPO_ROOT, "src")`): a ONE-element segment list is now classified instead of being
+ * discarded before classification ever ran. `not-a-known-repo-segment` remains the load-bearing guard
+ * against false positives — a single segment that names a real directory somewhere in the tree
+ * (`"openapi"`, `"infra"`) still resolves and passes; a single segment that names only a FILE
+ * (`"plugin.json"`, `"tsconfig.json"`) is rejected here exactly as it would be as a bare literal,
+ * because `collectRepoSegments` only ever collects directory basenames. Pruned directory names
+ * (`dist`, `node_modules`, `build`, `coverage`) are never in `knownRepoSegments` either, so a legitimate
+ * `path.join(outDir, "dist")`-shaped call is rejected the same way.
+ *
+ * @param segments the call's trailing literal arguments with any leading `".."` run already dropped
+ * @param options the derived segment set, plus the file's own import specifiers when available
+ * @returns the repo-relative path to probe, or the named `SkipReason` that excluded it
+ * @complexity O(1) — a fixed sequence of string tests plus two Set lookups.
+ */
+export function classifyPathJoinSegments(segments: readonly string[], options: ClassifyOptions): StringClassification {
+  const joined = segments.join("/");
+  for (const rule of PATH_JOIN_SKIP_RULES) {
+    if (rule.rejects(joined, options)) return { kind: "skipped", reason: rule.reason };
+  }
+  const withoutDot = joined.startsWith("./") ? joined.slice(2) : joined;
+  for (const rule of NORMALIZED_SKIP_RULES) {
+    if (rule.rejects(withoutDot, options)) return { kind: "skipped", reason: rule.reason };
+  }
+  const repoRelative = withoutDot.endsWith("/") ? withoutDot.slice(0, -1) : withoutDot;
+  return { kind: "repo-relative-path", repoRelative };
+}
+
 const SOURCE_FILE_EXTENSION = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
 
 /**
@@ -745,13 +794,12 @@ function sweepOneFile(
 
   for (const { segments: rawSegments, line } of extractPathJoinSegments(source)) {
     const meaningful = dropLeadingParentSegments(rawSegments);
-    if (meaningful.length < 2) continue; // one bare segment is as ambiguous as a bare string literal
-    const joined = meaningful.join("/");
-    const classified = classifyRepoRelativeString(joined, { knownRepoSegments: segments, ownImportSpecifiers });
+    if (meaningful.length < 1) continue; // nothing left but ".." segments - no target to check
+    const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: segments, ownImportSpecifiers });
     if (classified.kind !== "repo-relative-path") continue;
     const required = pathThatMustExist(classified.repoRelative);
     if (fs.existsSync(path.join(repoRoot, required))) continue;
-    findings.push({ file, line, kind: "path-join-call", specifier: joined, attempted: [required] });
+    findings.push({ file, line, kind: "path-join-call", specifier: classified.repoRelative, attempted: [required] });
   }
 
   return findings;

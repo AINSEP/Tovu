@@ -14,8 +14,8 @@
  * Node resolves a `#` specifier against the *closest package.json above the importing file*.
  * That single rule is what makes one specifier serve two trees, with no conditions and no flags:
  *
- *   src/**\/*.ts        -> closest package.json is  ./package.json       -> "#src/*": "./src/*.ts"
- *   dist/src/**\/*.js   -> closest package.json is  ./dist/package.json  -> "#src/*": "./src/*.js"
+ *   apps/website/src/**\/*.ts -> closest package.json is  ./package.json       -> "#src/*": "./apps/website/src/*.ts"
+ *   dist/src/**\/*.js         -> closest package.json is  ./dist/package.json  -> "#src/*": "./src/*.js"
  *
  * `dist/package.json` is generated at build time by `emit-dist-package-json.mjs`, which derives
  * it from the root mapping so the two can never drift. Without that file the built output
@@ -47,7 +47,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-const SRC_ROOT = path.join(REPO_ROOT, "src");
+const SRC_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
 
 /** Minimum number of leading `../` segments before a specifier is considered "deep". */
 const MIN_DEPTH = 3;
