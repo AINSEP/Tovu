@@ -36,6 +36,17 @@
   --border:        oklch(91.5% 0.007 255);
   --border-strong: oklch(86% 0.010 255);
 
+  /* Pure aliases of --border/--border-strong, not distinct colors — same value in both themes,
+     always, since --border/--border-strong already vary per theme. Exist only so `assistant.css`
+     can re-derive --border/--border-strong for the assistant dock's `.jini-chat-pane` without
+     redefining --border on that same element, which would create a custom-property cycle with
+     `@jini-ai/chat`'s own injected stylesheet (see that file's header comment for the mechanism).
+     Declared here at :root — not scoped to `.admin-chat-dock` as they used to be — so the same
+     alias also reaches `.jini-runtime-popover`, which portals outside `.admin-chat-dock` and could
+     not see a dock-scoped custom property. */
+  --chat-border-seam:        var(--border);
+  --chat-border-strong-seam: var(--border-strong);
+
   --accent:      oklch(22% 0.006 260);
   --accent-ink:  oklch(99% 0 0);
   --accent-text: oklch(26% 0.006 260);

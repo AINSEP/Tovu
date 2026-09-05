@@ -27,8 +27,18 @@
  * The source of truth for what the package sets is
  * `Jini/packages/ui/src/react/chat/features/chat-pane/react/styles.ts`.
  */
-.admin-chat-dock .jini-chat-pane {
-  --jini-chat-bg: var(--surface);
+/* `@jini-ai/chat`'s injected default theme (see the header comment above) redefines its
+   `--jini-chat-*` custom properties on TWO separate mount points on this page: the docked
+   `.jini-chat-pane` and `.jini-runtime-popover` (doubled class, not `.admin-chat-dock
+   .jini-runtime-popover`: this popover likely portals out of `.admin-chat-dock` — which sets
+   `overflow: hidden` — to escape that clipping, so an ancestor-scoped selector could silently never
+   match; the doubled class raises specificity to beat the injected theme's plain
+   `.jini-runtime-popover` without depending on DOM nesting). Eight of `.jini-chat-pane`'s twelve
+   overrides are identical at both mount points, so they are declared once via this grouped selector
+   instead of being copied twice; only the four `.jini-chat-pane`-only properties below (background,
+   the "strong" border step, and the accent pair) need their own block. */
+.admin-chat-dock .jini-chat-pane,
+.jini-runtime-popover.jini-runtime-popover {
   --jini-chat-panel: var(--surface);
   /* REVERTED to `var(--surface-2)` (owner report, 2026-09-01: "the chat input should be gray,
      the chat pane should be white — it's hard to see where the input is"). The earlier flattening
@@ -42,39 +52,31 @@
   --jini-chat-text-strong: var(--fg);
   --jini-chat-muted: var(--muted);
   --jini-chat-faint: var(--faint);
-  /* Sourced from `--chat-border-seam`/`--chat-border-strong-seam` (defined below on
-     `.admin-chat-dock`, this rule's own ancestor) — NOT from `var(--border)`/`var(--border-strong)`
-     directly, and that indirection is load-bearing, not stylistic. Those two token names are exactly
-     what the package's own injected default theme (`CHAT_PANE_STYLES`,
-     `chat/src/react/features/chat-pane/styles.ts`) redefines on this SAME `.jini-chat-pane` element
-     (`--border: var(--jini-chat-border)`) — pointing this block at `--border` closed a cycle between
-     the two stylesheets: `--jini-chat-border` depended on `--border`, which the package's own rule
-     made depend on `--jini-chat-border` right back. Per the CSS custom-properties spec, a cyclic
-     reference makes every property in the cycle invalid at computed-value time, which is why every
-     `--border*`/`--jini-chat-border*` token on this element and its descendants used to compute to
-     nothing (confirmed live: the composer's border rendered `0px none`). `--chat-border-seam` and
-     `--chat-border-strong-seam` break the cycle by re-deriving `--border`/`--border-strong` one DOM
-     level up, on `.admin-chat-dock`, where the package's rule never reaches — so this block's own
-     declarations no longer feed back into themselves. */
+  /* Sourced from `--chat-border-seam`/`--chat-border-strong-seam` (:root tokens, `styles.css`) —
+     NOT from `var(--border)`/`var(--border-strong)` directly, and that indirection is load-bearing,
+     not stylistic. Those two token names are exactly what the package's own injected default theme
+     (`CHAT_PANE_STYLES`, `chat/src/react/features/chat-pane/styles.ts`) redefines on `.jini-chat-pane`
+     itself (`--border: var(--jini-chat-border)`) — pointing this block at `--border` directly would
+     close a cycle between the two stylesheets: `--jini-chat-border` would depend on `--border`, which
+     the package's own rule makes depend on `--jini-chat-border` right back. Per the CSS
+     custom-properties spec, a cyclic reference makes every property in the cycle invalid at
+     computed-value time, which is why every `--border*`/`--jini-chat-border*` token on `.jini-chat-pane`
+     and its descendants used to compute to nothing (confirmed live: the composer's border rendered
+     `0px none`) before this seam existed. `--chat-border-seam`/`--chat-border-strong-seam` break the
+     cycle by re-deriving `--border`/`--border-strong` at :root, an ancestor the package's rule never
+     reaches, so this block's own declarations no longer feed back into themselves — and because the
+     alias lives at :root rather than scoped to `.admin-chat-dock`, `.jini-runtime-popover` (which
+     portals outside that subtree) resolves the exact same alias instead of needing its own direct
+     `var(--border)` reference. */
   --jini-chat-border: var(--chat-border-seam);
-  --jini-chat-border-strong: var(--chat-border-strong-seam);
   --jini-chat-border-soft: var(--chat-border-seam);
+}
+
+.admin-chat-dock .jini-chat-pane {
+  --jini-chat-bg: var(--surface);
+  --jini-chat-border-strong: var(--chat-border-strong-seam);
   --jini-chat-accent: var(--accent-text);
   --jini-chat-accent-soft: var(--surface-2);
-}
-/* Doubled class, not `.admin-chat-dock .jini-runtime-popover`: this popover likely portals out of
-   `.admin-chat-dock` (which sets `overflow: hidden`) to escape that clipping, so an ancestor-scoped
-   selector could silently never match. The doubled class raises specificity to beat the injected
-   theme's plain `.jini-runtime-popover` without depending on DOM nesting. */
-.jini-runtime-popover.jini-runtime-popover {
-  --jini-chat-panel: var(--surface);
-  --jini-chat-text: var(--fg);
-  --jini-chat-text-strong: var(--fg);
-  --jini-chat-muted: var(--muted);
-  --jini-chat-faint: var(--faint);
-  --jini-chat-border: var(--border);
-  --jini-chat-border-soft: var(--border);
-  --jini-chat-subtle: var(--surface-2);
 }
 
 /* --- Global assistant dock + FAB (ADR-049) --- */
@@ -87,14 +89,6 @@
   border-left: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
-  /* Captured here — one DOM level above `.jini-chat-pane`, which the seam block above this one
-     reads from — because `.jini-chat-pane` itself cannot reliably resolve its own
-     `--border`/`--border-strong` (see that block's comment for the redefinition cycle this avoids).
-     `.admin-chat-dock` never redefines `--border`/`--border-strong` itself, so these two just carry
-     this app's real tokens from `styles.css` down unchanged, immune to whatever `.jini-chat-pane`
-     does with those names further down the tree. */
-  --chat-border-seam: var(--border);
-  --chat-border-strong-seam: var(--border-strong);
 }
 
 .admin-chat-dock[hidden] {
