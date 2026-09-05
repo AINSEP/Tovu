@@ -23,6 +23,7 @@ import {
 } from "@jini-ai/cms/identity";
 
 import type { PagesHtmlDocumentStorePort } from "#src/features/pages/index";
+import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 
@@ -50,12 +51,14 @@ import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/con
  * of which the gate MECHANICS depend on. A recorded fake is also the only way to assert the EXACT
  * permission string the route asks for, which is the thing most likely to silently drift.
  *
- * The last test in this file is the exception, and is the one that makes the others mean something:
- * it drops the fake and runs a real `editor`-role principal, seeded exactly as first boot seeds one,
- * through the real `authorize()` at this real route. The fake tests prove "the route demands
- * `pages.edit_html`"; that one proves "an editor does not have it, and is refused here".
- * `features/pages/__tests__/edit-html-permission.test.ts` certifies the same boundary at the OTHER
- * sink (`pages_write_html`) — there are exactly two writers of `"html"`-format rows, and closing one
+ * The last three tests in this file are the exception, and are the ones that make the others mean
+ * something: they drop the fake and run real role-seeded principals, seeded exactly as first boot
+ * seeds them (in both the fresh and the already-deployed vintage — see `realIdentityHarness`'s own
+ * comment), through the real `authorize()` at this real route. The fake tests prove "the route
+ * demands `pages.edit_html`"; those prove "an editor does not have it and is refused here, and an
+ * admin has it in every vintage that ships". `features/pages/__tests__/edit-html-permission.test.ts`
+ * certifies the same boundary at the OTHER sink (`pages_write_html`) — there are exactly two writers
+ * of `"html"`-format rows, and closing one
  * without the other would leave the capability reachable by a different door.
  */
 
@@ -206,20 +209,60 @@ test("PUT /pages/:id/html still serves an authorized principal, running the full
 // ---------------------------------------------------------------------------
 
 /**
+ * Which vintage of `seedIdentity`'s built-in grant lists the workspace behind this harness was
+ * seeded from — see {@link dropAdminThemeEdit}. `"pre-theme-edit"` is what this repo's own
+ * `sites/tovu-com/content.db` actually is, and the vintage every already-deployed workspace is
+ * stuck at, since `seedIdentity` early-returns once an owner user exists.
+ */
+type Vintage = "fresh" | "pre-theme-edit";
+
+/**
+ * Rewind the seeded `admin` policy to its pre-`theme.edit` vintage by removing that one row.
+ *
+ * Same technique as `features/pages/__tests__/edit-html-permission.test.ts`'s `dropAdminThemeEdit`
+ * (the anchor fix for this exact gap at the OTHER sink, `db83fdaf`) — duplicated here rather than
+ * imported: this repo has no established convention for sharing a fixture helper across a
+ * feature's own `__tests__` directory and a route test under `server/__tests__`, and each of these
+ * certification files is deliberately self-contained (see this file's own header) so a reader never
+ * has to leave it to see exactly what state a case runs against.
+ *
+ * Asserts the row was there before removing it, deliberately: if `theme.edit` ever leaves
+ * `BUILTIN_ADMIN_PERMISSIONS`, this fixture would otherwise silently stop simulating anything and
+ * the `"pre-theme-edit"` case would start passing for the wrong reason.
+ */
+async function dropAdminThemeEdit(repos: IdentityRepos): Promise<void> {
+  const policy = await repos.policies.findByName({ workspaceId: WS, name: "admin-builtin-policy" });
+  assert.ok(policy, "seedIdentity must have created the built-in admin policy");
+
+  const grants = await repos.policyPermissions.listByPolicyId({ workspaceId: WS, policyId: policy.id });
+  const themeEdit = grants.find((row) => row.permission === "theme.edit");
+  assert.ok(themeEdit, "the current admin seed list must still contain theme.edit for this rewind to mean anything");
+
+  await repos.policyPermissions.delete({ workspaceId: WS, id: themeEdit.id });
+}
+
+/**
  * Mount this route behind the REAL `authorize()`, over identity repos seeded exactly the way first
- * boot seeds them, with the real permission-migration fan-out applied on top.
+ * boot seeds them, with the real permission-migration fan-out and built-in-role backfill applied on
+ * top.
  *
  * Every test above stubs the gate's answer, which is right for pinning the route's mechanics and
- * useless for the question that actually matters: does a real `editor` get in? That question spans
- * `seedIdentity`'s built-in role grants and `migrateDeprecatedPermissionGrants`' fan-out (the only
- * way a new permission reaches an ALREADY-seeded workspace — `seedIdentity` early-returns once an
- * owner exists), neither of which a stubbed `authorize` exercises at all.
+ * useless for the question that actually matters: does a real `editor` get in, and does a real
+ * `admin` — in the vintage that ships — stay in? That question spans `seedIdentity`'s built-in role
+ * grants, `migrateDeprecatedPermissionGrants`' fan-out (the only way a new permission reaches an
+ * ALREADY-seeded workspace — `seedIdentity` early-returns once an owner exists), and
+ * `applyBuiltinRoleGrants`' backfill (the only path that reaches admin in a workspace that never had
+ * `theme.edit` to fan out from — see {@link Vintage}), none of which a stubbed `authorize` exercises
+ * at all.
  *
  * @param roleName - which built-in role the calling principal holds.
+ * @param vintage - defaults to `"fresh"`; pass `"pre-theme-edit"` to certify the vintage that
+ *   actually ships (see {@link Vintage}).
  */
 async function realIdentityHarness(
   t: { after: (fn: () => Promise<void>) => void },
-  roleName: "admin" | "editor"
+  roleName: "admin" | "editor",
+  vintage: Vintage = "fresh"
 ): Promise<{ baseUrl: string; storeCalls: string[]; principalId: string }> {
   const repos: IdentityRepos = {
     principals: new InMemoryPrincipalRepo(),
@@ -241,9 +284,24 @@ async function realIdentityHarness(
     deps: { repos, hasher: { hash: async (p: string) => `h:${p}`, verify: async () => true }, clock, idGen },
     input: { workspaceId: WS, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
   });
+
+  if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
+
   await migrateDeprecatedPermissionGrants({
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
+    idGen,
+    workspaceId: WS,
+  });
+
+  // SPEC-047 REQ-9's second grant path — see {@link Vintage} and `dropAdminThemeEdit`'s comment.
+  // Ordered after the fan-out, matching `features/identity/wiring.ts`'s own boot sequence, so a
+  // grant the fan-out would already have made is a no-op here rather than a race.
+  await applyBuiltinRoleGrants({
+    roles: repos.roles,
+    rolePolicies: repos.rolePolicies,
+    policies: repos.policies,
+    policyPermissions: repos.policyPermissions,
     idGen,
     workspaceId: WS,
   });
@@ -336,6 +394,25 @@ test("a real, seeded 'editor' principal cannot inject script into a public page 
 
 test("a real, seeded 'admin' principal still authors page HTML through this route — the gate narrows the capability rather than removing it", async (t) => {
   const { baseUrl, storeCalls } = await realIdentityHarness(t, "admin");
+
+  const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
+
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+});
+
+// ---------------------------------------------------------------------------
+// The vintage that actually ships: an ALREADY-seeded workspace, seeded before `theme.edit` joined
+// BUILTIN_ADMIN_PERMISSIONS. `sites/tovu-com/content.db` is exactly this — its `admin-builtin-policy`
+// has no `theme.edit` row, so `migrateDeprecatedPermissionGrants`' fan-out matches nothing and grants
+// nothing at this sink either. Without this case, this file's admin-allow test above only ever proves
+// the fan-out path; if `applyBuiltinRoleGrants` (or its registration in `features/pages/permissions.ts`)
+// were ever dropped, that test would keep passing GREEN while admin silently lost `pages.edit_html` on
+// every real deployed workspace at this exact HTTP-route sink.
+// ---------------------------------------------------------------------------
+
+test("a real, seeded 'admin' principal in a pre-theme.edit (already-deployed) workspace ALSO authors page HTML through this route — the grant cannot depend on a seed row that workspace never got", async (t) => {
+  const { baseUrl, storeCalls } = await realIdentityHarness(t, "admin", "pre-theme-edit");
 
   const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
 
