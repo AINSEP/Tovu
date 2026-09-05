@@ -115,6 +115,24 @@ test("a request that never gets a free connection times out as a readable ApiErr
   expect(error.message).toMatch(/did not respond within/);
 });
 
+// Pinned alongside the DOMException case above: `throwTranslatedFetchFailure`'s TimeoutError branch
+// reads `cause.message` when `cause instanceof Error` and falls back to `String(cause)` otherwise.
+// The DOMException case above exercises the `String(cause)` side (jsdom's DOMException is not
+// `instanceof Error`); this exercises the other side with a real `Error`-derived timeout cause.
+test("a TimeoutError whose cause IS an Error uses its own .message, not String(cause)", async () => {
+  const timeoutError = new Error("the operation timed out");
+  timeoutError.name = "TimeoutError";
+  stubFetch(async () => {
+    throw timeoutError;
+  });
+
+  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+
+  expect(error).toBeInstanceOf(ApiError);
+  expect(error.code).toBe(REQUEST_TIMEOUT_CODE);
+  expect(error.body?.cause).toBe("the operation timed out");
+});
+
 test("a JSON error envelope still wins — the server answered, so its own message is used", async () => {
   stubFetch(
     async () =>

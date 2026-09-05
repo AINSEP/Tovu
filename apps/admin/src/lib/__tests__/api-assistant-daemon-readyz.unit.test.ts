@@ -62,3 +62,12 @@ test("a JSON content-type with an unparsable body also rejects cleanly, not with
   expect(error).toBeInstanceOf(Error);
   expect((error as Error).message).toBe("Could not check the assistant's status (malformed response, HTTP 200).");
 });
+
+test("a response with no Content-Type header at all rejects the same clean way as a wrong one — the `?? \"\"` fallback side", async () => {
+  stubFetch(async () => new Response(undefined, { status: 404 }));
+
+  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toBe("Could not check the assistant's status (unexpected response, HTTP 404).");
+});
