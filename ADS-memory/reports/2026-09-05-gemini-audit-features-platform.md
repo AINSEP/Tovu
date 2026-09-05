@@ -24,7 +24,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 8a. refactor(identity,members,credentials) 05b9713c
 - [x] 8b. refactor(complexity) batch E 753b3eba
 - [x] 8c. refactor(complexity) batch F c62c95a4
-- [ ] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
+- [x] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
 - [ ] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 - [ ] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 - [ ] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
@@ -209,5 +209,15 @@ Gemini raised 6 findings on this "behavior-preserving" origin/path-validator and
 Gemini raised **no findings** — reported the refactor (agent-plugins, comments/ingress, deploy-config, plugin-runtime/manifest, redirects) as behavior-preserving, and called out two in-scope deliberate bug fixes bundled into the same commit as correct: `resolveParentContext`'s `parent.entryId !== submission.entryId` cross-entry-thread-grafting guard, and `plugin-runtime/manifest.ts`'s `typeof decl.queryable !== "boolean"` gate. Spot-verified the comments one directly: `apps/website/src/features/comments/ingress.ts:122` reads exactly `if (!parent || parent.entryId !== submission.entryId) return { ok: false, reason: "parent-not-found" };` — matches. Given a clean report plus a direct spot-check, not doing a full line-by-line pass on the other 5 modules in this chunk.
 
 ### Chunk 9 — docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
+
+Gemini raised 3 findings. 1 discarded (path-scoping false positive, same recurring pattern), 1 discarded (false premise — the type this claim depends on is narrower than assumed), 1 confirmed minor.
+
+**LOW — CONFIRMED.** `apps/website/src/features/settings/migration.ts:203-207`, `migrateOneLegacyRow` (introduced by a60c86b6's extraction, confirmed via `git log -S`). `(err as Error).message` is a blind cast rather than `err instanceof Error ? err.message : String(err)` (the safer pattern already used elsewhere in this codebase, e.g. `hydrate-blob-store-from-seed.ts`). A non-`Error` rejection would log `"...: undefined"` instead of the actual failure detail. Minor diagnostic-quality issue, not a functional bug — the migration still correctly returns `"failed"` either way.
+
+**Discarded (2):**
+- Gemini's CRITICAL claim that 67b93b80's member-gating fix omitted `media-rendition.ts`/`llms.ts`/`modules/media.ts` and their tests from the commit, leaving public rendition routes ungated in production. Disproved: `git show 67b93b80 --stat` (unfiltered) shows all of these genuinely committed together (`server/inbound/public-http/routes/site/{llms,media-rendition}.ts`, `server/runtime/composition/modules/media.ts`, plus 3 test files) — outside this chunk's features/platform path filter, not missing. Same recurring false-positive class as chunks 1, 6, 7.
+- Gemini claimed `parseMediaEmbedRef`'s `assetId === null` guard (widgets/resolver-service.ts:546) misses `undefined`, causing either a crash or a bad DB query. Disproved: `PageHtmlEmbedRef.id` (`html-embeds.ts:102`) is typed `string | null` — never `undefined` — so the strict-equality `null` check is exactly sufficient for the type it actually receives.
+
+### Chunk 10 — theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 
 (running)
