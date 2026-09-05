@@ -11,7 +11,9 @@ import type { HttpTransportAdapter } from "./ports.js";
  * Purpose:
  * MODULE-PRIVATE. Connects only to the already-DNS-resolved, policy-vetted `PinnedPeer` IP —
  * never re-resolves the request URL's hostname — while still sending the original `Host` header
- * and TLS SNI (`servername`) so virtual-hosted targets and certificate validation both work. This
+ * and, for an ordinary (non-IP-literal) hostname target, the TLS SNI (`servername`) so virtual-
+ * hosted targets and certificate validation both work. An IP-literal target carries no SNI at
+ * all (`peer.tlsServerName` is `undefined` — RFC 6066 forbids an IP address there). This
  * is what makes "the guarded client cannot be tricked into connecting somewhere else via DNS
  * rebinding between check-time and connect-time" true, not just documented.
  *
@@ -48,7 +50,10 @@ export class FetchHttpTransportAdapter implements HttpTransportAdapter {
       path: `${url.pathname}${url.search}`,
       headers: { ...req.headers, host: peer.authority },
       timeout: req.timeoutMs,
-      ...(isHttps ? { servername: peer.tlsServerName } : {}),
+      // `peer.tlsServerName` is `undefined` for an IP-literal peer (RFC 6066: SNI never names an
+      // IP) — omit the option entirely rather than pass `servername: undefined`, so behavior
+      // matches "no SNI extension sent" exactly, not "sent as an empty/undefined value".
+      ...(isHttps && peer.tlsServerName ? { servername: peer.tlsServerName } : {}),
     };
 
     return new Promise<HttpResponse>((resolve, reject) => {

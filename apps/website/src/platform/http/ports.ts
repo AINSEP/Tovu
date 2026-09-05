@@ -29,7 +29,11 @@ export interface HttpClientPort {
 export interface EgressPolicy {
   readonly allowedSchemes: readonly string[];
   readonly denyPrivateAddresses: boolean;
-  /** Hosts exempt from `denyPrivateAddresses` — a named capability, never consumer code. */
+  /**
+   * Hosts exempt from `denyPrivateAddresses` — a named capability, never consumer code. Matched
+   * against the bracket-stripped form of the target hostname, so an IPv6-literal entry is written
+   * without brackets (e.g. `"fd00::1"`, not `"[fd00::1]"`) — same as a human would type it.
+   */
   readonly devHostAllowlist: readonly string[];
   readonly maxRedirects: number;
   readonly connectTimeoutMs: number;

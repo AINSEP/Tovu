@@ -248,7 +248,10 @@ async function resolvePinnedPeer(url: URL, policy: EgressPolicy): Promise<Pinned
   assertAllowedTarget(url, policy);
 
   const port = url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80;
-  const isDevAllowlisted = policy.devHostAllowlist.includes(url.hostname);
+  // Bracket-stripped once and reused below: `url.hostname` is the WHATWG-bracketed form for an
+  // IPv6 literal, but neither an allowlist entry nor a TLS SNI value is ever written with brackets.
+  const hostname = stripIpv6Brackets(url.hostname);
+  const isDevAllowlisted = policy.devHostAllowlist.includes(hostname);
 
   const addresses = await resolveHostAddresses(url.hostname);
   if (addresses.length === 0) {
@@ -263,7 +266,9 @@ async function resolvePinnedPeer(url: URL, policy: EgressPolicy): Promise<Pinned
     ip: addresses[0],
     port,
     authority: url.host,
-    tlsServerName: url.hostname,
+    // RFC 6066 §3: SNI names a HOST, never an IP literal — omit it entirely for an IP-literal
+    // target (either family) rather than sending an invalid/meaningless SNI value.
+    tlsServerName: isIP(hostname) === 0 ? url.hostname : undefined,
   };
 }
 

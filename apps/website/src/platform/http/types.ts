@@ -30,5 +30,10 @@ export interface PinnedPeer {
   ip: string;
   port: number;
   authority: string;
-  tlsServerName: string;
+  /**
+   * SNI hostname for the TLS handshake, or `undefined` when the target is an IP literal (IPv4 or
+   * IPv6, bracket-stripped) — RFC 6066 §3's `server_name` extension is only valid for a hostname,
+   * never an IP address; `undefined` here means "send no SNI extension at all", not "send the IP".
+   */
+  tlsServerName: string | undefined;
 }
