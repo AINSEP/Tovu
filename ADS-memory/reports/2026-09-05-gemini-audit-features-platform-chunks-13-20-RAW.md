@@ -35,7 +35,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 
 - [x] 13. `1378c7e4` — test(theme): direct-invoke coverage for structure.ts fs-bounds/containment branches
 - [x] 14. `239a90a5` — test(deployments): S3-compatible publish target coverage
-- [ ] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
+- [x] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
 - [ ] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
 - [ ] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
 - [ ] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
@@ -181,7 +181,56 @@ that a `reachable: false` result always carries a non-empty `statusMessage`.
 Gemini raised 7 findings + 1 claim-audit item in this chunk; none discarded, all recorded above
 as UNVERIFIED per this pass's role.
 
-### Chunk 15 — pending
+### Chunk 15 — `54c65bc6` test(source-control): store.ts branch-coverage fill
+
+**Context given to Gemini:** diff (`store.unit.test.ts` new hunk, 228 new lines) + FULL current
+production file `apps/website/src/features/source-control/store.ts` (472 lines) + FULL current
+test file (562 lines, post-commit). Full-file context.
+
+**UNVERIFIED — HIGH.** `store.ts:244-248` (`isUniqueLabelViolation`) /
+`store.unit.test.ts:461-475`. Claim: the commit message says it added a direct pure-function test
+for all 4 combinations of `isUniqueLabelViolation` including "message-based match," but claims
+only 3 were actually added (non-Error, code-based match, neither) — the message-based-match case
+(`err.message.includes("UNIQUE constraint failed")` being true with no `.code` set) is claimed to
+be untested anywhere in the repo, including integration tests, since
+`InMemorySourceControlCredentialSetRepo` always sets `.code`. Claims the commit's own "1 branch
+of 88 remains unhit, consistent with tsx BRDA instability" explanation is wrong — the unhit branch
+is claimed to be exactly this missing message-based-match test case, not an instrumentation
+artifact.
+
+**UNVERIFIED — HIGH (production bug).** `store.ts:106-119` (`probeAccountLabel`) /
+`store.unit.test.ts:80-85`. Claim: the GitHub REST call omits a `User-Agent` header, which GitHub's
+API is claimed to require (403 without it) — so in production (real `fetch`, no `User-Agent`
+default) this probe would always fail closed (`!resp.ok` → `null`), meaning `accountLabel` is
+claimed to never populate for any real GitHub token; the test's own fetch mock doesn't inspect
+headers, so this is claimed to be masked entirely in the suite.
+
+**UNVERIFIED — HIGH (production bug, invariant violation).** `store.ts:367-380`
+(`updateSourceControlCredential`). Claim: when an update changes `connection` to a NEW provider
+(explicitly documented as supported) while omitting `isDefault`, the line
+`isDefault: requestedDefault === true ? true : existing.isDefault` is claimed to produce two bad
+outcomes depending on prior state: (1) the OLD provider group can be left with zero
+`isDefault: true` credentials (no promotion of a remaining sibling, unlike the delete path which
+is claimed to promote), and (2) the NEW provider group, if this was its first credential, can end
+up with `isDefault: false`, violating a "first credential in a provider group auto-defaults"
+invariant the file itself documents elsewhere (cites `store.ts:33`) — with `resolveDefaultForSourceControl`
+then returning `null` for that provider despite a credential existing.
+
+**UNVERIFIED — MEDIUM (test quality).** `store.unit.test.ts:442-459`. Claim: the test named
+"...fails closed... never a plaintext write" only asserts the rejection type
+(`SourceControlCredentialSecretStoreUnconfiguredError`) and never checks `deps.repo` was left
+untouched (no `listByWorkspace`/`findById` check) — claimed insufficient to actually prove "never
+a plaintext write" if a regression wrote to the repo before throwing. Same gap claimed for the
+update counterpart at lines 450-459.
+
+**UNVERIFIED — LOW (comment/doc accuracy).** `store.ts:17-23` / `store.unit.test.ts:45-46`. Claim:
+both the production file's header comment and the test file's own comment assert "there is no
+decrypt path here... none exists" — but `decryptRecord` (store.ts:429) and
+`resolveDefaultForSourceControl` (store.ts:464-472) are claimed to already exist in the same file,
+contradicting both comments.
+
+Gemini raised 5 findings in this chunk, all recorded above as UNVERIFIED.
+
 ### Chunk 16 — pending
 ### Chunk 17 — pending
 ### Chunk 18 — pending
