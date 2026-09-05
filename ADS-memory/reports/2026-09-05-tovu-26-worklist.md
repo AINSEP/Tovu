@@ -603,3 +603,95 @@ cost), `daemon-respawn-policy.ts`, `agent-daemon-port.ts`, `App.hooks.ts`, `runn
 (sampled by import/export only), and `stage-tovu-runtime.mjs`'s `assertNodeMajorInSync()`.
 
 **→ C13, needs Leona: is crash-safety in scope?** That is the ~150-300 vs ~400-550 line decision.
+
+---
+
+## A10 DONE — dry-run migration bug fixed (`1e2dc23f`) + 4 siblings dispatched
+
+**RED, concrete**: a dry run against a zero-table fixture **created 92 tables** — the full schema.
+The mistyped-`--db` test got `SiteCorruptError: zero workspace rows` because the script had already
+silently created and migrated an empty db at the typo'd path. **The 3 pre-existing tests passed
+throughout** — they only asserted on log lines, never file state. That is why the bug survived.
+
+**Fix** (`development/scripts/backfill-reset-admin-password.ts`):
+```
+const dbPath = resolveExistingDbPath(args.dbPath);
+const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+```
+`--apply` behaviour unchanged. **GREEN 5/5**: table count stays 0, file bytes byte-identical,
+missing-path error is the exact `missingDbPathMessage`.
+
+**Diligence worth copying**: before converting to a read-only connection, the agent checked what
+runs *after* the open — `createSqliteIdentityRouteDeps` kicks off `seedIdentity` /
+`migrateDeprecatedPermissionGrants` / `applyBuiltinRoleGrants`, all real writes on first boot. It
+read all three, confirmed they read-check-before-write and that `seedIdentity` early-returns once an
+owner exists, so on an already-provisioned db they emit zero writes.
+
+**Correctly guarded already** (the reference shape): `backfill-site-assistant-credential-aad.ts`,
+`backfill-composio-config-aad.ts`, `backfill-media-provider-credential-aad.ts`,
+`backfill-execution-credential-aad.ts`, `backfill-connector-credential-aad.ts`,
+`backfill-external-mcp-aad.ts`, `backfill-custom-credential-usernames.ts`.
+
+**A15 — 4 siblings with the identical two-bug pattern, dispatched to `fix-dryrun-siblings`:**
+`backfill-slug-collision-defaults.ts:141` (apply at :165), `convert-legacy-doc-pages-to-html.ts:125`
+(:158, already run against prod once per its header), `migrate-page-embed-markers.ts:300` (:309),
+`backfill-vendor-credentials.ts:372` (:379). Default `--db` on these is the **nonexistent
+`infra/content.db`**, which makes accidental empty-db creation easy.
+
+`apps/**` callers of `openContentDb` (init-site, boot-site-dir, gated-hooks, search-index.memory,
+plugins/snapshot, deploy-config, agent-daemon-server, `composition/deps.ts`, assistant-byok) were each
+checked for dry-run/read-only language — none claims a contract it violates. Migrating on open is
+intended there.
+
+**NOT verified**: whether the 4 unfixed scripts appear in production runbooks or incident procedures
+the way `backfill-reset-admin-password.ts` does. Source only.
+
+### NEW TRAP (saved to memory): `grep` silently skips files containing NUL bytes
+`backfill-vendor-credentials.ts` uses literal `\0` as a composite-key delimiter in template literals
+(lines ~208/226/296/367 — legitimate, avoids collision with UUIDs). `file` calls it "data"; this
+box's `grep` is ugrep with `-I`, so it treats the file as **binary and silently omits it from every
+search**. It never appeared in the sink sweep's first pass. Use `command grep -a`. **This is a THIRD
+silent-zero route**, alongside the `--` flag-parsing trap and recursive searches reaching `dist/`.
+
+---
+
+## A11 DONE — three sites-screen races fixed (`bac64077`)
+
+Real path is `apps/admin/src/features/sites/hooks/use-sites.hooks.ts` (the triage's path was stale).
+All three reconfirmed at current line numbers before fixing. Each RED reproduced by making responses
+settle **out of order**.
+
+1. **`activate` (~155)** — clicked alpha then beta; beta settled first, alpha second; pre-fix alpha's
+   late response overwrote `activation` back to alpha. **Last-to-settle beat last-clicked.** Fixed
+   with a monotonic `activateGenerationRef`, matching `use-access-tokens.hooks.ts`'s
+   `reloadGenerationRef`.
+2. **`createSite` (~68/116)** — doc comment claimed an in-flight no-op that did not exist. Two
+   synchronous calls before the mutationFn's microtask ran called the port 0 or 2 times, never 1.
+   Fixed with a synchronous check-then-set `creatingRef`, matching `use-static-publish.hooks.ts`'s
+   `publishingRef` (whose comment explains why it must be a ref, not `status`, for same-tick safety).
+3. **`createMutation.error ?? activateMutation.error` (~199)** — failed create then successful
+   activate left `writeError` on the stale create error. Fixed by resetting the sibling mutation at
+   the start of each write, matching `use-redirects.hooks.ts`'s `clearOtherWriteErrors`.
+
+GREEN 13/13 in the hook's test, 17/17 in `Sites.unit.test.tsx`. Runner:
+`cd apps/admin && env -u TOVU_ADMIN_PASSWORD npx vitest run <path>`, no coverage flag, so no
+`.tmp` clobber.
+
+### Sibling sweep — two look-alikes correctly REFUTED, one genuine
+- **`App.tsx:463` `dockT` — REFUTED.** Recreated every render, but appears in **no** dependency array
+  (grepped `[dockT` / `dockT]`, zero hits) and `AssistantChrome` is not memoized. Nothing for its
+  instability to defeat. **Triage finding 36 is wrong.** Left alone.
+- **`use-migrate-forward-section.hooks.ts:134` — SAFE.** Same `a.error ?? b.error ?? c.error` text,
+  but the three mutations are strictly sequential and gated, so two can never hold conflicting
+  non-null errors at once. The file's own header already documents this.
+- **`use-themes.hooks.ts` `activate` (142-153) and `download` (174-195) — GENUINE.** Same missing
+  guard: single busy-id state, no in-flight or generation check, result applied unconditionally on
+  success. **A16, dispatched to `fix-themes-races`.**
+
+**Open question handed on**: `use-theme-explore.hooks.ts` uses `useFetchMutation` per action, the way
+Sites did before the fix — the sweeping agent could not quickly settle whether it has the same race
+and flagged it rather than claiming either way.
+
+**UNSWEPT, not clean**: `use-workspace.hooks.ts`, `use-widgets-library.hooks.ts`, `use-roles.hooks.ts`,
+`use-users.hooks.ts` were spot-checked only, not line-by-line traced. ~28 admin hook files were
+swept by `setBusy*/setSaving*/setPending*` grep, which is a shape filter, not a proof.
