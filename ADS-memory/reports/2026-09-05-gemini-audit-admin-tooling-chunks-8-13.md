@@ -22,7 +22,7 @@ chunk completes.
 
 ## Coverage map (chunks 8-13)
 
-- [ ] Chunk 8 — `apps/admin/src/features/media/Media.tsx` (~363-line diff / complexity-split refactor)
+- [x] Chunk 8 — `apps/admin/src/features/media/Media.tsx` (~363-line diff / complexity-split refactor)
 - [ ] Chunk 9 — `apps/admin/src/features/collections/Collections.tsx` (~268-line diff)
 - [ ] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
 - [ ] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
@@ -35,7 +35,26 @@ chunk completes.
 
 ## Findings
 
-(appended per chunk below)
+### Chunk 8: `apps/admin/src/features/media/Media.tsx` (commit `b8c97ec8`)
+
+Single-commit, single-file chunk — a mechanical complexity-reduction extraction (cyclomatic 14/cognitive 16
+down to under the 9/9 ceiling), commit message claims no behavior change and unmodified test passes
+(Media.unit.test.tsx 34 tests, media-agent-drive, media-type-filter).
+
+Gemini raised **zero findings** after full-file + diff review (DOM structure, component identity/re-mounting,
+key preservation on `EditMediaPanel`/media cards, handler forwarding, Rules-of-Hooks ordering, and the
+`resolveMediaHook`/`resolveMediaTabsHook` resolver pair against the precedented `resolveSessionHook` idiom).
+
+Independently spot-checked rather than accepting blind:
+- Read the diff's resolver functions (`Media.tsx:679-684`) and their call sites (`Media.tsx:925-929`) —
+  `resolveMediaHook`/`resolveMediaTabsHook` correctly reproduce the old `useMediaHook = useWiredMedia` /
+  `useMediaTabsHook = useMediaTabs` default-parameter semantics via `??`, called before any hook, so Rules of
+  Hooks ordering is unaffected.
+- Read the extracted `MediaGridOrEmpty` body (`Media.tsx:679-891` region) against the pre-refactor ternary —
+  confirmed `key={item.id}` and the `activeTab === "all"` vs `MediaTypeEmptyState` branch are preserved
+  verbatim, not just claimed.
+
+**Chunk tally: 0 findings raised, 0 CONFIRMED, 0 UNVERIFIED, 0 DISCARDED.** Genuinely clean chunk.
 
 ## Summary
 
