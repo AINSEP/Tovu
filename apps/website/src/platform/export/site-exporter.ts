@@ -592,8 +592,13 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
     return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
   }
   const res = fetched.response;
-  if (res.status < 400) {
-    return { failed: { path: route.path, kind: route.kind, reason: `expected a non-2xx response for the 404 probe, got ${res.status}` } };
+  // Bounded on BOTH sides, matching redirectOutcomeFor's own `< 300 || >= 400` shape one status
+  // class over: a genuine 404 page is a 4xx, full stop. Unbounded above, a 500 from a crashed
+  // 404-page render would previously be ACCEPTED — its body written verbatim to <outputDir>/404.html
+  // and the route reported as succeeded, shipping a broken page as the site's production 404 while
+  // the export reports clean.
+  if (res.status < 400 || res.status >= 500) {
+    return { failed: { path: route.path, kind: route.kind, reason: `expected a 4xx response for the 404 probe, got ${res.status}` } };
   }
   const rawBody = await res.text();
   // A real, spec-legal `null` when the response has no Content-Type header — left as `string | null`

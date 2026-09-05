@@ -630,12 +630,47 @@ test("exportSite: a prefix redirect rule shadowing the 404 probe's own path make
 
   const probeFailure = report.routes.failed.find((r) => r.kind === "not-found");
   if (!probeFailure) throw new Error("expected the not-found probe in routes.failed");
-  assert.match(probeFailure.reason, /expected a non-2xx response for the 404 probe, got \d+/);
+  assert.match(probeFailure.reason, /expected a 4xx response for the 404 probe, got \d+/);
   assert.equal(
     report.routes.succeeded.some((r) => r.kind === "not-found"),
     false,
     "a shadowed probe must never be reported as a succeeded 404 page"
   );
+});
+
+/** `writeNotFoundRoute`'s status check only ever rejected `< 400` — unbounded above, so a 500 from a
+ *  crashed 404-page render was ACCEPTED, its body written verbatim to `<outputDir>/404.html` and the
+ *  route reported as `succeeded`: a broken 404 page shipped as the site's production one, with the
+ *  export reporting clean. Only the not-found probe's own request is intercepted here — every other
+ *  fetch goes through the REAL exporter over REAL HTTP, exactly like every other test in this file. */
+test("exportSite: a crashed 404-page render (500) is rejected as a route failure, never written as the site's production 404.html", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("tovu-export-404-check")) {
+      return new Response("Internal Server Error", { status: 500 });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+    const probeFailure = report.routes.failed.find((r) => r.kind === "not-found");
+    if (!probeFailure) throw new Error("expected the not-found probe in routes.failed");
+    assert.match(probeFailure.reason, /expected a 4xx response for the 404 probe, got 500/);
+    assert.equal(
+      report.routes.succeeded.some((r) => r.kind === "not-found"),
+      false,
+      "a crashed 404-page render must never be reported as a succeeded 404 page"
+    );
+    assert.equal(existsSync(path.join(outputDir, "404.html")), false, "a rejected 404 probe must not leave a broken 404.html behind");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("exportSite: --base-path does not double-prefix a redirect target that already carries the base path", async (t) => {
