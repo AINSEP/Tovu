@@ -164,7 +164,7 @@ async function resolveRobots(
     // "published"` forever and the status check alone can't catch it. `postRepo.findById` (this
     // function's own read, above) is documented trash-BLIND, so this derived fallback must check
     // `isTrashed` itself, same as `computeIndexableEntries` (sitemap.ts) and
-    // `findPublishedPostsReferencingAsset` (media-rendition.ts) already do at their own read
+    // `scanEntriesForAsset` (media-rendition.ts) already do at their own read
     // boundaries. `getEntryMeta` is "the one evaluator, no back door" for admin preview, public
     // render, and `analyzeEntry` alike (this file's header) — a trashed entry must resolve
     // noindex:true through every one of those consumers, not just the ones that happen to gate
