@@ -1057,3 +1057,63 @@ I have been saying **3** deliberately-parked scripts. The register has **4** —
 `agent-plugin-activation.ts`, `install-agent-plugin.ts`, `theme-tool.ts`, **plus
 `write-path-inventory.ts`** — matching the file's own header ("9 references across the remaining 4
 files"). Register left untouched.
+
+---
+
+## A21 — 15 stale-settlement races found and fixed across 6 admin hook files
+
+Every one **RED-verified before the fix**, against a scratch pre-fix copy or the unmodified module —
+**never** by writing pre-fix code into a tracked file. 7 commits, each landed immediately after GREEN.
+
+| File | Bugs | Commits |
+|---|---|---|
+| `use-sites.hooks.ts` | 3 | `bac64077` |
+| `use-roles.hooks.ts` | 5 | `3893ce27`, `7cd183e6`, `46a11d5c` |
+| `use-themes.hooks.ts` | 2 | `f06b75c9` |
+| `use-theme-explore.hooks.ts` | 2 | `0cae2b71`, `17afdb85` |
+| `use-users.hooks.ts` | 2 | `e3cc6f3a` |
+| `use-widgets-library.hooks.ts` | 1 | `8e17457f` |
+
+### The severe one — could destroy the WRONG widget
+`use-widgets-library.hooks.ts`'s `purge`: **nothing disables a widget row's delete button during the
+first (`force:false`) attempt** — no dialog is showing yet — so two rapid deletes on different
+widgets race two `WIDGETS_REFERENCED` 409s. B's 409 opens B's dialog; **A's stale 409 then silently
+swaps it to A**, and **confirming force-purges whatever `pendingForcePurge` currently names.**
+Reachable by ordinary clicking. Fixed with `purgeGenerationRef` plus a self-referential guard on
+`confirmForcePurge`'s dialog-close.
+
+### `copyFile` — a state-based guard is NOT enough
+Its `copyingPath !== null` check looked safe. A probe calling `copyFile` twice inside one synchronous
+`act()` showed **both calls read `copyingPath` as null before either committed, and both reached the
+port.** Replaced with a synchronous `copyingRef` check-then-set. **This is why the idiom is a ref,
+not state** — `use-static-publish.hooks.ts`'s `publishingRef` comment says so.
+
+### Roles/users detail worth keeping
+- Switching policy panels mid-load let a **stale panel's rows overwrite a different, currently-open
+  panel**.
+- A stale save settling after the operator moved on **closed a different row's still-open unsaved
+  inline edit**.
+- A stale delete's `clearPending` **silently dismissed a newer row's delete confirmation** — no
+  decision made.
+- `onWritePermission` cleared inputs unconditionally, **erasing a NEW value typed after a panel
+  switch**.
+- A first fix attempt for users compared against `expandedId`, which **broke an already-certified
+  test** that calls `onAssignRole` without expanding a panel. Redesigned as `toggleGenerationRef`
+  (counting panel-switch events rather than comparing identity) to satisfy both.
+
+### Correctly REFUTED — hold this bar
+`App.tsx`'s `dockT` (in no dependency array, consumer not memoized); `use-migrate-forward-section`
+(same `??`-chain text, but strictly sequential and gated — its own header says so);
+**`use-workspace.hooks.ts` (single-entity screen, no id-parameterized actions exist — the bug class
+has no surface)**; `use-roles`' `rowError` sharing (documented as intentional); `onSaveEmail` (no
+clearing side effect).
+
+### STILL UNSWEPT — not clean, just unexamined
+~28 admin hook files were filtered by a `setBusy*`/`setSaving*`/`setPending*` grep — **a shape
+filter, not a proof.** Open question named by the agent: `openResetPassword`/`confirmResetPassword`
+in `use-users` carries the same theoretical same-tick weakness `copyFile` had, but no test was
+written and it is **not** claimed broken.
+
+**Not verified**: whether `ConfirmDialog` (external `@jini-ai/admin/react`) blocks background
+interaction in a real browser. Every fix works at hook-level reachability, the same level as the
+reference fixes — real-browser reachability was not attempted.
