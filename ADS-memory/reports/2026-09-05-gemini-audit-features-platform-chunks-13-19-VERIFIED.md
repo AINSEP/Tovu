@@ -201,3 +201,163 @@ newly-confirmed test finding** (18.2 → LOW production / MEDIUM test), **2 REFR
 CRITICAL→LOW, 18.5 LOW→INFO), **1 CONFIRMED-as-INFO** (18.6), **1 DISCARDED** (18.4).
 Every cited line number in this chunk was accurate — the failure mode was severity/framing, not
 fabrication, exactly as the dispatch predicted.
+
+---
+
+## Chunk 17 — `4b35a008` `github-git-provider.ts` (priority 2)
+
+Every line number Gemini cited in this chunk is exact: prod `302`, `310`, `365`, `574`, `687`;
+tests `1100`, `1128`, `1381`. Nothing fabricated. The failures here are all framing.
+
+Caller chain for everything below:
+`tool-registrations.ts` (`source_control_commit_site`, human-gated dialog) →
+`commit-site.ts:436` `gitAdapter.commit(...)` → `createGitHubCommitAdapter().commit()`
+(`github-git-provider.ts:788-828`). `commit-site.ts` wraps that call in **no** `try/catch`
+(`:425-466`), so anything thrown inside the adapter rejects out to the tool handler.
+
+### 17.1 — HIGH: `fetchBranchTip` treats a 200 with no `object.sha` as a fresh branch → **REFRAMED (HIGH → MEDIUM)**; test claim **CONFIRMED**
+
+Code fact CONFIRMED, `github-git-provider.ts:309-311`:
+`const sha = typeof object?.sha === "string" ? object.sha : undefined; return { ok: true, tipSha: sha };`
+
+The claimed asymmetry with siblings is real and I checked all four:
+`fetchParentTree:331-332`, `createBlob:490-491`, `createTreeObject:612-613`,
+`createCommitObject:~688-689` each return
+`{ok:false, code:"provider-error", message:"… did not include a sha"}` for the identical
+200-but-missing-field shape. `fetchBranchTip` is the only step function that swallows it, and it
+swallows it in the more dangerous direction ("no parent" rather than "error").
+
+Downstream chain CONFIRMED end to end: `commit():795-796` sets
+`parentSha = tipResult.tipSha` and `branchCreated = parentSha === undefined` →
+`resolveCommitPrerequisites:764-767` short-circuits on `parentSha === undefined` and returns
+`baseTreeSha: undefined, previousManagedFiles: undefined, parents: []` → `buildTree` builds a tree
+with **no `base_tree`** (`createTreeObject:605`) → `createCommitObject` with `parents: []` (an
+orphan commit) → `writeRef(..., "create")` → `POST /git/refs`.
+
+**Where the HIGH framing breaks.** Gemini's stated consequence is "would actually 422 on real
+GitHub… or, worse, succeed and wipe history." The second half is speculation and the first half is
+not data loss — it is the *safe* outcome. GitHub's create-ref refuses an existing ref with a 422, so
+the branch is never moved; the commit fails with `provider-error` after wasting blob/tree/commit
+creations. This suite's own test at `:1100` encodes exactly that expectation (a create against an
+existing ref → 422 → `provider-error`). Nothing is overwritten, because `writeRef` never passes
+`force` and never PATCHes in this path.
+
+**Trigger probability is also low.** Real GitHub always returns `object.sha` on a 200 from
+`GET /git/ref/heads/{branch}`; reaching this needs a misbehaving gateway or proxy between us and it.
+
+**Corrected severity: MEDIUM** — a real defensive-fallback inconsistency, chosen in the unsafe
+direction, whose worst realistic outcome is a failed commit with a misleading cause, not history
+loss.
+
+**The test claim is CONFIRMED.** Test at `:1381` mocks
+`GET /git/ref/heads/main → 200` *and* `POST /git/refs → 201` for that same ref — a pair GitHub
+cannot produce (a ref that exists cannot be created). Applying the dispatch's own distinguishing
+question: **would it still pass with the bug fixed? No.** It asserts `result.ok === true` and
+`branchCreated === true`, both of which a `provider-error` fix would break. So it genuinely pins the
+current behavior rather than merely under-asserting it. In its favor, its JSDoc (`:1374-1379`)
+discloses precisely what it pins — it is a characterization test, not a covert one; the defect is
+that its impossible mock is what makes the pinned behavior look harmless.
+
+### 17.2 — HIGH: `resolveDeletionCandidates` silently drops unverifiable candidates → **REFRAMED (HIGH → MEDIUM)**; "test masks it" → **DISCARDED**, replaced by a **CONFIRMED false-JSDoc finding**
+
+Code fact CONFIRMED, `:573-579`: when `fetchLiveBlobSha` returns `undefined` the loop `continue`s,
+adding the path to neither `deletions` nor `divergedPaths`.
+
+**The "inconsistent with the codebase's own stated standard" framing is FALSE.** The file does not
+merely fail to notice this — it argues for it, twice and specifically. The header at `:138-142`
+names `fetchLiveBlobSha` as keeping "the soft-degrade… still gets (see finding 1)" in explicit
+contrast to the manifest read it was hardening, and `fetchLiveBlobSha`'s own docstring
+(`:452-466`) states the rule and the reason: "`undefined` on ANY failure… which always resolves to
+skipping just that one path, never to failing the whole commit. That narrower blast radius is
+exactly why this read gets the opposite tolerance from the manifest read itself." Gemini read a
+deliberate, documented divergence as an oversight.
+
+**What survives, and it is real.** The documented rationale covers the *deletion* decision only. It
+does not address the *manifest retention* decision, and there the two outcomes are not equivalent.
+The new manifest is written from `fileTree.currentFileShas` (`:636`) — this export's files alone — so
+a skipped candidate, which by construction is not in this export, drops out of the manifest
+permanently and is never a candidate again. The docstring's claim that a failure here "can only ever
+cost one candidate's cleanup **this pass**" is therefore understated: it costs that path's
+provenance for good. That is structurally the same defect the file's own header calls a CRITICAL fix
+(`:127-142`, "A TRANSIENT MANIFEST READ FAILURE PERMANENTLY FORGOT STALE CONTENT"), one scope down.
+
+The operator-visibility gap is the concrete harm, and I traced it: `divergedPaths` is surfaced all
+the way to the human (`commit-site.ts:467` → `tool-registrations.ts:343`, whose tool description
+instructs the model to "tell the human these need their own manual review/cleanup"). A path skipped
+for an unverifiable read gets none of that — it stays published in the repo, leaves the manifest,
+and nobody is ever told. Conflating a verified 404 ("already gone", correctly silent) with a
+410/500/network failure ("still there, we just couldn't look") is the actual bug.
+
+**Corrected severity: MEDIUM** — provenance/data-hygiene, needs a transient GitHub failure landing
+on exactly a deletion-candidate read, and the consequence is a permanently orphaned published file
+rather than any exposure.
+
+**The masking claim is DISCARDED, but a different real defect is CONFIRMED in its place.** Test 13
+(`:1128-1159`) asserts only `result.ok === true` and `filesDeleted === 0`; both would still hold if
+the code pushed the path into `divergedPaths`. **It would still pass with the bug fixed**, so by the
+dispatch's own test it is a *narrow* test, not a masking one. What is genuinely wrong is its JSDoc
+at `:1120-1127`, which states the outcome is "the candidate is left alone, **reported as diverged**,
+never deleted" — the production code does not report it as diverged, and an added
+`assert.deepEqual(result.divergedPaths, ["gone.html"])` would fail against `[]` today. A comment
+asserting behavior the code does not have, on the exact behavior at issue. **CONFIRMED, LOW** (and
+one for the false-comment register).
+
+### 17.3 — MEDIUM: `readJsonBody` has no plain-object guard → **REFRAMED (MEDIUM → LOW)**
+
+Code facts CONFIRMED. `:252-257` casts `(await response.json()) as Record<string, unknown>` with no
+shape check, and `isPlainObject` does exist at `:365` — used at `:371` and `:401` for manifest
+parsing, never in `readJsonBody`. Every consumer (`providerErrorMessage:264`, `fetchRepo:296`,
+`fetchBranchTip:309`, `createBlob:490`, and the rest) reads a property straight off it.
+
+**The claim is broader than the truth.** Of the "valid top-level JSON primitive (`null`, a number, a
+bare string)" cases, only `null` throws — property access on a number, string, boolean, or array
+boxes the value and yields `undefined` harmlessly. So the crash surface is a response body that is
+literally `null`, not "a JSON primitive."
+
+Reachability: a `null` body would make `body.json.message` / `.default_branch` / `.object` throw a
+`TypeError` that escapes `commit()` (no `try/catch` in the adapter) and then
+`commitSiteToSourceControl` (no `try/catch` at `:436`), reaching the tool handler as a rejection
+instead of a typed `provider-error`. Real GitHub does not emit a bare `null` body; a proxy could.
+
+**Corrected severity: LOW** — a genuine robustness gap with an unused guard sitting in the same file,
+but a much narrower trigger than claimed.
+
+### 17.4 — MEDIUM: ref URLs use `enc(branch)` instead of `encPath(branch)` → **CONFIRMED as a code defect; consequence UNVERIFIED**
+
+Code facts CONFIRMED and the internal contradiction is sharp. `encPath` exists at `:173-175` and its
+own docstring (`:168-172`) states the reason: "`enc` alone would turn `/` into `%2F`, which breaks
+GitHub's Contents API path routing." Yet both ref call sites use `enc`:
+- `:302` `…/git/ref/heads/${enc(branch)}` (`fetchBranchTip`)
+- `:687` `…/git/refs/heads/${enc(branch)}` (`writeRef`, update mode)
+
+`fetchLiveBlobSha:467` in the same file correctly uses `encPath` for its path.
+
+**Reachability CONFIRMED.** `BRANCH_PATTERN` in `commit-site.ts:61` is
+`/^[A-Za-z0-9._/-]{1,250}$/` — `/` is explicitly permitted, so `feature/update-copy` passes
+validation and reaches `enc()`. The suite only ever uses single-segment names (`main`, `feature-x`),
+which is why no test sees it.
+
+**What I could not settle:** whether GitHub's router 404s on `heads/feature%2Fupdate-copy` or decodes
+it back to a working ref. Confirming that needs a live authenticated GitHub call, which is outside
+what I can do here. The *defect* — one of two encoding helpers used against its own documented
+purpose — is confirmed regardless; the claimed 404→422 cascade is **UNVERIFIED**.
+Suggested severity **MEDIUM**, pending that check.
+
+### 17.5 — LOW: orphaned JSDoc + disputed commit-message characterization → **CONFIRMED (orphaned JSDoc)**
+
+CONFIRMED: at `:1348-1351` a JSDoc describing `fetchRepo`'s `default_branch` fallback is immediately
+followed by a second JSDoc describing `githubFetch`'s timeout branch, and only the second one's test
+follows. The `default_branch` block is orphaned from the test it describes. Cosmetic, real.
+
+The commit-message-characterization dispute is not independently checkable without a coverage run
+(barred here) and is, in any case, a claim about a commit message rather than about code. **Not
+adjudicated.**
+
+### Chunk 17 counts
+
+5 claims: **0 CONFIRMED at claimed severity**, **3 REFRAMED down** (17.1 HIGH→MEDIUM, 17.2
+HIGH→MEDIUM, 17.3 MEDIUM→LOW), **1 CONFIRMED as a code defect with its consequence UNVERIFIED**
+(17.4), **1 CONFIRMED** (17.5, cosmetic). One sub-claim **DISCARDED** (17.2's masking-test framing)
+and replaced by a newly confirmed false-JSDoc defect; one sub-claim **CONFIRMED** (17.1's impossible
+mock, which does pin the behavior). Neither of the two flagged "production bug + masking test" pairs
+survives as a HIGH.
