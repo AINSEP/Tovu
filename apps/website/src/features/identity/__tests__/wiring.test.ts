@@ -15,6 +15,7 @@ import "@jini-ai/cms/identity";
 // pages.edit_html, `features/pages/permissions.ts`). Registered by a host rather than by the
 // library, which is the seam `registerPermissionMigration` is exported for.
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
+import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
 import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps } from "../wiring.js";
 
 const WORKSPACE = "workspace-1";
@@ -239,4 +240,83 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a
     "content.write alone must NOT confer raw-page-HTML authoring — this is the whole point of REQ-9"
   );
   assert.ok(contentAuthor.includes("content.write"), "and ordinary content authoring is untouched");
+});
+
+/**
+ * The boot seam for the SECOND grant path, and the one the test above cannot stand in for.
+ *
+ * The `theme.edit -> pages.edit_html` case above hands the fan-out a policy that already holds
+ * `theme.edit`, so it certifies the fan-out and nothing about a workspace where no policy holds it.
+ * `sites/tovu-com/content.db` IS such a workspace: seeded before `theme.edit` joined
+ * `BUILTIN_ADMIN_PERMISSIONS`, and unable to gain it because `seedIdentity` early-returns once an
+ * owner user exists. Against that workspace the fan-out matches nothing, and before
+ * `applyBuiltinRoleGrants` was wired in here, `identityReady` left `pages.edit_html` on no policy
+ * at all — a silent fail-CLOSED that refuses `admin`, the role the permission was written for.
+ *
+ * This test runs `identityReady` over a workspace seeded by that same `seedIdentity` and asserts
+ * the built-in policies directly, so it fails if the backfill is ever dropped from the boot chain.
+ */
+test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to the built-in admin policy and to no other built-in policy (SPEC-047 REQ-9)", async () => {
+  const workspaceId = "workspace-builtin-role-grant";
+  const deps = createInMemoryIdentityRouteDeps({
+    workspaceId,
+    clock: fixedClock,
+    idGen: counterIdGen(),
+  });
+
+  // The seed this wiring kicks off is what creates the four built-in roles and their 1:1 policies.
+  await deps.identityReady;
+
+  const permissionsOfPolicyNamed = async (name: string) => {
+    const policy = await deps.policyRepo.findByName({ workspaceId, name });
+    assert.ok(policy, `seedIdentity must have created '${name}'`);
+    return (await deps.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id })).map(
+      (row) => row.permission
+    );
+  };
+
+  assert.ok(
+    (await permissionsOfPolicyNamed("admin-builtin-policy")).includes(PAGES_EDIT_HTML_PERMISSION),
+    "the built-in admin policy must hold pages.edit_html after boot"
+  );
+
+  // The refusals are the assertions that matter: a backfill that reached these would BE the
+  // SPEC-047 REQ-9 vulnerability, not a wiring bug.
+  for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
+    assert.ok(
+      !(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION),
+      `${name} must NOT gain raw-page-HTML authoring`
+    );
+  }
+
+  // The owner policy holds only `*`; `authorize()` short-circuits on it, so a row here would mean
+  // the backfill had started writing onto the wildcard policy.
+  assert.deepEqual(
+    await permissionsOfPolicyNamed("owner-builtin-policy"),
+    ["*"],
+    "the owner policy stays exactly its seeded wildcard"
+  );
+});
+
+/** Idempotence at the boot seam: two boots over the same repos must not double-write the row. */
+test("createInMemoryIdentityRouteDeps: a second identityReady over the same repos adds no duplicate pages.edit_html row", async () => {
+  const workspaceId = "workspace-builtin-role-grant-idempotent";
+  const shared = createInMemoryIdentityRouteDeps({ workspaceId, clock: fixedClock, idGen: counterIdGen() });
+  await shared.identityReady;
+
+  await applyBuiltinRoleGrants({
+    roles: shared.roleRepo,
+    rolePolicies: shared.rolePolicyRepo,
+    policies: shared.policyRepo,
+    policyPermissions: shared.policyPermissionRepo,
+    idGen: counterIdGen(),
+    workspaceId,
+  });
+
+  const policy = await shared.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
+  assert.ok(policy);
+  const rows = (await shared.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id })).filter(
+    (row) => row.permission === PAGES_EDIT_HTML_PERMISSION
+  );
+  assert.equal(rows.length, 1, "re-running the backfill must no-op, not append a second grant row");
 });

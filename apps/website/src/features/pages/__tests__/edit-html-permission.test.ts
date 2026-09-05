@@ -17,6 +17,7 @@ import {
   type IdentityRepos,
 } from "@jini-ai/cms/identity";
 
+import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations } from "../tool-registrations.js";
@@ -46,6 +47,11 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
  * `pages.edit_html` reaches an ALREADY-seeded workspace — `seedIdentity` early-returns once an owner
  * exists, so the seed list alone can never reach one), and `authorize()`'s own row matching. All
  * three are the real implementations here, over the real in-memory repo adapters.
+ *
+ * `buildChain` covers BOTH seed vintages for that reason — see {@link Vintage}. The fan-out alone
+ * reaches only a workspace seeded by the current library; the workspace this repo actually runs on
+ * predates `theme.edit`'s addition to the admin seed list and is covered by the
+ * `"pre-theme-edit"` cases below.
  *
  * ## Both sinks, not one
  *
@@ -147,6 +153,15 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
+    workspaceId: WORKSPACE,
+  });
+
+  await applyBuiltinRoleGrants({
+    roles: repos.roles,
+    rolePolicies: repos.rolePolicies,
+    policies: repos.policies,
+    policyPermissions: repos.policyPermissions,
+    idGen: counterIdGen("backfill"),
     workspaceId: WORKSPACE,
   });
 
@@ -252,7 +267,7 @@ test("a 'viewer' principal is refused pages.edit_html", async () => {
 // The grant — present to prove the gate is a gate and not a wall.
 // ---------------------------------------------------------------------------
 
-test("an 'admin' principal DOES hold pages.edit_html, reaching an already-seeded workspace through the migration fan-out", async () => {
+test("an 'admin' principal in a freshly-seeded workspace holds pages.edit_html, via the theme.edit fan-out", async () => {
   const { principals, can } = await buildChain();
 
   const decision = await can(principals.admin, PAGES_EDIT_HTML);

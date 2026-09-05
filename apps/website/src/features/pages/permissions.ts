@@ -1,5 +1,7 @@
 import { registerPermissionMigration } from "@jini-ai/cms/identity";
 
+import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
+
 /**
  * @file SPEC-047 REQ-9 — the `pages.edit_html` permission, and the grant that makes it real.
  *
@@ -16,14 +18,15 @@ import { registerPermissionMigration } from "@jini-ai/cms/identity";
  * as a wrong-looking content edit. `content.write` is ordinary authoring, and the built-in `editor`
  * role holds it.
  *
- * ## Why a migration, and not a line in the seed
+ * ## Why a boot-time grant, and not a line in the seed
  *
  * `seedIdentity` (`@jini-ai/cms`) early-returns the moment an owner user exists, so its built-in
  * grant lists only ever reach a FRESH workspace. Every already-seeded install — including this
- * repo's own `content.db` — can gain a new grant only through `migrateDeprecatedPermissionGrants`,
- * which runs on every boot from `features/identity/wiring.ts` and is additive-only and idempotent.
- * Adding the string to the library's seed list would therefore be the one change that provably does
- * NOT fix any existing installation.
+ * repo's own `content.db` — can gain a new grant only from something that runs on every boot:
+ * `migrateDeprecatedPermissionGrants` or `applyBuiltinRoleGrants`, both called from
+ * `features/identity/wiring.ts` and both additive-only and idempotent. Adding the string to the
+ * library's seed list would therefore be the one change that provably does NOT fix any existing
+ * installation.
  *
  * ## Why this is not blocked on the `@jini-ai/cms` repo
  *
@@ -34,10 +37,10 @@ import { registerPermissionMigration } from "@jini-ai/cms/identity";
  * a host can add its own pair (the library's own `identity/index.ts` says so), and the boot-time
  * fan-out that consumes the registry already lives in THIS repo. No library change is needed.
  *
- * ## Why `theme.edit` is the right `from`
+ * ## Why `theme.edit` is the right `from`, and why it is NOT sufficient on its own
  *
  * The fan-out grants `to` to every policy already holding `from`, so `from` is the thing that
- * decides who ends up with the new capability. Against the four built-in roles:
+ * decides who ends up with the new capability. Against a workspace seeded by the CURRENT library:
  *
  * - `admin` holds `theme.edit` and gains `pages.edit_html`. Intended: REQ-9 wants admin to keep it.
  * - `editor` does NOT hold `theme.edit` — the seed excludes it deliberately, with the same
@@ -48,7 +51,35 @@ import { registerPermissionMigration } from "@jini-ai/cms/identity";
  *   `authorize()` short-circuits on the wildcard before it ever looks for a matching row.
  *
  * A hand-built custom policy holding `theme.edit` also gains it, which is the correct reading of
- * "this operator was trusted with raw theme source".
+ * "this operator was trusted with raw theme source". That is why the pair stays registered.
+ *
+ * What that reasoning missed is that `theme.edit` is itself a LATE addition to
+ * `BUILTIN_ADMIN_PERMISSIONS`, and `seedIdentity` early-returns once an owner user exists. A
+ * workspace seeded before that addition has no `theme.edit` row on any policy — this repo's own
+ * `sites/tovu-com/content.db` is exactly that workspace, missing `theme.edit`,
+ * `workspace.manage`, and `admin.assistant.manage` and unable to ever gain them. An additive
+ * fan-out keyed on a `from` row that does not exist matches nothing and grants nothing, so on the
+ * only installation that actually ships, `pages.edit_html` reached NOBODY and `admin` silently lost
+ * raw-page-HTML authoring, leaving `owner` as the sole principal clearing the gate.
+ *
+ * ## Why the built-in-role grant below, and not a different `from`
+ *
+ * Re-anchoring on a permission `admin` does hold in that database (`member.manage`,
+ * `apikey.manage`, `plugin.enable`, …) would work mechanically and be a lie semantically: none of
+ * those is "trusted with source that renders into the public site", and the next reader would
+ * inherit an anchor chosen for its holder list rather than its meaning.
+ *
+ * Backfilling `theme.edit` itself would repair the same symptom, and was rejected as too broad in
+ * the direction that matters here. `theme.edit` authors template/CSS source that renders on EVERY
+ * page, so it is a strictly LARGER script-injection capability than the one this file gates.
+ * Restoring it to an already-deployed workspace is a real expansion of admin's reach and an
+ * operator's decision to make deliberately — not a side effect of a fix scoped to page HTML.
+ *
+ * `registerBuiltinRoleGrant` states the intent directly instead: the built-in `admin` role holds
+ * `pages.edit_html`. It writes one row on one `isBuiltin` policy — the admin role's own — so
+ * `editor-builtin-policy` and `viewer-builtin-policy` are unreachable structurally rather than by a
+ * filter a later edit could weaken. See `features/identity/builtin-role-grants.ts` for the
+ * mechanism and its additive-only invariant.
  *
  * Using a live permission as `from` is established here rather than novel: the catalog's
  * `settings.user.write -> settings.user.read` pair does exactly this and says so in its own reason
@@ -57,8 +88,9 @@ import { registerPermissionMigration } from "@jini-ai/cms/identity";
  *
  * ## Ordering
  *
- * The registration below is a module-evaluation side effect, and it must happen before
- * `migrateDeprecatedPermissionGrants` runs. It does, by ES module semantics rather than by luck:
+ * The registrations below are module-evaluation side effects, and they must happen before
+ * `migrateDeprecatedPermissionGrants`/`applyBuiltinRoleGrants` run. They do, by ES module semantics
+ * rather than by luck:
  * both consumers of {@link PAGES_EDIT_HTML_PERMISSION} (`routes/pages/update-html.ts` and
  * `features/pages/tool-registrations.ts`) are in the static import graph of the composition roots
  * that call `createSqliteIdentityRouteDeps`/`createInMemoryIdentityRouteDeps`, so this module is
@@ -98,4 +130,17 @@ registerPermissionMigration({
     "this mechanism's rename pairs, `from` is not deprecated — theme.edit stays live and untouched " +
     "(the fan-out is additive-only); it is used here as the trust anchor, following the " +
     "settings.user.write -> settings.user.read precedent.",
+});
+
+registerBuiltinRoleGrant({
+  role: "admin",
+  permission: PAGES_EDIT_HTML_PERMISSION,
+  reason:
+    "SPEC-047 REQ-9: the built-in admin role authors raw page HTML; editor and viewer do not. " +
+    "Stated against the role rather than derived from another permission because the theme.edit " +
+    "-> pages.edit_html pair above only reaches a workspace that HOLDS theme.edit, and a workspace " +
+    "seeded before theme.edit joined BUILTIN_ADMIN_PERMISSIONS never will (seedIdentity " +
+    "early-returns once an owner user exists). Without this, every already-deployed workspace " +
+    "gates raw-page-HTML authoring on a permission no principal holds, which refuses admin rather " +
+    "than only editor.",
 });

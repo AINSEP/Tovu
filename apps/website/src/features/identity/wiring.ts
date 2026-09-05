@@ -4,6 +4,7 @@ import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { authorize as authorizeCore } from "@jini-ai/cms/identity";
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/cms/identity";
+import { applyBuiltinRoleGrants } from "./builtin-role-grants.js";
 import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/cms/identity";
 import {
   InMemoryPolicyPermissionRepo,
@@ -135,6 +136,24 @@ function buildIdentityRouteDeps(
       migrateDeprecatedPermissionGrants({
         policyPermissions: repos.policyPermissions,
         policies: repos.policies,
+        idGen: required.idGen,
+        workspaceId: required.workspaceId,
+      })
+    )
+    .then(() =>
+      // SPEC-047 REQ-9: the second boot-time grant path, and the one that covers what the fan-out
+      // above structurally cannot. That fan-out is `from`-anchored, so it reaches a workspace only
+      // when the anchor permission is already present there; a permission whose intended holder
+      // holds no suitable anchor in THIS workspace reaches nobody, silently, and the gate refuses
+      // its own intended role. `applyBuiltinRoleGrants` states the grant against the built-in role
+      // instead and reconciles it here. Additive-only and idempotent, same as the step above — see
+      // `builtin-role-grants.ts`. Ordered AFTER the fan-out so a grant the fan-out would have made
+      // is already in place and this step no-ops on it rather than racing it.
+      applyBuiltinRoleGrants({
+        roles: repos.roles,
+        rolePolicies: repos.rolePolicies,
+        policies: repos.policies,
+        policyPermissions: repos.policyPermissions,
         idGen: required.idGen,
         workspaceId: required.workspaceId,
       })
