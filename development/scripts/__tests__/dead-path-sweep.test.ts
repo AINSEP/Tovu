@@ -97,6 +97,8 @@ import {
  * pre-fix shape.
  *
  * The remaining 18 references across 6 files are unchanged and still the owner's call.
+ * (Two of those six — `convert-legacy-doc-pages-to-html.ts` and `migrate-page-embed-markers.ts` —
+ * were fixed in the 2026-09-05 pass documented below; their entries are gone from the register now.)
  *
  * 2026-09-05: the disclosed single-trailing-literal-segment blind spot in class 3 (`path.join(REPO_ROOT,
  * "src")`, one argument, no `/` of its own) is now closed — `classifyPathJoinSegments` in
@@ -109,6 +111,22 @@ import {
  * (`package.json`'s `"imports"` field) and every prior repoint of this same rot. See the `closed:` and
  * `historical:` tests below for the proof, both that the new classifier catches this shape and that a
  * fresh sweep of the fixed file now finds nothing.
+ *
+ * 2026-09-05, later the same day: `convert-legacy-doc-pages-to-html.ts` and `migrate-page-embed-markers.ts`
+ * (`bc4b847b`, `45474e26`) had their imports repointed from the dead `../../src/...` prefix to
+ * `../../apps/website/src/...`, including the two targets that were also renamed in the restructure
+ * (`repo.sqlite.ts` -> `entry-refs-repo.sqlite.ts`, `html-document-store.ts` ->
+ * `html-document-store.sqlite.ts`). That made the staleness gate below fail — the register still
+ * listed the old dead specifiers for both files. Their 9 entries are removed below; the register is
+ * now 9 references across the remaining 4 files. Those 4 — `agent-plugin-activation.ts`,
+ * `install-agent-plugin.ts`, `theme-tool.ts`, `write-path-inventory.ts` — are still genuinely broken
+ * (`src/` does not exist at the repo root) and still parked on the same `UNRUN_ONE_SHOT` rationale.
+ * One imprecision in that rationale worth flagging without editing it: "nothing invokes it" describes
+ * CI/test reachability, not manual reachability — `agent-plugin-activation.ts` and
+ * `install-agent-plugin.ts` are each wired to a `package.json` script (`agent-plugin:activation`,
+ * `agent-plugin:install`) and `theme-tool.ts` to `theme`, so a person can still run them directly even
+ * though no test or CI step does. `KnownBrokenEntry` has only a `rationale` field, so there's nowhere
+ * to record that distinction structurally without inventing one — left as a follow-up, not fixed here.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
@@ -178,19 +196,6 @@ const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEn
     "../../src/features/agent-plugins/install-from-url.js",
     "../../src/features/agent-plugins/layout.js",
   ]),
-  ...known("development/scripts/convert-legacy-doc-pages-to-html.ts", UNRUN_ONE_SHOT, [
-    "../../src/platform/db/sqlite/content-db.js",
-    "../../src/platform/db/sqlite/db-ops.js",
-    "../../src/contracts/core/entry-refs/repo.sqlite.js",
-    "../../src/features/pages/html-document-store.js",
-    "../../src/server/inbound/public-http/http/site/render.js",
-  ]),
-  ...known("development/scripts/migrate-page-embed-markers.ts", UNRUN_ONE_SHOT, [
-    "../../src/platform/db/sqlite/content-db.js",
-    "../../src/contracts/core/embeds/marker.js",
-    "../../src/contracts/core/entry-refs/extractor.js",
-    "../../src/contracts/core/entry-refs/repo.sqlite.js",
-  ]),
   ...known("development/scripts/theme-tool.ts", UNRUN_ONE_SHOT, ["../../src/features/theme/theme.js"]),
   ...known(
     "development/scripts/write-path-inventory.ts",
@@ -235,8 +240,8 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 18 references remaining after the 2026-09-03 gate-repoint pass — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 18);
+test("known-broken register is exactly the 9 references remaining after the 2026-09-05 convert-legacy-doc-pages-to-html.ts/migrate-page-embed-markers.ts fix pass — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 9);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {
