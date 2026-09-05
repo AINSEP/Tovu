@@ -15,28 +15,73 @@ STATUS: IN PROGRESS — this skeleton is committed first; sections below are app
 
 ## Summary
 
-- Chunks audited: 0 / (planned ~10-14)
-- Findings raised by Gemini: TBD
-- Confirmed: TBD
-- Discarded (disproved on verification): TBD
-- Unverified (plausible, needs a test run not permitted in this session): TBD
+STATUS: audit stopped here by owner-agreed scope — 7 of the ~13 planned chunks completed, covering the
+highest-risk areas of this slice (security-adjacent code, CI/gate integrity, and the largest new feature).
+Not a claim that the remaining areas are clean — see "Areas not covered" below.
+
+- Chunks audited: 7 (backfill/recovery scripts; CI gate scripts x2; CI workflow + root config; admin/src/lib;
+  new Sites feature; Security+Settings screens; App.tsx/AssistantDock incl. the MCP-UI security fix)
+- Gemini findings raised across all 7 chunks: ~53
+- Confirmed real (37 numbered findings kept in this report, several with severity downgraded or reframed
+  after verification — see each chunk's notes)
+- Discarded as factually wrong on verification: ~10 (see each chunk's "Discarded" list for the specific
+  disproof — the most consequential: a claimed "every CI run will fail" finding that turned out to reference
+  npm scripts which do in fact exist)
+- Reframed as real-but-predating-this-audit's-window (2026-09-03/04): ~4 (a site-chat dependency-lockfile
+  drift, a stale fly.toml comment, a pre-existing `omitIfBlank` trim gap, a pre-existing `onTrustChange`
+  no-op stub)
+- Left genuinely unresolved (could not confirm or discard without a real browser): 2 (both about whether the
+  MCP-UI same-origin security fix can be bypassed — see the App.tsx/AssistantDock chunk for the full
+  reasoning chain and an explicit recommendation to smoke-test manually)
+
+**Top findings by severity** (full detail and file:line in each chunk section below):
+1. **CRITICAL, live and reachable today** — `apps/admin/src/lib/api.ts:1801-1806` `buildFetchInit`'s
+   object-spread order silently drops `Content-Type: application/json` whenever a caller passes custom
+   headers; confirmed this breaks the admin UI's "save Dockerfile" action today (finding 16). Predates this
+   audit's window (relocated, not introduced, by the 2026-09-04 refactor) but is real and current.
+2. **HIGH** — `check-governance-adr-scope-drift.ts`'s target file is untracked by git, so the gate is
+   vacuous everywhere except the machine that happens to have it locally (finding 8).
+3. **HIGH** — `dead-path-sweep.ts`'s disclosed single-segment blind spot has a live, currently-undetected
+   victim: `development/scripts/rewrite-deep-imports.ts:50` references a `src/` directory that no longer
+   exists (finding 13).
+4. **HIGH** — the Sites screen's `siteRowState` contradicts its own sibling `activationOutlook` under a
+   `TOVU_SITE_DIR` override, telling the operator a choice is "queued" when a banner on the same screen
+   correctly says it will be ignored (finding 19).
+5. **HIGH** — `use-access-tokens.hooks.ts`'s `reloadAllStores` cluster: a stale query error permanently masks
+   a later successful reload (finding 26), a `Promise.all` short-circuit discards successful stores' fresh
+   data when a sibling store's fetch fails (finding 27), an unguarded race lets an older reload's response
+   overwrite a newer one (finding 28), and an unmemoized `t` defeats the surrounding `useCallback`, causing
+   the exact SSE-resubscribe churn the code's own comment warns against (finding 29).
+6. **HIGH** — `SlowRunNoticeCard` ignores the `runStreaming`/`runSucceeded` props it's given, so a "still
+   working" notice persists forever after a run completes (finding 34).
 
 ## Coverage map (chunks planned)
 
-- [ ] Security/gate-integrity: backfill scripts (password reset, AAD family, custom-credential-usernames)
-- [ ] CI/gate scripts: check-governance-adr-scope-drift.ts, check-menu-href-allowlist-sync.ts, check-coverage-integrity.ts,
+- [x] Security/gate-integrity: backfill scripts (password reset, AAD family, custom-credential-usernames)
+- [x] CI/gate scripts: check-governance-adr-scope-drift.ts, check-menu-href-allowlist-sync.ts, check-coverage-integrity.ts,
       check-admin-complexity-drift.ts, dead-path-sweep.ts, route-coverage-lib.ts, check-route-coverage-diff.ts
-- [ ] .github/workflows/ci.yml, fly-deploy.yml, root config (eslint.config.mjs, package.json, fly.toml)
-- [ ] Complexity/architecture baselines (src-complexity-debt.json, admin-complexity-debt.json, check-architecture.baseline.json)
-- [ ] apps/admin/src/lib: api.ts, assistant-transport.ts, resolve-active-tab-id.ts
-- [ ] apps/admin new Sites feature (Sites.tsx, use-sites.hooks.ts, rules.ts, sites-dependencies/sites-port hooks)
-- [ ] apps/admin App.tsx / App.hooks.tsx, AssistantDock, SlowRunNoticeCard
-- [ ] apps/admin Media.tsx, Collections.tsx, MenuEditor.tsx
-- [ ] apps/admin Settings/ExternalMcpSettingsPanel, Security/AccessTokensTab + hooks
-- [ ] apps/admin hooks-extraction refactor commits (no-logic-in-tsx rule compliance) — Pages, Posts, ThemeExplore, AiAssistant, etc.
-- [ ] apps/admin vite.config.ts, dev.mjs
-- [ ] Test-quality spot checks on the largest new test files
-- [ ] packages/sdk/package.json, apps/site-chat changes
+- [x] .github/workflows/ci.yml, fly-deploy.yml, root config (eslint.config.mjs, package.json, fly.toml)
+- [x] apps/admin/src/lib: api.ts, assistant-transport.ts, resolve-active-tab-id.ts
+- [x] apps/admin new Sites feature (Sites.tsx, use-sites.hooks.ts, rules.ts, sites-dependencies/sites-port hooks)
+- [x] apps/admin App.tsx / App.hooks.tsx, AssistantDock, SlowRunNoticeCard (incl. the MCP-UI security fix)
+- [x] apps/admin Settings/ExternalMcpSettingsPanel, Security/AccessTokensTab + hooks
+- [x] packages/sdk/package.json, apps/site-chat changes (both license-only in-window; a real but
+      out-of-window site-chat lockfile drift noted separately)
+- [ ] **NOT COVERED** — apps/admin Media.tsx, Collections.tsx, MenuEditor.tsx (large diffs: 363/268/114 lines)
+- [ ] **NOT COVERED** — Complexity/architecture baselines (src-complexity-debt.json, admin-complexity-debt.json,
+      check-architecture.baseline.json) — lower expected yield (data files), but not verified
+- [ ] **NOT COVERED** — apps/admin hooks-extraction refactor commits as a batch (no-logic-in-tsx rule
+      compliance) — Pages, Posts, ThemeExplore, AiAssistant, ThemePageDetailsModal, and others; spot-checked
+      individually only where they intersected an already-audited file (e.g. Themes.tsx, App.tsx)
+- [ ] **NOT COVERED** — apps/admin vite.config.ts, development/scripts/dev.mjs (dev-server TLS plumbing)
+- [ ] **NOT COVERED** — dedicated test-quality spot check on the largest new/changed test files (e.g.
+      `AccessTokensTab.credential-flows.unit.test.tsx` (619 new lines), `use-access-tokens.unit.test.tsx`
+      (803 changed lines), `api-endpoint-option-branches.unit.test.ts` (695 new lines),
+      `dead-path-sweep.test.ts` (315 changed), `check-governance-adr-scope-drift.test.ts` (212 new),
+      `backfill-custom-credential-usernames.test.ts` (234 changed)) — none of these were read for
+      "asserts nothing meaningful" / mock-hides-the-real-code patterns
+- [ ] **NOT COVERED** — apps/admin/src/features/menus/MenuEditor.tsx's own unit test changes (69 lines),
+      apps/admin/src/features/pages/** hooks-extraction diffs beyond what Themes.tsx pulled in
 
 ## Findings
 
@@ -617,4 +662,16 @@ browser smoke test rather than trusting either the audit or the code's own claim
 
 ## Areas not covered / caveats
 
-TBD at completion.
+- See the coverage map's unchecked items above for the specific files/areas not audited: Media.tsx,
+  Collections.tsx, MenuEditor.tsx, the complexity/architecture baseline JSON diffs, the hooks-extraction
+  refactor commits as a general sweep (Pages/Posts/ThemeExplore/AiAssistant/ThemePageDetailsModal and others,
+  beyond the one file each already-audited chunk happened to touch), vite.config.ts/dev.mjs, and a dedicated
+  test-quality pass on the largest new/changed test files.
+- Two security-relevant claims about the MCP-UI same-origin fix (App.tsx/AssistantDock chunk, findings
+  labeled "neither confirmed nor discarded") could not be resolved without a real browser — recommend an
+  actual manual smoke test of an MCP-UI surface in the admin app before treating either verdict as settled.
+- No tests, coverage, or typecheck were run anywhere in this audit (per the dispatch's machine constraint);
+  every "confirmed" finding above was verified by reading source, tracing callers, and in a few cases reading
+  third-party package source resolved via the local sibling-Jini symlink — never by executing code.
+- Every "pre-existing, not introduced in this window" finding was confirmed via `git log`/`git diff` against
+  the specific commit that changed the file, not assumed — see each such finding's own provenance note.
