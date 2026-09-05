@@ -459,7 +459,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
   height: 42px; border-radius: 10px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--fg); padding: 0 14px; font-size: 14px; font-family: var(--font-body);
 }
-.field input:focus { outline: none; border-color: var(--accent); }
+.field input:focus { outline: none; border-color: var(--accent-text); }
 .auth-foot { text-align: center; font-size: 13px; color: var(--muted); margin-top: 20px; }
 .auth-foot a { color: var(--fg); border-bottom: 1px solid var(--border-strong); }
 .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; }
