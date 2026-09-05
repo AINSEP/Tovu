@@ -78,7 +78,13 @@ export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
         throw new PostNotFoundError(`post '${slug}' was not found`);
       }
 
-      res.json(toContentPostResponse({ post, activeThemeId: settings.activeThemeId }));
+      // SECURITY FIX (2026-09-05, Gemini audit finding #7): this response depends on the caller's
+      // OWN member session cookie (the gate decision above is per-visitor), so a shared cache in
+      // front of the origin must never store and replay it to a later, different caller. Matches
+      // the convention every other gated route in this codebase already uses for exactly this
+      // reason -- `routes/site/pages.ts`'s `CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE` and
+      // `routes/site/media-rendition.ts`'s gated branch both send the identical `private, no-store`.
+      res.set("Cache-Control", "private, no-store").json(toContentPostResponse({ post, activeThemeId: settings.activeThemeId }));
     } catch (err) {
       if (err instanceof PostNotFoundError || err instanceof PresentationSettingsNotFoundError) {
         res.status(404).json({ error: err.message });

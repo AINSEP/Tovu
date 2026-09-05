@@ -95,6 +95,16 @@ test("GET content post by slug: a published post is served with presentation set
   assert.ok(body.presentation.activeThemeId.length > 0);
 });
 
+test("GET content post by slug: the 200 response sets Cache-Control: private, no-store -- BUG (2026-09-05 Gemini audit finding #7): this member-gated JSON route set no Cache-Control at all, so a reverse proxy/shared cache could legally cache and replay a member-only post's JSON to a later unauthenticated caller. Matches the convention `routes/site/pages.ts`'s CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE and `routes/site/media-rendition.ts`'s gated branch both already use.", async (t) => {
+  const { app, deps } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  await deps.postRepo.save(makePost({ id: "p-cache-control", slug: "cache-control-hello", title: "Cache Control Hello", status: "published" }));
+
+  const res = await fetch(`${baseUrl}${contentUrl("cache-control-hello")}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("cache-control"), "private, no-store");
+});
+
 test("GET content post by slug: a draft post 404s (never served to an anonymous visitor)", async (t) => {
   const { app, deps } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
