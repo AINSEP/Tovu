@@ -231,6 +231,50 @@ test("nesting well within the depth cap is allowed", () => {
   assert.deepEqual(lintHandlebarsTemplate(shallow), []);
 });
 
+// Subexpression nesting (`(helper (helper (helper …)))`) is a SEPARATE recursion path from block
+// nesting above — it descends through `walkExpression`/`walkParamsAndHash`, never re-entering
+// `walkHandlebarsNodes`, so the block-nesting cap above does not by itself prove this path is
+// bounded. 100 levels is cheap to parse (well under 2KB) and nowhere near the several-thousand
+// levels needed to exhaust the real call stack — this test certifies the depth guard rejects, not
+// that a stack overflow happens.
+function nestedSubexpression(depth: number): string {
+  let expr = "render_block";
+  for (let i = 0; i < depth; i++) expr = `render_block x=(${expr})`;
+  return `{{${expr}}}`;
+}
+
+test("a template with subexpression nesting past the depth cap is rejected the same way block nesting is, not left to recurse unbounded", () => {
+  const violations = lintHandlebarsTemplate(nestedSubexpression(100));
+  assert.equal(violations.length, 1, `expected one de-duplicated depth violation, got: ${JSON.stringify(violations)}`);
+  assert.match(violations[0], /nesting exceeds the maximum allowed depth/);
+});
+
+test("subexpression nesting well within the depth cap is allowed", () => {
+  assert.deepEqual(lintHandlebarsTemplate(nestedSubexpression(10)), []);
+});
+
+test("an unexpected exception during the AST walk itself is caught and reported as a violation rather than escaping — defense in depth for the documented 'total, non-throwing predicate' contract, independent of the depth guard above", () => {
+  const originalParse = Handlebars.parse;
+  try {
+    (Handlebars as unknown as { parse: unknown }).parse = () => ({
+      type: "Program",
+      body: [
+        {
+          get type(): string {
+            throw new Error("simulated walker failure");
+          },
+        },
+      ],
+    });
+
+    const violations = lintHandlebarsTemplate("any");
+    assert.equal(violations.length, 1);
+    assert.match(violations[0], /Handlebars template failed lint/);
+  } finally {
+    (Handlebars as unknown as { parse: unknown }).parse = originalParse;
+  }
+});
+
 test("an oversized template source is rejected before it is ever parsed", () => {
   const violations = lintHandlebarsTemplate("x".repeat(1_000_001));
   assert.equal(violations.length, 1);
