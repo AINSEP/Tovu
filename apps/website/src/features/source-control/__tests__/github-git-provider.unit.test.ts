@@ -658,7 +658,10 @@ test("a candidate deletion whose LIVE-verification read itself fails is skipped 
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
     assert.equal(result.ok, true, `a per-path verification failure must not block the whole commit, got: ${JSON.stringify(result)}`);
-    if (result.ok) assert.equal(result.filesDeleted, 0, "an unverifiable candidate must not be deleted");
+    if (result.ok) {
+      assert.equal(result.filesDeleted, 0, "an unverifiable candidate must not be deleted");
+      assert.deepEqual(result.divergedPaths, ["flaky-check.html"], "a per-path network failure must be reported, not silently dropped from the manifest");
+    }
     assert.ok(resultingWorld, "the simulated merge must have run — the commit itself must still succeed");
     assert.equal(resultingWorld!.has("flaky-check.html"), true, "content this pass could not verify must survive, not be guessed-deleted");
   } finally {
@@ -1125,7 +1128,7 @@ test("PROVIDER_ERROR: a brand-new branch's ref CREATE is itself rejected by GitH
  *  "gone" status for a deleted file, distinct from a 404). Same observable outcome either way (the
  *  candidate is left alone, reported as diverged, never deleted) — proving the code path, not a new
  *  behavior. */
-test("a candidate deletion's live-verification GET receiving a real non-ok response (not a thrown network error) is treated the same as an unverifiable path", async () => {
+test("a candidate deletion's live-verification GET receiving a real non-ok, non-404 response (not a thrown network error) is unverifiable — reported via divergedPaths, never silently dropped", async () => {
   const FLAKY_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
   const MANIFEST = { version: 2, files: [{ path: "gone.html", sha: FLAKY_SHA }] };
   const mock = installMockFetch([
@@ -1142,7 +1145,9 @@ test("a candidate deletion's live-verification GET receiving a real non-ok respo
     // content is verified (resolveDeletionCandidates), THEN the manifest blob is created — this
     // queue's order must match that real sequence, not the reverse.
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
-    // A REAL response, not a thrown error — GitHub's own "410 Gone" for a permanently removed file.
+    // A REAL response, not a thrown error, and NOT a 404 — GitHub's own "410 Gone" for a permanently
+    // removed file is a distinct, non-404 rejection: unlike a verified 404, this does not confirm the
+    // path is actually absent, so it must land in divergedPaths rather than be silently dropped.
     { match: /\/contents\/gone\.html/, method: "GET", status: 410, json: { message: "Gone" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -1152,7 +1157,44 @@ test("a candidate deletion's live-verification GET receiving a real non-ok respo
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
     assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
-    if (result.ok) assert.equal(result.filesDeleted, 0, "an unverifiable (non-ok, non-thrown) candidate must never be deleted");
+    if (result.ok) {
+      assert.equal(result.filesDeleted, 0, "an unverifiable (non-ok, non-thrown, non-404) candidate must never be deleted");
+      assert.deepEqual(result.divergedPaths, ["gone.html"], "an unverifiable candidate must be reported, not silently dropped from the manifest");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("a candidate deletion's live-verification GET receiving a VERIFIED 404 is confirmed-absent — nothing left to report, unlike an unverifiable (non-404) rejection", async () => {
+  const GONE_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
+  const MANIFEST = { version: 2, files: [{ path: "already-deleted.html", sha: GONE_SHA }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    {
+      match: /\/contents\/\.tovu\/managed-files\.json/,
+      method: "GET",
+      status: 200,
+      json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" },
+    },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    // A VERIFIED 404 — GitHub confirms this path is genuinely gone (already deleted by a previous
+    // pass or a human), distinct from the 410/500/network cases above which do NOT confirm absence.
+    { match: /\/contents\/already-deleted\.html/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs\/heads\/main$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
+    if (result.ok) {
+      assert.equal(result.filesDeleted, 0, "a confirmed-absent path was never live to delete");
+      assert.deepEqual(result.divergedPaths, [], "a verified 404 is not a divergence — there is nothing left to report");
+    }
   } finally {
     mock.restore();
   }
@@ -1399,7 +1441,7 @@ test("PROVIDER_ERROR: a branch-tip lookup's 200 response is missing its own obje
   }
 });
 
-test("a candidate deletion's live-verification GET receiving a 2xx response that fails to parse as JSON is treated as unverifiable, never crashes", async () => {
+test("a candidate deletion's live-verification GET receiving a 2xx response that fails to parse as JSON is unverifiable, never crashes, and is reported via divergedPaths", async () => {
   const FLAKY_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
   const MANIFEST = { version: 2, files: [{ path: "weird.html", sha: FLAKY_SHA }] };
   const mock = installMockFetch([
@@ -1417,7 +1459,10 @@ test("a candidate deletion's live-verification GET receiving a 2xx response that
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
     assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
-    if (result.ok) assert.equal(result.filesDeleted, 0, "an unparseable live-verification body must never authorize a delete");
+    if (result.ok) {
+      assert.equal(result.filesDeleted, 0, "an unparseable live-verification body must never authorize a delete");
+      assert.deepEqual(result.divergedPaths, ["weird.html"], "an unparseable live-verification body must not silently drop the path from the manifest");
+    }
   } finally {
     mock.restore();
   }

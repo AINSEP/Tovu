@@ -449,26 +449,40 @@ async function fetchManagedManifest(token: string, owner: string, repo: string, 
   return { ok: true, files };
 }
 
+/** THREE-way, not two: {@link resolveDeletionCandidates} needs "GitHub confirms the path no longer
+ *  exists" (`"confirmed-absent"` — nothing to report, there is genuinely nothing left to track) kept
+ *  distinct from "still there, we just couldn't look" (`"unverifiable"` — network failure, a non-404
+ *  non-2xx status, or a 2xx body this file can't read a sha out of). Collapsing both into one bucket
+ *  used to drop an unverifiable path out of `divergedPaths` (which the human does see) exactly like a
+ *  verified deletion, silently forgetting its provenance on nothing stronger than a transient read
+ *  failure — see this file's header SECOND-ROUND CRITICAL FIX note, finding 1, for the identical
+ *  mistake one scope up (the manifest read itself). */
+type LiveBlobShaResult = { kind: "found"; sha: string } | { kind: "confirmed-absent" } | { kind: "unverifiable" };
+
 /** Reads the CURRENT blob sha GitHub has for `path` on `branch` right now — used ONLY to verify a
  *  single candidate deletion still matches what this adapter itself last recorded writing (this file's
  *  header SECOND-ROUND CRITICAL FIX note, finding 1). Best-effort, mirroring the tolerance
  *  {@link fetchManagedManifest} itself used to have before this same fix made THAT read load-bearing:
- *  `undefined` on ANY failure (network, non-2xx, unparseable body) or when the path is genuinely absent
- *  (404, e.g. already deleted by a previous pass or a human). Every one of those outcomes means the same
- *  thing to {@link buildTree}'s caller — "cannot confirm this ONE deletion is safe" — which always
- *  resolves to skipping just that one path, never to failing the whole commit. That narrower blast
- *  radius is exactly why this read gets the opposite tolerance from the manifest read itself: a failure
- *  here can only ever cost one candidate's cleanup this pass, never the ownership record as a whole.
+ *  `"unverifiable"` on ANY failure (network, non-2xx other than 404, unparseable body) — {@link
+ *  resolveDeletionCandidates} treats it as "cannot confirm this ONE deletion is safe, but must still
+ *  account for the path," which always resolves to skipping just that one deletion (never to failing
+ *  the whole commit) while still reporting it. That narrower blast radius is exactly why this read gets
+ *  the opposite tolerance from the manifest read itself: a failure here can only ever cost one
+ *  candidate's cleanup this pass, never the ownership record as a whole. Only a VERIFIED 404 (the path
+ *  is genuinely absent, e.g. already deleted by a previous pass or a human) is `"confirmed-absent"` —
+ *  the one outcome with nothing left to track or report.
  *
  * @complexity One `fetch()` per call — bounded by the (typically small) number of candidate deletions,
  *   never by the size of the whole repository.
  */
-async function fetchLiveBlobSha(token: string, owner: string, repo: string, branch: string, path: string): Promise<string | undefined> {
+async function fetchLiveBlobSha(token: string, owner: string, repo: string, branch: string, path: string): Promise<LiveBlobShaResult> {
   const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/contents/${encPath(path)}?ref=${enc(branch)}`, { headers: githubHeaders(token) });
-  if (result.kind !== "response" || !result.response.ok) return undefined;
+  if (result.kind !== "response") return { kind: "unverifiable" };
+  if (result.response.status === 404) return { kind: "confirmed-absent" };
+  if (!result.response.ok) return { kind: "unverifiable" };
   const body = await readJsonBody(result.response);
-  if (!body.ok) return undefined;
-  return typeof body.json.sha === "string" ? body.json.sha : undefined;
+  if (!body.ok) return { kind: "unverifiable" };
+  return typeof body.json.sha === "string" ? { kind: "found", sha: body.json.sha } : { kind: "unverifiable" };
 }
 
 /** Creates one blob object, returning its sha.
@@ -550,6 +564,18 @@ async function buildFileTreeEntries(
   return { ok: true, tree, currentPaths, currentFileShas };
 }
 
+/** What {@link resolveDeletionCandidates} does with one candidate once its live content is known —
+ *  `"skip"` (confirmed absent: nothing to delete or report), `"diverged"` (never auto-deleted, but
+ *  reported: either unverifiable, or verified live content that no longer matches), or `"delete"`
+ *  (verified live content matches exactly what this adapter last wrote). Pure classification, split
+ *  out of the loop below so the four-way outcome dispatch reads as one flat decision instead of
+ *  nesting inside both the candidates loop and its own network-result check. */
+function classifyLiveResult(liveResult: LiveBlobShaResult, recordedSha: string): "skip" | "diverged" | "delete" {
+  if (liveResult.kind === "confirmed-absent") return "skip";
+  if (liveResult.kind === "unverifiable") return "diverged";
+  return liveResult.sha === recordedSha ? "delete" : "diverged";
+}
+
 /** Phase 2: verifies each deletion CANDIDATE (a path this adapter previously recorded owning that
  * the current export no longer produces) against its LIVE content before treating it as safe to
  * delete — never from list membership alone (this file's header SECOND-ROUND CRITICAL FIX note,
@@ -571,23 +597,22 @@ async function resolveDeletionCandidates(
       divergedPaths.push(candidate.path);
       continue;
     }
-    const liveSha = await fetchLiveBlobSha(token, owner, repo, branch, candidate.path);
-    if (liveSha === undefined) {
-      // Already gone, or this ONE path's verification read failed — either way there is nothing this
-      // pass can safely delete now. Not reported as a divergence: an absent/unverifiable path in
-      // isolation is not evidence of tampering, just nothing this pass could act on.
+    const liveResult = await fetchLiveBlobSha(token, owner, repo, branch, candidate.path);
+    // "skip" (confirmed-absent): an absent path in isolation is not evidence of tampering — nothing
+    // to delete, nothing to report. "diverged" covers TWO distinct cases, both reported so the path
+    // is never silently dropped from `divergedPaths` (which the human does see) or the next manifest
+    // (built from this pass's export alone, so a skipped candidate is never a candidate again): an
+    // UNVERIFIABLE read (network, a non-404 error status, an unreadable body — the path is
+    // presumably still there, we just couldn't confirm it), or a verified live sha that no longer
+    // matches (content changed since this adapter wrote it). "delete": verified, safe to remove.
+    const verdict = classifyLiveResult(liveResult, candidate.sha);
+    if (verdict === "skip") continue;
+    if (verdict === "diverged") {
+      divergedPaths.push(candidate.path);
       continue;
     }
-    if (liveSha === candidate.sha) {
-      // Verified: the live content is EXACTLY what this adapter itself last wrote. Safe to delete.
-      deletedPaths.push(candidate.path);
-      deletions.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
-    } else {
-      // Content changed since this adapter wrote it — never delete unverified content. It naturally
-      // drops out of the NEW manifest below (it is not part of `currentFileShas` either, since it was
-      // never part of this export), so this adapter simply stops claiming ownership of it going forward.
-      divergedPaths.push(candidate.path);
-    }
+    deletedPaths.push(candidate.path);
+    deletions.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
   }
   return { deletions, deletedPaths, divergedPaths };
 }
