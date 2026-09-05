@@ -2,8 +2,8 @@ import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types";
-import { CALLER2_COMPLIANCE_CAPTURES_20260805 } from "../../../development/evals/tool-search-caller2-compliance-captures-2026-08-05";
-import { HELD_OUT_V2 } from "../../../development/evals/tool-search-heldout-v2";
+import { CALLER2_COMPLIANCE_CAPTURES_20260805 } from "./tool-search-caller2-compliance-captures-2026-08-05.js";
+import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 
 function fakeRouteDeps(): RouteDeps {
   const deps = {
