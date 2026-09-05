@@ -67,64 +67,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # NO TOKEN OR SECRET IS NEEDED TO CLONE AINSEP/Jini -- it is a PUBLIC repository.
-      #
-      # An earlier revision of this file carried a `Guard - JINI_CHECKOUT_TOKEN must be set` step
-      # here that hard-failed the build when that secret was absent, on the stated-as-verified claim
-      # that AINSEP/Jini is private. That claim was FALSE: `gh api repos/AINSEP/Jini --jq '.private'`
-      # returns `false` (i.e. NOT private) and was misread as confirming private. Re-verified with no
-      # authentication at all on 2026-08-16:
-      #   curl https://api.github.com/repos/AINSEP/Jini                            -> HTTP 200
-      #   curl https://github.com/AINSEP/Jini.git/info/refs?service=git-upload-pack -> HTTP 200
-      #   git ls-remote https://github.com/AINSEP/Jini.git general-work            -> 31500c90...
-      # Anonymous clone works. The guard would have failed every run for a secret nobody needs.
-      #
-      # Do not re-add a `token:` to the Jini checkout below. Passing one would make a future reader
-      # infer that credentials are required here, which is exactly how the wrong claim propagated the
-      # first time.
-
-      - name: Resolve matching Jini branch
-        id: jini-ref
-        # Tovu and Jini are developed in lockstep on same-named branches (both `general-work`
-        # tonight), not against Jini's `main`. Falls back to Jini's `main` if no branch of the same
-        # name exists there. The unconditional `git ls-remote ... HEAD` first is the load-bearing
-        # part: `set -e` makes a bad/expired token (or no repo access) fail this step immediately and
-        # loudly, rather than silently falling through to "branch not found, use main" -- those are
-        # very different problems and must not look the same.
-        run: |
-          set -euo pipefail
-          REMOTE="https://github.com/AINSEP/Jini.git"   # public repo -- no credentials needed
-          git ls-remote "$REMOTE" HEAD >/dev/null
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -q .; then
-            echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=main" >> "$GITHUB_OUTPUT"
-            echo "::notice::No Jini branch named '$BRANCH' -- falling back to Jini's main."
-          fi
-
-      - name: Clone Jini (sibling dependency)
-        # Tovu's package.json has 13 "@jini-ai/*": "file:../Jini/packages/*" dependencies, resolved
-        # via a literal sibling directory on disk -- not a registry, not a git submodule. A fresh CI
-        # checkout has no such directory, so every @jini-ai/* import is unresolvable and typecheck
-        # collapses (verified against a real run, 31558848242 on 2026-08-12: dies at
-        # `error TS2307: Cannot find module '@jini-ai/cms/core'`, then a wall of downstream
-        # implicit-any noise from the same root cause -- this has failed on `main` every run since
-        # 2026-08-04).
-        #
-        # `git clone` in a `run:` step, NOT actions/checkout: that action hard-refuses any `path:`
-        # outside $GITHUB_WORKSPACE and fails the run in ~37s with
-        #   Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
-        #   '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
-        # (observed for real, run 31995253883). `run:` steps carry no such containment restriction.
-        # `$GITHUB_WORKSPACE/../Jini` is the TRUE sibling path `file:../Jini/packages/*` expects.
-        # No credentials: AINSEP/Jini is public (see the note above). --depth 1 because nothing here
-        # reads Jini's history; only its built dist/.
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch "${{ steps.jini-ref.outputs.ref }}" \
-            https://github.com/AINSEP/Jini.git "$GITHUB_WORKSPACE/../Jini"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -133,36 +75,9 @@ jobs:
             package-lock.json
             apps/admin/package-lock.json
 
-      - uses: pnpm/action-setup@v4
-        with:
-          # No version pin: reads the `packageManager` field (pnpm@10.33.2) from Jini's OWN
-          # package.json instead. `package_json_file` is resolved as `path.join($GITHUB_WORKSPACE,
-          # <this value>)` by the action itself (verified against pnpm/action-setup@v4's own
-          # dist/index.js, `readTarget()`) -- a plain path.join+readFileSync with no
-          # workspace-containment check, unlike actions/checkout, so `../Jini/package.json` is legal
-          # here even though it wasn't for the checkout step above.
-          #
-          # Without this, the action defaults to `package_json_file: package.json`, which resolves
-          # to *Tovu's own* root package.json (Tovu is the primary checkout, at $GITHUB_WORKSPACE) --
-          # not Jini's. Tovu has no `packageManager` field (its root uses npm, not pnpm; see the
-          # `npm ci` / `npm run typecheck` steps below). Traced through the action's source: with no
-          # `version:` input and no `packageManager` field found, it throws "No pnpm version is
-          # specified" and the step fails outright. This was NEVER caught by a real run -- the prior
-          # revision's `git clone` fix (af5af566) only got as far as removing the checkout-path
-          # blocker; this step was still unreached.
-          package_json_file: ../Jini/package.json
-
-      - name: Build Jini (siblings resolve through gitignored dist/, not source)
-        # Every Jini package's package.json resolves its own @jini-ai/* siblings through its
-        # gitignored dist/ (types/main both point there) -- a fresh checkout has no dist/ at all, so
-        # Tovu's install/typecheck fails without building Jini first. Verified this is exactly what
-        # Jini's own ci.yml does before its own typecheck step, for the identical reason.
-        run: |
-          cd ../Jini
-          pnpm install --frozen-lockfile
-          pnpm -r run build
-
       - name: Install root dependencies
+        # @jini-ai/* deps resolve straight from the npm registry (see this file's header,
+        # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
         run: npm ci
 
       # ---------------------------------------------------------------------------------------
@@ -480,56 +395,15 @@ jobs:
           # than silently passing -- see check-route-coverage-diff.ts's own error message).
           fetch-depth: 0
 
-      # This job also runs `npm ci` at the repo root, which needs the same 13 file:../Jini/packages/*
-      # deps resolved as build-and-test does -- see that job's identically-commented steps for the
-      # full reasoning (public cross-org repo, gitignored dist/, branch pairing). Duplicated here
-      # rather than factored into a composite action/reusable workflow: two short step sequences are
-      # easier to read top-to-bottom than an extra indirection layer, matching this file's own
-      # existing Simplicity Gate note.
-      # No token needed -- AINSEP/Jini is PUBLIC. See build-and-test's note on this.
-
-      - name: Resolve matching Jini branch
-        id: jini-ref
-        run: |
-          set -euo pipefail
-          REMOTE="https://github.com/AINSEP/Jini.git"   # public repo -- no credentials needed
-          git ls-remote "$REMOTE" HEAD >/dev/null
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -q .; then
-            echo "ref=$BRANCH" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=main" >> "$GITHUB_OUTPUT"
-            echo "::notice::No Jini branch named '$BRANCH' -- falling back to Jini's main."
-          fi
-
-      - name: Clone Jini (sibling dependency)
-        # `git clone`, not actions/checkout -- see build-and-test's identically-named step for why
-        # (actions/checkout refuses any path outside $GITHUB_WORKSPACE; verified, run 31995253883).
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch "${{ steps.jini-ref.outputs.ref }}" \
-            https://github.com/AINSEP/Jini.git "$GITHUB_WORKSPACE/../Jini"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - uses: pnpm/action-setup@v4
-        with:
-          # Same fix as build-and-test's identically-named step -- see its comment for why this is
-          # required (not optional/defensive): without it, this step throws "No pnpm version is
-          # specified" because $GITHUB_WORKSPACE/package.json (Tovu's) has no `packageManager` field.
-          package_json_file: ../Jini/package.json
-
-      - name: Build Jini (siblings resolve through gitignored dist/, not source)
-        run: |
-          cd ../Jini
-          pnpm install --frozen-lockfile
-          pnpm -r run build
-
       - name: Install root dependencies
+        # @jini-ai/* deps resolve straight from the npm registry (see this file's header,
+        # `daa74a65`) -- no sibling Jini checkout, no pnpm, no build step needed first.
         run: npm ci
 
       - name: Route tests + coverage (src/server-scoped)
