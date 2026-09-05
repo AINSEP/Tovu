@@ -83,4 +83,54 @@ describe("prettifyHtml", () => {
     const input = "<li>Item one</li><li>Item two</li>";
     expect(prettifyHtml(input)).toBe("<li>Item one</li>\n<li>Item two</li>");
   });
+
+  it("copies an HTML comment through untouched, without treating it as a tag", () => {
+    const input = "<div><!-- a note --><p>text</p></div>";
+    const output = prettifyHtml(input);
+    expect(output).toContain("<!-- a note -->");
+    expect(output).toContain("<p>text</p>");
+  });
+
+  it("degrades gracefully on an unterminated comment at end of input", () => {
+    const input = "<div><!-- never closed";
+    expect(() => prettifyHtml(input)).not.toThrow();
+    expect(prettifyHtml(input)).toContain("<!-- never closed");
+  });
+
+  it("copies a leading doctype declaration through untouched", () => {
+    const input = "<!doctype html><html><body><p>x</p></body></html>";
+    const output = prettifyHtml(input);
+    expect(output).toContain("<!doctype html>");
+  });
+
+  it("degrades gracefully on an unterminated doctype at end of input", () => {
+    const input = "<!doctype html";
+    expect(() => prettifyHtml(input)).not.toThrow();
+    expect(prettifyHtml(input)).toBe(input);
+  });
+
+  it("recognizes a self-closing tag as its own tag kind, not an open tag", () => {
+    // <hr/> is both void and block-level: if self-close parsing were broken, the tokenizer would
+    // treat it as an unclosed open tag and mis-indent everything that follows.
+    const input = "<div><hr/><p>after</p></div>";
+    const output = prettifyHtml(input);
+    expect(output).toContain("<hr/>");
+    expect(output).toContain("<p>after</p>");
+  });
+
+  it("degrades gracefully on a raw-text element with no closing tag at all", () => {
+    const input = "<script>var x = 1;";
+    expect(() => prettifyHtml(input)).not.toThrow();
+    expect(prettifyHtml(input)).toBe(input);
+  });
+
+  it("treats a stray '<' not starting a valid tag as literal text", () => {
+    const input = "<p>5 < 10</p>";
+    expect(prettifyHtml(input)).toBe(input);
+  });
+
+  it("leaves trailing plain text after the last tag untouched", () => {
+    const input = "<p>A</p> trailing text, no more tags";
+    expect(prettifyHtml(input)).toBe(input);
+  });
 });
