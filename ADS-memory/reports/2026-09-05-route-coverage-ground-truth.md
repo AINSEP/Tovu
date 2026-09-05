@@ -39,27 +39,28 @@ TBD.
 ## 5. Why prior numbers differ
 
 **MEASURED via `git log --since=2026-09-03`**, checked against the `2026-09-03-route-coverage-below-100.md`
-table's 10 worst-ranked files (captured ~12:48 PDT that day, from `development/coverage/lcov.info`):
+table's 10 worst-ranked files (captured ~12:48 PDT that day, from `development/coverage/lcov.info`).
+**Correction made while writing this section:** an initial pass checked only each SOURCE file's git
+log and found 3 with no hits (`users/list.ts`, `users/enable.ts`, `comments/moderation-queue.ts`) —
+wrong, because their fixes landed entirely in the paired **test** file, which a source-only `git log`
+never sees. Checking the test files closes all 10:
 
-| File | Sep 3 rank (branch%) | Fix commits since |
+| File | Sep 3 rank (branch%) | Fix commit(s) since, same day |
 |---|---|---|
-| `entries/update.ts` | 78.16% | `9e416602`, `7e1cea7e`, `6c499cf0` (15:16–17:13 same day) — "cover update/lifecycle/list/get-entry route branches" |
-| `entries/lifecycle.ts` | 79.52% | same 3 commits |
-| `recovery/deep-link.ts` | 79.59% | `69157f8c`, `a63534b5` (15:03–15:30) — "close route-level branch gaps on 4 destructive admin ops" |
-| `connectors/disconnect.ts` | 78.57% | same 2 commits |
-| `change-sets/revert.ts` | 50.00% | same 2 commits |
-| `redirects/import.ts` | 50.00% | same 2 commits |
-| `seo/get-entry.ts` | 40.00% | `d4a10b35` (20:32) — behavior fix, not obviously coverage-focused; unclear if branches added |
-| `users/list.ts`, `users/enable.ts`, `comments/moderation-queue.ts` | 66.67% / 44.44% / 50.00% | **none** — no commits since Sep 3 |
+| `entries/update.ts`, `entries/lifecycle.ts` | 78.16% / 79.52% | `9e416602`, `7e1cea7e`, `6c499cf0` (15:16–17:13) — "cover update/lifecycle/list/get-entry route branches" |
+| `recovery/deep-link.ts`, `connectors/disconnect.ts`, `change-sets/revert.ts`, `redirects/import.ts` | 79.59% / 78.57% / 50.00% / 50.00% | `69157f8c`, `a63534b5` (15:03–15:30) — "close route-level branch gaps on 4 destructive admin ops" |
+| `seo/get-entry.ts` | 40.00% | `9e416602` (15:16, same commit as entries/update — "cover update/lifecycle/list/get-entry route branches" covers seo/get-entry too, contrary to my first read of that message) |
+| `users/list.ts`, `users/enable.ts` | 66.67% / 44.44% | `419bd266` (15:09) — "100% line/branch/function coverage on 4 RBAC user-admin routes" — **test file only**, source untouched |
+| `comments/moderation-queue.ts` | 50.00% | `9ab21f17` (15:04) — "100% line+branch coverage on assign-role, attach-policy, rescan-themes, moderation-queue routes" — **test file only**, source untouched |
 
-**Mechanism, not just delta:** the Sep 3 report's own worst-ranked files were targeted by two dedicated
-coverage-closing commits **on the same afternoon**, 2-4 hours after that report's own snapshot. The
-report is not wrong about what it measured — it is simply older than the fixes it prompted. Anyone
-citing that table today without re-measuring is citing pre-fix numbers for at least 7 of its worst 10
-rows. This is the same mechanism found independently in §8 for `apps/admin/src/lib/api.ts` (a report
-capturing a true snapshot, then work landing within hours that the report's own reader has no way to
-know about without re-running). The 3 files with no fix commits (`users/list.ts`, `users/enable.ts`,
-`comments/moderation-queue.ts`) are the ones worth checking against the fresh lcov below — see §7.
+**Mechanism, not just delta:** every one of the Sep 3 report's 10 worst-ranked files was targeted by a
+dedicated coverage-closing commit **on the same afternoon**, 2-5 hours after that report's own
+snapshot (12:48 -> 15:03-17:13). The report was not wrong about what it measured; it is simply older
+than the fixes it prompted, and a naive "check if the source file changed" currency check (my own
+first attempt) misses fixes that land as test-only diffs. Anyone citing that table today without
+re-measuring is citing pre-fix numbers for its entire worst-10. This is the same mechanism found
+independently in §8 for `apps/admin/src/lib/api.ts` (a report capturing a true snapshot, then work
+landing within hours that the report's own reader has no way to know about without re-running).
 
 Separately, the dual-instantiation contamination fixes (`4d48f645`, `b3748e94`, `96988ca7`, all
 2026-09-05 morning) explain why the 2026-09-03 lcov and today's fresh lcov are not directly
@@ -107,7 +108,33 @@ left as a design, not a PR.
 
 ## 7. Ranked gap list
 
-TBD.
+### #1 — `apps/website/src/server/inbound/admin-http/routes/system/sites.ts` — zero tests, live, wired
+
+**MEASURED**: `git log --diff-filter=A` shows this file added `115687af` (2026-09-04 12:27, "Sites
+screen backend -- list, create, activate") — a full day after the Sep 3 report and not in any prior
+coverage snapshot at all (new file, not a regression). **MEASURED**: `grep -rl` across
+`apps/website/src --include='*.test.ts'` for its registrar name `registerAdminSitesRoutes` or its
+import path returns nothing — zero test references anywhere in the tree. **MEASURED**: it IS wired
+live — `app.ts:198` imports it, `app.ts:1048` calls `registerAdminSitesRoutes(app, routeDeps)` inside
+the real composition root, not a dead/unreachable branch. Three endpoints: `GET .../system/sites`
+(list), `POST .../system/sites` (create), `POST .../system/sites/:name/activate` (activate + persist
++ restart instructions). All three are mutating or state-revealing filesystem/site-registry
+operations gated on `system.read`/`system.write`. The file's own `AdminSitesDeps` type deliberately
+exposes every real dependency (`listSites`, `createSite`, `persistActiveSite`,
+`isSiteSwitcherEnabled`, `describeSiteBinding`, `readPersistedActiveSite`) as injectable overrides
+specifically so "a route test proves both branches without touching the real filesystem or `sites/`"
+(the file's own comment) — the seam for testing this cheaply already exists and is unused. This is
+also the same file the concurrent complexity sweep flagged (`project_tovu_open_decisions_2026_09_05`
+memory, item 1) at cyclomatic 11 / cognitive 10, currently causing `check:src-complexity-drift` to be
+RED. **Highest-priority gap: real risk (site-switching write paths, RBAC-gated, filesystem-touching),
+zero test count, already-built test seam.**
+
+### #2 (pending confirmation from the fresh lcov) — see §3 once the run completes
+
+### #3 — see §3 once the run completes
+
+Remaining ranked entries depend on the fresh lcov (§3) to avoid restating the 2026-09-03 report's
+now-superseded worst-10 (§5) or trusting a contaminated block's numbers (§1/dual-instantiation).
 
 ## 8. The `api.ts` "~145 untested endpoints" claim — REFUTED, and stale within the hour
 
