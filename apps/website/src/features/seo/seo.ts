@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/cms/core";
-import type { PostKind, PostRecord, PostRepoPort } from "../post/index.js";
+import { isTrashed, type PostKind, type PostRecord, type PostRepoPort } from "../post/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { postPublicPath, urlFor } from "../../platform/routing/index.js";
 import type { RouteResolverDeps } from "../../platform/routing/index.js";
@@ -159,7 +159,17 @@ async function resolveRobots(
   } else if (await isDefaultRobotsNoindexExplicitlySet(deps.settingsRepo, workspaceId)) {
     noindex = settings.defaultRobots.noindex;
   } else {
-    noindex = post.status !== "published";
+    // 2026-09-05 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it
+    // never clears `status`, so a post that was `published` when trashed stays `status:
+    // "published"` forever and the status check alone can't catch it. `postRepo.findById` (this
+    // function's own read, above) is documented trash-BLIND, so this derived fallback must check
+    // `isTrashed` itself, same as `computeIndexableEntries` (sitemap.ts) and
+    // `findPublishedPostsReferencingAsset` (media-rendition.ts) already do at their own read
+    // boundaries. `getEntryMeta` is "the one evaluator, no back door" for admin preview, public
+    // render, and `analyzeEntry` alike (this file's header) — a trashed entry must resolve
+    // noindex:true through every one of those consumers, not just the ones that happen to gate
+    // trash upstream before calling in.
+    noindex = post.status !== "published" || isTrashed(post);
   }
   const nofollow = overrides.nofollow ?? settings.defaultRobots.nofollow ?? false;
   return { noindex, nofollow };

@@ -297,6 +297,22 @@ test("getEntryMeta: a draft with no explicit noindex override and no site defaul
   assert.equal(meta.robots.noindex, true);
 });
 
+// 2026-09-05 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it never
+// clears `status`, so a post that was `published` when trashed stays `status: "published"` forever.
+// `postRepo.findById` (this function's own read) is documented trash-BLIND, so the derived-noindex
+// fallback below must check `isTrashed` itself rather than trust the stale `status` column — the
+// admin SEO panel (`GET .../seo/entries/:entryId`) and the `seo_get_entry_meta`/`seo_analyze_entry`
+// agent tools all resolve meta for a bare `entryId` with no trash gate of their own, so a trashed
+// entry reaches this exact fallback with its pre-trash `status` still intact. (The live public
+// render path is NOT reachable this way: `getPublishedPostBySlug`/`findPublishedPostById` already
+// gate trash before a `post` ever reaches `getEntryMeta` there — but this function is documented as
+// "the one evaluator, no back door (INV-09)" for every consumer, admin included.)
+test("getEntryMeta: a trashed entry with no explicit noindex override defaults to noindex:true, even though status still reads 'published'", async () => {
+  const deps = await makeDeps([seedPost({ deletedAt: "2026-09-05T00:00:00.000Z" })]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.robots.noindex, true);
+});
+
 test("getEntryMeta: a draft with an explicit noindex:false override still wins over the draft-safety default", async () => {
   const deps = await makeDeps([seedPost({ status: "draft", seoExtJson: JSON.stringify({ noindex: false }) })]);
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
