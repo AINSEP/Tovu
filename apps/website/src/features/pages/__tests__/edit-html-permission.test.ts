@@ -96,6 +96,23 @@ interface Chain {
 }
 
 /**
+ * Which vintage of `seedIdentity`'s built-in grant lists a workspace was seeded from.
+ *
+ * `"fresh"` is a workspace seeded by the CURRENT library, whose admin policy therefore holds
+ * `theme.edit`. `"pre-theme-edit"` is a workspace seeded before `theme.edit` joined
+ * `BUILTIN_ADMIN_PERMISSIONS` — which is what this repo's own `sites/tovu-com/content.db` IS. Its
+ * `admin-builtin-policy` holds every string in the current admin seed list EXCEPT `theme.edit`,
+ * `workspace.manage`, and `admin.assistant.manage`, and `seedIdentity` early-returns once an owner
+ * user exists, so it will never gain them.
+ *
+ * The distinction is the whole point of this file. A permission that reaches admin only through the
+ * `theme.edit -> pages.edit_html` fan-out reaches admin only in the `"fresh"` vintage, and a test
+ * that seeds only fresh workspaces certifies a capability that every already-deployed workspace
+ * does not have.
+ */
+type Vintage = "fresh" | "pre-theme-edit";
+
+/**
  * Seed a workspace exactly as first boot does, run the permission-migration fan-out exactly as
  * `features/identity/wiring.ts` does on every boot, then mint one principal per built-in role.
  *
@@ -105,7 +122,7 @@ interface Chain {
  * `migrateDeprecatedPermissionGrants`. Running it here is what makes this test cover the case that
  * actually ships.
  */
-async function buildChain(): Promise<Chain> {
+async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
   const repos: IdentityRepos = {
     principals: new InMemoryPrincipalRepo(),
     users: new InMemoryUserRepo(),
@@ -123,6 +140,8 @@ async function buildChain(): Promise<Chain> {
     deps: { repos, hasher: fakeHasher, clock, idGen },
     input: { workspaceId: WORKSPACE, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
   });
+
+  if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
 
   await migrateDeprecatedPermissionGrants({
     policyPermissions: repos.policyPermissions,
@@ -175,6 +194,24 @@ async function buildChain(): Promise<Chain> {
   return { repos, principals, can };
 }
 
+/**
+ * Rewind the seeded `admin` policy to its pre-`theme.edit` vintage by removing that one row.
+ *
+ * Asserts the row was there before removing it, deliberately: if `theme.edit` ever leaves
+ * `BUILTIN_ADMIN_PERMISSIONS`, this fixture would otherwise silently stop simulating anything and
+ * the `"pre-theme-edit"` cases would start passing for the wrong reason.
+ */
+async function dropAdminThemeEdit(repos: IdentityRepos): Promise<void> {
+  const policy = await repos.policies.findByName({ workspaceId: WORKSPACE, name: "admin-builtin-policy" });
+  assert.ok(policy, "seedIdentity must have created the built-in admin policy");
+
+  const grants = await repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id });
+  const themeEdit = grants.find((row) => row.permission === "theme.edit");
+  assert.ok(themeEdit, "the current admin seed list must still contain theme.edit for this rewind to mean anything");
+
+  await repos.policyPermissions.delete({ workspaceId: WORKSPACE, id: themeEdit.id });
+}
+
 // ---------------------------------------------------------------------------
 // The refusal — the primary certification.
 // ---------------------------------------------------------------------------
@@ -222,6 +259,59 @@ test("an 'admin' principal DOES hold pages.edit_html, reaching an already-seeded
 
   assert.equal(decision.allowed, true, "gating on a permission no role holds would break the feature instead of securing it");
   assert.equal(decision.reason, "matched");
+});
+
+// ---------------------------------------------------------------------------
+// The vintage that actually ships: an ALREADY-seeded workspace, seeded before
+// `theme.edit` joined BUILTIN_ADMIN_PERMISSIONS. `sites/tovu-com/content.db` is
+// exactly this — its `admin-builtin-policy` has no `theme.edit` row, so the
+// `theme.edit -> pages.edit_html` fan-out matches nothing and grants nothing.
+// ---------------------------------------------------------------------------
+
+test("an 'admin' principal in a pre-theme.edit workspace ALSO holds pages.edit_html — the grant cannot depend on a seed row that workspace never got", async () => {
+  const { principals, can } = await buildChain("pre-theme-edit");
+
+  const decision = await can(principals.admin, PAGES_EDIT_HTML);
+
+  // Without this, `pages.edit_html` materializes only in a freshly-seeded workspace. Every already-
+  // deployed one — including this repo's own content.db — silently loses raw-page-HTML authoring
+  // for admin, leaving `owner` as the only principal that clears the gate (on its `*` wildcard).
+  assert.equal(decision.allowed, true, "admin must hold pages.edit_html in an already-seeded workspace too");
+  assert.equal(decision.reason, "matched");
+});
+
+test("that pre-theme.edit backfill reaches ONLY admin — the editor is still refused, which is the security property REQ-9 exists for", async () => {
+  const { principals, can } = await buildChain("pre-theme-edit");
+
+  const editorDecision = await can(principals.editor, PAGES_EDIT_HTML);
+  assert.equal(editorDecision.allowed, false, "whatever grants admin the capability must not reach the editor role");
+  assert.equal(editorDecision.reason, "no_grant");
+
+  const viewerDecision = await can(principals.viewer, PAGES_EDIT_HTML);
+  assert.equal(viewerDecision.allowed, false);
+  assert.equal(viewerDecision.reason, "no_grant");
+
+  // Same narrowing assertion the fresh-vintage case makes: a refusal is only meaningful if the
+  // editor is otherwise a working principal.
+  const contentDecision = await can(principals.editor, CONTENT_WRITE);
+  assert.equal(contentDecision.allowed, true);
+  assert.equal(contentDecision.reason, "matched");
+});
+
+test("the pre-theme.edit backfill is additive — it never invents a theme.edit row, so admin does not silently regain site-wide theme-source authoring", async () => {
+  const { repos } = await buildChain("pre-theme-edit");
+
+  const policy = await repos.policies.findByName({ workspaceId: WORKSPACE, name: "admin-builtin-policy" });
+  assert.ok(policy);
+  const held = (await repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id })).map(
+    (row) => row.permission
+  );
+
+  assert.ok(held.includes(PAGES_EDIT_HTML), "the one capability under discussion is granted");
+  // `theme.edit` is a STRICTLY LARGER script-injection capability than pages.edit_html: a theme
+  // template renders on every page of the site, not on one. Restoring it to this workspace is a
+  // separate decision, and this fix must not make it silently.
+  assert.ok(!held.includes("theme.edit"), "restoring page-HTML authoring must not also restore theme-source authoring");
 });
 
 test("the 'owner' principal is unaffected — it clears the gate on its '*' wildcard, not on a granted row", async () => {
