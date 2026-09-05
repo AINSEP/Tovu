@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { type AdminPolicyPermission } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
@@ -525,5 +526,52 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(result.current.rowError).toBe("boom");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // `loadPermissions` (shared by `togglePermissionForm`/`onWritePermission`/`onRemovePermission`) had
+  // no guard against a second, DIFFERENT policy's load starting before the first settled — network
+  // completion order does not have to match start order. Same bug class `use-sites.hooks.ts`'s
+  // `activate`, `use-themes.hooks.ts`'s `activate`/`download`, and `use-theme-explore.hooks.ts`'s
+  // rename were fixed for; see `loadPermissions`'s `permissionsGenerationRef` doc comment.
+  it("switching panels while the first load is in flight must not let the stale panel's rows win", async () => {
+    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    const deferred: Record<string, { resolve: (v: { policyPermissions: AdminPolicyPermission[] }) => void }> = {};
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
+    port.listPolicyPermissions = vi.fn((policyId: string) => {
+      return new Promise<{ policyPermissions: AdminPolicyPermission[] }>((resolve) => {
+        deferred[policyId] = { resolve };
+      });
+    });
+
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    // Open POLICY's panel, then switch to `otherPolicy`'s before POLICY's load resolves.
+    act(() => result.current.togglePermissionForm(POLICY.id));
+    act(() => result.current.togglePermissionForm(otherPolicy.id));
+    await waitFor(() => expect(port.listPolicyPermissions).toHaveBeenCalledTimes(2));
+    expect(result.current.permissionPolicyId).toBe(otherPolicy.id);
+
+    // `otherPolicy` (opened LAST) resolves first — the operator is looking at its panel.
+    await act(async () => {
+      deferred[otherPolicy.id]!.resolve({
+        policyPermissions: [{ id: "other-perm", workspaceId: "w1", policyId: otherPolicy.id, permission: "other.read", resourceType: null, constraintJson: null }],
+      });
+    });
+    await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
+    expect(result.current.permissionRows[0]!.policyId).toBe(otherPolicy.id);
+
+    // POLICY's stale, superseded load now arrives.
+    await act(async () => {
+      deferred[POLICY.id]!.resolve({
+        policyPermissions: [{ id: "policy-perm", workspaceId: "w1", policyId: POLICY.id, permission: "policy.read", resourceType: null, constraintJson: null }],
+      });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The panel is still showing `otherPolicy` — POLICY's late rows must not have overwritten it.
+    expect(result.current.permissionPolicyId).toBe(otherPolicy.id);
+    expect(result.current.permissionRows).toHaveLength(1);
+    expect(result.current.permissionRows[0]!.policyId).toBe(otherPolicy.id);
   });
 });

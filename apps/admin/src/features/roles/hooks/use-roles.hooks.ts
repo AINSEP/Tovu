@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { describeApiError, KEYS } from "../rules";
@@ -213,6 +213,18 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const [permissionRows, setPermissionRows] = useState<AdminPolicyPermission[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [removingPermissionId, setRemovingPermissionId] = useState<string | null>(null);
+  // Monotonic per-call id (same shape as `use-theme-explore.hooks.ts`'s `renameGenerationRef` /
+  // `use-themes.hooks.ts`'s `activateGenerationRef`/`downloadGenerationRef`): `togglePermissionForm`
+  // (opening a different policy) and `onWritePermission`/`onRemovePermission` (their own trailing
+  // refresh) all funnel into `loadPermissions` with no guard against a SECOND call — for a DIFFERENT
+  // policy — starting before the first settles, and network completion order does not have to match
+  // start order. Minted synchronously at the top of `loadPermissions` so two loads started back to
+  // back always mint in the order they started even though both are async — a stale settlement
+  // (checked before every state write below, not just the success path, since an out-of-order
+  // FAILURE would otherwise resurrect a stale error over a newer load's real outcome — `rowError` is
+  // one shared field across every action in this hook) is dropped instead of overwriting whichever
+  // policy's rows the operator is actually looking at now.
+  const permissionsGenerationRef = useRef(0);
 
   // The row a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
   // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
@@ -355,14 +367,22 @@ export function useRoles(deps: RolesDependencies): RolesController {
   /** Refresh the open form's permission list. Failures land in `rowError` like every other row
    *  action rather than throwing — a list that cannot load must not take the form down with it. */
   async function loadPermissions(policyId: string) {
+    const generation = ++permissionsGenerationRef.current;
     setPermissionsLoading(true);
     try {
       const { policyPermissions } = await port.listPolicyPermissions(policyId);
+      // Superseded by a newer load started after this one — that later call owns
+      // `permissionRows` now, and applying this stale result would let whichever policy's load
+      // happens to settle LAST win regardless of which panel is actually open. See
+      // `permissionsGenerationRef`'s doc comment above.
+      if (permissionsGenerationRef.current !== generation) return;
       setPermissionRows(policyPermissions);
     } catch (e) {
+      if (permissionsGenerationRef.current !== generation) return;
       setPermissionRows([]);
       setRowError(describeApiError(e, t(locale, "failed to load permissions")));
     } finally {
+      if (permissionsGenerationRef.current !== generation) return;
       setPermissionsLoading(false);
     }
   }
