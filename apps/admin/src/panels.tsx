@@ -32,6 +32,7 @@ import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
 import { Playground } from "./features/playground";
+import { Sites } from "./features/sites";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -126,6 +127,26 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // credentials) that happens to be named "AI Assistant". Reachability alone only lets an agent
     // land here; operating the kill switch or reading a credential would need those specific
     // controls individually tagged with `data-agent-element`, which none of them are.
+  },
+  {
+    id: "sites",
+    render: () => <Sites />,
+    nav: {
+      // Under "Overview" in the ungrouped top row — the owner's placement (2026-09-04
+      // sites-switcher decision). It belongs beside Overview rather than in "Operations" because
+      // it answers the question that comes BEFORE every other screen in this admin: which site is
+      // all of this about? Every grouped section below (Pages, Posts, Media, Themes, …) is scoped
+      // to whichever site this one names, so filing it among them would put the frame inside the
+      // picture.
+      label: "Sites",
+      // Three stacked cards with the front one offset — "several of the same thing, one in front"
+      // — deliberately distinct from Overview's dashboard grid of four fixed panes and from
+      // Deployment's rocket. Nothing else in the rail uses an overlapping-stack silhouette.
+      icon: '<rect x="2" y="6" width="11" height="9" rx="1.5"/><path d="M5 6V3.5A1.5 1.5 0 016.5 2H15a1 1 0 011 1v8.5A1.5 1.5 0 0114.5 13H13"/>',
+    },
+    // Reachable by the file-wide `defaultReachable: true`. Navigation-only, as everywhere else:
+    // Create and Activate are ordinary buttons with no `data-agent-element` opt-in, so an agent can
+    // land here and read which site is live but cannot switch one.
   },
 
   // --- Content ---

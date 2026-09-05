@@ -299,6 +299,64 @@ export interface AdminDeploymentOverview {
   deployClis: AdminDeployCliStatus[];
 }
 
+/** One row of the admin Sites screen — mirrors `SiteListEntry` in
+ *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
+ *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
+export interface AdminSiteListEntry {
+  /** Folder name under `sites/` — the id every write in this feature takes. */
+  name: string;
+  dir: string;
+  /** `config.json.name`; may differ from the folder name. */
+  displayName: string;
+  createdAt: string;
+  /** True when this row is the site the SERVER PROCESS is bound to right now — never a pending
+   *  choice. A newly-activated site stays `false` here until the operator restarts. */
+  active: boolean;
+}
+
+/** What the running server is actually serving — mirrors `SiteBinding` in `site-registry.ts`, plus
+ *  the route's own `listed`. Kept separate from the list because they can disagree, which is the
+ *  whole reason this field exists. */
+export interface AdminSiteBinding {
+  dir: string;
+  name: string;
+  /** `TOVU_SITE_DIR` is set, which OUTRANKS the `TOVU_SITE` line Activate writes — so an activate
+   *  would be ignored on the next boot. The screen must say so rather than offer a dead button. */
+  dirOverridden: boolean;
+  /** Whether `dir` appears in `sites[]` at all. `false` for a site created before the
+   *  `.site-meta.json` marker existed (this repo's own `sites/tovu-com`), which is how the list can
+   *  come back EMPTY on a server that is plainly serving something. */
+  listed: boolean;
+}
+
+/** Mirrors the `GET .../system/sites` response in
+ *  `apps/website/src/server/inbound/admin-http/routes/system/sites.ts`. */
+export interface AdminSitesSnapshot {
+  /** The deployment capability flag (`TOVU_ENABLE_SITE_SWITCHER`) — Create/Activate 403 when off. */
+  switchingEnabled: boolean;
+  sites: AdminSiteListEntry[];
+  currentSite: AdminSiteBinding;
+  /** The site name a previous Activate persisted to `.env`, pending a restart — `null` when none. */
+  persistedSiteName: string | null;
+}
+
+/** The `201` body of `POST .../system/sites`. */
+export interface AdminCreatedSite {
+  name: string;
+  dir: string;
+  siteId: string;
+}
+
+/** The `200` body of `POST .../system/sites/:name/activate`. Nothing was killed, signalled, or
+ *  re-exec'd — `restartInstructions` is the server's own prose for what the human must now do, and
+ *  the screen renders it verbatim rather than hardcoding a second copy. */
+export interface AdminSiteActivation {
+  ok: boolean;
+  activeSiteName: string;
+  restartRequired: boolean;
+  restartInstructions: string;
+}
+
 /** Mirrors `DockerfileSourceSnapshot` in `src/server/routes/admin/system/dockerfile-source.ts`. */
 export interface AdminDockerfileSource {
   exists: boolean;
@@ -3114,6 +3172,30 @@ export const api = {
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
   getDeploymentOverview: () =>
     request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
+
+  // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
+  // `system.read`, create/activate are `system.write` AND additionally refused with
+  // `SITE_SWITCHING_DISABLED` when the deployment capability flag is off. Same `system.*` split as
+  // `getDockerfileSource`/`setDockerfileSource` immediately above.
+  /** Every site under `sites/`, plus what this server process is ACTUALLY bound to right now and
+   *  any pending activate choice — see {@link AdminSitesSnapshot}. */
+  listSites: () => request<AdminSitesSnapshot>(`/workspaces/${WORKSPACE_ID}/system/sites`),
+  /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
+   *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name
+   *  outside `[a-z0-9-]{1,100}`. */
+  createSite: (input: { name: string }) =>
+    request<{ site: AdminCreatedSite }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  /** Persist `name` as the site the NEXT boot serves. Writes `TOVU_SITE=<name>` to the repo-root
+   *  `.env` and returns restart instructions — it does not kill, signal, or re-exec anything, and
+   *  this process keeps serving whatever it booted with. See {@link AdminSiteActivation}. */
+  activateSite: (name: string) =>
+    request<AdminSiteActivation>(
+      `/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/activate`,
+      { method: "POST" }
+    ),
   /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
    *  generated yet, plus its `etag` merged in from the response's own `ETag` header (never the JSON
    *  body — see {@link AdminDockerfileSource.etag}'s own doc). */
