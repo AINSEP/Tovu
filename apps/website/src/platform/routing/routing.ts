@@ -19,7 +19,7 @@
  * wiring live here (that is out of scope for this v0 build) — this file is
  * pure resolution logic over injected ports and in-module registries.
  */
-import type { PostRecord } from "../../features/post/index.js";
+import { isTrashed, type PostRecord } from "../../features/post/index.js";
 
 import type { RouteResolverDeps } from "./ports.js";
 import type {
@@ -139,9 +139,20 @@ function composeCanonicalUrl(path: string, ctx: RouteResolveContext): string {
 // Per-kind target resolvers (internal — dispatched by `urlFor`)
 // ---------------------------------------------------------------------------
 
-/** `published` is the only status that yields a live, linkable path (mirrors `getPublishedPostBySlug`). */
+/**
+ * `published` is the only status that yields a live, linkable path (mirrors `getPublishedPostBySlug`,
+ * `post.ts`). Checks `isTrashed` too, not just `status` — `softDelete` (post.ts) stamps only
+ * `deletedAt`/`updatedAt`/`version`, never `status`, so a post that was `published` when trashed
+ * stays `status: "published"` forever, and `postRepo.findById` (this module's `resolveEntryRefTarget`
+ * and every other caller of {@link entryPublicPath}) is documented trash-BLIND. Without this check a
+ * trashed post would resolve to a live, linkable URL through `urlFor`/menu href resolution
+ * (`resolveStaticMenusForRender`, `server/inbound/public-http/routes/site/pages.ts`) even though the
+ * post itself 404s at every real render entrypoint. Same defect pattern as
+ * caa116115c103630ba5253f9bbe3bceb234347d8 (sitemap.xml/llms.txt) and a5c9bac8 (media rendition
+ * gating).
+ */
 function isPublished(post: PostRecord): boolean {
-  return post.status === "published";
+  return post.status === "published" && !isTrashed(post);
 }
 
 /**

@@ -77,6 +77,21 @@ test("urlFor returns null for an entryRef target that is a draft", async () => {
   assert.equal(result, null);
 });
 
+// 2026-09-05 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it never
+// clears `status`, so a post that was `published` when trashed stays `status: "published"` forever.
+// `postRepo.findById` is documented trash-BLIND (post.ts's `PostRecord.deletedAt` doc), so
+// `resolveEntryRefTarget` gets the trashed row back and must not treat its stale `status` as live.
+// Same defect pattern as caa116115c103630ba5253f9bbe3bceb234347d8 (sitemap.xml/llms.txt) and
+// a5c9bac8 (media rendition gating).
+test("urlFor returns null for an entryRef target that is trashed, even though status still reads 'published'", async () => {
+  const repo = new InMemoryPostRepo([{ ...seedPost, deletedAt: "2026-09-05T00:00:00.000Z" }]);
+  const target: RouteTarget = { kind: "entryRef", entryId: "post-1" };
+
+  const result = await urlFor({ deps: { postRepo: repo }, target, ctx });
+
+  assert.equal(result, null);
+});
+
 // ---------------------------------------------------------------------------
 // entryPublicPath — pure per-record half of entryRef resolution (H3: exported so a caller already
 // holding a PostRecord, e.g. content_post_list, can resolve publicUrl with no postRepo.findById)
@@ -101,6 +116,15 @@ test("entryPublicPath resolves a published record with slug '/' to path '/', nev
 
 test("entryPublicPath returns null for a draft record", () => {
   const result = entryPublicPath({ ...seedPost, status: "draft" }, ctx);
+
+  assert.equal(result, null);
+});
+
+// 2026-09-05 fix: same trash-blindness gap as `urlFor`'s equivalent test above, but exercised
+// directly against the pure per-record half — a caller that already holds a trashed record (e.g.
+// `content_post_list` iterating a prior `postRepo.list()` fetch) must not get a live path back either.
+test("entryPublicPath returns null for a trashed record, even though status still reads 'published'", () => {
+  const result = entryPublicPath({ ...seedPost, deletedAt: "2026-09-05T00:00:00.000Z" }, ctx);
 
   assert.equal(result, null);
 });
