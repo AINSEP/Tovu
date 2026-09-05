@@ -1,10 +1,37 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
+
+/**
+ * jsdom omits `Range.getClientRects`/`Range.getBoundingClientRect` entirely (confirmed against the
+ * installed jsdom: `Element.prototype.getClientRects` exists, `Range.prototype.getClientRects` does
+ * not). Every describe block below that CLICKS a formatting-toolbar control drives a real TipTap
+ * transaction, and TipTap's own `scrollIntoView` (`@tiptap/core`) calls `EditorView.coordsAtPos` →
+ * `Range.getClientRects` on every dispatch, throwing `TypeError: target.getClientRects is not a
+ * function` asynchronously (after the test's own assertions already ran, so it surfaces as an
+ * unhandled rejection with a non-zero process exit, not a failing assertion). No prior suite in this
+ * file ever clicked a toolbar control that moves the editor's own selection, which is why this gap
+ * went unpolyfilled until now. Scoped to this file only (not the shared `src/__tests__/setup.ts`) —
+ * purely additive (`typeof ... !== "function"` guards mean it never overrides a real implementation),
+ * and no other suite in this package drives real TipTap transactions the way this file's real-editor
+ * tests do.
+ */
+if (typeof Range.prototype.getClientRects !== "function") {
+  // @ts-expect-error jsdom omission — see comment above
+  Range.prototype.getClientRects = function () {
+    return [];
+  };
+}
+if (typeof Range.prototype.getBoundingClientRect !== "function") {
+  // @ts-expect-error jsdom omission — see comment above
+  Range.prototype.getBoundingClientRect = function () {
+    return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
+  };
+}
 
 /**
  * @file `PostEditor` — pins three new/fixed user-visible behaviors from the forms/PostEditor deep
@@ -33,13 +60,35 @@ const DRAFT_POST = {
 
 const DRAFT_PAGE = { ...DRAFT_POST, id: "pg1", kind: "page" as const, title: "About", slug: "about" };
 
+/**
+ * Real-editor click tests (formatting toolbar) need an actual text paragraph in the body — TipTap's
+ * default cursor position on mount lands in the FIRST body block, not the `title` node (confirmed
+ * empirically: `PostTitleDocument`'s `"title block+"` content spec keeps `title` out of the `block`
+ * group entirely, so `Selection.atStart(doc)` skips past it) — so an empty first paragraph (the
+ * shared `DRAFT_POST` above, which every other describe block in this file already asserts against
+ * unchanged) works fine for inline marks but leaves nothing for `characterCount` beyond the title.
+ * Kept as its OWN fixture rather than changing `DRAFT_POST` itself, since that would shift the
+ * existing "CharacterCount readout" test's "11 characters" assertion (title-only) out from under it.
+ */
+const DRAFT_POST_WITH_BODY_TEXT = {
+  ...DRAFT_POST,
+  bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body text here" }] }] },
+};
+
+const OTHER_MENTIONABLE_POST = { id: "p2", workspaceId: "w1", kind: "post" as const, title: "Other Post", slug: "other-post" };
+
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 /** Per-test override for the active theme's `templates` list; `[]` disables the picker. */
 let activeThemeTemplates: string[];
+/** Per-test override for the mention picker's own list — `[]` (the default) keeps every pre-existing
+ *  assertion in this file unchanged (empty/disabled picker); the new "mention picker" describe block
+ *  below overrides it to exercise the populated-list render and insert paths. */
+let mentionablePostsFixture: Array<{ id: string; workspaceId: string; kind: "post" | "page"; title: string; slug: string }>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
   activeThemeTemplates = [];
+  mentionablePostsFixture = [];
   // `useWiredPostEditor` (2026-08-11: `useAdminLocale`/`POSTS_DICT` moved out of `PostEditor.tsx`
   // and into the hook, per the standing i18n rule — see `use-post-editor.hooks.ts`'s file header)
   // now reads `core.language.locale` (via `useAdminLocale`) to build its own bound `t`, a real
@@ -81,7 +130,7 @@ beforeEach(() => {
     // other posts, which keeps the mention picker in its empty/disabled state — what every
     // pre-existing assertion in this file was written against.
     if (/\/posts$/.test(url) && (init?.method ?? "GET") === "GET") {
-      return Promise.resolve(jsonResponse({ posts: [] }));
+      return Promise.resolve(jsonResponse({ posts: mentionablePostsFixture.map((post) => ({ post })) }));
     }
     return fetchMock(input, init);
   });
@@ -89,6 +138,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Added alongside the new "Formatting toolbar" describe blocks below, several of which
+  // `vi.spyOn(window, "prompt")` per test — without this, a later test's fresh `vi.spyOn` wraps the
+  // PRIOR test's still-active spy instead of the real `window.prompt`, so its own call count includes
+  // every earlier test's calls too (confirmed: a "called once" assertion saw 3, then 6, accumulating
+  // across tests in file order).
+  vi.restoreAllMocks();
 });
 
 describe("Publish", () => {
@@ -222,6 +277,332 @@ describe("CharacterCount readout", () => {
     render(<PostEditor postId="p1" />);
 
     expect(await screen.findByText("11 characters")).toBeInTheDocument();
+  });
+
+  it("uses the singular 'character' when the count is exactly 1", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ post: { ...DRAFT_POST, title: "H", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } } }),
+    );
+
+    render(<PostEditor postId="p1" />);
+
+    expect(await screen.findByText("1 character")).toBeInTheDocument();
+  });
+});
+
+describe("Post load — error and loading states", () => {
+  it("shows the error notice, not the loading placeholder, when the load fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+
+    render(<PostEditor postId="p1" />);
+
+    expect(await screen.findByText("network down")).toBeInTheDocument();
+    expect(screen.queryByText(/loading editor/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the loading placeholder before the post has loaded", () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+
+    render(<PostEditor postId="p1" />);
+
+    expect(screen.getByText(/loading editor/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Formatting toolbar — click-driven command coverage. Mounts the REAL editor (same reasoning the
+ * pre-existing "alignment icons"/"CharacterCount" blocks above already state) against
+ * `DRAFT_POST_WITH_BODY_TEXT` so the default cursor position — the first BODY block, not the `title`
+ * node, confirmed empirically — lands somewhere `toggleHeading`/`toggleBulletList`/etc. are
+ * structurally valid (the `title` node is deliberately excluded from the `block` group, so a
+ * block-level command issued from inside it silently no-ops).
+ */
+describe("Formatting toolbar — mark and block-type toggles", () => {
+  it.each([
+    ["Bold (⌘B)", "bold"],
+    ["Italic (⌘I)", "italic"],
+    ["Strikethrough", "strike"],
+    ["Underline (⌘U)", "underline"],
+    ["Highlight", "highlight"],
+    ["Subscript", "subscript"],
+    ["Superscript", "superscript"],
+    ["Inline code", "code"],
+    ["Heading 1", "h1"],
+    ["Heading 2", "h2"],
+    ["Heading 3", "h3"],
+    ["Bullet list", "bullet"],
+    ["Numbered list", "ordered"],
+    ["Task list", "taskList"],
+    ["Quote", "quote"],
+    ["Code block", "codeBlock"],
+  ])("clicking '%s' toggles its own aria-pressed state on", async (title) => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+
+    const button = await screen.findByTitle(title);
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    await user.click(button);
+    expect(button).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("Formatting toolbar — alignment button clicks", () => {
+  it.each(["Align left", "Align center", "Align right", "Justify"])(
+    "clicking '%s' sets its own aria-pressed state on",
+    async (name) => {
+      const user = userEvent.setup();
+      fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+      render(<PostEditor postId="p1" />);
+
+      const button = await screen.findByRole("button", { name });
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      await user.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+});
+
+describe("Formatting toolbar — Link button", () => {
+  it("applies a link when the prompt returns a URL", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    const link = await screen.findByTitle("Link");
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com");
+    await user.click(link);
+
+    expect(link).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("removes the link on a second click while it is already active", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    const link = await screen.findByTitle("Link");
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com");
+    await user.click(link);
+    expect(link).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(link);
+    expect(link).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does nothing when the URL prompt is cancelled", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    const link = await screen.findByTitle("Link");
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValueOnce(null);
+    await user.click(link);
+
+    expect(promptSpy).toHaveBeenCalledTimes(1);
+    expect(link).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("Formatting toolbar — text/background color", () => {
+  it("setting a text color shows the clear button; clearing it removes the color and the button", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const colorInput = screen.getByLabelText("Text color");
+    fireEvent.change(colorInput, { target: { value: "#ff0000" } });
+    const clearButton = await screen.findByRole("button", { name: /clear text color/i });
+
+    await user.click(clearButton);
+    expect(screen.queryByRole("button", { name: /clear text color/i })).not.toBeInTheDocument();
+  });
+
+  it("setting a background color shows the clear button; clearing it removes the color and the button", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const colorInput = screen.getByLabelText("Background color");
+    fireEvent.change(colorInput, { target: { value: "#00ff00" } });
+    const clearButton = await screen.findByRole("button", { name: /clear background color/i });
+
+    await user.click(clearButton);
+    expect(screen.queryByRole("button", { name: /clear background color/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("Formatting toolbar — font family/size/line height selects", () => {
+  it.each([
+    ["Font family", "ui-serif, Georgia, serif"],
+    ["Font size", "14px"],
+    ["Line height", "1.5"],
+  ])("'%s' applies the chosen value, then reverts on 'Default'", async (label, someValue) => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const select = screen.getByLabelText(label) as HTMLSelectElement;
+    // Guard against a preset list change silently dropping this test's chosen option — an explicit
+    // failure here is more useful than a false-pass "Default" no-op.
+    const optionValues = Array.from(select.options).map((o) => o.value);
+    expect(optionValues).toContain(someValue);
+
+    await user.selectOptions(select, someValue);
+    expect(select).toHaveValue(someValue);
+
+    await user.selectOptions(select, "");
+    expect(select).toHaveValue("");
+  });
+});
+
+describe("Formatting toolbar — insert image by URL", () => {
+  it("inserts a media-image node with the prompted src/alt", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com/pic.png").mockReturnValueOnce("A picture");
+    await user.click(screen.getByRole("button", { name: /img by url/i }));
+
+    const img = await screen.findByRole("img", { name: "A picture" });
+    expect(img).toHaveAttribute("src", "https://example.com/pic.png");
+  });
+
+  it("inserts nothing when the URL prompt is cancelled", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValueOnce(null);
+    await user.click(screen.getByRole("button", { name: /img by url/i }));
+
+    expect(promptSpy).toHaveBeenCalledTimes(1); // never asked for alt text
+    expect(document.querySelector(".media-image-node__preview")).not.toBeInTheDocument();
+  });
+});
+
+describe("Formatting toolbar — insert YouTube video", () => {
+  it("inserts a YouTube embed for a recognized URL", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    await user.click(screen.getByRole("button", { name: /youtube/i }));
+
+    expect(document.querySelector("[data-youtube-video] iframe")).toBeInTheDocument();
+  });
+
+  it("inserts nothing when the URL prompt is cancelled", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce(null);
+    await user.click(screen.getByRole("button", { name: /youtube/i }));
+
+    expect(document.querySelector("[data-youtube-video] iframe")).not.toBeInTheDocument();
+  });
+});
+
+describe("Formatting toolbar — mention picker", () => {
+  it("inserts a mention node for the chosen post, excluding the post being edited from the options", async () => {
+    mentionablePostsFixture = [OTHER_MENTIONABLE_POST, { ...DRAFT_POST, workspaceId: "w1" }];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const select = screen.getByLabelText("Mention a post") as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(["", "other-post"]); // current post excluded
+
+    fireEvent.change(select, { target: { value: "other-post" } });
+    expect(document.querySelector('[data-type="mention"]')).toBeInTheDocument();
+  });
+
+  it("does nothing when the selected slug matches no mentionable post", async () => {
+    mentionablePostsFixture = [OTHER_MENTIONABLE_POST];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    const select = screen.getByLabelText("Mention a post") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "no-such-slug" } });
+
+    expect(document.querySelector('[data-type="mention"]')).not.toBeInTheDocument();
+  });
+});
+
+describe("Formatting toolbar — code block language picker", () => {
+  it("choosing a language converts the current block to a code block set to that language", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    const codeBlockBtn = await screen.findByTitle("Code block");
+    expect(codeBlockBtn).toHaveAttribute("aria-pressed", "false");
+
+    const languageSelect = screen.getByLabelText("Code language") as HTMLSelectElement;
+    await user.selectOptions(languageSelect, "python");
+
+    expect(codeBlockBtn).toHaveAttribute("aria-pressed", "true");
+    expect(languageSelect).toHaveValue("python");
+  });
+});
+
+describe("Formatting toolbar — divider and table inserts", () => {
+  it("Divider inserts a horizontal rule", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    await user.click(screen.getByTitle("Divider"));
+    expect(document.querySelector(".ProseMirror hr")).toBeInTheDocument();
+  });
+
+  it("Table inserts a 3x3 table with a header row", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+    await screen.findByTitle("Bold (⌘B)");
+
+    await user.click(screen.getByTitle("Insert table"));
+    expect(document.querySelector(".ProseMirror table")).toBeInTheDocument();
+  });
+});
+
+describe("Formatting toolbar — Undo/Redo", () => {
+  // `canRedo`/`canUndo` are read straight off `editor.can()` (`probeToolbar`), already pinned at the
+  // probe level in `PostEditor.toolbar-probes.unit.test.ts` — this only needs to prove the two
+  // buttons are wired to the right commands and reflect real history state, not re-verify a mark's
+  // exact visual round-trip through a collapsed-cursor toggle (confirmed empirically unreliable to
+  // assert on: TipTap's `storedMarks`-based toggle on an empty selection doesn't reliably restore
+  // through `redo()` the way a real text-range mark change does — a `history`-plugin/storedMarks
+  // interaction, not something this component's own click handlers control).
+  it("Undo reverts the toggled mark and enables Redo; clicking Redo does not throw", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    render(<PostEditor postId="p1" />);
+
+    const bold = await screen.findByTitle("Bold (⌘B)");
+    const redoBtn = screen.getByTitle("Redo (⌘⇧Z)");
+    expect(redoBtn).toBeDisabled(); // nothing to redo yet
+
+    await user.click(bold);
+    expect(bold).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByTitle("Undo (⌘Z)"));
+    expect(bold).toHaveAttribute("aria-pressed", "false");
+    expect(redoBtn).not.toBeDisabled(); // the undo just made a redo available
+
+    await user.click(redoBtn);
   });
 });
 
@@ -625,5 +1006,76 @@ describe("Slug-collision override (tri-state)", () => {
       "theme"
     );
     expect(ctrl.setOverridesThemePage).toHaveBeenCalledWith(false);
+  });
+});
+
+/**
+ * Header wiring — the back-link's `confirmLeave()` guard, and the status select — driven through the
+ * same `renderPostEditor`/DI-seam convention the two describe blocks above already establish, rather
+ * than a `fetch`-mocked full render: this is about `PostEditorHeader`'s own click/change wiring, not
+ * `usePostEditor`'s internals.
+ */
+describe("Header — back-link confirmLeave guard and status select", () => {
+  it("does not prevent the back-link navigation when confirmLeave() returns true", async () => {
+    const confirmLeave = vi.fn(() => true);
+    renderPostEditor({ confirmLeave });
+    const link = screen.getByRole("link", { name: /posts/i });
+
+    const notPrevented = fireEvent.click(link);
+
+    expect(confirmLeave).toHaveBeenCalledTimes(1);
+    expect(notPrevented).toBe(true); // event.preventDefault() was NOT called
+  });
+
+  it("prevents the back-link navigation when confirmLeave() returns false", async () => {
+    const confirmLeave = vi.fn(() => false);
+    renderPostEditor({ confirmLeave });
+    const link = screen.getByRole("link", { name: /posts/i });
+
+    const notPrevented = fireEvent.click(link);
+
+    expect(confirmLeave).toHaveBeenCalledTimes(1);
+    expect(notPrevented).toBe(false); // event.preventDefault() WAS called
+  });
+
+  it("changing the status select calls setStatus with the new value", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ status: "draft" });
+
+    const statusSelect = document.querySelector('[data-agent-element="post-status"]') as HTMLSelectElement;
+    expect(statusSelect).toBeInTheDocument();
+    await user.selectOptions(statusSelect, "published");
+
+    expect(ctrl.setStatus).toHaveBeenCalledWith("published");
+  });
+});
+
+describe("Title and slug fields — typing calls setTitle/setSlug", () => {
+  it("typing in the title field calls setTitle with the field's new value", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ title: "Hello world" });
+
+    await user.type(screen.getByLabelText("Post title"), "!");
+
+    expect(ctrl.setTitle).toHaveBeenCalled();
+  });
+
+  it("typing in the slug field calls setSlug with the field's new value", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ slug: "hello-world" });
+
+    await user.type(screen.getByLabelText("URL slug"), "x");
+
+    expect(ctrl.setSlug).toHaveBeenCalled();
+  });
+});
+
+describe("Template picker — theme with zero templates", () => {
+  it("renders a disabled 'no templates for this theme' select instead of hiding the row", () => {
+    renderPostEditor({ availableTemplates: [] });
+
+    const select = templateSelect();
+    expect(select).toBeDisabled();
+    expect(select).toHaveTextContent(/no templates for this theme/i);
   });
 });

@@ -145,6 +145,16 @@ describe("probeToolbar", () => {
     expect(state.lineHeight).toBe("");
     expect(state.characterCount).toBe(0);
   });
+
+  it("falls back to 0 characters when `storage.characterCount` itself is absent (extension not registered)", () => {
+    // Distinct from the previous test's `characters: 0` case: here `?.` itself must short-circuit
+    // (`storage.characterCount` is missing entirely), not just return 0 from a present extension.
+    // `fakeEditor` always installs a `storage.characterCount` stub, so this constructs the editor
+    // stand-in directly rather than through that helper.
+    const editor = { isActive: () => false, getAttributes: () => ({}), can: () => ({ undo: () => false, redo: () => false }), storage: {} } as unknown as Parameters<typeof probeToolbar>[0];
+
+    expect(probeToolbar(editor).characterCount).toBe(0);
+  });
 });
 
 describe("probeBubbleMenu", () => {
