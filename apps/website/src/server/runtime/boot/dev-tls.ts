@@ -69,6 +69,24 @@ export function resolveDevTlsCertPaths(repoRoot: string): DevTlsCertPaths {
 }
 
 /**
+ * Parses `TOVU_DISABLE_DEV_TLS` the same way `site-switcher-enabled.ts`'s `TOVU_ENABLE_SITE_SWITCHER`
+ * gate parses its own var (trim + lowercase, `"1"`/`"true"` only) rather than a bare truthy check on
+ * the raw string — a bare truthy check treats ANY non-empty value, including the literal string
+ * `"false"` or `"0"`, as "disable", which silently inverts an operator who explicitly set
+ * `TOVU_DISABLE_DEV_TLS=false` meaning "do not disable TLS" (2026-09-05 audit finding, CONFIRMED
+ * against this exact check). Polarity is inverted from that sibling gate on purpose: this is a
+ * DISABLE flag, so a true result here gates the "turn TLS off" branch, not the "turn it on" one.
+ *
+ * Hoisted out of {@link resolveDevTls} (rather than inlined) purely to keep the `?.`/`||` this parse
+ * needs off that function's own complexity count — the same hoist-for-complexity shape
+ * `deps.ts`'s `assertOverridesPairedOrAbsent` already uses.
+ */
+function isDevTlsExplicitlyDisabled(raw: string | undefined): boolean {
+  const normalized = raw?.trim().toLowerCase();
+  return normalized === "1" || normalized === "true";
+}
+
+/**
  * Decides whether this boot should terminate TLS itself, and loads the credentials when it should.
  *
  * Fails open to plain HTTP — never mandatory. Three ways HTTP wins: `TOVU_DISABLE_DEV_TLS` is set
@@ -84,7 +102,7 @@ export function resolveDevTls(input: DevTlsCertPaths, deps: DevTlsDeps = {}): De
   const readFile = deps.readFileSync ?? readFileSync;
   const env = deps.env ?? process.env;
 
-  if (env.TOVU_DISABLE_DEV_TLS) return { active: false };
+  if (isDevTlsExplicitlyDisabled(env.TOVU_DISABLE_DEV_TLS)) return { active: false };
   if (!checkExists(input.certPath) || !checkExists(input.keyPath)) return { active: false };
 
   return {
