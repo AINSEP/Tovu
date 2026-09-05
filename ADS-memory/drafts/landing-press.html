@@ -246,7 +246,13 @@ body { background: var(--pr-paper); }
 .pr pre { background: transparent; border: 0; border-radius: 0; padding: 0; }
 .pr code { background: transparent; border: 0; border-radius: 0; padding: 0; font: inherit; }
 
+/* (0,2,0), and it has to be. `.pr-in` alone is (0,1,0) and the prose reset's
+   `.pr p { margin: 0 }` above is (0,1,1) — which silently un-centred the two
+   <p class="pr-in"> running heads and left them flush against the viewport
+   edge while every <div class="pr-in"> stayed centred. Only the inline axis is
+   set here so the block margins stay each element's own business. */
 .pr-in { max-width: var(--pr-max); margin: 0 auto; padding: 0 var(--pr-gutter); }
+.pr .pr-in { margin-inline: auto; }
 .pr p { color: var(--pr-body); }
 .pr p + p { margin-top: 0.9em; }
 
@@ -267,7 +273,7 @@ body { background: var(--pr-paper); }
   font: 500 11px/1.4 var(--font-mono);
   letter-spacing: 0.13em; text-transform: uppercase;
   color: var(--pr-body);
-  margin: 0;
+  margin-block: 0;
 }
 .pr-runhead-in b { color: var(--pr-rubric); font-weight: 500; }
 .pr-runhead-in .sp { margin-left: auto; }
@@ -284,6 +290,7 @@ body { background: var(--pr-paper); }
   font-weight: 400;
   margin: 0 0 30px;
   max-width: 15ch;
+  text-wrap: balance;   /* stops 'tool.' orphaning onto a third line */
   color: var(--pr-ink);
 }
 /* The rubric word. Green on paper at 7.01:1 and green on ground at 10.61:1 —
@@ -407,10 +414,13 @@ body { background: var(--pr-paper); }
 .pr-tbl td:last-child, .pr-tbl th:last-child { padding-right: 0; }
 /* The tool-name column. Mono, rubric, and allowed to wrap on a narrow screen
    rather than forcing the table into a horizontal scroll. */
-.pr-tool { font: 13px/1.5 var(--font-mono); color: var(--pr-rubric); word-break: break-word; }
+/* Written as `.pr-tbl td.<x>` (0,2,1), not as a bare class (0,1,0): `.pr-tbl td`
+   below is (0,1,1) and beat both of these, so every tool name drew in plain ink
+   at the cell's own font-size instead of the rubric at 13px. */
+.pr-tbl td.pr-tool { font: 13px/1.5 var(--font-mono); color: var(--pr-rubric); word-break: break-word; }
 .pr-tbl td em { font-style: italic; color: var(--pr-body); }
-.pr-verdict { font: 500 12.5px/1.5 var(--font-mono); letter-spacing: 0.02em; color: var(--pr-ink); }
-.pr-verdict span { display: block; font-weight: 400; color: var(--pr-body); letter-spacing: 0; margin-top: 3px; }
+.pr-tbl td.pr-verdict { font: 500 12.5px/1.5 var(--font-mono); letter-spacing: 0.02em; color: var(--pr-ink); }
+.pr-tbl td.pr-verdict span { display: block; font-weight: 400; color: var(--pr-body); letter-spacing: 0; margin-top: 3px; }
 
 /* ===========================================================================
    7. TIER LIST — numbered, ruled, no cards.
@@ -480,7 +490,7 @@ body { background: var(--pr-paper); }
   padding-top: 15px; padding-bottom: 17px;
   font: 500 11px/1.4 var(--font-mono);
   letter-spacing: 0.13em; text-transform: uppercase;
-  color: var(--pr-body); margin: 0;
+  color: var(--pr-body); margin-block: 0;
 }
 .pr-footrule-in .sp { margin-left: auto; }
 
@@ -491,14 +501,23 @@ body { background: var(--pr-paper); }
    labelling without spending 172px of a phone's width on it.
    =========================================================================== */
 @media (max-width: 900px) {
-  .pr-band > .pr-in { grid-template-columns: 1fr; gap: 0; padding-top: 56px; padding-bottom: 58px; }
+  /* `minmax(0, 1fr)`, never a bare `1fr`. A bare `1fr` is `minmax(auto, 1fr)`,
+     and a grid item's automatic minimum size is CONTENT-based: the git-clone URL
+     in section V's <pre> has a measured min-content of 588px, which forced that
+     band's single column to 510px inside a 390px viewport and gave the whole
+     document a horizontal scrollbar. The <pre>'s own `overflow-x: auto` does not
+     prevent it — overflow zeroes the automatic minimum size only for an element
+     that is ITSELF a flex or grid item, and this one is a plain block two levels
+     down. Flooring the track at 0 is what lets it shrink; the <pre> then scrolls
+     inside its own box, which is where a long URL belongs. */
+  .pr-band > .pr-in { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 56px; padding-bottom: 58px; }
   .pr-marg { position: static; display: flex; gap: 12px; align-items: baseline; margin-bottom: 16px; }
   .pr .pr-marg-n { margin: 0; }
   .pr-band h2 { margin-top: 0; max-width: 24ch; }
   .pr-verso { grid-template-columns: 1fr; }
   .pr-verso > div { padding: 18px 0; border-left: 0; border-top: 1px solid var(--pr-edge); }
   .pr-verso > div:first-child { border-top: 0; padding-top: 20px; }
-  .pr-two { grid-template-columns: 1fr; gap: 20px; }
+  .pr-two { grid-template-columns: minmax(0, 1fr); gap: 20px; }   /* same reason */
   .pr-title { padding-block: 46px 0; }
 }
 @media (max-width: 620px) {
