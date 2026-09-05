@@ -1096,7 +1096,7 @@
 
 .jini-conv-item-delete:hover {
   background: var(--surface);
-  color: var(--danger-text, #b3261e);
+  color: var(--danger);
 }
 
 .jini-conv-rename {
