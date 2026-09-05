@@ -384,6 +384,92 @@ describe("useAccessTokens — content refresh bus", () => {
   });
 });
 
+/**
+ * Regression coverage for the 2026-09-05 Gemini audit's four `reloadAllStores` findings — all
+ * CONFIRMED against source (see `use-access-tokens.hooks.ts`'s own updated doc comments for each).
+ */
+describe("useAccessTokens: reloadAllStores hardening (2026-09-05 Gemini audit)", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("clears a stale initial-load error once a background reload succeeds, instead of masking the success forever (claim a)", async () => {
+    const port = createFakeAccessTokensPort({ custom: { list: () => Promise.reject(new Error("custom down")) } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.loadError).toBe("Couldn't load saved access tokens: custom down"));
+
+    // The store recovers, and a content refresh fires a background reload.
+    port.custom.list = () => Promise.resolve({ credentials: [customCredential()] });
+    act(() => publishContentRefresh());
+
+    // `publishQuery.error`/`sourceControlQuery.error`/`customQuery.error` (the INITIAL fetch's own
+    // state) never reset — only `hasReloadedOnce` gating them out lets this go to `null`.
+    await waitFor(() => expect(result.current.loadError).toBe(null));
+    expect(result.current.totalCount).toBe(1);
+  });
+
+  it("keeps the other two stores' fresh reload data when only one store's reload rejects, instead of Promise.all discarding all three (claim b)", async () => {
+    const port = createFakeAccessTokensPort({
+      publish: { list: () => Promise.resolve({ credentials: [publishCredential()], executionMode: "self-hosted-cli" }) },
+      sourceControl: { list: () => Promise.resolve({ credentials: [sourceControlCredential()] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    expect(result.current.totalCount).toBe(2);
+
+    // A just-revoked source-control token, reloaded fresh — landing correctly must not depend on
+    // the unrelated custom store's own reload succeeding.
+    port.sourceControl.list = () => Promise.resolve({ credentials: [] });
+    port.custom.list = () => Promise.reject(new Error("custom down"));
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.totalCount).toBe(1));
+    expect(result.current.loadError).toBe("Couldn't load saved access tokens: custom down");
+  });
+
+  it("discards an older in-flight reload's result once a newer reload has already landed, instead of overwriting fresher data (claim c)", async () => {
+    const pendingResolvers: Array<(v: { credentials: AdminCustomCredentialSummary[] }) => void> = [];
+    const port = createFakeAccessTokensPort({
+      custom: { list: () => new Promise<{ credentials: AdminCustomCredentialSummary[] }>((resolve) => pendingResolvers.push(resolve)) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(pendingResolvers.length).toBe(1));
+    pendingResolvers[0]({ credentials: [] }); // initial load
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+
+    act(() => publishContentRefresh()); // reload #1 (older) — held open
+    await waitFor(() => expect(pendingResolvers.length).toBe(2));
+    act(() => publishContentRefresh()); // reload #2 (newer) — held open
+    await waitFor(() => expect(pendingResolvers.length).toBe(3));
+
+    // The NEWER reload resolves first, with fresh data.
+    pendingResolvers[2]({ credentials: [customCredential({ id: "fresh", label: "Fresh" })] });
+    await waitFor(() => expect(result.current.totalCount).toBe(1));
+
+    // The OLDER reload resolves last, with stale (empty) data — must be discarded, not applied.
+    pendingResolvers[1]({ credentials: [] });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.totalCount).toBe(1);
+    expect(findRow(result.current.groups, "fresh")).toBeDefined();
+  });
+});
+
+describe("useWiredAccessTokens: t identity stability (2026-09-05 Gemini audit claim d)", () => {
+  it("returns a referentially stable t across re-renders when locale does not change, so reloadAllStores's useCallback (and its content-refresh subscription) is not rebuilt every render", async () => {
+    listPublishCredentials.mockResolvedValue({ credentials: [], executionMode: "self-hosted-cli" });
+    listSourceControlCredentials.mockResolvedValue({ credentials: [] });
+    listCustomCredentials.mockResolvedValue({ credentials: [] });
+
+    const { result, rerender } = renderHook(() => useWiredAccessTokens(), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const firstT = result.current.t;
+
+    rerender();
+    rerender();
+
+    expect(result.current.t).toBe(firstT);
+  });
+});
+
 describe("useAccessTokens: initial load errors — accessTokensLoadError's publish/source-control/custom priority", () => {
   it("surfaces a rejected PUBLISH list as the load error on first load", async () => {
     const port = createFakeAccessTokensPort({ publish: { list: () => Promise.reject(new Error("publish down")) } });

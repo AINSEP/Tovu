@@ -292,6 +292,18 @@ function accessTokensLoadError(
   return null;
 }
 
+/** Returns the first rejected settlement's reason among `results`, or `undefined` if every one
+ *  fulfilled — lets {@link reloadAllStores} surface a background reload's per-store failure to the
+ *  user without going back to a `Promise.all` that would discard the OTHER two stores' successfully
+ *  refreshed data just because one rejected (2026-09-05 Gemini audit, verified: a just-revoked token
+ *  in a store that itself reloaded fine could keep rendering as active, because the ONE other
+ *  store's transient failure erased all three). Priority matches {@link accessTokensLoadError}'s own
+ *  publish-then-source-control-then-custom order, since `results` is always built in that order.
+ *  @complexity O(n) in the settled-result count (always 3 here). */
+function firstRejectionReason(results: readonly PromiseSettledResult<unknown>[]): unknown {
+  return results.find((r): r is PromiseRejectedResult => r.status === "rejected")?.reason;
+}
+
 /** Normalizes one store's update payload into the exact `{label?, connection?, isDefault?}` shape
  *  each port method wants, dispatching on `kind` — the one place a `connection`'s union type is cast
  *  down to the specific store's own type (see `rules.ts`'s `buildAccessTokenConnectionInput` doc for
@@ -344,10 +356,31 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setCustomCredentials(customQuery.data.credentials);
   }, [customQuery.status, customQuery.data]);
 
-  // Set when a background reload (below) rejects — merged into `loadError` so a failed refresh is
-  // as visible as a failed initial load, instead of the unhandled rejection this used to produce
-  // (LOW audit finding, 2026-09-03: `reloadAllStores` awaited all three stores with no `catch`).
+  // Set from a background reload (below) — merged into `loadError` so a failed refresh is as
+  // visible as a failed initial load, instead of the unhandled rejection this used to produce (LOW
+  // audit finding, 2026-09-03: `reloadAllStores` awaited all three stores with no `catch`).
   const [reloadError, setReloadError] = useState<string | null>(null);
+  // Flips true the first time ANY background reload completes (success or failure) — lets
+  // `loadError` below stop consulting `publishQuery.error`/`sourceControlQuery.error`/
+  // `customQuery.error` once a reload has run at all, since those three are frozen at whatever they
+  // were on the INITIAL fetch and nothing ever clears them afterward (2026-09-05 Gemini audit,
+  // verified: without this, an initial fetch failure showed a permanent error banner even after a
+  // later background reload fixed the problem, because `accessTokensLoadError(...) ?? reloadError`
+  // always prefers that stale, never-reset initial error over `reloadError`'s honest "no error"
+  // `null` — reordering the `??` would not have helped, since a successful reload also produces
+  // `null`, the exact value `??` treats as "keep checking further"; only gating on "has a reload
+  // happened at all" tells the difference between "no reload has run yet" and "the last reload
+  // succeeded").
+  const [hasReloadedOnce, setHasReloadedOnce] = useState(false);
+  // Monotonic per-attempt id (same shape as `use-widget-region-editor.hooks.ts`'s
+  // `loadRequestIdRef`/`use-static-publish.hooks.ts`'s `previewGenerationRef`): a content-refresh
+  // notification can fire again while a previous reload is still in flight (2026-09-05 Gemini audit,
+  // verified: `useContentRefreshSubscription` invokes `triggerReload` — a fresh, ungated
+  // `reloadAllStores()` call every time — with no de-dupe of overlapping reloads), and network
+  // completion order does not have to match start order. Minted synchronously at the top of each
+  // attempt, before the first `await`, so two reloads started back to back always mint in the order
+  // they started even though both are `async`.
+  const reloadGenerationRef = useRef(0);
 
   /**
    * Re-reads all three stores directly, bypassing `useFetchQuery`'s cache — an out-of-band write
@@ -364,21 +397,36 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    * in-progress edit or in-flight save the way overwriting a settings tab's single edited `value`
    * could.
    *
-   * Wrapped in `try`/`catch` because `triggerReload` below calls this fire-and-forget (`void
-   * reloadAllStores()`, required by `useContentRefreshSubscription`'s `onRefresh: () => void`
-   * contract) — an uncaught rejection here would otherwise become an unhandled promise rejection
-   * with no visible effect on the screen at all.
+   * `Promise.allSettled`, not `Promise.all` (2026-09-05 Gemini audit, CONFIRMED): a `Promise.all`
+   * rejects as soon as ANY of the three rejects, discarding the other two stores' already-resolved,
+   * genuinely fresher results — a revoked token in a store that itself reloaded fine could keep
+   * rendering as active because an unrelated store merely blipped. Each store here is applied
+   * independently on its own success, and the first failure (if any) still surfaces through
+   * `reloadError` via {@link firstRejectionReason} — no store's failure is silently swallowed, it
+   * just no longer holds the other two hostage.
+   *
+   * Guarded by `reloadGenerationRef` (2026-09-05 Gemini audit, CONFIRMED): with no ordering guard, an
+   * older reload that happens to resolve AFTER a newer one already committed its results would
+   * overwrite the newer, correct data with its own now-stale snapshot. Every commit below (`if
+   * (reloadGenerationRef.current !== requestGeneration) return;`) is skipped whenever a newer
+   * `reloadAllStores()` call has started since this one began.
+   *
+   * No longer wrapped in `try`/`catch` (the per-store settlement above is what used to need it) —
+   * `triggerReload` below still calls this fire-and-forget (`void reloadAllStores()`, required by
+   * `useContentRefreshSubscription`'s `onRefresh: () => void` contract), but nothing in this function
+   * can now throw: `Promise.allSettled` itself never rejects.
    */
   const reloadAllStores = useCallback(async () => {
-    try {
-      const [publish, sourceControl, custom] = await Promise.all([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
-      setPublishCredentials(publish.credentials);
-      setSourceControlCredentials(sourceControl.credentials);
-      setCustomCredentials(custom.credentials);
-      setReloadError(null);
-    } catch (err) {
-      setReloadError(accessTokensLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
-    }
+    const requestGeneration = ++reloadGenerationRef.current;
+    const results = await Promise.allSettled([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
+    if (reloadGenerationRef.current !== requestGeneration) return; // superseded by a newer reload
+    const [publishResult, sourceControlResult, customResult] = results;
+    if (publishResult.status === "fulfilled") setPublishCredentials(publishResult.value.credentials);
+    if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
+    if (customResult.status === "fulfilled") setCustomCredentials(customResult.value.credentials);
+    const failureReason = firstRejectionReason(results);
+    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage(locale, describeApiError(failureReason, t("unknown error"))));
+    setHasReloadedOnce(true);
   }, [port, locale, t]);
 
   // Stable identity — see `use-media.hooks.ts`'s identical `invalidateList` note for why an inline
@@ -388,7 +436,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }, [reloadAllStores]);
   useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
 
-  const loadError = accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError;
+  // Once a reload has completed at least once, `reloadError` alone is authoritative — see
+  // `hasReloadedOnce`'s own doc for why the initial-fetch errors below cannot be trusted past that
+  // point (they are never reset). Before any reload, this is unchanged from before: the initial
+  // load's own three-way priority, falling back to `reloadError` (still its initial `null`).
+  const loadError = hasReloadedOnce
+    ? reloadError
+    : (accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError);
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined) return undefined;
@@ -686,9 +740,20 @@ function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew
  * Binds the real port, and a `t` bound to the real resolved locale — the zero-argument half of the
  * `useX(dependencies)` / `useWiredX()` pair, same shape `useWiredPublishCredentials`/
  * `useWiredSourceControlCredentials` document.
+ *
+ * `boundT` is a `useCallback` (matching `useWiredSites`'s identical `const t = useCallback(...)`),
+ * not a plain arrow function recreated every render (2026-09-05 Gemini audit, CONFIRMED): `t` flows
+ * into `reloadAllStores`'s own `useCallback` dependency array above, which is correct — `t` is a
+ * genuine dependency there (`accessTokensLoadErrorMessage`/`describeApiError` both call it) — but a
+ * dependency that changes identity every render still defeats the surrounding `useCallback` just the
+ * same. That in turn gave `triggerReload` a new identity every render, and `triggerReload` is exactly
+ * what `useContentRefreshSubscription`'s own header warns changes identity every render (see this
+ * hook's own `triggerReload` comment): its effect deps are `[resource, onRefresh]`, so an unstable
+ * `onRefresh` tore down and rebuilt the SSE subscription on every single render for no benefit. Only
+ * `locale` changing should ever produce a new `boundT`.
  */
 export function useWiredAccessTokens(): AccessTokensController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => defaultT(locale, key);
+  const boundT = useCallback((key: string): string => defaultT(locale, key), [locale]);
   return useAccessTokens(defaultAccessTokensPort, boundT, locale);
 }
