@@ -12,6 +12,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { createSourceControlCredential } from "../store.js";
+import { buildSourceControlCredentialAad } from "../aad.js";
 import {
   commitSiteToSourceControl,
   toCommitFile,
@@ -119,6 +120,33 @@ test("validateCommitTarget rejects an invalid owner, repo, branch, or commit mes
   assert.match(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "" }) ?? "", /commitMessage must be/);
 });
 
+/**
+ * Branch-coverage fill (2026-09-04): `REPO_PATTERN`'s own regex-fails case and the exact `"."` literal
+ * case are each their own `||` arm in `validateCommitTarget`'s repo check — the suite above only ever
+ * exercised the `".."` arm (REPO_PATTERN accepts a lone/double dot, so that arm is reached only via the
+ * literal-equality check, never via the regex). Both remaining arms are proven here, distinctly.
+ */
+test("validateCommitTarget rejects a repo with characters REPO_PATTERN itself refuses (not merely '.' or '..')", () => {
+  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }) ?? "", /invalid GitHub repo/);
+});
+
+test("validateCommitTarget rejects a repo that is the single-character literal '.', distinctly from the '..' case", () => {
+  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }) ?? "", /invalid GitHub repo/);
+});
+
+/**
+ * Branch-coverage fill (2026-09-04): the suite above only ever exercised the FIRST arm of
+ * `commitMessage.trim() === "" || commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH` — the empty-string
+ * case. This proves the length arm independently, one character over the documented 500-character cap.
+ */
+test("validateCommitTarget rejects a commit message one character over the 500-character cap, distinctly from the empty-message case", () => {
+  const tooLong = "x".repeat(501);
+  const message = validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: tooLong });
+  assert.match(message ?? "", /commitMessage must be 1-500 characters/);
+  // The boundary itself (exactly 500) must still be accepted — proves this is a `>`, not a `>=`, cap.
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", commitMessage: "x".repeat(500) }), null);
+});
+
 test("toCommitFile normalizes to forward slashes and drops no field static-publish's DeployFile has that this feature doesn't need", () => {
   assert.deepEqual(toCommitFile({ outputFile: "about/index.html", data: "<html></html>" }), { path: "about/index.html", data: "<html></html>" });
 });
@@ -178,6 +206,85 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
 });
 
+/**
+ * Branch-coverage fill (2026-09-04): `resolveCommitCredential`'s own inline comment calls this guard
+ * "unreachable in practice" because the normal write path (`store.ts`'s `createSourceControlCredential`/
+ * `updateSourceControlCredential`) can never store a row whose sealed connection disagrees with its own
+ * `providerId` column. That is a claim about ONE caller, not a proof the branch is unreachable from this
+ * function's own seam: `credentialDeps.repo`/`credentialDeps.sealer` are both injected ports, so this
+ * test constructs the disagreement directly — a row filed under `providerId: "github"` (so
+ * `findDefaultByProvider({providerId:"github"})` finds it) whose SEALED payload decrypts to a `gitlab`
+ * connection (bypassing `store.ts`'s write-time validation entirely, exactly the "not through the normal
+ * path" scenario the guard exists for) — proving the typed guard fires instead of forwarding a
+ * wrong-provider token to a GitHub API call.
+ */
+test("commitSiteToSourceControl: a resolved credential whose DECRYPTED connection disagrees with the queried provider is rejected as NO_CREDENTIALS_CONFIGURED, never forwarded to the git adapter", async () => {
+  const deps = testRouteDeps();
+  const { workspaceId } = deps;
+  const id = deps.idGen.newId();
+  const aad = buildSourceControlCredentialAad({ workspaceId, providerId: "github", id });
+  const sealed = await deps.siteAssistantSecretSealer.seal({
+    plaintext: JSON.stringify({ providerId: "gitlab", token: "evil-mismatched-token" }),
+    key: await deps.siteAssistantSecretKeyring.activeKey(),
+    aad,
+  });
+  await deps.sourceControlCredentialSetRepo.insert({
+    workspaceId,
+    id,
+    // Satisfies findDefaultByProvider's own filter — the disagreement lives entirely in the sealed
+    // payload above, never in this stored column, which store.ts's real write path always keeps in sync.
+    providerId: "github",
+    label: "direct-invoke test row — never producible via store.ts's own write path",
+    sealed,
+    isDefault: true,
+    accountLabel: null,
+    createdAt: deps.clock.nowIso(),
+    updatedAt: deps.clock.nowIso(),
+  });
+
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.equal(result.message, "The resolved default credential is not a 'github' connection.");
+});
+
+/**
+ * Branch-coverage fill (2026-09-04): `resolveCommitCredential`'s OWN catch (around
+ * `resolveDefaultForSourceControl`) has the identical `err instanceof Error ? err.message :
+ * String(err)` ternary `exportForCommit`'s catch has — the `brokenSealer` test above only ever throws
+ * `decryptRecord`'s own `SourceControlCredentialSecretStoreUnconfiguredError` (a real `Error`), so the
+ * non-`Error` arm was never reached from THIS catch specifically. `credentialDeps.repo` is an injected
+ * port, so a repo whose `findDefaultByProvider` throws a raw, non-`Error` value proves it directly.
+ */
+test("commitSiteToSourceControl: a credential repo throwing a non-Error value still produces a readable NO_CREDENTIALS_CONFIGURED message via String(err)", async () => {
+  const deps = testRouteDeps();
+  const throwingRepo: RouteDeps["sourceControlCredentialSetRepo"] = {
+    insert: () => { throw new Error("must not be called on this path"); },
+    update: () => { throw new Error("must not be called on this path"); },
+    findById: () => { throw new Error("must not be called on this path"); },
+    listByProvider: () => { throw new Error("must not be called on this path"); },
+    listByWorkspace: () => { throw new Error("must not be called on this path"); },
+    delete: () => { throw new Error("must not be called on this path"); },
+    findDefaultByProvider: () => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the `err
+      // instanceof Error` ternary's non-Error arm.
+      throw "raw string repo failure, not an Error instance";
+    },
+  };
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: throwingRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.equal(result.message, "credential could not be resolved: raw string repo failure, not an Error instance");
+});
+
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
   const deps = await withGithubCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
@@ -202,6 +309,48 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   assert.equal(passedInput.repo, "demo");
   assert.equal(passedInput.branch, "main");
   assert.equal(passedInput.commitMessage, "content update");
+});
+
+/**
+ * Branch-coverage fill (2026-09-04): every other test in this file supplies `deps.gitAdapter` — the
+ * "no adapter configured" wiring-bug guard (documented as production-unreachable, since
+ * `tool-registrations.ts` always supplies the real `github-git-provider.ts` adapter) was never
+ * exercised at all. `CommitSiteDeps.gitAdapter` is optional precisely so this direct-invoke proof is
+ * possible without touching `tool-registrations.ts`'s own wiring.
+ */
+test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_ERROR, a wiring bug never silently no-op'd", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer } },
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "PROVIDER_ERROR");
+  assert.match(result.message, /no GitHub commit adapter is configured/);
+});
+
+/**
+ * Branch-coverage fill (2026-09-04): `divergedPaths: result.divergedPaths ?? []` — every other success
+ * test's `fakeGitAdapter` result omits `divergedPaths` entirely (proving only the `??` fallback side).
+ * This proves the adapter's own real value passes through unchanged when present.
+ */
+test("commitSiteToSourceControl: a git adapter result WITH divergedPaths passes them through verbatim, not just the [] fallback", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
+  const result = await commitSiteToSourceControl(
+    {
+      credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+      gitAdapter: fakeGitAdapter(
+        { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 1, divergedPaths: ["old-page.html"] },
+        captured
+      ),
+    },
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.deepEqual(result.divergedPaths, ["old-page.html"]);
 });
 
 test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter as omitted, not a guessed default", async () => {
@@ -282,6 +431,62 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
     result.message,
     "refused to commit: 1 asset(s) failed to export (first: '/theme-assets/basic/css/theme.css' — GET /theme-assets/basic/css/theme.css -> 500)"
   );
+});
+
+/**
+ * Branch-coverage fill (2026-09-04): `exportForCommit`'s own `try { report = await
+ * input.exportSiteBound(...) } catch (err) { ... }` — every OTHER test in this file passes the real
+ * `deps.exportSiteBound`, which only ever RETURNS a report (with `routes.failed`/`assets.failed`
+ * entries for an export-level failure, proven by the "an asset that fails to export" test above); none
+ * ever make the call itself throw. `CommitSiteInput.exportSiteBound` is a plain injected function,
+ * so a THROWING fake proves this catch block directly, distinct from the report-shaped failure path.
+ */
+test("commitSiteToSourceControl: exportSiteBound throwing (not merely returning a failed report) is caught and reported as EXPORT_FAILED, never an unhandled rejection", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    {
+      workspaceId: deps.workspaceId,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: async () => {
+        throw new Error("export engine exploded before producing a report");
+      },
+      owner: "octo",
+      repo: "demo",
+      commitMessage: "content update",
+    }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "EXPORT_FAILED");
+  assert.equal(result.message, "export failed before committing could start: export engine exploded before producing a report");
+});
+
+/** Same catch block, the `err instanceof Error` ternary's OTHER arm — a thrown non-`Error` value must
+ *  still produce a readable message via `String(err)`, never `[object Object]` or a crash formatting it. */
+test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value still produces a readable EXPORT_FAILED message via String(err)", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    {
+      workspaceId: deps.workspaceId,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: async () => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the `err
+        // instanceof Error` ternary's non-Error arm, not simulating a realistic throw site.
+        throw "raw string failure, not an Error instance";
+      },
+      owner: "octo",
+      repo: "demo",
+      commitMessage: "content update",
+    }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "EXPORT_FAILED");
+  assert.equal(result.message, "export failed before committing could start: raw string failure, not an Error instance");
 });
 
 /**
