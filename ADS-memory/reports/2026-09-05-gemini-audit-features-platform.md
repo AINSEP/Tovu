@@ -15,7 +15,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 
 - [x] 1. Architecture fixes/revert: 5d90b1b5, 978aab02, af4b365d, c57f3791
 - [x] 2. Security/architecture fixes: 226fbbd7, 8ef2f6a2, cfd48066
-- [ ] 3. Coverage-padding tests batch 1 (14 commits, 09-03 morning)
+- [x] 3. Coverage-padding tests batch 1 (14 commits, 09-03 morning)
 - [ ] 4a. Custom-credentials fixes (small): a4fe6766, 86df1179, 922f2ef6, 6f9f4add, f0783b49
 - [ ] 4b. Custom-credentials fixes+refactor (large): 44b7555a, 8604b018, 3b773dcb, 06624d8c
 - [ ] 5. Mail/webhooks fixes: 704f0a4c, fbc0a37b, 95bd5f9d, c7bba21a
@@ -81,5 +81,17 @@ On the second half of this same finding (null byte bypassing `.trim()` since `tr
 - Gemini claimed `fresh !== null` (line 127, same file as the HIGH finding above) should be `fresh != null` because SQLite/Drizzle can return `undefined`, and that an uncaught `hasher.verify()` exception on a corrupted hash would crash before the restore-on-failure path runs. Disproved on both counts: `findByPrincipalId`'s port contract (`identity/ports.ts:39`) and its real implementation (`repo-helpers.ts:32`, `rows[0] ? mapper(rows[0]) : null`) both guarantee `null`, never `undefined`; and `Argon2PasswordHasher.verify()` (`identity/hasher.ts:60-65`) wraps `argon2.verify` in its own `try/catch` and explicitly documents "never throws on a malformed or foreign hash — it resolves `false`."
 
 ### Chunk 3 — coverage-padding tests batch 1, 09-03 morning (14 commits)
+
+Gemini raised 4 findings, all test-quality (this batch is coverage-padding commits, so that tracks). All 4 confirmed as real gaps after reading the actual test file and, where relevant, the real implementation — none reflect a live production bug (implementations checked out correct), but the test-quality gaps themselves are genuine. 0 discarded.
+
+**MEDIUM — CONFIRMED (severity lowered from Gemini's HIGH: real implementation is correct).** `apps/website/src/features/redirects/__tests__/repo.contract.test.ts:304-312` (c95b3b0e), test `"findByFromPattern tie breaks exact before prefix, then by id"`. The prefix record is `id: "b-pref"`, the exact record `id: "a-exact"` — since `"a-exact" < "b-pref"` alphabetically too, a broken implementation that ignored `matchType` entirely and just returned the lowest `id` would ALSO pass this assertion. Verified the real implementation is correct (`repo.memory.ts:102-104`: sorts by `matchType === "exact" ? 0 : 1` first, `id` second) — no live bug — but the test can't distinguish "sorts by precedence" from "sorts by id" and would silently pass a regression that dropped the `matchType` sort key.
+
+**MEDIUM — CONFIRMED.** `apps/website/src/features/redirects/__tests__/repo.contract.test.ts:227-320` (c95b3b0e). This commit added ~98 lines of new coverage entirely as standalone `test(...)` calls constructed against `new InMemoryRedirectRepo()` directly (tombstone's not-found/workspace-mismatch errors, `lookupLongestPrefix`, `listDynamic` tie-breaking, `findByFromPattern` precedence) — none went into `runContractSuite` (line 50), the file's own established mechanism (already used at lines 223/225) for running identical assertions against both `InMemoryRedirectRepo` and `SqliteRedirectRepo`. All of this new coverage is therefore blind to `SqliteRedirectRepo` divergence (e.g. a SQL `ORDER BY` that doesn't match the in-memory sort, or SQLite boolean/NULL handling differing from the in-memory tombstone guard) — exactly the kind of memory/sqlite parity gap this file's contract-suite pattern exists to prevent, and the new tests opted out of it.
+
+**LOW — CONFIRMED (severity lowered: real merge logic already uses `??`, no live bug).** `apps/website/src/features/seo/__tests__/seo.test.ts:388-392` (91e6328b), test `"getEntryMeta: nofollow override true wins over site default false"`. `setSeoSettings` is never called, so no site default is actually configured — the test's own title claims a default of `false` that it never establishes. Compare the file's own `noindex` sibling test at line 322-330 ("entry override noindex:false beats a workspace default noindex:true (EC-02)"), which *does* set an explicit contradicting default and *does* test the discriminating direction (override=false beating default=true, the only direction a `||`-based bug would fail on) — `nofollow` has no equivalent. Checked `seo.ts:174`: `nofollow = overrides.nofollow ?? settings.defaultRobots.nofollow ?? false` — already a correct `??` chain (not `||`), so no live defect, but nothing in the test suite proves it, unlike `noindex`.
+
+**LOW — CONFIRMED.** `apps/website/src/features/redirects/__tests__/repo.contract.test.ts:295-301` (c95b3b0e). Inside the test named `"listDynamic with includeOverrideOnly and tie-breaking"`, a trailing block commented `// lookupExact tie-break` (line 295) exercises `lookupExact` (unrelated to `listDynamic`) with priorities 5 and 10 — not a tie, so the comment is wrong on both counts (wrong method under test, and not actually a tie). Genuine slop: a misleading comment plus a test whose name doesn't match what it exercises, and no actual tied-priority case is tested for `lookupExact`.
+
+### Chunk 4a — custom-credentials fixes, small (a4fe6766, 86df1179, 922f2ef6, 6f9f4add, f0783b49)
 
 (running)
