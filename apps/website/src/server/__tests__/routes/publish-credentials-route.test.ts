@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import { bootAuthenticated, loginAsOwner, startTestServer } from "../helpers/http-test-server.js";
+import { createPublishCredential } from "#src/features/deployments/publish-credentials/index";
+import type { PublishCredentialSetRepoPort } from "#src/features/deployments/publish-credentials/index";
+import { registerAdminPublishCredentialsRoutes } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
+import {
+  bootAuthenticated,
+  createCapturingResponse,
+  extractRouteHandler,
+  loginAsOwner,
+  startTestServer,
+} from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -690,3 +700,196 @@ test("publish-credentials: GET .../:id/repos on a real github-pages credential r
   assert.equal(res.status, 500);
   assert.equal((await res.json()).code, "INTERNAL_ERROR");
 });
+
+// -------------------------------------------------------------------------------------------------
+// Direct-invocation tests for the five branches no route-level test (real HTTP through Express) can
+// ever reach. Per the repo's established rule for this class of guard (`extractRouteHandler`'s own
+// doc in `helpers/http-test-server.ts`, and the identical treatment already committed in
+// `taxonomy-routes.test.ts`/`admin-menus-routes.test.ts`): KEEP the guard, do not delete it, and
+// exercise it by calling the route's real registered handler directly with a hand-built `req` that
+// deliberately violates the framework contract the guard defends against. This bypasses Express
+// entirely (no `express.json()`, no router param-matching), so the guard's own code actually runs
+// instead of being provably dead under any real request.
+// -------------------------------------------------------------------------------------------------
+
+/** Looks up the same seeded "admin" owner principal a real cookie login (`bootAuthenticated`)
+ *  resolves to, for a handler invoked directly (bypassing `requireAdminSession` -- and therefore
+ *  every middleware that normally populates `res.locals.principal` -- entirely). Same lookup
+ *  `admin-menus-routes.test.ts`'s own direct-invoke tests use for the identical need. */
+async function resolveSeededOwnerPrincipal(deps: RouteDeps) {
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  return ownerPrincipal;
+}
+
+/** Wraps a real repo so its SECOND-and-later `findById` call returns `null` while the FIRST call
+ *  still delegates to the real store -- models a row vanishing between two reads inside the same
+ *  request. Same `Proxy`-over-the-real-repo shape `route-async-guards.test.ts`'s own
+ *  `withThrowingMethods` uses for a sibling class of problem (only `findById` is touched; every
+ *  other method keeps its real, working behavior). */
+function repoThatVanishesRowOnSecondRead(real: PublishCredentialSetRepoPort): PublishCredentialSetRepoPort {
+  let findByIdCalls = 0;
+  return new Proxy(real, {
+    get(target, prop, receiver) {
+      if (prop === "findById") {
+        return async (input: { workspaceId: string; id: string }) => {
+          findByIdCalls += 1;
+          return findByIdCalls === 1 ? target.findById(input) : null;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+/**
+ * `rejectUnlessAuthorized`'s `String(req.params.workspaceId ?? "") !== deps.workspaceId` (~line 265).
+ * Express guarantees a matched `:workspaceId` path segment is always a populated string for any
+ * request that reaches the handler at all -- unreachable through Express 4.21 today, not a local
+ * impossibility, and the guard exists to survive a future framework change, not today's requests.
+ *
+ * For ANY real seeded `deps.workspaceId` (never `""`), `String(undefined ?? "")` and
+ * `String(undefined)` ("undefined") both fail the `!==` check identically -- so simply omitting
+ * `req.params.workspaceId` and asserting a 404 would pass whether or not the `?? ""` fallback were
+ * deleted, which is not a real test. `deps.workspaceId` is forced to `""` here specifically so the
+ * fallback's own VALUE decides the outcome: with the guard intact this now compares `"" === ""` and
+ * passes straight through to `getAuthedPrincipal`, which throws because this is a direct handler
+ * call with no session middleware to populate `res.locals.principal` -- proof execution passed the
+ * workspace check rather than 404ing. Delete the `?? ""` and `String(undefined)` ("undefined") no
+ * longer equals `""`, so this same call would 404 instead of throwing -- the mutant this test kills.
+ */
+test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with workspaceId absent", async () => {
+  const deps: RouteDeps = { ...createRouteDeps(), workspaceId: "" };
+  const app = express();
+  registerAdminPublishCredentialsRoutes(app, deps);
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
+  const { res } = createCapturingResponse();
+
+  await assert.rejects(() => handler({ params: {} }, res), /no principal on res\.locals/);
+});
+
+/**
+ * POST's `const body = (req.body ?? {}) as Record<string, unknown>;` (~line 306). Real
+ * `express.json()` always assigns `req.body` an object regardless of body/content-type (confirmed
+ * directly by this file's own "POST with no body at all" test above, which documents it cannot kill
+ * this mutant for exactly this reason) -- unreachable through Express 4.21 today; the guard exists
+ * to survive a future framework/middleware change, not today's requests.
+ *
+ * With the guard intact, an omitted `req.body` becomes `{}`, `body.label`/`body.connection` are
+ * `undefined`, and `createPublishCredential` rejects with a validation error -> 400 VALIDATION.
+ * Delete the `?? {}` and `body` is `undefined` itself; the very next line (`label: body.label`)
+ * reads a property off `undefined` and throws a plain TypeError, which `sendStoreError`'s untyped-
+ * error branch maps to a 500 INTERNAL_ERROR instead -- the mutant this test's exact status/error
+ * assertion kills.
+ */
+test("publish-credentials: POST's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const ownerPrincipal = await resolveSeededOwnerPrincipal(deps);
+  const app = createApp(deps);
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { error: string }).error, "VALIDATION");
+});
+
+/**
+ * PUT's `const body = (req.body ?? {}) as Record<string, unknown>;` (~line 327) -- same fallback
+ * class and same "unreachable through Express 4.21 today, not a local impossibility" reasoning as
+ * the POST test above.
+ *
+ * With the guard intact, an omitted `req.body` becomes `{}`, so all three of PUT's optional-field
+ * ternaries (`label`/`connection`/`isDefault`) read `undefined` and spread nothing -- an untouched,
+ * still-valid no-op update that succeeds (200, unchanged credential). Delete the `?? {}` and `body`
+ * is `undefined` itself; `body.label !== undefined` reads a property off `undefined` and throws,
+ * which becomes a 500 instead -- the mutant this test's 200 assertion kills. Needs a real row to PUT
+ * against, seeded directly through `createPublishCredential` (the store function, not the route) so
+ * this stays a pure `req.body` probe with no network/verification call in the way.
+ */
+test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const ownerPrincipal = await resolveSeededOwnerPrincipal(deps);
+  const credential = await createPublishCredential(
+    {
+      repo: deps.publishCredentialSetRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock,
+      idGen: deps.idGen,
+    },
+    { workspaceId: deps.workspaceId, label: "Direct Invoke Vercel", connection: { providerId: "vercel", token: "vercel-secret-token" } }
+  );
+
+  const app = createApp(deps);
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: deps.workspaceId, id: credential.id } }, res);
+
+  assert.equal(capture.statusCode, 200);
+  assert.equal((capture.jsonBody as { credential: { id: string } }).credential.id, credential.id);
+});
+
+/**
+ * `verifyAfterSave`'s `return result ?? undefined;` (~line 224) -- only observably different on
+ * `POST .../:id/verify`, and only when the row vanishes between the route's own existence check
+ * (`describeCredential`) and `verifyPublishCredentialById`'s own concurrent repo reads (a real repo
+ * race, not a local impossibility -- the reason this is KEPT and tested, not deleted).
+ * `repoThatVanishesRowOnSecondRead` (above) models exactly that: the route's own `describeCredential`
+ * call is the wrapped repo's first `findById` (delegates to the real store, finds the row) --
+ * `verifyPublishCredentialById`'s `Promise.all([repo.findById(...), resolveForPublish(...)])` fires
+ * two more concurrent `findById` calls, both landing on the wrapper's "second and later" branch and
+ * both returning `null`, so `verifyPublishCredentialById` returns `null` before any network probe.
+ *
+ * The response's JSON body is the load-bearing assertion, not just the 200 status: `JSON.stringify`
+ * DROPS a key whose value is `undefined` but KEEPS one whose value is `null`. With the guard intact
+ * the body is `{}` (no `verification` key at all), so `body.verification === undefined`. Delete the
+ * `?? undefined` and the body becomes `{"verification":null}`, so `body.verification === null` --
+ * `assert.equal` (this file uses `node:assert/strict`, where `equal` is `strictEqual`) tells the two
+ * apart, `null !== undefined`, which is the mutant this test kills.
+ */
+test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, forced via a repo that vanishes the row on its second read", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const credential = await createPublishCredential(
+    {
+      repo: deps.publishCredentialSetRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock,
+      idGen: deps.idGen,
+    },
+    { workspaceId: deps.workspaceId, label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }
+  );
+
+  deps.publishCredentialSetRepo = repoThatVanishesRowOnSecondRead(deps.publishCredentialSetRepo as PublishCredentialSetRepoPort);
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const verified = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/${credential.id}/verify`,
+    { method: "POST", headers: { cookie }, signal: AbortSignal.timeout(3000) }
+  );
+  assert.equal(verified.status, 200, await verified.clone().text());
+  const body = (await verified.json()) as { verification?: unknown };
+  assert.equal(body.verification, undefined);
+  assert.equal(JSON.stringify(body).includes("verification"), false);
+});
+
+// -------------------------------------------------------------------------------------------------
+// The fifth branch -- `if (!result)` in `GET .../:id/repos` (~line 404) -- is NOT covered here.
+// `listGitHubReposByCredentialId` (this file's own TEMPORARY STUB doc, above) is a private closure
+// local to `registerAdminPublishCredentialsRoutes`, not a field on `AdminPublishCredentialsDeps` --
+// there is no seam to inject a stub returning a falsy result without editing production source
+// (out of scope for this pass; see the dispatching report). It is unreachable today only because
+// the stub throws unconditionally rather than ever returning -- the real KEEP case of the five, and
+// it becomes directly testable the moment `routedeps-vendor`'s real probe function lands as an
+// import with an injectable dependency, per this file's own "DELETE this function and replace it
+// with a real import" instruction on the stub.
+// -------------------------------------------------------------------------------------------------
