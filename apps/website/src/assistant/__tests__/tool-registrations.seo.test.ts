@@ -80,6 +80,9 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   };
   const principalRepo = new InMemoryPrincipalRepo([]);
+  const originRegistry = {
+    canonicalOrigin: async () => ({ scheme: "https" as const, host: "example.test", verifiedAt: NOW, source: "workspace-setting" as const }),
+  };
 
   await ensureSeoSettingDefinitions(
     { settingsRepo, clock, ids: idGen, principals: principalRepo },
@@ -98,6 +101,7 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     clock,
     idGen,
     authorize,
+    originRegistry,
   };
 
   return { deps: deps as unknown as RouteDeps, authorizeCalls, postRepo, settingsRepo };
