@@ -30,7 +30,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
 - [x] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
 - [x] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
-- [ ] 15. Migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
+- [x] 15. Migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
 - [ ] 16a. Coverage-padding tests batch 2a: 9e5ec771, a0f3aba4, 7b931128, c00ae566
 - [ ] 16b. Coverage-padding tests batch 2b: 1378c7e4, 239a90a5, 54c65bc6, 383befba, 4b35a008, 991217ab, 438ada6a
 
@@ -287,5 +287,11 @@ Verification: read the function and its doc comment directly; confirmed via `git
 - Gemini's MEDIUM claim that 3815496b's llms.txt route handler and its tests were never actually committed, leaving `/llms.txt` still serving a hardcoded list. Disproved: `git show 3815496b --stat` shows `server/inbound/public-http/routes/site/llms.ts` (100 lines changed) and its test (124 lines changed) genuinely modified in the same commit — outside features/platform. Same recurring false-positive class as chunks 1/6/7/9/10/11/13.
 
 ### Chunk 15 — migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
+
+Gemini raised **no findings** — reported this whole chain (migration-manifest's Kahn's-algorithm extraction, `platform/http`'s address classifiers, oauth device-code/token-endpoint/discovery/authorization-code step extraction, connectors' AAD-sealing helpers, `jsonb-column.ts`'s container-payload split, `smtp.nodemailer.ts`'s error-code Set collapse, `site-dir/init-site.ts`'s cleanup-and-rethrow) as behavior-preserving, each pinned by characterization tests added in the same or an immediately preceding commit. Spot-verified the one highest-relevance claim directly: `git show 52ecbf8b -- platform/http/client.ts` (`isFe80LinkLocal` extraction) confirms the extracted helper is a byte-for-byte identical set of string-prefix checks in the same order — genuinely behavior-preserving, matching Gemini's report.
+
+Context, not a new finding of mine: `platform/http/client.ts`'s IPv4/IPv6 address classifiers (`classifyIpv4`/`classifyIpv6`, touched by 6b34678e/52ecbf8b in this exact chain) are a KNOWN area with real, already-tracked gaps per this session's own memory — [[project_ssrf_ipv4_mapped_hex_bypass.md]] (an IPv4-mapped-hex SSRF bypass, fixed 2026-09-05) and [[project_tovu_open_decisions_2026_09_05.md]] (broken IPv6 literals, still open) — and two dedicated peer agents in this same session (`fix-ipv6-literals`, `fix-ipv6-sni-allowlist`) are actively working this exact code right now. Gemini's "no defects" verdict here only certifies that THESE SPECIFIC refactor commits didn't introduce a new regression into the classifier (confirmed by the spot-check above) — it says nothing about the classifier's pre-existing correctness, which is already someone else's active, assigned work in this session. Not duplicating that investigation here.
+
+### Chunk 16a — coverage-padding tests batch 2a: 9e5ec771, a0f3aba4, 7b931128, c00ae566
 
 (running)
