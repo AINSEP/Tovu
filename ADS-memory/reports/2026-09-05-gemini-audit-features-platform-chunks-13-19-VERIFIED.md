@@ -570,3 +570,119 @@ test is stronger than the claim allows — this repo's "assert exact error text"
 3 claims: **1 CONFIRMED, REFRAMED down** (19.1 HIGH→MEDIUM), **1 CONFIRMED as fact with its
 mechanism unverified and severity reduced to INFO** (19.2), **1 CONFIRMED in part** (19.3 boundary
 gap real, argument-shape complaint immaterial). No fabrication.
+
+---
+
+## Chunk 15 — `54c65bc6` `source-control/store.ts`
+
+This chunk has the batch's two outright-false supporting premises. Both were only findable by
+opening the file Gemini reasoned *about* rather than the file it was *given*.
+
+### 15.1 — HIGH: `isUniqueLabelViolation`'s message-match combination untested → **REFRAMED (HIGH → LOW); its central supporting claim is FALSE**
+
+Direct-test half CONFIRMED. `store.unit.test.ts` has exactly three
+`isUniqueLabelViolation` tests — `:461` (non-Error), `:467` (`.code` match), `:473` (neither) — and
+no case where `.code` is absent but `err.message` contains `"UNIQUE constraint failed"`. Three of
+four combinations, as claimed.
+
+**But the claim that the arm is "untested anywhere in the repo, including integration tests, since
+`InMemorySourceControlCredentialSetRepo` always sets `.code`" is FALSE, and backwards.**
+`repo.memory.ts:32-34` throws a **plain** `new Error("UNIQUE constraint failed: …")` with **no
+`.code` property at all** — its own header comment (`:13`) says it matches better-sqlite3's wording
+deliberately. So every duplicate-label test that runs through that repo (`store.unit.test.ts:264`
+and `:548`) drives precisely the message-based arm, and nothing else could be translating those
+errors into `SourceControlCredentialDuplicateLabelError`. The arm is well covered; only the direct
+pure-function pin for it is missing.
+
+The attribution half — that the commit's "1 branch of 88 remains unhit, consistent with tsx BRDA
+instability" explanation is wrong and this is the unhit branch — **cannot be settled here** (it needs
+a coverage run, barred) and is now unlikely on the evidence above.
+
+**Corrected severity: LOW** — one missing direct-invoke case in a four-way table, not an untested
+code path.
+
+### 15.2 — HIGH (production bug): `probeAccountLabel` omits `User-Agent`, so GitHub 403s → **DISCARDED (premise disproved)**
+
+Code fact is right: `store.ts:109-112` sends only `Authorization` and `Accept`.
+
+**The premise is wrong.** The claim rests on "in production (real `fetch`, no `User-Agent` default)".
+Node's `fetch` (undici) *does* set one. Measured directly against a local server with the exact
+header set from `:110`:
+
+```
+HEADERS SEEN: {"host":"127.0.0.1:59826","connection":"keep-alive","authorization":"Bearer x",
+"accept":"application/vnd.github+json","accept-language":"*","sec-fetch-mode":"cors",
+"user-agent":"node","accept-encoding":"gzip, deflate"}
+```
+
+GitHub requires a `User-Agent` header to be *present*; it does not require a particular value, so
+`user-agent: node` satisfies it. `accountLabel` is not permanently null in production, and the
+"masked entirely in the suite" conclusion has nothing left to stand on. (Every other GitHub caller in
+this feature — `github-git-provider.ts`'s `githubHeaders:177-184` — omits it for the same reason and
+works.) Setting a descriptive UA would still be good practice; it is not a bug.
+
+**DISCARDED.**
+
+### 15.3 — HIGH (invariant violation): a provider-changing update mishandles `isDefault` → **CONFIRMED as an inconsistency, REFRAMED (HIGH → LOW); one supporting claim FALSE**
+
+Both described outcomes follow from `store.ts:369` (`providerId = connection.providerId`) and `:380`
+(`isDefault: requestedDefault === true ? true : existing.isDefault`), and I confirmed a provider
+change really is supported — `UpdateSourceControlCredentialInput.isDefault`'s own doc at `:331-332`
+says "the default connection for its **(possibly new) provider**".
+
+- Move a provider's *default* credential to another provider with `isDefault` omitted → the old
+  provider group is left with zero defaults. Real.
+- Move a *non-default* credential to a provider that has no other credentials → that provider's only
+  credential has `isDefault: false`, and `resolveDefaultForSourceControl` (`:464-472`) returns `null`
+  via `findDefaultByProvider`, so `source_control_execute_commit` reports no credential configured
+  despite one existing. Real, and the more user-visible of the two.
+
+**The supporting comparison is FALSE.** Gemini contrasts this with "the delete path which is claimed
+to promote" a remaining sibling. `deleteSourceControlCredential` (`:406-408`) is
+`await deps.repo.delete(input);` — nothing else. There is no promotion on delete to be inconsistent
+with.
+
+**And the code matches its own field-level contract.** `:332-333` states "Omitted/`false` leaves
+default status UNCHANGED," which is exactly what `:380` does. The tension is only with the *header's*
+broader phrasing at `:33` ("a provider's first-ever saved connection auto-defaults"), which is
+implemented in the create path (`decideCreateDefault`) and was evidently never intended to cover
+arrival-by-provider-change.
+
+**Corrected severity: LOW** — a real, reachable edge-case inconsistency between a header invariant
+and the update path, with a recoverable symptom (toggle the default in the admin UI), no security
+dimension, and a supporting argument that does not hold.
+
+### 15.4 — MEDIUM (test quality): "never a plaintext write" is unasserted → **CONFIRMED, LOW**
+
+CONFIRMED verbatim. `store.unit.test.ts:442-448` and `:450-459` each consist of a single
+`assert.rejects(..., SourceControlCredentialSecretStoreUnconfiguredError)`; neither reads `deps.repo`
+at all. The titles claim "never a plaintext write," which the assertions do not establish — a
+regression that wrote the row before throwing would pass both.
+
+The property does hold today (`sealConnection` throws before any `repo.create`/`repo.update`), so
+this is a missing pin rather than a live bug; one `assert.deepEqual(await deps.repo.listByWorkspace(
+{ workspaceId: WORKSPACE }), [])` closes it. **LOW.**
+
+### 15.5 — LOW (comment accuracy): "no decrypt path exists" is contradicted in the same file → **CONFIRMED, LOW**
+
+CONFIRMED, and it is worse than claimed because both halves are self-contradictory within their own
+files:
+- `store.ts:17-23` states "there is no `resolveForX`/decrypt function here … Adding a decrypt path
+  with no caller would be dead code." `decryptRecord` is at `:429` and
+  `resolveDefaultForSourceControl` at `:464`, and the latter's own doc at `:442-443` cites that very
+  header sentence as the authority under which it was added. The header's escape clause was honored;
+  its opening claim was simply never updated.
+- `store.unit.test.ts:45-46` states "No decrypt path is tested here because none exists," while
+  `:437-438` in the same file points at `store.resolve.unit.test.ts` as the place `decryptRecord`'s
+  catch *is* covered (that file exists).
+
+Two stale comments, both asserting the absence of code that is present. One for the false-comment
+register. **LOW.**
+
+### Chunk 15 counts
+
+5 claims: **0 CONFIRMED at claimed severity**, **1 DISCARDED on a disproved premise** (15.2),
+**3 CONFIRMED but REFRAMED down** (15.1 HIGH→LOW, 15.3 HIGH→LOW, 15.4 MEDIUM→LOW), **1 CONFIRMED at
+claimed severity LOW** (15.5). Two of Gemini's supporting factual claims were outright wrong — that
+the in-memory repo sets `.code` (it does not) and that the delete path promotes a sibling (it does
+not) — and both wrong claims were load-bearing for a HIGH.
