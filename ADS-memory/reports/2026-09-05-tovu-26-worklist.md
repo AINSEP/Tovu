@@ -964,3 +964,50 @@ Two consequences, both new:
 deliberately, to avoid churn on a file the live dev server watches) — the unit test's RED/GREEN pair
 is the load-bearing proof. Also did not check `apps/admin`/`apps/site-chat` for a `@tovu/sdk`
 dependency; none found in files read.
+
+---
+
+## A19 FIXED — dead-path register de-staled (`ace4638b`), `test:ci` GREEN 33/33
+
+The register lives in the **TEST file** (`development/scripts/__tests__/dead-path-sweep.test.ts:169`),
+not in `dead-path-sweep.ts` — the lib has no register at all.
+
+Removed exactly the 9 stale entries for `convert-legacy-doc-pages-to-html.ts` (5) and
+`migrate-page-embed-markers.ts` (4). **Disk-verified before removal**: all 7 unique repointed targets
+exist (`content-db.ts`, `db-ops.ts`, `entry-refs-repo.sqlite.ts`, `html-document-store.sqlite.ts`,
+`render.ts`, `marker.ts`, `extractor.ts`) — genuinely fixed, **not repointed to more rot.**
+
+**The `18` was file-count-weighted**, not an entry count: 3 + 4 + 5 + 4 + 1 + 1 across 6 files.
+Removing 9 leaves 3 + 4 + 1 + 1 = **9 across 4 files**. The assertion was recalculated from that,
+**not made to match whatever came out.**
+
+The 3 parked entries and `write-path-inventory.ts` untouched; all 3 re-confirmed still broken
+(`../../src/features/...`, and `src/` does not exist at repo root). `KnownBrokenEntry` has only a
+`rationale` field with no structured slot for "manually reachable but untested", so the package.json
+reachability correction went in as a doc-comment note rather than editing the shared `UNRUN_ONE_SHOT`
+rationale string reused by the untouched entries.
+
+### Count discrepancy, honestly reported
+My brief said 11 evals findings; the probe found **2 live**. The agent attributed the gap to
+concurrent fixer agents landing `a4300236` in between and **reported what was live rather than
+defending my number.** Correct behaviour.
+
+### A20 — the 2 live evals findings, dispatched to `fix-eval-selfref-paths`
+Both in `tool-search-caller2-score-captures.ts`: imports of
+`../../../development/evals/tool-search-caller2-compliance-captures-2026-08-05` and
+`.../tool-search-heldout-v2`. **The targets exist right there in the same directory** — the import
+climbs 3 levels up and back down through `development/evals/`, resolving **outside the repo.**
+Off-by-N relative path, distinct from the `src/` rename family.
+
+### C16 refined — extending the guard to `development/evals/`
+`collectSweepTargets` (`dead-path-sweep.ts:818`) walks only `development/scripts/**/*.ts` plus
+`apps/website/src/platform/db/*.config.ts`. Extension is **one line** — `walk("development/evals")`
+alongside the existing call; same recursion, same `.ts` filter, same exclusions, **no new logic**.
+`shouldScanStringsIn` needs no change (`.eval.ts` is not in its exemption regex, and imports are
+swept regardless of that flag).
+
+**Blast radius, measured not estimated** (probe imported the committed `sweepFiles`/`findingKey` into
+a scratch script; the real test file was never run for this): **20 files scanned, 2 live findings** —
+the two above. Extending it today would turn the guard red immediately unless those 2 are fixed or
+parked **in the same commit**. A20 removes them, after which the extension lands green.
+**Still Leona's call — a gate's scope is not an agent's to widen.**
