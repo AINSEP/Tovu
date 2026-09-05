@@ -688,14 +688,18 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
 // object, so `init.headers` (just `{ "If-Match": ... }`) replaced the merge wholesale and silently
 // dropped `Content-Type: application/json` — the server's `express.json()` body parser then never
 // parses `req.body`, so the PUT 400s with "'contents' (string) is required" instead of applying the
-// write. Both headers must reach `fetch` together.
-test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header", async () => {
+// write. Both headers must reach `fetch` together. Also pins `credentials: "same-origin"` staying the
+// default — it sits BEFORE `...init` in `buildFetchInit`, so nothing about this fix should move it
+// after `...init` (which would let a caller's `init` silently override it in ways the API contract
+// doesn't intend), and this assertion goes red the moment it does.
+test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header, and still defaults credentials to same-origin", async () => {
   const { calls } = stubFetchCapturing();
   await api.setDockerfileSource("FROM node:22\n", '"abc123"');
   expect(calls[0].init?.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
   });
+  expect(calls[0].init?.credentials).toBe("same-origin");
 });
 
 test("triggerSiteExport sends an empty body when called with no options at all", async () => {

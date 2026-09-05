@@ -12,12 +12,13 @@ import { buildFetchInit } from "../api";
  * branch is only reachable through this direct call, not through the public `api` surface.
  */
 
-test("buildFetchInit keeps the Content-Type default when the caller passes an unrelated header", () => {
+test("buildFetchInit keeps the Content-Type default when the caller passes an unrelated header, and still defaults credentials to same-origin", () => {
   const init = buildFetchInit({ headers: { "If-Match": '"abc123"' } });
   expect(init.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
   });
+  expect(init.credentials).toBe("same-origin");
 });
 
 test("buildFetchInit lets a caller's explicit Content-Type override the default", () => {
