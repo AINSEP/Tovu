@@ -25,7 +25,7 @@ chunk completes.
 - [x] Chunk 8 — `apps/admin/src/features/media/Media.tsx` (~363-line diff / complexity-split refactor)
 - [x] Chunk 9 — `apps/admin/src/features/collections/Collections.tsx` (~268-line diff)
 - [x] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
-- [ ] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
+- [x] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
       ThemePageDetailsModal, `apps/admin/src/features/pages/**` — no-logic-in-`.tsx` rule compliance
 - [ ] Chunk 12 — `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-server TLS plumbing), plus
       `src-complexity-debt.json` / `admin-complexity-debt.json` / `check-architecture.baseline.json` diffs
@@ -122,6 +122,80 @@ asserts real rendered input values against the persisted state. No "asserts noth
 
 **Chunk tally: 1 architecture-compliance observation raised, 1 CONFIRMED (real, but documented/justified —
 recorded as a Recommended-severity note for the owner, not a defect), 0 UNVERIFIED, 0 DISCARDED.**
+
+### Chunk 11: hooks-extraction refactor sweep (Posts, ThemePageDetailsModal, ThemeExplore, AiAssistant, resolveActiveTabId dedup, App/AssistantDock/WidgetConfigFields/FormsList, Pages root-slug fix chain)
+
+Split into three Gemini sub-runs given the size of this sweep (13 commits, ~20 files). Standing rule checked
+throughout: no functions/derived logic in `.tsx` — belongs in `*.hooks.ts`/`rules.ts`, exempt only with a
+"STAYS LOCAL — owner-ratified" comment or an equally explicit, dated, reasoned owner-ruling comment.
+
+**11a — `apps/admin/src/features/posts/` (commits `45537ee2`, `c1822fb2`, `d0efe0f3`).** Zero functional
+defects (`d0efe0f3` itself is a well-documented self-caught-and-fixed stale-fixture bug, already resolved).
+Gemini raised 4 architecture-rule findings; **all 4 verified pre-existing, predating this audit's window** —
+checked via `git log -S` blame, not assumed:
+- `postsListNotice` (`Posts.tsx:47`) — traces to commit `8c98dac6`, 2026-08-06. Its own doc comment states it
+  "Mirrors `Pages.tsx`'s identical `pagesListNotice`" — a repeated, named cross-screen idiom, not a one-off.
+- `sort`/`setSort` local state (`Posts.tsx:76-86`) — carries an explicit, dated **"Owner ruling
+  (2026-08-14)"** comment giving the exact same reasoning a literal "STAYS LOCAL — owner-ratified" marker
+  would (view-only DOM chrome state deliberately kept local, data/API state always moves to the hook).
+  Functionally equivalent to the dispatch's exemption even though it doesn't use that literal string —
+  treating it as satisfying the exemption's intent rather than as a violation.
+- Inline `t = (key) => ...` (`Posts.tsx:75`) — same idiom also present in `AiAssistant.tsx` and
+  `SettingsUi.tsx` (confirmed by grep); not unique to this file or this window.
+- `onEdit: (p) => navigate(...)` bypassing the hook's DI seam (`Posts.tsx:168`) — traces to `26b70a97`,
+  2026-08-05.
+
+**11b — ThemePageDetailsModal/ThemeExplore/AiAssistant hooks extraction + resolveActiveTabId dedup + App/
+AssistantDock/WidgetConfigFields/FormsList (commits `e2681fe0`, `d04859b4`, `8da2f664`, `fb707ba4`,
+`65d03e63`).** Zero functional defects. 5 architecture-rule findings raised:
+- **Discarded as precedented**: the five `resolveXTabId` wrapper functions in `Database.tsx`, `Deployment.tsx`,
+  `Security.tsx`, `SourceControl.tsx`, `Themes.tsx` (all introduced by `fb707ba4`). Verified each carries a
+  doc comment explicitly cross-referencing the identical pattern in all four siblings. **This is the same
+  question the prior report (chunk "Security/Settings") already ruled on** for `Security.tsx`'s
+  `resolveSecurityTabId` — discarded there as "a repo-wide, precedented convention, not a violation unique
+  to or introduced by this window's work." Applying that same ruling here for consistency across the two
+  reports.
+- **Duplicate of prior report's finding 36, not new**: `dockT` in `App.tsx:463` — identical function,
+  identical line number, already recorded.
+- **Confirmed real, LOW, introduced by `65d03e63`**: `FormsList.tsx:128-129`'s inline `onToggleStatus`
+  handler contains a guard (`if (rowSavingId) return;`) directly in JSX props rather than in
+  `use-forms-list.hooks.ts`. Verified against current source.
+- **Confirmed real, LOW, pre-existing**: `previewSrcFor`/`canSaveSelectedFile` (`ThemeExplore.tsx:169,217`)
+  — left behind when `d04859b4` moved 4 sibling functions to the hooks file. Verified both still exist.
+- **Confirmed real, LOW, pre-existing**: `visitorCredentialKeyStatusMessage` (`AiAssistant.tsx:515-525`) —
+  left behind when `8da2f664` moved its two sibling status functions. Verified the full function body
+  (three `if` branches + a `.replace()` call) — genuine derived logic, not a stub.
+
+**11c — Pages root-slug `"/"` bug-fix chain (commits `ac39b906`, `58574a7e`, `6f09b603`, `45101306`,
+`17a5c5aa`).** This chain is unusually well self-documented (each commit discloses exactly what it checked,
+what it deliberately left unchanged and why, RED-then-green regression tests, and live-browser verification
+of the root-slug fix) — 4 findings raised, verification found real signal in 1 of them:
+- **Discarded on verification (Gemini's reasoning was wrong, not the code)**: claimed
+  `Pages.unit.test.tsx:88`'s `const pages = overrides.pages ?? []` clobbers a `{ pages: null }` override to
+  `[]`, defeating loading-state tests. **False** — read the full function: the returned object spreads
+  `...overrides` LAST, after both `pages` and `pageCount`, so an explicit `overrides.pages === null` is
+  re-applied to the final `pages` field regardless of the earlier local coercion; `pageCount` ends up `0`
+  either way since `[].length === 0` matches the intended null-case count by construction. No bug — exactly
+  the class of error the dispatch's calibration warning describes (reasoning about spread order without
+  tracing it through).
+- **Confirmed real, LOW, introduced/modified by `58574a7e`**: `ThemeExploreSlugCollisionWarning`
+  (`ThemeExplore.tsx:973`) computes `collidingContent.kind === "post" ? ... : pageAdminPath(collidingContent)`
+  inline — its own comment says this "Mirrors `use-theme-pages.hooks.ts`'s identical
+  `themePageCollisionAdminPath`," i.e. the proper hook-level equivalent already exists and could have been
+  called instead of duplicating the ternary inline. Verified against current source.
+- **Discarded as duplicate-pattern, pre-existing**: `pagesListNotice` (`Pages.tsx:93-96`) — same idiom as
+  11a's `postsListNotice`, itself pre-existing/precedented.
+- **Discarded as owner-ratified-in-spirit, pre-existing**: `selectTab` (`Pages.tsx:139-142`) — sits directly
+  under the identical dated **"Owner ruling (2026-08-14)"** comment pattern found in Posts.tsx (explicitly
+  says "see `Posts.tsx`'s identical `sort` state, the canonical example this mirrors"). Same treatment as
+  11a's finding 2.
+
+**Chunk 11 tally across all three sub-runs: 13 findings raised. CONFIRMED real and worth the owner's
+attention: 2 (FormsList.tsx inline guard, ThemeExplore.tsx:973 duplicated ternary — both LOW). CONFIRMED
+real but pre-existing/out-of-window: 6 (postsListNotice, inline `t`, onEdit-bypasses-DI, ThemeExplore's two
+leftover helpers, visitorCredentialKeyStatusMessage). DISCARDED: 5 (the 5-screen resolveXTabId pattern as
+precedented, dockT as an exact duplicate already on file, the test-fake spread-order claim as factually
+wrong, pagesListNotice and selectTab as duplicate-pattern/owner-ratified-in-spirit). 0 UNVERIFIED.**
 
 ## Summary
 
