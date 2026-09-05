@@ -5,6 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
+import { buildPostRowMenuHandleMap } from "../rules";
 import type { AdminPost } from "@/lib/api";
 
 /**
@@ -40,6 +41,7 @@ const POST: AdminPost = {
 const SECOND_POST: AdminPost = { ...POST, id: "p2", title: "Second Post", slug: "second-post" };
 
 function controller(overrides: Partial<PostsController> = {}): PostsController {
+  const posts = overrides.posts !== undefined ? overrides.posts : [POST];
   return {
     posts: [POST],
     error: null,
@@ -50,6 +52,10 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     createPost: vi.fn(async () => {}),
     disablePost: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
+    // `Posts.tsx` now destructures this from the hook (moved there in 45537ee2) instead of
+    // computing it itself — this fixture fell out of sync with that move. Mirrors
+    // `Posts.unit.test.tsx`'s identical fixture fix from the same commit.
+    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
     ...overrides,
   };
 }
