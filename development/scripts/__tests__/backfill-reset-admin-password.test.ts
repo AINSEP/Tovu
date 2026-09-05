@@ -5,11 +5,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
 import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type IdentityRepos } from "@jini-ai/cms/identity";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { workspaces } from "../../../apps/website/src/platform/db/schema.js";
 import { createSqliteIdentityRouteDeps } from "../../../apps/website/src/features/identity/wiring.js";
+import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
  * @file The CLI-level proof for `backfill-reset-admin-password.ts` — dry run touches nothing,
@@ -38,6 +40,18 @@ function counterIdGen() {
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+/** Counts real tables in a SQLite file via a fresh read-only connection — never through the
+ *  content-db helpers under test, so this stays an independent witness of the file's actual state. */
+function countTables(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const row = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'").get() as { n: number };
+    return row.n;
+  } finally {
+    db.close();
+  }
 }
 
 function runScript(dbPath: string, extraArgs: string[] = [], envOverrides: Record<string, string | undefined> = {}): string {
@@ -141,6 +155,55 @@ test("backfill-reset-admin-password: an unknown username fails loudly (non-zero 
     assert.match(output, /was not found/);
   }
   assert.equal(threw, true);
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: a dry run against a not-yet-migrated content.db must not migrate it or write anything — asserted on the actual file, not a log line", () => {
+  const scratch = tmpDir("backfill-reset-admin-password-nomigrate-");
+  const dbPath = path.join(scratch, "content.db");
+
+  // A bare SQLite file with zero tables. Nothing has ever opened this through `openContentDb`, so
+  // if the dry-run path calls it unconditionally (the defect), the ENTIRE schema gets created —
+  // not a subtle diff, a jump from 0 tables to the full migrated set.
+  new Database(dbPath).close();
+  assert.equal(countTables(dbPath), 0, "fixture must start with zero tables");
+  const bytesBefore = fs.readFileSync(dbPath);
+
+  let threw = false;
+  try {
+    runScript(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
+  } catch {
+    // Expected post-fix: a genuinely read-only open leaves the `workspaces` table absent, so
+    // `resolveWorkspace()` fails loudly ("no such table") instead of silently mutating the file.
+    threw = true;
+  }
+  assert.equal(threw, true, "a dry run against an unmigrated db must fail loudly, not silently succeed");
+
+  assert.equal(countTables(dbPath), 0, "dry run must not have created any tables — it must never call migrate()");
+  assert.deepEqual(fs.readFileSync(dbPath), bytesBefore, "dry run must not modify the database file at all");
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: a mistyped --db path fails loudly and creates nothing, instead of silently opening an empty database", () => {
+  const scratch = tmpDir("backfill-reset-admin-password-missingdb-");
+  const missing = path.join(scratch, "content.db"); // deliberately never created
+
+  let threw = false;
+  let stderr = "";
+  try {
+    runScript(missing, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
+  } catch (err) {
+    threw = true;
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(threw, true, "the script must fail rather than silently succeed against a missing db");
+  assert.equal(stderr.includes(missingDbPathMessage(path.resolve(missing))), true, `expected the exact missing-db message. Got:\n${stderr}`);
+  // The defect this guards: a typo'd path used to open (and migrate) a brand-new empty db, so the
+  // failure surfaced as "user not found" — indistinguishable from a real missing user.
+  assert.doesNotMatch(stderr, /was not found/, "must fail on the missing DATABASE, not report the target USER as not found");
+  assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });

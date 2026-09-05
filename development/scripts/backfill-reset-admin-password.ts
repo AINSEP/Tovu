@@ -38,10 +38,17 @@
  *
  * `--username` defaults to `admin`. `--db` defaults to `<repo>/infra/content.db` (matching every
  * sibling `backfill-*.ts` script's own default) — that path does not exist in a normal checkout, so
- * always pass `--db sites/<site>/content.db` explicitly against a real site.
+ * always pass `--db sites/<site>/content.db` explicitly against a real site. A `--db` that does not
+ * resolve to a real, already-existing file (the default included) fails loudly via
+ * `resolveExistingDbPath` before anything is opened — the same guard the AAD backfill scripts use,
+ * and for the same reason: `openContentDb` creates-and-migrates on open, so a typo'd path used to
+ * open (and migrate) a brand-new empty database and report the target user as "not found" instead
+ * of the real problem.
  *
  * A dry run resolves the target user and reports whether it exists — it never touches the hasher,
- * never captures a restore point, never writes.
+ * never captures a restore point, never writes. It opens the database strictly read-only
+ * (`openContentDbReadOnly`), so unlike an ordinary `openContentDb` open it also never migrates the
+ * schema or writes the bootstrap watermark row — only `--apply` does either.
  *
  * Exit codes: `0` on a successful `--apply` (write + self-verification both succeeded), or a dry
  * run that found the target; `1` if the target user does not exist, or the write's self-
@@ -53,8 +60,9 @@ import path from "node:path";
 
 import type { IdentityRepos } from "@jini-ai/cms/identity";
 
-import { openContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 import { resolveWorkspace } from "../../apps/website/src/platform/site-dir/resolve-workspace.js";
 import { createSqliteIdentityRouteDeps } from "../../apps/website/src/features/identity/wiring.js";
 import {
@@ -86,7 +94,15 @@ function parseArgs(argv: readonly string[]): Args {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report the target user as "not found" instead of the real problem — no such database.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  // A dry run must never migrate the schema or write the bootstrap watermark row — both of which
+  // `openContentDb` does unconditionally (see that function's own doc, and `openContentDbReadOnly`'s
+  // header for why this exact call site needed it). Only `--apply` gets the read-write, migrating
+  // open; every dry run opens strictly read-only.
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   const workspaceId = resolveWorkspace({ db }).id;
 
   const clock = { nowIso: () => new Date().toISOString() };
@@ -96,7 +112,7 @@ async function main(): Promise<void> {
 
   const target = await identity.userRepo.findByUsername({ workspaceId, username: args.username });
   if (!target) {
-    console.error(`User '${args.username}' was not found in workspace '${workspaceId}' at ${args.dbPath}.`);
+    console.error(`User '${args.username}' was not found in workspace '${workspaceId}' at ${dbPath}.`);
     process.exitCode = 1;
     return;
   }
@@ -128,7 +144,7 @@ async function main(): Promise<void> {
     principalRoles: identity.principalRoleRepo,
     principalPolicies: identity.principalPolicyRepo,
   };
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
 
   try {
     await resetAdminPasswordSelfVerified(
