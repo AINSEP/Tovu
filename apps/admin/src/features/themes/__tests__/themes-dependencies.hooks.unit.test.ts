@@ -107,6 +107,22 @@ describe("createFakeThemesPort — rescanThemes", () => {
   });
 });
 
+describe("createFakeThemesPort — listMarketplaceThemes", () => {
+  it("defaults to an empty listing when no marketplace option is supplied", async () => {
+    const port = createFakeThemesPort();
+    await expect(port.listMarketplaceThemes()).resolves.toEqual({ themes: [] });
+  });
+
+  it("returns the scripted marketplace listing when supplied", async () => {
+    const port = createFakeThemesPort({
+      marketplace: [{ id: "alpha", name: "Alpha", tier: "declarative", idTaken: false }],
+    });
+    await expect(port.listMarketplaceThemes()).resolves.toEqual({
+      themes: [{ id: "alpha", name: "Alpha", tier: "declarative", idTaken: false }],
+    });
+  });
+});
+
 describe("createFakeThemesPort — downloadMarketplaceTheme", () => {
   it("returns the scripted onDownload result when supplied", async () => {
     const onDownload = vi.fn((themeId: string) => ({
