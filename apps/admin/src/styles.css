@@ -30,6 +30,10 @@
   --surface-2:     oklch(96.6% 0.006 250);
   --surface-3:     oklch(94% 0.008 250);
   --fg:            oklch(24% 0.022 262);
+  /* Alias of --fg, not a distinct ramp step — 8 call sites reference --fg-1 as if it were one.
+     No dark-theme redeclaration needed: var(--fg) re-resolves against whichever --fg is cascaded
+     on the element, so this tracks --fg automatically in both themes. */
+  --fg-1:          var(--fg);
   --fg-2:          oklch(34% 0.02 262);
   --muted:         oklch(53% 0.016 258);
   --faint:         oklch(66% 0.012 258);
