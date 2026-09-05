@@ -360,6 +360,48 @@ test("makeCredentialedRequest: a reflecting response still redacts the full self
   assert.ok(!result.bodyText.includes("fake_test_token_value"));
 });
 
+// The leak shape the two tests above CANNOT catch: their fixtures echo the FULL "FlyV1 <value>"
+// (or "FlyV1<value>") token back, so the existing `authorizationHeader`/`connection.token` secrets
+// already redact it as a side effect. A real provider error body reflecting only the BARE macaroon
+// value — no "FlyV1" scheme word at all, e.g. `{"error":"invalid macaroon <value>"}` — matches
+// neither: `resolveAuthorizationScheme`'s `value` field (the bare token with its scheme word
+// stripped) was never added to `buildResponseSecrets`'s self-describing branch. Every fixture below
+// uses a SYNTHETIC token, never a real credential.
+
+test("makeCredentialedRequest: a self-describing token's BARE value (no scheme prefix) reflected in the response body is redacted", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 400, headers: {}, bodyText: '{"error":"invalid macaroon fake_test_token_value"}' }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  assert.ok(!result.bodyText.includes("fake_test_token_value"), "the bare self-describing token value must be redacted even with no scheme prefix");
+});
+
+test("makeCredentialedRequest: a self-describing token's BARE value (no scheme prefix) reflected in a response header is redacted", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 200, headers: { "X-Debug-Echo": "fake_test_token_value" }, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  assert.equal(result.headers["X-Debug-Echo"], undefined, "a header carrying the bare self-describing token value must be dropped");
+});
+
 // ---------------------------------------------------------------------------------------------
 // Multi-host binding (`additionalHosts`, 2026-08-31) — the owner's explicit ask, previously
 // uncovered.
