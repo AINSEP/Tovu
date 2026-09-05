@@ -975,6 +975,46 @@ test("publish: exhausts MAX_MANIFEST_WRITE_ATTEMPTS retries and throws a bounded
   }
 });
 
+/** The `"unsupported"` outcome degrades to an unconditional write and keeps going — the OLD bug was
+ *  that `MAX_MANIFEST_WRITE_ATTEMPTS`'s own bound check sat only in the `"conflict"` arm, unreachable
+ *  from `"unsupported"`'s own `continue`. A provider that keeps answering `"unsupported"` even for the
+ *  now-unconditional write (a provider that cannot do THIS write shape at all, not merely one lacking
+ *  conditional-write support) would re-enter that arm forever — an unbounded request flood, not a
+ *  single hang, since each request still has its own timeout. Proves the ceiling now applies to this
+ *  outcome too. */
+test("publish: a provider reporting 'unsupported' for BOTH the conditional AND the degraded unconditional write throws a bounded DeployError instead of looping forever", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((fn: (...args: unknown[]) => void) => {
+    fn();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    // EVERY manifest write is rejected as unsupported, regardless of `if-none-match` — this provider
+    // cannot do this write shape at all, not merely the conditional form.
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
+      return new Response("UnsupportedOperation: manifest writes are not implemented", { status: 400 });
+    }
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /unsupported.*retries were exhausted/i);
+        return true;
+      }
+    );
+    const manifestPuts = fake.calls.filter((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.equal(manifestPuts.length, MAX_MANIFEST_WRITE_ATTEMPTS, "must stop after MAX_MANIFEST_WRITE_ATTEMPTS attempts, never loop forever");
+  } finally {
+    fake.restore();
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 test("publish: a 409 manifest-write response is treated as a conflict, identically to 412", async () => {
   let putCount = 0;
   const fake = installFakeFetch((call) => {

@@ -698,6 +698,24 @@ function buildWritePrecondition(concurrencyGuardActive: boolean, manifestRead: M
  * @complexity One manifest read, {@link diffManagedKeys}'s own cost, O(stale keys) DELETE requests
  *   (bounded concurrency, see {@link runBounded}), and one manifest write.
  */
+/** The `DeployError` to throw when {@link MAX_MANIFEST_WRITE_ATTEMPTS} is exhausted without a
+ *  successful write — distinct wording and status per outcome so an operator can tell "this provider
+ *  cannot do this write at all" (`"unsupported"`, 502) apart from "another publish is racing this
+ *  one" (`"conflict"`, 409). Extracted out of {@link S3CompatibleDeployTarget.publish}'s own retry
+ *  loop purely to keep that loop's cognitive complexity down — this function has no loop of its own. */
+function manifestWriteExhaustedError(outcome: "unsupported" | "conflict"): DeployError {
+  if (outcome === "unsupported") {
+    return new DeployError(
+      "This provider reported the Tovu-managed object manifest write as 'unsupported' even after degrading to an unconditional write, and retries were exhausted — it may not support the write shape this target requires.",
+      502
+    );
+  }
+  return new DeployError(
+    "Concurrent publish detected on the Tovu-managed object manifest and retries were exhausted — another publish updated it while this one was running. Try publishing again.",
+    409
+  );
+}
+
 async function attemptManifestSync(
   client: AwsClient,
   config: S3CompatibleTargetConfig,
@@ -800,6 +818,14 @@ export class S3CompatibleDeployTarget implements DeployTarget {
       divergedKeys = attempted.divergedKeys;
 
       if (attempted.outcome === "written") break;
+
+      // The ceiling applies to EVERY non-written outcome, checked before either one's own handling —
+      // not just "conflict". A provider that answers "unsupported" again on the now-unconditional
+      // write (this arm's own degrade below) would otherwise re-enter that arm forever: `continue`
+      // returns to the top of the loop without ever reaching a bound check, an unbounded request
+      // flood rather than a single hang (this file's header SECOND-ROUND CRITICAL FIX note).
+      if (attempt >= MAX_MANIFEST_WRITE_ATTEMPTS) throw manifestWriteExhaustedError(attempted.outcome);
+
       if (attempted.outcome === "unsupported") {
         // This provider cannot do conditional writes at all — degrade for the REST of this call and
         // retry immediately with an unconditional write. Not a real conflict, so it does not need a
@@ -810,12 +836,6 @@ export class S3CompatibleDeployTarget implements DeployTarget {
       // outcome === "conflict": a real racing publisher changed the manifest since this attempt's own
       // read. Retry from a fresh read (top of loop) — bounded, so sustained contention surfaces loudly
       // rather than retrying forever.
-      if (attempt >= MAX_MANIFEST_WRITE_ATTEMPTS) {
-        throw new DeployError(
-          "Concurrent publish detected on the Tovu-managed object manifest and retries were exhausted — another publish updated it while this one was running. Try publishing again.",
-          409
-        );
-      }
     }
 
     const check = await checkDeploymentUrl(this.config.publicUrl);
