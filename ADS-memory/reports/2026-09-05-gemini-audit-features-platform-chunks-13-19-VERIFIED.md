@@ -503,3 +503,70 @@ CONFIRMED→LOW, second half DISCARDED), **1 DISCARDED** (13.6). Every code fact
 every severity was too high, mostly because the claims assumed an untrusted-upload reachability this
 validator does not have. The most useful item is 13.1's unreachability proof, which also invalidates
 a comment in the test the commit added.
+
+---
+
+## Chunk 19 — `438ada6a` `platform/export/site-exporter.ts`
+
+### 19.1 — HIGH: `writeNotFoundRoute` accepts any status `>= 400` → **CONFIRMED, REFRAMED (HIGH → MEDIUM)**
+
+Code fact CONFIRMED, `site-exporter.ts:595-596`: the probe's only rejection is
+`if (res.status < 400)`. Nothing bounds it above, so a `500` from a crashed 404-page render is
+accepted, its body is written to `<outputDir>/404.html` (`:606-607`), and the route is reported as
+`succeeded` (`:608`).
+
+The asymmetry is real and I checked both comparators directly:
+- `writeContentRoute:516` — `if (res.status !== 200)`, strict.
+- `redirectOutcomeFor:552` — `if (status < 300 || status >= 400)`, bounded on both sides.
+- `writeNotFoundRoute:595` — bounded below only.
+
+Reachability CONFIRMED: `:769` dispatches `route.kind === "not-found"` straight to it, so this is
+the live path for every export that has a not-found route.
+
+**Two corrections to the framing.** First, the cited invariant at `:136-138` is about a failed route
+being *reported* rather than silently missing — a 500 body here is written and reported as success,
+which is a different (and arguably worse) failure, but quoting that invariant as the thing violated
+is a stretch. Second, "including a raw 500 error page/stack trace" is asserted, not shown; whether
+the site app's error response carries a stack depends on an error handler I did not inspect, and the
+finding does not need it.
+
+**Corrected severity: MEDIUM.** Export correctness, not security: a site whose 404 route is broken
+ships the broken output as its production `404.html` and the export reports clean.
+
+### 19.2 — MEDIUM: the cited integration test never evaluates the `>= 400` arm → **CONFIRMED (factual half); the V8 explanation UNVERIFIED; severity INFO**
+
+CONFIRMED by reading the test. `site-exporter.test.ts:815-826` mounts
+`wrapper.get("/intercepted-non-redirect", (_req, res) => res.status(200).send("not a redirect"))`
+and asserts `reason === "expected a 3xx redirect response, got 200"`. In
+`if (status < 300 || status >= 400)` the first disjunct is true for 200 and short-circuits, so
+`status >= 400` is never evaluated to `true` anywhere in that test. The commit message's claim that
+this arm "was previously proven through" that test does not hold under a literal read.
+
+Gemini's supporting theory — that V8 marks the whole boolean expression's byte range hit once either
+disjunct's short-circuit point is reached — I could not check, because settling it needs a coverage
+run and those are barred here. It is also unnecessary: the conclusion follows from reading the test.
+
+**Severity INFO** — a claim about a commit message's accuracy, not a code defect. The commit's actual
+effect (adding a direct unit assertion for the arm) was the right thing to do regardless.
+
+### 19.3 — LOW: the new test uses only `500`, never the boundary `400` → **CONFIRMED (boundary half); second half CONFIRMED but immaterial**
+
+Boundary half CONFIRMED and it is a genuine surviving mutant. `site-exporter.test.ts:761` passes
+`500` only. Mutating `:552` from `status >= 400` to `status > 400` makes
+`redirectOutcomeFor(400, null, "/target")` fall through to
+`{kind: "redirect-to", location: "/target"}` — a 400 recorded as a successful redirect — and no test
+in the file passes `400`. One added case closes it.
+
+Second half does not land. Gemini argues the test's `redirectOutcomeFor(500, null, undefined)`
+argument shape means a regression deleting the `>= 400` check entirely would fail "via a secondary
+'no location' check rather than by falling through." True about the mechanism, immaterial about the
+outcome: the assertion is a `deepEqual` against the exact object
+`{kind: "failed", reason: "expected a 3xx redirect response, got 500"}`, and the secondary path
+produces `reason: "redirect response carried no Location header"`, so the mutation is caught. The
+test is stronger than the claim allows — this repo's "assert exact error text" rule is what saves it.
+
+### Chunk 19 counts
+
+3 claims: **1 CONFIRMED, REFRAMED down** (19.1 HIGH→MEDIUM), **1 CONFIRMED as fact with its
+mechanism unverified and severity reduced to INFO** (19.2), **1 CONFIRMED in part** (19.3 boundary
+gap real, argument-shape complaint immaterial). No fabrication.
