@@ -276,6 +276,62 @@ every referenced file).
 Chunk tally: 3 findings raised, 0 confirmed as originally stated, 2 fully disproven, 1 reframed into a real
 but out-of-window observation.
 
+### Chunk: apps/admin/src/lib (api.ts, assistant-transport.ts, resolve-active-tab-id.ts, site-url.ts)
+
+**16. [CRITICAL, live and currently reachable, but PRE-EXISTING — not introduced 2026-09-03/04] `apps/admin/src/lib/api.ts:1801-1806`,
+`buildFetchInit`** — `{ credentials: "same-origin", headers: { "Content-Type": "application/json",
+...(init.headers ?? {}) }, ...init }`: because `...init` is spread AFTER `headers`, whenever a caller's
+`init` itself has a `headers` key, `init.headers` completely REPLACES the merged headers object — the default
+`Content-Type: application/json` is silently dropped whenever a caller passes custom headers without also
+re-specifying Content-Type themselves. Confirmed this is LIVE and reachable today: `api.ts:3221-3229`'s
+`setDockerfileSource` (the admin UI's "save Dockerfile" action) calls `request()` with BOTH
+`headers: { "If-Match": ifMatch }` AND a JSON `body`. Confirmed the server side
+(`apps/website/src/server/**` uses `express.json()`, grepped across route test setup files) parses request
+bodies only when `Content-Type` matches `application/json` by default — so this PUT currently goes out
+missing that header, and the server-side `express.json()` middleware would not parse the body at all,
+silently receiving an empty `req.body` for a Dockerfile save. **Provenance check, since this could look like
+an in-window regression:** the diff shows this exact object literal (identical spread order, identical bug)
+was moved VERBATIM out of the old inline `request()` body into this new standalone `buildFetchInit()`
+function by the 2026-09-04 complexity-refactor commit — it was not introduced or worsened by that refactor,
+only relocated. Flagging prominently anyway since it's a real, currently-live defect in a file inside this
+audit's slice, even though the bug itself predates the audited window.
+
+**17. [MEDIUM, confirmed as a real design gap in the shared helper; not proven actively triggered today]
+`apps/admin/src/lib/resolve-active-tab-id.ts:41`** — `resolveActiveTabId` returns `defaultId` unconditionally
+for an absent/invalid `tabId`, with no validation that `defaultId` itself is a member of `validIds`. The
+function's own doc explicitly delegates "picks its own default" to each of the five call sites, so this isn't
+an oversight so much as an unenforced contract. The one call site with a genuinely DYNAMIC default
+(`Themes.tsx:166`, `resolveActiveTabId(tabId, validTabIds, defaultThemeTabGroup(settings, themeTiers))`)
+widens `validTabIds` to `readonly string[]` (not a literal-id union), so TypeScript provides no compile-time
+guarantee there either — BUT `defaultThemeTabGroup` (`apps/admin/src/features/themes/rules.ts:122-127`)
+returns the narrower literal type `ThemeTabGroup`, which today is always a member of `THEME_TAB_GROUPS`
+(confirmed by reading `themeTabGroup`'s callers), so this specific call site is not currently exploitable.
+Real gap for a FUTURE caller or a future change to `themeTabGroup()`'s exhaustiveness, downgraded from
+Gemini's original "High" given no live trigger found.
+
+**Discarded (disproved on verification):**
+- Gemini claimed `api.ts`'s `createSite` (`request<{ site: AdminCreatedSite }>`, line 3187) mismatches the
+  `AdminCreatedSite` interface's own doc comment ("The `201` body of `POST .../system/sites`"), so
+  `result.site` would be `undefined` and any caller reading `.site.name` would throw. **False** — read the
+  actual server route (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts:153`):
+  `res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId } })` — the
+  server DOES wrap the response in `{ site: {...} }`, matching both `api.ts`'s type annotation and
+  `use-sites.hooks.ts:126`'s `result.site.name` usage. The three are mutually consistent; only
+  `AdminCreatedSite`'s own doc comment is a little imprecise (describes the shape of the `.site` field, not
+  literally "the 201 body" as its wording claims) — a documentation nit, not a functional bug.
+
+**No defects identified (accepted without independent line-by-line re-derivation given time budget):**
+- `apps/admin/src/lib/assistant-transport.ts` — Gemini reports the extracted helpers
+  (`frontendBindTokenField`, `modelField`, `reasoningField`, `attachmentIdsField`, `pluginRefIdsField`,
+  `conversationIdField`, `resolveLocalCliPrompt`, `finishLocalCliRun`) faithfully preserve original runtime
+  checks and async subscription semantics.
+- `apps/admin/src/lib/site-url.ts` — trivial `http://` -> `https://` localhost fallback change, matching the
+  dev-server TLS-termination work elsewhere in this window.
+
+Chunk tally: 3 findings raised; 1 confirmed as a real, live, currently-reachable bug (though pre-existing, not
+introduced in-window), 1 confirmed as a real-but-currently-dormant design gap (downgraded severity), 1 fully
+disproven.
+
 ## Areas not covered / caveats
 
 TBD at completion.
