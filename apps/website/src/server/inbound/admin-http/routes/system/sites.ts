@@ -2,8 +2,10 @@ import type { Express, Response } from "express";
 
 import {
   createSite as createSiteReal,
+  describeSiteBinding as describeSiteBindingReal,
   listSites as listSitesReal,
   persistActiveSite as persistActiveSiteReal,
+  readPersistedActiveSite as readPersistedActiveSiteReal,
   InitDirNotEmptyError,
   ValidationError,
   type SiteListEntry,
@@ -31,6 +33,20 @@ import type { RouteDeps } from "#src/server/routes/types";
  * flag's value (`switchingEnabled`) so the UI can decide whether to render the "Sites" nav item, a
  * disabled Create button, etc. without a second round trip.
  *
+ * List's response also carries the two facts a UI needs to avoid CLAIMING A SWITCH THAT HAS NOT
+ * HAPPENED (2026-09-05, admin Sites screen). Neither is derivable from `sites[]`:
+ *
+ * - `currentSite` — what this process is bound to RIGHT NOW (`describeSiteBinding`), plus `listed`:
+ *   whether that directory appears in `sites[]` at all. It legitimately may not — `listSites` skips
+ *   any directory without a valid `.site-meta.json` commit marker, and this repo's own live
+ *   `sites/tovu-com` predates that marker, so `sites[]` comes back EMPTY while a site is plainly
+ *   being served. A screen holding only the list would render "no sites" on a running server.
+ *   `currentSite.dirOverridden` reports the `TOVU_SITE_DIR` precedence trap — see {@link
+ *   SiteBinding.dirOverridden}: with it set, an activate is inert and the UI must say so.
+ * - `persistedSiteName` — the pending `TOVU_SITE` choice a previous activate left in `.env`
+ *   (`readPersistedActiveSite`), so "serving A, B queued for the next restart" survives a page
+ *   reload rather than living only in the activate response the reload threw away.
+ *
  * `POST .../system/sites` — Create. Refuses `SITE_SWITCHING_DISABLED` when the flag is off,
  * checked BEFORE `authorize()` (a deployment-wide gate, independent of the caller's own
  * permissions — no reason to spend an authorize() call on an operation that will be refused
@@ -50,6 +66,8 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
   createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
+  describeSiteBinding?: typeof describeSiteBindingReal;
+  readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
 };
 
 /** The exact prose the UI should render after a successful Activate — one source of truth so a
@@ -71,6 +89,8 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   const createSite = deps.createSite ?? createSiteReal;
   const persistActiveSite = deps.persistActiveSite ?? persistActiveSiteReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
+  const describeSiteBinding = deps.describeSiteBinding ?? describeSiteBindingReal;
+  const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -89,7 +109,13 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       if (!authorized) return;
 
       const sites: SiteListEntry[] = listSites();
-      res.status(200).json({ switchingEnabled: isSiteSwitcherEnabled(), sites });
+      const binding = describeSiteBinding();
+      res.status(200).json({
+        switchingEnabled: isSiteSwitcherEnabled(),
+        sites,
+        currentSite: { ...binding, listed: sites.some((site) => site.dir === binding.dir) },
+        persistedSiteName: readPersistedActiveSite(),
+      });
     } catch (err) {
       console.error("[system/sites] unexpected error listing sites", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

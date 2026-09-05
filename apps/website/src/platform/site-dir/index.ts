@@ -33,10 +33,17 @@ export type { ConfigJson } from "./types.js";
 export {
   listSites,
   createSite,
+  describeSiteBinding,
   SITE_NAME_PATTERN,
+  type SiteBinding,
   type SiteListEntry,
   type ListSitesOptional,
   type CreateSiteRequired,
   type CreateSiteResult,
 } from "./site-registry.js";
-export { persistActiveSite, type PersistActiveSiteRequired, type ActiveSiteEnvOptional } from "./active-site.js";
+export {
+  persistActiveSite,
+  readPersistedActiveSite,
+  type PersistActiveSiteRequired,
+  type ActiveSiteEnvOptional,
+} from "./active-site.js";

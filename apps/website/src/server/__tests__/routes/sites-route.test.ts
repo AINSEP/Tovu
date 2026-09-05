@@ -27,6 +27,8 @@ const SAMPLE_SITE: SiteListEntry = {
   active: true,
 };
 
+const SAMPLE_BINDING = { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false };
+
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
   const bareId = "bare-principal-sites";
@@ -78,13 +80,61 @@ test("sites: an unauthorized principal (no grants) gets 403 on create, not a cre
 });
 
 test("sites: List — 200 with switchingEnabled + the injected site list, regardless of the flag's value", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps(), isSiteSwitcherEnabled: () => false, listSites: () => [SAMPLE_SITE] };
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => false,
+    listSites: () => [SAMPLE_SITE],
+    describeSiteBinding: () => SAMPLE_BINDING,
+    readPersistedActiveSite: () => null,
+  };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, { headers: { cookie } });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { switchingEnabled: false, sites: [SAMPLE_SITE] });
+  assert.deepEqual(await res.json(), {
+    switchingEnabled: false,
+    sites: [SAMPLE_SITE],
+    currentSite: { ...SAMPLE_BINDING, listed: true },
+    persistedSiteName: null,
+  });
+});
+
+test("sites: List — currentSite.listed is FALSE when the served directory is absent from sites[] (the marker-less live site case)", async (t) => {
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    // Exactly this repo's own situation: `sites/tovu-com` predates the `.site-meta.json` commit
+    // marker, so `listSites` skips it and the list comes back EMPTY while it is being served.
+    listSites: () => [],
+    describeSiteBinding: () => SAMPLE_BINDING,
+    readPersistedActiveSite: () => null,
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, { headers: { cookie } });
+  const body = await res.json();
+  assert.deepEqual(body.sites, []);
+  assert.equal(body.currentSite.listed, false);
+  assert.equal(body.currentSite.name, "tovu-com");
+});
+
+test("sites: List — reports a pending persisted choice and the TOVU_SITE_DIR override that would defeat it", async (t) => {
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    listSites: () => [SAMPLE_SITE],
+    describeSiteBinding: () => ({ ...SAMPLE_BINDING, dirOverridden: true }),
+    readPersistedActiveSite: () => "second-site",
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, { headers: { cookie } });
+  const body = await res.json();
+  assert.equal(body.persistedSiteName, "second-site");
+  assert.equal(body.currentSite.dirOverridden, true);
 });
 
 test("sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never calls createSite", async (t) => {

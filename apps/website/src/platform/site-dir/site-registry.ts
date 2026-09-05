@@ -142,3 +142,40 @@ export function createSite(required: CreateSiteRequired, optional: ListSitesOpti
   const result = initSite({ dir, name });
   return { ...result, name };
 }
+
+/** What THIS process is actually bound to right now — see {@link describeSiteBinding}. */
+export interface SiteBinding {
+  /** Absolute path this process resolved at boot (`resolveSiteRoot()`), re-derived fresh. */
+  dir: string;
+  /** `dir`'s folder name — the `TOVU_SITE` vocabulary `persistActiveSite` writes in. */
+  name: string;
+  /**
+   * True when `TOVU_SITE_DIR` is set in this process's environment.
+   *
+   * Load-bearing for the admin Sites screen, not a diagnostic nicety: `resolveSiteRoot`'s
+   * precedence puts `TOVU_SITE_DIR` ABOVE the `TOVU_SITE` line `persistActiveSite` writes, so when
+   * this is true an activate is inert — the next boot resolves the override and ignores the
+   * persisted choice entirely. A UI that offered Activate without saying so would promise a switch
+   * that cannot happen.
+   */
+  dirOverridden: boolean;
+}
+
+/**
+ * Describe the site binding this process is serving from, read-only and re-derived on every call
+ * (never cached), so it always reflects what a request handled right now would actually see.
+ *
+ * Separate from {@link listSites}'s per-entry `active` flag because the two answer different
+ * questions, and the difference is exactly what the admin Sites screen has to be honest about:
+ * `active` can be `false` on EVERY row (the live site directory carries no `.site-meta.json`
+ * commit marker, so `listSites` skips it — the pre-marker `sites/tovu-com` in this repo is that
+ * case today), and a screen that only had the list would then render "no sites" while a site is
+ * plainly being served.
+ *
+ * @complexity O(1) — path computation and two env reads, no I/O.
+ */
+export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
+  const dir = resolveSiteRoot(optional);
+  const env = optional.env ?? process.env;
+  return { dir, name: path.basename(dir), dirOverridden: env.TOVU_SITE_DIR !== undefined };
+}

@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.js";
 import { ValidationError } from "../../errors.js";
-import { createSite, listSites, SITE_NAME_PATTERN } from "../../site-registry.js";
+import { createSite, describeSiteBinding, listSites, SITE_NAME_PATTERN } from "../../site-registry.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `site-registry.ts`'s list/create half.
@@ -121,6 +121,43 @@ test("createSite: the resulting content.db has a published kind:'page' row at sl
     } finally {
       db.$client.close();
     }
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("describeSiteBinding: falls back to the default site name when neither override is set", () => {
+  const binding = describeSiteBinding({ cwd: "/repo", env: {} });
+  assert.equal(binding.dir, path.join("/repo", "sites", "tovu-com"));
+  assert.equal(binding.name, "tovu-com");
+  assert.equal(binding.dirOverridden, false);
+});
+
+test("describeSiteBinding: TOVU_SITE names a folder under sites/, and is NOT reported as an override", () => {
+  const binding = describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE: "second-site" } });
+  assert.equal(binding.dir, path.join("/repo", "sites", "second-site"));
+  assert.equal(binding.name, "second-site");
+  assert.equal(binding.dirOverridden, false, "TOVU_SITE is the vocabulary activate writes — it is not what defeats an activate");
+});
+
+test("describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it OUTRANKS the TOVU_SITE line activate writes", () => {
+  const binding = describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE_DIR: "/elsewhere/my-site", TOVU_SITE: "queued-site" } });
+  assert.equal(binding.dir, path.resolve("/elsewhere/my-site"));
+  assert.equal(binding.name, "my-site");
+  assert.equal(binding.dirOverridden, true);
+});
+
+test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-binding-"));
+  try {
+    fs.mkdirSync(path.join(cwd, "sites"));
+    createSite({ name: "bound-site" }, { cwd });
+    const env = { TOVU_SITE: "bound-site" };
+    const binding = describeSiteBinding({ cwd, env });
+    const listed = listSites({ cwd, env });
+    const active = listed.filter((site) => site.active);
+    assert.equal(active.length, 1);
+    assert.equal(active[0].dir, binding.dir, "the two derivations must never disagree about which site is live");
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }

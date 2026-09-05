@@ -111,3 +111,58 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
   }
   writeFileAtomic(envFilePath, upsertEnvLine(existing, "TOVU_SITE", required.name));
 }
+
+/**
+ * Read one `KEY=value` line out of `.env`-shaped text — the inverse of {@link upsertEnvLine}, and
+ * deliberately just as narrow: the FIRST matching line wins (same line `upsertEnvLine` would
+ * replace, so a write-then-read round trip always agrees), the value is returned verbatim with only
+ * surrounding whitespace trimmed, and no `export ` prefix, quoting, or interpolation is understood.
+ *
+ * That narrowness is the point: this is not a `.env` parser and must never grow into one — Node's
+ * own `process.loadEnvFile` is what actually interprets this file at boot, and a second, subtly
+ * different interpretation living here would report a value the next boot does not use. The one
+ * key this is ever asked for (`TOVU_SITE`) is written by {@link persistActiveSite} in exactly the
+ * unquoted `KEY=value` form this reads.
+ *
+ * Pure text transform, no fs access.
+ *
+ * @returns The value, or `null` when no line starts with `KEY=`.
+ * @complexity O(n) in the source text's own line count — bounded by the developer's own `.env`
+ *   size, never by caller-controlled request input.
+ */
+export function readEnvLine(source: string, key: string): string | null {
+  const prefix = `${key}=`;
+  const match = source.split("\n").find((line) => line.startsWith(prefix));
+  return match === undefined ? null : match.slice(prefix.length).trim();
+}
+
+/**
+ * The site name a previous {@link persistActiveSite} call left in the repo-root `.env`, or `null`
+ * when none has ever been persisted (or the file does not exist).
+ *
+ * This is a PENDING choice, never a statement about what this process is serving — the live binding
+ * is `resolveSiteRoot()`'s, resolved at boot and unaffected by this file (see this file's header).
+ * The admin Sites screen needs both to tell the operator the truth after a reload: "serving A, and
+ * B is queued for the next restart" is only expressible if the queued value survives the page load
+ * that forgot the activate response.
+ *
+ * Reads and returns ONLY the `TOVU_SITE` line's value. Every other line in `.env` — secrets
+ * included — is neither parsed nor returned.
+ *
+ * @returns The persisted folder name, or `null` for an absent file, an absent key, or an empty
+ *   value (an empty `TOVU_SITE=` is a no-op for `resolveSiteRoot`, so reporting it as a pending
+ *   choice would be a lie).
+ * @complexity O(n) in the `.env` file's own line count plus one file read.
+ */
+export function readPersistedActiveSite(optional: ActiveSiteEnvOptional = {}): string | null {
+  let existing: string;
+  try {
+    existing = fs.readFileSync(resolveEnvFilePath(optional), "utf8");
+  } catch {
+    // No `.env` yet — nothing has ever been activated. Same non-failure this file's writer treats
+    // an absent file as.
+    return null;
+  }
+  const value = readEnvLine(existing, "TOVU_SITE");
+  return value === null || value.length === 0 ? null : value;
+}
