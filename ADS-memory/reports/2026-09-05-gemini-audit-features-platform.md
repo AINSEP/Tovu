@@ -29,7 +29,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 - [x] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
 - [x] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
-- [ ] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
+- [x] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
 - [ ] 15. Migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
 - [ ] 16a. Coverage-padding tests batch 2a: 9e5ec771, a0f3aba4, 7b931128, c00ae566
 - [ ] 16b. Coverage-padding tests batch 2b: 1378c7e4, 239a90a5, 54c65bc6, 383befba, 4b35a008, 991217ab, 438ada6a
@@ -274,5 +274,18 @@ Gemini raised 5 findings. 1 confirmed HIGH (a genuine architectural collision, v
 - Gemini's HIGH claim that 1ce20715 "fixed" a site-exporter test by changing its assertions to match now-broken absolute URLs, rather than fixing the exporter to join `--base-path` with the verified origin — i.e. sitemap.xml/robots.txt in a `--base-path`-exported site would point at the wrong (non-subpath) URLs. Plausible on its face (making canonical/og:url/sitemap absolute, per d4a10b35, and the export pipeline's own base-path-prefixing logic are two features that would need explicit reconciliation) but I did not trace `prefixRootRelativePath`/the exporter's base-path-joining logic to confirm. Flagging as worth a follow-up look rather than confirming or discarding.
 
 ### Chunk 14 — seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
+
+Gemini raised 4 findings. 1 confirmed real and serious (contradicts the function's own documented error contract), 1 discarded (unreachable — the only real caller already validates the input), 1 discarded (path-scoping false positive, same recurring class), 1 confirmed minor.
+
+**HIGH — CONFIRMED.** `apps/website/src/platform/site-dir/active-site.ts:102-111`, `persistActiveSite` (introduced by 115687af — new to this window). `try { existing = fs.readFileSync(envFilePath, "utf8"); } catch { existing = ""; }` catches EVERY error from the read (no `err.code === "ENOENT"` check) and treats it as "no `.env` yet," then unconditionally writes `upsertEnvLine(existing, "TOVU_SITE", required.name)` over the real file via `writeFileAtomic`. If an EXISTING `.env` containing real secrets (`TOVU_ADMIN_PASSWORD`, integration keys) becomes transiently unreadable (permissions, a lock, an I/O error) while remaining writable, this silently truncates it down to just the one `TOVU_SITE=` line — permanent secret loss. This directly contradicts the function's own doc, 8 lines above the bug: "`@throws` whatever the underlying `fs` call throws (e.g. `EACCES` on an unwritable repo root) — surfaced, never swallowed." The doc's claim is true for the WRITE side but false for the READ side, which is exactly where this swallows.
+Verification: read the function and its doc comment directly; confirmed via `git log -S"function persistActiveSite"` that this function (and the bug) is new in 115687af, within the audited window.
+
+**LOW — CONFIRMED.** `apps/website/src/platform/site-dir/site-registry.ts:76-104`, `listSites` returns sites in raw `fs.readdirSync` order with no sort — real, and platform-dependent (ext4/ directory-hash order is not alphabetical or creation-order), so the admin Sites-screen switcher list could reorder unpredictably between refreshes. Minor UX/determinism issue, not a functional bug.
+
+**Discarded (2):**
+- Gemini's HIGH claim that `persistActiveSite`'s lack of its own name validation lets a caller inject newlines into `.env` (env-variable injection) or path-traversal via `required.name`. Disproved by tracing the one real call site: `server/inbound/admin-http/routes/system/sites.ts:188-195` requires `name` to match an entry already returned by `listSites()` (i.e. a genuine, already-`validateSiteName`-checked existing site directory) before ever calling `persistActiveSite` — an arbitrary/malicious string 404s before reaching the vulnerable function. (Still a mild "no defense in depth" observation, but not exploitable via the only path that reaches it today.)
+- Gemini's MEDIUM claim that 3815496b's llms.txt route handler and its tests were never actually committed, leaving `/llms.txt` still serving a hardcoded list. Disproved: `git show 3815496b --stat` shows `server/inbound/public-http/routes/site/llms.ts` (100 lines changed) and its test (124 lines changed) genuinely modified in the same commit — outside features/platform. Same recurring false-positive class as chunks 1/6/7/9/10/11/13.
+
+### Chunk 15 — migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
 
 (running)
