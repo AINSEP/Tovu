@@ -19,72 +19,49 @@
  *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change at
  *    all: it consumes a contract that exists and is already exercised.
  *
- * The boot line this parses (`tovu serve: dir=… port=… schemaVersion=… workspaceId=…`) is the one
- * `serve.ts` documents as its startup contract (api.spec.md §5). Tovu-Runner parses the identical
- * line today (`src/main/tovu-cli.ts`'s `TOVU_BOOT_LINE_PATTERN`), so this is a proven seam rather
- * than a new one being invented here.
+ * Everything about mode 2 that is not Electron-specific lives in `src/tovu-server.cjs`, which
+ * imports no `electron` and is therefore directly testable under plain `node --test`. This file
+ * keeps only what genuinely needs `app`/`BrowserWindow`/`shell`.
  *
  * `TOVU_DESKTOP_SELFTEST=1` makes the shell prove itself and exit instead of staying open: it
  * reports the loaded URL and document title, then quits 0 on success and 1 on any load failure.
+ *
+ * Environment:
+ * - `TOVU_DESKTOP_URL`      — attach to this origin instead of spawning a server.
+ * - `TOVU_DESKTOP_SITE_DIR` — site dir for own-server mode (default `<repo>/sites/tovu-com`).
+ * - `TOVU_DESKTOP_PORT`     — pin own-server mode's port; otherwise a free one is allocated.
+ * - `TOVU_DESKTOP_SELFTEST` — `1` to verify and exit rather than opening a window.
  */
 const path = require("node:path");
-const { spawn } = require("node:child_process");
 const { app, BrowserWindow, shell } = require("electron");
+
+const { startTovuServer } = require("./src/tovu-server.cjs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
 
-/** Mirrors `apps/website/src/cli/commands/serve.ts`'s documented startup line. */
-const BOOT_LINE = /^tovu serve: dir=(.+) port=(\d+) schemaVersion=(\d+) workspaceId=(\S+)$/m;
-
 /**
- * Tovu's own `bin.tovu` entry, read from its `package.json` rather than hardcoded.
+ * Attach to a running stack, or start our own.
  *
- * Same "read the manifest, never the literal path" rule Tovu-Runner adopted after Tovu's `src/`
- * was renamed once already (2026-08-27 restructure) and broke a hardcoded `dist/src/cli/main.js`
- * in two places at once.
+ * @returns `{ server, url }`; `server` is null in attach mode, and otherwise the handle whose
+ *   `stop()` is the only supported shutdown path.
+ * @complexity O(1) beyond the child's own boot cost.
  */
-function resolveCliEntry() {
-  const manifest = require(path.join(REPO_ROOT, "package.json"));
-  if (typeof manifest.bin?.tovu !== "string") {
-    throw new Error(`${REPO_ROOT}/package.json has no "bin.tovu" field.`);
-  }
-  return path.join(REPO_ROOT, manifest.bin.tovu);
-}
-
-/**
- * Spawn `tovu serve <dir>` and resolve the origin it reports.
- *
- * `ELECTRON_RUN_AS_NODE` is deleted for the same reason Tovu-Runner deletes it: Electron sets it
- * for its own child processes, and inheriting it changes how the spawned runtime behaves.
- */
-function startOwnServer(siteDir, port) {
-  const child = spawn(process.execPath, [resolveCliEntry(), "serve", siteDir, "--port", String(port)], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
-    stdio: ["ignore", "pipe", "inherit"],
-  });
-  return new Promise((resolve, reject) => {
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-      process.stdout.write(chunk);
-      const match = BOOT_LINE.exec(stdout);
-      if (match) resolve({ child, url: `http://127.0.0.1:${match[2]}/admin/` });
-    });
-    child.once("error", reject);
-    child.once("exit", (code) => reject(new Error(`tovu serve exited (code ${code ?? "none"}) before reporting a port.`)));
-  });
-}
-
-/** Attach to a running stack, or start our own. Returns `{ child, url }`; `child` is null when attached. */
 async function resolveTarget() {
   const attachUrl = process.env.TOVU_DESKTOP_URL?.trim();
-  if (attachUrl) return { child: null, url: attachUrl };
+  if (attachUrl) return { server: null, url: attachUrl };
 
-  const siteDir = process.env.TOVU_DESKTOP_SITE_DIR?.trim() ?? path.join(REPO_ROOT, "sites", "tovu-com");
-  const port = Number(process.env.TOVU_DESKTOP_PORT ?? 3600);
-  return startOwnServer(siteDir, port);
+  const siteDir = process.env.TOVU_DESKTOP_SITE_DIR?.trim() || path.join(REPO_ROOT, "sites", "tovu-com");
+  const pinnedPort = process.env.TOVU_DESKTOP_PORT?.trim();
+
+  const server = await startTovuServer({
+    repoRoot: REPO_ROOT,
+    siteDir,
+    // Unpinned means "ask the OS for a free one" rather than a fixed default: two desktop windows,
+    // or a desktop window alongside the `npm run dev` stack on :3000, must not collide.
+    port: pinnedPort ? Number(pinnedPort) : undefined,
+  });
+  return { server, url: server.adminUrl };
 }
 
 function createWindow(url) {
@@ -126,27 +103,45 @@ function runSelftest(window, url) {
   });
 }
 
-let serverChild = null;
+let tovuServer = null;
+let shuttingDown = false;
 
-app.whenReady().then(async () => {
-  const target = await resolveTarget();
-  serverChild = target.child;
-  const window = createWindow(target.url);
-  if (SELFTEST) runSelftest(window, target.url);
+app
+  .whenReady()
+  .then(async () => {
+    const target = await resolveTarget();
+    tovuServer = target.server;
+    const window = createWindow(target.url);
+    if (SELFTEST) runSelftest(window, target.url);
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(target.url);
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(target.url);
+    });
+  })
+  .catch((error) => {
+    console.error(`tovu desktop: ${error.message}`);
+    process.exitCode = 1;
+    app.quit();
   });
-}).catch((error) => {
-  console.error(`tovu desktop: ${error.message}`);
-  process.exitCode = 1;
-  app.quit();
-});
 
-// A spawned `tovu serve` must not outlive the window that owns it. `serve.ts` handles SIGTERM
-// with a graceful drain (BR-07), so this is the clean shutdown path, not a kill.
-app.on("will-quit", () => {
-  serverChild?.kill("SIGTERM");
+/**
+ * A spawned `tovu serve` must not outlive the window that owns it, and it must be given the chance
+ * to shut down properly rather than being cut off.
+ *
+ * `will-quit` cannot be used for this: it is synchronous, so it can send a signal but cannot wait
+ * for the child to act on it, and Electron would exit while `serve.ts`'s BR-07 drain — close the
+ * listener, finish in-flight requests, stop the agent daemon, close the sqlite handle — was still
+ * running. Deferring the quit here is what makes the database close cleanly on every ordinary exit.
+ *
+ * A hard kill of Electron itself (SIGKILL, a crash, a logout) still bypasses this and can strand
+ * the child. Tovu-Runner answers that with a pid registry and boot-time orphan reconciliation;
+ * that machinery belongs with the fleet supervisor, not here, and is reported rather than ported.
+ */
+app.on("before-quit", (event) => {
+  if (tovuServer === null || shuttingDown) return;
+  event.preventDefault();
+  shuttingDown = true;
+  void tovuServer.stop().finally(() => app.quit());
 });
 
 app.on("window-all-closed", () => {
