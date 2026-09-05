@@ -26,7 +26,47 @@ not personally produce is cited as "per <report>", never stated as fact.
 
 ## 2. Scope for this measurement
 
-TBD below as measurement proceeds.
+A full `npm run test:cov` (repo-wide: `apps/website/src/**`, `packages/*/src`, `apps/site-chat/src`)
+is explicitly forbidden on this machine. `npm run test:cov:server` (all of
+`apps/website/src/server/**/*.test.ts`) is the next tier down and still broader than "routes" — it
+would include every server subsystem's tests, not just route handlers.
+
+This measurement is scoped narrower still, to exactly the test files that live alongside route
+source under the three `MEASURABLE_ROUTE_PREFIXES` the two existing gates already define
+(`route-coverage-lib.ts`): **MEASURED** count via `find`, verified every path exists before running
+(trap 2) —
+
+- `apps/website/src/server/__tests__/routes/*.test.ts` — 72 files (the historical, pre-restructure
+  home for route-level HTTP tests; still where most route tests live post-restructure)
+- `apps/website/src/server/inbound/admin-http/routes/**/__tests__/*.test.ts` — 80 files
+- `apps/website/src/server/inbound/public-http/routes/**/__tests__/*.test.ts` — 18 files
+
+**170 files total**, verified to exist on disk before the run (a `while read` loop over the file
+list, zero `MISSING:` lines). Command (matches the dispatch's shape exactly):
+
+```
+env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+  node --import tsx --test --experimental-test-module-mocks --test-concurrency=1 \
+  --experimental-test-coverage \
+  --test-reporter=lcov --test-reporter-destination=<scratch>/routes.lcov \
+  --test-reporter=dot --test-reporter-destination=<scratch>/routes-dot.out \
+  <170 files>
+```
+
+Named exclusion: this does NOT include tests that exercise routes only indirectly (e.g.
+`http/site/__tests__/render.test.ts`, boot-lifecycle integration tests that spin up the whole app and
+happen to hit route handlers along the way). Those tests likely contribute real coverage to route
+files in a full `test:cov:server` run that this scoped run will not credit — meaning this measurement
+is a **conservative floor**, not a ceiling, on real route coverage. Flagged, not corrected — closing
+that gap needs the broader (currently infeasible) run.
+
+**Environment note affecting run time, not correctness:** this session ran concurrently with several
+other agent sessions on the same machine (`main`, `A-export-leaf` through `F-complexity-truth`,
+per the team roster) — **MEASURED** load average peaked at **27.20** partway through this run (`uptime`),
+far above the ~1-per-core level this scoped, single-concurrency invocation would need. The run took
+materially longer than its file/test count would suggest on an idle machine as a result. This is a
+capacity problem, not a correctness problem — see §1 for why a full unscoped `test:cov` is additionally
+forbidden regardless of load.
 
 ## 3. The real coverage number
 
