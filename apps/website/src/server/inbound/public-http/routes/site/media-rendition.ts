@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
 import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
-import type { PostRecord } from "#src/features/post/index";
+import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
@@ -106,6 +106,14 @@ async function findPublishedPostsReferencingAsset(
   const referencing: PostRecord[] = [];
   for (const post of posts) {
     if (post.status !== "published") continue;
+    // 2026-09-05 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it
+    // never clears `status`, so a post that was `published` when trashed stays `status:
+    // "published"` forever and the guard above alone can't catch it. Same defect pattern (and same
+    // fix shape — `!isTrashed(post)`/`isTrashed(post)`) `caa116115c103630ba5253f9bbe3bceb234347d8`
+    // already applied to `computeIndexableEntries` (sitemap.xml/llms.txt); `PostRepoPort.list()` is
+    // documented trash-BLIND by contract, so this trash-aware filter belongs here, at this domain
+    // function's own read boundary, not in the shared repo port.
+    if (isTrashed(post)) continue;
     const ids = new Set<string>();
     collectImageAssetIds(post.bodyJson, ids);
     if (ids.has(assetId)) referencing.push(post);
