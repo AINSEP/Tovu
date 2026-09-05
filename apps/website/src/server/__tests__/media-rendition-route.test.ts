@@ -6,10 +6,11 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { registerTransform, uploadMedia, trashMedia, ImageSourceCorruptError } from "../../features/media/index.js";
+import { registerTransform, uploadMedia, trashMedia, ImageSourceCorruptError, ImageTransformUnavailableError } from "../../features/media/index.js";
 import type { PostRecord } from "../../features/post/index.js";
 import type { MemberSessionRecord } from "../../features/members/index.js";
 import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
+import { extractRouteHandler, createCapturingResponse } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the new public, unauthenticated
@@ -220,6 +221,83 @@ test("media rendition route: unknown assetId is a 404, and a malformed transform
     const malformed = await fetch(`${baseUrl}/m/does-not-exist/thumb-missing-version-marker/a.jpg`);
     assert.equal(malformed.status, 400);
   });
+});
+
+test("media rendition route: resolveTransformSpec's own version-range checks — `.v0` (below the minimum) and an oversized digit run (parses to Infinity, failing Number.isInteger) are both a 400 'malformed transform version', distinct from the missing-version-marker 400 above", async () => {
+  await withServer(async (baseUrl) => {
+    // `TRANSFORM_SPEC_PATTERN` (`\.v(\d+)$`) only ever captures digits, so `Number(versionText)` is
+    // never NaN — the two error messages this route has always distinguished need two different
+    // ways to fail past the regex: a value that parses cleanly but is out of range (`v0`), and a
+    // digit run so long it overflows to `Infinity` (still `\d+`-legal, but `Number.isInteger`
+    // rejects it).
+    const zeroVersion = await fetch(`${baseUrl}/m/does-not-exist/thumb.v0/a.jpg`);
+    assert.equal(zeroVersion.status, 400);
+    assert.deepEqual(await zeroVersion.json(), { error: "malformed transform version" });
+
+    const overflowVersion = await fetch(`${baseUrl}/m/does-not-exist/thumb.v${"9".repeat(400)}/a.jpg`);
+    assert.equal(overflowVersion.status, 400);
+    assert.deepEqual(await overflowVersion.json(), { error: "malformed transform version" });
+  });
+});
+
+test("media rendition route: the pixel-operation adapter being unavailable is a 503 no-store, never an opaque 500", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "unavailable-transformer-bytes", "u.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+
+    deps.imageTransformer = {
+      transform: async () => {
+        throw new ImageTransformUnavailableError("sharp is not installed in this environment");
+      },
+    };
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/x.webp`);
+    assert.equal(res.status, 503);
+    assert.equal(res.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await res.json(), { error: "sharp is not installed in this environment" });
+  });
+});
+
+test("media rendition route: a wholly unexpected error resolving the rendition is the opaque 500 'internal error', never leaking the raw error message", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "unexpected-error-bytes", "e.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+
+    deps.imageTransformer = {
+      transform: async () => {
+        throw new Error("some internal wiring detail that must never reach the response body");
+      },
+    };
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/x.webp`);
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+  });
+});
+
+/**
+ * `req.params.assetId ?? ""` / `req.params.transformSpec ?? ""` (`readRenditionRouteParams`) and
+ * `resolveTransformSpec`'s own `!assetId` check on top of it: Express guarantees a matched
+ * `:assetId`/`:transformSpec` route segment is always a populated string, so both fallbacks are
+ * unreachable through any real HTTP request — same established pattern as every other route in
+ * this codebase's `?? ""` direct-invocation tests (see `admin-widgets-routes.test.ts`,
+ * `admin-connectors-routes.test.ts`). Kept, not deleted, and exercised the same way: call the real
+ * registered handler directly with a hand-built `req` that violates Express's own routing contract.
+ */
+test("media rendition route: `req.params.assetId ?? \"\"` and `req.params.transformSpec ?? \"\"` fallbacks, forced via a direct handler call — both missing hits `!match` (empty transformSpec never matches the pattern), a valid transformSpec with ONLY assetId missing isolates resolveTransformSpec's own `!assetId` half of the same guard", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const handler = extractRouteHandler(app, "get", "/m/:assetId/:transformSpec/:filename");
+
+  const bothMissing = createCapturingResponse();
+  await handler({ params: {} }, bothMissing.res);
+  assert.equal(bothMissing.capture.statusCode, 400);
+  assert.deepEqual(bothMissing.capture.jsonBody, { error: "malformed media rendition URL" });
+
+  const onlyAssetIdMissing = createCapturingResponse();
+  await handler({ params: { transformSpec: "thumb.v1" } }, onlyAssetIdMissing.res);
+  assert.equal(onlyAssetIdMissing.capture.statusCode, 400);
+  assert.deepEqual(onlyAssetIdMissing.capture.jsonBody, { error: "malformed media rendition URL" });
 });
 
 // --- member-gating regression suite (ADR-030 §4, 2026-09-03 sweep) --------------------------

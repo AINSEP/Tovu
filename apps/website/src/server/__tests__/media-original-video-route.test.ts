@@ -116,6 +116,21 @@ test("media original video route: a real mp4 serves 200 with the sniffed video c
   });
 });
 
+test("media original video route: a wholly unexpected error (e.g. a blob-store read failure after the gate/lookup already succeeded) is an opaque 500 'internal error', this route's own catch block distinct from the rendition route's", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const bytes = mp4Bytes("crash-on-read-bytes");
+    const { media } = await uploadOne(deps, bytes, "crash.mp4", "video/mp4");
+
+    deps.blobStore.get = async () => {
+      throw new Error("some internal wiring detail that must never reach the response body");
+    };
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+  });
+});
+
 test("media original video route: Range requests are honored — a <video> tag can seek without buffering the whole file", async () => {
   await withServer(async (baseUrl, deps) => {
     const bytes = mp4Bytes("0123456789ABCDEFGHIJ");
