@@ -16,7 +16,7 @@ import { assertNoConfigInjection, buildDeploymentDescriptor } from "../deploy-co
 test("buildDeploymentDescriptor: derives every field from the repo's own Dockerfile/fly.toml/health.ts", () => {
   const descriptor = buildDeploymentDescriptor();
 
-  assert.equal(descriptor.appName, "tovu-ai-cms", "derived from fly.toml's `app = \"...\"`");
+  assert.equal(descriptor.appName, "tovu", "derived from fly.toml's `app = \"...\"`");
   assert.equal(descriptor.port, 3000, "derived from Dockerfile's `EXPOSE 3000`");
   assert.equal(descriptor.dockerfilePath, "Dockerfile", "derived from fly.toml's [build].dockerfile");
   assert.equal(descriptor.volumeMountPath, "/workspace/Tovu/sites", "derived from fly.toml's [[mounts]].destination");
