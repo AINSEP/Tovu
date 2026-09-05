@@ -861,3 +861,49 @@ implemented.**
 The `src/` -> `apps/website/src/` rename silently broke (1) two migration scripts entirely, (2) 43
 more files' imports, (3) the SDK resolver path. **Root cause: `tsc` only includes `apps/website/src/**`,
 so nothing outside it is checked.** Saved to memory with the sweep command.
+
+---
+
+## A18 — stale-import sweep done (`a4300236`). MY 43 WAS WRONG; the real number is 14.
+
+**Correction to my own count**: the grep matched already-fixed files too, because
+`apps/website/src/` still contains `/src/`. Resolved against the filesystem rather than trusted:
+**29 fine, 14 genuinely broken.** One further false positive caught — `dead-path-sweep.test.ts`
+matched inside a **fixture template literal** used to test the guard's own historical-detection
+logic, not a real import.
+
+**Fixed: 11, all in `development/evals/`** (`a4300236`). One needed more than a prefix rewrite —
+`tool-registrations` was a directory (`tool-registrations/index.js`) and is now a single consolidated
+file, so it became `tool-registrations.js`, verified against the actual listing. Three proved by
+**execution** (`ERR_MODULE_NOT_FOUND` before, clean run after); the other 8 by static path resolution.
+**Reachability: none have a package.json script or CI reference** — one-off research scripts from
+2026-08-05/06, results already captured in reports.
+
+Separate pre-existing bug found in `tool-search-caller2-score-captures.ts`, unrelated to the rename:
+two self-referential paths at the wrong depth (`../../../development/evals/...` for same-directory
+files) **resolve outside the repo entirely.** Left unfixed, flagged.
+
+### The 3 NOT fixed were deliberately parked — correctly not overridden
+`agent-plugin-activation.ts`, `install-agent-plugin.ts`, `theme-tool.ts` are genuinely broken (proved
+by execution). But `development/scripts/lib/dead-path-sweep.ts` carries a
+**`KNOWN_BROKEN_PENDING_OWNER_DECISION`** register listing these exact specifiers, with a same-day
+rationale: *"mechanical fix possible, but the script has no test proving it still works against
+today's schema, so a blind fix would ship an unverified migration tool."* **That decision stands.**
+One correction to its framing: all three **DO** have package.json scripts — `npm run theme`,
+`agent-plugin:install`, `agent-plugin:activation` — so they are manually reachable, just not
+exercised by tests or CI.
+
+### A19 — WE turned a test RED today. Dispatched to `fix-deadpath-register`.
+`development/scripts/__tests__/dead-path-sweep.test.ts` is **currently failing, 32/33**, and it is
+wired into `test`/`test:ci` via the `development/scripts/**/*.test.ts` glob. The failing case is
+`"known-broken register has no stale entries"`: the register still lists **9 specifiers** for
+`convert-legacy-doc-pages-to-html.ts` and `migrate-page-embed-markers.ts` under their OLD paths —
+but those were fixed this afternoon (`bc4b847b`, `45474e26`), so the entries are stale and the
+register's own staleness check catches it. **Our fix session caused this red.** The invariant
+`assert.equal(..., 18)` needs a coordinated edit.
+
+### C16 — needs Leona: extend the dead-path guard to `development/evals/`?
+`collectSweepTargets()` walks only `development/scripts/**` plus two db `*.config.ts` files. **It
+never covers `development/evals/` — where 11 of today's 14 genuine breaks lived.** Extending it is
+mechanical, same pattern. **That is the real answer to "what gate would have caught this."**
+Recommended, not implemented — a gate's scope is Leona's call.
