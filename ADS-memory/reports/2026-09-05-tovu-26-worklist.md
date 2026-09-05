@@ -541,3 +541,65 @@ coverage. Dispatched with the standing constraints in the spawn prompt: static m
 only as load allows, two feature dirs at a time strictly serial, ONE test invocation at a time,
 `uptime` recorded with every number, lcov kept durably, and **file listing / symbol grep explicitly
 banned as an answer** — that method produced five wrong claims today.
+
+---
+
+## A14 — Runner vs desktop PARITY MATRIX done (`24f871aa` skeleton, `7edc1557` filled)
+Report: `ADS-memory/reports/2026-09-05-runner-vs-desktop-parity.md`. Read-only; Tovu-Runner never
+touched, neither app launched, no tests run.
+
+### Confirms Leona's "just different ports" read. Costed.
+**~150-300 lines** in `main.cjs`/`site-dir-store.cjs` for "run N sites in one continuously-live app,
+no crash-safety." **~400-550 lines** if crash-safety across restarts is in scope (adds Runner's
+orphan-reconciliation cluster, `project-provisioner.ts:617-871`, **measured 255 lines**).
+So "a few hundred lines" is **confirmed for the minimal version, refuted by ~2x with crash-safety.**
+
+**The hard part is already built**: `apps/desktop/src/tovu-server.cjs` (327 lines) is already a pure
+`{repoRoot, siteDir, port} → handle` function **with zero single-instance assumptions**, and
+free-port allocation already works at BOTH the site-HTTP layer (`allocatePort()`) and the
+agent-daemon layer (per `daemon-supervisor.ts`'s own "Self-allocation fix (2026-08-28)" comment).
+
+### Ranked gaps
+1. **`apps/desktop` runs exactly one site dir per process** — the actual blocker; everything else is
+   secondary.
+2. **Boot-time orphan reconciliation missing** — and `main.cjs:230-232` already says so itself
+   ("...that machinery belongs with the fleet supervisor, not here, and is reported rather than ported").
+3. **Fleet-operator chat** — big by line count, ranks LOW: if there is no separate "fleet operator"
+   identity in the ports-not-fleet model, **this surface may not need to exist at all.** Desktop gets
+   a working per-site chat free from Tovu's own admin UI.
+
+### Line-count corrections to the inherited estimates
+- `project-registry` **310** and `project-provisioner` **884** — exact.
+- Contracts **~828** (close). Renderer **~3,131-3,281** (close).
+- **Fleet chat/store/IPC as literally scoped is 1,027, NOT ~1,950.** The ~1,950 only holds if you
+  also fold in `runner-mcp-bridge.ts` (428) + `runner-tools.ts` (487).
+
+### Identity-before-kill (B4): real, unported, and does NOT transplant as code
+Tovu's seam is `daemon-supervisor.ts:247` `killCurrentChild()`, guarded only by an in-memory
+`childHasExited` bool, no re-identification. Runner's `isProjectSidecar` proves identity via an argv
+substring (installDir + `--port N`) — but `spawnRealDaemonProcessFor` (`daemon-supervisor.ts:402-416`)
+**spawns byte-identical argv for every instance**, verified. **Port the SHAPE, not the code**: add a
+discriminating argv token (e.g. `--workspace <id>`), then argv-check before any future kill of a
+persisted pid. **Do NOT use `ps eww` to read child env as a substitute** — that command is banned
+here for credential leakage.
+
+### `resolveNodeBinary` (~90 lines, `tovu-cli.ts:121-223`) — confirmed DEAD
+`apps/desktop/src/tovu-server.cjs:110-121`'s own comment, dated **today**, already documents why:
+better-sqlite3 13 is N-API with prebuilds and loads unmodified under Electron 43, "measured
+2026-09-05, incl. a real SQLite roundtrip."
+
+### All three do-not-port rulings CONFIRMED, with independent reasoning
+- **In-process Jini daemon** — contradicts Tovu's detached-supervisor architecture (verified via
+  `daemon-supervisor.ts`'s `detached: true` spawn).
+- **Keychain vault** — no AAD binding, and the exploit is concrete: **a ciphertext blob copied between
+  two projects' vault slots decrypts without error.** `safeStorage` has no AAD parameter at all. This
+  would land in a repo that runs a `check:seal-aad` gate.
+- **Second MCP surface** — exists only because Runner's fleet-operator chat and a site's own chat are
+  different processes. That problem does not exist if desktop has no separate fleet-operator identity.
+
+### Could not verify (listed in the report's own gap section)
+`site-dir-store.cjs`'s `resolveSiteDir` full body (header only — its MRU-list shape affects the Q3
+cost), `daemon-respawn-policy.ts`, `agent-daemon-port.ts`, `App.hooks.ts`, `runner-tools.ts` bodies
+(sampled by import/export only), and `stage-tovu-runtime.mjs`'s `assertNodeMajorInSync()`.
+
+**→ C13, needs Leona: is crash-safety in scope?** That is the ~150-300 vs ~400-550 line decision.
