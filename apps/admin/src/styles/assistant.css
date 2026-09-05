@@ -77,6 +77,31 @@
   --jini-chat-border-strong: var(--chat-border-strong-seam);
   --jini-chat-accent: var(--accent-text);
   --jini-chat-accent-soft: var(--surface-2);
+  /* Jini 2cf1b246 stopped hardcoding `--danger`/`--radius`/`--radius-lg` on `.jini-chat-pane` and
+     introduced these three namespaced seams (package defaults: `#e5484d`, `8px`, `12px`) instead —
+     consumed as `--danger: var(--jini-chat-danger)` etc. on that same element. Pane-only, not in
+     the shared block above: verified against the package's source
+     (`packages/chat/src/react/features/chat-pane/styles.ts`) that every consumer of all three
+     (`.jini-message-error`, `.jini-working-dir-trigger.invalid`, `.op-status-error`, `.op-card`) is
+     scoped under `.jini-chat-pane`, and `.jini-runtime-popover`'s own local var block never
+     declares any of the three — the portal genuinely does not need this treatment, unlike the
+     border pair above.
+
+     `--jini-chat-danger` goes through `--chat-danger-seam` (styles.css :root), not `var(--danger)`
+     directly, for the exact reason the border pair does: the package's own rule on this same
+     element sets `--danger: var(--jini-chat-danger)`, so a direct reference here would close a
+     cycle identical to the one that used to make every `--border*` token compute to nothing (see
+     this file's header comment and the seam's own comment in styles.css). */
+  --jini-chat-danger: var(--chat-danger-seam);
+  /* `--r-sm`/`--r-md` are genuine Tovu radius steps (styles.css `:root`, a real sm/md/lg/pill
+     scale), not invented for this seam — closest-magnitude match to the package's 8px/12px pair
+     (7px and 11px) while preserving its base-vs-lg ordering. No cycle risk here: unlike `--danger`,
+     Tovu's radius tokens are never redefined by the package's own rule, so there is nothing for
+     these to cycle against. `--radius-lg` has no live consumer inside `.jini-chat-pane` today (only
+     `.op-card` reads `--radius`) but is wired anyway so the seam is complete rather than
+     half-honored. */
+  --jini-chat-radius: var(--r-sm);
+  --jini-chat-radius-lg: var(--r-md);
 }
 
 /* --- Global assistant dock + FAB (ADR-049) --- */

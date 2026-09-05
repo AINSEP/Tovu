@@ -46,6 +46,16 @@
      not see a dock-scoped custom property. */
   --chat-border-seam:        var(--border);
   --chat-border-strong-seam: var(--border-strong);
+  /* Same alias trick, for the same reason: `@jini-ai/chat`'s injected stylesheet also redefines
+     `--danger: var(--jini-chat-danger)` on `.jini-chat-pane` itself (added alongside the border
+     seam's own package-side rule), so `assistant.css` setting `--jini-chat-danger: var(--danger)`
+     directly on that element would close the identical cycle. `.jini-runtime-popover` does not
+     consume `--danger` (verified against the package's source — its own local var block never
+     declares `--jini-chat-danger` or `--danger`), so unlike the two above this alias is only
+     consumed pane-side; it still lives here rather than `.admin-chat-dock` so it stays alongside
+     its siblings and because the pane-only override needs it before the popover question is even
+     relevant. */
+  --chat-danger-seam: var(--danger);
 
   --accent:      oklch(22% 0.006 260);
   --accent-ink:  oklch(99% 0 0);
