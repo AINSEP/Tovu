@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "@/lib/api";
 import { WIDGETS_LIBRARY_RESOURCE, describeReferencingLocations } from "../rules";
@@ -88,6 +88,15 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   // unconditionally below (see its own doc comment on why); this is what drives its `open` prop.
   const [pendingForcePurge, setPendingForcePurge] = useState<{ widget: AdminWidget; summary: string } | null>(null);
   const [forcePurging, setForcePurging] = useState(false);
+  // Monotonic per-call id (same shape as `use-theme-explore.hooks.ts`'s `renameGenerationRef`):
+  // nothing disables a row's delete button during a widget's FIRST purge attempt (`force: false`,
+  // before any dialog is showing), so the operator can click "Delete permanently" on two DIFFERENT
+  // widgets back to back, racing two independent `WIDGETS_REFERENCED` 409s. Without this, whichever
+  // 409 lands LAST wins `pendingForcePurge` regardless of click order — and confirming that dialog
+  // calls `port.purgeWidget` with THAT widget's id, so the bug is not just cosmetic: it force-purges
+  // the WRONG widget. Minted synchronously at the top of `purge` so two attempts started back to
+  // back always mint in the order they started even though both are async.
+  const purgeGenerationRef = useRef(0);
 
   const load = useCallback(() => {
     port
@@ -122,12 +131,18 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
    * computed here, at the point the 409 is caught, same as before; only where it's rendered
    * (a real dialog body instead of a blocking prompt string) changed. */
   async function purge(widget: AdminWidget) {
+    const generation = ++purgeGenerationRef.current;
     setError(null);
     try {
       await port.purgeWidget({ id: widget.id }, { force: false });
       load();
     } catch (e) {
       if (e instanceof ApiError && e.code === "WIDGETS_REFERENCED") {
+        // Superseded by a newer purge attempt (on ANY widget) started after this one — that later
+        // attempt owns `pendingForcePurge` now, and opening this stale 409's dialog would let
+        // whichever attempt happens to 409 LAST win regardless of which widget was actually
+        // clicked last. See `purgeGenerationRef`'s doc comment above.
+        if (purgeGenerationRef.current !== generation) return;
         const locations = (e.body?.details as { referencingLocations?: Array<{ kind: string; entryId: string }> } | undefined)?.referencingLocations ?? [];
         const summary = describeReferencingLocations(locations);
         setPendingForcePurge({ widget, summary });
@@ -148,7 +163,11 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
       setError(describeApiError(e2, translate(locale, "force-purge failed")));
     } finally {
       setForcePurging(false);
-      setPendingForcePurge(null);
+      // Only close the dialog for THIS widget — a newer purge attempt (started while this
+      // force-purge was in flight) may have already opened `pendingForcePurge` for a DIFFERENT
+      // widget, and an unconditional reset would silently dismiss that one too. Same shape as
+      // `use-roles.hooks.ts`'s `runRowDelete`'s `clearPending` fix.
+      setPendingForcePurge((current) => (current?.widget.id === widget.id ? null : current));
     }
   }
 

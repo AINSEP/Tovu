@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminWidget } from "@/lib/api";
+import { api, ApiError, type AdminWidget } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
 import { useWidgetsLibrary } from "../hooks/use-widgets-library.hooks";
@@ -114,5 +114,61 @@ describe("useWidgetsLibrary — content refresh bus", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
+  });
+});
+
+/**
+ * `purge`'s `pendingForcePurge` write had no guard against a second, DIFFERENT widget's purge
+ * attempt starting before the first settles — nothing disables a row's delete button during a
+ * widget's first (`force: false`) attempt, before any dialog is even showing, so two rapid deletes
+ * race two independent `WIDGETS_REFERENCED` 409s. Not just cosmetic: confirming the dialog
+ * force-purges whatever widget `pendingForcePurge` currently names, so the wrong widget could be
+ * destroyed. See `purge`'s `purgeGenerationRef` doc comment.
+ */
+describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
+  const WIDGET_A: AdminWidget = { ...WIDGET, id: "wA", slug: "a", title: "A", status: "trash" };
+  const WIDGET_B: AdminWidget = { ...WIDGET, id: "wB", slug: "b", title: "B", status: "trash" };
+
+  it("two widgets' first purge attempts racing a WIDGETS_REFERENCED 409 must not let the wrong widget's dialog win", async () => {
+    const deferred: Record<string, { reject: (e: unknown) => void }> = {};
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    port.purgeWidget = vi.fn(({ id }: { id: string }) => {
+      return new Promise((_resolve, reject) => {
+        deferred[id] = { reject };
+      });
+    });
+
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).not.toBeNull());
+
+    // Operator clicks "Delete permanently" on A, then immediately on B — nothing disables either
+    // button before the first attempt's 409 (if any) comes back.
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_A);
+    });
+    act(() => {
+      void result.current.trashOrPurge(WIDGET_B);
+    });
+    await waitFor(() => expect(port.purgeWidget).toHaveBeenCalledTimes(2));
+
+    const referenced = (id: string) =>
+      new ApiError("still referenced", 409, "WIDGETS_REFERENCED", {
+        details: { referencingLocations: [{ kind: "post", entryId: id }] },
+      });
+
+    // B (clicked LAST) 409s first.
+    await act(async () => {
+      deferred.wB!.reject(referenced("post-for-b"));
+    });
+    await waitFor(() => expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id));
+
+    // A's stale 409 now arrives.
+    await act(async () => {
+      deferred.wA!.reject(referenced("post-for-a"));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The dialog must still be showing B — the operator's actual last click — not A's late 409.
+    expect(result.current.pendingForcePurge?.widget.id).toBe(WIDGET_B.id);
   });
 });
