@@ -34,7 +34,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 `apps/website/src/features/**` / `apps/website/src/platform/**`):
 
 - [x] 13. `1378c7e4` — test(theme): direct-invoke coverage for structure.ts fs-bounds/containment branches
-- [ ] 14. `239a90a5` — test(deployments): S3-compatible publish target coverage
+- [x] 14. `239a90a5` — test(deployments): S3-compatible publish target coverage
 - [ ] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
 - [ ] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
 - [ ] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
@@ -101,7 +101,86 @@ not be recognized as conflicting with a reserved root named `"css"`.
 Gemini raised 6 findings total in this chunk (all captured above), 0 dropped as pure-style
 (all included a stated failure scenario).
 
-### Chunk 14 — pending
+### Chunk 14 — `239a90a5` test(deployments): S3-compatible publish target coverage
+
+**Context given to Gemini:** diff (`s3-compatible-target.unit.test.ts` new hunk, 464 new lines) +
+FULL current production file `apps/website/src/features/deployments/static-publish/s3-compatible-target.ts`
+(848 lines) + FULL current test file (1138 lines, post-commit). Full-file context.
+
+Note: Gemini was given the CURRENT (HEAD) production file, not the file as it stood at commit
+time — its finding 3.1 below claims the author's own "not exported" statement is presently false;
+the verifier needs `git show 239a90a5:...s3-compatible-target.ts` (the version at commit time) to
+know whether that export was added by this commit, a later one, or Gemini is simply reading the
+present state and comparing it to a commit-message claim about the past — this is exactly the
+"diff-only reasons about code it never saw" trap in reverse (reasoning about now vs. then), so
+treat 3.1 with extra skepticism.
+
+**UNVERIFIED — HIGH (production bug, not test quality).** `s3-compatible-target.ts:798-819`.
+Claim: on `attempted.outcome === "unsupported"`, the code sets `concurrencyGuardActive = false`
+and `continue`s — and the `attempt >= MAX_MANIFEST_WRITE_ATTEMPTS` ceiling check sits *after* that
+`continue`, so it's claimed to never run for repeated `"unsupported"` outcomes. Claimed scenario:
+a provider/gateway that returns `501`/`400 UnsupportedOperation` on the UNconditional retry too
+(not just the initial conditional write) would loop `publish()` forever, since each iteration
+re-hits the same unsupported-outcome branch before ever reaching the ceiling check.
+
+**UNVERIFIED — MEDIUM (production bug).** `s3-compatible-target.ts:509`. Claim:
+`classifyManifestWrite400`'s regex `/notimplemented|not implemented|unsupportedoperation/i` covers
+a spaced and unspaced form of "not implemented" but only the unspaced `unsupportedoperation` for
+the other phrase — a response body saying "Unsupported operation" (with a space, e.g. inside an
+XML `<Message>`) would fail the match and throw a hard `DeployError` instead of degrading to an
+unconditional write the way a `501` does.
+
+**UNVERIFIED — MEDIUM (test quality).** `s3-compatible-target.unit.test.ts:934-953`, test
+`"...only the FIRST recorded failure propagates (never overwritten by a second)"`. Claim: the
+assertion `assert.match(err.message, /a\.html|b\.html/)` matches either file, so a "last error
+wins" implementation (the opposite of the claimed property) would also satisfy it — the test is
+claimed not to actually pin first-vs-last-error-wins.
+
+**UNVERIFIED — HIGH (test quality).** `s3-compatible-target.unit.test.ts:822-840`, test
+`"a v2 manifest entry with a blank etag is normalized to 'no recorded provenance'..."`. Claim: the
+test never inspects `result`/`result.statusMessage`, and the mock's fallback `HEAD` response
+returns 200 with no ETag header regardless — so if blank-etag normalization were completely
+broken (never converting `""` to `undefined`), the code would fall into a different branch
+(`fetchLiveETag` → `undefined` → `"skip"`) that happens to produce the SAME externally observable
+result the test checks (`bucket.has(...) === true`), letting a broken normalization pass.
+
+**UNVERIFIED — LOW (test quality).** `s3-compatible-target.unit.test.ts:742-769`, test
+`"...skipped, not deleted (unverifiable, not diverged)"`. Claim: only asserts `status === "ready"`
+and the key still existing in the bucket, never asserting `statusMessage` does NOT mention the
+key — so the "not diverged" half of the test's own title is claimed to be unasserted; a bug that
+misclassified this case as `"diverged"` instead of `"skip"` would still pass.
+
+**UNVERIFIED — MEDIUM (test-infra, not correctness).** `s3-compatible-target.unit.test.ts` lines
+675-691, 934-953, 998-1021, 1047-1066. Claim: tests returning 5xx/503 responses (which `aws4fetch`
+retries with real exponential-backoff `setTimeout` per the file's own documented behavior) omitted
+the `globalThis.setTimeout` stub that a sibling 400-response test (line ~998) DOES use — claimed to
+cause real multi-second delays / potential runner timeouts on those specific tests.
+
+**UNVERIFIED — LOW (test quality).** `s3-compatible-target.unit.test.ts:998-1021`, test
+`"...degrades to an unconditional write, just like a 501"`. Claim: unlike the sibling 501 test
+(which asserts the retried PUT's `if-none-match` header is cleared and checks `statusMessage`),
+this test only asserts `status === "ready"` and `manifestPuts.length >= 2` — claimed insufficient
+to catch a broken implementation that still retried conditionally or never flipped
+`concurrencyGuardActive`.
+
+**UNVERIFIED — disputes an author claim.** `s3-compatible-target.ts:598` (current HEAD). The
+commit message for a *later* commit in this batch (239a90a5's own message) claims
+`toDeployLinkStatus` "is not exported, so there is no seam to direct-invoke-test it" — Gemini
+claims this is presently false: the function IS exported at the current HEAD, and a direct-invoke
+test for exactly the `"protected"` arm already exists in the current test file (cites
+`s3-compatible-target.unit.test.ts` around line 227-230, asserting `toDeployLinkStatus({reachable:
+false, status: "protected"}) === "protected"`). Flagged above as needing the verifier to check
+commit-time state vs. current HEAD, since some later commit in this window may have added the
+export/test independently of this one.
+
+**Confirmed-by-Gemini-as-valid (not a finding, a check on the author's own claim).** Gemini
+independently agreed the author's second "unreachable branch" claim (the inline `"Not yet
+reachable."` string literal in `publish()`) holds, given `reachability.ts`'s documented contract
+that a `reachable: false` result always carries a non-empty `statusMessage`.
+
+Gemini raised 7 findings + 1 claim-audit item in this chunk; none discarded, all recorded above
+as UNVERIFIED per this pass's role.
+
 ### Chunk 15 — pending
 ### Chunk 16 — pending
 ### Chunk 17 — pending
