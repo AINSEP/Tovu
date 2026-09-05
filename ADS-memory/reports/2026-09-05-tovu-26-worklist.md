@@ -695,3 +695,45 @@ and flagged it rather than claiming either way.
 **UNSWEPT, not clean**: `use-workspace.hooks.ts`, `use-widgets-library.hooks.ts`, `use-roles.hooks.ts`,
 `use-users.hooks.ts` were spot-checked only, not line-by-line traced. ~28 admin hook files were
 swept by `setBusy*/setSaving*/setPending*` grep, which is a shape filter, not a proof.
+
+---
+
+## B3 PARTIAL — coverage inventory delivered (`112fa2af` skeleton, `35eeb5a2`, `01cb55b8` final)
+Report: `ADS-memory/reports/2026-09-05-coverage-inventory.md`.
+
+**Phase 2 HALTED by load.** 1-min load went 6.32 (15:42) → 35.57 (15:47) → 57.24 (15:48) → peak
+**69.60**, the same trajectory as this morning's 721 crash. **Much of it was external**: the heaviest
+process was a `vite build` at 115% CPU owned by the **Zana session in another repo**, which exited on
+its own. Only ONE directory was measured before the halt.
+
+**The report leads with the right disclaimer**: it is a map of the surface and its candidate
+exercisers, **not a coverage measurement. UNMEASURED means unknown, not uncovered.**
+
+### The agent found and fixed a real bug in its own method, unprompted
+**Directory names collide between the two apps** — `settings`, `commerce`, `database`, `comments`,
+`forms`, `plugins`, `recovery`, `workspace`, `redirects`, `source-control`, `taxonomy`, `members`,
+`seo`, `pages`, `media`, `widgets`, `analytics`. Its first pass **merged their external-suite counts
+together**. Redone with the grep split by app; both tables now carry app-correct counts with the
+other app's shown parenthetically. **Any future cross-app scan here has the same trap.**
+
+### `deployments` — measured, but DOWNGRADED to unconfirmed
+99.0% lines / 94.5% functions / 95.3% branches (28 source files, 34 driving test files, **15
+external**). **But** the "after" `uptime` was 35.57, taken at completion — meaning load was already
+climbing **during** the run, not only after it. Overlap cannot be ruled out, so the numbers are
+flagged **"unconfirmed, reconfirm before trusting"** rather than asserted. A number measured across
+a thrashing window is void, not slightly off. **Real finding regardless: `repo.sqlite.ts` at 61%
+lines (83/136).**
+
+### Top 10 LARGEST UNKNOWN (not "largest gap" — unknown)
+`admin/lib`, `website/theme`, `admin/components`, `admin/deployment`, `website/widgets`,
+`admin/pages`, `admin/posts`, `admin/themes`, `admin/collections`, `website/plugins`.
+
+**Key reframing, in the report**: `deployments` measuring **99%** is itself evidence that the
+unmeasured set likely contains **more already-covered directories than anyone expects**. The next
+agent should go in expecting to *remove* rows from this list, not confirm them.
+
+The report carries a full appendix (all 74 dirs' external-suite **file lists**, not just counts) and
+a "what would settle each row" section with exact node/vitest commands, so Phase 2 resumes without
+re-deriving the suite map.
+
+**→ Resume Phase 2 in a FRESH agent when 1-min load is genuinely under ~8.**
