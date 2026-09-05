@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
+import Handlebars from "handlebars";
+
 import {
   ALLOWED_HANDLEBARS_BLOCK_HELPERS,
   ALLOWED_HANDLEBARS_DATA_VARS,
@@ -143,6 +145,10 @@ test("Tovu's own render_block seam is allowed, in both its component and region 
   assert.deepEqual(lintHandlebarsTemplate('{{render_block region="footer"}}'), []);
 });
 
+test("a bare {{render_block}} with no params/hash at all is still allowed — isInvocation() is false here, so it is the allowlisted-helper-name arm of the OR, not the invocation arm, that lets it through", () => {
+  assert.deepEqual(lintHandlebarsTemplate("{{render_block}}"), []);
+});
+
 // ---------------------------------------------------------------------------
 // Nested rejection — the walk descends into block bodies, inverse ({{else}})
 // branches, helper params, and hash values, not just the top level.
@@ -247,3 +253,85 @@ test("the live themes/handlebars/ledger demonstrator theme loads as valid end-to
   assert.ok(theme.handlebarsTemplates.home);
   assert.ok(theme.handlebarsTemplates.entry);
 });
+
+test("handles unknown statement kinds by traversing nested program and inverse bodies", () => {
+  const originalParse = Handlebars.parse;
+  try {
+    (Handlebars as unknown as { parse: unknown }).parse = () => ({
+      type: "Program",
+      body: [
+        {
+          type: "CustomUnknownStatement",
+          program: {
+            body: [
+              {
+                type: "MustacheStatement",
+                path: { type: "PathExpression", original: "lookup" },
+                // `params` non-empty is what makes `isInvocation()` classify this as a helper call
+                // rather than a plain data path — matching real Handlebars AST shape for
+                // `{{lookup this key}}`, which is exactly the disallowed-helper case this fixture
+                // means to simulate. An empty `params` here would fall through to `checkPath`
+                // instead, which reports nothing for a bare `lookup`/`log` identifier and would make
+                // this assertion fail.
+                params: [{ type: "PathExpression", original: "this" }],
+              },
+            ],
+          },
+          inverse: {
+            body: [
+              {
+                type: "MustacheStatement",
+                path: { type: "PathExpression", original: "log" },
+                params: [{ type: "PathExpression", original: "x" }],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const violations = lintHandlebarsTemplate("any");
+    assert.ok(violations.includes('disallowed helper "lookup"'));
+    assert.ok(violations.includes('disallowed helper "log"'));
+  } finally {
+    (Handlebars as unknown as { parse: unknown }).parse = originalParse;
+  }
+});
+
+test("handles empty or missing program body safely", () => {
+  const originalParse = Handlebars.parse;
+  try {
+    (Handlebars as unknown as { parse: unknown }).parse = () => ({
+      type: "Program",
+      body: undefined,
+    });
+
+    const violations = lintHandlebarsTemplate("any");
+    assert.deepEqual(violations, []);
+  } finally {
+    (Handlebars as unknown as { parse: unknown }).parse = originalParse;
+  }
+});
+
+test("a node with no 'type' at all falls back to handleUnknownStatement rather than throwing — real Handlebars.parse() output always sets 'type' on every node, so this arm is unreachable except through a mocked parse like this one", () => {
+  const originalParse = Handlebars.parse;
+  try {
+    (Handlebars as unknown as { parse: unknown }).parse = () => ({
+      type: "Program",
+      body: [
+        {
+          // No `type` field — `walkHandlebarsNodes`'s `node.type !== undefined ? STATEMENT_HANDLERS[node.type] : undefined`
+          // ternary takes its `undefined` arm here, then falls back to `handleUnknownStatement` via
+          // the `??`, which must still descend into `program`/`inverse` rather than swallowing them.
+          program: { body: [{ type: "MustacheStatement", path: { type: "PathExpression", original: "lookup" }, params: [{ type: "PathExpression", original: "this" }] }] },
+        },
+      ],
+    });
+
+    const violations = lintHandlebarsTemplate("any");
+    assert.deepEqual(violations, ['disallowed helper "lookup"']);
+  } finally {
+    (Handlebars as unknown as { parse: unknown }).parse = originalParse;
+  }
+});
+
