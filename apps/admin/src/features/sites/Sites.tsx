@@ -76,7 +76,7 @@ function UnlistedSiteNotice({ t }: { t: Translate }) {
         label: "Warning that the site currently being served does not appear in the sites table",
       })}
     >
-      {t("This site isn't in the table below. A folder only counts as a site once it has a .site-meta.json marker, which sites created before that check don't have. It is still what's being served.")}
+      {t("This site isn't in the table below, but it's still what's being served.")}
     </div>
   );
 }
@@ -91,7 +91,7 @@ function SiteDirOverrideNotice({ t }: { t: Translate }) {
         label: "Warning that TOVU_SITE_DIR is set and outranks anything Activate writes",
       })}
     >
-      {t("TOVU_SITE_DIR is set in this server's environment. It takes priority over the choice Activate saves, so restarting will keep serving this same folder until that variable is unset.")}
+      {t("TOVU_SITE_DIR is set in this server's environment. It overrides Activate — restarting will keep serving this folder until it's unset.")}
     </div>
   );
 }
@@ -129,8 +129,8 @@ function PendingActivationNotice({
       <p>
         <strong>{outlook.name}</strong>{" "}
         {outlook.kind === "pending"
-          ? t("is saved as the next site to serve. Nothing has switched yet — this server and its agent daemon are both still on")
-          : t("is saved, but TOVU_SITE_DIR takes priority over it, so a restart will not pick it up. This server and its agent daemon are both still on")}{" "}
+          ? t("is saved to serve next. Nothing has switched yet — this server and its agent daemon are both still on")
+          : t("is saved, but TOVU_SITE_DIR overrides it, so a restart will not pick it up. This server and its agent daemon are both still on")}{" "}
         <strong>{currentName}</strong>
         {t(".")}
       </p>
@@ -163,9 +163,6 @@ function NowServingCard({
       })}
     >
       <h2 className="card-title">{t("Now serving")}</h2>
-      <p className="card-lead">
-        {t("This is the site folder the running server resolved at startup. Its database, uploads, and themes all come from here.")}
-      </p>
       <div className="field-group">
         <ServingFact label={t("Folder")} value={snapshot.currentSite.name} />
         <ServingFact label={t("Path")} value={snapshot.currentSite.dir} mono />
