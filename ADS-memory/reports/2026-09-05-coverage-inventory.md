@@ -69,7 +69,7 @@ suites" is a lead for where to look next, not a coverage number.**
 |---|---|---|---|---|---|
 | theme | 26 | 9474 | 82 | 52 (+2 from admin — cross-app reference, see appendix) | UNMEASURED |
 | deployments | 32 | 8557 | 19 | 15 | **MEASURED — see Phase 2 log** |
-| widgets | 26 | 5378 | 19 | 12 (+2 admin) | UNMEASURED |
+| widgets | 26 | 5378 | 19 | 12 (+2 admin) | **MEASURED — 99.6% lines, 99.6% functions, 92.9% branches (merged-lcov figure — see dual-instantiation note in Phase 2 log). Near-ceiling; no zero-coverage files.** |
 | plugins | 17 | 4190 | 19 | 11 (+3 admin) | UNMEASURED |
 | newsletter | 18 | 4151 | 13 | 11 | UNMEASURED |
 | post | 11 | 3662 | 12 | 61 (+1 admin) | UNMEASURED |
@@ -398,24 +398,82 @@ suites" is a lead for where to look next, not a coverage number.**
   directories measured this pass. `StaticSiteTab.tsx`'s branch gap is the
   single largest concrete uncovered surface in the directory by line count.
 
+## Measured: `apps/website/src/features/widgets` — includes a methodology
+correction (dual-instantiation lcov trap, caught and fixed mid-parse)
+
+- **uptime before**: `16:16, load averages 4.87 19.74 25.51`. **During/after**:
+  `16:17, load averages 18.85 21.84 26.05`, `17.58`/`12.32` shortly after —
+  the mildest spike of any run this pass (31 files, smaller than
+  `deployments`'s 34). Exit 0; log has zero non-dot lines other than the
+  `EXIT:0` marker (0 failures across all 31 files).
+- **Command** (repo-root cwd):
+  ```
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+    node --import tsx --test --experimental-test-module-mocks \
+    --experimental-test-coverage \
+    --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" \
+    --test-reporter=lcov --test-reporter-destination=<scratch>/widgets.lcov.info \
+    --test-reporter=dot --test-reporter-destination=stdout \
+    <19 internal files under features/widgets/**/__tests__/> \
+    <12 external files from the inventory appendix's `features/widgets` [W] list>
+  ```
+- **lcov retained at**: `.../scratchpad/lcov/widgets.lcov.info`.
+- **Methodology correction found and fixed here**: the first parse (reusing
+  the naive per-`SF:`-record summer from the `deployments` pass) reported
+  **89.1% lines** — but two files, `region-area-service.ts` and
+  `write-service.ts`, each had **two separate `SF:` records** in this lcov
+  with the *same* `LF` (320 and 403 respectively) but very different hit
+  counts (316/320 + 39/320; 398/403 + 50/403). That is the exact
+  dual-instantiation pattern already on record in this repo's memory
+  (`project_lcov_dual_instantiation_routes.md`) — the same module gets
+  instrumented twice under two different import contexts within one
+  `node --test` process, and naively summing both records' `LF` as if they
+  were two different files inflates the denominator and craters the
+  percentage for files that actually are well covered once the two partial
+  views are unioned. **Fixed** by rewriting the parser to key by file path,
+  take the **union of hit lines/functions/branches** across every `SF:`
+  record for that path (a line/branch/function counts as hit if *any*
+  instance hit it), and compute the percentage from the merged set. Verified
+  no other lcov produced this pass (`deployments`, and all three vitest/admin
+  runs) has duplicate `SF:` paths — this trap is specific to `node --test`'s
+  reporter and, on the evidence so far, doesn't hit every file, only ones
+  reached via more than one import path. **All website (`node --test`)
+  measurements from here forward use the merge-aware parser.**
+- **Result, after the fix** (25 files; the 2 duplicate paths above are each
+  counted once):
+  - Lines: 99.6% (5273/5295)
+  - Functions: 99.6% (240/241)
+  - Branches: 92.9% (617/664)
+  - Below-100% files, all near-ceiling, none near zero: `entry-payload.ts`
+    99.1% lines (224/226); `region-area-service.ts` 98.8% lines (316/320),
+    23/30 branches; `resolver-service.ts` 99.1% lines (1124/1134), 134/144
+    branches; `tool-registrations.ts` 99.5% lines (380/382), 64/70 branches;
+    `write-service.ts` 99.0% lines (399/403), 38/48 branches;
+    `resolvers/index.ts` 13/14 functions, 30/34 branches. Every other file in
+    the directory is 100% across all three metrics.
+- **Reading**: `apps/website/src/features/widgets` is **not** a low-coverage
+  surface — it is in the same near-ceiling shape as `deployments` and
+  `admin/lib`. No file is anywhere near zero; the softest metric (branches,
+  92.9%) is still well above the 90% integration-suite bar. Drops off the
+  ranked-unknown list below.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
 not what is least covered. `deployments`, `apps/admin/src/lib`,
-`apps/admin/src/components`, and `apps/admin/src/features/deployment` are
-removed from this list because they are no longer unknown (see their measured
-sections above/below).
+`apps/admin/src/components`, `apps/admin/src/features/deployment`, and
+`apps/website/src/features/widgets` are removed from this list because they
+are no longer unknown (see their measured sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-2. `apps/website/src/features/widgets` — 5378 lines
-3. `apps/admin/src/features/pages` — 5250 lines
-4. `apps/admin/src/features/posts` — 4709 lines
-5. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
+2. `apps/admin/src/features/pages` — 5250 lines
+3. `apps/admin/src/features/posts` — 4709 lines
+4. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
    suite — thin external signal)
-6. `apps/admin/src/features/collections` — 4207 lines
-7. `apps/website/src/features/plugins` — 4190 lines
+5. `apps/admin/src/features/collections` — 4207 lines
+6. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
