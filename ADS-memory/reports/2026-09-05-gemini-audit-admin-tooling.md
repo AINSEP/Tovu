@@ -425,6 +425,103 @@ Chunk tally: 8 findings raised; 6 confirmed close to as-stated (18-21, 24-25), 1
 one of five citations excluded as precedented), 1 confirmed-but-substantially-reframed (23, real gap but not
 a "client bypass," and half the original claim disproven as intentional).
 
+### Chunk: Security (AccessTokensTab/rules/hooks) + Settings (ExternalMcpSettingsPanel/ComposioKeyField/rules/hooks)
+
+**26. [HIGH, confirmed] `apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts:391`
+(`accessTokensLoadError(...) ?? reloadError`)** — `reloadAllStores` (lines 372-382) intentionally bypasses
+`useFetchQuery`'s cache (per its own doc comment) to re-read all three stores directly, so a successful
+background reload never clears the ORIGINAL `publishQuery.error`/`sourceControlQuery.error`/`customQuery.error`
+that `accessTokensLoadError(...)` reads. Once any of the three initial queries fails once, `loadError` is
+permanently pinned to that stale error — a later successful `reloadAllStores()` call resets `reloadError` to
+`null`, but the `??` never reaches it, because `accessTokensLoadError(...)` is still non-null. The whole
+screen stays stuck on the initial-load error view even after fresh data has actually loaded, with no recovery
+short of a full browser refresh.
+
+**27. [HIGH, confirmed] Same file, `reloadAllStores` (lines 372-382), `Promise.all` short-circuit** — if
+ANY of the three `port.*.list()` calls rejects, NONE of the three `setXCredentials` calls run (the whole
+`Promise.all` rejects together), even for the stores that succeeded. Concretely: revoke a custom token ->
+server succeeds -> `reloadAllStores()` fires -> if `port.publish.list()` alone has a transient failure, the
+freshly-fetched `custom.list()` result (which would have reflected the revocation) is discarded, and the
+revoked token keeps showing as active in the table.
+
+**28. [HIGH, confirmed as a real, unguarded design gap] Same file, `reloadAllStores`** — no
+request-ordering guard (no `AbortController`, generation counter, or timestamp check) around the three
+`setXCredentials` calls. Two overlapping `reloadAllStores()` invocations (e.g. two SSE-triggered reloads
+close together, or an SSE reload racing a user-triggered one) can resolve out of order; whichever settles
+LAST wins the state update regardless of which was triggered last, so a stale snapshot can overwrite a
+newer one (e.g. a just-revoked token reappearing).
+
+**29. [HIGH, confirmed via a precise causal chain] Same file — dependency array on `reloadAllStores`
+changed from `[port]` to `[port, locale, t]` (confirmed in the diff), and `t` has NO stable identity**:
+`useWiredAccessTokens` (line 692) builds `t` as `const boundT = (key: string): string => defaultT(locale,
+key);` — a plain arrow function recreated fresh on every render, not wrapped in `useCallback`/`useMemo`.
+Because `reloadAllStores`'s own `useCallback` now depends on this unstable `t`, `reloadAllStores` itself gets
+a new identity every render, which cascades to `triggerReload = useCallback(..., [reloadAllStores])` also
+changing identity every render, which feeds `useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE,
+triggerReload)` a new callback every render. This is the EXACT failure mode the same file's own comment (a few
+lines above, describing the `invalidateList`/`triggerReload` pattern) explicitly warns against: "an inline
+arrow here would resubscribe `useContentRefreshSubscription` on every render for no benefit." If that
+subscription hook tears down/reconnects on every identity change (consistent with its documented purpose
+elsewhere in this codebase), this reintroduces exactly the churn the pattern was built to avoid, and could
+drop background push notifications during the reconnect windows.
+
+**30. [MEDIUM, confirmed but narrow] `apps/admin/src/features/settings/hooks/use-composio-key-field.hooks.ts:56-61`,
+`ComposioKeyField.tsx`** — `onSave()` has no internal in-flight guard; the Save button/input are disabled via
+`disabled={busy}`, a state-derived prop that lags one render behind a click. A rapid double-click (or
+Enter-then-click) before that re-render commits can dispatch two concurrent `composio.save()` calls. Same
+class of race as Sites' create/activate findings (18/20/21 above).
+
+**31. [MEDIUM, confirmed as a real gap, PRE-EXISTING — not introduced by this window's refactor]
+`apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts`, `omitIfBlank` (new helper, lines
+118-125) and its callers in `toOAuthWriteBody`/`toWriteBody`** — checks `value.trim() === ""` to decide
+whether to omit a key, but assigns the ORIGINAL, untrimmed `value` when not blank — so a copy-pasted OAuth
+endpoint or `clientSecret` with stray leading/trailing whitespace passes the blank check but is saved with
+the whitespace intact. **Provenance check**: read the diff's removed lines for every affected field
+(`clientSecret`, `tokenEndpoint`, `authorizationEndpoint`, `providerId`, `deviceAuthorizationEndpoint`,
+`env`) — every single one had the IDENTICAL "trim-to-check, assign-untrimmed" pattern in the OLD inline
+ternary code (e.g. `...(env.trim() === "" ? {} : { env })` where `env` itself was never trimmed). This is a
+byte-for-byte preserved, pre-existing behavior — `omitIfBlank`'s own doc comment explicitly and correctly
+discloses this ("the omit-when-blank convention must stay byte-for-byte the same"). Flagging it anyway since
+it's a real, live gap in a file this window touched heavily, but it is not a new regression from the
+extraction itself.
+
+**32. [MEDIUM, confirmed] `apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx:228`
+(`const cardHandles = buildExternalMcpCardHandles(list.sources.map((source) => source.id));`)** — an array
+transformation computed directly in the component body rather than in a hook — same class of violation as
+the Sites chunk's `rowHandles` finding (22 above), and not covered by the same "precedented DI-resolver"
+exception that applies to `resolveXHook`-style functions.
+
+**Discarded (disproved on verification):**
+- Gemini claimed `use-composio-key-field.hooks.ts:55-60`'s `onSave` retains a plaintext secret indefinitely if
+  `composio.save` rejects, since there's no `try/finally` around `setDraft("")`. **False** — the hook's own
+  doc comment states `composio.save` (`useComposioConfig`'s `write`) "catches internally and never rejects,"
+  and reading the actual implementation (`use-composio-config.hooks.ts:78-92`) confirms this: `write` wraps
+  `port.saveComposioConfig` in its own `try/catch` and never rethrows, so `await composio.save(apiKey)` in
+  `onSave` always completes and `setDraft("")` always runs, error or not. The doc comment also (correctly and
+  honestly) discloses this guarantee is fragile — contingent on the real dependency never rejecting — and that
+  this exact characteristic is "pre-existing behavior, carried over unchanged from the pre-extraction
+  component," so even the disclosed fragility isn't new to this window.
+- Gemini's claim that `ExternalMcpSettingsPanel.tsx`'s hardcoded `onTrustChange={() => {}}` "silently
+  discards server trust updates" as a defect of THIS window's work — the diff shows this exact no-op
+  (`onTrustChange={() => {}}`) was present on BOTH sides of the diff (removed and re-added verbatim during a
+  JSX restructuring), so it is a pre-existing stub, not something this window introduced or changed. Real
+  functional gap (if the "trust" toggle is reachable in the UI, it does nothing), but out of this audit's
+  in-window scope; not tallied as a chunk finding.
+- Gemini's architecture-rule finding on `Security.tsx:66-68`'s `resolveSecurityTabId` — this is the exact
+  same pattern as `Themes.tsx`'s `resolveThemesActiveTabId` (verified in an earlier chunk) and is explicitly
+  documented as shared with `Deployment.tsx`/`SourceControl.tsx`/`Database.tsx`/`Themes.tsx` — a
+  repo-wide, precedented convention, not a violation unique to or introduced by this window's work on this
+  file.
+
+**No defects identified (accepted without independent re-derivation given time budget):** `AccessTokensTab.tsx`,
+`security/rules.ts`, `ComposioKeyField.tsx` (beyond the `onSave` race already covered above),
+`settings/rules.ts`, `SettingsUi.tsx`.
+
+Chunk tally: 10 findings raised; 6 confirmed close to as-stated (26-30, 32 — note 31 confirmed-real-but-pre-existing),
+1 confirmed-but-reframed-as-pre-existing (31), 3 discarded/reframed as pre-existing or precedented (the
+composio plaintext-retention claim disproven outright; the onTrustChange and Security.tsx tab-resolver claims
+reframed as pre-existing/precedented, not in-window findings).
+
 ## Areas not covered / caveats
 
 TBD at completion.
