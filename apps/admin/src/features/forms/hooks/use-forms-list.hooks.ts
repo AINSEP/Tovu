@@ -54,6 +54,8 @@ export interface FormsListController {
   /** In-flight row action (status toggle) — one at a time, same `rowSavingId` convention
    *  `Posts.tsx`/`Pages.tsx` use for their own row actions. */
   rowSavingId: string | null;
+  /** No-op while a previous call is still in flight (`rowSavingId` set) — see this function's own
+   *  comment; the caller never has to guard against a double toggle itself. */
   toggleStatus: (form: AdminFormDefinition) => Promise<void>;
   /** Bound translator — see this file's own header for why it arrives via the hook rather than
    *  `FormsList.tsx` calling `useAdminLocale()`/`FORMS_DICT` directly. */
@@ -76,7 +78,13 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     invalidates: [KEYS.list],
   });
 
+  // In-flight guard lives here, not in `FormsList.tsx`'s `onToggleStatus` closure — `RowMenu` has no
+  // per-item `disabled`, so this is what stops a second toggle firing while the first is still
+  // saving. Same shape `use-redirects.hooks.ts`'s own `onToggleStatus` uses for its identical
+  // `if (saving) return;` guard (that hook's own comment on why: `disabled={saving}` on the old
+  // inline buttons moved into each handler once `RowMenu` replaced them).
   async function toggleStatus(form: AdminFormDefinition) {
+    if (rowSavingId) return;
     setRowSavingId(form.id);
     try {
       await toggleMutation.mutate(form);

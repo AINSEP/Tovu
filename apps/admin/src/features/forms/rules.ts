@@ -105,9 +105,14 @@ export interface FormRowMenuHandlers {
 }
 
 /**
- * The row-action menu for one form. `RowMenu` has no per-item `disabled` — the in-flight guard
- * stays in the caller's `onToggleStatus` closure (`FormsList.tsx`'s own `if (rowSavingId) return;`),
- * same shape `Redirects.tsx` uses for its own row-saving guard.
+ * The row-action menu for one form. `RowMenu` has no per-item `disabled` — the in-flight guard lives
+ * in `use-forms-list.hooks.ts`'s own `toggleStatus` (a no-op while `rowSavingId` is already set), the
+ * same shape `use-redirects.hooks.ts`'s `onToggleStatus` uses for its identical `if (saving) return;`
+ * guard. (CORRECTED 2026-09-05: this comment previously said the guard "stays in the caller's
+ * `onToggleStatus` closure (`FormsList.tsx`'s own `if (rowSavingId) return;`)" and claimed that was
+ * the same shape `Redirects.tsx` uses — false; `Redirects.tsx` never had such a guard inline, only its
+ * hook does. Flagged by the 2026-09-05 Gemini admin-tooling audit as a standing no-logic-in-`.tsx`
+ * violation; moving the guard into the hook also fixed the comment's own false precedent claim.)
  *
  * @complexity Time/space: O(1) — two fixed entries, no iteration.
  */

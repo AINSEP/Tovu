@@ -39,7 +39,7 @@ export interface FormsListProps {
 }
 
 export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
-  const { forms, error, rowSavingId, toggleStatus, t } = useFormsListHook();
+  const { forms, error, toggleStatus, t } = useFormsListHook();
 
   if (error && !forms) return <div className="notice error">{error}</div>;
   if (!forms) return <div className="notice">Loading forms…</div>;
@@ -125,10 +125,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
                   form,
                   {
                     onEdit: (f) => navigate(`/forms/${f.slug}`),
-                    onToggleStatus: (f) => {
-                      if (rowSavingId) return;
-                      void toggleStatus(f);
-                    },
+                    onToggleStatus: (f) => void toggleStatus(f),
                   },
                   t,
                 )}

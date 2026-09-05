@@ -240,7 +240,7 @@ describe("status toggle", () => {
     expect(within(row).getByText("active")).toBeInTheDocument();
   });
 
-  it("guards against a second toggle firing while the first is still in flight (RowMenu has no per-item disabled, so the guard lives in onSelect)", async () => {
+  it("guards against a second toggle firing while the first is still in flight (RowMenu has no per-item disabled, so the guard lives in useFormsList's own toggleStatus)", async () => {
     const user = userEvent.setup();
     let resolvePut!: (r: Response) => void;
     const putPromise = new Promise<Response>((resolve) => {
@@ -273,8 +273,8 @@ describe("status toggle", () => {
     expect(putCallCount).toBe(1);
 
     // Re-open the menu while the first PUT is still unresolved and select Disable again — the
-    // row's status hasn't changed yet (still "active"), so without the `rowSavingId` guard this
-    // would fire a second identical PUT.
+    // row's status hasn't changed yet (still "active"), so without `toggleStatus`'s own
+    // `if (rowSavingId) return;` guard this would fire a second identical PUT.
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
     expect(putCallCount).toBe(1);

@@ -73,6 +73,32 @@ describe("useFormsList — injected port", () => {
     expect(result.current.forms?.[0]?.status).toBe("disabled");
     expect(result.current.rowSavingId).toBeNull();
   });
+
+  it("toggleStatus is a no-op while a previous call is still in flight (RowMenu has no per-item disabled, so this is the only guard against a second identical write)", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
+    let resolveUpdate!: (value: { data: AdminFormDefinition }) => void;
+    const updateSpy = vi.fn(() => new Promise<{ data: AdminFormDefinition }>((resolve) => { resolveUpdate = resolve; }));
+    port.updateForm = updateSpy;
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    // First call starts and stays pending (updateSpy never resolves until we say so).
+    act(() => {
+      void result.current.toggleStatus(formFixture({ status: "active" }));
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("f1"));
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    // A second call while the first is still unresolved must not reach the port at all — proves the
+    // guard lives inside toggleStatus itself, not merely in FormsList.tsx's caller.
+    await act(async () => {
+      await result.current.toggleStatus(formFixture({ status: "active" }));
+    });
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    resolveUpdate({ data: formFixture({ status: "disabled" }) });
+    await waitFor(() => expect(result.current.rowSavingId).toBeNull());
+  });
 });
 
 /**
