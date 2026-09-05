@@ -123,10 +123,35 @@ test("globToRegExp: '**/' in the middle matches across zero or more directory le
   assert.ok(!re.test("apps/website/src/assistant/external-mcp-oauth.ts"), "no 'credential' in the name");
 });
 
-test("globToRegExp: a mid-segment '*' matches a directory name containing the wildcard, not spanning '/'", () => {
+test("globToRegExp: a mid-segment '*' matches a directory name containing the wildcard substring", () => {
+  // This only proves substring presence/absence, not '/'-spanning behavior: "apikeys" fails to
+  // match purely because it lacks the literal substring "api-key" — the assertion below would
+  // pass identically whether or not '*' wrongly spanned '/'. See the next test for that property.
   const re = globToRegExp("apps/website/src/**/*api-key*/**");
   assert.ok(re.test("apps/website/src/server/inbound/admin-http/routes/api-keys/create.ts"));
   assert.ok(!re.test("apps/website/src/server/inbound/admin-http/routes/apikeys/create.ts"), "no literal 'api-key' substring");
+});
+
+test("globToRegExp: a mid-segment '*' does not span '/' — an extra path segment cannot be absorbed into the wildcard", () => {
+  // The real ADR glob above ("apps/website/src/**/*api-key*/**") cannot exercise this boundary at
+  // all: its flanking '**' tokens are already fully permissive on both sides of the mid-segment
+  // '*', so every candidate we tried (including "routes/api/key-store/create.ts" and
+  // "routes/api-/key/create.ts") matches (or fails to match) IDENTICALLY whether '*' is
+  // implemented as `[^/]*` or as a buggy `.*` that spans '/' — verified by diffing both
+  // implementations against those candidates before writing this test. A literal substring like
+  // "api-key" can never itself straddle a real '/' (a path separator would have to sit inside the
+  // literal's own characters), so the only way to observe the span is with a glob whose wildcard
+  // segment is flanked by fixed literals instead of '**', so an extra directory level in the
+  // candidate can only be swallowed if '*' wrongly spans '/'.
+  const re = globToRegExp("apps/website/src/routes/*api-key*/create.ts");
+  assert.ok(
+    re.test("apps/website/src/routes/x-api-key-y/create.ts"),
+    "a single directory segment containing the substring matches"
+  );
+  assert.ok(
+    !re.test("apps/website/src/routes/extra/x-api-key-y/create.ts"),
+    "an extra directory level between the fixed prefix and the api-key segment must not be absorbed by '*'"
+  );
 });
 
 test("globMatchesAnyFile: true iff at least one candidate matches", () => {
