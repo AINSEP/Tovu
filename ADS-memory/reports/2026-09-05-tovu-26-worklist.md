@@ -485,3 +485,59 @@ whose prior calibration was ~24% fabricated. Settled by reading source; no test 
 `App.tsx:463`'s `dockT` is the last unfixed instance of the unstable-`t`-breaks-`useCallback` pattern
 (finding 36), after fixes in `use-access-tokens.hooks.ts` and `useWiredSites`. Handed to
 `fix-use-sites-hooks` to verify.
+
+---
+
+## A5 — screenshots BLOCKED (environment, not the apps). Two real bugs found anyway.
+
+**Screenshot deliverable UNMET.** `screencapture` in this agent session cannot composite ANY
+application window — only desktop wallpaper and the menu bar. Proven with a control: an ordinary
+already-running Chrome window, on-screen at X=657/Y=93 per `CGWindowListCopyWindowInfo`, made
+frontmost via `osascript activate` — full-screen capture still returned only wallpaper. **Screen
+Recording permission is NOT the blocker** (`screencapture` exits 0 and returns real pixels). Both
+target apps behaved the same. Playwright/Chromium was never used. The agent stopped rather than
+chasing private WindowServer APIs. **Needs either fixed capture, or Leona capturing interactively.**
+
+### SETTLED: `tovu init` → `tovu serve` WORKS
+- `npx tsx apps/website/src/cli/main.ts init <scratch>/qa-e2e-site` → exit 0.
+- `npx tsx apps/website/src/cli/main.ts serve <dir> --port 57958` → clean boot:
+  `tovu serve: dir=... port=57958 schemaVersion=57 workspaceId=workspace-local`, agent-daemon up.
+- **So `initSite`'s output IS accepted by `serve`. `sites/tovu-com` was the dead path, not a general
+  defect.** Closes the open question from A3.
+
+### A12 — NEW BUG: `apps/desktop` spawns a STALE compiled CLI (schema v50 vs source v57)
+`apps/desktop` does not build the CLI. It spawns the **repo-ROOT `dist/src/cli/main.js`** — verified
+last built **2026-08-28 21:08**, more than a week stale, schema **v50**. Current source is **v57**.
+So a site created from current source is **rejected by the desktop app's own server**:
+`SITE_NEWER_THAN_RUNTIME: site schema (v57) is newer than this runtime supports (v50)`.
+The agent only got `apps/desktop` to boot own-server mode by creating a site with the **stale dist
+CLI** — after which it worked properly: real boot line, real `tovu serve` + agent-daemon children,
+and a genuine on-screen `BrowserWindow` (owner=Electron, layer=0, bounds X=75/Y=25/925x900) confirmed
+via `CGWindowListCopyWindowInfo`.
+
+**C12 — needs Leona: rebuilding `dist` is blocked and the unblock is risky.**
+`npm run build` runs `check-no-linked-jini.mjs` first, and **13 `@jini-ai/*` packages are npm-linked**
+into `node_modules` (symlinks into `/Users/la/Programming/Jini/packages/*`, dated Sep 1). Clearing
+that means `npm run unlink:jini`, which is repo-wide and touches what the **live shared dev server**
+depends on. Not attempted. Decide before anyone rebuilds.
+
+### A13 — Tovu-Runner opens OFF-SCREEN on this machine
+First launch of the packaged `release/mac/Tovu Runner.app` put its window at **X=-1443** — off-screen
+to the left, a stale remembered frame from a past multi-monitor setup. A fresh `--user-data-dir`
+scratch profile fixed it (X=200/Y=95). **Worth a bug note on its own** — a user hitting this sees an
+app that "launched" and shows nothing, the same class of symptom as the desktop picker.
+
+**Cleanup verified**: every process the agent launched is gone (tsx serve 72711/72735/72736; desktop
+attempts 73906-73910 and 76350-76434; a stray default-Electron 75982/76034-36 launched accidentally
+by an `osascript activate` targeting no running instance; Runner 80393 tree, 81808-81841). Shared dev
+server pid 64043 untouched. Nothing committed, no edits under `apps/website/**`, `apps/desktop/**`,
+or `Tovu-Runner/**`.
+
+---
+
+## B3 — coverage inventory DISPATCHED (`coverage-inventory`)
+Leona asked directly which folders under `apps/website/src/features/**` and `apps/admin/**` have no
+coverage. Dispatched with the standing constraints in the spawn prompt: static mapping first, measure
+only as load allows, two feature dirs at a time strictly serial, ONE test invocation at a time,
+`uptime` recorded with every number, lcov kept durably, and **file listing / symbol grep explicitly
+banned as an answer** — that method produced five wrong claims today.
