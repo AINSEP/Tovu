@@ -473,6 +473,104 @@ test("cancel: `req.params.connectorId ?? \"\"` fallback, forced via a direct han
   assert.equal(capture.statusCode, 404);
 });
 
+test("PUT /connectors/config: a workspace id that is not this site's is 404", async (t) => {
+  const { app } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await put(baseUrl, "/api/admin/v1/workspaces/not-this-site/connectors/config", cookie, {
+    apiKey: DUMMY_KEY,
+  });
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "workspace was not found" });
+});
+
+test("PUT /connectors/config denied 403 FORBIDDEN without admin.integrations.manage", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await put(baseUrl, CONFIG_PATH, cookie, { apiKey: DUMMY_KEY });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.integrations\.manage' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.integrations.manage", reason: "test_denied" });
+});
+
+test("PUT /connectors/config surfaces an authorize() failure as a 500 (INTERNAL_ERROR)", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await put(baseUrl, CONFIG_PATH, cookie, { apiKey: DUMMY_KEY });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("PUT /connectors/config: its own outbound rate limit trips after its own budget, independent of disconnect's", async (t) => {
+  const { app } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // CONNECTOR_OUTBOUND_PER_IP is max:10/burst:2 -> 12 allowed requests in the window, same shape as
+  // the disconnect rate-limit test above, but this route's `putConfigOutboundLimiter` is a distinct
+  // instance (see `modules/connectors.ts`), so this proves put-config's own budget independently.
+  for (let i = 0; i < 12; i++) {
+    const res = await put(baseUrl, CONFIG_PATH, cookie, { apiKey: DUMMY_KEY });
+    assert.equal(res.status, 200, `call ${i + 1} of 12 should be within budget`);
+  }
+
+  const limited = await put(baseUrl, CONFIG_PATH, cookie, { apiKey: DUMMY_KEY });
+  assert.equal(limited.status, 429);
+  const limitedBody = (await limited.json()) as { code: string; details: { retryAfterSeconds: number } };
+  assert.equal(limitedBody.code, "RATE_LIMIT_EXCEEDED");
+  assert.ok(limitedBody.details.retryAfterSeconds > 0);
+  assert.equal(limited.headers.get("retry-after"), String(limitedBody.details.retryAfterSeconds));
+});
+
+test("PUT /connectors/config surfaces a non-Error thrown value as a 500 too, logging via String() not .message", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // sendPutConfigError's generic branch stringifies whatever was thrown; a non-Error value takes
+  // the `String(error)` arm of that ternary rather than `.message`, which the "boom" Error test
+  // above never reaches. Captured console.error is the only externally-observable signal that arm
+  // ran, since the HTTP response body is identical either way.
+  const errorLines: string[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => {
+    errorLines.push(args.map(String).join(" "));
+  });
+  deps.authorize = async () => {
+    throw "not an Error instance";
+  };
+
+  const res = await put(baseUrl, CONFIG_PATH, cookie, { apiKey: DUMMY_KEY });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual(errorLines, ["connectors config write failed: not an Error instance"]);
+});
+
+/**
+ * `req.params.workspaceId ?? ""` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:param` is always a populated string, so the right side of `??` is
+ * unreachable through any real HTTP request. Same technique as the sibling `?? ""` tests above for
+ * `GET /connectors/statuses`, disconnect, and cancel -- keep the guard, exercise it by direct
+ * handler invocation with a hand-built `req` that violates Express's own routing contract.
+ */
+test("PUT /connectors/config: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async (t) => {
+  const { app } = await buildTestApp(t);
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/connectors/config");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, body: { apiKey: null } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
 test("a missing master secret is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {
   const { app } = await buildTestApp(t, { siteAssistantSecretKeyring: new BrokenKeyring() });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
