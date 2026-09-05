@@ -1,12 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-  type RefObject,
-  type SyntheticEvent,
-} from "react";
+import { useState, type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { Toast } from "@jini-ai/ui";
@@ -31,6 +23,7 @@ import {
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
 import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-frame.hooks";
+import { useThemeExploreFullscreen } from "./ThemeExplore.hooks";
 
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
@@ -1043,34 +1036,6 @@ function ThemeExploreMainPane({
 }
 
 /**
- * Open/close the native `<dialog>` to match `fullscreen` — the same `showModal()`/`close()` with an
- * `open`-attribute jsdom fallback `ImagePreviewModal.tsx` established, extracted to a plain top-level
- * function so the `useEffect` that calls it is a single expression rather than an 8-line nested-if
- * body scored as part of `ThemeExplore` itself (this was the file's second-largest single
- * cognitive-complexity contributor, after the render body's own branching, before this extraction).
- *
- * Flattened relative to the original inline version: an early return once `dialog.open` already
- * matches `fullscreen` replaces two separate nested "only call the native method if not already in
- * that state" checks. This is behavior-preserving for the jsdom fallback branch too — that branch used
- * to call `setAttribute`/`removeAttribute` unconditionally, which is an idempotent no-op when the
- * attribute is already correct, so skipping it changes nothing observable.
- *
- * @complexity O(1) — four independent branches, no iteration, no nesting deeper than one level.
- */
-function syncFullscreenDialog(dialog: HTMLDialogElement | null, fullscreen: boolean): void {
-  if (!dialog) return;
-  if (fullscreen === dialog.open) return;
-  const supportsNativeDialog = typeof dialog.showModal === "function" && typeof dialog.close === "function";
-  if (fullscreen) {
-    if (supportsNativeDialog) dialog.showModal();
-    else dialog.setAttribute("open", "");
-    return;
-  }
-  if (supportsNativeDialog) dialog.close();
-  else dialog.removeAttribute("open");
-}
-
-/**
  * The fullscreen preview `<dialog>` — extracted to top level for the complexity-drift reason this
  * file's own header comment documents: `fullscreen && previewSrc` conditionally mounting the iframe
  * was one more branch scored against `ThemeExplore` itself.
@@ -1195,36 +1160,15 @@ export function ThemeExplore({
   // Async/API state (the rest of this controller) is NOT exempt — this carve-out is for DOM-chrome
   // state asserted through real interaction only.
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");
-  const [fullscreen, setFullscreen] = useState(false);
-  const fullscreenTriggerRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  // Same open/close lifecycle `ImagePreviewModal.tsx` established for a native `<dialog>` driven by a
-  // boolean prop — see `syncFullscreenDialog`'s own doc comment for the mechanism.
-  useEffect(() => {
-    syncFullscreenDialog(dialogRef.current, fullscreen);
-  }, [fullscreen]);
-
-  function closeFullscreen() {
-    setFullscreen(false);
-    // `showModal()` restores focus to the previously-focused element in every current browser, but
-    // that UA behavior isn't relied on elsewhere in this codebase (`ImagePreviewModal` doesn't either)
-    // — explicit here because "focus returns to the trigger" is a hard requirement for this control,
-    // not a nice-to-have, and jsdom's `<dialog>` doesn't implement the restoration at all.
-    fullscreenTriggerRef.current?.focus();
-  }
-
-  function handleFullscreenCancel(e: SyntheticEvent<HTMLDialogElement>) {
-    // Fires on Escape. Prevented and routed through `closeFullscreen` rather than left to the
-    // browser's own close, so the `fullscreen` state stays the single source of truth the effect
-    // above reads — same pattern `ImagePreviewModal.tsx` uses for the same reason.
-    e.preventDefault();
-    closeFullscreen();
-  }
-
-  function handleFullscreenBackdropClick(e: MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) closeFullscreen();
-  }
+  const {
+    fullscreen,
+    setFullscreen,
+    fullscreenTriggerRef,
+    dialogRef,
+    closeFullscreen,
+    handleFullscreenCancel,
+    handleFullscreenBackdropClick,
+  } = useThemeExploreFullscreen();
 
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
