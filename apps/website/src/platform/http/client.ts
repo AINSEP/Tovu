@@ -29,17 +29,23 @@ import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
 export type AddressClass = "public" | "private" | "loopback" | "link-local" | "reserved";
 
 /**
- * Classifies a single resolved IP address. IPv4-mapped IPv6 addresses (`::ffff:a.b.c.d`) are
- * normalized to their IPv4 form before classification (ADR-038 amendment 2).
+ * Classifies a single resolved IP address. IPv4-mapped IPv6 addresses (`::ffff:0:0/96`) are
+ * normalized to their IPv4 form before classification (ADR-038 amendment 2), regardless of how
+ * the mapped address is spelled — dotted-decimal tail (`::ffff:127.0.0.1`), hex tail
+ * (`::ffff:7f00:1`), fully expanded (`0:0:0:0:0:ffff:7f00:1`), or any other valid
+ * `::`-compression of the same value all resolve to the same verdict (see
+ * {@link extractMappedIpv4} — this used to be a regex matching one fixed spelling only).
  *
- * @complexity O(1).
+ * @complexity O(1) — IPv6 addresses have a fixed 8-group structure.
  */
 export function classifyAddress(ip: string): AddressClass {
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
-  const normalized = mapped ? mapped[1] : ip;
-
-  if (isIP(normalized) === 4) return classifyIpv4(normalized);
-  if (isIP(normalized) === 6) return classifyIpv6(normalized.toLowerCase());
+  const family = isIP(ip);
+  if (family === 4) return classifyIpv4(ip);
+  if (family === 6) {
+    const lowered = ip.toLowerCase();
+    const mapped = extractMappedIpv4(lowered);
+    return mapped ? classifyIpv4(mapped) : classifyIpv6(lowered);
+  }
   return "reserved"; // unparsable — fail closed, never treat as public
 }
 
@@ -51,12 +57,20 @@ function isRfc1918Private(a: number, b: number): boolean {
   return a === 192 && b === 168;
 }
 
+/** RFC 6598 carrier-grade NAT / shared address space (100.64.0.0/10) — shared, non-globally-
+ *  routable carrier space; treated as private like the RFC1918 ranges above. Split out of
+ *  {@link classifyIpv4} for the same complexity-budget reason as {@link isRfc1918Private}. */
+function isCgnatShared(a: number, b: number): boolean {
+  return a === 100 && b >= 64 && b <= 127;
+}
+
 function classifyIpv4(ip: string): AddressClass {
   const octets = ip.split(".").map(Number);
   const [a, b] = octets;
 
   if (a === 127) return "loopback";
   if (isRfc1918Private(a, b)) return "private";
+  if (isCgnatShared(a, b)) return "private";
   if (a === 169 && b === 254) return "link-local"; // includes 169.254.169.254 cloud metadata
   if (a === 0) return "reserved";
   if (a >= 224) return "reserved"; // multicast (224-239) + reserved/future (240-255)
@@ -70,11 +84,83 @@ function isFe80LinkLocal(ip: string): boolean {
   return ip.startsWith("fe8") || ip.startsWith("fe9") || ip.startsWith("fea") || ip.startsWith("feb");
 }
 
+/** The unspecified-address forms (`::`, `::0`) and the deprecated IPv4-compatible notation
+ *  (`::0.x.x.x`) — split out of {@link classifyIpv6} for the same complexity-budget reason as
+ *  {@link isFe80LinkLocal}. */
+function isIpv6UnspecifiedForm(ip: string): boolean {
+  return ip === "::" || ip.startsWith("::0.") || ip === "::0";
+}
+
+/** The fc00::/7 unique-local prefix (both the fc and fd halves), split out of {@link classifyIpv6}
+ *  for the same complexity-budget reason as {@link isFe80LinkLocal}. */
+function isFc00UniqueLocal(ip: string): boolean {
+  return ip.startsWith("fc") || ip.startsWith("fd");
+}
+
+/** Converts a dotted-decimal IPv4 quad to its two 16-bit hex groups, as embedded in the low 32
+ *  bits of an IPv4-mapped IPv6 address. */
+function dottedQuadToGroups(quad: string): number[] {
+  const [a, b, c, d] = quad.split(".").map(Number);
+  return [(a << 8) | b, (c << 8) | d];
+}
+
+/** Converts a run of `:`-split IPv6 group strings to numbers, expanding a trailing IPv4-dotted
+ *  quad — the last element, when present (e.g. the right-hand half of `::ffff:127.0.0.1`) — into
+ *  its two hex groups first via {@link dottedQuadToGroups}. */
+function toHexGroups(rawGroups: readonly string[]): number[] {
+  if (rawGroups.length === 0) return [];
+  const last = rawGroups[rawGroups.length - 1];
+  if (!last.includes(".")) return rawGroups.map((group) => parseInt(group, 16));
+  return [...rawGroups.slice(0, -1).map((group) => parseInt(group, 16)), ...dottedQuadToGroups(last)];
+}
+
+/** Expands any syntactically valid (`isIP(ip) === 6`) IPv6 literal into its 8 sixteen-bit groups,
+ *  resolving `::` compression wherever it falls. This is what lets {@link extractMappedIpv4}
+ *  recognize an IPv4-mapped address no matter how it is spelled — dotted or hex tail, fully
+ *  expanded or compressed — instead of matching one fixed spelling with a regex. */
+function expandIpv6Groups(ip: string): number[] {
+  const halves = ip.split("::");
+  const left = halves[0] ? toHexGroups(halves[0].split(":")) : [];
+  if (halves.length === 1) return left;
+
+  const right = halves[1] ? toHexGroups(halves[1].split(":")) : [];
+  const zeros = new Array(Math.max(0, 8 - left.length - right.length)).fill(0);
+  return [...left, ...zeros, ...right];
+}
+
+/** True when `groups` (from {@link expandIpv6Groups}) fall within the `::ffff:0:0/96` IPv4-mapped
+ *  prefix — the top 96 bits (groups 0-5) equal `0:0:0:0:0:ffff`. */
+function isMappedPrefix(groups: readonly number[]): boolean {
+  return groups.slice(0, 5).every((group) => group === 0) && groups[5] === 0xffff;
+}
+
+/** Recombines the low 32 bits (groups 6-7) of a `::ffff:0:0/96` address into dotted-decimal. */
+function mappedGroupsToIpv4(groups: readonly number[]): string {
+  const hi = groups[6];
+  const lo = groups[7];
+  return [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join(".");
+}
+
+/**
+ * Extracts the embedded IPv4 address from an IPv4-mapped IPv6 literal (`::ffff:0:0/96`),
+ * regardless of spelling — dotted-decimal tail, hex tail, fully expanded, or any other valid
+ * `::`-compression of the same value. Returns `null` for any IPv6 address outside that /96 (the
+ * ordinary case). `ip` must already satisfy `isIP(ip) === 6` and be lowercased.
+ */
+function extractMappedIpv4(ip: string): string | null {
+  const groups = expandIpv6Groups(ip);
+  if (groups.length !== 8 || !isMappedPrefix(groups)) return null;
+  return mappedGroupsToIpv4(groups);
+}
+
 function classifyIpv6(ip: string): AddressClass {
   if (ip === "::1") return "loopback";
-  if (ip === "::" || ip.startsWith("::0.") || ip === "::0") return "reserved";
+  if (isIpv6UnspecifiedForm(ip)) return "reserved";
   if (isFe80LinkLocal(ip)) return "link-local";
-  if (ip.startsWith("fc") || ip.startsWith("fd")) return "private"; // fc00::/7 unique local
+  if (isFc00UniqueLocal(ip)) return "private"; // fc00::/7 unique local
+  if (ip.startsWith("ff")) return "reserved"; // ff00::/8 multicast, mirrors IPv4's a >= 224 case
+  const mapped = extractMappedIpv4(ip); // defence in depth: a caller reaching this directly
+  if (mapped) return classifyIpv4(mapped);
   return "public";
 }
 
