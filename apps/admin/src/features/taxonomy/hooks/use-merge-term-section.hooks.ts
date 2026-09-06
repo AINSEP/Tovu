@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminTerm } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -60,6 +60,8 @@ export function useMergeTermSection(
   const [step, setStep] = useState<MergeStep>("idle");
   const [plan, setPlan] = useState<{ planId: string; planHash: string; overlappingContentCount: number } | null>(null);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const planMutation = useFetchMutation({
     run: (target: { fromTermId: string; intoTermId: string }) => port.planMergeTerm(target),
@@ -73,6 +75,21 @@ export function useMergeTermSection(
     invalidates: [KEYS.list],
   });
 
+  // Stale-response guard (2026-09-05, same class of bug `use-widget-instance-editor.hooks.ts`'s
+  // `activeEntityRef`/`use-term-detail-panel.hooks.ts`'s `activeTermIdRef` already fix for their own
+  // save()-after-navigate cases): `Taxonomy.tsx` mounts `MergeTermSection` with no
+  // `key={term.id}` — switching the selected term re-renders this SAME hook instance with a new
+  // `term` prop rather than remounting a fresh one, so a `startPlan`/`doConfirm`/`doExecute` call in
+  // flight for the term the operator just navigated AWAY FROM has no effect-cleanup moment of its
+  // own to learn that happened. `activeTermIdRef` always holds the latest term id this hook was
+  // RENDERED with; every completion handler below skips committing `step`/`plan`/`confirmationToken`/
+  // `busy`/`error` onto whatever term is on screen now once the operator has switched. `busy`/`error`
+  // are local state rather than read straight off the three mutations' own `.status`/`.error` for the
+  // same reason: those objects are NOT re-created per term, so a stale settlement could otherwise
+  // flip one again after the term-change effect below has already reset it.
+  const activeTermIdRef = useRef(term.id);
+  activeTermIdRef.current = term.id;
+
   // Same deps as the pre-migration effect ([term.id]) — the three mutation objects are
   // intentionally excluded, same reasoning as `use-term-detail-panel.hooks.ts`'s identical effect.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mutation objects intentionally excluded — same reasoning as use-term-detail-panel.hooks.ts's identical effect.
@@ -81,6 +98,8 @@ export function useMergeTermSection(
     setStep("idle");
     setPlan(null);
     setConfirmationToken(null);
+    setBusy(false);
+    setError(null);
     planMutation.reset();
     confirmMutation.reset();
     executeMutation.reset();
@@ -88,45 +107,61 @@ export function useMergeTermSection(
 
   async function startPlan() {
     if (!intoTermId) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
     try {
       const r = await planMutation.mutate({ fromTermId: term.id, intoTermId });
+      if (activeTermIdRef.current !== forTermId) return; // superseded by a term switch
       setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
       setStep("planned");
-    } catch {
-      // already surfaced through planMutation.error -> error below
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError(e, t(locale, "Failed to plan the merge")));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
     }
   }
 
   async function doConfirm() {
     if (!plan) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
     try {
       const r = await confirmMutation.mutate({ fromTermId: term.id, planId: plan.planId, planHash: plan.planHash });
+      if (activeTermIdRef.current !== forTermId) return;
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
-    } catch {
-      // already surfaced through confirmMutation.error -> error below
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError(e, t(locale, "Failed to confirm the merge")));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
     }
   }
 
   async function doExecute() {
     if (!confirmationToken) return;
+    const forTermId = term.id;
+    setBusy(true);
+    setError(null);
     try {
       await executeMutation.mutate({ fromTermId: term.id, intoTermId, confirmationToken });
+      // `onMerged` also guarded — `Taxonomy.tsx`'s own `onMerged` both clears `selectedTermId` AND
+      // reloads; a stale execute must not deselect whatever DIFFERENT term the operator has since
+      // switched to. The list still refreshes regardless (`executeMutation`'s own
+      // `invalidates: [KEYS.list]` above is not gated on this), so the merge itself is never lost —
+      // only this callback's forced deselect/reload is skipped for a superseded call.
+      if (activeTermIdRef.current !== forTermId) return;
       onMerged();
-    } catch {
-      // already surfaced through executeMutation.error -> error below
+    } catch (e) {
+      if (activeTermIdRef.current !== forTermId) return;
+      setError(describeApiError(e, t(locale, "Failed to execute the merge")));
+    } finally {
+      if (activeTermIdRef.current === forTermId) setBusy(false);
     }
   }
-
-  // The wizard's three steps are mutually exclusive in practice (confirm only runs after a
-  // successful plan, execute only after a successful confirm), so at most one of these three is
-  // ever non-null at a time — precedence here just picks whichever step is actually active.
-  const busy = planMutation.status === "pending" || confirmMutation.status === "pending" || executeMutation.status === "pending";
-  const error =
-    (planMutation.error && describeApiError(planMutation.error, t(locale, "Failed to plan the merge"))) ??
-    (confirmMutation.error && describeApiError(confirmMutation.error, t(locale, "Failed to confirm the merge"))) ??
-    (executeMutation.error && describeApiError(executeMutation.error, t(locale, "Failed to execute the merge"))) ??
-    null;
 
   return { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute };
 }

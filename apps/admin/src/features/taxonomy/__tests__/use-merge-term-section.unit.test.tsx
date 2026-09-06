@@ -240,6 +240,54 @@ describe("resetting when the term changes mid-wizard", () => {
   });
 });
 
+describe("stale settlement across a term switch mid-wizard (no key={term.id} remount)", () => {
+  /**
+   * `Taxonomy.tsx` mounts `MergeTermSection` (inside `TermDetailPanel`) with no `key={term.id}` —
+   * switching the selected term re-renders the SAME hook instance with a new `term` prop rather than
+   * remounting a fresh one. The term-change effect resets `step`/`plan`/`error` the moment `term`
+   * changes, but a `startPlan()` call already in flight for the PREVIOUS term has no way to know
+   * that happened: its `then` still unconditionally advances `step`/`plan`, landing them onto the
+   * NEW term's wizard. Same class of bug `use-widget-instance-editor.hooks.ts`'s `activeEntityRef`
+   * guard fixes for its own save()-after-navigate case, and `use-term-detail-panel.hooks.ts`'s
+   * `activeTermIdRef` now fixes for its sibling `rename()` case.
+   */
+  it("a plan started for term A that settles AFTER switching to term B must not advance B's wizard", async () => {
+    const port = createFakeMergeTermSectionPort({ overlappingContentCount: 3 });
+    let resolvePlan!: (v: { planId: string; planHash: string; details: { fromTermId: string; intoTermId: string; overlapLossDisclosed: boolean; overlappingContentCount: number } }) => void;
+    port.planMergeTerm = vi.fn(() => new Promise((resolve) => (resolvePlan = resolve)));
+
+    const { result, rerender } = renderHook(
+      ({ term }) => useMergeTermSection({ term, onMerged: vi.fn() }, port, "en"),
+      { initialProps: { term: termFixture({ id: "from1" }) }, wrapper }
+    );
+    act(() => result.current.setIntoTermId("into1"));
+    act(() => {
+      void result.current.startPlan();
+    });
+    await waitFor(() => expect(port.planMergeTerm).toHaveBeenCalledTimes(1));
+
+    // Operator switches the selected term to a DIFFERENT one while A's plan is still in flight.
+    rerender({ term: termFixture({ id: "from2", name: "Different Term" }) });
+    await waitFor(() => expect(result.current.intoTermId).toBe(""));
+    expect(result.current.step).toBe("idle");
+
+    // A's stale plan now settles.
+    await act(async () => {
+      resolvePlan({
+        planId: "plan1",
+        planHash: "hash1",
+        details: { fromTermId: "from1", intoTermId: "into1", overlapLossDisclosed: true, overlappingContentCount: 3 },
+      });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // Must still read as term B's untouched wizard — A's late plan must not advance `step` or
+    // populate `plan` on a wizard that is now showing a different term.
+    expect(result.current.step).toBe("idle");
+    expect(result.current.plan).toBeNull();
+  });
+});
+
 describe("useMergeTermSection — injected port", () => {
   it("plans through the fake port and stores plan details, with no fetch involved", async () => {
     const networkMock = vi.fn();
