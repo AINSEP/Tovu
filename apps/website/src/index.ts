@@ -4,12 +4,10 @@ import { createApp, createRouteDeps } from "./server/runtime/composition/app.js"
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { isAdminAssistantEnabled } from "./server/runtime/composition/admin-assistant-enabled.js";
-import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
-import { runProductionReadinessGate } from "./server/runtime/boot/production-readiness-gate.js";
-import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
-import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
 import { runBootLifecycle, type BootResult } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
+import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
@@ -201,57 +199,6 @@ function startOwnParentWatchdog(): void {
 // Same placement rationale as the daemon's own `startParentWatchdog()` call.
 startOwnParentWatchdog();
 
-/**
- * SPEC-022 REQ-03/W-001 — must run and pass before any composition/route-registration work
- * starts. Deliberately placed here (the actual process entrypoint), not inside `deps.ts`'s
- * `createSqliteRouteDeps()` / `app.ts`'s `createApp()`: both of those are synchronous functions
- * called from hundreds of existing hermetic tests, and forcing them async (or awaiting a gate
- * before they can return) would be a wide, risky, untested signature change to every one of
- * those call sites — INV-06 forbids exactly that kind of collateral behavior change. `index.ts`
- * is the one real top-level boot path (never imported by a test), so it is the safe place to
- * enforce "never bind the listening socket" without touching any tested surface.
- *
- * `envSnapshot`'s four checks are a disclosed, best-effort implementation, not exhaustively
- * specified by SPEC-022 (no test exercises the real heuristics, only injected fixture values):
- * - `hasDevSecretPlaceholder`: true when `ANALYTICS_ROOT_KEY_SEED` is unset, since
- *   `registerAnalyticsIngestRoute`'s wiring in `app.ts` falls back to the literal dev placeholder
- *   `"dev-only-insecure-seed"` whenever that env var is absent.
- * - `hasLocalhostEgressAllowance`: not yet detectable here — `deps.ts` seeds a hardcoded
- *   `localhost`/`example.com` origin+egress-allowlist unconditionally, with no env-var escape
- *   hatch, so this check cannot yet distinguish a real deploy from a dev one. Flagged as a real
- *   gap for whoever scopes the origin-seed-becomes-configurable follow-up; not fixed here.
- * - `hasAlwaysOnAnalyticsStub`: false as of ADR-046 Phase 1's analytics slice (2026-07-16) —
- *   `deps.ts`'s `createSqliteRouteDeps()` now unconditionally wires the durable `SqliteBufferSink`,
- *   mirroring the "analytics" capability-inventory entry's `hasDurableAdapter: true`.
- * - `hasDefaultOwnerPassword` (§4.2): true when `TOVU_ADMIN_PASSWORD` is unset or still equal to
- *   `DEFAULT_OWNER_PASSWORD` — the exact literal `identity/wiring.ts`'s `buildIdentityRouteDeps()`
- *   falls back to when seeding the owner account. Imported from that module rather than
- *   re-declared here so the gate can never drift out of sync with what the seeder actually did.
- */
-async function runBootGateOrExit(): Promise<void> {
-  const mode = resolveRuntimeMode();
-  if (mode !== "production") return;
-
-  const result = await runProductionReadinessGate({
-    mode,
-    inventory: CAPABILITY_INVENTORY,
-    envSnapshot: {
-      hasDevSecretPlaceholder: !process.env.ANALYTICS_ROOT_KEY_SEED,
-      hasLocalhostEgressAllowance: false,
-      hasAlwaysOnAnalyticsStub: false,
-      hasDefaultOwnerPassword: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
-    },
-  });
-
-  if (!result.ok) {
-    for (const failure of result.failures) {
-      console.error(`[production-readiness-gate] ${failure.code}: ${failure.message}`);
-    }
-    console.error("Refusing to boot in production mode — see failures above.");
-    process.exit(1);
-  }
-}
-
 /** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
  *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
 async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> } }): Promise<boolean> {
@@ -260,6 +207,28 @@ async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerR
   if (configured.length > 0) return true;
   console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
   return false;
+}
+
+/**
+ * Applies the same schema-version guard `tovu serve` gets for free from `boot-site-dir.ts` (see
+ * `content-db-schema-guard.ts`'s own header for why the non-CLI boot path had no equivalent at
+ * all): refuses to boot, rather than silently letting `createSqliteRouteDeps()` -> `openContentDb()`
+ * migrate forward, when `dbPath` is newer than or has diverged from this runtime's bundled
+ * migrations. REFUSE (not warn-and-continue) — chosen for parity with `tovu serve`'s own
+ * unconditional throw in this exact situation ("the two paths should not diverge on safety"), and
+ * because a warning a developer can scroll past protects real on-disk data no better than doing
+ * nothing. A no-op for `useMemory` boots (nothing on disk to guard) and for a brand-new/never-
+ * migrated db (nothing to compare against yet — `openContentDb()`'s own first-boot path is correct).
+ */
+function guardContentDbSchemaOrExit(dbPath: string): void {
+  const result = checkContentDbSchema(dbPath);
+  if (result.status !== "refuse") return;
+
+  console.error(`[content-db-schema-guard] ${result.message}`);
+  console.error(
+    `Refusing to boot against ${dbPath} — this is the same schema guard 'tovu serve' applies before opening a site's content.db.`
+  );
+  process.exit(1);
 }
 
 /** Logs one line per critical, not-ready module from a failed boot — extracted verbatim from
@@ -294,14 +263,16 @@ async function main(): Promise<void> {
   // SPEC-005 (ADR-005-ARCH, CIC U-002, ESCALATE_SECURITY): must run synchronously, before any
   // other boot step, and unconditionally before `createApp(deps)` wires any route or before any
   // code path could reach `loadPlugin()`'s dynamic `import()`. Placed first in `main()` — even
-  // before `runBootGateOrExit()` — so no `await` point exists between process start and this
-  // registration where a plugin import could theoretically become reachable first. Mirrors this
-  // file's own `runBootGateOrExit` placement rationale: `index.ts` is the one real top-level boot
+  // before `runProductionReadinessGateOrExit()` — so no `await` point exists between process start
+  // and this registration where a plugin import could theoretically become reachable first. Mirrors
+  // this file's own placement rationale for that gate: `index.ts` is the one real top-level boot
   // path (never imported by a test), so it is the safe place to enforce this ordering without
   // touching `app.ts`/`deps.ts`'s synchronous, widely-tested call signatures (W-001).
   registerPluginSdkResolver();
 
-  await runBootGateOrExit();
+  await runProductionReadinessGateOrExit();
+
+  if (!useMemory) guardContentDbSchemaOrExit(defaultContentDbPath());
 
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 
