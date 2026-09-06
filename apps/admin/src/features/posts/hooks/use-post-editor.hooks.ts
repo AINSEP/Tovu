@@ -269,7 +269,13 @@ function schedulePendingContentPreviewSubmit(input: {
  * `FileHandler` filters what reaches `onDrop`/`onPaste` client-side, but `port.uploadMedia` still
  * goes through the server's own authoritative allowlist regardless of what gets past this filter.
  */
-export const FILE_HANDLER_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const FILE_HANDLER_ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+];
 
 /**
  * `@tiptap/extension-file-handler`'s shared upload step (2026-08-12, B1 — drag & paste image

@@ -222,8 +222,9 @@ test("admin media list: backfills and persists the content type of a row that pr
 
 /**
  * Pins the upload allowlist's current shape (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s
- * `media-service.ts`, Jini commit `18b629c4`, owner-directed 2026-08-24): `image/jpeg`,
- * `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`. Picking a
+ * `media-service.ts`, Jini commit `18b629c4`, owner-directed 2026-08-24, plus `image/avif`
+ * owner-directed 2026-09-06): `image/jpeg`, `image/png`, `image/webp`, `image/gif`,
+ * `image/avif`, `video/mp4`, `video/webm`. Picking a
  * real `.mp4`/`.webm` in the admin's file input (where the browser sets `File.type` to
  * `video/mp4`/`video/webm`) is therefore accepted with a 201, so the "Videos" tab has ordinary
  * supply through the normal upload path.
@@ -288,4 +289,48 @@ test("admin media upload: image/svg+xml is still rejected by the upload allowlis
   assert.equal(res.status, 400);
   const payload = (await res.json()) as { error: string };
   assert.equal(payload.error, "content type 'image/svg+xml' is not allowed for upload");
+});
+
+/**
+ * The real leading `ftyp` box of a genuine AVIF file: box size 24, `ftyp` tag, major brand
+ * `avif`, zero minor version, then the `mif1`/`miaf` compatible brands, followed by the start of
+ * the `meta` box. Taken from an actual `.avif` rather than synthesized, so this fixture proves
+ * the sniffer against the byte layout real encoders emit.
+ */
+function avifBytes(): Uint8Array {
+  return new Uint8Array([
+    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0x00, 0x00, 0x00, 0x00,
+    0x6d, 0x69, 0x66, 0x31, 0x6d, 0x69, 0x61, 0x66, 0x00, 0x00, 0x01, 0x68, 0x6d, 0x65, 0x74, 0x61,
+  ]);
+}
+
+/**
+ * Regression (2026-09-06) for the whole AVIF chain through the real admin upload route, which is
+ * the same server path the assistant chat's `media_upload_asset` tool reaches. TWO defects had to
+ * be fixed for this to pass and this test fails if EITHER regresses:
+ *
+ *  1. `image/avif` was missing from `DEFAULT_ALLOWED_MIME_TYPES`, so the route answered 400
+ *     `content type 'image/avif' is not allowed for upload`.
+ *  2. `content-type-sniffer.ts` identified ISO-BMFF purely by the `ftyp` tag, which AVIF shares
+ *     with MP4, so an accepted AVIF was PERSISTED as `video/mp4` in `mediaContentTypeStore`.
+ *     That store is the image-vs-video source of truth for both the admin type tabs and
+ *     `widgets/resolver-service.ts`, so the asset would have rendered as an unplayable `<video>`
+ *     on a public page — a worse outcome than the clean 400 it replaced. Asserting the persisted
+ *     type (not merely the 201) is what makes this test catch defect 2 rather than tolerate it.
+ */
+test("admin media upload: a real AVIF is accepted and persisted as image/avif, not video/mp4", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // `uploadRawBytes` asserts the 201 itself — that half covers defect 1 (the allowlist).
+  const mediaId = await uploadRawBytes(baseUrl, cookie, {
+    filename: "ai-caps.avif",
+    bytes: avifBytes(),
+    declaredContentType: "image/avif",
+  });
+
+  // Defect 2: the type the server RECORDED from the bytes, which is what the admin type tabs and
+  // `widgets/resolver-service.ts` both dispatch on. Before the sniffer fix this read `video/mp4`.
+  const types = await listMediaContentTypes(baseUrl, cookie);
+  assert.equal(types.get(mediaId), "image/avif");
 });

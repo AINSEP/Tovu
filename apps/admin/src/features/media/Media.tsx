@@ -597,8 +597,11 @@ function MediaToolbar({
         ref={fileInputRef}
         className="file-input"
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        {...agentHandle("media-upload-file", { role: "field", label: "The file to upload — image/jpeg, png, webp or gif" })}
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        {...agentHandle("media-upload-file", {
+          role: "field",
+          label: "The file to upload — image/jpeg, png, webp, gif or avif",
+        })}
       />
       <input
         value={altDraft}
@@ -881,12 +884,14 @@ function MediaLibraryPanel(
  * The empty state for a tab whose filter matched nothing — distinct from the All tab's "No media
  * uploaded yet.", which would be a lie on a filtered tab holding a library full of other types.
  *
- * The Videos copy names the real reason that tab is normally empty: the upload allowlist
- * (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s `media-service.ts`) accepts `image/jpeg`,
- * `image/png`, `image/webp` and `image/gif` and nothing else, so a real `.mp4` picked in the file
- * input is rejected with a 400 before it ever reaches the library. Widening that allowlist is an
- * upload-policy change in another package, out of scope for wiring up a filter — so this says so
- * rather than leaving an operator to conclude their videos were lost.
+ * The Videos copy names the real reason that tab is normally empty. NOTE (2026-09-06): the reason
+ * this comment used to give — that the server allowlist rejects video — has been false since
+ * 2026-08-24, when `DEFAULT_ALLOWED_MIME_TYPES` (`@jini-ai/cms`'s `media-service.ts`) was widened
+ * to `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`, `video/mp4` and
+ * `video/webm`. The server accepts a `.mp4` today. What still keeps the tab empty is this
+ * screen's own file-input `accept` filter above, which lists only the image types, so an operator
+ * cannot pick a video in the first place. Aligning that filter with the server is a pending
+ * owner decision, not an oversight — deliberately left as-is here.
  */
 function MediaTypeEmptyState({ kind, t }: { kind: "images" | "videos"; t: (key: string) => string }) {
   return (

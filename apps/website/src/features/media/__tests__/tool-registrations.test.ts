@@ -107,3 +107,50 @@ test("two uploads of different bytes each get their own recorded content type", 
   assert.equal(recorded.get(png.media.sha256), "image/png");
   assert.equal(recorded.get(gif.media.sha256), "image/gif");
 });
+
+/**
+ * The real leading `ftyp` box of a genuine AVIF file (box size 24, `ftyp`, major brand `avif`,
+ * zero minor version, `mif1`/`miaf` compatible brands, then the start of `meta`).
+ */
+const AVIF_BYTES = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0x00, 0x00, 0x00, 0x00,
+  0x6d, 0x69, 0x66, 0x31, 0x6d, 0x69, 0x61, 0x66, 0x00, 0x00, 0x01, 0x68, 0x6d, 0x65, 0x74, 0x61,
+]);
+
+/**
+ * Regression (2026-09-06) for the assistant-chat upload path specifically. This tool is what the
+ * chat calls, and it failed for AVIF at TWO gates, both fixed in `@jini-ai/cms`:
+ *
+ *  1. `DEFAULT_ALLOWED_MIME_TYPES` lacked `image/avif`, so `uploadMedia` threw
+ *     `content type 'image/avif' is not allowed for upload` and the chat surfaced a failure.
+ *  2. `sniffContentType` identified ISO-BMFF by the bare `ftyp` tag, which AVIF shares with MP4,
+ *     so the recorded type would have been `video/mp4` — the value this suite exists to police.
+ *
+ * Asserting the RECORDED type (not just that the call resolved) is what makes this catch defect 2.
+ */
+test("media_upload_asset accepts a real AVIF from the assistant chat and records image/avif, not video/mp4", async () => {
+  const { deps, mediaContentTypeStore } = fakeRouteDeps();
+
+  const out = (await wired("media_upload_asset", deps).handler(
+    executionContext({ dataBase64: AVIF_BYTES.toString("base64"), filename: "ai-caps.avif", contentType: "image/avif" })
+  )) as { media: { sha256: string } };
+
+  const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
+  assert.equal(recorded.get(out.media.sha256), "image/avif");
+});
+
+/**
+ * The model can only send a `contentType` the published JSON Schema enumerates, so the schema is a
+ * real gate in front of the allowlist, not documentation. It is derived from
+ * `DEFAULT_ALLOWED_MIME_TYPES` at module load, so this also pins that the derivation still holds.
+ */
+test("media_upload_asset's published schema offers image/avif as a selectable contentType", () => {
+  const { deps } = fakeRouteDeps();
+  const schema = wired("media_upload_asset", deps).descriptor.inputSchema as {
+    properties: { contentType: { enum: string[] } };
+  };
+  assert.ok(
+    schema.properties.contentType.enum.includes("image/avif"),
+    `the model cannot pick a type the enum omits; got: ${schema.properties.contentType.enum.join(", ")}`
+  );
+});
