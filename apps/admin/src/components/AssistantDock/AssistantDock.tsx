@@ -536,6 +536,15 @@ export function AssistantDock({
         composerSlots={{
           discoveryGroups: composerCapabilities.groups,
           onDiscoverySelect: handleComposerDiscoverySelect,
+          // Renders next to the composer's "+" trigger in the footer action row, not above the
+          // input — owner report: the mic previously rode `leadingAccessory` below (the pinned-
+          // context zone) and read as a stray circular badge half-overlapping the input's top
+          // edge. `footerLeadingAccessory` (`@jini-ai/chat` 2026-09-06) is a new footer-row slot
+          // added for exactly this: unlike `footerAccessories` (reserved for `AgentRuntimePicker`,
+          // pushed to the row's far end) or `plusMenuItems` (plain click-to-select buttons, no room
+          // for this button's press-and-hold/recording-indicator UI), it renders host content
+          // immediately after the attach/discovery button with no change to the button itself.
+          footerLeadingAccessory: <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} />,
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
         // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
@@ -550,12 +559,7 @@ export function AssistantDock({
         // something introduced here. Using this top-level prop instead (unused by this component
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
-        leadingAccessory={
-          <>
-            <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
-            <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} />
-          </>
-        }
+        leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
         // through it. Append-only by contract, so a transcript can never clobber a half-written
         // message — see `use-composer-voice-input.hooks.ts`.
