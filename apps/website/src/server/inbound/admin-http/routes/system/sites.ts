@@ -84,6 +84,38 @@ function sendSiteSwitchingDisabled(res: Response): void {
   });
 }
 
+/** Shape of the 400 body every "bad request" refusal below returns. */
+type ValidationErrorBody = { error: string; code: "VALIDATION_ERROR" };
+
+/** Extracts and validates the create-site request's `name` field. Returns the string on success,
+ *  or the exact 400 body the route should send verbatim, so the create handler's own branching
+ *  stays at "is this valid or not" rather than re-deriving the wire format inline.
+ *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
+function parseCreateSiteName(
+  body: unknown,
+): { ok: true; name: string } | { ok: false; body: ValidationErrorBody } {
+  const record = body as Record<string, unknown> | null | undefined;
+  const name = typeof record?.name === "string" ? record.name : undefined;
+  if (name === undefined) {
+    return { ok: false, body: { error: "'name' (string) is required", code: "VALIDATION_ERROR" } };
+  }
+  return { ok: true, name };
+}
+
+/** Classifies a thrown `createSite()` error into its HTTP status + body, or `null` for anything
+ *  unclassified that should fall through to a generic 500. Keeps the error-to-status-code mapping
+ *  in one place so a future site-registry error type has exactly one spot to be taught about.
+ *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
+function classifyCreateSiteError(err: unknown): { status: number; body: Record<string, unknown> } | null {
+  if (err instanceof ValidationError) {
+    return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
+  }
+  if (err instanceof InitDirNotEmptyError) {
+    return { status: 409, body: { error: err.message, code: "SITE_ALREADY_EXISTS" } };
+  }
+  return null;
+}
+
 export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
   const listSites = deps.listSites ?? listSitesReal;
   const createSite = deps.createSite ?? createSiteReal;
@@ -142,22 +174,18 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      const body = req.body as Record<string, unknown> | null | undefined;
-      const name = typeof body?.name === "string" ? body.name : undefined;
-      if (name === undefined) {
-        res.status(400).json({ error: "'name' (string) is required", code: "VALIDATION_ERROR" });
+      const parsed = parseCreateSiteName(req.body);
+      if (!parsed.ok) {
+        res.status(400).json(parsed.body);
         return;
       }
 
-      const result = createSite({ name });
+      const result = createSite({ name: parsed.name });
       res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId } });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof InitDirNotEmptyError) {
-        res.status(409).json({ error: err.message, code: "SITE_ALREADY_EXISTS" });
+      const classified = classifyCreateSiteError(err);
+      if (classified) {
+        res.status(classified.status).json(classified.body);
         return;
       }
       console.error("[system/sites] unexpected error creating a site", err);
