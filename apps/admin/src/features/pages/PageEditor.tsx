@@ -1,4 +1,5 @@
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
@@ -74,7 +75,15 @@ function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
     // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
     // header's right rail deliberately left EMPTY now that the actions live below the toolbar —
     // see that modifier's own comment for why the empty rail has to stay reserved.
-    <div className="page-header page-header-split">
+    <div
+      className="page-header page-header-split"
+      {...agentHandle("page-header", {
+        role: "region",
+        label:
+          "Editor header — the back link and the page's title. Save, Delete and the " +
+          "Draft/Published field are NOT here: they are in the action row below the toolbar.",
+      })}
+    >
       {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
           visually, so tab order and the reading order match what is on screen. */}
       <div className="page-header-lead">
@@ -85,6 +94,7 @@ function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
           }}
+          {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
         >
           <button type="button" className="btn-secondary">
             ← Pages
@@ -114,7 +124,8 @@ function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
  *
  * `.editor-action-row` (`styles.css`) is shared with `features/posts/PostEditor.tsx`'s own
  * `PostEditorActions`; the two components are NOT merged, because that one's copy runs through `t`
- * and every control carries an `agentHandle` tag, neither of which this screen has.
+ * and this screen's doesn't (2026-09-06: both now carry `agentHandle` tags — only the i18n split
+ * remains as the reason not to merge them).
  */
 function PageEditorActions({
   dirty,
@@ -138,15 +149,42 @@ function PageEditorActions({
   onDeleteClick: () => void;
 }) {
   return (
-    <div className="editor-action-row">
+    <div
+      className="editor-action-row"
+      {...agentHandle("page-actions", {
+        role: "region",
+        label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
+      })}
+    >
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? <span className="save-error">{error}</span> : null}
-      <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
+      <select
+        value={status}
+        onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+        {...agentHandle("page-status", {
+          role: "field",
+          label:
+            "Whether this page is a draft or published — set with page.select_option, not click. " +
+            "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+            "NOT the same as Delete, which moves the whole entry to the trash.",
+        })}
+      >
         <option value="draft">Draft</option>
         <option value="published">Published</option>
       </select>
       {status === "draft" ? (
-        <button type="button" onClick={onPublish} disabled={saving}>
+        <button
+          type="button"
+          onClick={onPublish}
+          disabled={saving}
+          {...agentHandle("page-publish", {
+            role: "button",
+            label:
+              "Publish this page immediately — saves the current title, slug and body and sets " +
+              "status to Published in one action. Only shown while the page is a draft; once " +
+              "published, use Save for further edits.",
+          })}
+        >
           Publish
         </button>
       ) : null}
@@ -155,10 +193,22 @@ function PageEditorActions({
         className={status === "draft" ? "btn-secondary" : undefined}
         onClick={onSave}
         disabled={saving}
+        {...agentHandle("page-save", { role: "button", label: "Save this page's title, slug, status and body" })}
       >
         {saving ? "Saving…" : dirty ? "Save •" : "Save"}
       </button>
-      <button type="button" className="btn-danger" onClick={onDeleteClick}>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={onDeleteClick}
+        {...agentHandle("page-delete", {
+          role: "button",
+          label:
+            "Move this page to the trash — different from unpublishing (the Draft/Published field " +
+            "beside it): the entry disappears from every list and the site. Asks for confirmation " +
+            "before deleting.",
+        })}
+      >
         Delete
       </button>
     </div>
@@ -185,12 +235,28 @@ function PageAutosaveRecoveryBanner({
 }) {
   const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
   return (
-    <div className="notice warning">
+    <div
+      className="notice warning"
+      {...agentHandle("page-autosave-recovery", {
+        role: "region",
+        label: "An unsaved draft from a previous session was found — restore it or discard it",
+      })}
+    >
       <p>{pageAutosaveBannerMessage(recoverableDraft.savedAt, Date.now(), stale)}</p>
-      <button type="button" className="btn-secondary" onClick={onRestore}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onRestore}
+        {...agentHandle("page-autosave-restore", { role: "button", label: "Apply the recovered draft into the editor" })}
+      >
         Restore
       </button>
-      <button type="button" className="btn-secondary" onClick={onDiscard}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onDiscard}
+        {...agentHandle("page-autosave-discard", { role: "button", label: "Discard the recovered draft without applying it" })}
+      >
         Discard
       </button>
     </div>
@@ -250,6 +316,7 @@ function PageEditorToolbarEnd({
               aria-pressed={device === entry.key}
               className={device === entry.key ? "is-active" : undefined}
               onClick={() => setDevice(entry.key)}
+              {...agentHandle(`page-preview-width-${entry.key}`, { role: "button", label: `Preview at ${entry.label} width` })}
             >
               {entry.label}
             </button>
@@ -269,6 +336,10 @@ function PageEditorToolbarEnd({
               // unlike Posts, it behaves identically to `null` at render time — see
               // `isEligibleForTemplateBranch`'s doc).
               onChange={(e) => setTemplateChoice(e.target.value)}
+              {...agentHandle("page-template-choice", {
+                role: "field",
+                label: "Which theme page template this page renders through on the public site.",
+              })}
             >
               {availableTemplates.map((template) => (
                 <option key={template} value={template}>
@@ -278,7 +349,14 @@ function PageEditorToolbarEnd({
               <option value="">No template chosen</option>
             </select>
           ) : (
-            <select disabled value="">
+            <select
+              disabled
+              value=""
+              {...agentHandle("page-template-choice", {
+                role: "field",
+                label: "The active theme declares no page templates, so there is nothing to choose here.",
+              })}
+            >
               <option value="">No templates for this theme</option>
             </select>
           )}
@@ -364,6 +442,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Untitled"
+            {...agentHandle("page-title", { role: "field", label: "This page's title" })}
           />
         </label>
 
@@ -371,9 +450,18 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           <span>/</span>
           <label className="a11y-label-wrap">
             <span className="visually-hidden">URL slug</span>
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} />
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              {...agentHandle("page-slug", { role: "field", label: "URL slug this page is published at" })}
+            />
           </label>
-          <a href={siteUrl(pagePublicPath(slug))} target="_blank" rel="noreferrer">
+          <a
+            href={siteUrl(pagePublicPath(slug))}
+            target="_blank"
+            rel="noreferrer"
+            {...agentHandle("page-view-live", { role: "link", label: "Open this page on the public site in a new tab" })}
+          >
             view ↗
           </a>
         </div>
@@ -389,6 +477,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
               onClick={() => setView(entry.key)}
+              {...agentHandle(`page-view-${entry.key}`, { role: "button", label: `Switch to the ${entry.label} view` })}
             >
               {entry.label}
             </button>
@@ -458,11 +547,13 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           spellCheck={false}
           aria-label="Page HTML"
           placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
+          {...agentHandle("page-html-source", { role: "field", label: "This page's raw HTML source" })}
         />
       )}
 
       <ConfirmDialog
         open={confirmingDelete}
+        agentHandle="page-delete-confirm"
         title="Move to trash?"
         body={<p>Move &quot;{title}&quot; to trash? It will disappear from the site and from this list.</p>}
         confirmLabel="Move to trash"
