@@ -484,13 +484,45 @@ function asStringLiteral(arg: string): string | null {
   return inner;
 }
 
-/** Drops a leading run of `".."` segments — parent-directory traversal that resolves relative to
- *  whatever the call's non-literal base argument was, and carries no restructure-sensitive
- *  information of its own. */
-export function dropLeadingParentSegments(segments: readonly string[]): readonly string[] {
+/**
+ * Drops a leading run of `".."` segments — parent-directory traversal that resolves relative to
+ * whatever the call's non-literal base argument was, and carries no restructure-sensitive
+ * information of its own once dropped.
+ *
+ * When `fileDepth` is supplied, the drop is only trusted when the `".."` run's length matches it
+ * EXACTLY. `import.meta.dirname` (this repo's only computed base for these calls, per the 2026-09-05
+ * audit) IS the file's own directory, so a run shorter than `fileDepth` lands somewhere between the
+ * file and the repo root — the remaining segments would then be relative to THAT directory, not the
+ * repo root, and treating them as repo-root-relative would check the wrong location — while a run
+ * longer than `fileDepth` escapes above the repo root entirely, where nothing can be "repo-relative"
+ * by definition. `fileDepth` is optional (rather than required) so direct unit tests can keep
+ * constructing segments without a real file to measure depth from.
+ *
+ * @param segments the call's trailing literal arguments, in source order
+ * @param fileDepth how many directory levels the file containing the call sits below the repo root;
+ *        omit to keep the unconditional-strip behavior
+ * @returns the segments with their leading ".." run dropped, or `null` if `fileDepth` is given and
+ *          the leading ".." count does not exactly match it
+ * @complexity O(n) in segment count.
+ */
+export function dropLeadingParentSegments(segments: readonly string[], fileDepth?: number): readonly string[] | null {
   let i = 0;
   while (i < segments.length && segments[i] === "..") i++;
+  if (fileDepth !== undefined && i !== fileDepth) return null;
   return segments.slice(i);
+}
+
+/**
+ * How many directory levels `repoRelativeFile` sits below the repo root — the count of `".."`
+ * segments a `path.resolve(import.meta.dirname, ...)` call in that file would need to reach the root.
+ *
+ * @param repoRelativeFile a repo-root-relative path with forward slashes
+ * @returns 0 for a file directly at the repo root, 1 for one directory down, etc.
+ * @complexity O(1).
+ */
+export function fileDirectoryDepth(repoRelativeFile: string): number {
+  const dir = path.posix.dirname(repoRelativeFile);
+  return dir === "." ? 0 : dir.split("/").length;
 }
 
 // ---------------------------------------------------------------------------
@@ -835,7 +867,8 @@ function sweepOneFile(
   }
 
   for (const { segments: rawSegments, line } of extractPathJoinSegments(source)) {
-    const meaningful = dropLeadingParentSegments(rawSegments);
+    const meaningful = dropLeadingParentSegments(rawSegments, fileDirectoryDepth(file));
+    if (meaningful === null) continue; // ".." count doesn't reach exactly to repo root - can't classify safely
     if (meaningful.length < 1) continue; // nothing left but ".." segments - no target to check
     const classified = classifyPathJoinSegments(meaningful, { knownRepoSegments: segments, ownImportSpecifiers });
     if (classified.kind !== "repo-relative-path") continue;

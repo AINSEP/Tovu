@@ -13,6 +13,7 @@ import {
   extractPathJoinSegments,
   extractRelativeImportSpecifiers,
   extractStringLiterals,
+  fileDirectoryDepth,
   findingKey,
   pathThatMustExist,
   resolveImportCandidates,
@@ -458,6 +459,37 @@ test("dropLeadingParentSegments strips only the leading .. run, keeping a .. tha
   assert.deepEqual(dropLeadingParentSegments(["..", "..", "src", "server"]), ["src", "server"]);
   assert.deepEqual(dropLeadingParentSegments(["src", "..", "server"]), ["src", "..", "server"]);
   assert.deepEqual(dropLeadingParentSegments(["src"]), ["src"]);
+});
+
+test("dropLeadingParentSegments: given the file's depth, only an EXACT '..' count is trusted to land at repo root", () => {
+  // Gemini finding 15 (2026-09-05 re-triage): the function unconditionally stripped every leading
+  // ".." with no check that the dropped count matches the calling file's real nesting depth from
+  // repo root. import.meta.dirname (this repo's only computed base for these calls, per the
+  // 2026-09-05 audit) IS the file's own directory, so:
+  //  - too MANY ".." escapes above the repo root -- nothing there can be "repo-relative".
+  //  - too FEW ".." lands somewhere between the file and repo root, not at repo root -- treating the
+  //    remaining segments as repo-root-relative would check the wrong location entirely.
+  // Neither has a live instance today (2026-09-05 audit, exhaustive: every real call's ".." count
+  // matches its file's depth exactly) -- these are crafted direct-invocation reproductions.
+  assert.deepEqual(dropLeadingParentSegments(["..", "..", "src"], 2), ["src"], "an exact match still resolves");
+  assert.equal(dropLeadingParentSegments(["..", "..", "..", "src"], 2), null, "too many '..' escapes above repo root");
+  assert.equal(dropLeadingParentSegments(["..", "src"], 2), null, "too few '..' does not reach repo root");
+});
+
+test("fileDirectoryDepth counts directory levels below the repo root", () => {
+  assert.equal(fileDirectoryDepth("development/scripts/check-foo.ts"), 2);
+  assert.equal(fileDirectoryDepth("development/scripts/lib/dead-path-sweep.ts"), 3);
+  assert.equal(fileDirectoryDepth("foo.ts"), 0, "a file directly at the repo root has depth 0");
+});
+
+test("closed: dropLeadingParentSegments + fileDirectoryDepth reject a real file's mismatched '..' count end to end", () => {
+  // Same mechanism as the two direct tests above, driven through the real per-file depth used by
+  // sweepOneFile's actual call site, against this file's own real repo-relative path.
+  const file = "development/scripts/check-outbox-bridge.ts"; // depth 2: development/scripts
+  const depth = fileDirectoryDepth(file);
+  assert.equal(depth, 2);
+  assert.equal(dropLeadingParentSegments(["..", "..", "..", "src"], depth), null, "one '..' too many for this file");
+  assert.deepEqual(dropLeadingParentSegments(["..", "..", "src"], depth), ["src"], "the file's real, correct depth still resolves");
 });
 
 /** The pre-fix form of `rewrite-deep-imports.ts:50` (this task's own diff) — a SINGLE trailing literal
