@@ -10,7 +10,7 @@ import {
 import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { substituteHtmlEmbeds } from "#src/features/widgets/html-embeds";
+import { substituteHtmlEmbeds, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
@@ -1303,8 +1303,32 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
     if (!isPageEmbedType(ref.type)) return undefined;
     const lookupKey = ref.id ?? ref.slug;
     const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
-    return renderWidgetIr(ir);
+    return renderWidgetIr(withOccurrenceHeader(ir, ref));
   });
+}
+
+/**
+ * Bug fix (2026-09-05, adversarial verification of an externally-reported, never-run finding): a
+ * `"content"` marker's `header` option is authored PER OCCURRENCE (`html-embeds.ts`'s own doc on
+ * {@link PageHtmlEmbedRef.header}), but `resolver-service.ts`'s `resolveContentTypeEmbeds` stores
+ * only ONE `"post-content"` IR per `ref.id` in a `Map` — when the SAME id is embedded twice on one
+ * page with different `header` values, both `Map.set` calls race (`Promise.all`) and whichever ref
+ * wins decides `props.header` for BOTH occurrences at substitution time, silently dropping the
+ * loser's own opt-in/opt-out.
+ *
+ * Fixed here rather than in `resolver-service.ts` because substitution time is the one place that
+ * genuinely knows which specific marker occurrence is being rendered: `substituteHtmlEmbeds` already
+ * rebuilds a full, correct, per-occurrence {@link PageHtmlEmbedRef} (header included) for every
+ * marker via its own `toEmbedRef`, so `ref.header` here is always right for THIS occurrence — this
+ * override simply stops discarding it in favor of the resolve-time Map's collapsed, racy value.
+ * Scoped to `ref.type === "content"` producing a `"post-content"` IR — `PageHtmlEmbedRef.header`'s
+ * own doc is explicit that `header` is "Not read by widget/media/the legacy post type", and this fix
+ * must not widen that contract: the legacy `"post"` type's `"post-content"` IR keeps always showing
+ * the header exactly as before, even if a `"post"` marker happens to carry a `header` key.
+ */
+function withOccurrenceHeader(ir: WidgetRenderIR, ref: PageHtmlEmbedRef): WidgetRenderIR {
+  if (ref.type !== "content" || ir.componentId !== "post-content") return ir;
+  return { ...ir, props: { ...ir.props, header: ref.header } };
 }
 
 /**
