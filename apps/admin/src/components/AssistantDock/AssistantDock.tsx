@@ -98,6 +98,20 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  */
 const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
 /**
+ * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
+ * `registerExtEventRenderer`'s render-function argument below is re-invoked by `@jini-ai/chat/react`
+ * on every transcript render of an active `mcp-ui` event, not just once at registration. Building
+ * this URL inline there (as it used to be) minted a fresh `new URL(...)` object every such call —
+ * same string value, new identity — which flows straight through `OverflowAwareMcpUiSurfaceCard` ->
+ * `McpUiSurfaceCard` -> `McpUiHost` into Jini's `useMcpUiHost`, where `rendererProps = useMemo(...,
+ * [html, sandboxProxyUrl, ...])` (`useMcpUiHost.ts`) treats a changed `sandboxProxyUrl` identity as a
+ * reason to recompute even when `html` (the real View content) hasn't changed — silently defeating
+ * that memo on every re-render (2026-09-05 Gemini audit finding 33, confirmed by tracing into
+ * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
+ * hoisting to a plain module-scope constant is exact, not an approximation.
+ */
+const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);
+/**
  * Registered via the low-level `registerExtEventRenderer` (not Jini's own
  * `registerMcpUiSurfaceRenderer` convenience call, which would bind `McpUiSurfaceCard` itself with
  * no seam to wrap it) so this dock can render `OverflowAwareMcpUiSurfaceCard` instead — the "Show
@@ -136,7 +150,7 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
     // same-origin route would hand any third-party MCP server's HTML this admin origin's full
     // authority, because `@mcp-ui/client`'s `AppFrame` hardcodes `allow-same-origin` on the iframe
     // it creates.
-    sandboxProxyUrl={buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin)}
+    sandboxProxyUrl={assistantMcpUiSandboxProxyUrl}
   />
 ));
 

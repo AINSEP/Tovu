@@ -636,6 +636,32 @@ describe("AssistantDock — ext event renderer registrations", () => {
   });
 
   /**
+   * Regression coverage (2026-09-05 Gemini audit finding 33, upgraded to confirmed live defect by
+   * tracing into Jini's `useMcpUiHost.ts`). This renderer is re-invoked by `@jini-ai/chat/react` on
+   * every transcript render of an active `mcp-ui` event, not just once at registration time. Before
+   * the fix, `sandboxProxyUrl={buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin)}` ran
+   * INSIDE the render-function body, so every call minted a fresh `new URL(...)` — same string value,
+   * new object identity. That reference instability flows straight through
+   * `OverflowAwareMcpUiSurfaceCard` -> `McpUiSurfaceCard` -> `McpUiHost` into `useMcpUiHost`'s own
+   * `rendererProps = useMemo(..., [html, sandboxProxyUrl, ...])`: a `URL` that is a new object on
+   * every call defeats that memo every render even when `html` (the real View content) is unchanged,
+   * discarding the memoization Jini's hook is there to provide. The fix hoists the URL to a
+   * module-scope constant (this file's existing pattern for `mcpUiToolCaller`/`postA2uiAction`), so
+   * it is computed once and every renderer invocation reuses the same object. `toBe` (reference
+   * identity), not a value/string comparison, is the property under test — the URL's string value is
+   * identical either way, which is exactly why this bug can hide behind a weaker assertion.
+   */
+  it("passes the SAME sandboxProxyUrl object identity across repeated renderer invocations, not a fresh URL each time", () => {
+    const mockedRegister = vi.mocked(registerExtEventRenderer);
+    const [, renderer] = mockedRegister.mock.calls[0] as [string, Renderer];
+
+    const first = renderer({ toolCallId: "tc-1" });
+    const second = renderer({ toolCallId: "tc-2" });
+
+    expect(first.props.sandboxProxyUrl).toBe(second.props.sandboxProxyUrl);
+  });
+
+  /**
    * Coverage-gap-fill (2026-09-05). Same shape as the MCP-UI registration above, for the other two
    * module-scope-once `registerExtEventRenderer` calls in `AssistantDock.tsx`
    * (`"a2ui"` -> `RoutedA2uiSurfaceCard`, `"slow_running"` -> `SlowRunNoticeCard`) — neither renderer
