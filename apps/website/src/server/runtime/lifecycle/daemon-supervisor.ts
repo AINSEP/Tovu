@@ -399,14 +399,57 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
   };
 }
 
+/**
+ * Builds the daemon child's own argv — split out of {@link spawnRealDaemonProcessFor} so the
+ * discriminating `--workspace <id>` token (see this file's own header, "identity proof before
+ * killing") is directly assertable without spawning a real process.
+ *
+ * The token is inert to the daemon itself: `agent-daemon-server.ts` reads its workspace from
+ * `TOVU_WORKSPACE` (`buildDaemonSpawnEnvOverrides`) and never inspects `process.argv` at all
+ * (confirmed — no `process.argv` reference anywhere in that file), so appending it changes nothing
+ * about how the daemon behaves. Its only job is to give a FUTURE reconciler something to prove
+ * identity against, the same way `tovu-server.cjs` already proves a `tovu serve` child's identity
+ * from its own `<siteDir> --port <n>` argv — before this token, the daemon's argv was byte-identical
+ * across every instance (`[daemonPath]`/`["tsx", daemonPath]`), so an argv-substring proof like
+ * Tovu-Runner's `isProjectSidecar` had nothing to match against.
+ *
+ * @complexity O(1).
+ */
+export function buildDaemonSpawnArgs(input: { daemonPath: string; workspaceId: string }): string[] {
+  return [input.daemonPath, "--workspace", input.workspaceId];
+}
+
+/**
+ * Proves a live process's argv still belongs to `workspaceId` — an argv-substring match, the same
+ * technique as Tovu-Runner's `isProjectSidecar` (`project-provisioner.ts:701-716`), adapted to a seam
+ * that has nowhere yet to persist a daemon pid across a restart (see this file's own header). Pure
+ * and synchronous: the caller supplies the live command line (e.g. from `ps -o command=`), never an
+ * env dump — reading a child's environment via `ps eww`/`pgrep -fl` is banned in this codebase
+ * because both can leak another process's live secrets.
+ *
+ * Checks the token's trailing boundary, not a bare `.includes()`: `--workspace workspace-70` would
+ * otherwise satisfy a look-up for `workspace-7` too (a plain substring match), misidentifying a pid
+ * that legitimately belongs to a different, similarly-prefixed workspace id.
+ *
+ * @complexity O(1) — one indexOf plus one boundary check.
+ */
+export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: string): boolean {
+  const token = `--workspace ${workspaceId}`;
+  const start = commandLine.indexOf(token);
+  if (start === -1) return false;
+  const boundaryIndex = start + token.length;
+  return boundaryIndex === commandLine.length || /\s/.test(commandLine[boundaryIndex]);
+}
+
 function spawnRealDaemonProcessFor(input: DaemonSpawnEnvInput): SpawnedDaemonProcess {
   const daemonPath = resolveDaemonScriptPath();
   const isCompiled = daemonPath.endsWith(".js");
   const env: NodeJS.ProcessEnv = { ...process.env, ...buildDaemonSpawnEnvOverrides(input) };
+  const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
 
   const child = isCompiled
-    ? spawn(process.execPath, [daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
-    : spawn("npx", ["tsx", daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true });
+    ? spawn(process.execPath, args, { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
+    : spawn("npx", ["tsx", ...args], { stdio: ["ignore", "pipe", "pipe"], env, detached: true });
 
   // Relays the daemon's own output through this process instead of inheriting its fds — preserves
   // the existing `[agent-daemon] ...` log visibility during dev/test without sharing the pipe itself.
