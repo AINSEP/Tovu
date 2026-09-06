@@ -181,16 +181,15 @@ describe("Sites — the capability flag", () => {
   it("explains the deployment cannot switch sites and disables Activate", () => {
     renderSites({ snapshot: snapshotFixture({ switchingEnabled: false }) });
 
-    // The notice is page-level (rendered above the tab bar), so it is visible from BOTH tabs — the
-    // reason Create is inert has to reach the operator who opened the questionnaire, not only the
-    // one looking at the grid.
+    // The notice is page-level, so it is visible from BOTH views — the reason Create is inert has
+    // to reach the operator who opened the create screen, not only the one looking at the grid.
     expect(screen.getByText(/Creating and activating sites is turned off on this deployment/)).toBeTruthy();
     for (const button of screen.getAllByRole("button", { name: "Serve after restart" })) {
       expect(button.hasAttribute("disabled")).toBe(true);
     }
   });
 
-  it("disables Create on the questionnaire, and still says why there", () => {
+  it("disables Create on the create screen, and still says why there", () => {
     renderSites({ snapshot: snapshotFixture({ switchingEnabled: false }) }, "new");
 
     expect(screen.getByRole("button", { name: "Create site" }).hasAttribute("disabled")).toBe(true);
@@ -237,10 +236,10 @@ describe("Sites — load and error states", () => {
   it("renders the read failure rather than an empty grid", () => {
     renderSites({ snapshot: undefined, sites: [], listStatus: "error", listError: new Error("server down") });
     expect(screen.getByText("server down")).toBeTruthy();
-    // The full-screen error guard returns before the tab bar itself renders — asserting on the
-    // tablist rather than on one button inside one tab, because "Create site" is absent from the
-    // "all" tab anyway and that assertion would pass even if the whole screen had rendered.
-    expect(screen.queryByRole("tablist")).toBeNull();
+    // The full-screen error guard returns before the page header renders — asserting on the
+    // header's own New site button, which the list view always shows, rather than on "Create site",
+    // which is absent from the list view anyway and would pass even if the screen had rendered.
+    expect(screen.queryByRole("button", { name: /New site/ })).toBeNull();
   });
 
   it("shows a write failure as a banner without hiding the list", () => {
@@ -267,56 +266,62 @@ describe("Sites — hook injection", () => {
   });
 });
 
-describe("Sites — the tab system (2026-09-05 owner redesign: 'All sites' and 'New site')", () => {
-  it("opens on All sites for a bare URL, and shows the site cards rather than the questionnaire", () => {
+describe("Sites — the list/create views (Runner port: a header button, not a tab)", () => {
+  it("opens on the list for a bare URL, and shows the site cards rather than the create screen", () => {
     renderSites();
-    expect(screen.getByRole("tab", { name: /All sites/ }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByRole("tab", { name: /New site/ }).getAttribute("aria-selected")).toBe("false");
-    // Real content, not just the tab's existence: the grid's own cards are what this tab is for.
     // Asserting on the DISPLAY names, which only the cards render — the folder name "alpha" also
-    // appears in the `Now serving` card above the tabs, so it would match with no grid at all.
+    // appears in the `Now serving` card above, so it would match with no grid at all.
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.queryByLabelText("Folder name")).toBeNull();
   });
 
-  it("opens the questionnaire on ?tab=new, and stops rendering the grid's cards", () => {
+  it("offers New site as a header button, never as a tab", () => {
+    renderSites();
+    expect(screen.getByRole("button", { name: /New site/ })).toBeTruthy();
+    // The pass this replaced made it a tab. Nothing on this screen is a tablist any more, so a
+    // regression back to that shape fails here rather than silently passing a button query.
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("opens the create screen on ?tab=new, and stops rendering the grid's cards", () => {
     renderSites({}, "new");
-    expect(screen.getByRole("tab", { name: /New site/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByLabelText("Folder name")).toBeTruthy();
-    // The grid is genuinely gone, not merely visually hidden behind the questionnaire.
+    // The grid is genuinely gone, not merely visually hidden behind the create screen.
     expect(screen.queryByRole("button", { name: "Serve after restart" })).toBeNull();
   });
 
-  it("falls back to All sites for a stale or typo'd ?tab= value rather than blanking the panel", () => {
-    renderSites({}, "questionnaire");
-    expect(screen.getByRole("tab", { name: /All sites/ }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByText("Alpha")).toBeTruthy();
+  it("retitles the page on the create screen, the way Runner's own header does", () => {
+    renderSites({}, "new");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Create a site");
+    // And puts the way back on screen — Runner's `← All websites`.
+    expect(screen.getByRole("link", { name: /All sites/ })).toBeTruthy();
   });
 
-  it("counts only the LISTED sites on the All sites tab, so the count can never contradict the grid", () => {
-    renderSites({
-      snapshot: snapshotFixture({
-        sites: [],
-        currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
-      }),
-      sites: [],
-    });
-    // Zero, even though a site is plainly being served — the tab labels the grid beneath it, and a
-    // "1" here would be the same lie the unlisted-site notice exists to prevent.
-    expect(screen.getByRole("tab", { name: /All sites/ }).textContent).toContain("0");
+  it("hides the header's New site button on the create screen, so nothing links to where you are", () => {
+    renderSites({}, "new");
+    expect(screen.queryByRole("button", { name: /New site/ })).toBeNull();
+  });
+
+  it("falls back to the list for a stale or typo'd ?tab= value rather than blanking the panel", () => {
+    renderSites({}, "questionnaire");
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.queryByLabelText("Folder name")).toBeNull();
   });
 });
 
-describe("Sites — 'Now serving' is page-level, above the tabs, never inside one", () => {
-  it("states the live binding on the New site tab too, not just on All sites", () => {
+describe("Sites — 'Now serving' is page-level: it renders above BOTH views", () => {
+  it("states the live binding on the create screen too, not just on the list", () => {
     renderSites({}, "new");
-    // A bookmarked ?tab=new must never be a page that fails to say what is being served.
+    // A bookmarked ?tab=new must never be a page that fails to say what is being served. Runner's
+    // own create screen is a full-page takeover that hides its fleet chrome; this deliberately does
+    // not follow it there, because Create is the moment an operator is most likely to assume a
+    // switch happened.
     expect(screen.getByText("Now serving")).toBeTruthy();
     expect(screen.getByText("/repo/sites/alpha")).toBeTruthy();
   });
 
-  it("carries the unlisted-site warning onto the New site tab as well", () => {
+  it("carries the unlisted-site warning onto the create screen as well", () => {
     renderSites(
       {
         snapshot: snapshotFixture({
@@ -330,7 +335,7 @@ describe("Sites — 'Now serving' is page-level, above the tabs, never inside on
     expect(screen.getByText(/isn't listed below/)).toBeTruthy();
   });
 
-  it("carries the pending-choice notice onto the New site tab as well", () => {
+  it("carries the pending-choice notice onto the create screen as well", () => {
     renderSites(
       { snapshot: snapshotFixture({ persistedSiteName: "beta" }), outlook: { kind: "pending", name: "beta" } },
       "new",
@@ -339,53 +344,76 @@ describe("Sites — 'Now serving' is page-level, above the tabs, never inside on
   });
 });
 
-describe("Sites — the database question tells the truth about what it can actually do", () => {
-  it("offers SQLite as the chosen backend, checked and not switchable away from", () => {
+describe("Sites — the ported database picker tells the truth about what it can do", () => {
+  it("shows all three of Runner's backends, so the port is the port", () => {
     renderSites({}, "new");
-    const sqlite = screen.getByLabelText("SQLite") as HTMLInputElement;
-    expect(sqlite.checked).toBe(true);
+    expect(screen.getByLabelText("SQLite")).toBeTruthy();
+    expect(screen.getByLabelText("Supabase")).toBeTruthy();
+    expect(screen.getByLabelText("Custom DB Provider")).toBeTruthy();
   });
 
-  it("shows Supabase but makes it unselectable, and says why in words", () => {
+  it("leaves SQLite chosen and the other two refused", () => {
     renderSites({}, "new");
-    const supabase = screen.getByLabelText("Supabase") as HTMLInputElement;
-    expect(supabase.disabled).toBe(true);
-    expect(supabase.checked).toBe(false);
-    // Not merely greyed out — the screen states the fact, because a disabled control with no
-    // explanation reads as a bug or a permission problem rather than an unbuilt feature.
-    expect(screen.getByText(/Not supported yet/)).toBeTruthy();
+    expect((screen.getByLabelText("SQLite") as HTMLInputElement).checked).toBe(true);
+    for (const name of ["Supabase", "Custom DB Provider"]) {
+      const radio = screen.getByLabelText(name) as HTMLInputElement;
+      expect(radio.disabled).toBe(true);
+      expect(radio.checked).toBe(false);
+    }
   });
 
-  it("keeps the access-token field visible but inert, and says it is saved nowhere", () => {
+  it("says why each refused backend is refused, rather than only greying it out", () => {
     renderSites({}, "new");
-    const token = screen.getByLabelText("Supabase access token") as HTMLInputElement;
-    expect(token.disabled).toBe(true);
-    expect(screen.getByText(/isn't stored anywhere yet/)).toBeTruthy();
+    // Two, not one — a single match would pass with Custom DB Provider silently unexplained.
+    // A disabled control with no stated reason reads as a bug or a permissions problem, not as an
+    // unbuilt feature; Runner's own `blocked` status carries the same reasoning in its source.
+    expect(screen.getAllByText("Not supported yet")).toHaveLength(2);
+    expect(screen.getByText(/Tovu creates every site's content database as SQLite today/)).toBeTruthy();
+  });
+
+  it("keeps each vendor's credential fields visible but inert, and says they are stored nowhere", () => {
+    renderSites({}, "new");
+    for (const label of ["Supabase project URL", "Supabase API key", "Provider name", "Connection string or API endpoint"]) {
+      expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
+    }
+    expect(screen.getAllByText(/isn't stored anywhere yet/).length).toBeGreaterThan(0);
   });
 
   it("cannot be made to submit a database choice at all: create sends the name and nothing else", () => {
-    // The structural guarantee, not the cosmetic one. Even with the Supabase radio forced on in the
-    // DOM — which is exactly what a `disabled` attribute alone would not survive — submitting the
-    // form still calls `createSite()`, whose whole signature is zero arguments. There is no state
-    // holding a dialect and no argument that could carry one, so the "chose Supabase, silently got
-    // SQLite" outcome has no code path to travel down.
+    // The structural guarantee, not the cosmetic one. Even with BOTH unavailable radios forced on
+    // in the DOM — which is exactly what a `disabled` attribute alone would not survive —
+    // submitting still calls `createSite()`, whose whole signature is zero arguments. There is no
+    // state holding a dialect and no argument that could carry one, so "chose Supabase, silently
+    // got SQLite" has no code path to travel down.
     const controller = renderSites({ createName: "gamma" }, "new");
-    const supabase = screen.getByLabelText("Supabase") as HTMLInputElement;
-    supabase.disabled = false;
-    fireEvent.click(supabase);
+    for (const name of ["Supabase", "Custom DB Provider"]) {
+      const radio = screen.getByLabelText(name) as HTMLInputElement;
+      radio.disabled = false;
+      fireEvent.click(radio);
+    }
 
     fireEvent.submit(screen.getByLabelText("Folder name").closest("form") as HTMLFormElement);
     expect(controller.createSite).toHaveBeenCalledTimes(1);
     expect((controller.createSite as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]).toEqual([]);
   });
 
-  it("says chat data is always SQLite, so the one choice on screen isn't read as covering everything", () => {
+  it("says chat data is always SQLite, so the one live choice isn't read as covering everything", () => {
     renderSites({}, "new");
     expect(screen.getByText(/Chats always use SQLite/)).toBeTruthy();
   });
 });
 
-describe("Sites — the questionnaire still carries every create guard the tile had", () => {
+describe("Sites — the create screen's own navigation", () => {
+  it("offers Cancel as a way out that creates nothing", () => {
+    const controller = renderSites({ createName: "gamma" }, "new");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    // Leaving is not creating — the guard that matters here is that Cancel never submits the form
+    // it sits inside, which a `<button>` without an explicit `type="button"` would do by default.
+    expect(controller.createSite).not.toHaveBeenCalled();
+  });
+});
+
+describe("Sites — the create screen still carries every create guard the tile had", () => {
   it("keeps the multi-condition submit guard: a blank name cannot be submitted", () => {
     renderSites({ createName: "" }, "new");
     expect(screen.getByRole("button", { name: "Create site" }).hasAttribute("disabled")).toBe(true);

@@ -2,7 +2,6 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import type { TabBarTab } from "../../components/TabBar";
 import { siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 
 /**
@@ -82,58 +81,92 @@ export function resolveSiteCardClassName(site: AdminSiteListEntry, snapshot: Adm
 }
 
 /**
- * This screen's two tabs (owner redesign, 2026-09-05: "the first tab is all sites, second tab is
- * create new"). `"all"` is first and is the default, so a bare `/admin/sites` opens on the list
- * rather than on a form — the previous layout's actual failure was that a create form was the first
- * and (on this install) only thing on the screen.
- */
-export const SITES_TAB_IDS = ["all", "new"] as const;
-export type SitesTabId = (typeof SITES_TAB_IDS)[number];
-
-/** Falls back to `"all"` for an absent or unrecognized `?tab=` value, through the same shared guard
- *  `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the list,
- *  never a blank panel. */
-export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
-  return resolveActiveTabId(tabId, SITES_TAB_IDS, "all");
-}
-
-/**
- * The tab row's own data. `listedCount` is the length of the grid BENEATH the tab, never a count of
- * "sites that exist" — on this repo's own install the served site carries no `.site-meta.json`
- * marker and so is legitimately absent from `sites[]` (`Sites.tsx`'s header, point 1). A count that
- * quietly added the live binding back in would restate, in the one place an operator glances first,
- * exactly the lie the unlisted-site notice exists to prevent.
+ * This screen's two VIEWS — the list, and the create-a-site onboarding screen (Runner port,
+ * 2026-09-05).
  *
- * @complexity Time/space: O(1) — a fixed two-element array.
+ * Not tabs. An earlier pass made "New site" a second tab; Tovu Runner, which the owner asked this
+ * screen to follow, reaches its onboarding from a `+ Create website` button in the page header
+ * (`MainHeader` in Runner's `App.tsx`) and shows it as a full-page screen with its own `← All
+ * websites` back link. Runner's own tab strip means something else entirely — see `Sites.tsx`'s
+ * header.
+ *
+ * The URL key stays `?tab=` rather than becoming `?view=`: it is the query key every other tabbed
+ * admin screen already uses, it is what `panels.tsx` threads in, and one screen inventing a second
+ * spelling for "which sub-state of this panel am I on" is the drift ADR-063's shared guard exists to
+ * stop. What changed is how the resolved value is RENDERED, not how it is addressed.
  */
-export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[] {
-  return [
-    {
-      id: "all",
-      label: t("All sites"),
-      count: listedCount,
-      handle: "sites-tab-all",
-      handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
-    },
-    {
-      id: "new",
-      label: t("New site"),
-      handle: "sites-tab-new",
-      handleLabel: "Switch to the New site tab — the questionnaire that creates a site folder",
-    },
-  ];
+export const SITES_VIEW_IDS = ["all", "new"] as const;
+export type SitesViewId = (typeof SITES_VIEW_IDS)[number];
+
+/** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
+ *  guard `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the
+ *  list, never a blank panel. */
+export function resolveSitesViewId(tabId: string | null | undefined): SitesViewId {
+  return resolveActiveTabId(tabId, SITES_VIEW_IDS, "all");
 }
 
-/** Whether the All sites tab renders its empty state instead of the grid. Its own function rather
- *  than a `sites.length === 0` written in the JSX, per this file's header. */
+/** The page header's own kicker/title/description, which differ per view — Runner swaps its
+ *  `main__title` to "Create a website" while its onboarding is open (`MainHeader`), so the header
+ *  names the screen you are actually on rather than the section you came from.
+ *
+ *  @complexity Time/space: O(1). */
+export function resolveSitesHeading(view: SitesViewId, t: Translate): { kicker: string; title: string; description: string } {
+  if (view === "new") {
+    return {
+      kicker: t("New site"),
+      title: t("Create a site"),
+      description: t("Each site gets its own folder, content database, uploads, and themes."),
+    };
+  }
+  return {
+    kicker: t("Overview"),
+    title: t("Sites"),
+    description: t("Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart."),
+  };
+}
+
+/** Whether the site list renders its empty state instead of the grid. Its own function rather than
+ *  a `sites.length === 0` written in the JSX, per this file's header. */
 export function resolveSitesEmpty(sites: readonly AdminSiteListEntry[]): boolean {
   return sites.length === 0;
 }
 
-/** One database option's own class name — the selected/unavailable modifiers on `.site-db-option`.
- *  `available: false` never combines with `selected: true`: nothing on this screen can select an
- *  unavailable backend (see `NewSiteTab.tsx`'s own header for why that is structural rather than a
- *  matter of which flags happen to be passed here).
+/** One database backend the onboarding screen offers. `available` is the whole honesty seam: it is
+ *  a property of what Tovu's `initSite` can actually produce, never of what the operator picked. */
+export interface SiteDatabaseOption {
+  id: "sqlite" | "supabase" | "custom";
+  title: string;
+  hint: string;
+  available: boolean;
+}
+
+/**
+ * The three options, ported from Runner's own `DatabasePicker` (titles and hints kept close to its
+ * wording so the two products read as one family) with one field added that Runner has no need
+ * for: `available`.
+ *
+ * Runner can offer all three because Runner's create screen provisions nothing — its own footer
+ * says so ("Provisioning the copy and securely saving vendor credentials needs the Runner
+ * supervisor connection"), and it carries a whole `blocked` project status for exactly this, whose
+ * code comment reads: "A blocked project is waiting on database-provider support Tovu does not
+ * have, so the only honest affordance is none." Tovu's Create button, by contrast, REALLY creates a
+ * site — `initSite` runs, hardcoded to SQLite — so shipping Runner's three live options here would
+ * turn Runner's honest mockup into Tovu's silent lie. `available` is what stops that, and Runner's
+ * own comment above is the precedent for it rather than a departure from it.
+ *
+ * @complexity Time/space: O(1) — a fixed three-element array.
+ */
+export function resolveSiteDatabaseOptions(t: Translate): SiteDatabaseOption[] {
+  return [
+    { id: "sqlite", title: t("SQLite"), hint: t("Default · created inside this site's own folder"), available: true },
+    { id: "supabase", title: t("Supabase"), hint: t("Hosted · requires a project URL and API key"), available: false },
+    { id: "custom", title: t("Custom DB Provider"), hint: t("Any vendor · add its endpoint and credential"), available: false },
+  ];
+}
+
+/** One database option's own class name. `available: false` never combines with `selected: true`:
+ *  nothing on this screen can select an unavailable backend (see `CreateSiteOnboarding.tsx`'s own
+ *  header for why that is structural rather than a matter of which flags happen to be passed here).
  *
  *  @complexity Time/space: O(1). */
 export function resolveDatabaseOptionClassName(args: { selected: boolean; available: boolean }): string {

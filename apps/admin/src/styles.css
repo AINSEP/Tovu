@@ -4175,47 +4175,62 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .sites-empty-lead { margin: 0; font-size: var(--text-md); color: var(--muted); }
 .sites-empty-action { margin-top: var(--space-2); }
 
-/* ---- New site: the questionnaire ------------------------------------------------------------ */
-/* A narrow measure, deliberately. The rejected version's problem was a form squeezed into a grid
- * cell; the opposite failure — three short questions stretched across a 1440px admin — reads just
- * as badly. 34rem keeps every line inside a comfortable measure and matches `.sites-empty` above,
- * so the two tabs share one column width. */
-.site-wizard { max-width: 34rem; }
-.site-wizard-lead { margin: 0 0 var(--space-6); }
-.site-steps { list-style: none; margin: 0; padding: 0; }
+/* ---- Create a site: the onboarding screen (Tovu Runner port) --------------------------------- */
+/* Ported from Runner's `onboarding`/`onboarding-card`/`onboarding-section` shape at the owner's
+ * direction — one card running Site details -> Database -> actions, reached from a header button
+ * and titled as its own screen. Runner's CSS itself is NOT ported: every value below is one of this
+ * admin's own tokens, so the screen inherits Tovu's palette, radii, and type ramp rather than
+ * carrying Runner's in alongside them.
+ *
+ * A narrow measure, deliberately. The rejected first pass squeezed this form into a grid cell; the
+ * opposite failure — a short form stretched across a 1440px admin — reads just as badly. 40rem is
+ * wide enough for the database cards' two-line hints without letting any line run past a
+ * comfortable measure. */
+.back-link {
+  /* `gap`, not a trailing space in the arrow's own span — HTML collapses that space away, which
+     rendered the link as "←All sites" with the two run together. */
+  display: inline-flex; align-items: center; align-self: flex-start; gap: var(--space-1);
+  margin-bottom: var(--space-3); padding: 0;
+  font-size: var(--text-sm); color: var(--muted); text-decoration: none; background: none; border: none;
+}
+.back-link:hover { color: var(--fg); }
 
-/* One step. Numbered because this genuinely IS a sequence (name it, pick its database, create it)
- * and all three are on screen at once, so the numbers tell a reader how short the flow is rather
- * than decorating it. The hairline spine is drawn per-step from just under its own mark down to
- * the next one — not as one absolutely-positioned rule down the whole list, which would need to
- * know the last step's height to stop in the right place. */
-.site-step { display: grid; grid-template-columns: 1.75rem 1fr; gap: var(--space-4); position: relative; padding-bottom: var(--space-7); }
-.site-step::before {
-  content: ""; position: absolute; top: 2rem; bottom: 0; left: calc(0.875rem - 0.5px);
-  width: 1px; background: var(--border);
+.onboarding { max-width: 40rem; }
+.onboarding-card {
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden;
 }
-.site-step:last-child { padding-bottom: 0; }
-.site-step:last-child::before { display: none; }
-.site-step-mark {
-  display: grid; place-items: center; width: 1.75rem; height: 1.75rem; box-sizing: border-box;
-  border-radius: var(--r-pill); border: 1px solid var(--border-strong); background: var(--surface);
-  font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted);
-}
-.site-step-body { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.site-step-title { margin: 0; padding-top: 0.2rem; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
-.site-step-lead { margin: 0; font-size: var(--text-sm); color: var(--muted); }
-/* A folder name is a path segment, not prose — the same monospace the grid's `.site-card-name`
-   already uses for the identical string, so a name looks the same while being typed as it will
-   once it is a card. */
+/* Hairline-separated bands rather than separate cards: Runner's sections read as one continuous
+   setup sheet, and three floating cards would compete with the site grid's own card idiom on the
+   view right next door. */
+.onboarding-section { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6); }
+.onboarding-section + .onboarding-section { border-top: 1px solid var(--border); }
+.onboarding-section-head { display: flex; flex-direction: column; gap: var(--space-1); }
+.onboarding-section-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.onboarding-section-lead { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+/* A folder name is a path segment, not prose — the same monospace `.site-card-name` already uses
+   for the identical string, so a name looks the same while being typed as it will once it is a
+   card. */
 .site-name-input { font-family: var(--font-mono); }
 
-/* ---- New site: the database question --------------------------------------------------------- */
-/* Two options, exactly one of which this product can actually deliver. The unavailable one is
- * SHOWN (the owner asked for the choice to be visible) and its unavailability is stated in words
- * inside the card — a control that is merely greyed out reads as a bug or a permissions problem,
- * not as an unbuilt feature. Nothing here is load-bearing for the guarantee itself: no state can
- * hold a dialect and `createSite()` takes no argument, so the styling cannot be the thing standing
- * between a choice and a lie (see `NewSiteTab.tsx`'s own header). */
+/* The footer carries the restart truth beside the buttons, Runner's own `onboarding__actions`
+   arrangement. Tinted rather than hairline-separated so the commit point reads as the end of the
+   sheet rather than a fourth question. */
+.onboarding-actions {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-5) var(--space-6); background: var(--surface-2); border-top: 1px solid var(--border);
+}
+.onboarding-actions-note { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.onboarding-actions-buttons { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* ---- Create a site: the database picker ------------------------------------------------------ */
+/* Three options, exactly one of which this product can deliver. The two it cannot are SHOWN — the
+ * owner asked for Runner's picker, and hiding an unbuilt option teaches nothing — with their
+ * unavailability stated in words inside the card, because a control that is merely greyed out
+ * reads as a bug or a permissions problem. Nothing here is load-bearing for the guarantee itself:
+ * no state can hold a dialect and `createSite()` takes no argument, so the styling is never the
+ * thing standing between a choice and a lie (see `CreateSiteOnboarding.tsx`'s own header). */
 .site-db-options { display: flex; flex-direction: column; gap: var(--space-3); }
 .site-db-option {
   display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); align-items: start;
@@ -4224,27 +4239,30 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 .site-db-option input[type="radio"] { margin-top: 0.15rem; }
 .site-db-option.is-selected { border-color: var(--primary); background: var(--primary-dim); }
-/* Dashed, flat, and not-allowed: the same visual vocabulary `.site-card-create` used for "this is
-   a placeholder, not a thing yet", carried over to the one option that genuinely is one. */
+/* Dashed, flat, and not-allowed — the visual vocabulary this stylesheet already used for "a
+   placeholder, not a thing yet", carried over to the two options that genuinely are ones. */
 .site-db-option.is-unavailable { border-style: dashed; background: transparent; cursor: not-allowed; }
 .site-db-option.is-unavailable .site-db-option-name { color: var(--muted); }
 .site-db-option-text { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .site-db-option-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .site-db-option-name { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; color: var(--fg); }
 .site-db-option-note { font-size: var(--text-sm); color: var(--muted); }
-/* The access-token field, present so the shape of the eventual flow is visible, inert so it cannot
-   collect a credential this product has nowhere to put. Indented under its own option and given a
-   top rule so it reads as belonging to Supabase rather than to the question as a whole. */
-.site-db-token { margin-top: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--border); }
-.site-db-token .field-label { display: block; margin-bottom: var(--space-2); }
-.site-db-token input { width: 100%; box-sizing: border-box; }
-.site-db-token .field-hint { display: block; margin-top: var(--space-2); }
+/* A vendor's credential fields, present so the shape of the eventual flow is visible and inert so
+   they cannot collect a credential this product has nowhere to put. Indented under their own option
+   with a top rule, so they read as belonging to that vendor rather than to the question. */
+.site-db-vendor {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  margin-top: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--border);
+}
+.site-db-vendor .field { display: flex; flex-direction: column; gap: var(--space-2); }
+.site-db-vendor .field-label { display: block; }
+.site-db-vendor input { width: 100%; box-sizing: border-box; }
+.site-db-vendor .field-hint { display: block; }
 
 @media (max-width: 32rem) {
-  /* The spine costs more than it gives at phone width — the marks stay (they still say "three
-     questions"), the connecting rule goes, and the columns tighten. */
-  .site-step { grid-template-columns: 1.5rem 1fr; gap: var(--space-3); padding-bottom: var(--space-6); }
-  .site-step::before { display: none; }
-  .site-step-mark { width: 1.5rem; height: 1.5rem; }
+  .onboarding-section { padding: var(--space-5) var(--space-4); }
+  .onboarding-actions { padding: var(--space-4); }
+  .onboarding-actions-buttons { flex-direction: column-reverse; }
+  .onboarding-actions-buttons > button { width: 100%; }
   .sites-empty { padding: var(--space-6) var(--space-5); }
 }
