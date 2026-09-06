@@ -1,8 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-import { openContentDbReadOnly } from "../../../platform/db/sqlite/content-db.js";
+import { readAppliedSchemaIdentity } from "../../../platform/site-dir/read-applied-schema-identity.js";
 import { compareSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
 import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js";
 
@@ -21,14 +19,15 @@ import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js"
  * unconditionally runs Drizzle's `migrate()` with no schema-version check of any kind first.
  *
  * This module reuses `compareSchemaVersion` itself — the exact same policy `tovu serve` enforces,
- * unchanged — sourcing its `{schemaVersion, schemaTag}` input from the db's OWN
- * `__drizzle_migrations` table instead of a `.site-meta.json` stamp: the latest applied row's
- * `created_at` is matched back to the bundled `db/drizzle/meta/_journal.json` (the same match
- * `database-introspection-adapter.sqlite.ts`'s `readAppliedSnapshot()` already performs for the
- * Database admin tools — confirmed there, empirically, against `drizzle-orm`'s own migrator, that
- * `created_at` is stamped from the journal entry's own `when` epoch-millis value verbatim). A db
- * that has never been migrated (the table is absent or empty) has nothing to compare and is left
- * alone — `openContentDb()`'s own first-boot create+migrate+seed path handles it exactly as before.
+ * unchanged — sourcing its `{schemaVersion, schemaTag}` input from
+ * `read-applied-schema-identity.ts`'s `readAppliedSchemaIdentity()` (the db's OWN
+ * `__drizzle_migrations` table, matched back to the bundled `db/drizzle/meta/_journal.json`) instead
+ * of a `.site-meta.json` stamp — the shared implementation of the identical match
+ * `database-introspection-adapter.sqlite.ts`'s `readAppliedSnapshot()` independently performs for
+ * the Database admin tools (that one stays independent: it reuses an already-open `ContentDb`
+ * handle rather than opening its own read-only connection). A db that has never been migrated (the
+ * table is absent or empty) has nothing to compare and is left alone — `openContentDb()`'s own
+ * first-boot create+migrate+seed path handles it exactly as before.
  *
  * Architectural role:
  * A boot-time guard, mirroring `production-readiness-gate.ts`'s own shape: this module makes no
@@ -41,49 +40,6 @@ export type ContentDbSchemaGuardResult =
   | { status: "unmigrated" }
   | { status: "ok" }
   | { status: "refuse"; message: string };
-
-/** Resolved from this file's own location: `src/platform/db/drizzle/meta/_journal.json` — the
- *  SAME file `schema-guard.ts`'s `runtimeSchemaVersion()` reads, but (like the introspection
- *  adapter) this needs every entry, not just the last one, to match an arbitrary applied row. */
-const JOURNAL_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../platform/db/drizzle/meta/_journal.json");
-
-interface DrizzleJournalEntry {
-  idx: number;
-  when: number;
-  tag: string;
-}
-
-interface DrizzleJournal {
-  entries: DrizzleJournalEntry[];
-}
-
-function readJournal(): DrizzleJournal {
-  return JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as DrizzleJournal;
-}
-
-/** `"none"` — the db has never had a migration applied (table absent or empty): nothing to guard,
- *  `openContentDb()`'s normal migrate path is exactly correct. `"diverged"` — the table has an
- *  applied row whose `created_at` matches no entry in this runtime's bundled journal at all: a
- *  divergent lineage this function refuses to guess at, mirroring `readAppliedSnapshot()`'s own
- *  documented posture. Otherwise the matched `{idx, tag}` pair, ready for `compareSchemaVersion`. */
-function readAppliedMigrationIdentity(dbPath: string): "none" | "diverged" | { idx: number; tag: string } {
-  const sqlite = openContentDbReadOnly(dbPath).$client;
-  try {
-    const tableExists =
-      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'").get() !== undefined;
-    if (!tableExists) return "none";
-
-    const latest = sqlite.prepare("SELECT created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1").get() as
-      | { created_at: number }
-      | undefined;
-    if (!latest) return "none";
-
-    const matchingEntry = readJournal().entries.find((entry) => entry.when === latest.created_at);
-    return matchingEntry ? { idx: matchingEntry.idx, tag: matchingEntry.tag } : "diverged";
-  } finally {
-    sqlite.close();
-  }
-}
 
 /**
  * Checks whether `dbPath` (an existing content.db this process is ABOUT to open with
@@ -111,7 +67,7 @@ function readAppliedMigrationIdentity(dbPath: string): "none" | "diverged" | { i
 export function checkContentDbSchema(dbPath: string): ContentDbSchemaGuardResult {
   if (!fs.existsSync(dbPath)) return { status: "no-file" };
 
-  const applied = readAppliedMigrationIdentity(dbPath);
+  const applied = readAppliedSchemaIdentity(dbPath);
   if (applied === "none") return { status: "unmigrated" };
   if (applied === "diverged") {
     return {
