@@ -1,4 +1,5 @@
 import { formatTimestamp } from "../../lib/format-timestamp";
+import { agentHandle } from "@jini-ai/agentic";
 import { isWorkspaceDirty } from "./rules";
 import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
 import { t } from "./workspace-i18n";
@@ -73,13 +74,27 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
         <WorkspaceFormStatus locale={locale} saveError={saveError} saved={saved} dirty={dirty} />
         <label>
           {t("Name")}
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            {...agentHandle("workspace-name", { role: "field", label: "This workspace's name" })}
+          />
         </label>
         <label>
           {t("Slug")}
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} required />
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            required
+            {...agentHandle("workspace-slug", { role: "field", label: "This workspace's URL slug" })}
+          />
         </label>
-        <button type="submit" disabled={saving || !dirty}>
+        <button
+          type="submit"
+          disabled={saving || !dirty}
+          {...agentHandle("workspace-save", { role: "button", label: "Save the workspace's name and slug" })}
+        >
           {saving ? t("Saving…") : t("Save changes")}
         </button>
 
@@ -128,6 +143,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
           className="btn-danger"
           disabled
           title={t("Not available — this install has only one workspace")}
+          {...agentHandle("workspace-delete", { role: "button", label: "Delete workspace (not available — only one workspace exists)" })}
         >
           {t("Delete workspace")}
         </button>
