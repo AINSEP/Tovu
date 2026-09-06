@@ -180,6 +180,22 @@ describe("useFetchQuery", () => {
     await waitFor(() => expect(screen.getAllByTestId("data")[0]).toHaveTextContent("shared"));
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every other test in this file omits `staleTime`, so the
+   * `...(staleTime === undefined ? {} : { staleTime })` spread (adapter.tanstack.tsx) had only ever
+   * taken its `{}` branch. This is the interface's actual promise — an explicit `staleTime` reaches
+   * TanStack at all — not TanStack's own staleness timing, which this file's header says is
+   * deliberately out of scope.
+   */
+  it("accepts an explicit staleTime without throwing, and still resolves normally", async () => {
+    function StaleReader({ fetch }: { fetch: () => Promise<string> }) {
+      const q = useFetchQuery({ key: ["stale-thing"], fetch, staleTime: 60_000 });
+      return <span data-testid="data">{q.data ?? "-"}</span>;
+    }
+    wrap(<StaleReader fetch={async () => "fresh"} />);
+    await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("fresh"));
+  });
 });
 
 /**
@@ -325,6 +341,42 @@ describe("useFetchMutation", () => {
     }
 
     expect(reasons).toEqual([]);
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every prior `onSuccess` in this describe block passed
+   * `invalidates`, so `for (const key of invalidates ?? [])`'s `?? []` fallback (a caller that wants
+   * a write with no cache invalidation at all — a real, documented usage per `FetchMutationOptions`
+   * making `invalidates` optional) had never run.
+   */
+  it("a successful write with no invalidates option configured triggers no invalidation and does not throw", async () => {
+    const fetch = vi.fn(async () => "v1");
+    wrap(<Writer run={async () => "ok"} fetch={fetch} />);
+
+    await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("v1"));
+    await userEvent.click(screen.getByRole("button", { name: "write" }));
+
+    await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("success"));
+    // No second fetch — nothing was invalidated, so the query never refetched.
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). No test in this file ever asserted `m.status === "pending"`
+   * directly, so the status derivation's `mutation.status === "pending" ? "pending" : ...` ternary
+   * (adapter.tanstack.tsx) had only ever taken its `false` branch. A deferred `run` holds the write
+   * open long enough to observe the in-flight render.
+   */
+  it("reports status 'pending' while the write is in flight, before it settles either way", async () => {
+    const pending = deferred<string>();
+    wrap(<Writer run={() => pending.promise} fetch={async () => "v1"} />);
+    await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("v1"));
+
+    await userEvent.click(screen.getByRole("button", { name: "write" }));
+    await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("pending"));
+
+    pending.resolve("done");
+    await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("success"));
   });
 
   it("mutate() rejects, so a caller that needs the outcome can await it inline", async () => {

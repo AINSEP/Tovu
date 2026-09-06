@@ -343,6 +343,28 @@ describe("startAgUiRun — request shape", () => {
     expect(body.messages).toEqual([{ id: "2", role: "user", content: "real question" }]);
   });
 
+  test("an assistant-role history entry maps to role 'assistant', not just 'user' — full-transcript resend, not last-turn-only", async () => {
+    // Coverage-gap-fill (2026-09-05): every other test in this describe block uses HISTORY (a single
+    // user turn), so `toAgUiMessage`'s "assistant" branch (assistant-transport-ag-ui.ts) had never
+    // run. A real multi-turn conversation always has both roles.
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const history: ChatMessage[] = [
+      { id: "1", role: "user", content: "find my posts" },
+      { id: "2", role: "assistant", content: "here they are" },
+    ];
+
+    await startAgUiRun({ history, signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { messages: unknown[] };
+    expect(body.messages).toEqual([
+      { id: "1", role: "user", content: "find my posts" },
+      { id: "2", role: "assistant", content: "here they are" },
+    ]);
+  });
+
   test("an explicit agentId rides in forwardedProps.agentId — RunAgentInput has no top-level agentId field", async () => {
     const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
@@ -604,5 +626,41 @@ describe("createTovuAssistantTransport — AG-UI toggle dispatch", () => {
     const result = await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, handlers());
 
     expect(result.runId).toMatch(/^byok:/);
+  });
+
+  test("reattachRun on an agui: id dispatches to reattachAgUiRun regardless of the toggle — id prefix decides, not getAgUiEnabled", async () => {
+    // Coverage-gap-fill (2026-09-05): `assistant-transport.ts`'s own `reattachRun` has an
+    // `isAgUiRunId(runId)` branch delegating to `reattachAgUiRun`, distinct from the BYOK/daemon
+    // branches already covered by the sibling `*.byok`/`*.daemon` unit-test files. Nothing exercised
+    // it through the top-level transport before this.
+    const transport = createTovuAssistantTransport({});
+    const h = handlers();
+
+    await transport.reattachRun("agui:never-started", h);
+
+    expect(h.done).toEqual([]);
+    expect(h.errors).toEqual([]);
+  });
+
+  test("stopRun on an agui: id dispatches to stopAgUiRun regardless of the toggle — same id-prefix dispatch as reattachRun", async () => {
+    const transport = createTovuAssistantTransport({});
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(transport.stopRun("agui:never-existed")).resolves.toBeUndefined();
+    // No server-side run record exists for an AG-UI id — confirms this went through
+    // `stopAgUiRun` (abort-only), not the daemon branch's `POST .../cancel`.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("fetchRunStatus on an agui: id dispatches to fetchAgUiRunStatus regardless of the toggle — same id-prefix dispatch as reattachRun/stopRun", async () => {
+    const transport = createTovuAssistantTransport({});
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(transport.fetchRunStatus("agui:never-existed")).resolves.toBeNull();
+    // No server-side run record exists for an AG-UI id — confirms this went through
+    // `fetchAgUiRunStatus` (always null), not the daemon branch's `GET /api/runs/:id`.
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -55,4 +55,20 @@ describe("resolveFetchQueryError", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err?.message).toBe("not an Error instance");
   });
+
+  it("uses the literal fallback message ('request failed') when the thrown value is a non-string, not the string case above", () => {
+    // Coverage-gap-fill (2026-09-05): the test above only exercises toError's `typeof value ===
+    // "string" && value.trim()` TRUE branch (a non-empty string is used as-is). Neither sub-condition
+    // had ever been false — this covers the non-string case; the next test covers the
+    // whitespace-only-string case.
+    const err = resolveFetchQueryError(42, false, false);
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toBe("request failed");
+  });
+
+  it("uses the fallback message for a whitespace-only string throw, not the blank string itself", () => {
+    const err = resolveFetchQueryError("   ", false, false);
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toBe("request failed");
+  });
 });

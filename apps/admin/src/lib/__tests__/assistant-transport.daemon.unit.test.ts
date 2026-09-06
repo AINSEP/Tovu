@@ -537,6 +537,38 @@ describe("subscribeToRun — EventSource frame handling", () => {
     expect(h.events).toEqual([{ kind: "raw", line: "building..." }]);
   });
 
+  test("an 'end' frame carrying reason 'max_tool_turns' surfaces a status notice before onDone", async () => {
+    // Coverage-gap-fill (2026-09-05): every other 'end' test in this file emits `""` (no data), so
+    // `terminalReasonNotice`'s only truthy branch (assistant-transport.ts) had never fired. The
+    // daemon path wraps the reason in `payload` (readTerminalReason's `wrapped: true` argument),
+    // unlike BYOK's bare `{reason}` shape.
+    const { h, source } = await openRun();
+
+    source.emit("end", JSON.stringify({ payload: { reason: "max_tool_turns" } }));
+
+    expect(h.events).toEqual([
+      {
+        kind: "status",
+        label: "Stopped early — tool-step limit reached",
+        detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
+      },
+    ]);
+    expect(h.done).toEqual(h.events);
+  });
+
+  test("an 'end' frame with valid JSON but no 'payload' key ends the run quietly — the wrapped path's own `?? {}` fallback", async () => {
+    // Coverage-gap-fill (2026-09-05): the test above always includes a `payload` object, so
+    // `readTerminalReason`'s `(parsed.payload ?? {})` fallback (assistant-transport.ts) had never
+    // run. A frame that parses but carries no `payload` at all is the documented "no data" case one
+    // level up from a totally empty string.
+    const { h, source } = await openRun();
+
+    source.emit("end", JSON.stringify({ unrelated: true }));
+
+    expect(h.events).toEqual([]);
+    expect(h.done).toEqual([]);
+  });
+
   test("an 'error' frame with a data payload reports the wire message via onError", async () => {
     const { h, source } = await openRun();
 
