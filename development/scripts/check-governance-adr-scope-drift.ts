@@ -116,12 +116,12 @@ export function parseAdrIndexTable(markdown: string): readonly AdrIndexRow[] {
     rows.push({
       id: unbacktick(id),
       title,
-      enforcement,
+      enforcement: unbacktick(enforcement),
       scopeGlobs: unbacktick(scopeGlobsCell)
         .split(";")
         .map((g) => g.trim())
         .filter((g) => g.length > 0),
-      status,
+      status: unbacktick(status),
       file: unbacktick(file),
     });
   }

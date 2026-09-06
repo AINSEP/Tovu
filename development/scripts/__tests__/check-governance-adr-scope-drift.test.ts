@@ -95,6 +95,25 @@ test("parseAdrIndexTable: an empty table (only header/separator) parses to zero 
   assert.deepEqual(parseAdrIndexTable(markdown), []);
 });
 
+test("parseAdrIndexTable: a backtick-wrapped Status cell is still stripped, so findEmptyGlobs' ACCEPTED check still matches it", () => {
+  // Gemini finding 9 (2026-09-05 re-triage): id/scopeGlobsCell/file were passed through unbacktick(),
+  // but status and enforcement were assigned raw. A backtick-wrapped Status cell left row.status as
+  // the literal string "`ACCEPTED`", which findEmptyGlobs' `row.status !== "ACCEPTED"` compares
+  // against verbatim — silently skipping that row's enforcement entirely.
+  const markdown = [
+    "| ID | Title | Enforcement | Scope Globs | Status | File |",
+    "|---|---|---|---|---|---|",
+    "| GOV-ADR-777 | Some Rule | `MANDATORY` | `apps/website/src/features/**` | `ACCEPTED` | `GOV-ADR-777-fixture.md` |",
+    "",
+  ].join("\n");
+
+  const rows = parseAdrIndexTable(markdown);
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.status, "ACCEPTED", "a backtick-wrapped Status cell must be stripped like the other cells");
+  assert.equal(rows[0]!.enforcement, "MANDATORY", "a backtick-wrapped Enforcement cell must be stripped like the other cells");
+});
+
 // ---------------------------------------------------------------------------
 // globToRegExp / globMatchesAnyFile
 // ---------------------------------------------------------------------------
