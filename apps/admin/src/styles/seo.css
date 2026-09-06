@@ -150,6 +150,42 @@
   padding-block-start: var(--space-6);
 }
 
+/* The entry picker is a bare `<label>` wrapping its `<select>`, so the select sizes to its widest
+   option with nothing capping it — measured at 390: right edge 393px against a 378px column, i.e.
+   clipped by the page, which does not scroll horizontally so there is no way to see the rest of it.
+   Pre-existing (the old container was equally unconstrained) but newly obvious without the box.
+   One declaration, and only at widths where it binds: at 1440 the select measures 380px inside a
+   672px column, so this changes nothing there. */
+.seo-entry-section .seo-section-body select {
+  max-width: 100%;
+}
+
+/* Same stacking problem the section body has, from the same cause: `.seo-entry-panel` is a
+   `flex-column` with a 0.7rem gap (styles.css L2614), and its bare `<h3>` and lead `<p>` add their
+   own block margins on top of it — measured 18.72px and 13.6px, putting 64px between the heading
+   and the sentence that explains it. The gap is the rhythm; these two only ever fought it. */
+.seo-entry-panel > h3,
+.seo-entry-panel > p,
+.seo-analyze-panel > h3,
+.seo-analyze-panel > p {
+  margin: 0;
+}
+
+/* These two headings are subsections of the "Per-entry SEO" section they sit inside, and they were
+   rendering LARGER than the section title above them — 18.72px DM Sans against `.seo-section-title`
+   at 16.8px display, an inverted hierarchy that the boxes used to excuse by making each panel look
+   like a separate screen. Same face as the rail titles, one step down (0.95rem), so the three tiers
+   on this tab now descend: page title 26.4px -> section 16.8px -> subsection 15.2px. */
+.seo-entry-panel > h3,
+.seo-analyze-panel > h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
 /* `.seo-entry-panel label` (styles.css L2615) is `flex-direction: column` for the eight text
    fields it was written for, and the two checkbox rows inherit it — measured live: the box sits
    ABOVE its own word, "Noindex" on the line below the control it labels. Invisible enough inside

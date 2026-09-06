@@ -141,7 +141,7 @@ function AnalyzePanel(props: { locale: string; analysis: SeoEntryAnalysis }) {
   const sortedIssues = sortIssuesBySeverity(props.analysis.issues);
 
   return (
-    <div className="notice seo-analyze-panel">
+    <div className="seo-analyze-panel">
       <h3>{t(locale, "Analysis")}</h3>
       <p>
         {t(locale, "Score:")} <strong>{props.analysis.score}</strong>
@@ -194,7 +194,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
   if (!resolved) return <div className="notice">{t(locale, "Loading entry SEO…")}</div>;
 
   return (
-    <div className="notice seo-entry-panel">
+    <div className="seo-entry-panel">
       <h3>{t(locale, "Per-entry overrides")}</h3>
       <p className="muted-cell">
         {t(locale, "Fields show the currently-effective value (author override, or site default, or derived from the entry). Only fields you change here are saved as overrides.")}
@@ -316,15 +316,16 @@ function SeoEntrySection({ locale, useSeoEntrySectionHook = useSeoEntrySection }
 
   return (
     <div
-      className="seo-entry-section"
+      className="seo-panel seo-entry-section"
       {...agentHandle("seo-per-entry", {
         role: "region",
         label: "Per-entry SEO overrides — pick one entry and edit or analyze its metadata",
       })}
     >
-      <h2>{t(locale, "Per-entry SEO")}</h2>
-      <EntryPicker locale={locale} entryId={entryId} onChange={setEntryId} />
-      {entryId ? <SeoEntryPanel locale={locale} key={entryId} entryId={entryId} /> : null}
+      <SeoSection title={t(locale, "Per-entry SEO")}>
+        <EntryPicker locale={locale} entryId={entryId} onChange={setEntryId} />
+        {entryId ? <SeoEntryPanel locale={locale} key={entryId} entryId={entryId} /> : null}
+      </SeoSection>
     </div>
   );
 }
