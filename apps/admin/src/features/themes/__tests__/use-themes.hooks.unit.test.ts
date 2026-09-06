@@ -116,6 +116,53 @@ describe("useThemes — activate race safety", () => {
     expect(result.current.busyTheme).toBeNull();
   });
 
+  /**
+   * The `finally` block's own stale-settlement guard is a THIRD, independent check from the two
+   * above (mutation-sweep flagged it separately: disabling only this one leaves the success/error
+   * guards intact, so a test that merely lands on the correct FINAL `busyTheme` value doesn't prove
+   * it — see this file's own handoff notes). It only diverges from "no-op" when the stale call
+   * settles WHILE the newer one is still pending: clearing `busyTheme` here would hide the busy
+   * indicator for a switch that hasn't actually finished yet.
+   */
+  it("a stale activate settling while a newer activate is still pending must not clear busyTheme early", async () => {
+    const deferred: Record<string, { resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
+    const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
+    port.setActiveTheme = vi.fn(
+      (activeThemeId: string) =>
+        new Promise((resolve) => {
+          deferred[activeThemeId] = { resolve };
+        })
+    );
+
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
+
+    act(() => {
+      void result.current.activate("quartz");
+    });
+    act(() => {
+      void result.current.activate("slate");
+    });
+    await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(2));
+    expect(result.current.busyTheme).toBe("slate");
+
+    // quartz (stale) settles now, while slate's own call is STILL pending.
+    await act(async () => {
+      deferred.quartz!.resolve({ settings: settingsFor("quartz"), availableThemeIds: ["basic", "quartz", "slate"] });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // slate's activate has not settled yet — busyTheme must still show it, not be cleared by
+    // quartz's stale settlement.
+    expect(result.current.busyTheme).toBe("slate");
+
+    // Now let slate settle too, and confirm busyTheme finally clears.
+    await act(async () => {
+      deferred.slate!.resolve({ settings: settingsFor("slate"), availableThemeIds: ["basic", "quartz", "slate"] });
+    });
+    await waitFor(() => expect(result.current.busyTheme).toBeNull());
+  });
+
   it("a stale FAILED activate settling after a newer, successful activate must not resurrect a stale error", async () => {
     const deferred: Record<string, { reject: (reason: unknown) => void; resolveOk: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const promises: Record<string, Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>> = {};
@@ -224,6 +271,51 @@ describe("useThemes — download race safety", () => {
     // The operator's LAST click (beta) must still be what is shown.
     expect(result.current.themes).toEqual(["basic", "beta"]);
     expect(result.current.downloading).toBeNull();
+  });
+
+  /**
+   * Same third, independent `finally`-guard as `activate`'s own (see that describe block's doc
+   * comment) — only observable when the stale call settles while the newer one is still pending.
+   */
+  it("a stale download settling while a newer download is still pending must not clear downloading early", async () => {
+    const deferred: Record<
+      string,
+      { resolve: (value: { id: string; suffixed: boolean; tier: string; rescan: { added: string[]; removed: string[]; total: number } }) => void }
+    > = {};
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    port.downloadMarketplaceTheme = vi.fn(
+      (themeId: string) =>
+        new Promise((resolve) => {
+          deferred[themeId] = { resolve };
+        })
+    );
+
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+
+    act(() => {
+      void result.current.download!("alpha");
+    });
+    act(() => {
+      void result.current.download!("beta");
+    });
+    await waitFor(() => expect(port.downloadMarketplaceTheme).toHaveBeenCalledTimes(2));
+    expect(result.current.downloading).toBe("beta");
+
+    // alpha (stale) settles now, while beta's own call is STILL pending.
+    await act(async () => {
+      deferred.alpha!.resolve({ id: "alpha", suffixed: false, tier: "declarative", rescan: { added: ["alpha"], removed: [], total: 2 } });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // beta's download has not settled yet — downloading must still show it, not be cleared by
+    // alpha's stale settlement.
+    expect(result.current.downloading).toBe("beta");
+
+    await act(async () => {
+      deferred.beta!.resolve({ id: "beta", suffixed: false, tier: "declarative", rescan: { added: ["beta"], removed: [], total: 2 } });
+    });
+    await waitFor(() => expect(result.current.downloading).toBeNull());
   });
 
   it("a stale FAILED download settling after a newer, successful download must not resurrect a stale error", async () => {
