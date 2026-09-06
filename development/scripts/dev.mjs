@@ -286,6 +286,48 @@ export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
   };
 }
 
+/**
+ * NODE_EXTRA_CA_CERTS resolution — split out of `main()` (no logic change) purely to bring that
+ * function's complexity under the repo's ceiling of 9 (`.mjs` files sit outside the ESLint gate
+ * that would otherwise enforce this, so nothing catches it growing here).
+ *
+ * mkcert installs its CA into the OS trust store, which Node does NOT consult — it uses its own
+ * bundled CA list. So the moment either dev server speaks TLS with an mkcert cert, any server-side
+ * Node `fetch`/`https.request` to that origin fails UNABLE_TO_VERIFY_LEAF_SIGNATURE, even though the
+ * identical URL works fine in a browser tab. Pointing `NODE_EXTRA_CA_CERTS` at mkcert's own root CA
+ * fixes that for the whole process tree spawned below, without touching
+ * `NODE_TLS_REJECT_UNAUTHORIZED` — that variable disables certificate verification process-wide,
+ * including for real outbound calls this repo makes to third-party provider APIs, which is a
+ * materially worse trade than a narrowly-scoped extra trusted root.
+ *
+ * Best-effort: `mkcert` is already a hard requirement to have GENERATED the certs `main()` found
+ * before calling this, so it is expected to be on PATH here too, but a boot must never hard-fail
+ * over a CA-trust nicety — the two servers themselves come up either way. A missing/failed CAROOT
+ * only affects server-side Node callers that verify certs by default (documented in the handoff
+ * report; today that is only `development/scripts/agent-run-probe.mjs`, run by hand, never by this
+ * script).
+ *
+ * @param {boolean} tlsActive
+ * @returns {string | undefined} mkcert's `rootCA.pem` path, or `undefined` when TLS is inactive or
+ *   the root CA could not be located.
+ */
+function resolveMkcertRootCaPath(tlsActive) {
+  if (!tlsActive) return undefined;
+
+  const caRoot = spawnSync("mkcert", ["-CAROOT"], { encoding: "utf8" });
+  const rootCaPath = caRoot.status === 0 ? path.join(caRoot.stdout.trim(), "rootCA.pem") : undefined;
+  if (rootCaPath && existsSync(rootCaPath)) {
+    return rootCaPath;
+  }
+
+  console.warn(
+    "tovu dev: TLS is active but mkcert's root CA could not be located (`mkcert -CAROOT` failed, or rootCA.pem " +
+      "is missing) — a server-side Node caller (e.g. development/scripts/agent-run-probe.mjs run against " +
+      `https://localhost:${API_PORT}) will fail TLS verification until NODE_EXTRA_CA_CERTS is set by hand.\n`
+  );
+  return undefined;
+}
+
 async function main() {
   preflight();
 
@@ -295,35 +337,7 @@ async function main() {
     disableFlag: isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS),
   });
   const scheme = deriveDevScheme(tlsActive);
-
-  // NODE_EXTRA_CA_CERTS: mkcert installs its CA into the OS trust store, which Node does NOT
-  // consult — it uses its own bundled CA list. So the moment either dev server speaks TLS with an
-  // mkcert cert, any server-side Node `fetch`/`https.request` to that origin fails
-  // UNABLE_TO_VERIFY_LEAF_SIGNATURE, even though the identical URL works fine in a browser tab.
-  // Pointing this at mkcert's own root CA fixes that for the whole process tree spawned below,
-  // without touching `NODE_TLS_REJECT_UNAUTHORIZED` — that variable disables certificate
-  // verification process-wide, including for real outbound calls this repo makes to third-party
-  // provider APIs, which is a materially worse trade than a narrowly-scoped extra trusted root.
-  //
-  // Best-effort: `mkcert` is already a hard requirement to have GENERATED the certs found above, so
-  // it is expected to be on PATH here too, but a boot must never hard-fail over a CA-trust nicety —
-  // the two servers themselves come up either way. A missing/failed CAROOT only affects server-side
-  // Node callers that verify certs by default (documented in the handoff report; today that is only
-  // `development/scripts/agent-run-probe.mjs`, run by hand, never by this script).
-  let extraCaCerts;
-  if (tlsActive) {
-    const caRoot = spawnSync("mkcert", ["-CAROOT"], { encoding: "utf8" });
-    const rootCaPath = caRoot.status === 0 ? path.join(caRoot.stdout.trim(), "rootCA.pem") : undefined;
-    if (rootCaPath && existsSync(rootCaPath)) {
-      extraCaCerts = rootCaPath;
-    } else {
-      console.warn(
-        "tovu dev: TLS is active but mkcert's root CA could not be located (`mkcert -CAROOT` failed, or rootCA.pem " +
-          "is missing) — a server-side Node caller (e.g. development/scripts/agent-run-probe.mjs run against " +
-          `https://localhost:${API_PORT}) will fail TLS verification until NODE_EXTRA_CA_CERTS is set by hand.\n`
-      );
-    }
-  }
+  const extraCaCerts = resolveMkcertRootCaPath(tlsActive);
 
   console.log(
     `tovu dev: starting API on ${scheme}://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
