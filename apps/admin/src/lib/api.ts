@@ -775,14 +775,23 @@ export interface AdminConnector {
 }
 
 /** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
- *  `src/server/routes/admin/assistant/detect-agents.ts`'s `toExecutionTabAgent`. */
+ *  `src/server/routes/admin/assistant/detect-agents.ts`'s `toExecutionTabAgent`.
+ *
+ *  Each model's `reasoning` mirrors `@jini-ai/agent-runtime`'s `RuntimeModelOption.reasoning`
+ *  (`packages/agent-runtime/src/types.ts` in Jini) — a model's OWN effort levels, narrowed to
+ *  `{id,label}` the same way every other field on this interface narrows its Jini counterpart.
+ *  `undefined` means the runtime doesn't report per-model levels for this agent (Codex today);
+ *  it is never defaulted to `[]`, which would misreport "unknown" as "this model supports zero" —
+ *  see `toExecutionTabAgent`'s `projectModelReasoning` for the same rule on the wire side. No
+ *  `@jini-ai/ui` picker reads this yet; it exists so a future one can narrow the "Reasoning effort"
+ *  control to the SELECTED model instead of `reasoningOptions`' agent-wide union. */
 export interface AdminExecutionDetectedAgent {
   id: string;
   label: string;
   installed: boolean;
   version?: string;
   path?: string;
-  models?: Array<{ id: string; label: string }>;
+  models?: Array<{ id: string; label: string; reasoning?: Array<{ id: string; label: string }> }>;
   modelsSource?: "live" | "fallback";
   authStatus?: "ok" | "missing" | "unknown";
   authMessage?: string;

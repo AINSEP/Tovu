@@ -66,6 +66,35 @@ test("detectExecutionAgents POSTs an empty body to /assistant/execution/detect-a
   expect(result).toEqual({ data: agents });
 });
 
+test("detectExecutionAgents round-trips a model's own reasoning levels without stripping them", async () => {
+  // `AdminExecutionDetectedAgent.models[]` mirrors `RuntimeModelOption.reasoning` (Codex's
+  // per-model effort levels) precisely so a future picker can narrow the "Reasoning effort"
+  // control to the SELECTED model instead of the agent-wide `reasoningOptions` union. `request()`
+  // does a raw `body as T` cast with no field mapping, so this pins that `detectExecutionAgents()`
+  // stays transparent — a future response-shaping change here would be exactly the same silent
+  // narrowing `toExecutionTabAgent`'s projection helpers have already reintroduced twice.
+  const agents = [
+    {
+      id: "codex",
+      label: "Codex",
+      installed: true,
+      models: [
+        {
+          id: "gpt-5.5",
+          label: "GPT-5.5",
+          reasoning: [
+            { id: "low", label: "Low" },
+            { id: "xhigh", label: "Extra high" },
+          ],
+        },
+      ],
+    },
+  ];
+  stubFetchCapturing(okJson({ data: agents }));
+  const result = await api.detectExecutionAgents();
+  expect(result).toEqual({ data: agents });
+});
+
 test("detectExecutionAgents throws ApiError on a non-2xx response", async () => {
   stubFetchCapturing(errJson(500, "detection crashed"));
   const error = await api.detectExecutionAgents().catch((e: unknown) => e);
