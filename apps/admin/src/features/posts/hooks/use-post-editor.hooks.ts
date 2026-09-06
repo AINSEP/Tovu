@@ -304,6 +304,27 @@ export async function uploadDroppedFile(port: PostEditorPort, file: File): Promi
 }
 
 /**
+ * `save`'s success-toast copy (complexity-ceiling pass, 2026-09-05 — same "nested ternary moves to a
+ * top-level function" reasoning {@link computeContentDirty} above already states). Split out purely
+ * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
+ * stale-settlement guard added the same day.
+ */
+function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, version: number): string {
+  return `${statusOverride === "published" ? "Published" : "Saved"} · version ${version}`;
+}
+
+/**
+ * `save`'s failure copy — same extraction reasoning as {@link formatSaveSuccessMessage} just above.
+ * A thrown `Error`'s own message wins; otherwise falls back to a verb-specific default so the
+ * operator hears "publish failed" rather than the generic "save failed" when the Publish button is
+ * what triggered this call.
+ */
+function formatSaveErrorMessage(error: unknown, statusOverride: "draft" | "published" | undefined): string {
+  if (error instanceof Error) return error.message;
+  return statusOverride === "published" ? "publish failed" : "save failed";
+}
+
+/**
  * `FileHandler`'s `onDrop` callback body (2026-08-12, B1) — uploads each dropped file via
  * {@link uploadDroppedFile} and inserts it at the drop position with `insertContentAt`, producing
  * the IDENTICAL `{assetId, transformName: "public", alt}` node shape `insertMediaRef`
@@ -410,6 +431,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Pending-content preview (2026-08-12, moved from `PostPreview` — see `PostEditorController
   // .previewFormRef`'s own doc). The hidden form's DOM node; `PostPreview` attaches it via `ref`.
   const previewFormRef = useRef<HTMLFormElement>(null);
+  // Stale-settlement guard for `save()` (2026-09-05 sweep) — neither Save nor Publish disables
+  // while a request is in flight (`PostEditorHeader`, `PostEditor.tsx`), so an operator can click
+  // Save then Publish (or double-click either) before the first request settles. A `useRef`, not
+  // `useState`: two `save()` calls issued in the same synchronous tick must both observe the
+  // INCREMENT the other one just made, which only a synchronous ref read/write guarantees — a
+  // `useState` counter would have both calls read the same pre-commit value, same reasoning
+  // `use-static-publish.hooks.ts`'s `publishingRef` documents for itself.
+  const saveGenerationRef = useRef(0);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -692,6 +721,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   async function save(statusOverride?: "draft" | "published") {
     if (!editor) return;
+    // Claim this call's generation BEFORE the first `await` — see `saveGenerationRef`'s own doc for
+    // why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a double-click,
+    // or Save then Publish before either disables) each see the other's claim.
+    saveGenerationRef.current += 1;
+    const generation = saveGenerationRef.current;
     setMessage(null);
     setError(null);
     const nextStatus = statusOverride ?? status;
@@ -701,12 +735,16 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         { id: postId },
         { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage },
       );
+      // A newer save/publish was issued after this one — that later call owns the outcome now, so
+      // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
+      // "last-to-settle wins" rather than "last-clicked wins").
+      if (saveGenerationRef.current !== generation) return;
       setPost(saved);
       setStatus(nextStatus);
-      setMessage(`${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`);
+      setMessage(formatSaveSuccessMessage(statusOverride, saved.version));
       setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage });
     } catch (e) {
-      setError(e instanceof Error ? e.message : statusOverride === "published" ? "publish failed" : "save failed");
+      if (saveGenerationRef.current === generation) setError(formatSaveErrorMessage(e, statusOverride));
     }
   }
 

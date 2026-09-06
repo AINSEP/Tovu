@@ -5,6 +5,7 @@ import type { AdminMedia, AdminPost } from "@/lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
+import type { PostEditorPort } from "../hooks/post-editor-port.hooks";
 
 /**
  * @file `usePostEditor` — first coverage for this hook (none existed before the `useWiredX`
@@ -354,6 +355,87 @@ describe("usePostEditor — save", () => {
 
     expect(result.current.error).toBe("save failed on the server");
     expect(result.current.dirty).toBe(true); // not re-baselined — the save never actually landed
+  });
+
+  /**
+   * Stale-settlement race (2026-09-05 sweep) — neither the Save nor the Publish button in
+   * `PostEditorHeader` (`PostEditor.tsx`) is disabled while a save is in flight, so an operator can
+   * click Save, then Publish, before Save's own request has settled. `save()` had no in-flight guard
+   * at all: whichever of the two `port.updatePost` calls settled LAST won, regardless of which one
+   * the operator actually clicked last. Root cause 1 (no in-flight guard) from the 2026-09-05
+   * stale-settlement sweep.
+   */
+  it("a slower Save request that settles AFTER a later Publish click does not overwrite Publish's result", async () => {
+    let state: AdminPost = { ...POST, status: "draft" };
+    const resolvers: Array<() => void> = [];
+    const port: PostEditorPort = {
+      async getPost() {
+        return { post: state };
+      },
+      async getPresentation() {
+        return {
+          settings: { workspaceId: "fake-ws", activeThemeId: "fake-theme", updatedAt: new Date(0).toISOString() },
+          availableThemes: [],
+          activeThemeTemplates: [],
+          activeThemeStaticPageIds: [],
+        };
+      },
+      updatePost(_target, patch) {
+        return new Promise((resolve) => {
+          // Each call parks its own resolution instead of settling immediately, so the test
+          // controls the ORDER two overlapping `save()` calls settle in, independent of which one
+          // was issued first.
+          resolvers.push(() => {
+            state = { ...state, ...patch, version: state.version + 1 } as AdminPost;
+            resolve({ post: state });
+          });
+        });
+      },
+      async deletePost() {
+        return { post: state };
+      },
+      async listPosts() {
+        return { posts: [] };
+      },
+      async uploadMedia() {
+        throw new Error("not used by this test");
+      },
+      templatePreviewUrl: () => "",
+    };
+
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    // Click Save (keeps `status` at "draft"), then click Publish — the exact sequence an impatient
+    // double-click reaches, since neither button disables while the first request is still in flight.
+    let saveSettled = false;
+    let publishSettled = false;
+    act(() => {
+      result.current.save().then(() => {
+        saveSettled = true;
+      });
+      result.current.save("published").then(() => {
+        publishSettled = true;
+      });
+    });
+    expect(resolvers).toHaveLength(2);
+
+    // Publish — the LATER click, the operator's actual final intent — settles FIRST over the wire...
+    await act(async () => {
+      resolvers[1]();
+      await Promise.resolve();
+    });
+    // ...then Save's request, issued first but slower, settles SECOND, after Publish already won.
+    await act(async () => {
+      resolvers[0]();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(saveSettled && publishSettled).toBe(true));
+
+    // A correct implementation keeps whichever call the operator issued LAST (Publish) as the final
+    // state, regardless of which request happened to settle last over the wire.
+    expect(result.current.status).toBe("published");
+    expect(result.current.message).toMatch(/^Published/);
   });
 });
 
