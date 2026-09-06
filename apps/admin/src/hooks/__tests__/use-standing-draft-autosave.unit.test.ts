@@ -20,6 +20,7 @@ import {
 const DOC_DRAFT: StandingDraftAutosaveInput = {
   bodyFormat: "doc",
   bodyJson: { type: "doc", content: [] },
+  title: "Hello",
   slug: "hello",
   baseVersion: 1,
 };
@@ -28,6 +29,7 @@ function fakeSnapshot(overrides: Partial<StandingDraftAutosaveSnapshot> = {}): S
   return {
     bodyFormat: "doc",
     bodyJson: { type: "doc", content: [] },
+    title: "Hello",
     slug: "hello",
     baseVersion: 1,
     savedAt: "2026-09-06T00:00:00.000Z",

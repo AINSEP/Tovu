@@ -62,6 +62,7 @@ test("PUT autosave at the current version applies; GET returns it; DELETE clears
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       bodyFormat: "doc",
+      title: "Autosave fixture",
       bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
       slug: "autosave-fixture",
       baseVersion: post.version,
@@ -109,6 +110,7 @@ test("a late PUT carrying a stale baseVersion (a real save landed first) reports
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       bodyFormat: "doc",
+      title: "Autosave fixture",
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "STALE" }] }] },
       slug: "autosave-fixture",
       baseVersion: post.version,
@@ -128,7 +130,7 @@ test("PUT autosave rejects a body with no bodyJson for bodyFormat 'doc' as 400 V
   const res = await fetch(autosaveUrl(baseUrl, post.id), {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ bodyFormat: "doc", slug: "autosave-fixture", baseVersion: post.version }),
+    body: JSON.stringify({ bodyFormat: "doc", title: "Autosave fixture", slug: "autosave-fixture", baseVersion: post.version }),
   });
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
@@ -158,7 +160,7 @@ test("PUT autosave 403s a principal without content.write, matching pages/update
   const res = await fetch(autosaveUrl(baseUrl, post.id), {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ bodyFormat: "doc", bodyJson: {}, slug: "autosave-fixture", baseVersion: post.version }),
+    body: JSON.stringify({ bodyFormat: "doc", title: "Autosave fixture", bodyJson: {}, slug: "autosave-fixture", baseVersion: post.version }),
   });
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string };

@@ -38,19 +38,20 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
  *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` (never throws) on any shape the
  *  `posts_body_format_shape` CHECK constraint would also reject, so the route can 400 before ever
  *  reaching the repo. @complexity O(1). */
-function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "slug" | "baseVersion"> | null {
+function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion"> | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const bodyFormat = body.bodyFormat as PostBodyFormat;
   if (bodyFormat !== "doc" && bodyFormat !== "html") return null;
+  if (typeof body.title !== "string") return null;
   if (typeof body.slug !== "string") return null;
   if (typeof body.baseVersion !== "number" || !Number.isFinite(body.baseVersion)) return null;
 
   if (bodyFormat === "doc") {
     if (typeof body.bodyJson !== "object" || body.bodyJson === null) return null;
-    return { bodyFormat, bodyJson: body.bodyJson as JsonObject, slug: body.slug, baseVersion: body.baseVersion };
+    return { bodyFormat, bodyJson: body.bodyJson as JsonObject, title: body.title, slug: body.slug, baseVersion: body.baseVersion };
   }
   if (typeof body.bodyHtml !== "string") return null;
-  return { bodyFormat, bodyHtml: body.bodyHtml, slug: body.slug, baseVersion: body.baseVersion };
+  return { bodyFormat, bodyHtml: body.bodyHtml, title: body.title, slug: body.slug, baseVersion: body.baseVersion };
 }
 
 /**

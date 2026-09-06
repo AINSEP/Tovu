@@ -2057,9 +2057,10 @@ export const api = {
   // the newer save.
   putAutosave: (
     id: string,
-    draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; slug: string; baseVersion: number } | {
+    draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; title: string; slug: string; baseVersion: number } | {
       bodyFormat: "html";
       bodyHtml: string;
+      title: string;
       slug: string;
       baseVersion: number;
     }
@@ -2076,6 +2077,7 @@ export const api = {
         bodyFormat: "doc" | "html";
         bodyJson?: Record<string, unknown>;
         bodyHtml?: string;
+        title: string;
         slug: string;
         baseVersion: number;
         savedAt: string;

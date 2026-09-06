@@ -67,6 +67,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
         id: "post-1",
         snapshot: {
           bodyFormat: "doc",
+          title: "Hello",
           bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
           slug: "hello",
           baseVersion: 1,
@@ -79,6 +80,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
       const snapshot = await repo.readAutosave({ workspaceId: "ws-1", id: "post-1" });
       assert.deepEqual(snapshot, {
         bodyFormat: "doc",
+        title: "Hello",
         bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
         slug: "hello",
         baseVersion: 1,
@@ -98,6 +100,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
         id: "post-1",
         snapshot: {
           bodyFormat: "doc",
+          title: "Hello",
           bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "first" }] }] },
           slug: "hello",
           baseVersion: 1,
@@ -119,6 +122,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
         id: "post-1",
         snapshot: {
           bodyFormat: "doc",
+          title: "Hello",
           bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "STALE — must not win" }] }] },
           slug: "hello",
           baseVersion: 1,
@@ -148,6 +152,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
         id: "post-1",
         snapshot: {
           bodyFormat: "doc",
+          title: "Hello",
           bodyJson: { type: "doc", content: [] },
           slug: "hello",
           baseVersion: 1,
@@ -177,6 +182,7 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
         id: "no-such-post",
         snapshot: {
           bodyFormat: "doc",
+          title: "Hello",
           bodyJson: {},
           slug: "hello",
           baseVersion: 1,

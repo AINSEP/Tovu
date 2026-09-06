@@ -22,16 +22,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *   "outdated" because a real save happened since it was captured.
  */
 
-/** The four fields a standing draft carries — see `PostAutosaveSnapshot`'s own server-side doc for
- *  why `status`/`title`-as-its-own-field are deliberately absent. */
+/** The fields a standing draft carries — see `PostAutosaveSnapshot`'s own server-side doc for why
+ *  `status` is deliberately absent (a draft must never change whether a row is live). */
 export type StandingDraftAutosaveInput =
-  | { bodyFormat: "doc"; bodyJson: Record<string, unknown>; slug: string; baseVersion: number }
-  | { bodyFormat: "html"; bodyHtml: string; slug: string; baseVersion: number };
+  | { bodyFormat: "doc"; bodyJson: Record<string, unknown>; title: string; slug: string; baseVersion: number }
+  | { bodyFormat: "html"; bodyHtml: string; title: string; slug: string; baseVersion: number };
 
 export interface StandingDraftAutosaveSnapshot {
   bodyFormat: "doc" | "html";
   bodyJson?: Record<string, unknown>;
   bodyHtml?: string;
+  title: string;
   slug: string;
   baseVersion: number;
   savedAt: string;

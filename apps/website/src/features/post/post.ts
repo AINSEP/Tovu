@@ -124,9 +124,9 @@ export interface PostRecord {
 /**
  * Standing-draft autosave for one post/page row (2026-09-06 dispatch — see `posts.autosave_json`'s
  * own schema doc for the column this persists to). Captures exactly the fields the admin editors
- * let an operator change before a real Save/Publish — deliberately NOT `status`/`title`-as-its-own-
- * field: a standing draft never changes whether a row is live, and a Post's title lives inside its
- * own `bodyJson` title node (`use-post-editor.hooks.ts`), so `bodyJson` alone already carries it.
+ * let an operator change before a real Save/Publish — deliberately NOT `status`: a standing draft
+ * never changes whether a row is live, so recovering one can never silently publish or unpublish
+ * anything.
  *
  * `baseVersion` is the {@link PostRecord.version} this snapshot was captured against — the seam
  * both {@link PostRepoPort.writeAutosave} (write-time staleness guard) and the recovery-banner
@@ -137,6 +137,12 @@ export interface PostAutosaveSnapshot {
   readonly bodyFormat: PostBodyFormat;
   readonly bodyJson?: JsonObject;
   readonly bodyHtml?: string;
+  /**
+   * A Post's title also lives as a node inside its own `bodyJson` (the title-in-document feature,
+   * `use-post-editor.hooks.ts`), but a Page's does not — its `<input>` is a plain sibling field with
+   * nothing else to derive it from. Captured explicitly here so recovery is complete for both.
+   */
+  readonly title: string;
   readonly slug: string;
   readonly baseVersion: number;
   readonly savedAt: string;
