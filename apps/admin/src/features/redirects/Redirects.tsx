@@ -1,4 +1,5 @@
 import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { describeApiError } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -67,6 +68,10 @@ export interface HitCountCellProps {
   /** Bound translator, threaded down from `Redirects`'s own hook rather than resolved here — see
    *  this file's header. */
   t: Translate;
+  /** This row's own distinct handle base — same reasoning as `Users.tsx`'s `UserRowProps.agentBase`.
+   *  Optional (identity-omitted default) since this component is exported and unit-tested directly
+   *  without one. */
+  agentHandleBase?: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useHitCountCellHook?: typeof useWiredHitCountCell;
 }
@@ -74,7 +79,7 @@ export interface HitCountCellProps {
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  *  rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  *  renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
-function HitCountCell({ redirectId, t, useHitCountCellHook = useWiredHitCountCell }: HitCountCellProps) {
+function HitCountCell({ redirectId, t, agentHandleBase, useHitCountCellHook = useWiredHitCountCell }: HitCountCellProps) {
   const { error, data, isFetching, request } = useHitCountCellHook({ redirectId, t });
 
   if (error) return <span className="save-error">{describeApiError(error, "failed")}</span>;
@@ -83,7 +88,12 @@ function HitCountCell({ redirectId, t, useHitCountCellHook = useWiredHitCountCel
   // on the request having completed, never on the count's truthiness.
   if (data) return <span>{data.data.hitCount}</span>;
   return (
-    <button type="button" onClick={request} disabled={isFetching}>
+    <button
+      type="button"
+      onClick={request}
+      disabled={isFetching}
+      {...(agentHandleBase ? agentHandle(`${agentHandleBase}-load-hits`, { role: "button", label: "Load this rule's hit count" }) : {})}
+    >
       {isFetching ? t("Loading…") : t("Load hits")}
     </button>
   );
@@ -120,11 +130,17 @@ function ImportRedirectsForm({ t, locale, useImportRedirectsFormHook = useWiredI
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
           placeholder='[{"matchType":"exact","fromPattern":"/old","toTarget":"/new","statusCode":301}]'
+          {...agentHandle("redirects-import-json", { role: "field", label: "JSON array of redirect rules to bulk-import" })}
         />
         {/* Secondary, not primary — "Add redirect" above is this screen's one actual create
             action; bulk import is a power-user path to the same result, not a second headline CTA
             competing with it. */}
-        <button type="submit" className="btn-secondary" disabled={importing}>
+        <button
+          type="submit"
+          className="btn-secondary"
+          disabled={importing}
+          {...agentHandle("redirects-import-submit", { role: "button", label: "Import the pasted redirect rules" })}
+        >
           {importing ? t("Importing…") : t("Import")}
         </button>
       </form>
@@ -229,7 +245,12 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
           <div className="field-row">
             <div className="field">
               <label className="field-label" htmlFor="redirect-match-type">{t("Match type")}</label>
-              <select id="redirect-match-type" name="matchType" defaultValue="exact">
+              <select
+                id="redirect-match-type"
+                name="matchType"
+                defaultValue="exact"
+                {...agentHandle("redirects-create-match-type", { role: "field", label: "New redirect's match type" })}
+              >
                 <option value="exact">exact</option>
                 <option value="prefix">prefix</option>
                 <option value="wildcard">wildcard</option>
@@ -237,15 +258,32 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
             </div>
             <div className="field">
               <label className="field-label" htmlFor="redirect-from-pattern">{t("From path")}</label>
-              <input id="redirect-from-pattern" name="fromPattern" placeholder="/old-path" required />
+              <input
+                id="redirect-from-pattern"
+                name="fromPattern"
+                placeholder="/old-path"
+                required
+                {...agentHandle("redirects-create-from-pattern", { role: "field", label: "New redirect's source path or pattern" })}
+              />
             </div>
             <div className="field">
               <label className="field-label" htmlFor="redirect-to-target">{t("To target")}</label>
-              <input id="redirect-to-target" name="toTarget" placeholder="/new-path or https://example.com/..." required />
+              <input
+                id="redirect-to-target"
+                name="toTarget"
+                placeholder="/new-path or https://example.com/..."
+                required
+                {...agentHandle("redirects-create-to-target", { role: "field", label: "New redirect's destination path or URL" })}
+              />
             </div>
             <div className="field">
               <label className="field-label" htmlFor="redirect-status-code">{t("Status code")}</label>
-              <select id="redirect-status-code" name="statusCode" defaultValue="301">
+              <select
+                id="redirect-status-code"
+                name="statusCode"
+                defaultValue="301"
+                {...agentHandle("redirects-create-status-code", { role: "field", label: "New redirect's HTTP status code" })}
+              >
                 <option value="301">{t("301 (permanent)")}</option>
                 <option value="302">{t("302 (temporary)")}</option>
                 <option value="307">{t("307 (temporary, method-preserving)")}</option>
@@ -255,7 +293,11 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
           </div>
         </div>
         <div className="editor-actions form-actions">
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle("redirects-create-submit", { role: "button", label: "Add this redirect rule" })}
+          >
             {saving ? t("Saving…") : t("Add redirect")}
           </button>
         </div>
@@ -284,7 +326,11 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
             header: t("Status"),
             cell: (rule) => <span className={`status status-${rule.status}`}>{rule.status}</span>,
           },
-          { key: "hits", header: t("Hits"), cell: (rule) => <HitCountCell t={t} redirectId={rule.id} /> },
+          {
+            key: "hits",
+            header: t("Hits"),
+            cell: (rule, index) => <HitCountCell t={t} redirectId={rule.id} agentHandleBase={rowMenuHandles[index]} />,
+          },
           {
             key: "actions",
             header: t("More"),
