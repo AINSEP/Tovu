@@ -1,4 +1,5 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { integrationRowMenuItems } from "./rules";
@@ -48,7 +49,12 @@ function IntegrationCreateForm(props: {
       {props.formError ? <span className="save-error">{props.formError}</span> : null}
       <label>
         {t(locale, "Label")}
-        <input value={props.label} onChange={(e) => props.onLabelChange(e.target.value)} required />
+        <input
+          value={props.label}
+          onChange={(e) => props.onLabelChange(e.target.value)}
+          required
+          {...agentHandle("integrations-create-label", { role: "field", label: "New webhook's label" })}
+        />
       </label>
       <label>
         {t(locale, "Target URL")}
@@ -57,13 +63,23 @@ function IntegrationCreateForm(props: {
           onChange={(e) => props.onTargetUrlChange(e.target.value)}
           placeholder="https://example.com/hooks"
           required
+          {...agentHandle("integrations-create-target-url", { role: "field", label: "New webhook's target URL" })}
         />
       </label>
       <label>
         {t(locale, "Topics (comma-separated, e.g. post.published, post.*)")}
-        <input value={props.topics} onChange={(e) => props.onTopicsChange(e.target.value)} required />
+        <input
+          value={props.topics}
+          onChange={(e) => props.onTopicsChange(e.target.value)}
+          required
+          {...agentHandle("integrations-create-topics", { role: "field", label: "New webhook's comma-separated event topics" })}
+        />
       </label>
-      <button type="submit" disabled={props.saving}>
+      <button
+        type="submit"
+        disabled={props.saving}
+        {...agentHandle("integrations-create-submit", { role: "button", label: "Create this webhook" })}
+      >
         {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
       </button>
     </form>
@@ -140,7 +156,11 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           </p>
         </div>
         <div className="page-actions">
-          <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+          <button
+            className={formOpen ? "btn-secondary" : undefined}
+            onClick={() => setFormOpen((v) => !v)}
+            {...agentHandle("integrations-toggle-create-form", { role: "button", label: "Open or close the add-webhook form" })}
+          >
             {formOpen ? t("Cancel") : t("Add webhook")}
           </button>
         </div>
@@ -176,7 +196,14 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           {
             key: "label",
             header: t("Label"),
-            cell: (subscription) => <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>,
+            cell: (subscription, index) => (
+              <a
+                href={`/admin/integrations/${subscription.id}`}
+                {...agentHandle(`${rowMenuHandles[index]}-label`, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
+              >
+                {subscription.label}
+              </a>
+            ),
           },
           { key: "target-url", header: t("Target URL"), cell: (subscription) => subscription.targetUrl },
           {
