@@ -107,11 +107,26 @@ function baseController(overrides: Partial<RolesController> = {}): RolesControll
   };
 }
 
-function renderRoles(overrides: Partial<RolesController> = {}) {
+/**
+ * `tabId` was added when this screen became two `?tab=` tabs (2026-09-06). It is the same value
+ * `panels.tsx` threads in from the query string, and it defaults to `undefined` — which
+ * `resolveRolesTabId` resolves to the first tab, "roles" — so every test about the roles list, the
+ * page banners, and either delete dialog reads exactly as it did before and needed no change.
+ *
+ * The policy-facing cases pass {@link POLICIES_TAB}. That is a real assertion rather than plumbing:
+ * omitting it makes them fail, because an inactive panel is genuinely unmounted, not hidden. (Worth
+ * stating, because a `[hidden]`-based tab implementation would leave these queries passing whether
+ * the tabs worked or not — and in this codebase an author-set `display` beats `[hidden]` anyway.)
+ */
+function renderRoles(overrides: Partial<RolesController> = {}, tabId?: string) {
   const controller = baseController(overrides);
-  render(<Roles useRolesHook={() => controller} />);
+  render(<Roles tabId={tabId} useRolesHook={() => controller} />);
   return controller;
 }
+
+/** The second tab's id, named so a reader does not have to match a bare literal against
+ *  `ROLES_TAB_IDS`. */
+const POLICIES_TAB = "policies";
 
 describe("loading and error states", () => {
   it("shows a loading notice while roles/policies are null", () => {
@@ -132,6 +147,69 @@ describe("loading and error states", () => {
   });
 });
 
+describe("tabs", () => {
+  it("renders both tabs, with Roles selected for an absent ?tab=", () => {
+    renderRoles();
+    expect(screen.getByRole("tab", { name: /Roles/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Policies/ })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("selects the tab named by ?tab=", () => {
+    renderRoles({}, POLICIES_TAB);
+    expect(screen.getByRole("tab", { name: /Policies/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Roles/ })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("falls back to Roles for an unrecognized ?tab= rather than rendering a blank panel", () => {
+    renderRoles({ roles: [CUSTOM_ROLE] }, "not-a-real-tab");
+    expect(screen.getByRole("tab", { name: /Roles/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Editor")).toBeInTheDocument();
+  });
+
+  // One render per `it`: React Testing Library cleans up BETWEEN tests, not within one, so two
+  // `renderRoles` calls in a single case leave both trees mounted and any query that matches in
+  // both throws "found multiple elements" (which is exactly how the first draft of the delete-
+  // dialog case below failed).
+  it("on the Roles tab, mounts the roles list and NOT the policies list", () => {
+    renderRoles({ roles: [CUSTOM_ROLE], policies: [CUSTOM_POLICY] });
+    expect(screen.getByText("Editor")).toBeInTheDocument();
+    expect(screen.queryByText("Custom Policy")).not.toBeInTheDocument();
+  });
+
+  it("on the Policies tab, mounts the policies list and NOT the roles list", () => {
+    renderRoles({ roles: [CUSTOM_ROLE], policies: [CUSTOM_POLICY] }, POLICIES_TAB);
+    expect(screen.getByText("Custom Policy")).toBeInTheDocument();
+    expect(screen.queryByText("Editor")).not.toBeInTheDocument();
+  });
+
+  // Both delete dialogs live on the shell, not in a panel: a confirm dialog is an overlay over the
+  // whole page and its pending state is shell state.
+  it("renders the policy delete dialog while the Policies tab is open", () => {
+    renderRoles({ pendingPolicyDelete: CUSTOM_POLICY }, POLICIES_TAB);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("still renders the ROLE delete dialog while the Policies tab is open", () => {
+    renderRoles({ pendingRoleDelete: CUSTOM_ROLE }, POLICIES_TAB);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("keeps the shared rowError banner on the shell, visible from either tab", () => {
+    // `useWiredRoles` keeps ONE rowSavingId/rowError pair for roles and policies alike, so the
+    // banner belongs to neither panel.
+    renderRoles({ rowError: "failed to rename policy" }, POLICIES_TAB);
+    expect(screen.getByText("failed to rename policy")).toBeInTheDocument();
+  });
+
+  it("reuses the existing section-heading i18n keys as tab labels, adding no new copy strings", () => {
+    // Both labels go through the real dictionary, so a locale that already translates the "Roles"
+    // and "Policies" headings translates the tabs too — the point of reusing the keys.
+    renderRoles({ t: realT.bind(null, "es") });
+    expect(screen.getByRole("tab", { name: new RegExp(realT("es", "Roles")) })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: new RegExp(realT("es", "Policies")) })).toBeInTheDocument();
+  });
+});
+
 describe("built-in rows", () => {
   it("renders a built-in role with no row menu — a muted dash instead", () => {
     renderRoles({ roles: [BUILTIN_ROLE] });
@@ -146,7 +224,7 @@ describe("built-in rows", () => {
   });
 
   it("renders a frozen (but not built-in) policy with no row menu — a muted dash instead", () => {
-    renderRoles({ policies: [FROZEN_POLICY] });
+    renderRoles({ policies: [FROZEN_POLICY] }, POLICIES_TAB);
     expect(screen.getByText("Frozen Policy")).toBeInTheDocument();
     expect(screen.getByText(/custom \(frozen\)/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /actions for policy "frozen policy"/i })).not.toBeInTheDocument();
@@ -180,14 +258,14 @@ describe("inline role rename", () => {
 describe("inline permission form", () => {
   it("renders the Permission/resource-type inputs only for the policy whose id matches permissionPolicyId", () => {
     const otherPolicy: AdminPolicy = { ...CUSTOM_POLICY, id: "p-other", name: "Other Policy" };
-    renderRoles({ policies: [CUSTOM_POLICY, otherPolicy], permissionPolicyId: CUSTOM_POLICY.id });
+    renderRoles({ policies: [CUSTOM_POLICY, otherPolicy], permissionPolicyId: CUSTOM_POLICY.id }, POLICIES_TAB);
     expect(screen.getByPlaceholderText(/e\.g\. content\.write/i)).toBeInTheDocument();
     // Only one form row exists even though two policies are rendered.
     expect(screen.getAllByPlaceholderText(/e\.g\. content\.write/i)).toHaveLength(1);
   });
 
   it("disables Add while permissionInput is empty", () => {
-    renderRoles({ policies: [CUSTOM_POLICY], permissionPolicyId: CUSTOM_POLICY.id, permissionInput: "" });
+    renderRoles({ policies: [CUSTOM_POLICY], permissionPolicyId: CUSTOM_POLICY.id, permissionInput: "" }, POLICIES_TAB);
     expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
   });
 
@@ -197,7 +275,7 @@ describe("inline permission form", () => {
       policies: [CUSTOM_POLICY],
       permissionPolicyId: CUSTOM_POLICY.id,
       permissionInput: "content.write",
-    });
+    }, POLICIES_TAB);
     const addButton = screen.getByRole("button", { name: /^add$/i });
     expect(addButton).toBeEnabled();
     await user.click(addButton);
@@ -265,7 +343,7 @@ describe("create forms", () => {
   });
 
   it("shows 'Creating…' and disables the button while policySaving is true", () => {
-    renderRoles({ policyName: "New Policy", policySaving: true });
+    renderRoles({ policyName: "New Policy", policySaving: true }, POLICIES_TAB);
     expect(screen.getByRole("button", { name: /creating…/i })).toBeDisabled();
   });
 });

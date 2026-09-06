@@ -3,8 +3,10 @@ import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
+import { TabBar } from "../../components/TabBar";
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useWiredRoles } from "./hooks/use-roles.hooks";
+import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "./Roles.hooks";
 import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } from "./roles-i18n";
 
 /**
@@ -37,13 +39,39 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } fro
  * and the two delete dialogs, same top-level-function convention `Users.tsx`/`Taxonomy.tsx` use —
  * a nested closure would not have moved any branching out of `Roles`' own scope, only a sibling
  * function does.
+ *
+ * ## Tabs (2026-09-06)
+ *
+ * The two sections are now two `?tab=` tabs on the shared `components/TabBar`, the same primitive
+ * `Deployment.tsx`, `Sites.tsx`, `Themes.tsx`, `Security.tsx`, `SourceControl.tsx` and
+ * `Database.tsx` already use — the tab shell was ALREADY extracted, so this screen reuses it
+ * rather than becoming another implementation. Why two tabs, and the case AGAINST them that was
+ * checked first, are in `Roles.hooks.tsx`'s header. Both labels reuse the existing section
+ * headings' i18n keys, so the conversion adds no new copy strings.
+ *
+ * `RolesSection` and `PoliciesSection` are untouched; `RolesTab`/`PoliciesTab` below are thin
+ * wrappers holding the prop assembly that used to sit inline in `Roles`'s JSX. Three things stay
+ * on the SHELL rather than moving into a panel, each for a stated reason: the page header, the
+ * `rowError` banner (set by both sections — `useWiredRoles` keeps one `rowSavingId`/`rowError`
+ * pair for roles and policies alike), and both delete dialogs (a confirm dialog is an overlay over
+ * the whole page, and its pending state is shell state).
  */
 export interface RolesProps {
+  /** The `?tab=` query value from `panels.tsx`'s `roles` route (`URLSearchParams.get` returns
+   *  `null` when the param is absent). Guarded by `resolveRolesTabId`, so a stale link or a typo
+   *  opens the Roles list rather than a blank panel. */
+  tabId?: string | null;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Defaulted to the wired hook, so production callers (`panels.tsx`) pass
    *  nothing and behave exactly as before. */
   useRolesHook?: typeof useWiredRoles;
 }
+
+/** Everything the two tab panels read, which is simply what `useWiredRoles()` returns — the same
+ *  `ReturnType<typeof ...>` shape `Sites.tsx`'s own `sitesTabPanel` takes, rather than a
+ *  hand-maintained mirror of a thirty-field controller that would drift the first time the hook
+ *  grows a field. */
+type RolesController = ReturnType<typeof useWiredRoles>;
 
 /**
  * The create-a-role form, as one thing the section can be handed.
@@ -101,7 +129,16 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
   );
   return (
     <>
-      <h2>{t("Roles")}</h2>
+      {/* Kept in the DOM, hidden from view. Once this section sits behind a tab whose label is
+          already the word "Roles", a visible `<h2>Roles</h2>` directly beneath it is pure visual
+          repetition — but simply deleting it is not the fix, because `role="tab"` buttons do not
+          appear in a screen reader's heading list, so the panel would be left with `H1` and nothing
+          else (the regression `deployment/HistoryTab.tsx`'s own comment records measuring live).
+          `.visually-hidden` keeps the structure for assistive tech and drops the duplicate from the
+          page — the same utility `TabBar.tsx` itself uses for its dot label. `Seo.tsx`'s
+          "Per-entry SEO" heading stays VISIBLE by the same rule: it is not a verbatim repeat of its
+          tab ("Pages & posts"), so it still tells a sighted reader something. */}
+      <h2 className="visually-hidden">{t("Roles")}</h2>
       <form onSubmit={create.submit} className="notice integrations-form">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
@@ -408,7 +445,8 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
   );
   return (
     <>
-      <h2>{t("Policies")}</h2>
+      {/* Hidden for view, kept for assistive tech — see the matching note in `RolesSection`. */}
+      <h2 className="visually-hidden">{t("Policies")}</h2>
       <form onSubmit={create.submit} className="notice integrations-form">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
@@ -529,73 +567,129 @@ function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSa
   );
 }
 
-export function Roles({ useRolesHook = useWiredRoles }: RolesProps = {}) {
+/**
+ * The "Roles" tab panel — `RolesSection` with the five controller fields it needs, assembled here
+ * rather than in `Roles`'s own JSX.
+ *
+ * The assembly is a straight relocation of what `Roles` used to write inline; nothing about the
+ * props changed. It lives in its own component so the two panels can be selected by a flat
+ * dispatcher below without `Roles` carrying either branch, which is what the ESLint gate scores.
+ * `roles` is non-null by the time this renders — `Roles` returns its loading notice above.
+ */
+function RolesTab({ controller }: { controller: RolesController }) {
+  const c = controller;
+  return (
+    <RolesSection
+      roles={c.roles ?? []}
+      create={{
+        name: c.roleName,
+        setName: c.setRoleName,
+        saving: c.roleSaving,
+        error: c.roleError,
+        submit: c.onCreateRole,
+      }}
+      row={{
+        editingId: c.editingRoleId,
+        setEditingId: c.setEditingRoleId,
+        draftName: c.editingRoleName,
+        setDraftName: c.setEditingRoleName,
+        startRename: c.startEditRole,
+        saveRename: c.onSaveRole,
+        savingId: c.rowSavingId,
+        requestDelete: c.setPendingRoleDelete,
+      }}
+      t={c.t}
+      locale={c.locale}
+    />
+  );
+}
+
+/** The "Policies" tab panel — `PoliciesSection` with its three controller groups, relocated
+ *  verbatim from `Roles`'s own JSX for the same reason {@link RolesTab} documents. */
+function PoliciesTab({ controller }: { controller: RolesController }) {
+  const c = controller;
+  return (
+    <PoliciesSection
+      policies={c.policies ?? []}
+      create={{
+        name: c.policyName,
+        setName: c.setPolicyName,
+        description: c.policyDescription,
+        setDescription: c.setPolicyDescription,
+        saving: c.policySaving,
+        error: c.policyError,
+        submit: c.onCreatePolicy,
+      }}
+      row={{
+        editingId: c.editingPolicyId,
+        setEditingId: c.setEditingPolicyId,
+        draftName: c.editingPolicyName,
+        setDraftName: c.setEditingPolicyName,
+        draftDescription: c.editingPolicyDescription,
+        setDraftDescription: c.setEditingPolicyDescription,
+        startRename: c.startEditPolicy,
+        saveRename: c.onSavePolicy,
+        savingId: c.rowSavingId,
+        requestDelete: c.setPendingPolicyDelete,
+      }}
+      permission={{
+        openForPolicyId: c.permissionPolicyId,
+        permission: c.permissionInput,
+        setPermission: c.setPermissionInput,
+        resourceType: c.resourceTypeInput,
+        setResourceType: c.setResourceTypeInput,
+        toggleForm: c.togglePermissionForm,
+        write: c.onWritePermission,
+        rows: c.permissionRows,
+        loading: c.permissionsLoading,
+        removingId: c.removingPermissionId,
+        remove: c.onRemovePermission,
+      }}
+      t={c.t}
+      locale={c.locale}
+    />
+  );
+}
+
+/** Dispatches the one active tab's panel as a flat if-chain — a plain function rather than a
+ *  ternary written directly in `Roles`'s JSX, which would be counted against that component's own
+ *  complexity. Same split `Deployment.tsx`'s `deploymentTabPanel` and `Sites.tsx`'s `sitesTabPanel`
+ *  make for the identical gate.
+ *  @complexity O(1) — two mutually exclusive branches, no iteration. */
+function rolesTabPanel(activeTabId: RolesTabId, controller: RolesController) {
+  if (activeTabId === "policies") return <PoliciesTab controller={controller} />;
+  return <RolesTab controller={controller} />;
+}
+
+export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) {
+  // ONE call, destructured from its result — `useRolesHook()` must not be invoked a second time
+  // for the shell's own fields, which would run the whole hook (and its fetches and state) twice
+  // per render. The forty-odd per-section fields this used to destructure are read by `RolesTab`/
+  // `PoliciesTab` off `controller` directly now, so only what the shell itself renders is named
+  // here: the two lists it guards on, the page-level banners, and the two delete dialogs.
+  const controller = useRolesHook();
   const {
     roles,
     policies,
     error,
     rowError,
-
-    roleName,
-    setRoleName,
-    roleSaving,
-    roleError,
-    onCreateRole,
-
-    policyName,
-    setPolicyName,
-    policyDescription,
-    setPolicyDescription,
-    policySaving,
-    policyError,
-    onCreatePolicy,
-
-    editingRoleId,
-    setEditingRoleId,
-    editingRoleName,
-    setEditingRoleName,
-    startEditRole,
-    onSaveRole,
-
-    editingPolicyId,
-    setEditingPolicyId,
-    editingPolicyName,
-    setEditingPolicyName,
-    editingPolicyDescription,
-    setEditingPolicyDescription,
-    startEditPolicy,
-    onSavePolicy,
-
     rowSavingId,
-
-    permissionPolicyId,
-    permissionInput,
-    setPermissionInput,
-    resourceTypeInput,
-    setResourceTypeInput,
-    togglePermissionForm,
-    onWritePermission,
-    permissionRows,
-    permissionsLoading,
-    removingPermissionId,
-    onRemovePermission,
-
     pendingRoleDelete,
     setPendingRoleDelete,
     onDeleteRole,
-
     pendingPolicyDelete,
     setPendingPolicyDelete,
     onDeletePolicy,
-
     t,
     locale,
-  } = useRolesHook();
+  } = controller;
   const { prefix: descriptionPrefix, linkLabel: descriptionLinkLabel, suffix: descriptionSuffix } =
     rolesDescriptionParts(locale);
 
   if (error) return <div className="notice error">{error}</div>;
   if (!roles || !policies) return <div className="notice">{t("Loading roles & permissions…")}</div>;
+
+  const activeTabId = resolveRolesTabId(tabId);
 
   return (
     <div className="page">
@@ -610,70 +704,19 @@ export function Roles({ useRolesHook = useWiredRoles }: RolesProps = {}) {
           </p>
         </div>
       </div>
+      {/* The row-error banner stays on the SHELL, above the tab strip: `rowError` is set by BOTH
+          sections' row actions (`useWiredRoles` keeps one `rowSavingId`/`rowError` pair for roles
+          and policies alike), so it does not belong to either panel. */}
       {rowError ? <div className="notice error">{rowError}</div> : null}
 
-      <RolesSection
-        roles={roles}
-        create={{
-          name: roleName,
-          setName: setRoleName,
-          saving: roleSaving,
-          error: roleError,
-          submit: onCreateRole,
-        }}
-        row={{
-          editingId: editingRoleId,
-          setEditingId: setEditingRoleId,
-          draftName: editingRoleName,
-          setDraftName: setEditingRoleName,
-          startRename: startEditRole,
-          saveRename: onSaveRole,
-          savingId: rowSavingId,
-          requestDelete: setPendingRoleDelete,
-        }}
-        t={t}
-        locale={locale}
+      <TabBar
+        ariaLabel={t("Roles & Permissions")}
+        tabs={resolveRolesTabs(t)}
+        activeId={activeTabId}
+        onChange={goToRolesTab}
+        containerHandle="roles-tab-bar"
       />
-
-      <PoliciesSection
-        policies={policies}
-        create={{
-          name: policyName,
-          setName: setPolicyName,
-          description: policyDescription,
-          setDescription: setPolicyDescription,
-          saving: policySaving,
-          error: policyError,
-          submit: onCreatePolicy,
-        }}
-        row={{
-          editingId: editingPolicyId,
-          setEditingId: setEditingPolicyId,
-          draftName: editingPolicyName,
-          setDraftName: setEditingPolicyName,
-          draftDescription: editingPolicyDescription,
-          setDraftDescription: setEditingPolicyDescription,
-          startRename: startEditPolicy,
-          saveRename: onSavePolicy,
-          savingId: rowSavingId,
-          requestDelete: setPendingPolicyDelete,
-        }}
-        permission={{
-          openForPolicyId: permissionPolicyId,
-          permission: permissionInput,
-          setPermission: setPermissionInput,
-          resourceType: resourceTypeInput,
-          setResourceType: setResourceTypeInput,
-          toggleForm: togglePermissionForm,
-          write: onWritePermission,
-          rows: permissionRows,
-          loading: permissionsLoading,
-          removingId: removingPermissionId,
-          remove: onRemovePermission,
-        }}
-        t={t}
-        locale={locale}
-      />
+      {rolesTabPanel(activeTabId, controller)}
 
       <RoleDeleteDialog
         pendingRoleDelete={pendingRoleDelete}

@@ -409,7 +409,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "roles",
-    render: () => <Roles />,
+    // Two tabs (Roles, Policies) as of 2026-09-06 — same `?tab=` deep-linking convention
+    // `deployment`/`settings`/`sites`/`seo` use, so the query value is threaded in here and
+    // guarded by `resolveRolesTabId` inside the screen.
+    render: (ctx) => <Roles tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Roles & Permissions",
       group: "People",
