@@ -165,6 +165,22 @@ describe("useDockerfileSource — save", () => {
     expect(result.current.saving).toBe(false);
   });
 
+  it("defaults draft to '' rather than null when a successful write echoes back null contents", async () => {
+    const port = createFakeDockerfileSourcePort(
+      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { setDockerfileSource: () => Promise.resolve({ exists: false, contents: null, etag: '"after-delete-etag"' }) },
+    );
+    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setDraft("anything"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.draft).toBe("");
+  });
+
   it("does nothing when called before the initial load has resolved — nothing to compare If-Match against yet", async () => {
     const setDockerfileSource = vi.fn();
     // A port whose GET never resolves within this test — `snapshot` stays `undefined` throughout.
