@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useFetchedOptions } from "../WidgetConfigFields/WidgetConfigFields.hooks";
+import { useFetchedOptions, useSocialLinksConfig } from "../WidgetConfigFields/WidgetConfigFields.hooks";
 
 /**
  * @file `useFetchedOptions` — the hook `MenuConfigFields`/`ContactFormConfigFields` share
@@ -51,5 +51,32 @@ describe("useFetchedOptions", () => {
     act(() => rerender());
 
     expect(fetchList).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useSocialLinksConfig — addLink's own cap guard", () => {
+  // `WidgetConfigFields.unit.test.tsx`'s "Add link is disabled at the 20-link cap..." test proves
+  // the RENDERED button is disabled at the cap, but a disabled button's onClick never fires — so
+  // that test never actually invokes `addLink()` itself, and the guard's own true branch stays
+  // untested. Called directly here, bypassing the UI-level disable, to prove the hook enforces the
+  // cap on its own merits too — defense in depth, not just a disabled affordance.
+  it("is a no-op once links is already at the 20-link cap", () => {
+    const onChange = vi.fn();
+    const links = Array.from({ length: 20 }, (_, i) => ({ platform: `p${i}`, url: `https://${i}` }));
+    const { result } = renderHook(() => useSocialLinksConfig({ links }, onChange));
+
+    act(() => result.current.addLink());
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("still appends normally one below the cap", () => {
+    const onChange = vi.fn();
+    const links = Array.from({ length: 19 }, (_, i) => ({ platform: `p${i}`, url: `https://${i}` }));
+    const { result } = renderHook(() => useSocialLinksConfig({ links }, onChange));
+
+    act(() => result.current.addLink());
+
+    expect(onChange).toHaveBeenCalledWith({ links: [...links, { platform: "", url: "" }] });
   });
 });

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeWidgetPickerPort } from "../WidgetPickerDialog/widget-picker-dependencies.hooks";
 import { useExistingInstances, useWidgetAddControl, useWidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog.hooks";
+import type { AdminWidgetType } from "../../lib/api";
 
 /**
  * @file `useExistingInstances`/`useWidgetPickerDialog`/`useWidgetAddControl` — split out of
@@ -135,6 +136,28 @@ describe("useWidgetPickerDialog", () => {
     act(() => result.current.submitCreateNew(fakeFormEvent()));
 
     expect(props.onCreateNew).toHaveBeenCalledWith("Hero", result.current.newConfig);
+  });
+
+  it("typeLabel resolves the friendly label for a known widget type", async () => {
+    const props = dialogProps();
+    const { result } = renderHook(() => useWidgetPickerDialog(props));
+    await flush();
+
+    expect(result.current.typeLabel).toBe("Text");
+  });
+
+  it("typeLabel falls back to the raw widgetType string for one WIDGET_TYPE_OPTIONS has no entry for", async () => {
+    // AdminWidgetType's five members are exactly WIDGET_TYPE_OPTIONS's five entries today, so this
+    // never happens through a value the type system allows — but `widgetType` ultimately traces back
+    // to server-sourced data (the widget's own persisted type), and a client bundle can be stale
+    // against a server that has since added a type this build doesn't know the label for yet. Same
+    // "real for externally-sourced data, impossible only by the static type" shape as
+    // WidgetPickerDialog.tsx's own `instances ?? []` fallback.
+    const props = { ...dialogProps(), widgetType: "future-widget-type" as unknown as AdminWidgetType };
+    const { result } = renderHook(() => useWidgetPickerDialog(props));
+    await flush();
+
+    expect(result.current.typeLabel).toBe("future-widget-type");
   });
 });
 
