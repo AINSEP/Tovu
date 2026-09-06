@@ -1,8 +1,7 @@
 /*
  * Styles for `PushToTalkMicButton.tsx`. Kept file-local (imported only by that component) rather
- * than added to `styles/assistant.css` — this feature is not yet wired into `AssistantDock.tsx`
- * (see this feature's handoff notes), so its styles must not leak onto a route that never renders
- * the button.
+ * than added to `styles/assistant.css`, so nothing here can reach a route that never renders the
+ * button.
  *
  * The recording state is deliberately loud (red fill, a visibly pulsing dot, plus a screen-reader
  * announcement via the button's own `role="status"` child) — an ambiguous mic indicator is a
@@ -36,6 +35,17 @@
 
 .tovu-push-to-talk--recording:hover {
   background: #b91c1c;
+}
+
+/* Outside the desktop shell (or with on-device recognition unavailable) the button still renders,
+   so the capability is discoverable and its `title`/`aria-label` can say why it is off — see
+   `mic-button-view.hooks.ts`. Muted rather than hidden, and never hover-highlighted: it must read
+   as "not available here", not as "click me". */
+.tovu-push-to-talk--unavailable,
+.tovu-push-to-talk--unavailable:hover {
+  opacity: 0.35;
+  background: transparent;
+  cursor: default;
 }
 
 .tovu-push-to-talk__dot {

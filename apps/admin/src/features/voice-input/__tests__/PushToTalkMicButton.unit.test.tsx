@@ -28,15 +28,45 @@ describe("PushToTalkMicButton", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when the port reports itself unavailable", async () => {
-    const port = fakePort({ isAvailable: vi.fn().mockResolvedValue({ available: false }) });
-    const { container } = render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: port }} />);
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+  // BEHAVIOR CHANGE (deliberate): this component previously rendered NOTHING whenever voice input
+  // was unavailable. It now renders a disabled button carrying the reason, because a control that
+  // is simply absent reads as a missing feature rather than an unavailable one. The in-flight probe
+  // still renders nothing — see `mic-button-view.hooks.ts`.
+  it("renders a disabled button carrying the port's own reason when it reports itself unavailable", async () => {
+    const port = fakePort({ isAvailable: vi.fn().mockResolvedValue({ available: false, reason: "unsupported-platform:win32" }) });
+    render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: port }} />);
+
+    const button = await screen.findByRole("button", {
+      name: "Voice input needs macOS — on-device transcription is not available here.",
+    });
+    expect(button).toBeDisabled();
+    expect(button.className).toContain("tovu-push-to-talk--unavailable");
+    // The reason must be readable on hover too, not only to a screen reader.
+    expect(button).toHaveAttribute("title", "Voice input needs macOS — on-device transcription is not available here.");
   });
 
-  it("renders nothing at all outside the desktop shell (no voice port)", () => {
-    const { container } = render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: null }} />);
-    expect(container).toBeEmptyDOMElement();
+  it("renders the same disabled button in a plain browser tab, saying the desktop app is needed", async () => {
+    render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: null }} />);
+
+    const button = await screen.findByRole("button", {
+      name: "Voice input needs the Tovu desktop app — transcription runs on your Mac, never in the cloud.",
+    });
+    expect(button).toBeDisabled();
+    // Web Speech is NOT wired here on purpose: it uploads audio to a third party, which is the
+    // opposite of what the on-device path exists for. The button says so instead of doing it.
+    expect(button.className).toContain("tovu-push-to-talk--unavailable");
+  });
+
+  it("never starts a capture from the unavailable button, even if a click gets through", async () => {
+    const capture = fakeCapture();
+    render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: null, createCapture: () => capture }} />);
+    const button = await screen.findByRole("button");
+
+    await act(async () => {
+      button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+
+    expect(capture.start).not.toHaveBeenCalled();
   });
 
   it("renders the mic button once availability is confirmed, not in the recording visual state", async () => {

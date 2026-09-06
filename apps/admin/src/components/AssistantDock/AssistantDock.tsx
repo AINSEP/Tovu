@@ -14,6 +14,8 @@ import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
+import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
+import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
@@ -389,6 +391,13 @@ export function AssistantDock({
   // See `useSelectedPluginChips`'s own doc for the projection and its label-fallback reasoning.
   const selectedPluginChips = useSelectedPluginChips(selectedPluginRefIds, composerCapabilities);
 
+  /**
+   * Owns the `ChatPaneComposerHandle` a voice transcript is delivered through. No Jini change was
+   * needed: `composerHandle` and its append-don't-replace `insertText` already existed — see
+   * `use-composer-voice-input.hooks.ts`.
+   */
+  const voiceInput = useComposerVoiceInput();
+
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
     agentBridge,
@@ -527,7 +536,16 @@ export function AssistantDock({
         // something introduced here. Using this top-level prop instead (unused by this component
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
-        leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
+        leadingAccessory={
+          <>
+            <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
+            <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} />
+          </>
+        }
+        // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
+        // through it. Append-only by contract, so a transcript can never clobber a half-written
+        // message — see `use-composer-voice-input.hooks.ts`.
+        composerHandle={voiceInput.composerHandle}
         // No `attachmentAccept` on purpose: the upload path is kind-agnostic end to end, so a
         // type filter here has no security or correctness payoff, only friction. `attachments.ts`
         // (`@jini-ai/http-kit`) sniffs `detectAttachmentKind` from the leading bytes and stores
