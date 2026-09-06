@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -175,6 +175,65 @@ describe("StaticSiteTab — card 1, unchanged", () => {
     // picker's own tab label further down the same tab, which is expected (they're two different,
     // correct appearances of the same proper noun), not a collision to fix away.
     for (const host of STATIC_HOSTS) expect(screen.getAllByText(host).length).toBeGreaterThan(0);
+  });
+});
+
+describe("StaticSiteTab — CopyLine's copy button", () => {
+  // `CopyLine`'s own `copy()` was never invoked by any existing test here — every existing test
+  // renders the tab but none clicks a Copy button. jsdom has no real Clipboard implementation, so
+  // `navigator.clipboard` is stubbed per test.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("writes the export command to the clipboard and swaps the label to 'Copied!'", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderTab();
+
+    const button = screen.getByRole("button", { name: "Copy the export command" });
+    expect(button).toHaveTextContent("Copy");
+    await user.click(button);
+
+    expect(writeText).toHaveBeenCalledWith("tovu export <dir>");
+    expect(button).toHaveTextContent("Copied!");
+  });
+
+  it("reverts the label back to 'Copy' 1500ms after a successful copy", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderTab();
+
+    const button = screen.getByRole("button", { name: "Copy the export command" });
+    // fireEvent + a flushed microtask, not userEvent — userEvent's own internal delay logic fights
+    // fake timers here (the interaction hung for the full 5s test timeout rather than resolving).
+    await act(async () => {
+      fireEvent.click(button);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(button).toHaveTextContent("Copied!");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(button).toHaveTextContent("Copy");
+  });
+
+  it("swallows a denied clipboard permission without crashing or changing the label", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockRejectedValue(new Error("permission denied"));
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderTab();
+
+    const button = screen.getByRole("button", { name: "Copy the export command" });
+    await user.click(button);
+
+    expect(writeText).toHaveBeenCalled();
+    expect(button).toHaveTextContent("Copy");
   });
 });
 
