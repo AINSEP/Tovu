@@ -1,0 +1,107 @@
+/* --- /admin/settings: neutralize Jini's warm "paper" tokens ------------------
+ *
+ * Owner report, 2026-09-06: "/admin/settings has a peach background."
+ *
+ * Measured live before changing anything (`getComputedStyle` over every element on the rendered
+ * page, filtered to backgrounds where R > B) rather than guessed at from the stylesheet. Exactly
+ * two warm fills exist on this screen, and between them they cover it:
+ *
+ *   - `.jini-tabbed-dialog--inline`, the whole 995x796 settings panel -> `--jini-bg-elevated`,
+ *     `#fffefc` (R 255, G 254, B 252)
+ *   - every card, input, select and non-ghost button inside it (`.jini-agent-card`, `.jini-input`,
+ *     `.jini-select-trigger`, `.jini-btn`, `.jini-seg-btn.active`, ...) -> `--jini-bg-panel`,
+ *     `#fdfcfa` (R 253, G 252, B 250)
+ *
+ * Both are R>G>B by construction — Jini's deliberate cream "paper" tokens (see
+ * `tabbed-dialog.css`'s own header), correct for a dialog card floating over its own dimmed
+ * backdrop, wrong for a panel sitting flat on this admin's pure-white page. This admin's
+ * `--surface` is `oklch(100% 0 none)`, hue-powerless — so the panel reads as a faint peach/cream
+ * sheet laid on plain white, which is what the owner is seeing. Per-channel the delta is small;
+ * the reason it reads at all is that it is a LARGE flat area with a neutral white directly
+ * adjacent, which is the condition the eye is most sensitive to a color cast under.
+ *
+ * This is the same defect, from the same two tokens, that `styles.css`'s "Media providers tab:
+ * neutralize Jini's warm paper tokens" block already fixed for `MediaProvidersTab` (owner report
+ * there: "the whole thing"). Fixed the same way and with the same two exceptions, so the two
+ * screens do not drift apart:
+ *
+ *   - Re-point the tokens rather than fork a rule. Every value in `settings-dialog.css` /
+ *     `tabbed-dialog.css` resolves through a custom property, and that indirection IS the
+ *     documented override mechanism — redefining the token re-skins every consumer at once.
+ *     Custom properties inherit, so declaring them on `.settings-ui-section` reaches every
+ *     descendant without naming one of them.
+ *   - `--jini-bg-subtle` is deliberately left alone. `#f4f5f7` is already a cool neutral grey
+ *     (B >= G >= R), not part of the cream that was reported, and it is what gives the section
+ *     cards and the sidebar their separation from the panel. Overriding it would be an
+ *     unrequested extra change AND would flatten the one layering cue this screen has left.
+ *
+ * `.settings-ui-section[data-theme="light"]` (0,2,0) beats Jini's own bare `[data-theme='light']`
+ * (0,1,0) on specificity, so this does not depend on which stylesheet the bundler injects first —
+ * load order genuinely is not decidable here, since `SettingsUi.tsx` imports
+ * `@jini-ai/ui/settings-dialog.css` from module scope (evaluated when the settings route loads)
+ * while this file is imported from `main.tsx` (evaluated at boot).
+ *
+ * SCOPED TO LIGHT, AND TO THE PAGE, ON PURPOSE — two deliberate non-changes:
+ *
+ *   - Dark is untouched. `[data-theme="dark"]`'s `--jini-bg-panel` is `#222120`, warm in the same
+ *     R>G>B sense but reading as a neutral dark grey rather than cream, and it is not adjacent to
+ *     a pure-white admin surface the way the light panel is. Nothing was reported there and
+ *     nothing is changed there.
+ *   - The MODAL `SettingsDialogShell` ("Open as dialog") is untouched. It portals out of
+ *     `.settings-ui-section`, so this selector cannot reach it — which is correct rather than
+ *     incidental: a dialog floating over its own dimmed backdrop is the exact case Jini's warm
+ *     paper tokens were chosen for. Only the inline page is re-skinned.
+ */
+.settings-ui-section[data-theme="light"] {
+  --jini-bg-panel: var(--surface);
+  --jini-bg-elevated: var(--surface);
+}
+
+/* --- The LOUD half of the same report: the global disabled-button tint ------
+ *
+ * The token fix above is the faint, whole-panel cast. This is the part that actually reads as
+ * "a peach background" at a glance, and it is a different bug from a different stylesheet.
+ *
+ * Measured: `.jini-agent-card-select` — the full-bleed button that IS each CLI card on the
+ * Execution mode tab — computes to `oklch(0.86587 0.03387 43.4)` when its CLI is not installed.
+ * Hue 43.4 is `--primary` exactly (`oklch(55.29% 0.1129 43.4)`, this admin's burnt orange), and
+ * 0.866/0.034 is precisely that token at 30% over white. The source is `styles.css`'s app-wide
+ *
+ *     button:disabled { background: color-mix(in oklch, var(--primary) 30%, var(--surface)); }
+ *
+ * A bare `button:disabled` type selector is (0,1,1) and beats Jini's own class-only card rule
+ * (0,1,0), so every plain `<button>` Jini renders disabled inside this panel gets painted with
+ * Tovu's primary. On the Execution mode tab that is 18 "Not installed" cards, each a full peach
+ * rectangle — the largest colored areas on the screen.
+ *
+ * NOT a new problem, and this file is not the first to hit it: `styles.css` already carries three
+ * separate scoped overrides written "solely to BEAT the global `button:disabled` tint" (the
+ * `.btn-danger:disabled` block and its own comment about a peach "Delete workspace" button, and
+ * `.deployment-action .btn-secondary[aria-disabled="true"]`). This is the same rule leaking into a
+ * fourth surface — the one place on this screen where the buttons are not Tovu's to begin with.
+ *
+ * BOTH properties have to be overridden, not just `background`. The same global rule also sets
+ * `color: color-mix(in oklch, var(--primary-ink) 55%, var(--surface))`, and `--primary-ink` is
+ * `oklch(99% 0 0)` — near-white, chosen to sit on the peach fill. Neutralizing the background
+ * alone would leave near-white text on a now-white card: the peach would be gone and the card
+ * would be unreadable, which is a worse bug than the one being fixed.
+ *
+ * `transparent` + `inherit` rather than any new color, so nothing is invented here: the card's own
+ * `--jini-bg-panel` shows through and the card's own text color applies. The "disabled" reading is
+ * not lost — `.jini-agent-card.is-missing` already carries `opacity: 0.6` AND the words "Not
+ * installed", so the state survives on two channels that are not color (`frontend-accessibility`:
+ * color is not the only means of conveying information).
+ *
+ * Scoped to `.settings-ui-section` (0,2,1 — beats the global 0,1,1) so it reaches every disabled
+ * Jini button on this panel without a per-component list, and reaches nothing outside it. Every
+ * disabled button in here belongs to Jini; the one Tovu-owned button in this subtree
+ * (`.settings-ui-dialog-btn`) is never rendered disabled.
+ *
+ * Applies in dark too, deliberately — unlike the token block above. `--primary` in dark is
+ * `oklch(56% 0.10 44)`, the same burnt orange, so the identical tint would paint the identical
+ * cards; scoping this half to light would fix the screen in one theme and leave it broken in the
+ * other. */
+.settings-ui-section button:disabled {
+  background: transparent;
+  color: inherit;
+}
