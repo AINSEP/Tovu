@@ -9,25 +9,32 @@
  *
  * Three boot modes, one product:
  *
- * 0. **Fleet UI** (`TOVU_DESKTOP_UI=runner`). Opens Tovu-Runner's ported renderer
+ * 0. **Fleet UI** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
  *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
- *    Projects screen. `list`/`create`/`delete`/`open-external`/`open-window` are real
- *    (`src/project-ipc.cjs`), routing a card click through the same `openSiteWindow`/`serializer`
- *    path own-server mode uses below; `start`/`stop` stay throwing stubs on purpose — see
- *    `RUNNER_PROJECT_CHANNELS.openWindow`'s own doc on why the N-window model never needs them.
+ *    Projects screen, now the app's actual front page. `list`/`create`/`delete`/`open-external`/
+ *    `open-window` are real (`src/project-ipc.cjs`), routing a card click through the same
+ *    `openSiteWindow`/`serializer` path own-server mode uses below; `start`/`stop` stay throwing
+ *    stubs on purpose — see `RUNNER_PROJECT_CHANNELS.openWindow`'s own doc on why the N-window
+ *    model never needs them. See `fleetUiRequested`'s own doc for exactly which env vars bypass
+ *    this default and fall through to modes 1/2 instead.
  *
  * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —
  *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so
  *    web mode and desktop mode run side by side against the same server. Single-site only — there
- *    is exactly one URL to attach to — and unrelated to everything else below.
+ *    is exactly one URL to attach to — and unrelated to everything else below. Bypasses the fleet
+ *    UI unconditionally: an automation/dev workflow that already names its one destination has no
+ *    use for a project picker.
  *
- * 2. **Own server** (no `TOVU_DESKTOP_URL`). Spawns Tovu's OWN `tovu serve <dir>` CLI as a child per
- *    open site and loads the port each one reports. `tovu serve` is already the packaged single-site
- *    entry point — it boots the site dir, opens `<dir>/content.db`, wires the admin SPA and starts
- *    the agent daemon (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no
- *    Tovu-side change to open a second, third, or Nth site: `src/tovu-server.cjs`'s
- *    `startTovuServer` was already a pure `{repoRoot, siteDir, port} -> handle` function with no
- *    single-instance assumption anywhere in it.
+ * 2. **Own server** (`TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS` set). Spawns Tovu's OWN
+ *    `tovu serve <dir>` CLI as a child per open site and loads the port each one reports. `tovu
+ *    serve` is already the packaged single-site entry point — it boots the site dir, opens
+ *    `<dir>/content.db`, wires the admin SPA and starts the agent daemon
+ *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change to
+ *    open a second, third, or Nth site: `src/tovu-server.cjs`'s `startTovuServer` was already a
+ *    pure `{repoRoot, siteDir, port} -> handle` function with no single-instance assumption
+ *    anywhere in it. Also bypasses the fleet UI unconditionally, same reasoning as attach mode —
+ *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation
+ *    byte-for-byte unaffected by the fleet UI becoming the default.
  *
  * **Multi-site, concretely:**
  * - `openSites` (a `Map<siteDir, {server, window}>`) replaces the old single `tovuServer` variable.
@@ -66,13 +73,17 @@
  * reports every opened window's URL and title, then quits 0 once all have loaded (1 on any failure).
  *
  * Environment:
- * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported fleet renderer and nothing else; unset
- *   (the default) leaves every mode below exactly as it was before the port.
- * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site).
- * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker.
+ * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported fleet renderer explicitly (redundant
+ *   with the default now, kept for anyone who has it set); any other non-empty value forces the
+ *   pre-flip behavior even with no site-selecting env var set. See `fleetUiRequested`.
+ * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site);
+ *   also bypasses the fleet UI default.
+ * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker;
+ *   also bypasses the fleet UI default.
  * - `TOVU_DESKTOP_SITE_DIRS` — comma-separated site dirs to open at launch, one window each —
- *   bypasses the picker/MRU/dev-fallback precedence entirely. Chiefly for verification/automation
- *   (proving N sites boot concurrently without driving the menu by hand); a real user reaches the
+ *   bypasses the picker/MRU/dev-fallback precedence entirely, and the fleet UI default. Chiefly
+ *   for verification/automation (proving N sites boot concurrently without driving the menu by
+ *   hand); a real user reaches the
  *   same result through "Open Site…"/"Open Recent" after the first site opens.
  * - `TOVU_DESKTOP_PORT`      — pin the FIRST own-server site's port; every other open site still
  *   self-allocates (two sites must never collide).
@@ -84,14 +95,14 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
-const { resolveSiteDir, adoptSiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
+const { resolveSiteDir, adoptSiteDir, classifySiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 const { redeemBootSession, sitePartition } = require("./src/desktop-auth.cjs");
-const { projectsFilePath } = require("./src/project-registry.cjs");
+const { projectsFilePath, readTrackedProjects, trackProject } = require("./src/project-registry.cjs");
 const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
@@ -119,9 +130,29 @@ const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand",
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
 
-/** `true` only for an explicit `TOVU_DESKTOP_UI=runner` — see this file's header, boot mode 0. */
+/**
+ * `true` when this launch should open the fleet Projects screen (boot mode 0) rather than a site
+ * directly. Default since 2026-09-06 — the whole point of the port — but three things must keep
+ * bypassing it unconditionally, because they each name a single destination directly and exist
+ * specifically for automation/attach workflows that have no use for a project picker:
+ *
+ * - `TOVU_DESKTOP_URL` (attach mode).
+ * - `TOVU_DESKTOP_SITE_DIR` / `TOVU_DESKTOP_SITE_DIRS` (own-server, pinned to specific dir(s)) —
+ *   this is what keeps every existing `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any real
+ *   automation untouched by this flip.
+ *
+ * An explicit `TOVU_DESKTOP_UI=runner` still opts in outright, unconditionally, matching this
+ * function's pre-flip behavior exactly (kept for anyone who has that set alongside one of the
+ * above, historically to force the fleet UI over a pinned site dir — that ordering is preserved:
+ * explicit `runner` is checked, and returns, before any bypass condition below).
+ */
 function fleetUiRequested() {
-  return process.env.TOVU_DESKTOP_UI?.trim() === "runner";
+  if (process.env.TOVU_DESKTOP_UI?.trim() === "runner") return true;
+  const bypassesFrontPage =
+    Boolean(process.env.TOVU_DESKTOP_URL?.trim()) ||
+    Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) ||
+    explicitStartupSiteDirs() !== null;
+  return !bypassesFrontPage;
 }
 
 /** `siteDir -> { server, window }` for every site this process currently has open. Replaces the
@@ -650,6 +681,16 @@ app
         registryPath: registryFilePath(app.getPath("userData")),
         projectsPath: projectsFilePath(app.getPath("userData")),
       };
+      // A brand-new `userData` tracks nothing, so the Projects screen would otherwise show only
+      // the "Add project" card forever until the operator ran "+ Create website" once. Seeding the
+      // same dev-fallback site `resolveStartupSiteDirs` already falls back to below (`sites/tovu-
+      // com` in a checkout, absent in a packaged app) gives a real card on first launch instead —
+      // mirroring that existing precedent rather than fabricating one. Only when NOTHING is tracked
+      // yet, so this never re-adds a site the operator deliberately removed.
+      if (readTrackedProjects(fleetCtx.projectsPath).length === 0) {
+        const devFallbackDir = path.join(REPO_ROOT, "sites", "tovu-com");
+        if (classifySiteDir(devFallbackDir) === "site") trackProject(fleetCtx.projectsPath, devFallbackDir);
+      }
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
       // five real handlers must claim their channels first — see `project-ipc.cjs`'s own header.
       registerProjectIpcHandlers({

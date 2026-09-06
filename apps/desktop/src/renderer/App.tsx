@@ -565,8 +565,21 @@ function MainContent({
       {lastCreated && (
         <p className="creation-notice" role="status">
           <span className="creation-notice__dot" aria-hidden="true" />
-          <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
-          {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
+          {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.cjs`) only
+              runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
+              `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
+              could act on (there is no server listening on port 0). Port 0 is otherwise
+              unreachable: `buildProjectRecord` only ever reports a real port for an open project. */}
+          {lastCreated.port === 0 ? (
+            <>
+              <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
+            </>
+          ) : (
+            <>
+              <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
+              {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
+            </>
+          )}
         </p>
       )}
       <ProjectsBody
