@@ -166,13 +166,19 @@ main > article.post-detail .post-detail-header { display: none; }
 .xai li { margin: 0; }
 .xai figure { margin: 0; }
 
-/* The one chromatic line on the page: a warm rule under the hero's verb. */
+/* The one chromatic line on the page: a warm rule under the hero's verb, which
+   x.ai cycles. kUInetic's `word-cycler` (catalog §D, structural) does the same:
+   `words:'a|b|c'` in single quotes because the value carries spaces, `interval:`
+   paces it, and the swap is a 150ms opacity dip via .kui-word-cycler-swap — the
+   transition below turns that dip into a fade. The three phrases are all 13
+   characters so the centered line does not re-wrap between them. */
 .xai .xai-ul {
   background-image: linear-gradient(90deg, #f0a35a, #e0655a);
   background-repeat: no-repeat;
   background-size: 100% 0.06em;
   background-position: 0 100%;
   padding-bottom: 0.04em;
+  transition: opacity 150ms ease;
 }
 
 /* ---- badge ---- */
@@ -437,7 +443,7 @@ main > article.post-detail .post-detail-header { display: none; }
   <section class="xai-section xai-hero">
     <div class="xai-wrap">
       <p class="xai-badge" data-kui="fade-up on:load"><b>MVP</b> Runs on your machine · no account</p>
-      <h1 class="xai-display" data-kui="fade-blur-up on:load 700ms">Operate your site by <span class="xai-ul">talking to it</span>.</h1>
+      <h1 class="xai-display" data-kui="fade-blur-up on:load 700ms">Operate your site by <span class="xai-ul" data-kui="word-cycler words:'talking to it|asking for it|describing it' interval:2600ms on:load">talking to it</span>.</h1>
       <p class="xai-lede" data-kui="fade-up on:load delay:200ms">
         A self-hosted content platform. Every admin capability is also a tool an agent can call.
       </p>
