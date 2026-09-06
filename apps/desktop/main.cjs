@@ -310,7 +310,7 @@ function openFleetWindow() {
   const window = new BrowserWindow({
     width: 1360,
     height: 900,
-    title: "Tovu Runner",
+    title: "Tovu",
     show: !SELFTEST,
     webPreferences: {
       contextIsolation: true,
