@@ -41,6 +41,35 @@ The third has a running cost: **157 chats / 562 messages / 19 sessions are sitti
 - The `sample-xai` page renders dark by default, because the site opens dark and x.ai is light-canonical. Making the sample open light is a **site setting**, not a page edit.
 - Content translations for pages/posts: nothing exists (`posts` has no locale column, no translation table). Recommended shape is one row per translation joined by a group id — own slug, own publish state, own revisions — with a locale switcher in the page-editor header, "Create <locale> →" for missing ones, and a stale badge when the source outran the translation. **Not specced yet.**
 
+## Landed this session (23 commits)
+
+**Desktop app** — `4b89cd09` mic wiring · `10fb9215` Vite/React/TS scaffold · `4c75f4c0` Runner's renderer + contracts (32 files) · `6a0bd61c` preload + `TOVU_DESKTOP_UI=runner` · `fb996e8f` Tovu logo, gold-runner deleted · `2aa317ab` first sign-in attempt (superseded) · `de1e1e2e` authenticated-admin E2E · **`15548bef` loopback boot token** — no password on any site, committed by the coordinator to rescue it from a rotation · `098e3466`/`af67f51e` manifests (v2 authoritative) · `cf05115c` handoff
+
+**Admin** — `8e5a9d74` centred editor title, back link far left · `29a7f036` Published/Save/Delete to their own row · `30e68c54` compressed that row's band, status field anchored left, Delete un-adjacent from Save · `0a1fb89e` peach background gone from settings · `56e87ae0` `/admin/seo` is a three-tab screen · `2c6e0b07` preview-fallback notice moved above the frame on posts (RED-first test)
+
+**Landing** — `f66ef907` xAI-structured rebuild · `b3f613a6` hero word-cycler · `5178eea5` gold/black/white
+
+**Tests** — `14167454` first E2E that actually launches `apps/desktop`
+
+## In flight
+
+| Task | Agent | Model |
+|---|---|---|
+| Desktop **Projects front page** — card click → `openSites`, strip the webview model, nav/FAB disabled states, then flip the default | `desktop-frontpage` | Sonnet |
+| `/admin/roles` → tabs (SEO done, settings done) | `admin-tabs` | Opus |
+| AVIF upload + the media-format hole audit | `media-formats` | Sonnet |
+| Autosave drafts — `posts.autosave_json`, **column approved, DB backed up** | `autosave-drafts` | Sonnet |
+
+**Backup before the autosave migration:** `.local-artifacts/db-backups/content.db.pre-autosave-20260906-133020.bak` — 44,068,864 bytes, integrity ok, 133 posts matching live.
+
+## New findings
+
+- **Media upload accepts only jpeg/png/webp/gif.** No AVIF, no video at all, no PDF, no SVG — and the allowlist is duplicated in at least four places (`@jini-ai/cms`'s `media-service.ts`, `Media.tsx:600`, `use-post-editor.hooks.ts:272`, plus the assistant path).
+- **`updatePost` has no optimistic-concurrency check** for doc-format saves. Two operators editing the same post silently clobber each other on the live document. Pre-existing, separate from autosave, being written up.
+- **Changing `TOVU_ADMIN_USER` on an existing install silently kills the agent daemon** (`@jini-ai/cms`'s `seedIdentity` → `UNIQUE constraint failed: roles.workspace_id, roles.name` → boot-readiness rejection). Site keeps serving; assistant is dead with no symptom.
+- **Every post in `sites/tovu-com` is soft-deleted** — 60 of 60, plus 30 of 70 pages.
+- **A draft can never preview in the theme** — its content marker cannot resolve, so it falls back to a raw buffer render. Notice ordering now fixed; the experience question is open.
+
 ## Defects found by running the app (new this session)
 
 | # | Defect | Evidence |
