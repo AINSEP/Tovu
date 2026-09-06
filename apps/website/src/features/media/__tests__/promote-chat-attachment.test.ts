@@ -54,6 +54,20 @@ const AVIF_BYTES = Buffer.from([
   0x6d, 0x69, 0x66, 0x31, 0x6d, 0x69, 0x61, 0x66, 0x00, 0x00, 0x01, 0x68, 0x6d, 0x65, 0x74, 0x61,
 ]);
 
+/**
+ * A genuine, non-image ISO-BMFF `ftyp` box — same shape as `AVIF_BYTES` above, but with major/
+ * compatible brands ("isom"/"iso2"/"mp41") that are NOT in `content-type-sniffer.ts`'s `AVIF_BRANDS`
+ * list, so `sniffContentType` classifies it as `video/mp4` via the brand-blind ISO-BMFF fallback.
+ * Exists so this suite proves the bridge handles a genuinely different, non-image media type through
+ * the exact same code path — it is generic over content type, not AVIF-specific (the AVIF fixture
+ * above exists only because that was the file that originally exposed the missing capability, per
+ * `2026-09-06-handoff-to-tovu-73.md`).
+ */
+const MP4_BYTES = Buffer.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x00, 0x00,
+  0x69, 0x73, 0x6f, 0x32, 0x6d, 0x70, 0x34, 0x31,
+]);
+
 function executionContext(input: Record<string, unknown>, runId = "run-1"): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: runId }, input, signal: new AbortController().signal };
 }
@@ -172,6 +186,28 @@ describe("media_promote_chat_attachment (end to end)", () => {
 
       const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
       assert.equal(recorded.get(out.media.sha256), "image/avif", "must record the SNIFFED type, exactly what media_upload_asset itself records");
+    });
+  });
+
+  test("promotes a real, non-image (video/mp4) chat attachment through the SAME path — the bridge is generic over content type, not AVIF-specific", async () => {
+    await withRealStore(async (store) => {
+      const { deps, mediaContentTypeStore } = fakeRouteDeps();
+      const batchDirectory = await store.createBatchDirectory("batch-e2e-video");
+      const filePath = resolve(batchDirectory, "raw-upload-name.bin");
+      await writeFile(filePath, MP4_BYTES, { mode: 0o600 });
+      const registered = await store.register({ batchId: "batch-e2e-video", path: filePath, name: "clip.mp4", kind: "file", size: MP4_BYTES.length });
+
+      const tool = buildPromoteChatAttachmentTool({
+        getStore: () => store,
+        mediaUploadHandler: wiredMediaUploadAsset(deps).handler,
+        readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
+      });
+
+      const out = (await tool.handler(executionContext({ attachmentRef: registered.path }))) as { media: { sha256: string; title: string } };
+
+      assert.equal(out.media.title, "clip");
+      const recorded = await mediaContentTypeStore.getMany({ workspaceId: WORKSPACE_ID, sha256s: [out.media.sha256] });
+      assert.equal(recorded.get(out.media.sha256), "video/mp4", "a non-image attachment must be sniffed and recorded on its own merits, with no image-specific branching in the bridge");
     });
   });
 
