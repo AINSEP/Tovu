@@ -107,7 +107,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "sites",
-    render: () => <Sites />,
+    // `?tab=<id>` picks the initially-active tab (All sites / New site) and stays in sync as the
+    // operator switches tabs (see `Sites`'s `tabId` prop) — same `?tab=` deep-linking convention as
+    // `deployment`'s and `database`'s own entries elsewhere in this file (ADR-063).
+    render: (ctx) => <Sites tabId={ctx.query.get("tab")} />,
     nav: {
       // Directly under Overview in the ungrouped top row, ranked ABOVE AI Assistant (owner call,
       // 2026-09-05 — supersedes the 2026-09-04 sites-switcher decision that first placed this entry

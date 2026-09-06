@@ -1,5 +1,8 @@
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import type { TabBarTab } from "../../components/TabBar";
 import { siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 
 /**
@@ -76,4 +79,64 @@ export function resolveSiteStateDisplay(
  *  the badge itself. */
 export function resolveSiteCardClassName(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): string {
   return siteRowState(site, snapshot) === "serving" ? "site-card site-card-serving" : "site-card";
+}
+
+/**
+ * This screen's two tabs (owner redesign, 2026-09-05: "the first tab is all sites, second tab is
+ * create new"). `"all"` is first and is the default, so a bare `/admin/sites` opens on the list
+ * rather than on a form — the previous layout's actual failure was that a create form was the first
+ * and (on this install) only thing on the screen.
+ */
+export const SITES_TAB_IDS = ["all", "new"] as const;
+export type SitesTabId = (typeof SITES_TAB_IDS)[number];
+
+/** Falls back to `"all"` for an absent or unrecognized `?tab=` value, through the same shared guard
+ *  `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the list,
+ *  never a blank panel. */
+export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
+  return resolveActiveTabId(tabId, SITES_TAB_IDS, "all");
+}
+
+/**
+ * The tab row's own data. `listedCount` is the length of the grid BENEATH the tab, never a count of
+ * "sites that exist" — on this repo's own install the served site carries no `.site-meta.json`
+ * marker and so is legitimately absent from `sites[]` (`Sites.tsx`'s header, point 1). A count that
+ * quietly added the live binding back in would restate, in the one place an operator glances first,
+ * exactly the lie the unlisted-site notice exists to prevent.
+ *
+ * @complexity Time/space: O(1) — a fixed two-element array.
+ */
+export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[] {
+  return [
+    {
+      id: "all",
+      label: t("All sites"),
+      count: listedCount,
+      handle: "sites-tab-all",
+      handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
+    },
+    {
+      id: "new",
+      label: t("New site"),
+      handle: "sites-tab-new",
+      handleLabel: "Switch to the New site tab — the questionnaire that creates a site folder",
+    },
+  ];
+}
+
+/** Whether the All sites tab renders its empty state instead of the grid. Its own function rather
+ *  than a `sites.length === 0` written in the JSX, per this file's header. */
+export function resolveSitesEmpty(sites: readonly AdminSiteListEntry[]): boolean {
+  return sites.length === 0;
+}
+
+/** One database option's own class name — the selected/unavailable modifiers on `.site-db-option`.
+ *  `available: false` never combines with `selected: true`: nothing on this screen can select an
+ *  unavailable backend (see `NewSiteTab.tsx`'s own header for why that is structural rather than a
+ *  matter of which flags happen to be passed here).
+ *
+ *  @complexity Time/space: O(1). */
+export function resolveDatabaseOptionClassName(args: { selected: boolean; available: boolean }): string {
+  if (!args.available) return "site-db-option is-unavailable";
+  return args.selected ? "site-db-option is-selected" : "site-db-option";
 }
