@@ -48,6 +48,13 @@ describe("ChatFab — closed state", () => {
     render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} label="Jini" />);
     expect(screen.getByRole("button", { name: "Open Jini" })).toHaveAttribute("title", "Open Jini");
   });
+
+  it("falls back to the English action label when locale has no FAB_ACTION_TEMPLATE entry", () => {
+    render(
+      <ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} locale="xx-unsupported" />,
+    );
+    expect(screen.getByRole("button", { name: "Open assistant" })).toBeInTheDocument();
+  });
 });
 
 describe("ChatFab — open state", () => {

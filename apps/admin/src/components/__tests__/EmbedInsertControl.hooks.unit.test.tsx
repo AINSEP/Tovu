@@ -24,6 +24,7 @@ function fakeEditor(): EmbedEditor {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("useEmbedInsertControl — visibility flags", () => {
@@ -75,6 +76,19 @@ describe("useEmbedInsertControl — insertWidget", () => {
   it("is a safe no-op when editor is null — never throws", () => {
     const { result } = renderHook(() => useEmbedInsertControl(null));
     expect(() => act(() => result.current.insertWidget("w1"))).not.toThrow();
+  });
+
+  it("falls back to the timestamp+random placementId when crypto.randomUUID is unavailable", () => {
+    // jsdom always implements crypto.randomUUID, so this fallback (a browser too old to have it)
+    // is otherwise never exercised — stub it away for this one test only.
+    vi.stubGlobal("crypto", {});
+    const editor = fakeEditor();
+    const { result } = renderHook(() => useEmbedInsertControl(editor));
+
+    act(() => result.current.insertWidget("w1"));
+
+    const [attrs] = vi.mocked(editor.commands.insertWidgetEmbed).mock.calls[0];
+    expect(attrs.placementId).toMatch(/^placement-\d+-[a-z0-9]+$/);
   });
 });
 
