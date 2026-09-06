@@ -133,6 +133,42 @@ Status will be updated in place as fixes land, with commit SHAs appended below.
 - **themes** (main `Themes.tsx`) — View site, Rescan, tab bar, per-theme preview/Activate/Explore, per-marketplace-item Download. `ThemeExplore.tsx` was already tagged. Commit: `fb5a1909`.
 - **settings** — Tovu-owned controls tagged: "Open as dialog" toggle, Composio key field (input/Save/Clear). `ExternalMcpSettingsPanel` was already tagged. **Major structural finding**: of the 13 tabs, 11 mount `@jini-ai/ui` components directly with zero `agentHandle` support (checked every one's source: `ExecutionTab`, `InstructionsTab`, `NotificationsTab`, `PrivacyTab`, `AppearanceTab`, `LanguageTab`, `IntegrationsTab`, `MediaProvidersTab`, `ConnectorsBrowser`, `MemorySettingsPanel`, `SkillsTab` — all 0 hits for `agentHandle`). Making Settings' actual field-level controls (execution mode radios, instructions textarea, notification toggles, language picker, connector cards, etc.) agent-driveable requires adding `agentHandle` plumbing to those 11 upstream Jini UI components plus a Jini rebuild — a cross-repo change outside this sweep's scope and outside the house rule against unscoped Jini edits. **This is the single largest remaining coverage gap on the entire nav** — recommend a dedicated follow-up task against `Jini/packages/ui`, not folded into a Tovu-only sweep. Commit: `7637876d`.
 
+## Handoff — what a successor should do next
+
+**Not yet opened this session (real work likely needed):**
+- `ai-assistant` (`AiAssistant.tsx`, 1052 lines) — the largest unaudited real screen left. Not opened due to size/budget; audit and tag it the same way as the other Tier-A screens in this report.
+- `sites` (4 files), `collections` (3 files), `taxonomy`, `forms` (2 files), `users`, `deployment` (6 files), `source-control` (2 files), `access-tokens`/Security (3 files) — all recorded as "likely OK" from the pre-existing `agentHandle_uses` counts (8–50 each) but were **spot-check only, not read line-by-line**. Confirm each one's forms/dialogs/row actions are fully covered, not just "has some tags" — the `ConfirmDialog` gap this session found (9 screens missing it despite otherwise-good coverage) is exactly the shape of bug a partial-coverage screen can still hide.
+- `media` (`Media.tsx`) — excluded this pass because it looked mid-flight at dispatch time; confirmed since landed clean (`04806e6b`). Worth a first real audit — `agentHandle_uses=23` from before this sweep, not verified complete.
+
+**Explicitly off-limits, still real gaps — pick up once unblocked:**
+- `menus` (`Menus.tsx`/`MenuEditor.tsx`, `agentHandle_uses=0`) — Leona's own uncommitted WIP as of this session.
+- `seo` — another agent's live work as of this session; check its own final state before assuming it's incomplete.
+- `pages`/`posts` — do last per the original dispatch; `posts` had a WIP autosave commit landing during this session.
+
+**Structural, cross-repo (not a Tovu-only fix):**
+- Settings' 11 Jini-UI-mounted tabs (see above) — needs `agentHandle` support added inside `Jini/packages/ui`'s components, then a Jini rebuild. Do not attempt without explicit sign-off; this is exactly the kind of unscoped Jini change the house rules warn against.
+- `AgentPluginDetailsModal`'s Close button belongs to `@jini-ai/ui/renderers`' `PreviewModalShell`, same class of gap, much smaller blast radius.
+
+**FormData-shaped forms found and handled safely (attributes only, no restructuring, confirmed against the known hazard):** Comments' Settings form, Redirects' create-redirect form. No form was restructured in this sweep.
+
+## Summary at handoff
+
+45 nav pages total. Fixed and verified this session: dashboard, all 13 Placeholder-backed "soon" pages, database, roles, members, comments, widgets (4 files), recovery, workspace, integrations, redirects, plugins, agent-plugins (+ details modal), playground (verified no gap), payments, themes (main), settings (Tovu-owned parts) — **24 pages** newly fixed or confirmed complete, plus a systemic `ConfirmDialog` fix touching 8 more already-tagged screens. Analytics and Authentication were read and confirmed to have no interactive controls to tag. Excluded per dispatch: seo, menus, pages, posts (4). Not yet opened: ai-assistant, media, and 8 "likely OK" screens needing a real read-through rather than a grep-based assumption.
+
+## Phase 3 — live verification (2026-09-06, via `https://localhost:5173/admin/`)
+
+Driven with Playwright in a dedicated tab (never `:3000`, per the HTTP/1.1 hazard). `location.href`
+asserted on every navigation. Grepping for the handle string was NOT accepted as proof — every check
+below queried the live DOM for `data-agent-element`/`data-agent-role`/`data-agent-label` and, for a
+sample, actually clicked or focused the real element:
+
+- **Dashboard** (`/admin/`) — all 7 tags present (`dashboard-view-site`, 4 stat cards, `dashboard-all-posts`, `dashboard-change-theme`); confirmed `dashboard-stat-posts` resolves to the real `<a href="/admin/posts">`, not a wrapper.
+- **Placeholder page** (`/admin/newsletter`) — `data-agent-element="newsletter"` present with `role="status"` and the expected label, on the live "coming soon" render.
+- **Database** (`/admin/database`) — `database-filter-kind` resolves to the real `<select>`; **clicked** `database-filter-apply` for real (no error, form intercepted client-side as expected).
+- **Roles** (`/admin/roles`) — `roles-create-name` resolves to the real input; **clicked** it. Verified the ABSENCE of any `roles-row-*` `RowMenu` handle is correct, not a bug: this dev DB's 4 roles are all built-in, and built-in rows render `—` instead of a `RowMenu` by design (`Roles.tsx`'s own `role.isBuiltin` guard) — confirmed by reading the live table (admin/editor/owner/viewer, all "Built-in").
+- **Widgets** (`/admin/widgets`) — 9 tags found live including two real per-row handles (`widgets-row-<uuid>-edit`, `widgets-row-<uuid>-trash-or-purge`) against actual seeded widget rows, confirming `buildAgentListHandles` produces working handles against real ids, not just test fixtures.
+- **Comments** (`/admin/comments`) — `comments-status-filter`, `comments-settings-enabled`, `comments-settings-save` all present and resolve to the real `<select>`/`<input>`/`<button>`.
+
 ## Fix log
 
 - **Placeholder batch (13 pages)** — wired `agentHandle="<sectionId>"` onto every bare `<Placeholder sectionId="X" />` call site in `panels.tsx` (skills, design-system, admin-appearance, plugins-marketplace, orders, products, subscriptions, billing, activity-log, import-export, notifications, trash, newsletter). Mechanical, additive, no DOM restructuring — the prop already existed on `Placeholder`/`ComingSoonNotice` from a prior "Batch 1" shared-component pass (`components/__tests__/agent-handle-batch1.unit.test.tsx`), just never threaded through from `panels.tsx`. Verified: `env -u TOVU_ADMIN_PASSWORD npx vitest run src/components/__tests__/Placeholder.unit.test.tsx src/components/__tests__/agent-handle-batch1.unit.test.tsx src/__tests__/unit/panels-render.unit.test.tsx src/__tests__/unit/app-plugins-route.unit.test.tsx` — 4 files, 95 tests, all green. Commit: `ab5f4b0f`.
