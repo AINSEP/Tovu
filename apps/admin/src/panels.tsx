@@ -106,17 +106,39 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "sites",
+    render: () => <Sites />,
+    nav: {
+      // Directly under Overview in the ungrouped top row, ranked ABOVE AI Assistant (owner call,
+      // 2026-09-05 — supersedes the 2026-09-04 sites-switcher decision that first placed this entry
+      // in the row without specifying which side of AI Assistant it belonged on). It answers the
+      // question that comes BEFORE every other screen in this admin, AI Assistant included: which
+      // site is all of this about? Every grouped section below (Pages, Posts, Media, Themes, …) —
+      // and the AI Assistant kill switch itself — is scoped to whichever site this one names, so
+      // ranking it ahead of AI Assistant (rather than filing it in "Operations") puts the frame
+      // before everything it frames.
+      label: "Sites",
+      // Three stacked cards with the front one offset — "several of the same thing, one in front"
+      // — deliberately distinct from Overview's dashboard grid of four fixed panes and from
+      // Deployment's rocket. Nothing else in the rail uses an overlapping-stack silhouette.
+      icon: '<rect x="2" y="6" width="11" height="9" rx="1.5"/><path d="M5 6V3.5A1.5 1.5 0 016.5 2H15a1 1 0 011 1v8.5A1.5 1.5 0 0114.5 13H13"/>',
+    },
+    // Reachable by the file-wide `defaultReachable: true`. Navigation-only, as everywhere else:
+    // Create and Activate are ordinary buttons with no `data-agent-element` opt-in, so an agent can
+    // land here and read which site is live but cannot switch one.
+  },
+  {
     id: "ai-assistant",
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
     // `deployment`'s own entries elsewhere in this file.
     render: (ctx) => <AiAssistant tabId={ctx.query.get("tab")} />,
     nav: {
-      // Sits in the ungrouped top row directly under Overview rather than in "Design & System",
-      // because the control it owns is an incident switch: the operator reaching for it is
-      // dealing with a leak, a bad deploy, or runaway spend, and should not have to scroll a
-      // grouped menu to find the off switch. Kept out of "Marketing" for the same reason — this
-      // is not a growth surface, it is a kill switch with a roadmap attached.
+      // Third in the ungrouped top row, below Overview and Sites (owner moved Sites above this
+      // entry 2026-09-05 — see Sites' own comment above) — but still kept out of any group rather
+      // than filed in "Design & System" or "Marketing": the control it owns is an incident switch,
+      // and the operator reaching for it is dealing with a leak, a bad deploy, or runaway spend, so
+      // it should not have to scroll a grouped menu to find the off switch.
       label: "AI Assistant",
       icon: '<rect x="3" y="5" width="12" height="9" rx="2.5"/><path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4"/><path d="M1.5 8.5v2M16.5 8.5v2"/>',
     },
@@ -127,26 +149,6 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // credentials) that happens to be named "AI Assistant". Reachability alone only lets an agent
     // land here; operating the kill switch or reading a credential would need those specific
     // controls individually tagged with `data-agent-element`, which none of them are.
-  },
-  {
-    id: "sites",
-    render: () => <Sites />,
-    nav: {
-      // Under "Overview" in the ungrouped top row — the owner's placement (2026-09-04
-      // sites-switcher decision). It belongs beside Overview rather than in "Operations" because
-      // it answers the question that comes BEFORE every other screen in this admin: which site is
-      // all of this about? Every grouped section below (Pages, Posts, Media, Themes, …) is scoped
-      // to whichever site this one names, so filing it among them would put the frame inside the
-      // picture.
-      label: "Sites",
-      // Three stacked cards with the front one offset — "several of the same thing, one in front"
-      // — deliberately distinct from Overview's dashboard grid of four fixed panes and from
-      // Deployment's rocket. Nothing else in the rail uses an overlapping-stack silhouette.
-      icon: '<rect x="2" y="6" width="11" height="9" rx="1.5"/><path d="M5 6V3.5A1.5 1.5 0 016.5 2H15a1 1 0 011 1v8.5A1.5 1.5 0 0114.5 13H13"/>',
-    },
-    // Reachable by the file-wide `defaultReachable: true`. Navigation-only, as everywhere else:
-    // Create and Activate are ordinary buttons with no `data-agent-element` opt-in, so an agent can
-    // land here and read which site is live but cannot switch one.
   },
 
   // --- Content ---

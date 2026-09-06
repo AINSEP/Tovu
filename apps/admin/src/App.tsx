@@ -495,7 +495,8 @@ export function App(props: AppProps) {
         {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
             Assistant" instead of down in the footer — the operator wants the collapse control
             beside the sections it collapses, not adrift at the bottom of a 26-item list.
-            `getNav()[0]` is the ungrouped top row (Overview + AI Assistant; see `panels.tsx:108`),
+            `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
+            Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
             and every later group is a labelled section starting with CONTENT.
 
             Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
