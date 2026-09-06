@@ -48,6 +48,7 @@ import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sql
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
@@ -454,6 +455,16 @@ export function defaultContentDbPath(): string {
  */
 export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultContentDbPath()): string {
   return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
+}
+
+/**
+ * `chat.db` lives as a sibling of `content.db` (ADS-memory/reports/2026-09-05-db-split-scoping.md
+ * §6), for the same physical-separation reason `defaultDatabaseJournalDbPath` above exists: a
+ * whole-file restore/duplicate of `content.db` must never carry (or erase) conversation history.
+ * Defaults to `<dirname of content.db>/chat.db`; overridable independently via `TOVU_CHAT_DB`.
+ */
+export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()): string {
+  return process.env.TOVU_CHAT_DB ?? join(dirname(contentDbPath), "chat.db");
 }
 
 /**
@@ -985,6 +996,12 @@ export function createSqliteRouteDeps(
   const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
   const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+  // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
+  // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
+  // erase) chat history" reason `databaseJournalDb` above is already separate. No `mkdirSync`
+  // needed: unlike `ops/`, `chat.db`'s directory is `dirname(dbPath)`, which `openContentDb`
+  // already required to exist.
+  const chatDb = openChatDb(defaultChatDbPath(dbPath));
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
@@ -1152,14 +1169,15 @@ export function createSqliteRouteDeps(
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
     // exposes — one shared index, not a second writer.
     pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db, clock, entryRefsRepo }),
-    // `$client` is the raw better-sqlite3 handle under Drizzle. Passed through because
-    // `@jini-ai/sqlite`'s chat-history adapter takes a handle and never opens a database — the
-    // property that keeps it writing into `content.db` rather than its own `app.sqlite`. The
-    // tables come from migration `0023`, applied by Tovu's own migrator.
-    chatHistory: createChatStoreFactory(db.$client),
-    // Migration `0051`'s table, over the same raw handle immediately above — see
+    // `chatDb` (opened above, alongside `databaseJournalDb`) is the sidecar `chat.db` handle, NOT
+    // `content.db`'s — ADS-memory/reports/2026-09-05-db-split-scoping.md §6. `@jini-ai/sqlite`'s
+    // chat-history adapter takes a raw handle and never opens a database itself, which is exactly
+    // what let this move from `db.$client` to `chatDb` be a two-line redirect rather than a
+    // refactor.
+    chatHistory: createChatStoreFactory(chatDb),
+    // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
-    agentSessions: createSqliteAgentSessionStore(db.$client),
+    agentSessions: createSqliteAgentSessionStore(chatDb),
     presentationRepo,
     settingsRepo,
     getEffective,
