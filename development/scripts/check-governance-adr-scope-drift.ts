@@ -336,9 +336,25 @@ function main(): void {
   process.exit(1);
 }
 
+/**
+ * Whether this file was invoked directly (`npx tsx check-governance-adr-scope-drift.ts`) rather than
+ * imported as a module (e.g. by its own unit test). Guards `argv1` with `?? ""`, matching the sibling
+ * `check-menu-href-allowlist-sync.ts`'s own convention — some call contexts leave `process.argv[1]`
+ * `undefined` while still setting `import.meta.url`, and `pathToFileURL(undefined)` throws a raw
+ * `TypeError` rather than just comparing false.
+ *
+ * @param importMetaUrl the running module's `import.meta.url`
+ * @param argv1 `process.argv[1]`, possibly `undefined`
+ * @returns true iff `importMetaUrl` resolves to the same file as `argv1`
+ * @complexity O(1).
+ */
+export function isMainModule(importMetaUrl: string, argv1: string | undefined): boolean {
+  return importMetaUrl === pathToFileURL(argv1 ?? "").href;
+}
+
 // Guarded, following check-src-complexity-drift.ts's own precedent: this file is also imported as a
 // plain module by its own unit test, which exercises the pure functions directly without running the
 // real scan against the real repo on every test run.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   main();
 }

@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
   collectRepoFiles,
   findEmptyGlobs,
   globMatchesAnyFile,
   globToRegExp,
+  isMainModule,
   missingIndexNotice,
   parseAdrIndexTable,
   type AdrIndexRow,
@@ -271,6 +273,24 @@ test("historical: the pre-2026-09-03 src/... globs no longer match anything in t
 // missingIndexNotice — the total-skip case (ADS-memory/governance/ is untracked by design, so this
 // gate cannot verify anything on a fresh clone or in CI)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// isMainModule
+// ---------------------------------------------------------------------------
+
+test("isMainModule: an unset argv[1] does not throw, and compares as false against a real module URL", () => {
+  // Gemini finding 12 (2026-09-05 re-triage): the module-level guard did `pathToFileURL(process.argv[1]).href`
+  // with no `?? ""` fallback, unlike the sibling check-menu-href-allowlist-sync.ts. A call context with
+  // argv[1] unset would throw a raw TypeError at import time instead of just comparing false. Not
+  // currently triggered (this repo's test/CLI invocations always set argv[1]) but a real gap.
+  assert.doesNotThrow(() => isMainModule("file:///some/module.ts", undefined));
+  assert.equal(isMainModule("file:///some/module.ts", undefined), false);
+});
+
+test("isMainModule: true when import.meta.url matches the resolved argv[1] path", () => {
+  const argv1 = "/Users/dev/repo/development/scripts/check-governance-adr-scope-drift.ts";
+  assert.equal(isMainModule(pathToFileURL(argv1).href, argv1), true);
+});
 
 test("missingIndexNotice: reads as SKIPPED/unverified, never as a passing check", () => {
   const notice = missingIndexNotice("ADS-memory/governance/adrs/ADR-INDEX.md");
