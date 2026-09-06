@@ -60,6 +60,16 @@ describe("loading and error states", () => {
     expect(screen.getByText("network down")).toBeInTheDocument();
     expect(screen.queryByText("How this instance is running")).not.toBeInTheDocument();
   });
+
+  it("shows a poll error ALONGSIDE the last-loaded snapshot, rather than blanking it", () => {
+    render(
+      <OverviewTab
+        useDeploymentOverviewHook={() => controllerFixture({ snapshot: snapshotFixture(), error: "poll failed" })}
+      />,
+    );
+    expect(screen.getByText("poll failed")).toBeInTheDocument();
+    expect(screen.getByText("How this instance is running")).toBeInTheDocument();
+  });
 });
 
 describe("real fields, honestly labeled", () => {
@@ -83,6 +93,16 @@ describe("real fields, honestly labeled", () => {
     expect(screen.getByText("No known failure")).toBeInTheDocument();
     expect(screen.getByText("/workspace/Tovu/infra/content.db")).toBeInTheDocument();
     expect(screen.getByText("/workspace/Tovu/infra/uploads")).toBeInTheDocument();
+  });
+
+  it("renders a known daemon failure as a warning tone, not the default ok tone", () => {
+    render(
+      <OverviewTab
+        useDeploymentOverviewHook={() => controllerFixture({ snapshot: snapshotFixture({ daemonKnownFailed: true }) })}
+      />,
+    );
+    const value = screen.getByText("Known failure — check server logs.");
+    expect(value).toHaveClass("status-warning");
   });
 
   it("shows the production-readiness gate as not applicable in local mode, never a false Passed", () => {
@@ -155,6 +175,27 @@ describe("real fields, honestly labeled", () => {
     expect(screen.getByText(/enables the AI Assistant\. Missing shows there as a 503, not here\./)).toBeInTheDocument();
     const notSetPills = screen.getAllByText("Not set");
     expect(notSetPills.every((el) => el.className.includes("status-neutral"))).toBe(true);
+  });
+
+  it("frames the TOVU_ADMIN_PASSWORD row itself as a warning when unset, unlike every other absent var", () => {
+    render(
+      <OverviewTab
+        useDeploymentOverviewHook={() =>
+          controllerFixture({
+            snapshot: snapshotFixture({
+              envVars: [
+                { name: "TOVU_ADMIN_PASSWORD", set: false },
+                { name: "TOVU_ADMIN_USER", set: true },
+                { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true },
+                { name: "JINI_AGENT_DAEMON_PORT", set: true },
+              ],
+            }),
+          })
+        }
+      />,
+    );
+    const notSetPill = screen.getByText("Not set");
+    expect(notSetPill).toHaveClass("status-warning");
   });
 });
 
