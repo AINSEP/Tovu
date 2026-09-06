@@ -1,9 +1,11 @@
 import { CodeWithLines } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
+import { agentHandle } from "@jini-ai/agentic";
 import { Fragment, useId, useState } from "react";
 
 import type { BundledAgentPlugin } from "./agent-plugin-catalog";
 import type { BundledAgentPluginSourceFile } from "./agent-plugin-source-catalog";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useAgentPluginDetailsModal } from "./hooks/use-agent-plugin-details-modal.hooks";
 
 export interface AgentPluginDetailsModalProps {
@@ -69,7 +71,15 @@ function WrappedFileContent({ text }: { text: string }) {
 
 /** Keyed by `file.relativePath` in the parent, so switching the selected file remounts this and
  *  resets `wrap` to the extension-based default rather than carrying a manual toggle across files. */
-function AgentPluginFileContent({ file, headingId }: { file: BundledAgentPluginSourceFile; headingId: string }) {
+function AgentPluginFileContent({
+  file,
+  headingId,
+  agentHandleBase,
+}: {
+  file: BundledAgentPluginSourceFile;
+  headingId: string;
+  agentHandleBase: string;
+}) {
   const [wrap, setWrap] = useState(() => isMarkdownPath(file.relativePath));
 
   return (
@@ -78,7 +88,12 @@ function AgentPluginFileContent({ file, headingId }: { file: BundledAgentPluginS
         <h3 id={headingId}>
           <PluginFilePath path={file.relativePath} />
         </h3>
-        <button type="button" aria-pressed={wrap} onClick={() => setWrap((prev) => !prev)}>
+        <button
+          type="button"
+          aria-pressed={wrap}
+          onClick={() => setWrap((prev) => !prev)}
+          {...agentHandle(`${agentHandleBase}-wrap-toggle`, { role: "button", label: "Toggle line wrapping for this file" })}
+        >
           {wrap ? "Wrap: on" : "Wrap: off"}
         </button>
       </div>
@@ -97,6 +112,13 @@ function AgentPluginFileContent({ file, headingId }: { file: BundledAgentPluginS
 export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
   const { files, selectedFile, selectFile } = useDetails(plugin.id);
   const selectedFileHeadingId = useId();
+  // File paths are stable and unique within one package, same per-row-handle derivation every
+  // other list on this workstream uses (`buildAgentListHandles`).
+  const fileHandles = buildAgentListHandles(
+    "agent-plugin-file",
+    files.map((file) => file.relativePath),
+  );
+  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]!]));
 
   return (
     <PreviewModalShell
@@ -116,6 +138,10 @@ export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgent
                     type="button"
                     aria-pressed={selectedFile?.relativePath === file.relativePath}
                     onClick={() => selectFile(file.relativePath)}
+                    {...agentHandle(`${fileHandleByPath.get(file.relativePath)}-select`, {
+                      role: "button",
+                      label: `Select the "${file.relativePath}" file`,
+                    })}
                   >
                     <PluginFilePath path={file.relativePath} />
                   </button>
@@ -126,6 +152,7 @@ export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgent
                   file={selectedFile}
                   headingId={selectedFileHeadingId}
                   key={selectedFile.relativePath}
+                  agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
                 />
               ) : (
                 <p role="status">No source files are catalogued for this package.</p>

@@ -1,4 +1,6 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { pluginToggleControl } from "./rules";
 import { useWiredPlugins } from "./hooks/use-plugins.hooks";
@@ -43,6 +45,15 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
 
   if (error) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
+
+  // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback only
+  // receives the row, not its index.
+  const rowHandles = buildAgentListHandles(
+    "plugins-row",
+    plugins.map((plugin) => plugin.id),
+  );
+  const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
 
   return (
     <div className="page">
@@ -100,7 +111,15 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
             cell: (plugin) => {
               const control = pluginToggleControl(plugin, rowSavingId, locale);
               return control.visible ? (
-                <button type="button" disabled={control.disabled} onClick={() => onToggleEnabled(plugin)}>
+                <button
+                  type="button"
+                  disabled={control.disabled}
+                  onClick={() => onToggleEnabled(plugin)}
+                  {...agentHandle(`${rowHandleById.get(plugin.id)}-toggle-enabled`, {
+                    role: "button",
+                    label: `Enable or disable the "${plugin.name}" plugin`,
+                  })}
+                >
                   {control.label}
                 </button>
               ) : (

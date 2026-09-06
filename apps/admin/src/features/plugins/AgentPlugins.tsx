@@ -5,6 +5,8 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { TOVU_BUNDLED_AGENT_PLUGINS, type BundledAgentPlugin } from "./agent-plugin-catalog";
@@ -20,8 +22,9 @@ function AgentPluginCard(props: {
   plugin: BundledAgentPlugin;
   t: (key: string) => string;
   onInspect: () => void;
+  agentHandleBase: string;
 }) {
-  const { plugin, t, onInspect } = props;
+  const { plugin, t, onInspect, agentHandleBase } = props;
 
   return (
     <article className="jini-settings-section-card agent-plugin-card" aria-labelledby={`agent-plugin-${plugin.id}`}>
@@ -56,7 +59,12 @@ function AgentPluginCard(props: {
           ))}
         </ul>
       </div>
-      <button type="button" className="btn-secondary agent-plugin-inspect-btn" onClick={onInspect}>
+      <button
+        type="button"
+        className="btn-secondary agent-plugin-inspect-btn"
+        onClick={onInspect}
+        {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${plugin.displayName}" package files` })}
+      >
         {t("Inspect package files")}
       </button>
     </article>
@@ -74,6 +82,12 @@ export interface AgentPluginsProps {
 /** Settings-style Agent Plugins catalog. Installed is source-backed; Marketplace is future-only. */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
   const { t, locale, inspectedPlugin, inspectPlugin, closeInspector } = useAgentPluginsHook();
+  // Bundled plugin ids are stable and unique, same per-row-handle derivation every other list on
+  // this workstream uses (`buildAgentListHandles`).
+  const cardHandles = buildAgentListHandles(
+    "agent-plugin-card",
+    TOVU_BUNDLED_AGENT_PLUGINS.map((plugin) => plugin.id),
+  );
   const tabs: SettingsDialogTab[] = [
     {
       id: "installed",
@@ -85,12 +99,13 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
           <p className="settings-ui-inert-note" role="note">
             {t("These packages are bundled with Tovu and catalogued as installed. Tovu does not execute Agent Plugins yet.")}
           </p>
-          {TOVU_BUNDLED_AGENT_PLUGINS.map((plugin) => (
+          {TOVU_BUNDLED_AGENT_PLUGINS.map((plugin, index) => (
             <AgentPluginCard
               key={plugin.id}
               plugin={plugin}
               t={t}
               onInspect={() => inspectPlugin(plugin)}
+              agentHandleBase={cardHandles[index]!}
             />
           ))}
           {/* `.agent-plugins-format-note` (styles.css): a section-wide footnote, not a per-plugin
@@ -99,7 +114,12 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
               butted against the last card's bottom edge. */}
           <p className="jini-field-hint agent-plugins-format-note">
             {t("Package format:")} {" "}
-            <a href={AGENT_PLUGINS_SPEC_URL} target="_blank" rel="noreferrer">
+            <a
+              href={AGENT_PLUGINS_SPEC_URL}
+              target="_blank"
+              rel="noreferrer"
+              {...agentHandle("agent-plugins-spec-link", { role: "link", label: "Open the Agent Plugins open standard specification" })}
+            >
               {t("Agent Plugins open standard")}
             </a>
           </p>
