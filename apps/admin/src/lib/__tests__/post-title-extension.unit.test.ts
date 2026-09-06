@@ -65,6 +65,90 @@ describe("PostTitle — Enter keyboard shortcut", () => {
   });
 });
 
+describe("PostTitle — Enter keyboard shortcut, dispatch-less invocation", () => {
+  it("skips the selection-move effect and never calls dispatch when its callback runs with dispatch undefined", () => {
+    // Investigated per the owner's request to confirm (not assume) that the `if (dispatch)` guard
+    // at post-title-extension.ts's Enter handler is dead weight before deleting it. It is NOT: the
+    // guard's safety rests on a Tiptap framework contract, not on anything local to this repo, so
+    // per this repo's rule for that case it stays, proven here by direct invocation instead.
+    //
+    // What IS local: `CommandProps.dispatch` is typed `((args?: any) => any) | undefined` in
+    // @tiptap/core's own types.ts (line 637), and `CommandManager.createCan()` (CommandManager.ts
+    // lines 106-121) builds every `.can()`-reachable command's props with a literal
+    // `dispatch: undefined` — so an undefined dispatch is a real, documented shape any RawCommand
+    // callback can receive, not boilerplate copied from a generic signature.
+    //
+    // What is NOT local: whether THIS handler can ever be reached that way. It can't today —
+    // `addKeyboardShortcuts` entries are wired into their own `keymap()` plugin
+    // (ExtensionManager.ts lines 118-146), a path that is entirely separate from the `rawCommands`
+    // table `.can()`/`.chain()` walk (ExtensionManager.ts's `get commands()`, ~line 66); a real
+    // keydown always reaches this handler through `this.editor.commands.command(cb)`
+    // (post-title-extension.ts, the dispatching getter), never through `.can()`. But that safety
+    // depends on Tiptap keeping shortcuts and commands on two separate registration paths — an
+    // assumption about another package's internals that a future Tiptap version could change
+    // (e.g. by adding a "can this shortcut run" probe API). That is exactly the "proof lives in
+    // someone else's package" case this repo's rule says to KEEP + direct-invoke-test, the same
+    // call already made below for the "no title node" branch in this same file.
+    //
+    // So: the private callback is captured here (by shadowing `editor.commands` for one real Enter
+    // keydown, the same dispatching path the passing test above already exercises) and then
+    // re-invoked directly with a fabricated dispatch-less props object — the shape `.can()` would
+    // hand it if some future Tiptap version ever did make this callback reachable that way.
+    const editor = newEditorWithTitle("<h1 data-post-title>Hello title</h1><p>Body text</p>");
+    try {
+      editor.commands.setTextSelection(1);
+      expect(editor.state.selection.$from.parent.type.name).toBe("title");
+
+      let capturedCallback: ((props: Record<string, unknown>) => boolean) | undefined;
+      const editorPrototype = Object.getPrototypeOf(editor) as object;
+      const realCommandsDescriptor = Object.getOwnPropertyDescriptor(editorPrototype, "commands");
+      if (!realCommandsDescriptor?.get) {
+        throw new Error("expected Editor.prototype.commands to be a getter");
+      }
+      const realCommandsGetter = realCommandsDescriptor.get;
+      Object.defineProperty(editor, "commands", {
+        configurable: true,
+        get(this: typeof editor) {
+          const real = realCommandsGetter.call(this) as Record<string, (...args: never[]) => unknown> & {
+            command: (cb: (props: Record<string, unknown>) => boolean) => boolean;
+          };
+          return {
+            ...real,
+            command: (cb: (props: Record<string, unknown>) => boolean) => {
+              capturedCallback = cb;
+              return real.command(cb);
+            },
+          };
+        },
+      });
+
+      // A real Enter keydown — the same dispatching path the earlier test in this file uses —
+      // captures the private callback as a side effect, leaving its actual behavior unchanged.
+      editor.view.dom.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+      expect(capturedCallback).toBeDefined();
+
+      // That real keydown already moved the selection into the body (see the earlier test); put it
+      // back inside the title so this direct probe reaches past the handler's own early-return.
+      editor.commands.setTextSelection(1);
+      expect(editor.state.selection.$from.parent.type.name).toBe("title");
+
+      const tr = editor.state.tr;
+      const result = capturedCallback!({ tr, state: editor.state, dispatch: undefined });
+
+      expect(result).toBe(true);
+      // The guarded block never ran: no selection change was queued on this transaction, and (had
+      // the code tried to call `dispatch(...)` anyway) `undefined(...)` would have thrown before
+      // this line was reached.
+      expect(tr.selectionSet).toBe(false);
+      expect(tr.docChanged).toBe(false);
+    } finally {
+      editor.destroy();
+    }
+  });
+});
+
 describe("PostTitle — setPostTitleText command", () => {
   it("replaces the title node's text wholesale when given non-empty text", () => {
     const editor = newEditorWithTitle("<h1 data-post-title>Old title</h1><p>Body</p>");
