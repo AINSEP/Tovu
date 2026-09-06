@@ -21,6 +21,7 @@ const {
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,
+  resolveDevFallback,
   initSiteDir,
   adoptSiteDir,
   resolveSiteDir,
@@ -90,6 +91,21 @@ test("classifySiteDir calls a folder with only .site-meta.json incomplete too", 
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "fixture" }));
   assert.equal(classifySiteDir(dir), "incomplete");
+});
+
+test("resolveDevFallback reports nothing to try when there is no devFallbackDir at all", () => {
+  assert.deepEqual(resolveDevFallback(undefined), { useDir: null, rejected: null });
+});
+
+test("resolveDevFallback returns useDir directly for a real site, with no rejected reason", () => {
+  const dir = fakeSiteDir();
+  assert.deepEqual(resolveDevFallback(dir), { useDir: dir, rejected: null });
+});
+
+test("resolveDevFallback rejects a non-site folder and names which marker file(s) are missing", () => {
+  const dir = tempDir();
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "half" }));
+  assert.deepEqual(resolveDevFallback(dir), { useDir: null, rejected: { dir, kind: "incomplete", missing: [".site-meta.json"] } });
 });
 
 test("readDesktopState treats a missing or corrupt state file as empty rather than failing", () => {
@@ -320,6 +336,40 @@ test("initSiteDir surfaces Tovu's own error code when init fails", async () => {
     }),
     /tovu init failed for \/somewhere: INIT_DIR_NOT_EMPTY: dir is not empty/,
   );
+});
+
+// Regression: `tovu init`'s import chain reaches the SAME module-load-time `createApp()` `tovu
+// serve` does (`program.ts` statically imports both `init.js` and `serve.js`), so a spawned `tovu
+// init` with no `TOVU_SITE_DIR` crashes from a cwd with no `sites/tovu-com` exactly the way `serve`
+// used to — confirmed live, 2026-09-05, by running the real CLI's `init` from such a cwd. This was
+// fixed only for `serve`'s own env (`buildServeEnv`) and left `init` broken; "Open Site…"/"Open
+// Recent" onto an empty folder calls this function, not `buildServeEnv`.
+test("initSiteDir sets TOVU_SITE_DIR to the folder being created, closing the same cwd-crash buildServeEnv already fixed for serve", async () => {
+  let capturedEnv;
+  await initSiteDir({
+    repoRoot: fakeRepoRoot(),
+    dir: "/a/new/site",
+    baseEnv: {},
+    spawnFn: (_command, _args, options) => {
+      capturedEnv = options.env;
+      return fakeInitChild(0);
+    },
+  });
+  assert.equal(capturedEnv.TOVU_SITE_DIR, "/a/new/site");
+});
+
+test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", async () => {
+  let capturedEnv;
+  await initSiteDir({
+    repoRoot: fakeRepoRoot(),
+    dir: "/a/new/site",
+    baseEnv: { TOVU_SITE_DIR: "/operator/pinned" },
+    spawnFn: (_command, _args, options) => {
+      capturedEnv = options.env;
+      return fakeInitChild(0);
+    },
+  });
+  assert.equal(capturedEnv.TOVU_SITE_DIR, "/operator/pinned");
 });
 
 test("initSiteDir creates a real, servable site through Tovu's actual CLI", async () => {

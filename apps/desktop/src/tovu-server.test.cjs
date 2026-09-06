@@ -23,6 +23,8 @@ const {
   parseBootLine,
   parseCliErrorLine,
   resolveCliEntry,
+  resolveDevCliEntry,
+  buildCliSpawnPlan,
   buildServeEnv,
   allocatePort,
   startTovuServer,
@@ -52,12 +54,16 @@ function silentMirror() {
   return { stdout: new PassThrough(), stderr: new PassThrough() };
 }
 
-function makeTempRepo({ withCli = true, withAdminDist = true } = {}) {
+function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-test-"));
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ bin: { tovu: "dist/src/cli/main.js" } }));
   if (withCli) {
     fs.mkdirSync(path.join(root, "dist", "src", "cli"), { recursive: true });
     fs.writeFileSync(path.join(root, "dist", "src", "cli", "main.js"), "");
+  }
+  if (withTsCli) {
+    fs.mkdirSync(path.join(root, "apps", "website", "src", "cli"), { recursive: true });
+    fs.writeFileSync(path.join(root, "apps", "website", "src", "cli", "main.ts"), "");
   }
   if (withAdminDist) {
     fs.mkdirSync(path.join(root, "apps", "admin", "dist"), { recursive: true });
@@ -109,6 +115,38 @@ test("resolveCliEntry fails loudly when the manifest has no bin.tovu", () => {
   assert.throws(() => resolveCliEntry(root), /has no "bin\.tovu" field/);
 });
 
+test("resolveDevCliEntry returns the CLI's own TypeScript source path", () => {
+  const root = makeTempRepo({ withTsCli: true });
+  assert.equal(resolveDevCliEntry(root), path.join(root, "apps", "website", "src", "cli", "main.ts"));
+});
+
+test("resolveDevCliEntry fails loudly when the TS source is missing", () => {
+  const root = makeTempRepo({ withTsCli: false });
+  assert.throws(() => resolveDevCliEntry(root), /Tovu's CLI source is missing/);
+});
+
+test("buildCliSpawnPlan defaults to compiled mode, unchanged from before source mode existed", () => {
+  const root = makeTempRepo();
+  const plan = buildCliSpawnPlan({ repoRoot: root, cliArgs: ["serve", "/tmp/site", "--port", "3601"] });
+  assert.equal(plan.command, process.execPath);
+  assert.deepEqual(plan.args, [path.join(root, "dist", "src", "cli", "main.js"), "serve", "/tmp/site", "--port", "3601"]);
+});
+
+test("buildCliSpawnPlan in source mode runs the TS entry under --import tsx, never npx", () => {
+  const root = makeTempRepo({ withTsCli: true });
+  const plan = buildCliSpawnPlan({ repoRoot: root, cliMode: "source", cliArgs: ["serve", "/tmp/site", "--port", "3601"] });
+  assert.equal(plan.command, process.execPath);
+  assert.deepEqual(plan.args, [
+    "--import",
+    require.resolve("tsx"),
+    path.join(root, "apps", "website", "src", "cli", "main.ts"),
+    "serve",
+    "/tmp/site",
+    "--port",
+    "3601",
+  ]);
+});
+
 test("buildServeEnv sets ELECTRON_RUN_AS_NODE so the Electron binary runs the CLI as Node", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
   assert.equal(env.ELECTRON_RUN_AS_NODE, "1");
@@ -148,6 +186,16 @@ test("buildServeEnv leaves TOVU_ADMIN_DIST unset when the admin has never been b
 test("buildServeEnv keeps an operator-set TOVU_ADMIN_DIST", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_ADMIN_DIST: "/custom/admin" } });
   assert.equal(env.TOVU_ADMIN_DIST, "/custom/admin");
+});
+
+test("buildServeEnv sets TOVU_SITE_DIR to the site being served — app.ts's own module-load-time createApp() falls back to a cwd-relative default otherwise, confirmed to crash when own-server mode's cwd has no sites/tovu-com", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: {} });
+  assert.equal(env.TOVU_SITE_DIR, "/Users/x/my-site");
+});
+
+test("buildServeEnv keeps an operator-set TOVU_SITE_DIR instead of replacing it", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: { TOVU_SITE_DIR: "/operator/pinned" } });
+  assert.equal(env.TOVU_SITE_DIR, "/operator/pinned");
 });
 
 test("allocatePort returns a port that is actually bindable", async () => {
@@ -209,6 +257,37 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
   ]);
   // Own process group, so the SIGKILL escalation can reap the agent daemon `tovu serve` spawns.
   assert.equal(recorded.options.detached, true);
+});
+
+test("startTovuServer in source mode runs the TS entry under --import tsx instead of the compiled CLI", async () => {
+  const child = fakeChild();
+  const root = makeTempRepo({ withTsCli: true });
+  let recorded;
+  const started = startTovuServer({
+    repoRoot: root,
+    siteDir: "/tmp/my-site",
+    port: 3601,
+    baseEnv: {},
+    cliMode: "source",
+    mirror: silentMirror(),
+    spawnFn: (command, args, options) => {
+      recorded = { command, args, options };
+      return child;
+    },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  await started;
+
+  assert.equal(recorded.command, process.execPath);
+  assert.deepEqual(recorded.args, [
+    "--import",
+    require.resolve("tsx"),
+    path.join(root, "apps", "website", "src", "cli", "main.ts"),
+    "serve",
+    "/tmp/my-site",
+    "--port",
+    "3601",
+  ]);
 });
 
 test("startTovuServer reads the boot line off stderr too, not only stdout", async () => {

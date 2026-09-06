@@ -86,16 +86,108 @@ function resolveCliEntry(repoRoot) {
 }
 
 /**
+ * The CLI's own TypeScript source, run directly instead of the compiled `dist/` this checkout's
+ * `bin.tovu` names — the "source" {@link buildCliSpawnPlan} mode.
+ *
+ * Exists to close a real bug found 2026-09-05: `dist/` is only ever as fresh as the last manual
+ * `npm run build`, and this checkout's own `dist/src/cli/main.js` was last built 2026-08-28 —
+ * schema v50 against current source's v57. Own-server mode therefore rejected every site created
+ * from current source with `SITE_NEWER_THAN_RUNTIME`, a SECOND, independent reason the app didn't
+ * work, on top of nothing being multi-site yet. Rebuilding `dist/` was not an option here: `npm run
+ * build` is gated behind `check-no-linked-jini.mjs`, and this checkout deliberately keeps 13
+ * `@jini-ai/*` packages symlinked to a local Jini checkout for active development — running the
+ * build (or `unlink:jini`) would fight that, not fix this.
+ *
+ * `development/scripts/dev.mjs` already runs `apps/website/src/index.ts` this same way (`npx tsx
+ * watch ...`) for exactly this reason: a dev checkout's compiled output cannot be trusted to match
+ * its own source. This function points at the CLI's equivalent entry — `apps/website/src/cli/main.ts`
+ * — so `serve`/`init` reach the SAME uncompiled code the running dev server does.
+ *
+ * @throws {Error} when the TS source itself is missing (a checkout with no `apps/website/src/cli/`
+ *   at all, which "packaged" mode would use instead — see {@link buildCliSpawnPlan}).
+ * @complexity O(1).
+ */
+function resolveDevCliEntry(repoRoot) {
+  const entry = path.join(repoRoot, "apps", "website", "src", "cli", "main.ts");
+  if (!fs.existsSync(entry)) {
+    throw new Error(`Tovu's CLI source is missing: ${entry} does not exist.`);
+  }
+  return entry;
+}
+
+/**
+ * Build the `{ command, args }` to spawn for one Tovu CLI invocation (`serve` or `init`), in either
+ * of two modes:
+ *
+ * - `"source"` (the default own-server mode uses, via `main.cjs`'s `TOVU_DESKTOP_CLI_MODE`) runs
+ *   current TypeScript directly under `--import tsx` — see {@link resolveDevCliEntry} for why this
+ *   is the mode that actually needs to exist.
+ * - `"compiled"` runs the built `dist/` CLI via {@link resolveCliEntry} — this function's OWN
+ *   default when no mode is given, unchanged from before `"source"` existed, so every existing
+ *   caller and test that never mentions a mode keeps its exact prior behavior.
+ *
+ * Either way the command is `process.execPath` (Electron's own Node, `ELECTRON_RUN_AS_NODE=1` from
+ * {@link buildCliEnv}), never `npx`/a bare `tsx` shebang — running `npx` would hand execution to
+ * whatever Node is first on `PATH`, reintroducing exactly the system-Node dependency
+ * `buildServeEnv`'s own comment already explains was removed on purpose.
+ *
+ * `--import` names `require.resolve("tsx")`'s own ABSOLUTE path, not the bare specifier `"tsx"`:
+ * Node resolves a bare `--import` specifier relative to the CHILD's own `cwd`, walking up through
+ * ITS ancestor `node_modules` directories — which happens to still find this repo's own
+ * `node_modules/tsx` for any cwd still inside the repo (confirmed: works from `apps/desktop/`, whose
+ * own `node_modules` has no `tsx` of its own), but fails outright once the child's cwd has no such
+ * ancestor at all (confirmed: `ERR_MODULE_NOT_FOUND` from a cwd under the OS temp dir) — exactly the
+ * scenario a packaged app's `userData` cwd would be. `apps/website`'s own
+ * `serve-command.integration.test.ts` already resolves the loader this same way, for this same
+ * reason (see its `TSX_LOADER` constant's own comment).
+ *
+ * Pure — no `spawn()` call — so mode selection is directly assertable without a real checkout or a
+ * real child process.
+ *
+ * @param input.cliArgs the CLI's own argv, e.g. `["serve", siteDir, "--port", "3601"]`.
+ * @complexity O(1).
+ */
+function buildCliSpawnPlan(input) {
+  const cliMode = input.cliMode ?? "compiled";
+  if (cliMode === "source") {
+    return { command: process.execPath, args: ["--import", require.resolve("tsx"), resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
+  }
+  return { command: process.execPath, args: [resolveCliEntry(input.repoRoot), ...input.cliArgs] };
+}
+
+/**
  * The part of the child environment every `tovu` subcommand needs — {@link buildServeEnv} layers
  * `serve`-only concerns (daemon token, admin dist) on top, and `tovu init` uses this bare form.
  * Split out so a one-shot `init` does not mint a daemon token it has no daemon for.
  *
+ * `TOVU_SITE_DIR` is set here, not only in `buildServeEnv`, because the crash it works around is
+ * NOT `serve`-specific: `cli/main.ts`'s `createProgram()` statically imports every subcommand
+ * module up front (`program.ts` imports both `init.js` and `serve.js` unconditionally), and
+ * `serve.js`'s own top-level `import { createApp } from ".../app.js"` means `app.ts`'s
+ * MODULE-LOAD-TIME `export const app = createApp();` fires for ANY `tovu` invocation — `init`
+ * included — not just when `serve`'s action handler actually runs. Confirmed live, 2026-09-05: `tovu
+ * init` run with this shell's own `buildCliEnv` (no `TOVU_SITE_DIR`) from a cwd with no
+ * `sites/tovu-com` crashed the same way `serve` did — same stack (`assistant-byok.ts`'s
+ * `resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`'s
+ * cwd-relative fallback), before `runInitCommand` ever got a chance to run. Setting it here instead
+ * of only in `buildServeEnv` is what keeps "Open Site…"/"Open Recent" onto an EMPTY folder — which
+ * calls `initSiteDir`, `buildCliEnv`'s own caller, never `buildServeEnv` — from hitting the same
+ * uncaught crash `buildServeEnv`'s own doc already named for `serve`. See that doc for the full
+ * trace and why the fix has to live in the child's own env rather than in `serve.ts`'s body.
+ *
+ * @param siteDir the site dir the child will operate on (`init`'s target dir, or `serve`'s), set
+ *   into `TOVU_SITE_DIR` unless the operator already pinned one. Optional so a caller with no
+ *   specific site in mind (none exists today) still gets a valid env.
  * @complexity O(n) in the number of inherited environment variables.
  */
-function buildCliEnv(baseEnv) {
+function buildCliEnv(baseEnv, siteDir) {
   const env = { ...(baseEnv ?? process.env) };
 
   env.ELECTRON_RUN_AS_NODE = "1";
+
+  if (!env.TOVU_SITE_DIR && siteDir) {
+    env.TOVU_SITE_DIR = siteDir;
+  }
 
   delete env.PORT;
   delete env.TOVU_CONTENT_DB;
@@ -133,17 +225,39 @@ function buildCliEnv(baseEnv) {
  *   without this. Tovu's own documented override, set from outside, so `apps/website/` needs no
  *   change; the underlying off-by-one is reported separately rather than fixed from here.
  *
+ * - **`TOVU_SITE_DIR` is set unless the operator already pinned one.** Confirmed live, 2026-09-05:
+ *   `apps/website/src/server/runtime/composition/app.ts` has a MODULE-LOAD-TIME side effect —
+ *   `export const app = createApp();`, evaluated the instant `cli/main.ts`'s static import chain
+ *   reaches that file, before `cli/commands/serve.ts`'s own `runServeCommand()` body ever runs — and
+ *   that default `createApp()` call composes `assistant-byok.ts`'s audit sink unconditionally
+ *   (`resolveToolAttemptAuditSink` → `defaultContentDbPath` → `siteDir()` → `resolveSiteRoot()`),
+ *   which falls back to `<cwd>/sites/tovu-com` whenever `TOVU_SITE_DIR` is unset. Own-server mode's
+ *   cwd is whatever launched Electron, not the repo root, so that fallback directory does not exist
+ *   and the child crashed at import time with "Cannot open database because the directory does not
+ *   exist" — before printing a boot line, before `runServeCommand` gets a chance to do anything.
+ *   The actual fix lives in {@link buildCliEnv} (this function's own base), not here, because the
+ *   same crash is reachable through `init` too — see that function's own doc. This is a real,
+ *   pre-existing "systemic gap" in `apps/website` itself (two of its own certified integration tests
+ *   — the foreign-cwd `CR-R04/CR-R01` test and the `BR-07`/`BR-04` test — already fail at HEAD for
+ *   exactly this reason, confirmed independent of any change made here), reported rather than fixed
+ *   structurally: setting it in the child's own env only helps `apps/desktop`'s OWN spawned
+ *   children, since it lives in the env this shell controls, not in the CLI's own spawn path those
+ *   two tests exercise directly.
+ *
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
  * `<dir>` are the only authority over those.
  *
  * @param input.repoRoot repo root, used to locate `apps/admin/dist`.
+ * @param input.siteDir the site dir this server will boot — threaded into `TOVU_SITE_DIR` via
+ *   {@link buildCliEnv} so every code path in the child that resolves its own site independently of
+ *   the CLI's `<dir>` argument still agrees with it.
  * @param input.baseEnv environment to layer onto (defaults to `process.env`).
  * @complexity O(n) in the number of inherited environment variables.
  */
 function buildServeEnv(input) {
   const repoRoot = input.repoRoot;
-  const env = buildCliEnv(input.baseEnv);
+  const env = buildCliEnv(input.baseEnv, input.siteDir);
 
   if (!env.TOVU_AGENT_DAEMON_TOKEN) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
@@ -238,8 +352,10 @@ function describeBootFailure(output, fallback) {
  * @param input.readyTimeoutMs boot-line deadline; defaults to 60s.
  * @param input.stopGraceMs SIGTERM-to-SIGKILL window; defaults to 5s.
  * @param input.mirror where the child's output is echoed; defaults to this process's own streams.
+ * @param input.cliMode `"source"` or `"compiled"` — see {@link buildCliSpawnPlan}; defaults to
+ *   `"compiled"` when omitted (unchanged prior behavior for any existing caller).
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop() }`
- * @throws {Error} when the CLI is unbuilt, the boot line times out, or the child exits early.
+ * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
 async function startTovuServer(input) {
@@ -247,13 +363,17 @@ async function startTovuServer(input) {
   const readyTimeoutMs = input.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const stopGraceMs = input.stopGraceMs ?? DEFAULT_STOP_GRACE_MS;
   const port = input.port ?? (await allocatePort());
-  const cliEntry = resolveCliEntry(input.repoRoot);
+  const plan = buildCliSpawnPlan({
+    repoRoot: input.repoRoot,
+    cliMode: input.cliMode,
+    cliArgs: ["serve", input.siteDir, "--port", String(port)],
+  });
 
   const child = spawnFn(
-    process.execPath,
-    [cliEntry, "serve", input.siteDir, "--port", String(port)],
+    plan.command,
+    plan.args,
     {
-      env: buildServeEnv({ repoRoot: input.repoRoot, baseEnv: input.baseEnv }),
+      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv }),
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason
@@ -319,6 +439,8 @@ module.exports = {
   buildCliEnv,
   parseCliErrorLine,
   resolveCliEntry,
+  resolveDevCliEntry,
+  buildCliSpawnPlan,
   buildServeEnv,
   allocatePort,
   startTovuServer,

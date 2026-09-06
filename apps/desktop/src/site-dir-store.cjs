@@ -23,7 +23,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawn: nodeSpawn } = require("node:child_process");
 
-const { resolveCliEntry, buildCliEnv, parseCliErrorLine } = require("./tovu-server.cjs");
+const { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } = require("./tovu-server.cjs");
 
 /** Matches Runner's own quick-pick list length — an affordance, not a full history. */
 const MAX_RECENT_SITE_DIRS = 10;
@@ -139,16 +139,27 @@ function classifySiteDir(dir) {
  * out: it keeps `apps/desktop` a consumer of a published contract instead of a second importer of
  * `apps/website`'s internals, so nothing under `apps/website/` has to change or stay stable for it.
  *
+ * `buildCliEnv` is given `input.dir` as its site dir — NOT optional here, unlike that function's own
+ * signature. `tovu init`'s import chain reaches the same module-load-time `createApp()` `tovu
+ * serve` does (see `buildCliEnv`'s own doc: `program.ts` statically imports `init.js` and `serve.js`
+ * both, unconditionally), so an empty `TOVU_SITE_DIR` here crashes `init` exactly the way it used to
+ * crash `serve` before that fix existed — confirmed live, 2026-09-05, from a cwd with no
+ * `sites/tovu-com` (own-server mode's actual cwd): "Open Site…"/"Open Recent" onto an empty folder
+ * calls this function, and used to die with an uncaught `TypeError` before `runInitCommand` ran.
+ *
+ * @param input.cliMode `"source"` or `"compiled"` — see `tovu-server.cjs`'s `buildCliSpawnPlan`;
+ *   defaults to `"compiled"` when omitted (unchanged prior behavior for any existing caller).
  * @throws {Error} carrying Tovu's own `tovu: <CODE>: <message>` line when init fails.
  * @complexity O(1) beyond `initSite`'s own cost.
  */
 function initSiteDir(input) {
   const spawnFn = input.spawnFn ?? nodeSpawn;
-  const args = [resolveCliEntry(input.repoRoot), "init", input.dir];
-  if (input.name) args.push("--name", input.name);
+  const cliArgs = ["init", input.dir];
+  if (input.name) cliArgs.push("--name", input.name);
+  const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
 
-  const child = spawnFn(process.execPath, args, {
-    env: buildCliEnv(input.baseEnv),
+  const child = spawnFn(plan.command, plan.args, {
+    env: buildCliEnv(input.baseEnv, input.dir),
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -189,10 +200,34 @@ async function adoptSiteDir(input) {
     throw new Error(`${input.dir} is missing ${missing} — it looks like a half-initialized site, not a complete one. Choose a different folder.`);
   }
   if (kind === "empty") {
-    await initSiteDir({ repoRoot: input.repoRoot, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn });
+    await initSiteDir({ repoRoot: input.repoRoot, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn, cliMode: input.cliMode });
   }
   rememberSiteDir(input.statePath, input.dir);
   return input.dir;
+}
+
+/**
+ * Classify `devFallbackDir` (step 3 of {@link resolveSiteDir}'s precedence) — split out so that
+ * function's own branching stays under the complexity gate. A `null` `devFallbackDir` (the packaged
+ * case, which never sets one) is the common early-out.
+ *
+ * @returns `{ useDir, rejected }` — never `null` itself (so callers never need optional chaining,
+ *   which the complexity gate counts as its own branch), with exactly one of the two fields set:
+ *   `useDir` when the fallback is itself a real site, ready to use directly; `rejected` — the exact
+ *   `{ dir, kind, missing? }` shape `resolveSiteDir`'s own doc describes — naming why it was turned
+ *   down, including the "nothing to try" case (`devFallbackDir` absent), which reports `rejected:
+ *   null` rather than a fabricated reason.
+ * @complexity O(1) beyond `classifySiteDir`'s own cost.
+ */
+function resolveDevFallback(devFallbackDir) {
+  if (!devFallbackDir) return { useDir: null, rejected: null };
+  const kind = classifySiteDir(devFallbackDir);
+  if (kind === "site") return { useDir: devFallbackDir, rejected: null };
+  const rejected = { dir: devFallbackDir, kind };
+  if (kind === "incomplete" || kind === "occupied") {
+    rejected.missing = missingSiteMarkers(devFallbackDir);
+  }
+  return { useDir: null, rejected };
 }
 
 /**
@@ -202,7 +237,8 @@ async function adoptSiteDir(input) {
  * 1. `TOVU_DESKTOP_SITE_DIR` — an operator override always wins, and is taken as given.
  * 2. The most recent remembered folder that is still a site — so the user is asked exactly once.
  * 3. `devFallbackDir` (`<repo>/sites/tovu-com` in a checkout), when it is a site. Correct for a
- *    developer, absent in a packaged app, which is why it cannot be the only answer.
+ *    developer, absent in a packaged app, which is why it cannot be the only answer. See
+ *    {@link resolveDevFallback}.
  * 4. Ask, via `pickDir`. An empty folder becomes a new site; a folder of unrelated files is refused.
  *
  * @param input.pickDir async `(rejectedDefault) => string | null`; `null` means the user
@@ -211,6 +247,8 @@ async function adoptSiteDir(input) {
  *   just turned down, `classifySiteDir`'s verdict on it (`"empty"`, `"incomplete"`, or `"occupied"`),
  *   and — for `"incomplete"`/`"occupied"` — exactly which marker file(s) it lacks, so the picker can
  *   say *why* it's asking instead of just asking.
+ * @param input.cliMode `"source"` or `"compiled"` — threaded through to `initSiteDir` via
+ *   `adoptSiteDir` when the picked folder is empty; see `tovu-server.cjs`'s `buildCliSpawnPlan`.
  * @throws {SiteDirSelectionCancelled} when the user dismisses the picker.
  * @complexity O(n) stat calls over the MRU, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
@@ -221,17 +259,10 @@ async function resolveSiteDir(input) {
   const [mostRecent] = existingRecentSiteDirs(input.statePath);
   if (mostRecent !== undefined) return mostRecent;
 
-  let rejectedDefault = null;
-  if (input.devFallbackDir) {
-    const kind = classifySiteDir(input.devFallbackDir);
-    if (kind === "site") return input.devFallbackDir;
-    rejectedDefault = { dir: input.devFallbackDir, kind };
-    if (kind === "incomplete" || kind === "occupied") {
-      rejectedDefault.missing = missingSiteMarkers(input.devFallbackDir);
-    }
-  }
+  const fallback = resolveDevFallback(input.devFallbackDir);
+  if (fallback.useDir) return fallback.useDir;
 
-  const picked = await input.pickDir(rejectedDefault);
+  const picked = await input.pickDir(fallback.rejected);
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }
@@ -242,6 +273,7 @@ async function resolveSiteDir(input) {
     name: input.name,
     baseEnv: input.baseEnv,
     spawnFn: input.spawnFn,
+    cliMode: input.cliMode,
   });
 }
 
@@ -257,6 +289,7 @@ module.exports = {
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,
+  resolveDevFallback,
   initSiteDir,
   adoptSiteDir,
   resolveSiteDir,
