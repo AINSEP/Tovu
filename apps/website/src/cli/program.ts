@@ -53,8 +53,11 @@ export function createProgram(): Command {
     .argument("<dir>", "install directory to serve")
     .option("--port <port>", "port to listen on (default: config.json.port, then PORT env, then 3000)")
     .option("--workspace <id>", "workspace id to serve (default: the oldest workspace, if the install has more than one)")
-    .action(async (dir: string, options: { port?: string; workspace?: string }) => {
-      await runServeCommand({ dir, port: options.port, workspaceId: options.workspace });
+    // Opt-in and off by default, so an operator running `tovu serve` by hand never sees a secret in
+    // their terminal. See `boot-session-token.ts` for what the token is and what it cannot do.
+    .option("--emit-boot-token", "print a single-use loopback token on stdout that a launching process can exchange once for an admin session")
+    .action(async (dir: string, options: { port?: string; workspace?: string; emitBootToken?: boolean }) => {
+      await runServeCommand({ dir, port: options.port, workspaceId: options.workspace, emitBootToken: options.emitBootToken === true });
     });
 
   program

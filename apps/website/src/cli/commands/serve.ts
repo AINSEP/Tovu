@@ -3,6 +3,7 @@ import path from "node:path";
 import { createApp } from "../../server/runtime/composition/app.js";
 import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
+import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
@@ -90,6 +91,13 @@ export interface RunServeCommandInput {
   dir: string;
   port?: string;
   workspaceId?: string;
+  /**
+   * Print a single-use loopback boot token on stdout once the listener is up, for a launching
+   * process to exchange for an admin session (`features/identity/boot-session-token.ts`). Default
+   * OFF: an operator running this by hand must never have a secret appear in their terminal, and a
+   * server that mints nothing has the redemption route permanently closed.
+   */
+  emitBootToken?: boolean;
 }
 
 const DEFAULT_PORT = 3000;
@@ -261,6 +269,19 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
 
     server.once("listening", () => {
       const runtime = runtimeSchemaVersion();
+      // BEFORE the documented startup line below, on purpose. A launcher treats that line as the
+      // ready signal and stops waiting the moment it sees it, so a token printed after it would
+      // race the parent's own resolve. Printed first, it is already in the parent's buffer by the
+      // time the line it is waiting for arrives — no extra handshake, no timing window.
+      //
+      // A SEPARATE line, deliberately not a fifth field on the startup line: that line is a
+      // documented contract (api.spec.md §5) other readers parse, and widening it would put a
+      // secret in front of every consumer of it. Emitted only when explicitly asked for, and only
+      // once the listener is bound, so a token can never outlive a boot that failed.
+      if (input.emitBootToken === true) {
+        // eslint-disable-next-line no-console
+        console.log(`tovu serve: bootToken=${mintBootSessionToken()}`);
+      }
       // api.spec.md §5: "one startup line including: dir, resolved port, schemaVersion, workspace id".
       // eslint-disable-next-line no-console
       console.log(`tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}`);

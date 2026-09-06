@@ -22,6 +22,43 @@ const { randomBytes } = require("node:crypto");
 /** `apps/website/src/cli/commands/serve.ts`'s documented startup line (api.spec.md §5). */
 const BOOT_LINE = /^tovu serve: dir=(.+) port=(\d+) schemaVersion=(\d+) workspaceId=(\S+)$/m;
 
+/**
+ * The optional boot-token line, printed by `tovu serve --emit-boot-token` immediately BEFORE the
+ * startup line above (see that file for why the order matters). A single-use, in-memory,
+ * loopback-only token this parent can exchange once for an admin session.
+ *
+ * Deliberately a second pattern rather than a fifth capture group on {@link BOOT_LINE}: that line
+ * is a documented contract other readers parse, and it is printed unconditionally, so widening it
+ * would put a secret in front of every consumer including an operator's own terminal.
+ */
+const BOOT_TOKEN_LINE = /^tovu serve: bootToken=(\S+)$/m;
+
+/** Every boot-token line, whole. Used to keep the secret out of anything this module echoes or
+ *  puts in an error — see {@link redactBootToken}. */
+const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
+
+/**
+ * `text` with any boot-token line removed.
+ *
+ * The token must never reach the parent's own stdout, a log file, or an `Error` message: the E2E
+ * suite captures child output, and `describeBootFailure` puts accumulated output straight into a
+ * thrown error. Stripped at every egress rather than trusting each call site to remember.
+ *
+ * @complexity O(n) in the text length.
+ */
+function redactBootToken(text) {
+  return text.replace(BOOT_TOKEN_LINE_GLOBAL, "");
+}
+
+/**
+ * The boot token from accumulated child output, or `null` when none was printed.
+ * @complexity O(n) in the text length.
+ */
+function parseBootToken(text) {
+  const match = BOOT_TOKEN_LINE.exec(text);
+  return match === null ? null : match[1];
+}
+
 /** `apps/website/src/cli/errors.ts`'s single stderr line — `stderrLine()` builds exactly this shape. */
 const CLI_ERROR_LINE = /^tovu: (\S+): (.*)$/m;
 
@@ -394,7 +431,15 @@ async function startTovuServer(input) {
   const plan = buildCliSpawnPlan({
     repoRoot: input.repoRoot,
     cliMode: input.cliMode,
-    cliArgs: ["serve", input.siteDir, "--port", String(port)],
+    cliArgs: [
+      "serve",
+      input.siteDir,
+      "--port",
+      String(port),
+      // Opt-in per call. Omitted entirely by every existing caller and every existing test, so a
+      // server booted without it mints nothing and its redemption route stays permanently closed.
+      ...(input.emitBootToken === true ? ["--emit-boot-token"] : []),
+    ],
   });
 
   const child = spawnFn(
@@ -415,7 +460,7 @@ async function startTovuServer(input) {
     let settled = false;
 
     const timer = setTimeout(() => {
-      finish(() => reject(new Error(describeBootFailure(output, `tovu serve did not report a port within ${readyTimeoutMs}ms.`))));
+      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`))));
     }, readyTimeoutMs);
 
     /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
@@ -428,9 +473,19 @@ async function startTovuServer(input) {
 
     function readStream(stream, mirror) {
       stream.setEncoding("utf8");
+      // Mirroring is LINE-buffered rather than chunk-passthrough so a boot-token line can be
+      // removed whole. A chunk boundary can fall inside that line, and a substring filter applied
+      // per chunk would echo whichever half arrived first.
+      let pending = "";
       stream.on("data", (chunk) => {
         output += chunk;
-        mirror.write(chunk);
+        pending += chunk;
+        const lastNewline = pending.lastIndexOf("\n");
+        if (lastNewline >= 0) {
+          mirror.write(redactBootToken(pending.slice(0, lastNewline + 1)));
+          pending = pending.slice(lastNewline + 1);
+        }
+
         const boot = parseBootLine(output);
         if (boot === null) return;
         const origin = `http://127.0.0.1:${boot.port}`;
@@ -442,6 +497,10 @@ async function startTovuServer(input) {
             adminUrl: `${origin}/admin/`,
             workspaceId: boot.workspaceId,
             schemaVersion: boot.schemaVersion,
+            // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
+            // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
+            // passed, which is every caller but the desktop shell.
+            bootToken: parseBootToken(output),
             stop: () => stopChild(child, stopGraceMs),
           }),
         );
@@ -454,7 +513,7 @@ async function startTovuServer(input) {
 
     child.once("error", (error) => finish(() => reject(error)));
     child.once("exit", (code, signal) => {
-      finish(() => reject(new Error(describeBootFailure(output, `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.`))));
+      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.`))));
     });
   }).catch(async (error) => {
     await stopChild(child, stopGraceMs);
@@ -464,6 +523,8 @@ async function startTovuServer(input) {
 
 module.exports = {
   parseBootLine,
+  parseBootToken,
+  redactBootToken,
   buildCliEnv,
   parseCliErrorLine,
   resolveCliEntry,
