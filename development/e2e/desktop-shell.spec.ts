@@ -22,9 +22,27 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps", "desktop");
 const ELECTRON_BIN = path.join(DESKTOP_DIR, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
 
-/** Each launch gets its own `TOVU_DESKTOP_STATE_DIR`-style scratch home so one spec's MRU and crash
- *  registry can never decide another spec's precedence. `resolveSiteDir` step 2 reads the MRU before
- *  the dev fallback, so a leaked entry would silently reroute a later test to the wrong site. */
+/**
+ * A scratch `HOME` per launch — and **it does not do what this comment used to claim.**
+ *
+ * Measured 2026-09-06: Electron's `app.getPath("userData")` **ignores a `HOME` override on macOS**
+ * (Chromium resolves the mac path independently), so every launch here — and every other spec in
+ * this file — actually reads and writes the one real
+ * `~/Library/Application Support/tovu-desktop/`. Confirmed empirically: `desktop-state.json` was
+ * found already holding six `tovu-desktop-e2e-*` MRU entries left by earlier runs.
+ *
+ * So the isolation this used to promise is false, and the suite has been polluting the developer's
+ * own app data. It has not caused a visible failure yet only because every spec below pins
+ * `TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS`, and `resolveSiteDir`'s first arm returns the
+ * env value before the MRU is ever consulted — so the poisoned MRU is short-circuited rather than
+ * unused. **Any test that relies on MRU precedence would be order-dependent and would fail
+ * mysteriously.** Do not write one until this is fixed.
+ *
+ * The real fix is `app.setPath("userData", ...)` called early in `main.cjs` behind an E2E-only env
+ * var; that is test-infrastructure work with its own ticket. The scratch home is kept in the
+ * meantime because it does still isolate anything that genuinely honors `HOME`, and removing it
+ * would make the pollution worse rather than better.
+ */
 function scratchHome(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `tovu-desktop-e2e-${label}-`));
 }
