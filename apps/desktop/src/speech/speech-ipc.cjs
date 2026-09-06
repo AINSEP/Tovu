@@ -5,12 +5,9 @@
  * `transcription-port.cjs` nor `mac-on-device-transcriber.cjs` knows Electron exists, and this
  * file has no recognition logic of its own.
  *
- * **Not wired into `main.cjs` yet.** `createWindow`'s `webPreferences` needs a `preload` path
- * (`preload-speech.cjs`) and `app.whenReady()` needs one call to {@link registerSpeechIpc} — see
- * this feature's handoff notes for the exact snippet. Left undone deliberately: `main.cjs` already
- * carries unrelated uncommitted work from another session in this shared tree, and staging that
- * file would commit that work alongside this change with no way to separate the two at file-level
- * granularity.
+ * Wired into `main.cjs`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cjs`,
+ * and `app.whenReady()` calls {@link registerSpeechIpc} once, before either boot-mode branch opens
+ * a window — see `main.cjs`'s own `SPEECH_PRELOAD_PATH` doc.
  */
 
 const { resolveTranscriptionPort } = require("./transcription-port.cjs");

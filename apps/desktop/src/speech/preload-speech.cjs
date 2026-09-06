@@ -11,8 +11,8 @@
  * needs the desktop app because transcription runs on-device (see
  * `apps/admin/src/features/voice-input/voice-unavailability.ts`).
  *
- * **Not wired into `main.cjs` yet** — see `speech-ipc.cjs`'s own header for why, and this
- * feature's handoff notes for the exact `webPreferences.preload` line `createWindow` needs.
+ * Wired into `main.cjs` as every window's `webPreferences.preload` — see `speech-ipc.cjs`'s own
+ * header and `main.cjs`'s `SPEECH_PRELOAD_PATH` doc.
  *
  * **The two channel names below are INLINED, not `require("./speech-ipc.cjs")`'d, on purpose.**
  * `createWindow`'s `webPreferences` already sets `sandbox: true` (see above), and Electron's

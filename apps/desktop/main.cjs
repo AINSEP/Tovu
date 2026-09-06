@@ -72,13 +72,20 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
-const { app, BrowserWindow, dialog, shell, Menu } = require("electron");
+const { app, BrowserWindow, dialog, shell, Menu, ipcMain } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
 const { resolveSiteDir, adoptSiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
+const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
+
+/** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
+ *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
+ *  `speech-ipc.cjs`'s own headers for the wiring gap this closes (both were built and tested with
+ *  neither this path nor {@link registerSpeechIpc} ever called from here). */
+const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
@@ -169,7 +176,7 @@ function createWindow(url, title) {
     height: 900,
     title: title ?? "Tovu",
     show: !SELFTEST,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: SPEECH_PRELOAD_PATH },
   });
 
   // Registered BEFORE `loadURL` below, and before this function returns to its caller — see
@@ -412,6 +419,12 @@ async function resolveStartupSiteDirs(ctx) {
 app
   .whenReady()
   .then(async () => {
+    // Registered before either boot-mode branch below so a window's very first `isAvailable()`
+    // call (fired from the preload the instant the page mounts) never races an unregistered
+    // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
+    // needed for `window.tovuVoice` to exist at all.
+    registerSpeechIpc({ ipcMain });
+
     const attachUrl = process.env.TOVU_DESKTOP_URL?.trim();
     if (attachUrl) {
       // Attach mode is always exactly one window.
