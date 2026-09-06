@@ -1,7 +1,12 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { latestSurfaceIdIn, surfaceIdOf, useRoutedA2uiSurfaceCard } from "../hooks/use-routed-a2ui-surface-card.hooks";
+import {
+  getServerRenderTargetSnapshot,
+  latestSurfaceIdIn,
+  surfaceIdOf,
+  useRoutedA2uiSurfaceCard,
+} from "../hooks/use-routed-a2ui-surface-card.hooks";
 import { resetPlaygroundRenderTargetBus } from "@/lib/playground-render-target-bus";
 
 /**
@@ -111,5 +116,11 @@ describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
     const { result } = renderHook(() => useRoutedA2uiSurfaceCard({ ...baseProps }));
 
     expect(() => result.current.handleAgentAction("run-1", { ok: true })).not.toThrow();
+  });
+});
+
+describe("getServerRenderTargetSnapshot", () => {
+  it("returns null — React only calls this off jsdom's render path (no SSR entry point exists here), so it is asserted by direct invocation", () => {
+    expect(getServerRenderTargetSnapshot()).toBeNull();
   });
 });
