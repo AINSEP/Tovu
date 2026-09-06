@@ -9,12 +9,27 @@ import type {
 } from "../media/index.js";
 
 /**
- * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07) —
- * media-ref-to-URL resolution for `ogImage`/`twitterImage`. Read-only, over
- * `media`'s existing repos (no new port). Never generates a rendition, never
- * throws — resolves `undefined` on any lookup miss (deleted asset, trashed
- * asset, unregistered transform, ungenerated rendition) so the rest of the
- * head render never breaks over one bad image reference.
+ * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07;
+ * EC-07's "never generates" clause AMENDED 2026-09-05 — see the ADR's
+ * Amendments section) — media-ref-to-URL resolution for
+ * `ogImage`/`twitterImage`. Read-only, over `media`'s existing repos (no new
+ * port). Never throws — resolves `undefined` on any lookup miss (deleted
+ * asset, trashed asset, unregistered transform) so the rest of the head
+ * render never breaks over one bad image reference.
+ *
+ * Does NOT require a rendition to already exist. It always composes the URL
+ * for the LATEST registered version of `transformName` (`buildSeoImageUrl`
+ * below), whether or not that exact rendition row has been generated yet.
+ * This is safe because the public serving route
+ * (`routes/site/media-rendition.ts` -> `resolveMediaRendition` ->
+ * `isLatestTransformVersion`) always allows anonymous lazy generation for a
+ * not-yet-generated rendition of the latest registered version — the same
+ * "latest" this function selects — so every URL this function emits is
+ * guaranteed servable on first fetch. `assetRenditionRepo` stays on
+ * {@link ResolveSeoImageRefDeps} unused by this function today (kept for
+ * shape stability / potential future consumers, e.g. an admin preview that
+ * wants to know whether a rendition already exists) rather than removed as
+ * part of this change.
  */
 
 const ABSOLUTE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -83,8 +98,13 @@ function buildSeoImageUrl(assetId: string, transformName: string, latest: Transf
  * result via `toAbsoluteUrl`, since `og:image`/`twitter:image` must be
  * absolute for crawlers, same as `og:url`).
  *
+ * Does not check whether a rendition row already exists (AMENDED 2026-09-05
+ * — see this file's header doc for the safety argument): the emitted URL
+ * always targets the latest registered transform version, which the public
+ * `/m/` route always lazily generates on first anonymous fetch.
+ *
  * @complexity O(1) — bounded repo lookups (one asset read, one transform-
- * version listing, one rendition read).
+ * version listing).
  */
 export async function resolveSeoImageRef(
   deps: ResolveSeoImageRefDeps,
@@ -103,14 +123,6 @@ export async function resolveSeoImageRef(
 
   const latest = await resolveLatestTransformVersion(deps, input.workspaceId, transformName);
   if (!latest) return undefined;
-
-  const rendition = await deps.assetRenditionRepo.findOne({
-    workspaceId: input.workspaceId,
-    assetId,
-    transformName,
-    version: latest.version,
-  });
-  if (!rendition) return undefined;
 
   return buildSeoImageUrl(assetId, transformName, latest);
 }

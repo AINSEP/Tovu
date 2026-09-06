@@ -8,22 +8,30 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
- * @file Characterizes the seam between `seo/media.ts`'s `resolveSeoImageRef` (never generates a
- * rendition — ADR-PIPE-008 EC-07, certified by `seo/__tests__/media.test.ts`'s "a registered
- * transform with no generated rendition yet resolves undefined") and the public media-rendition
- * route (`routes/site/media-rendition.ts`), which CAN lazily generate the same rendition on demand.
+ * @file Certifies the 2026-09-05 owner-directed fix to the seam between `seo/media.ts`'s
+ * `resolveSeoImageRef` and the public media-rendition route (`routes/site/media-rendition.ts`).
  *
- * The 2026-09-05 owner ruling ("published content and its media must be anonymously reachable and
- * crawlable") makes the gap between those two facts directly load-bearing: a share-card image that
- * is never embedded in any entry body (the normal shape for a dedicated OG/featured image — the
- * admin's own `Seo.tsx` field is a plain text ref input with no picker/preview that would otherwise
- * trigger a fetch) has no OTHER code path that ever generates its rendition. So `og:image`/
- * `twitter:image` can go on being omitted from the rendered page forever, even though the exact URL
- * `resolveSeoImageRef` would have emitted is fully public and 200s the moment anything requests it.
+ * Before this fix (ADR-PIPE-008 EC-07's original "never generates" clause, certified by
+ * `seo/__tests__/media.test.ts`'s "a registered transform with no generated rendition yet resolves
+ * undefined"), `resolveSeoImageRef` required a rendition row to already exist before it would emit a
+ * URL. Since a dedicated OG/featured image is the normal shape for `seoExtJson.ogImage`/
+ * `twitterImage` — never embedded in any entry body (the admin's own `Seo.tsx` field is a plain text
+ * ref input with no picker/preview that would otherwise trigger a fetch) — no OTHER code path ever
+ * generated its rendition, so `og:image`/`twitter:image` was omitted from the rendered page forever,
+ * even though the exact URL `resolveSeoImageRef` would have emitted was fully public and 200s the
+ * moment anything requests it (the public route's own `isLatestTransformVersion` bound always allows
+ * anonymous lazy generation for the LATEST registered transform version — the only version
+ * `resolveSeoImageRef` ever selects).
  *
- * This file does not change behavior — `resolveSeoImageRef`'s "never generates" rule is a certified,
- * ADR-governed decision this task does not have a mandate to overturn (see the handoff). It exists so
- * the gap is pinned down as measured, reproducible behavior rather than inferred from reading code.
+ * The owner ruled ("I want this to be viewable by everybody... I want this to be indexed by any
+ * crawler or anything like that"): relax the rule. See ADR-PIPE-008's Amendments section for the
+ * record of the override and its safety argument.
+ *
+ * This file's first test is the load-bearing end-to-end proof that the relaxed rule is actually
+ * safe — it does not just assert the tag's presence (a tag pointing at a 404 would be worse than no
+ * tag at all), it fetches the EXACT published URL anonymously, no cookies, no Authorization header,
+ * and asserts a real 200 with an image content-type. The second test guards the pre-existing
+ * "already warmed" case, which must keep working unchanged.
  */
 
 const OG_TRANSFORM_NAME = "public";
@@ -82,12 +90,13 @@ function extractOgImage(html: string): string | undefined {
   return html.match(/<meta property="og:image" content="([^"]*)"/)?.[1];
 }
 
-test("SEO/media-gate seam: a dedicated (never-embedded) OG image whose rendition has not yet been generated is omitted from the page, even though its exact /m/ URL is already publicly servable", async (t) => {
+test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing rendition still gets an og:image tag, and the exact published URL 200s anonymously with an image content-type", async (t) => {
   const deps = createRouteDeps();
   const { media } = await uploadOne(deps, imageBytes("dedicated-og-image-never-embedded"), "cover.png");
   const { definition } = await registerOgTransform(deps);
   // No rendition generated yet -- nobody's browser has ever requested this asset+transform combo,
-  // since it is only ever referenced via `seoExtJson.ogImage`, never placed in any entry body.
+  // since it is only ever referenced via `seoExtJson.ogImage`, never placed in any entry body. Before
+  // the 2026-09-05 fix this was exactly the condition under which og:image stayed omitted forever.
   await deps.postRepo.save(
     publishedPostWithOgImageRef({
       id: randomUUID(),
@@ -104,22 +113,32 @@ test("SEO/media-gate seam: a dedicated (never-embedded) OG image whose rendition
   const page = await fetch(`${baseUrl}/post-with-unwarmed-og-image`);
   assert.equal(page.status, 200);
   const html = await page.text();
-  assert.equal(
-    extractOgImage(html),
-    undefined,
-    "resolveSeoImageRef's EC-07 rule (never generates) omits og:image until SOMETHING else has generated this rendition"
+  const ogImage = extractOgImage(html);
+  assert.ok(ogImage, "og:image must be present even though nothing has ever generated this rendition before");
+  assert.match(ogImage!, /^https?:\/\//, "og:image must be an ABSOLUTE URL -- crawlers do not resolve relative image URLs");
+  assert.ok(
+    new URL(ogImage!).pathname.startsWith(`/m/${media.id}/${definition.name}.v${definition.version}/`),
+    `og:image path must match the frozen /m/ URL contract, got: ${ogImage}`
   );
 
-  // The gate is not what is blocking this -- the identical URL `resolveSeoImageRef` would have
-  // composed is already 200-able to a plain anonymous fetch, no cookies, no auth.
-  const directUrl = `${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/cover.webp`;
-  const direct = await fetch(directUrl);
+  // The load-bearing proof: fetch the EXACT path the page just published, anonymously -- no cookies,
+  // no Authorization header. A tag pointing at a 404 would be worse than no tag at all. Refetched
+  // against `baseUrl` rather than `ogImage` verbatim, same as the sibling test below: the verified
+  // origin this test's deps resolve to is a fixed placeholder, not this test server's real ephemeral
+  // port, so the absolute URL's ORIGIN is not meaningful here -- only its path is.
+  const ogImagePath = new URL(ogImage!).pathname;
+  const crawlerFetch = await fetch(`${baseUrl}${ogImagePath}`);
   assert.equal(
-    direct.status,
+    crawlerFetch.status,
     200,
-    "the media gate already allows this asset through anonymously -- the missing tag is the only blocker"
+    "the exact URL published in og:image must itself be publicly fetchable on first request"
   );
-  assert.equal(direct.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.match(
+    crawlerFetch.headers.get("content-type") ?? "",
+    /^image\//,
+    "the fetched og:image URL must actually serve image bytes, not just exist as a string in the markup"
+  );
+  assert.equal(crawlerFetch.headers.get("cache-control"), "public, max-age=31536000, immutable");
 });
 
 test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin previewed it, or a prior crawler attempt generated it), og:image appears with an absolute URL and 200s anonymously with no cookies", async (t) => {

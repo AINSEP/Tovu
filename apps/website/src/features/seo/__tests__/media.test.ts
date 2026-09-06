@@ -113,7 +113,7 @@ test("resolveSeoImageRef: an unregistered transform name resolves undefined", as
   assert.equal(result, undefined);
 });
 
-test("resolveSeoImageRef: a registered transform with no generated rendition yet resolves undefined (never generates)", async () => {
+test("resolveSeoImageRef: a registered transform with no generated rendition yet STILL composes the URL (AMENDED 2026-09-05 — EC-07's 'never generates' clause overturned; the public /m/ route always lazily generates the latest registered version, so this URL is guaranteed servable)", async () => {
   const deps = {
     mediaRepo: new InMemoryMediaRepo([makeAsset()]),
     assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
@@ -121,7 +121,8 @@ test("resolveSeoImageRef: a registered transform with no generated rendition yet
   };
 
   const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
-  assert.equal(result, undefined);
+  assert.ok(result, "no rendition row yet must NOT block the URL from being emitted");
+  assert.match(result!, /^\/m\/asset-1\/og\.v1\//);
 });
 
 test("resolveSeoImageRef: multiple registered versions of the same transform resolve to the HIGHEST version, regardless of registration order", async () => {
