@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import {
   lockedPublishReason,
@@ -9,6 +9,7 @@ import {
   selectedFileLabel,
   selectedFilePublishState,
   useThemeExplore,
+  useWiredThemeExplore,
   type ThemeExploreFile,
 } from "../hooks/use-theme-explore.hooks";
 
@@ -637,6 +638,49 @@ describe("useThemeExplore — rename race safety", () => {
     expect(result.current.notice).toBe("Renamed to css/b2.css");
     expect(result.current.renaming).toBe(false);
   });
+
+  it("a stale FAILED rename settling after a newer, successful rename must not resurrect a stale error", async () => {
+    const deferred: Record<string, { reject: (reason: unknown) => void; resolveOk: (value: { path: string }) => void }> = {};
+    const port = createFakeThemeExplorePort({
+      files: FILES,
+      contents: { "pages/index.html": "<html></html>" },
+    });
+    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+      return new Promise<{ path: string }>((resolve, reject) => {
+        deferred[name] = { reject, resolveOk: resolve };
+      });
+    });
+
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("a2.css"));
+    act(() => result.current.commitRename());
+
+    act(() => result.current.startRename("css/b.css"));
+    act(() => result.current.setRenameDraft("b2.css"));
+    act(() => result.current.commitRename());
+
+    await waitFor(() => expect(port.renameThemeFile).toHaveBeenCalledTimes(2));
+
+    // The LAST-started rename (b2) succeeds first.
+    await act(async () => {
+      deferred["b2.css"]!.resolveOk({ path: "css/b2.css" });
+    });
+    await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b2.css"));
+    expect(result.current.error).toBeNull();
+
+    // The stale, superseded a2 rename now fails — its error must not resurrect over b2's
+    // already-successful, already-displayed outcome.
+    await act(async () => {
+      deferred["a2.css"]!.reject(new Error("failed to rename file"));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.notice).toBe("Renamed to css/b2.css");
+  });
 });
 
 /**
@@ -789,6 +833,957 @@ describe("useThemeExplore — delete", () => {
     expect(result.current.deleting).toBe(false);
     // The confirmation stays open on failure — the operator has not been told it's safe to walk away.
     expect(result.current.deleteTarget).toBe("pages/about.html");
+  });
+});
+
+describe("useThemeExplore — initial load failure", () => {
+  it("surfaces an Error rejection from getThemeDetail as error", async () => {
+    const port = createFakeThemeExplorePort();
+    port.getThemeDetail = () => Promise.reject(new Error("theme not found"));
+    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.error).toBe("theme not found"));
+    expect(result.current.detail).toBeNull();
+  });
+
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort();
+    port.getThemeDetail = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.error).toBe("failed to load theme"));
+  });
+
+  it("surfaces a 'not a page or file' toast when a requested ?page=/?file= misses, without failing the load", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const { result } = renderHook(() =>
+      useThemeExplore("basic", { port, t: (k) => k }, { pageId: "does-not-exist" })
+    );
+
+    await waitFor(() => expect(result.current.error).toBe('"does-not-exist" isn\'t a page or file in this theme.'));
+    // Still lands on the ordinary default selection — a bad param degrades, it does not block the load.
+    expect(result.current.selected).toBe("pages/index.html");
+  });
+});
+
+describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
+  it("drops a stale successful getThemeDetail response after unmount", async () => {
+    let resolveDetail!: (value: { id: string; name: string; tier: string; status: string; errors: string[]; pages: string[]; partials: string[]; lineage: null; hasOriginal: boolean; files: never[] }) => void;
+    const port = createFakeThemeExplorePort();
+    port.getThemeDetail = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveDetail = resolve as never;
+        })
+    );
+    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledTimes(1));
+
+    unmount();
+
+    // The now-cancelled effect's response lands after unmount — must not throw, and (since the
+    // hook is gone) there is nothing left to assert on except that this settles cleanly.
+    expect(() => {
+      resolveDetail({
+        id: "basic",
+        name: "Basic",
+        tier: "declarative",
+        status: "active",
+        errors: [],
+        pages: [],
+        partials: [],
+        lineage: null,
+        hasOriginal: true,
+        files: [],
+      });
+    }).not.toThrow();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("drops a stale FAILED getThemeDetail response after unmount", async () => {
+    let rejectDetail!: (reason: unknown) => void;
+    const port = createFakeThemeExplorePort();
+    port.getThemeDetail = vi.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectDetail = reject;
+        })
+    );
+    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledTimes(1));
+
+    unmount();
+
+    expect(() => rejectDetail(new Error("too late"))).not.toThrow();
+    expect(result.current.error).toBeNull();
+  });
+});
+
+describe("useThemeExplore — file-content effect failure", () => {
+  it("surfaces an Error rejection from getThemeFile as error", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.getThemeFile = () => Promise.reject(new Error("read failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.error).toBe("read failed"));
+  });
+
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.getThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+
+    await waitFor(() => expect(result.current.error).toBe("failed to read file"));
+  });
+
+  it("drops a stale FAILED getThemeFile response for a selection the operator has already navigated away from", async () => {
+    const deferred: Record<string, { reject: (reason: unknown) => void }> = {};
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+      contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
+    });
+    port.getThemeFile = vi.fn(
+      (_themeId: string, path: string) =>
+        new Promise((_resolve, reject) => {
+          deferred[path] = { reject };
+        })
+    );
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.select("pages/about.html"));
+    await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      deferred["pages/index.html"]!.reject(new Error("too late"));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The stale rejection must not surface as an error for the file the operator has since moved on
+    // from.
+    expect(result.current.error).toBeNull();
+  });
+
+  it("drops a stale getThemeFile response for a selection the operator has already navigated away from", async () => {
+    const deferred: Record<string, { resolve: (value: { content: string }) => void }> = {};
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+      contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
+    });
+    port.getThemeFile = vi.fn(
+      (_themeId: string, path: string) =>
+        new Promise((resolve) => {
+          deferred[path] = { resolve };
+        })
+    );
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(1));
+
+    // Navigate away before the first file's content ever arrives.
+    act(() => result.current.select("pages/about.html"));
+    await waitFor(() => expect(port.getThemeFile).toHaveBeenCalledTimes(2));
+
+    // The stale index.html response now lands — it must not clobber the about.html source that's
+    // still pending, nor the currently-selected file.
+    await act(async () => {
+      deferred["pages/index.html"]!.resolve({ content: "<h1>Home</h1>" });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.selected).toBe("pages/about.html");
+    expect(result.current.source).toBe("");
+
+    await act(async () => {
+      deferred["pages/about.html"]!.resolve({ content: "<h1>About</h1>" });
+    });
+    await waitFor(() => expect(result.current.source).toBe("<h1>About</h1>"));
+  });
+});
+
+describe("useThemeExplore — save", () => {
+  it("is a no-op when nothing is selected", async () => {
+    const port = createFakeThemeExplorePort({ files: [] });
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+    expect(result.current.selected).toBeNull();
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("surfaces an Error rejection from putThemeFile as error and stops saving", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.putThemeFile = () => Promise.reject(new Error("write failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("write failed");
+    expect(result.current.saving).toBe(false);
+    // The failed save left the working copy dirty — nothing was actually persisted.
+    expect(result.current.dirty).toBe(true);
+  });
+
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.putThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("failed to save file");
+  });
+});
+
+/**
+ * `reset` — restore the open file to its catalog original. No existing suite ever called it before
+ * this describe block: `resetConfirmOpen`'s own guard is a UI dialog concern (`ThemeExplore.tsx`),
+ * not something this hook enforces itself, so this drives `reset()` directly.
+ */
+describe("useThemeExplore — reset", () => {
+  it("is a no-op when nothing is selected", async () => {
+    const port = createFakeThemeExplorePort({ files: [] });
+    const resetSpy = vi.spyOn(port, "resetThemeFile");
+    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(resetSpy).not.toHaveBeenCalled();
+    expect(result.current.resetting).toBe(false);
+  });
+
+  it("adopts the server's returned content, bumps previewNonce, and closes the confirm dialog", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Changed</h1>" },
+    });
+    port.resetThemeFile = () => Promise.resolve({ content: "<h1>Original</h1>" });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+    act(() => result.current.setSource("<h1>Edited</h1>"));
+    act(() => result.current.openResetConfirm());
+    const nonceBefore = result.current.previewNonce;
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.source).toBe("<h1>Original</h1>");
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.notice).toBe("Reset pages/index.html to the original");
+    expect(result.current.previewNonce).toBe(nonceBefore + 1);
+    expect(result.current.resetConfirmOpen).toBe(false);
+    expect(result.current.resetting).toBe(false);
+  });
+
+  it("surfaces an Error rejection from resetThemeFile as error and leaves the confirm dialog open", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.resetThemeFile = () => Promise.reject(new Error("reset failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.openResetConfirm());
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe("reset failed");
+    expect(result.current.resetting).toBe(false);
+    // Failure never reaches the "close the dialog" line — the operator is still looking at it.
+    expect(result.current.resetConfirmOpen).toBe(true);
+  });
+
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.resetThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe("failed to reset file");
+  });
+});
+
+describe("useThemeExplore — performRename failure and the non-selected-file ternary", () => {
+  const FILES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+  ];
+  const CONTENTS = { "pages/index.html": "<h1>Home</h1>", "css/a.css": "body{}" };
+
+  it("reports a NAME_TAKEN ApiError with its own dedicated message", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    port.renameThemeFile = () => Promise.reject(new ApiError("conflict", 409, "NAME_TAKEN"));
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("'b.css' already exists in this theme"));
+    expect(result.current.renaming).toBe(false);
+  });
+
+  it("reports a generic Error's own message when it isn't a NAME_TAKEN ApiError", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    port.renameThemeFile = () => Promise.reject(new Error("server exploded"));
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("server exploded"));
+  });
+
+  it("falls back to a generic rename-failed message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    port.renameThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("failed to rename file"));
+  });
+
+  it("updates selection to the new path when the renamed file WAS the one open", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
+
+    act(() => result.current.select("css/a.css"));
+    await waitFor(() => expect(result.current.selected).toBe("css/a.css"));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b.css"));
+    expect(result.current.selected).toBe("css/b.css");
+  });
+
+  it("keeps the existing selection unchanged when the renamed file was not the one open", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b.css"));
+    // The rename targeted css/a.css, not the currently-open pages/index.html — selection must not
+    // have been dragged along with it.
+    expect(result.current.selected).toBe("pages/index.html");
+  });
+});
+
+describe("useThemeExplore — startRename's generic read-only-group message names the RENAME action", () => {
+  it("says 'renaming' (not 'deleting') when locking an IDENTITY_LOCKED_GROUPS member for rename", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "js/main.js", group: "script", readable: true, editable: true, resettable: true },
+      ],
+    });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("js/main.js"));
+
+    expect(result.current.renamingPath).toBeNull();
+    expect(result.current.error).toMatch(/renaming it could break/);
+  });
+});
+
+describe("useThemeExplore — commitRename validation", () => {
+  const FILES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "pages/about.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+  ];
+
+  it("is a no-op when nothing is being renamed", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.commitRename());
+
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty (whitespace-only) name without calling the port", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("   "));
+    act(() => result.current.commitRename());
+
+    expect(result.current.error).toBe("Name cannot be empty");
+    expect(renameSpy).not.toHaveBeenCalled();
+    // Stays in rename-edit mode — the operator can fix the draft in place.
+    expect(result.current.renamingPath).toBe("css/a.css");
+  });
+
+  it("refuses a name containing a path separator without calling the port", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("sub/b.css"));
+    act(() => result.current.commitRename());
+
+    expect(result.current.error).toBe("Name cannot contain a path separator");
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it("refuses a backslash the same way as a forward slash", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("sub\\b.css"));
+    act(() => result.current.commitRename());
+
+    expect(result.current.error).toBe("Name cannot contain a path separator");
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it("silently closes rename-edit mode on a same-name draft, with no port call", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    // Draft starts equal to the current basename already (startRename seeds it that way) — commit
+    // immediately without editing it.
+    act(() => result.current.commitRename());
+
+    expect(result.current.renamingPath).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it("diverts a PAGE rename into pageRenameWarning instead of renaming immediately", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("pages/about.html"));
+    act(() => result.current.setRenameDraft("contact.html"));
+    act(() => result.current.commitRename());
+
+    expect(result.current.pageRenameWarning).toEqual({ path: "pages/about.html", name: "contact.html" });
+    expect(result.current.renamingPath).toBeNull();
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("useThemeExplore — confirmPageRename / cancelPageRenameWarning", () => {
+  const FILES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "pages/about.html", group: "page" as const, readable: true, editable: true, resettable: true },
+  ];
+
+  it("is a no-op when there is no pending page-rename warning", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    await act(async () => {
+      await result.current.confirmPageRename();
+    });
+
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it("performs the rename and clears the warning once confirmed", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("pages/about.html"));
+    act(() => result.current.setRenameDraft("contact.html"));
+    act(() => result.current.commitRename());
+    expect(result.current.pageRenameWarning).not.toBeNull();
+
+    await act(async () => {
+      await result.current.confirmPageRename();
+    });
+
+    expect(result.current.pageRenameWarning).toBeNull();
+    expect(result.current.notice).toBe("Renamed to pages/contact.html");
+  });
+
+  it("cancelPageRenameWarning discards the pending warning with no server call", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES });
+    const renameSpy = vi.spyOn(port, "renameThemeFile");
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("pages/about.html"));
+    act(() => result.current.setRenameDraft("contact.html"));
+    act(() => result.current.commitRename());
+
+    act(() => result.current.cancelPageRenameWarning());
+
+    expect(result.current.pageRenameWarning).toBeNull();
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("useThemeExplore — copyFile failure", () => {
+  it("surfaces an Error rejection as error", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    port.copyThemeFile = () => Promise.reject(new Error("copy failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    await act(async () => {
+      await result.current.copyFile("pages/about.html");
+    });
+
+    expect(result.current.error).toBe("copy failed");
+    expect(result.current.copyingPath).toBeNull();
+  });
+
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    port.copyThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    await act(async () => {
+      await result.current.copyFile("pages/about.html");
+    });
+
+    expect(result.current.error).toBe("failed to copy file");
+  });
+});
+
+describe("useThemeExplore — confirmDelete no-target guard, and the empty-theme fallback", () => {
+  it("is a no-op when nothing is pending delete", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    const deleteSpy = vi.spyOn(port, "deleteThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it("falls back to null selection when deleting the theme's last remaining file", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/only.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/only.html": "<h1>Only</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/only.html"));
+
+    act(() => result.current.openDeleteConfirm("pages/only.html"));
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    // No index page, no other page, no other file left at all — the fallback bottoms out at null
+    // rather than pointing at a path that no longer exists.
+    expect(result.current.files).toEqual([]);
+    expect(result.current.selected).toBeNull();
+  });
+});
+
+describe("useThemeExplore — confirmDelete failure, non-Error rejection", () => {
+  it("falls back to a generic message when the rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    port.deleteThemeFile = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    act(() => result.current.openDeleteConfirm("pages/about.html"));
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    expect(result.current.error).toBe("failed to delete file");
+  });
+});
+
+describe("useThemeExplore — select on a path this theme doesn't have", () => {
+  it("still updates selected, but skips the address-bar write (nothing valid to link to)", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/index.html"));
+    const searchBefore = window.location.search;
+
+    act(() => result.current.select("pages/ghost.html"));
+
+    expect(result.current.selected).toBe("pages/ghost.html");
+    expect(window.location.search).toBe(searchBefore);
+  });
+});
+
+describe("useThemeExplore — setPagePublished, the remaining notice/error branches", () => {
+  it("reports the Published notice on the true (publish) direction", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "render/pages/pricing.html", group: "page", readable: true, editable: true, resettable: true, published: false }],
+      contents: { "render/pages/pricing.html": "<h1>Pricing</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
+
+    await act(async () => {
+      await result.current.setPagePublished(true);
+    });
+
+    expect(result.current.notice).toBe("Published pricing");
+  });
+
+  it("falls back to a generic message when a setPagePublished rejection is not an Error instance", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "render/pages/pricing.html", group: "page", readable: true, editable: true, resettable: true, published: true }],
+      contents: { "render/pages/pricing.html": "<h1>Pricing</h1>" },
+    });
+    port.setPagePublished = () => Promise.reject("nope");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("render/pages/pricing.html"));
+
+    await act(async () => {
+      await result.current.setPagePublished(false);
+    });
+
+    expect(result.current.error).toBe("failed to update publish state");
+  });
+});
+
+/**
+ * The ⌘S / Ctrl+S save shortcut — bound to `window`, not the textarea, so it works from anywhere on
+ * the screen. No existing suite dispatches a `keydown` at all.
+ */
+describe("useThemeExplore — onKeyDown save shortcut", () => {
+  function dispatchKey(init: KeyboardEventInit) {
+    window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+  }
+
+  it("ignores a key that isn't s, even with a modifier held", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    act(() => dispatchKey({ key: "a", metaKey: true }));
+
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it("ignores s with no modifier at all", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    act(() => dispatchKey({ key: "s" }));
+
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it("swallows the browser's Save-Page-As dialog (preventDefault) even when there is nothing to save", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+
+    const event = new KeyboardEvent("keydown", { key: "s", metaKey: true, bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    act(() => {
+      window.dispatchEvent(event);
+    });
+
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+    // Not dirty yet — swallowed, but nothing was actually saved.
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it("triggers save on Cmd+S when dirty", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    await act(async () => {
+      dispatchKey({ key: "s", metaKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.dirty).toBe(false));
+    expect(result.current.notice).toBe("Saved pages/index.html");
+  });
+
+  it("triggers save on Ctrl+S too", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    await act(async () => {
+      dispatchKey({ key: "S", ctrlKey: true }); // uppercase — toLowerCase() must normalize it
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.dirty).toBe(false));
+  });
+
+  it("does not save again while a save is already in flight", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    port.putThemeFile = vi.fn(() => new Promise(() => {}));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+
+    act(() => {
+      dispatchKey({ key: "s", metaKey: true });
+    });
+    await waitFor(() => expect(result.current.saving).toBe(true));
+
+    act(() => {
+      dispatchKey({ key: "s", metaKey: true });
+    });
+
+    expect(port.putThemeFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not save when nothing is selected", async () => {
+    const port = createFakeThemeExplorePort({ files: [] });
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("empty", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+    expect(result.current.selected).toBeNull();
+
+    act(() => dispatchKey({ key: "s", metaKey: true }));
+
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("useThemeExplore — trivial dismiss/open/close closures", () => {
+  it("dismissError clears a standing error", async () => {
+    const port = createFakeThemeExplorePort();
+    port.getThemeDetail = () => Promise.reject(new Error("boom"));
+    const { result } = renderHook(() => useThemeExplore("ghost", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.error).toBe("boom"));
+
+    act(() => result.current.dismissError());
+    expect(result.current.error).toBeNull();
+  });
+
+  it("dismissNotice clears a standing notice", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.notice).not.toBeNull();
+
+    act(() => result.current.dismissNotice());
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("openResetConfirm/closeResetConfirm toggle resetConfirmOpen with no server call", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    const resetSpy = vi.spyOn(port, "resetThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    act(() => result.current.openResetConfirm());
+    expect(result.current.resetConfirmOpen).toBe(true);
+
+    act(() => result.current.closeResetConfirm());
+    expect(result.current.resetConfirmOpen).toBe(false);
+    expect(resetSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `startRename`/`openDeleteConfirm`'s client-side lock check for a required file that ISN'T
+ * `pages/index.html` itself (`theme.json`/`tokens.json`) — every existing lock test above only ever
+ * exercises the INDEX page's own dedicated message. Also exercises `lockedIdentityChangeReason`'s
+ * `kind ?? "config"` fallback: `theme.json` is intentionally left OUT of the `files` fixture below
+ * (the lock is a path-based check, independent of whether the file even appears in the listing), so
+ * `files.find(...)?.kind` is `undefined` here.
+ */
+describe("useThemeExplore — locked-identity message for a non-index required file", () => {
+  it("startRename reports the FILE-worded message (not the index page's own wording) for theme.json", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    act(() => result.current.startRename("theme.json"));
+
+    expect(result.current.renamingPath).toBeNull();
+    expect(result.current.error).toBe(
+      "theme.json can't be renamed — every theme requires this exact file to load at all."
+    );
+  });
+
+  it("openDeleteConfirm reports the same FILE-worded message for tokens.json", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+    });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    act(() => result.current.openDeleteConfirm("tokens.json"));
+
+    expect(result.current.deleteTarget).toBeNull();
+    expect(result.current.error).toBe(
+      "tokens.json can't be deleted — every theme requires this exact file to load at all."
+    );
+  });
+});
+
+describe("useWiredThemeExplore", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
+    const getDetailSpy = vi.spyOn(api, "getThemeDetail").mockResolvedValue({
+      id: "basic",
+      name: "Basic",
+      tier: "declarative",
+      status: "active",
+      errors: [],
+      pages: [],
+      partials: [],
+      lineage: null,
+      hasOriginal: true,
+      files: [],
+    } as never);
+
+    const { result } = renderHook(() => useWiredThemeExplore("basic"));
+
+    // Bound translator falls back to the English source string with no override in play — same
+    // proof `useWiredThemes`'s own test uses that `t` is `themes-i18n.ts`'s dictionary translator,
+    // not the raw identity function every `useThemeExplore({ port, t })` unit test above passes.
+    expect(result.current.t("Themes")).toBe("Themes");
+
+    await waitFor(() => expect(result.current.detail?.name).toBe("Basic"));
+    expect(getDetailSpy).toHaveBeenCalledTimes(1);
   });
 });
 
