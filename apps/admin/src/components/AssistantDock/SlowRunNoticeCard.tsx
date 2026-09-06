@@ -1,5 +1,7 @@
 import { useT, type ExtEventRenderProps } from "@jini-ai/chat/react";
 
+import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCard.hooks";
+
 /**
  * @file Renders Jini's slow-run notice inline in the transcript — the wall-clock "still working"
  * signal `@jini-ai/daemon`'s `run-lifecycle.ts` emits (a `type: 'slow_running'` agent event) once a
@@ -20,46 +22,13 @@ import { useT, type ExtEventRenderProps } from "@jini-ai/chat/react";
  * `translateRunAgentPayload`'s `default` branch into `kind: 'ext'`, which this card renders.
  */
 
-/**
- * Reads the most recent slow-run event's `detail` text, or `undefined` if the array is empty or the
- * entry is shaped unexpectedly (never trusted — this is untyped `unknown` data straight off the
- * wire, per `ExtEventRenderProps.events`'s own doc).
- *
- * Only the LATEST entry is read, not every occurrence: a run that stalls, recovers, and stalls again
- * should read as "still working" once, not as a growing list of identical lines — every occurrence
- * sharing this `name` already folds into one render slot at its first occurrence's position in the
- * transcript (`message-blocks.ts`'s own doc on `MessageBlock<Row>`'s `ext` variant).
- *
- * @param events - {@link ExtEventRenderProps.events} for the `"slow_running"` group.
- * @returns The server-supplied detail text, or `undefined` to signal "use the fallback copy".
- */
-export function resolveSlowRunDetail(events: readonly unknown[]): string | undefined {
-  const latest = events[events.length - 1] as { detail?: unknown } | undefined;
-  return typeof latest?.detail === "string" && latest.detail.length > 0 ? latest.detail : undefined;
-}
-
-/**
- * Whether the "still working" notice is still an accurate thing to say.
- *
- * The daemon's watchdog fires once and is never retracted (see this file's own doc), so nothing
- * upstream ever tells this card to stop rendering — it has to decide for itself. `runSucceeded`'s
- * own contract is "ignored while `runStreaming` is true" (it is only meaningful once the run is
- * already terminal), so a naive `!runStreaming` check alone would already cover both terminal
- * outcomes (success and failure alike) correctly. This checks `runSucceeded` too, rather than
- * relying on that contract being honored upstream: if a caller ever reports `runSucceeded: true`
- * before `runStreaming` catches up to `false`, this still hides immediately instead of parroting a
- * stale "still working" for one more render.
- *
- * @param runStreaming - {@link ExtEventRenderProps.runStreaming}.
- * @param runSucceeded - {@link ExtEventRenderProps.runSucceeded}.
- * @returns `true` while the notice should still render; `false` once the run has reached any
- *   terminal outcome (succeeded, failed, or aborted).
- *
- * @complexity Time/space: O(1).
- */
-export function isSlowRunNoticeVisible(runStreaming: boolean, runSucceeded: boolean): boolean {
-  return runStreaming && !runSucceeded;
-}
+// `resolveSlowRunDetail`/`isSlowRunNoticeVisible` now live in `SlowRunNoticeCard.hooks.ts` (2026-09-05,
+// Gemini audit finding 37: no functions/derived logic in a `.tsx` file), but stay re-exported here
+// since this component's own co-located test (`SlowRunNoticeCard.unit.test.tsx`) already imports both
+// by name from this file — re-exporting keeps that import path working with zero test-file churn, the
+// same "a hook with a consumer gets re-exported by name from the component file" rule `AssistantDock.tsx`
+// already uses for `resolveComposerDiscoveryOutcome`.
+export { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCard.hooks";
 
 export function SlowRunNoticeCard({ events, runStreaming, runSucceeded }: ExtEventRenderProps) {
   const t = useT();
