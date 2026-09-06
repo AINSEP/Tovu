@@ -652,6 +652,7 @@ function MediaPurgeDialog({
       pending={pendingPurge !== null && rowSavingId === pendingPurge.id}
       onConfirm={onConfirm}
       onCancel={onCancel}
+      agentHandle="media-purge"
     />
   );
 }
