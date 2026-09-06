@@ -263,6 +263,31 @@ function buildServeEnv(input) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
   }
 
+  // Seeds the desktop shell's OWN owner account so `desktop-auth.cjs` can log in and the operator
+  // never meets a login form for a server this app started. Omitted entirely when the caller passes
+  // no credential (every existing caller and every existing test), so the child's identity seeding
+  // is byte-for-byte unchanged in that case.
+  //
+  // **Both variables are OVERWRITTEN, deliberately — an inherited value does NOT win here**, unlike
+  // `TOVU_AGENT_DAEMON_TOKEN` above. Copying that rule to this pair was a bug, found by running it:
+  // this machine has `TOVU_ADMIN_PASSWORD` exported in the ambient shell (a known trap in this
+  // repo's own test tooling) and `TOVU_ADMIN_USER` unset, so honoring the inherited half seeded
+  // `admin` with an unrelated password while the shell went on to log in as `tovu-desktop` — an
+  // account that then never existed. The two are a PAIR and half of one operator's intent combined
+  // with half of the shell's is guaranteed-broken rather than conservative.
+  //
+  // Overwriting costs the operator nothing they can otherwise have: `seedIdentity` seeds exactly
+  // ONE owner per boot, the one its configured username names, so `admin` and `tovu-desktop` were
+  // never both reachable from a single spawn. It is also a no-op on any site that has been booted
+  // before, since seeding is idempotent. What it changes is a BRAND-NEW site opened through this
+  // shell: its first owner is `tovu-desktop` rather than `admin`. That is the intended trade — the
+  // operator arrives authenticated as a real owner and can create any further account from the
+  // admin UI, instead of the site being seeded with a password the shell cannot know.
+  if (input.desktopCredential) {
+    env.TOVU_ADMIN_USER = input.desktopCredential.username;
+    env.TOVU_ADMIN_PASSWORD = input.desktopCredential.password;
+  }
+
   const adminDist = path.join(repoRoot, "apps", "admin", "dist");
   if (!env.TOVU_ADMIN_DIST && fs.existsSync(adminDist)) {
     env.TOVU_ADMIN_DIST = adminDist;
@@ -352,6 +377,9 @@ function describeBootFailure(output, fallback) {
  * @param input.readyTimeoutMs boot-line deadline; defaults to 60s.
  * @param input.stopGraceMs SIGTERM-to-SIGKILL window; defaults to 5s.
  * @param input.mirror where the child's output is echoed; defaults to this process's own streams.
+ * @param input.desktopCredential `{username, password}` seeding the shell's own owner account, so
+ *   the admin comes up authenticated (see `desktop-auth.cjs`). Omit to leave the child's identity
+ *   seeding exactly as it was.
  * @param input.cliMode `"source"` or `"compiled"` — see {@link buildCliSpawnPlan}; defaults to
  *   `"compiled"` when omitted (unchanged prior behavior for any existing caller).
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop() }`
@@ -373,7 +401,7 @@ async function startTovuServer(input) {
     plan.command,
     plan.args,
     {
-      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv }),
+      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential }),
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason

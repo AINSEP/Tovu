@@ -81,7 +81,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
-const { app, BrowserWindow, dialog, shell, Menu, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, safeStorage, session } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
 const { resolveSiteDir, adoptSiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
@@ -90,6 +90,12 @@ const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
+const {
+  DESKTOP_OWNER_USERNAME,
+  ensureSiteCredential,
+  signInDesktopSession,
+  sitePartition,
+} = require("./src/desktop-auth.cjs");
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
@@ -107,6 +113,11 @@ const FLEET_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html
  *  `window.tovuRunner` and `window.tovuVoice`; see its own header on why the mic bridge had to be
  *  duplicated rather than shared. */
 const FLEET_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
+
+/** The Tovu mark for the macOS dock tile — see {@link applyDockIcon}. Copied into this directory
+ *  from the tovu-com theme rather than referenced out of `sites/tovu-com/`, which is a user's live
+ *  site folder and not an asset source this app may depend on. */
+const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand", "tovu-app-icon.png");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
@@ -196,13 +207,23 @@ function readSiteName(siteDir) {
   return path.basename(siteDir);
 }
 
-function createWindow(url, title) {
+function createWindow(url, title, partition) {
   const window = new BrowserWindow({
     width: 1360,
     height: 900,
     title: title ?? "Tovu",
     show: !SELFTEST,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: SPEECH_PRELOAD_PATH },
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: SPEECH_PRELOAD_PATH,
+      // One cookie jar per site. Cookies ignore PORT, so without this every own-server site shares
+      // `127.0.0.1`'s jar: site A's `tovu_session` would be sent to site B's server, and B's login
+      // would overwrite A's. Undefined in attach mode, which is single-site by definition and keeps
+      // the default session it always used. See `desktop-auth.cjs`'s header, property 2.
+      ...(partition ? { partition } : {}),
+    },
   });
 
   // Registered BEFORE `loadURL` below, and before this function returns to its caller — see
@@ -287,6 +308,49 @@ function openFleetWindow() {
 }
 
 /**
+ * Put a valid admin session in `partition`'s cookie jar before its window loads, so the operator
+ * lands in the admin instead of on a login form.
+ *
+ * Deliberately best-effort and silent-on-success. Every failure path — OS encryption unavailable,
+ * a site already seeded with a different owner, a login that answers 401 — logs one line and
+ * returns, and the caller loads the admin anyway, where the ordinary login screen is waiting. That
+ * fallback is the design, not a gap: this must never turn "you have to type a password" into "the
+ * window is blank" or into a retry loop.
+ *
+ * @returns {Promise<boolean>} whether the session was authenticated.
+ * @complexity O(1) — one credential read and one loopback request.
+ */
+async function authenticateSiteSession(siteDir, adminUrl, partition) {
+  const password = ensureSiteCredential({ safeStorage, env: process.env }, siteDir);
+  if (password === null) {
+    // Only reachable when the site dir itself could not be written to — see `ensureSiteCredential`.
+    console.log(`tovu desktop: no desktop credential for ${siteDir} — the admin will ask for a login.`);
+    return false;
+  }
+
+  let result;
+  try {
+    result = await signInDesktopSession({
+      net,
+      session: session.fromPartition(partition),
+      adminUrl,
+      username: DESKTOP_OWNER_USERNAME,
+      password,
+    });
+  } catch (error) {
+    // `assertLoopbackAdminUrl` throwing is a wiring bug, not an auth outcome — it means something
+    // handed this function a non-loopback origin, which must be loud rather than swallowed.
+    console.error(`tovu desktop: desktop sign-in refused for ${siteDir}: ${error.message}`);
+    return false;
+  }
+
+  if (!result.ok) {
+    console.log(`tovu desktop: desktop sign-in did not apply to ${siteDir} (${result.reason}) — the admin will ask for a login.`);
+  }
+  return result.ok;
+}
+
+/**
  * Open one site: spawn its own `tovu serve` (own-server mode only — attach mode never reaches this),
  * or just focus its window if it is already open. Records the new child to the crash-safety
  * registry the moment it is confirmed ready, and gives its window a distinct title so the native
@@ -322,7 +386,18 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
     return already.window;
   }
 
-  const server = await startTovuServer({ repoRoot: REPO_ROOT, siteDir, cliMode: ctx.cliMode, port: options.port });
+  const desktopPassword = ensureSiteCredential({ safeStorage, env: process.env }, siteDir);
+  const server = await startTovuServer({
+    repoRoot: REPO_ROOT,
+    siteDir,
+    cliMode: ctx.cliMode,
+    port: options.port,
+    // Seeds this shell's own owner account on a site that has none yet. `seedIdentity` is
+    // idempotent on the USERNAME, so this is what makes sign-in work on an existing site dir too —
+    // see `desktop-auth.cjs`'s header.
+    desktopCredential:
+      desktopPassword === null ? undefined : { username: DESKTOP_OWNER_USERNAME, password: desktopPassword },
+  });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
     port: server.port,
@@ -331,9 +406,15 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
     updatedAt: Date.now(),
   });
 
+  // Before the window exists, so the cookie is already in the jar when `loadURL` fires and the
+  // admin's very first `/api/admin/v1/auth/me` call is authenticated — a session applied after the
+  // page had loaded would still show the login form until a reload.
+  const partition = sitePartition(siteDir);
+  await authenticateSiteSession(siteDir, server.adminUrl, partition);
+
   let window;
   try {
-    window = createWindow(server.adminUrl, readSiteName(siteDir));
+    window = createWindow(server.adminUrl, readSiteName(siteDir), partition);
   } catch (error) {
     recordSiteClosed(ctx.registryPath, siteDir);
     await server.stop();
@@ -497,6 +578,71 @@ async function resolveStartupSiteDirs(ctx) {
   return [siteDir];
 }
 
+/**
+ * Put the Tovu mark on the macOS dock tile.
+ *
+ * `BrowserWindow`'s own `icon` option is a no-op on macOS — the tile comes from the `.app` bundle,
+ * which an unpackaged `electron .` run does not have, so it shows Electron's own default instead.
+ * `app.dock.setIcon` is the only thing that changes it for a dev run. Guarded on the API existing
+ * rather than on the platform string alone, since `app.dock` is undefined off darwin.
+ *
+ * Best-effort: a missing or unreadable icon file must not stop the app booting.
+ * @complexity O(1).
+ */
+function applyDockIcon() {
+  if (!app.dock) return;
+  try {
+    app.dock.setIcon(APP_ICON_PATH);
+  } catch (error) {
+    console.log(`tovu desktop: could not set the dock icon (${error.message}) — using the default.`);
+  }
+}
+
+/**
+ * Boot mode 2 — own server. Reconcile any orphan left by a hard kill, build the menu, then open
+ * every startup site.
+ *
+ * Extracted from the `whenReady` handler rather than left inline: with a third boot mode added,
+ * that one arrow carried every branch of all three and measured cyclomatic complexity 10 against
+ * this repo's ceiling of 9. Splitting on the mode boundary is the natural cut — the three modes are
+ * now three symmetric named things — and it is a pure move: no statement, order, or condition
+ * below differs from what was inline.
+ *
+ * @complexity O(n) in the number of startup site dirs, beyond each site's own boot cost.
+ */
+async function bootOwnServerMode() {
+  const ctx = {
+    cliMode: resolveCliMode(),
+    statePath: stateFilePath(app.getPath("userData")),
+    registryPath: registryFilePath(app.getPath("userData")),
+  };
+
+  const reconciled = await reconcileOrphans(ctx.registryPath);
+  if (reconciled.length > 0) {
+    console.log(
+      `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}`,
+    );
+  }
+
+  refreshAppMenu(ctx);
+
+  const siteDirs = await resolveStartupSiteDirs(ctx);
+  // Seeded with the FULL count before any window opens — see `selftest-tracker.cjs`'s own header,
+  // hazard 2, for why an incrementally-built count would settle early on a multi-site launch.
+  if (SELFTEST) selftestTracker = buildSelftestTracker(siteDirs.length);
+  for (const [index, siteDir] of siteDirs.entries()) {
+    // Only the FIRST site in this launch's list ever honors a pinned port — see
+    // `resolveStartupSiteDirs` and `openSiteWindow`'s own doc on why.
+    const port = index === 0 ? ctx.firstSitePort : undefined;
+    await serializer.run(siteDir, () => openSiteWindow(siteDir, ctx, { port }));
+  }
+  refreshAppMenu(ctx);
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) void promptAndOpenNewSite(ctx);
+  });
+}
+
 app
   .whenReady()
   .then(async () => {
@@ -505,6 +651,7 @@ app
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
     // needed for `window.tovuVoice` to exist at all.
     registerSpeechIpc({ ipcMain });
+    applyDockIcon();
 
     // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
     // spawns no `tovu serve`, so none of the site-dir/registry/menu machinery below applies to it.
@@ -523,36 +670,7 @@ app
       return;
     }
 
-    const ctx = {
-      cliMode: resolveCliMode(),
-      statePath: stateFilePath(app.getPath("userData")),
-      registryPath: registryFilePath(app.getPath("userData")),
-    };
-
-    const reconciled = await reconcileOrphans(ctx.registryPath);
-    if (reconciled.length > 0) {
-      console.log(
-        `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}`,
-      );
-    }
-
-    refreshAppMenu(ctx);
-
-    const siteDirs = await resolveStartupSiteDirs(ctx);
-    // Seeded with the FULL count before any window opens — see `selftest-tracker.cjs`'s own header,
-    // hazard 2, for why an incrementally-built count would settle early on a multi-site launch.
-    if (SELFTEST) selftestTracker = buildSelftestTracker(siteDirs.length);
-    for (const [index, siteDir] of siteDirs.entries()) {
-      // Only the FIRST site in this launch's list ever honors a pinned port — see
-      // `resolveStartupSiteDirs` and `openSiteWindow`'s own doc on why.
-      const port = index === 0 ? ctx.firstSitePort : undefined;
-      await serializer.run(siteDir, () => openSiteWindow(siteDir, ctx, { port }));
-    }
-    refreshAppMenu(ctx);
-
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) void promptAndOpenNewSite(ctx);
-    });
+    await bootOwnServerMode();
   })
   .catch(reportBootFailure);
 
