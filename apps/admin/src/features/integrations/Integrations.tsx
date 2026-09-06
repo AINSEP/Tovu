@@ -83,6 +83,7 @@ function IntegrationDeleteDialog(props: {
   return (
     <ConfirmDialog
       open={props.pendingDelete !== null}
+      agentHandle="integrations-delete-webhook"
       title={t(locale, "Delete webhook?")}
       body={props.pendingDelete ? deleteWebhookBody(locale, props.pendingDelete.label) : null}
       confirmLabel={t(locale, "Delete")}

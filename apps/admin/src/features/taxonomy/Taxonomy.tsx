@@ -510,6 +510,7 @@ function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm
   return (
     <ConfirmDialog
       open={pendingDeleteTerm !== null}
+      agentHandle="taxonomy-delete-term"
       title={t("Delete term?")}
       body={
         pendingDeleteTerm ? (
@@ -544,6 +545,7 @@ function TaxonomyDeleteDialog({
   return (
     <ConfirmDialog
       open={pendingDeleteTaxonomy !== null}
+      agentHandle="taxonomy-delete-taxonomy"
       title={t("Delete taxonomy?")}
       body={
         pendingDeleteTaxonomy ? (

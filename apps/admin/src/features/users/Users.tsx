@@ -472,6 +472,7 @@ function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavi
   return (
     <ConfirmDialog
       open={confirmingDisable !== null}
+      agentHandle="users-disable"
       title={t("Disable this user?")}
       body={
         confirmingDisable ? (
@@ -633,6 +634,7 @@ function UserResetPasswordDialog({
   return (
     <ConfirmDialog
       open={resetPasswordFor !== null}
+      agentHandle="users-reset-password"
       title={t("Reset password?")}
       body={
         resetPasswordFor ? (

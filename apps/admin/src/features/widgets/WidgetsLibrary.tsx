@@ -140,6 +140,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
       />
       <ConfirmDialog
         open={pendingForcePurge !== null}
+        agentHandle="widgets-force-purge"
         title={t("Still in use")}
         body={
           pendingForcePurge ? (

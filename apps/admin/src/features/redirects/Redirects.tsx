@@ -303,6 +303,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
       />
       <ConfirmDialog
         open={pendingDelete !== null}
+        agentHandle="redirects-delete"
         title={t("Delete redirect rule?")}
         body={pendingDelete ? deleteRedirectBody(locale, pendingDelete.fromPattern) : null}
         confirmLabel={t("Delete")}

@@ -1343,6 +1343,7 @@ export function ThemeExplore({
           should never be ambiguous about its target. */}
       <ConfirmDialog
         open={resetConfirmOpen}
+        agentHandle="theme-explore-reset-file"
         title={t("Reset this file to the original?")}
         body={
           <p>
@@ -1364,6 +1365,7 @@ export function ThemeExplore({
           page's public URL, which anything already linking to it will silently stop reaching. */}
       <ConfirmDialog
         open={pageRenameWarning !== null}
+        agentHandle="theme-explore-rename-page"
         title={t("Rename this page?")}
         body={<PageRenameWarningBody pageRenameWarning={pageRenameWarning} t={t} />}
         confirmLabel={t("Rename page")}
@@ -1380,6 +1382,7 @@ export function ThemeExplore({
           the exact file rather than "this file", same reasoning as Reset's own dialog. */}
       <ConfirmDialog
         open={deleteTarget !== null}
+        agentHandle="theme-explore-delete-file"
         title={t("Delete this file?")}
         body={<DeleteFileWarningBody deleteTarget={deleteTarget} t={t} />}
         confirmLabel={t("Delete file")}
