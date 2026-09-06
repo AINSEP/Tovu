@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Seo } from "../Seo";
 import type { SeoController } from "../hooks/use-seo.hooks";
@@ -8,7 +8,7 @@ import type { EntryPickerController } from "../hooks/use-entry-picker.hooks";
 import type { SeoEntryPanelController } from "../hooks/use-seo-entry-panel.hooks";
 import type { SeoEntrySectionController } from "../hooks/use-seo-entry-section.hooks";
 import type { SitemapModalController } from "../hooks/use-sitemap-modal.hooks";
-import type { AdminPost, SeoEntryAnalysis, SeoEntryMeta, SeoSettings } from "@/lib/api";
+import { api, type AdminMedia, type AdminPost, type SeoEntryAnalysis, type SeoEntryMeta, type SeoSettings } from "@/lib/api";
 
 /**
  * @file `Seo` — the SEO settings screen (SPEC-008 §2.4/§2.5/§2.6, SPEC-037 REQ-06/07/08). Only
@@ -103,12 +103,20 @@ const POST: AdminPost = {
 };
 
 function seoController(overrides: Partial<SeoController> = {}): SeoController {
+  // `defaultOgImage` mirrors what `useSeo`'s own resync effect would derive from `settings` —
+  // computed from `overrides.settings` when the test supplies one, so a test overriding `settings`
+  // to omit `defaultOgImage` gets the same "" a real re-sync would produce without ALSO having to
+  // override `defaultOgImage` itself. An explicit `overrides.defaultOgImage` still wins via the
+  // trailing spread below.
+  const settingsForDefault = overrides.settings !== undefined ? overrides.settings : SETTINGS;
   return {
     settings: SETTINGS,
     error: null,
     saving: false,
     notice: null,
     save: vi.fn(async () => {}),
+    defaultOgImage: settingsForDefault?.defaultOgImage ?? "",
+    setDefaultOgImage: vi.fn(),
     regenerateSitemap: vi.fn(async () => true),
     sitemapModalOpen: false,
     openSitemapModal: vi.fn(),
@@ -116,6 +124,27 @@ function seoController(overrides: Partial<SeoController> = {}): SeoController {
     // Matches what this screen got from a real, unmocked `useAdminLocale()` call before this
     // hook's own i18n pass (defaults to "en" synchronously).
     locale: "en",
+    ...overrides,
+  };
+}
+
+function mediaItem(overrides: Partial<AdminMedia> = {}): AdminMedia {
+  return {
+    id: "asset-1",
+    workspaceId: "w1",
+    title: "Sunset",
+    alt: "A sunset over water",
+    caption: "",
+    credit: "",
+    sha256: "abc",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    contentType: "image/png",
     ...overrides,
   };
 }
@@ -174,7 +203,7 @@ beforeEach(() => {
 
 function renderSeo(overrides: Partial<SeoController> = {}) {
   seoRef.current = seoController(overrides);
-  render(<Seo />);
+  return render(<Seo />);
 }
 
 describe("Seo — loading and error states", () => {
@@ -280,6 +309,61 @@ describe("Seo — defaults form", () => {
   it("shows 'Saving…' and disables the submit button while saving", () => {
     renderSeo({ saving: true });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+});
+
+describe("Seo — default OG image (MediaRefField)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("typing directly into the field still works — calls setDefaultOgImage", async () => {
+    const user = userEvent.setup();
+    const setDefaultOgImage = vi.fn();
+    renderSeo({ defaultOgImage: "media:og1", setDefaultOgImage });
+    await user.type(screen.getByLabelText(/Default Open Graph/), "x");
+    expect(setDefaultOgImage).toHaveBeenCalled();
+  });
+
+  it("has no Remove control while empty, and shows one once a value is set", () => {
+    const { rerender } = renderSeo({ defaultOgImage: "" });
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+
+    seoRef.current = seoController({ defaultOgImage: "asset-1:public" });
+    rerender(<Seo />);
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+  });
+
+  it("Choose image opens the real media picker; selecting an asset calls setDefaultOgImage with the EXACT '{assetId}:public' ref", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-7" })] });
+    const user = userEvent.setup();
+    const setDefaultOgImage = vi.fn();
+    renderSeo({ defaultOgImage: "", setDefaultOgImage });
+
+    await user.click(screen.getByRole("button", { name: "Choose image" }));
+    await user.click(await screen.findByTitle("Sunset"));
+
+    expect(setDefaultOgImage).toHaveBeenCalledTimes(1);
+    expect(setDefaultOgImage).toHaveBeenCalledWith("asset-7:public");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Remove calls setDefaultOgImage('')", async () => {
+    const user = userEvent.setup();
+    const setDefaultOgImage = vi.fn();
+    renderSeo({ defaultOgImage: "asset-1:public", setDefaultOgImage });
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(setDefaultOgImage).toHaveBeenCalledWith("");
+  });
+
+  it("renders a preview thumbnail resolved off the current defaultOgImage value", () => {
+    renderSeo({ defaultOgImage: "asset-1:public" });
+    expect(screen.getByAltText(/Default Open Graph.*preview/)).toHaveAttribute(
+      "src",
+      expect.stringContaining("/media/asset-1/original"),
+    );
   });
 });
 
@@ -552,6 +636,63 @@ describe("SeoEntryPanel", () => {
   it("does not render AnalyzePanel when analysis is null", () => {
     renderPanel({ analysis: null });
     expect(screen.queryByText("Analysis")).not.toBeInTheDocument();
+  });
+});
+
+describe("SeoEntryPanel — OG/Twitter image pickers (MediaRefField)", () => {
+  // The top-level defaults form's OWN "Choose image"/preview (`defaultOgImage`) renders
+  // simultaneously with these two — three "Choose image" buttons are on screen at once here — so
+  // every assertion below is scoped `within` the specific field's own `.media-ref-field` container
+  // (found via its label, same as `MediaRefField.unit.test.tsx`'s single-field tests do
+  // unscoped, since that suite never has more than one field mounted at a time).
+  function renderPanel(overrides: Partial<SeoEntryPanelController> = {}) {
+    seoEntrySectionRef.current = seoEntrySectionController({ entryId: "p1" });
+    seoEntryPanelRef.current = seoEntryPanelController(overrides);
+    renderSeo();
+  }
+
+  function fieldContainer(labelText: string): HTMLElement {
+    const container = screen.getByLabelText(labelText).closest(".media-ref-field");
+    if (!(container instanceof HTMLElement)) throw new Error(`no .media-ref-field ancestor for "${labelText}"`);
+    return container;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("selecting an asset for OG image calls setField('ogImage', the EXACT '{assetId}:public' ref)", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-og" })] });
+    const user = userEvent.setup();
+    const setField = vi.fn();
+    renderPanel({ setField });
+
+    await user.click(within(fieldContainer("OG image (media ref or URL)")).getByRole("button", { name: "Choose image" }));
+    await user.click(await screen.findByTitle("Sunset"));
+
+    expect(setField).toHaveBeenCalledWith("ogImage", "asset-og:public");
+  });
+
+  it("selecting an asset for Twitter image calls setField('twitterImage', the EXACT '{assetId}:public' ref)", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "asset-tw" })] });
+    const user = userEvent.setup();
+    const setField = vi.fn();
+    renderPanel({ setField });
+
+    await user.click(within(fieldContainer("Twitter image (media ref or URL)")).getByRole("button", { name: "Choose image" }));
+    await user.click(await screen.findByTitle("Sunset"));
+
+    expect(setField).toHaveBeenCalledWith("twitterImage", "asset-tw:public");
+  });
+
+  it("Remove on the OG image field calls setField('ogImage', '')", async () => {
+    const user = userEvent.setup();
+    const setField = vi.fn();
+    renderPanel({ setField, resolved: { ...RESOLVED, openGraph: { ...RESOLVED.openGraph, image: "asset-1:public" } } });
+
+    await user.click(within(fieldContainer("OG image (media ref or URL)")).getByRole("button", { name: "Remove" }));
+
+    expect(setField).toHaveBeenCalledWith("ogImage", "");
   });
 });
 

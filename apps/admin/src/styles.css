@@ -2403,6 +2403,17 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+/* `MediaRefField` (SEO OG/Twitter image picker, 2026-09-05) — its input/"Choose image"/Remove row,
+   plus a compact thumbnail preview. Same fixed-square-thumbnail idiom as `.media-picker-item img`
+   just above, sized down for an inline field rather than a grid card. */
+.media-ref-field-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.media-ref-field-row input { flex: 1 1 12rem; }
+.media-ref-field-preview {
+  width: 4rem; height: 4rem; object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  margin-top: var(--space-2); display: block;
+}
+
 /* Collections / Categories & Tags / Storage / Recovery (design-spec.md) — additive status-pill
  * and layout classes following the exact naming/token conventions already established above.
  * Not in this dispatch's literal touch-scope list, but "match the existing design system" is a

@@ -36,6 +36,14 @@ export interface SeoController {
   saving: boolean;
   notice: string | null;
   save: (patch: Partial<SeoSettings>) => Promise<void>;
+  /** The site-wide default OG/Twitter image field's own controlled value (MediaRefField picker
+   *  support, 2026-09-05) — every OTHER default on this screen stays an uncontrolled `defaultValue`
+   *  (read via `FormData` on submit, `Seo.tsx`'s own file header), but a picker needs somewhere to
+   *  WRITE a selection into, which an uncontrolled input has no seam for. Re-synced from `settings`
+   *  whenever it (re)loads — including after a successful save, so the field reflects what was
+   *  actually persisted rather than the operator's last unsaved edit. `""` until settings load. */
+  defaultOgImage: string;
+  setDefaultOgImage: (value: string) => void;
   /** Resolves `true` on success, `false` on a caught failure (`error` is set either way this
    *  already did) — `SitemapModal.tsx`'s own footer Regenerate button uses the boolean to decide
    *  whether to refetch `/sitemap.xml`, so a failed attempt never re-fetches the same stale
@@ -60,6 +68,15 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [sitemapModalOpen, setSitemapModalOpen] = useState(false);
+  const [defaultOgImage, setDefaultOgImage] = useState("");
+
+  // Re-baselines the one controlled default (`defaultOgImage`) whenever `settings` (re)loads —
+  // including after `save` below calls `setSettings(r.data)`, so a saved picker selection is what
+  // the field shows, not a stale local echo. Every other default field is deliberately left
+  // uncontrolled (see `Seo.tsx`'s own file header) and has no equivalent resync need.
+  useEffect(() => {
+    if (settings) setDefaultOgImage(settings.defaultOgImage ?? "");
+  }, [settings]);
 
   // `locale`/`t` are deliberately not listed — same pre-existing gap `use-page-editor.hooks.ts`
   // documents (this effect only ever ran off `[]` even when `locale` came from `useAdminLocale()`
@@ -110,6 +127,8 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
     saving,
     notice,
     save,
+    defaultOgImage,
+    setDefaultOgImage,
     regenerateSitemap,
     sitemapModalOpen,
     openSitemapModal: () => setSitemapModalOpen(true),

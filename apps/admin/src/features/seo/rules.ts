@@ -131,12 +131,16 @@ export function buildMediaRef(assetId: string): string {
  *  preview URL (`MediaPickerPort.mediaOriginalUrl`), same as `MediaPickerDialog`'s own grid
  *  thumbnails use, NOT the public `/m/...` rendition URL (that needs a live workspace/transform
  *  lookup this client-side preview has no reason to perform). `null` for an empty or unparseable
- *  value — the caller renders no preview then, rather than a broken `<img>`.
+ *  value — the caller renders no preview then, rather than a broken `<img>`. `typeof value !==
+ *  "string"` also resolves to `null` rather than throwing — `MediaRefField`'s `value` prop is a
+ *  `fieldValue(key, resolved) ?? ""` fallback chain (`Seo.tsx`), where `??` does not replace a
+ *  non-nullish-but-wrong-typed result from a misbehaving caller; matches `resolveSeoImageRef`'s own
+ *  "never throws over one bad reference" contract (`apps/website/src/features/seo/media.ts`).
  *
  * @complexity O(1) — string parsing only, no I/O (the returned URL is a template; the browser
  * performs the actual fetch only once it is used as an `<img src>`). */
 export function resolveMediaRefPreviewUrl(value: string, mediaOriginalUrl: (id: string) => string): string | null {
-  const trimmed = value.trim();
+  const trimmed = typeof value === "string" ? value.trim() : "";
   if (!trimmed) return null;
   if (isAbsoluteMediaRef(trimmed)) return trimmed;
   const assetId = parseMediaRefAssetId(trimmed);

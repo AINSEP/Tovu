@@ -114,4 +114,13 @@ describe("resolveMediaRefPreviewUrl", () => {
   it("returns null for a ref with nothing after the ':'", () => {
     expect(resolveMediaRefPreviewUrl("asset-123:", mediaOriginalUrl)).toBeNull();
   });
+
+  it("returns null instead of throwing for a non-string value (a misbehaving caller's fieldValue() ?? '' can still yield a boolean, since ?? only replaces null/undefined)", () => {
+    const freshMediaOriginalUrl = vi.fn((id: string) => `https://admin.example/media/${id}/original`);
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately violates the declared `string` param
+    // to prove the runtime guard, same as `Seo.unit.test.tsx`'s own `fieldValue` mock returning
+    // `false` unconditionally for the checkbox-fallback test.
+    expect(resolveMediaRefPreviewUrl(false as any, freshMediaOriginalUrl)).toBeNull();
+    expect(freshMediaOriginalUrl).not.toHaveBeenCalled();
+  });
 });

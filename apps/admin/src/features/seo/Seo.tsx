@@ -5,6 +5,7 @@ import { useWiredEntryPicker } from "./hooks/use-entry-picker.hooks";
 import { useWiredSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
 import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
 import { useWiredSeo } from "./hooks/use-seo.hooks";
+import { MediaRefField } from "./MediaRefField";
 import { SitemapModal } from "./SitemapModal";
 import { t } from "./seo-i18n";
 import type { SeoEntryAnalysis } from "../../lib/api";
@@ -184,13 +185,14 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           onChange={(e) => setField("ogDescription", e.target.value)}
         />
       </label>
-      <label>
-        {t(locale, "OG image (media ref or URL)")}
-        <input
-          value={fieldValue("ogImage", resolved.openGraph.image ?? "") ?? ""}
-          onChange={(e) => setField("ogImage", e.target.value)}
-        />
-      </label>
+      <MediaRefField
+        locale={locale}
+        id="seo-entry-og-image"
+        label={t(locale, "OG image (media ref or URL)")}
+        value={fieldValue("ogImage", resolved.openGraph.image ?? "") ?? ""}
+        onChange={(value) => setField("ogImage", value)}
+        agentHandle="seo-entry-og-image"
+      />
       <label>
         {t(locale, "Twitter title")}
         <input
@@ -205,13 +207,14 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           onChange={(e) => setField("twitterDescription", e.target.value)}
         />
       </label>
-      <label>
-        {t(locale, "Twitter image (media ref or URL)")}
-        <input
-          value={fieldValue("twitterImage", resolved.twitter.image ?? "") ?? ""}
-          onChange={(e) => setField("twitterImage", e.target.value)}
-        />
-      </label>
+      <MediaRefField
+        locale={locale}
+        id="seo-entry-twitter-image"
+        label={t(locale, "Twitter image (media ref or URL)")}
+        value={fieldValue("twitterImage", resolved.twitter.image ?? "") ?? ""}
+        onChange={(value) => setField("twitterImage", value)}
+        agentHandle="seo-entry-twitter-image"
+      />
 
       <span className="editor-actions">
         <button type="button" className="btn-secondary" onClick={save} disabled={saving || Object.keys(touched).length === 0}>
@@ -262,6 +265,8 @@ export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
     saving,
     notice,
     save,
+    defaultOgImage,
+    setDefaultOgImage,
     regenerateSitemap,
     sitemapModalOpen,
     openSitemapModal,
@@ -337,20 +342,15 @@ export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
               })}
             />
           </div>
-          <div className="field">
-            <label className="field-label" htmlFor="seo-default-og-image">
-              {t(locale, "Default Open Graph / Twitter image (media ref)")}
-            </label>
-            <input
-              id="seo-default-og-image"
-              name="defaultOgImage"
-              defaultValue={orEmpty(settings.defaultOgImage)}
-              {...agentHandle("seo-default-og-image", {
-                role: "field",
-                label: "Media reference used as the default social share image",
-              })}
-            />
-          </div>
+          <MediaRefField
+            locale={locale}
+            id="seo-default-og-image"
+            name="defaultOgImage"
+            label={t(locale, "Default Open Graph / Twitter image (media ref)")}
+            value={defaultOgImage}
+            onChange={setDefaultOgImage}
+            agentHandle="seo-default-og-image"
+          />
           <div className="field">
             <label className="field-label" htmlFor="seo-twitter-site">
               {t(locale, "Twitter @site handle")}
