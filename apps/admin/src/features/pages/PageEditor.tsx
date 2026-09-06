@@ -2,13 +2,14 @@ import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
+import type { StandingDraftAutosaveSnapshot } from "../../hooks/use-standing-draft-autosave.hooks";
 import {
   PAGE_PREVIEW_WIDTHS,
   useWiredPageEditor,
   type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
-import { pagePublicPath } from "./rules";
+import { isAutosaveDraftStale, pageAutosaveBannerMessage, pagePublicPath } from "./rules";
 
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
@@ -57,9 +58,17 @@ const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
  *
  * That move took this component's branching with it, so the extraction note this doc used to carry
  * now belongs to `PageEditorActions` instead — see there. What is left here is inert markup plus
- * the one unsaved-work guard on the back link, which is why `dirty` is the only prop that stayed.
+ * the one unsaved-work guard on the back link, which is why `confirmLeave` is the only prop that
+ * stayed.
+ *
+ * `confirmLeave` (2026-09-06, standing-draft autosave dispatch) replaces what used to be an inline
+ * `dirty && !window.confirm(...)` check written directly in this component — the exact
+ * logic-in-`.tsx` pattern this codebase's own convention keeps correcting (see
+ * `use-post-editor.hooks.ts`'s own `useDirtyGuard` wiring, which `PostEditorHeader` already
+ * consumed this same way). The comparison and the `window.confirm` call both now live in
+ * `use-dirty-guard.hooks.ts`, tested once there rather than re-verified per screen.
  */
-function PageEditorHeader({ dirty }: { dirty: boolean }) {
+function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
   return (
     // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
     // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
@@ -74,9 +83,7 @@ function PageEditorHeader({ dirty }: { dirty: boolean }) {
         <a
           href="/admin/pages"
           onClick={(e) => {
-            if (dirty && !window.confirm("This page has unsaved changes. Leave anyway?")) {
-              e.preventDefault();
-            }
+            if (!confirmLeave()) e.preventDefault();
           }}
         >
           <button type="button" className="btn-secondary">
@@ -153,6 +160,38 @@ function PageEditorActions({
       </button>
       <button type="button" className="btn-danger" onClick={onDeleteClick}>
         Delete
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
+ * unless `usePageEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
+ * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
+ * a different tab/operator's work. `pageAutosaveBannerMessage`/`isAutosaveDraftStale` (`rules.ts`)
+ * own the actual wording decision so this component stays markup only.
+ */
+function PageAutosaveRecoveryBanner({
+  recoverableDraft,
+  currentVersion,
+  onRestore,
+  onDiscard,
+}: {
+  recoverableDraft: StandingDraftAutosaveSnapshot;
+  currentVersion: number;
+  onRestore: () => void;
+  onDiscard: () => void;
+}) {
+  const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
+  return (
+    <div className="notice warning">
+      <p>{pageAutosaveBannerMessage(recoverableDraft.savedAt, Date.now(), stale)}</p>
+      <button type="button" className="btn-secondary" onClick={onRestore}>
+        Restore
+      </button>
+      <button type="button" className="btn-secondary" onClick={onDiscard}>
+        Discard
       </button>
     </div>
   );
@@ -283,6 +322,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     confirmingDelete,
     setConfirmingDelete,
     deleting,
+    confirmLeave,
+    recoverableDraft,
+    restoreRecoveredDraft,
+    discardRecoveredDraft,
   } = usePageEditorHook(routeSlug);
 
   if (error && !page) return <div className="notice error">{error}</div>;
@@ -290,7 +333,16 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
   return (
     <div className="page">
-      <PageEditorHeader dirty={dirty} />
+      <PageEditorHeader confirmLeave={confirmLeave} />
+
+      {recoverableDraft ? (
+        <PageAutosaveRecoveryBanner
+          recoverableDraft={recoverableDraft}
+          currentVersion={page.version}
+          onRestore={restoreRecoveredDraft}
+          onDiscard={discardRecoveredDraft}
+        />
+      ) : null}
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.

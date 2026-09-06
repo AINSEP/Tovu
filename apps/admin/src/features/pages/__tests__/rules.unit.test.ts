@@ -8,7 +8,9 @@ import {
   comparePagesBySlug,
   comparePagesByTitle,
   comparePagesByUpdated,
+  isAutosaveDraftStale,
   pageAdminPath,
+  pageAutosaveBannerMessage,
   pageColumnSortLabel,
   pagePublicPath,
   pageRowMenuItems,
@@ -355,5 +357,31 @@ describe("buildPageAutosaveDraft", () => {
       { title: "About", slug: "about", html: "<p/>" }
     );
     expect(draft.baseVersion).toBe(42);
+  });
+});
+
+describe("isAutosaveDraftStale", () => {
+  it("is false when the draft's baseVersion still matches the row's current version", () => {
+    expect(isAutosaveDraftStale(3, 3)).toBe(false);
+  });
+
+  it("is true once a real save has moved the row's version past the draft's basis", () => {
+    expect(isAutosaveDraftStale(3, 4)).toBe(true);
+  });
+});
+
+describe("pageAutosaveBannerMessage", () => {
+  const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
+
+  it("a fresh draft reads 'Unsaved changes from N minutes ago'", () => {
+    expect(pageAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, false)).toBe(
+      "Unsaved changes from 5 minutes ago"
+    );
+  });
+
+  it("a stale draft names the newer save explicitly instead of implying it is current", () => {
+    expect(pageAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, true)).toBe(
+      "Unsaved changes from before a newer save (captured 5 minutes ago)"
+    );
   });
 });

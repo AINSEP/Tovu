@@ -4,6 +4,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
+import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
 import { PAGES_DICT } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 
@@ -231,6 +232,21 @@ export function buildPageAutosaveDraft(
     return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
   }
   return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
+}
+
+/** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
+ *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
+ *  Drives the recovery banner's "from N minutes ago" vs "from before a newer save" wording. */
+export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: number): boolean {
+  return draftBaseVersion !== currentVersion;
+}
+
+/** The recovery banner's own message — pulled out of `PageEditor.tsx` so the component stays markup
+ *  only (`use-page-editor.hooks.ts`'s file header's own rule). `nowMs` is threaded through rather
+ *  than read internally, same reasoning `formatRelativeMinutesAgo` itself documents. */
+export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
+  const when = formatRelativeMinutesAgo(savedAt, nowMs);
+  return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split

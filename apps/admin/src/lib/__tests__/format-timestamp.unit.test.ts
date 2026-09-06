@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { formatTimestamp } from "../format-timestamp";
+import { formatRelativeMinutesAgo, formatTimestamp } from "../format-timestamp";
 
 /**
  * @file `formatTimestamp` — pins the exact output the ~11 call sites this consolidates
@@ -18,4 +18,22 @@ test("trailing seconds/milliseconds/zone suffix are dropped, not just the Z", ()
 
 test("a timestamp with no sub-minute precision at all is unaffected", () => {
   expect(formatTimestamp("2026-08-01T10:30")).toBe("2026-08-01 10:30");
+});
+
+const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
+
+test("formatRelativeMinutesAgo: under a minute reads 'less than a minute ago'", () => {
+  expect(formatRelativeMinutesAgo("2026-09-06T00:09:45.000Z", NOW)).toBe("less than a minute ago");
+});
+
+test("formatRelativeMinutesAgo: exactly one minute is singular", () => {
+  expect(formatRelativeMinutesAgo("2026-09-06T00:09:00.000Z", NOW)).toBe("1 minute ago");
+});
+
+test("formatRelativeMinutesAgo: several minutes is plural", () => {
+  expect(formatRelativeMinutesAgo("2026-09-06T00:03:00.000Z", NOW)).toBe("7 minutes ago");
+});
+
+test("formatRelativeMinutesAgo: a timestamp at or after 'now' never goes negative", () => {
+  expect(formatRelativeMinutesAgo("2026-09-06T00:15:00.000Z", NOW)).toBe("less than a minute ago");
 });

@@ -105,6 +105,15 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     confirmingDelete: false,
     setConfirmingDelete: vi.fn(),
     deleting: false,
+    // Mirrors `useDirtyGuard.confirmLeave`'s real behavior (message text included) closely enough
+    // for these characterization tests: gated on the SAME `dirty` override every pre-existing
+    // back-link test here already sets, calling through to `window.confirm` exactly like the real
+    // hook does, rather than a fixed stub that would stop proving the component actually reads
+    // `confirmLeave` off the controller.
+    confirmLeave: () => !(overrides.dirty ?? false) || window.confirm("You have unsaved changes. Leave without saving?"),
+    recoverableDraft: null,
+    restoreRecoveredDraft: vi.fn(),
+    discardRecoveredDraft: vi.fn(),
     ...overrides,
   };
 }
@@ -160,9 +169,55 @@ describe("header", () => {
 
     fireEvent.click(screen.getByRole("link", { name: /pages/i }));
 
-    expect(window.confirm).toHaveBeenCalledWith("This page has unsaved changes. Leave anyway?");
+    expect(window.confirm).toHaveBeenCalledWith("You have unsaved changes. Leave without saving?");
     expect(watcher.result()).toBe(true);
     vi.restoreAllMocks();
+  });
+});
+
+/** Standing-draft autosave (2026-09-06) — the recovery banner. `usePageEditor`'s own scheduling/
+ *  ordering behavior is proven at the hook level; this is purely "does the component render/wire
+ *  what the controller hands it". */
+describe("standing-draft autosave recovery banner", () => {
+  const RECOVERABLE = {
+    bodyFormat: "html" as const,
+    bodyHtml: "<p>recovered</p>",
+    title: "Recovered title",
+    slug: "recovered-slug",
+    baseVersion: 1,
+    savedAt: "2026-09-06T00:05:00.000Z",
+    savedByPrincipalId: "user-local",
+  };
+
+  it("renders nothing when there is no recoverable draft", () => {
+    renderEditor({ recoverableDraft: null });
+    expect(screen.queryByText(/unsaved changes from/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the banner with Restore/Discard actions when a draft was recovered", () => {
+    renderEditor({ recoverableDraft: RECOVERABLE, page: { ...BASE_PAGE, version: 1 } });
+    expect(screen.getByText(/unsaved changes from/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /restore/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discard/i })).toBeInTheDocument();
+  });
+
+  it("labels a stale draft (baseVersion behind the loaded page's version) instead of implying it is current", () => {
+    renderEditor({ recoverableDraft: RECOVERABLE, page: { ...BASE_PAGE, version: 2 } });
+    expect(screen.getByText(/before a newer save/i)).toBeInTheDocument();
+  });
+
+  it("clicking Restore calls the controller's restoreRecoveredDraft", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ recoverableDraft: RECOVERABLE });
+    await user.click(screen.getByRole("button", { name: /restore/i }));
+    expect(ctrl.restoreRecoveredDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("clicking Discard calls the controller's discardRecoveredDraft", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ recoverableDraft: RECOVERABLE });
+    await user.click(screen.getByRole("button", { name: /discard/i }));
+    expect(ctrl.discardRecoveredDraft).toHaveBeenCalledTimes(1);
   });
 });
 

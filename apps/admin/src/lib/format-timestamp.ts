@@ -27,3 +27,23 @@
 export function formatTimestamp(iso: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
+
+/**
+ * "N minutes ago"-style relative framing for the standing-draft autosave recovery banner (2026-09-06
+ * — "unsaved changes from N minutes ago", the owner's own phrasing). The one relative-time need this
+ * file's header flagged as future work, now that there's a real caller for it. No locale-aware
+ * pluralization or `Intl.RelativeTimeFormat` — same "reproduce the simple thing, improve later"
+ * discipline `formatTimestamp` already documents for itself; a caller wanting more than
+ * English-only "N minute(s) ago" needs a bigger pass than this one function.
+ *
+ * @param iso The timestamp to describe, ISO 8601.
+ * @param nowMs Epoch milliseconds for "now" — injected rather than read via `Date.now()` internally
+ *   so this stays a pure function a test can call with a fixed clock; real callers pass `Date.now()`.
+ * @complexity O(1).
+ */
+export function formatRelativeMinutesAgo(iso: string, nowMs: number): string {
+  const minutes = Math.max(0, Math.round((nowMs - new Date(iso).getTime()) / 60000));
+  if (minutes < 1) return "less than a minute ago";
+  if (minutes === 1) return "1 minute ago";
+  return `${minutes} minutes ago`;
+}
