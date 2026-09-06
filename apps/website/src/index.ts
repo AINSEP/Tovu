@@ -14,6 +14,7 @@ import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-er
 import { startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
+import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 
 /**
  * @file Process entrypoint.
@@ -302,6 +303,14 @@ async function main(): Promise<void> {
   const server = devTls.active && devTls.credentials
     ? createHttpsServer(devTls.credentials, app).listen(port, onListening)
     : app.listen(port, onListening);
+
+  // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when
+  // `TOVU_ADMIN_DEV_PROXY_URL` is set — the one thing `admin-static.ts`'s ordinary Express routing
+  // cannot carry (an `upgrade` request never reaches Express's request pipeline; it is a raw
+  // `http.Server`/`https.Server` event). No-ops in production/SEA builds — see that function's own
+  // doc for the precedence this mirrors. Registered on `server` directly rather than `app`, so it
+  // works identically whether TLS is active or not.
+  registerAdminDevProxyUpgrade(server);
 
   function onListening() {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;

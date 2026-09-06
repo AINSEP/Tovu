@@ -4,6 +4,8 @@ import path from "node:path";
 import express from "express";
 import type { Express, Response } from "express";
 
+import { createAdminDevProxyRequestHandler } from "./admin-dev-proxy.js";
+
 // ESM has no ambient `require`; `node:sea` is loaded conditionally below (it
 // throws outside a single-executable build) and `seaApi()` must stay
 // synchronous, so a local `require` is synthesized rather than switching to
@@ -38,6 +40,15 @@ function seaApi(): SeaApi | null {
   }
 }
 
+/**
+ * Whether this process is a packaged single-executable build. Exported so `admin-dev-proxy.ts` can
+ * apply the same "SEA always wins" precedence this module's own {@link registerAdminStatic} enforces
+ * below, without that module needing its own copy of {@link seaApi}'s try/require dance.
+ */
+export function isSeaRuntime(): boolean {
+  return seaApi() !== null;
+}
+
 function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
   try {
     const asset = sea.getAsset(key);
@@ -60,12 +71,21 @@ function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
  * Behavior when no build exists (pure dev — Vite serves the shell itself):
  * /admin responds with a pointer to the Vite dev URL instead of 404ing.
  *
- * Dev-proxy mode (`TOVU_ADMIN_DEV_PROXY_URL`, e.g. `http://localhost:5173`):
- * redirects /admin/* to Vite's dev server instead of serving `distDir`, so a
- * stale build is never shown while iterating and Vite's own HMR/WebSocket
- * client works unmodified (a redirect lands the browser on Vite's real
- * origin, rather than proxying bytes through this server). Opt-in only —
- * unset in production/packaged builds, where this env var must never be set.
+ * Dev-proxy mode (`TOVU_ADMIN_DEV_PROXY_URL`, e.g. `https://localhost:5173`):
+ * proxies /admin/* to Vite's dev server instead of serving `distDir`, so a
+ * stale build is never shown while iterating and the browser never leaves
+ * this server's own origin (`https://localhost:3000/admin/`, not Vite's
+ * `:5173`). Vite's HMR WebSocket is the one thing an ordinary request proxy
+ * cannot carry — `admin-dev-proxy.ts`'s `registerAdminDevProxyUpgrade` (wired
+ * from `index.ts` against the raw server, not this Express app) forwards the
+ * `upgrade` event that carries it; see that module's doc for how a same-origin
+ * proxy still gets a working HMR socket. Opt-in only — unset in
+ * production/packaged builds, where this env var must never be set.
+ *
+ * Before this proxy, dev-proxy mode redirected the browser to Vite's own
+ * origin instead — simpler (Vite's own WS client needs no help when the
+ * browser is already on its origin), but it meant `:3000/admin/` never
+ * actually worked, only redirected away from itself.
  */
 export function registerAdminStatic(app: Express, required: { distDir: string }): void {
   const { distDir } = required;
@@ -88,15 +108,7 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.get(["/admin", "/admin/*"], (req, res) => {
-      // Vite's own `base: "/admin/"` config only falls through to `index.html` when the request
-      // matches that base exactly, trailing slash included — a bare `/admin` passthrough 404s at
-      // Vite itself even though this redirect succeeded. Only `req.path === "/admin"` needs the
-      // slash added; `/admin/*` subpaths (and their query string, in `req.originalUrl`) pass through
-      // unchanged.
-      const target = req.path === "/admin" ? "/admin/" : req.originalUrl;
-      res.redirect(302, `${devProxyUrl}${target}`);
-    });
+    app.get(["/admin", "/admin/*"], createAdminDevProxyRequestHandler(devProxyUrl));
     return;
   }
 
