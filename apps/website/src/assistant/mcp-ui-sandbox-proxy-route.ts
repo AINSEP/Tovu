@@ -68,11 +68,15 @@ export const MCP_UI_SANDBOX_PROXY_PATH = "/mcp-ui/sandbox-proxy.html";
  *
  * **`'self'`, deliberately not `'none'`/`DENY`.** Being framed is the entire point of this route:
  * `@mcp-ui/client`'s `AppFrame` navigates an iframe here from the admin app, and that iframe is
- * same-origin with the page in both topologies Tovu actually runs — in production one server serves
- * `/admin/*` and this route, and in dev `apps/admin/vite.config.ts` proxies `/mcp-ui` to the
- * website server with `changeOrigin: false`, so the browser sees `localhost:5173` for the admin
- * page and for this document alike. A blanket `DENY` would therefore break every MCP-UI surface —
- * `assistant_ask_choice`'s form included — which is strictly worse than the hole it closes.
+ * same-origin with the page in every topology Tovu actually runs. In production one server serves
+ * `/admin/*` and this route. In dev there are now two ways to reach the admin page, both still
+ * same-origin with this route: by default (`TOVU_ADMIN_DEV_PROXY_URL`, `admin-dev-proxy.ts`) the
+ * website server proxies `/admin/*` to Vite, so the browser sees `localhost:3000` for the admin page
+ * and this route alike — the two ports have merged into one origin, not diverged. Reached directly
+ * at `:5173` instead (Vite's own fallback), `apps/admin/vite.config.ts` proxies `/mcp-ui` to the
+ * website server with `changeOrigin: false`, so the browser sees `localhost:5173` for both there too.
+ * A blanket `DENY` would therefore break every MCP-UI surface — `assistant_ask_choice`'s form
+ * included — which is strictly worse than the hole it closes.
  *
  * **Nothing but `frame-ancestors`.** A header CSP survives the page's own `document.open()`, so any
  * `default-src`/`script-src` directive added here would go on to apply to the guest HTML written in

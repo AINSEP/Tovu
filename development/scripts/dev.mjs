@@ -341,7 +341,8 @@ async function main() {
 
   console.log(
     `tovu dev: starting API on ${scheme}://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
-      `tovu dev: admin will open on ${scheme}://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
+      `tovu dev: admin will be served at ${scheme}://localhost:${API_PORT}/admin/ once the API is up ` +
+      `(same-origin proxy to Vite; Vite itself stays directly reachable at ${scheme}://localhost:${VITE_PORT}/admin/).\n` +
       `tovu dev: Ctrl-C stops everything.\n`
   );
 
@@ -399,7 +400,10 @@ async function main() {
     );
   }
   if (!shuttingDown) {
-    console.log(`tovu dev: API is up. Open ${scheme}://localhost:${VITE_PORT}/admin/\n`);
+    console.log(
+      `tovu dev: API is up. Open ${scheme}://localhost:${API_PORT}/admin/` +
+        ` (Vite direct: ${scheme}://localhost:${VITE_PORT}/admin/)\n`
+    );
     const adminViteEnv = buildAdminViteEnv({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme });
     // Not load-bearing for Vite's own proxy today — `apps/admin/vite.config.ts`'s `secure: false` on
     // every proxy entry is what makes THAT client accept the API's self-signed cert. Passed through
