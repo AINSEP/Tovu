@@ -74,6 +74,53 @@ describe("useComposioKeyField", () => {
     expect(result.current.draft).toBe("");
   });
 
+  it("ignores a second onSave call while the first is still in flight — a genuine no-op, not a second save", async () => {
+    const resolvers: Array<() => void> = [];
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+
+    act(() => result.current.setDraft("comp_secret"));
+    // Both calls synchronous, in the SAME tick — a real double-click can land before React
+    // re-renders with `busy: true`, so the guard has to be a synchronous check-then-set, not a wait
+    // for `busy`/`saveState` to reflect the first click.
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.onSave();
+      secondCall = result.current.onSave();
+    });
+    await act(async () => {
+      for (const resolve of resolvers) resolve();
+      await firstCall;
+      await secondCall;
+    });
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a later onSave once the in-flight one has settled", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useComposioKeyField(makeController({ save })));
+
+    act(() => result.current.setDraft("comp_first"));
+    await act(async () => {
+      await result.current.onSave();
+    });
+
+    act(() => result.current.setDraft("comp_second"));
+    await act(async () => {
+      await result.current.onSave();
+    });
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenNthCalledWith(2, "comp_second");
+  });
+
   it("does NOT clear the draft when composio.save rejects — the `await` short-circuits before setDraft", async () => {
     // `composio.save` is `useComposioConfig`'s `write`, which catches internally and never
     // rejects in production — so this path is unreachable with the real wired hook. Pinned here

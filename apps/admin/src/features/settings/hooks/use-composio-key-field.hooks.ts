@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ComposioConfigController } from "./use-composio-config.hooks";
 
@@ -29,12 +29,13 @@ export interface ComposioKeyFieldController {
    *  themselves already use below. */
   placeholder: string;
   /** Trims `draft`, saves it via `composio.save`, then clears `draft`. A blank/whitespace-only
-   *  draft is a no-op. `composio.save` is `useComposioConfig`'s `write`, which catches internally
-   *  and never rejects — so in practice the clear always runs, error or not, and a secret never
-   *  lingers in the DOM after a failed save. That guarantee holds only because `save` doesn't
-   *  reject: the `await` above is unguarded, so a caller-supplied `save` that does reject would
-   *  skip the clear entirely (pre-existing behavior, carried over unchanged from the
-   *  pre-extraction component). */
+   *  draft is a no-op, and a second call while the first is still in flight is also a no-op — see
+   *  {@link useComposioKeyField}'s own `savingRef` doc. `composio.save` is `useComposioConfig`'s
+   *  `write`, which catches internally and never rejects — so in practice the clear always runs,
+   *  error or not, and a secret never lingers in the DOM after a failed save. That guarantee holds
+   *  only because `save` doesn't reject: the `await` above is unguarded, so a caller-supplied `save`
+   *  that does reject would skip the clear entirely (pre-existing behavior, carried over unchanged
+   *  from the pre-extraction component). */
   onSave: () => Promise<void>;
 }
 
@@ -53,11 +54,25 @@ export function useComposioKeyField(composio: ComposioConfigController): Composi
   const busy = composio.saveState === "saving";
   const placeholder = configured ? "Replace saved key" : "comp_...";
 
+  // Synchronous duplicate-submit guard for `onSave` — a `useRef`, not `busy` (which mirrors
+  // `composio.saveState`), because a true double-click can fire two calls in the same synchronous
+  // tick, before React has re-rendered with `saveState: "saving"`; `busy` still exists to let the
+  // view disable the save button, but the guard that actually stops a second `composio.save` call
+  // has to be synchronous. Same shape and same reasoning as `use-static-publish.hooks.ts`'s own
+  // `publishingRef` (finding 30, 2026-09-05 admin-tooling audit).
+  const savingRef = useRef(false);
+
   async function onSave(): Promise<void> {
     const apiKey = draft.trim();
     if (!apiKey) return;
-    await composio.save(apiKey);
-    setDraft("");
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      await composio.save(apiKey);
+      setDraft("");
+    } finally {
+      savingRef.current = false;
+    }
   }
 
   return { draft, setDraft, configured, busy, placeholder, onSave };
