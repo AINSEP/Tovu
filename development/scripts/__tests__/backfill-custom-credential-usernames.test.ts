@@ -11,6 +11,7 @@ import { customCredentialSets, workspaces } from "../../../apps/website/src/plat
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
 import { buildCustomCredentialAad } from "../../../apps/website/src/features/custom-credentials/aad.js";
+import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
  * @file The mandatory proof for `backfill-custom-credential-usernames.ts` (Pass 1 of the
@@ -521,6 +522,29 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   assert.equal(byId.get(tokenOnlyId)!.sealedCiphertext, tokenOnlySealed.ciphertext);
   assert.equal(byId.get(pendingId)!.username, "real-owner");
   db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-custom-credential-usernames: a mistyped --db path fails loudly and creates nothing, instead of silently creating and migrating an empty database", () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-missingdb-");
+  const missing = path.join(scratch, "content.db"); // deliberately never created
+
+  let threw = false;
+  let stderr = "";
+  try {
+    runScript(missing, undefined, ["--apply"]);
+  } catch (err) {
+    threw = true;
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(threw, true, "the script must fail rather than silently succeed against a missing db");
+  assert.equal(stderr.includes(missingDbPathMessage(path.resolve(missing))), true, `expected the exact missing-db message. Got:\n${stderr}`);
+  // The defect this guards: pre-fix, `--apply` against a mistyped path opened `openContentDb`
+  // directly (creates-and-migrates on open), found zero rows in the brand-new empty database, and
+  // printed "Nothing to migrate" — a false all-clear about data it never read.
+  assert.doesNotMatch(stderr, /Nothing to migrate/, "must fail on the missing DATABASE, not report a false all-clear");
+  assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });

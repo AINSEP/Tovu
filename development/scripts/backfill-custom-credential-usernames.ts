@@ -93,6 +93,7 @@ import { and, eq } from "drizzle-orm";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 import { customCredentialSets } from "../../apps/website/src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
@@ -301,15 +302,20 @@ async function countPending(
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report every row as absent instead of the real problem — no such database. Same guard,
+  // same reasoning, as `backfill-reset-admin-password.ts`'s own fix for this.
+  const dbPath = resolveExistingDbPath(args.dbPath);
 
   if (!args.apply) {
     // Read-only open: plain `openContentDb` unconditionally runs pending migrations and writes the
     // bootstrap watermark row before a caller's own `--dry-run` check ever runs (and would silently
-    // CREATE `args.dbPath` if it did not already exist) — `openContentDbReadOnly` opens the file in
+    // CREATE `dbPath` if it did not already exist) — `openContentDbReadOnly` opens the file in
     // SQLite's own `readonly` connection mode, so neither can happen. Constructed unconditionally but
     // touches no env var until `sealer.open` is actually called — a dry run never calls it, so a dry
     // run needs no `TOVU_INTEGRATIONS_ROOT_KEY` at all.
-    const db = openContentDbReadOnly(args.dbPath);
+    const db = openContentDbReadOnly(dbPath);
     const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
     const sealer = new AesGcmSecretSealer(keyring);
     const result = await runCustomCredentialUsernameBackfill({ db, sealer, keyring }, { apply: false });
@@ -319,7 +325,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const db = openContentDb(args.dbPath);
+  const db = openContentDb(dbPath);
 
   // Constructed before the pending check (moved up from after it): `countPending` now needs to
   // decrypt to tell a genuinely pending row from a token-only one, and a fully-migrated database
@@ -351,7 +357,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-custom-credential-usernames" });
   console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 
