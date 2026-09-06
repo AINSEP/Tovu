@@ -204,6 +204,18 @@ function createWindow(url, title) {
  * registry the moment it is confirmed ready, and gives its window a distinct title so the native
  * Window menu doubles as the switcher (see this file's own header).
  *
+ * The registry row and the in-memory `openSites` entry are made or unmade TOGETHER, never one
+ * without the other. Recording the row before `createWindow` runs (rather than after) is
+ * deliberate — a row must exist for the whole time the server is actually alive, since that is
+ * exactly the window `reconcileOrphans()` on the NEXT launch needs to find it if this process is
+ * killed before either commits — but if `createWindow` itself throws, this attempt failed as a
+ * whole: no window means no way for THIS process to reach or stop that server again (no `openSites`
+ * entry, no `closed` listener), so leaving its row behind would strand it silently — recorded but
+ * untracked, both here and (should this same siteDir be tried again) unreachable through
+ * `already.window` either. The `catch` below stops the just-spawned server and drops the row rather
+ * than leaving either half of that inconsistent, then rethrows so the caller still reports the
+ * failure.
+ *
  * Callers MUST run this through `serializer.run(siteDir, ...)` — this function itself does not
  * serialize, so two concurrent calls for the same `siteDir` (a fast double-click) could otherwise
  * both see "not open yet" and spawn two children for the same site.
@@ -231,7 +243,15 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
     updatedAt: Date.now(),
   });
 
-  const window = createWindow(server.adminUrl, readSiteName(siteDir));
+  let window;
+  try {
+    window = createWindow(server.adminUrl, readSiteName(siteDir));
+  } catch (error) {
+    recordSiteClosed(ctx.registryPath, siteDir);
+    await server.stop();
+    throw error;
+  }
+
   openSites.set(siteDir, { server, window });
   window.on("closed", () => {
     openSites.delete(siteDir);
