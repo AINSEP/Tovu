@@ -8,6 +8,7 @@ import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } 
 import { SeoEntryNotFoundError } from "../errors.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { getEntryMeta } from "../seo.js";
+import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
  * @file T024 — failing-first unit certification of `getEntryMeta`
@@ -153,6 +154,45 @@ test("getEntryMeta: all precedence sources absent for description resolves undef
   const deps = await makeDeps([seedPost({ bodyJson: { type: "doc", content: [] } })]);
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.equal(meta.description, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Regression: clearing a description override (via `setEntrySeoOverrides`'
+// `null`-clears-a-key semantics) must fall through the SAME precedence chain
+// as an entry that never had an override — not resolve to `""`/`undefined`
+// merely because the raw JSON key is gone. This is the behavior that actually
+// matters (an empty-string override previously suppressed the site default/
+// derived excerpt via `??`, which doesn't filter `""`); asserting only that
+// the JSON key vanished would not catch that regression.
+// ---------------------------------------------------------------------------
+
+test("getEntryMeta: clearing a description override falls through to the derived excerpt, not an empty string (regression)", async () => {
+  const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({ description: "" }) })]);
+
+  await setEntrySeoOverrides({
+    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {} },
+    input: { workspaceId: WORKSPACE, entryId: "post-1", patch: { description: null }, callerPrincipalId: "caller-1" },
+  });
+
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "An excerpt body.");
+});
+
+test("getEntryMeta: clearing a description override falls through to the site default when one is configured (regression)", async () => {
+  const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({ description: "Old override" }) })]);
+  await setSeoSettings(deps.settingsDeps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: "caller-1",
+    patch: { defaultDescription: "A great site" },
+  });
+
+  await setEntrySeoOverrides({
+    deps: { postRepo: deps.postRepo, authorize: alwaysAllow, invalidateSitemapCache: () => {} },
+    input: { workspaceId: WORKSPACE, entryId: "post-1", patch: { description: null }, callerPrincipalId: "caller-1" },
+  });
+
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "A great site");
 });
 
 test("getEntryMeta: description derives from an html-format page's bodyHtml when override and site default are absent (SPEC-047 gap)", async () => {

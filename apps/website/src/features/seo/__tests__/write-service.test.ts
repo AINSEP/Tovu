@@ -387,3 +387,59 @@ test("setEntrySeoOverrides: canonical change triggers sitemap cache invalidation
   assert.equal(invalidatedFor, WORKSPACE);
 });
 
+// ---------------------------------------------------------------------------
+// Regression: a patch value of `null` clears that key back to absent, rather
+// than being rejected or stored as a literal empty/falsy value. Before this
+// fix there was no way to remove a key once set — see `seo.ts`'s
+// `resolveTitleAndDescription`, whose `??` chain treats a stored `""` as a
+// present value and never falls through to the site default/derived excerpt.
+// ---------------------------------------------------------------------------
+
+test("setEntrySeoOverrides: a null patch value clears that key back to absent, not an empty string", async () => {
+  const repo = new InMemoryPostRepo([seedPost({ seoExtJson: JSON.stringify({ description: "" }) })]);
+
+  const result = await setEntrySeoOverrides({
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null }, callerPrincipalId: "p1" },
+  });
+
+  assert.equal("description" in result.overrides, false, "cleared key must be absent, not merely falsy");
+
+  const after = await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
+  assert.equal(
+    after?.seoExtJson,
+    null,
+    "clearing the only set key collapses seo_ext_json back to NULL (the entry's original state), not a leftover '{}'"
+  );
+});
+
+test("setEntrySeoOverrides: clearing one key leaves sibling overrides intact", async () => {
+  const repo = new InMemoryPostRepo([
+    seedPost({ seoExtJson: JSON.stringify({ title: "Kept Title", description: "Clear me", noindex: true }) }),
+  ]);
+
+  const result = await setEntrySeoOverrides({
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null }, callerPrincipalId: "p1" },
+  });
+
+  assert.equal(result.overrides.title, "Kept Title");
+  assert.equal(result.overrides.noindex, true);
+  assert.equal("description" in result.overrides, false);
+
+  const after = await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
+  assert.deepEqual(JSON.parse(after!.seoExtJson!), { title: "Kept Title", noindex: true });
+});
+
+test("setEntrySeoOverrides: a null value alongside a set value in the same patch applies both (clear + set in one call)", async () => {
+  const repo = new InMemoryPostRepo([seedPost({ seoExtJson: JSON.stringify({ description: "Old" }) })]);
+
+  const result = await setEntrySeoOverrides({
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: null, title: "New Title" }, callerPrincipalId: "p1" },
+  });
+
+  assert.equal("description" in result.overrides, false);
+  assert.equal(result.overrides.title, "New Title");
+});
+

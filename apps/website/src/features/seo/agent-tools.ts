@@ -95,18 +95,21 @@ const ENTRY_ID_SCHEMA = {
   properties: { entryId: ENTRY_ID_PROPERTY },
 } as const;
 
-/** Shared by every `SeoExtFields` string field this catalog publishes. */
+/** Shared by every `SeoExtFields` string field this catalog publishes. `null` clears a
+ *  previously-set override back to absent (falls through to the site default / derived value) —
+ *  the same "pass null to clear" vocabulary `seo_set_settings`' own nullable fields already use. */
 const SEO_STRING_FIELD = {
-  type: "string",
+  type: ["string", "null"],
   maxLength: STRING_FIELD_MAX_LENGTH,
-  description: `Optional override. At most ${STRING_FIELD_MAX_LENGTH} characters. Omit to leave the existing override (if any) unchanged.`,
+  description: `Optional override. At most ${STRING_FIELD_MAX_LENGTH} characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override.`,
 } as const;
 
-/** Shared by every `SeoExtFields` URL/media-ref field this catalog publishes. */
+/** Shared by every `SeoExtFields` URL/media-ref field this catalog publishes. `null` clears a
+ *  previously-set override back to absent (falls through to the site default / derived value). */
 const SEO_URL_FIELD = {
-  type: "string",
+  type: ["string", "null"],
   maxLength: URL_FIELD_MAX_LENGTH,
-  description: `Optional override. At most ${URL_FIELD_MAX_LENGTH} characters. Omit to leave the existing override (if any) unchanged.`,
+  description: `Optional override. At most ${URL_FIELD_MAX_LENGTH} characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override.`,
 } as const;
 
 /** `seo_set_entry_overrides`'s input — a partial patch onto `SeoExtFields`, mirroring `put-entry.ts`'s
@@ -122,17 +125,31 @@ const SET_ENTRY_OVERRIDES_SCHEMA = {
     title: { ...SEO_STRING_FIELD, description: `Meta title override. ${SEO_STRING_FIELD.description}` },
     description: { ...SEO_STRING_FIELD, description: `Meta description override. ${SEO_STRING_FIELD.description}` },
     canonical: { ...SEO_URL_FIELD, description: `Canonical URL override (absolute). ${SEO_URL_FIELD.description}` },
-    noindex: { type: "boolean", description: "Set true to exclude this entry from indexing (emits robots:noindex and drops it from the sitemap)." },
-    nofollow: { type: "boolean", description: "Set true to emit robots:nofollow for this entry." },
+    noindex: {
+      type: ["boolean", "null"],
+      description: "Set true to exclude this entry from indexing (emits robots:noindex and drops it from the sitemap). Pass null to clear this override and inherit the site default.",
+    },
+    nofollow: {
+      type: ["boolean", "null"],
+      description: "Set true to emit robots:nofollow for this entry. Pass null to clear this override and inherit the site default.",
+    },
     schemaType: { ...SEO_STRING_FIELD, description: `JSON-LD schema.org @type override. ${SEO_STRING_FIELD.description}` },
     ogTitle: { ...SEO_STRING_FIELD, description: `OpenGraph title override. ${SEO_STRING_FIELD.description}` },
     ogDescription: { ...SEO_STRING_FIELD, description: `OpenGraph description override. ${SEO_STRING_FIELD.description}` },
     ogImage: { ...SEO_URL_FIELD, description: `OpenGraph image override (media ref or absolute URL). ${SEO_URL_FIELD.description}` },
-    ogType: { type: "string", enum: [...OG_TYPE_VALUES], description: `OpenGraph type override. One of ${OG_TYPE_VALUES.join(", ")}.` },
+    ogType: {
+      type: ["string", "null"],
+      enum: [...OG_TYPE_VALUES, null],
+      description: `OpenGraph type override. One of ${OG_TYPE_VALUES.join(", ")}. Pass null to clear this override.`,
+    },
     twitterTitle: { ...SEO_STRING_FIELD, description: `Twitter/X card title override. ${SEO_STRING_FIELD.description}` },
     twitterDescription: { ...SEO_STRING_FIELD, description: `Twitter/X card description override. ${SEO_STRING_FIELD.description}` },
     twitterImage: { ...SEO_URL_FIELD, description: `Twitter/X card image override (media ref or absolute URL). ${SEO_URL_FIELD.description}` },
-    twitterCard: { type: "string", enum: [...TWITTER_CARD_VALUES], description: `Twitter/X card kind override. One of ${TWITTER_CARD_VALUES.join(", ")}.` },
+    twitterCard: {
+      type: ["string", "null"],
+      enum: [...TWITTER_CARD_VALUES, null],
+      description: `Twitter/X card kind override. One of ${TWITTER_CARD_VALUES.join(", ")}. Pass null to clear this override.`,
+    },
   },
 } as const;
 
@@ -220,7 +237,7 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "seo_set_entry_overrides",
       description:
-        "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change.",
+        "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). Pass null for a field to clear that override back to inheriting the site default / derived value. If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "admin.seo.manage" },
       inputSchema: SET_ENTRY_OVERRIDES_SCHEMA,

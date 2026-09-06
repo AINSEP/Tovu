@@ -5,7 +5,7 @@ import {
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
 } from "./errors.js";
-import type { SeoExtFields } from "./types.js";
+import type { SeoExtFields, SeoExtFieldsPatch } from "./types.js";
 
 /**
  * @file `setEntrySeoOverrides` — THE per-entry SEO write chokepoint
@@ -19,6 +19,15 @@ import type { SeoExtFields } from "./types.js";
  * directly) so this file stays independently testable in Phase 2, ahead of
  * Phase 6's `sitemap.ts` existing — the real composition root (Phase 7, T047)
  * wires the real function in.
+ *
+ * Clearing an override (2026-09-06 fix): a patch value of `null` REMOVES that key from the merged
+ * bag (see `SeoExtFieldsPatch`'s doc comment in `types.ts` for the "pass null to clear" convention
+ * this mirrors from `SeoSettings`). Before this, there was no way to un-set a key once written — the
+ * only options were overwriting it with another value or `""`, and `seo.ts`'s `?? ` precedence chain
+ * does not filter `""`, so an empty-string override silently suppressed the site default/derived
+ * fallback rather than falling through to it. A merge result left with zero keys is persisted as
+ * `seoExtJson: null` (not `"{}"`), so clearing every currently-set key returns the row to its true
+ * original state, not a leftover empty bag.
  */
 
 // Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema can reuse the exact
@@ -73,7 +82,9 @@ function validateRegisteredKeys(patch: Record<string, unknown>): void {
   }
 }
 
-/** Shared shape for both STRING_FIELDS and URL_FIELDS: optional string, bounded by `maxLength`. */
+/** Shared shape for both STRING_FIELDS and URL_FIELDS: optional string, bounded by `maxLength`.
+ *  `null` is the clear sentinel (see file header) — skipped here, same as `undefined`, since it
+ *  never becomes a stored value for this key. */
 function validateStringLikeFields(
   patch: Record<string, unknown>,
   fields: ReadonlyArray<keyof SeoExtFields>,
@@ -81,7 +92,7 @@ function validateStringLikeFields(
 ): void {
   for (const key of fields) {
     const value = patch[key];
-    if (value === undefined) continue;
+    if (value === undefined || value === null) continue;
     if (typeof value !== "string") {
       throw new SeoFieldValidationError(`'${key}' must be a string`);
     }
@@ -100,20 +111,30 @@ function validateCanonicalScheme(patch: Record<string, unknown>): void {
   }
 }
 
+/** `null` is the clear sentinel (see file header) — skipped, same as `undefined`. */
 function validateBooleanFields(patch: Record<string, unknown>): void {
   for (const key of BOOLEAN_FIELDS) {
     const value = patch[key];
-    if (value !== undefined && typeof value !== "boolean") {
+    if (value !== undefined && value !== null && typeof value !== "boolean") {
       throw new SeoFieldValidationError(`'${key}' must be a boolean`);
     }
   }
 }
 
+/** `null` is the clear sentinel (see file header) — skipped, same as `undefined`. */
 function validateEnumFields(patch: Record<string, unknown>): void {
-  if (patch.ogType !== undefined && !(OG_TYPE_VALUES as readonly unknown[]).includes(patch.ogType)) {
+  if (
+    patch.ogType !== undefined &&
+    patch.ogType !== null &&
+    !(OG_TYPE_VALUES as readonly unknown[]).includes(patch.ogType)
+  ) {
     throw new SeoFieldValidationError(`'ogType' must be one of ${OG_TYPE_VALUES.join(", ")}`);
   }
-  if (patch.twitterCard !== undefined && !(TWITTER_CARD_VALUES as readonly unknown[]).includes(patch.twitterCard)) {
+  if (
+    patch.twitterCard !== undefined &&
+    patch.twitterCard !== null &&
+    !(TWITTER_CARD_VALUES as readonly unknown[]).includes(patch.twitterCard)
+  ) {
     throw new SeoFieldValidationError(`'twitterCard' must be one of ${TWITTER_CARD_VALUES.join(", ")}`);
   }
 }
@@ -144,8 +165,23 @@ export interface SetEntrySeoOverridesDeps {
 export interface SetEntrySeoOverridesInput {
   workspaceId: string;
   entryId: string;
-  patch: Partial<SeoExtFields>;
+  patch: SeoExtFieldsPatch;
   callerPrincipalId: string;
+}
+
+/** Applies `patch` onto `currentOverrides`: a `null` value REMOVES that key (clears the override
+ *  back to absent, see file header); any other value sets/replaces it; `undefined` (an omitted
+ *  key) is left untouched. Pure — never mutates `currentOverrides`. */
+function applyOverridesPatch(currentOverrides: SeoExtFields, patch: SeoExtFieldsPatch): SeoExtFields {
+  const merged: Record<string, unknown> = { ...currentOverrides };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      delete merged[key];
+    } else if (value !== undefined) {
+      merged[key] = value;
+    }
+  }
+  return merged as SeoExtFields;
 }
 
 export interface SetEntrySeoOverridesRequired {
@@ -182,11 +218,13 @@ export async function setEntrySeoOverrides(
   }
 
   const currentOverrides: SeoExtFields = existing.seoExtJson ? JSON.parse(existing.seoExtJson) : {};
-  const mergedOverrides: SeoExtFields = { ...currentOverrides, ...input.patch };
+  const mergedOverrides: SeoExtFields = applyOverridesPatch(currentOverrides, input.patch);
 
   await deps.postRepo.save({
     ...existing,
-    seoExtJson: JSON.stringify(mergedOverrides),
+    // Zero remaining keys returns the row to its true original state (`NULL`), not a leftover
+    // `"{}"` — see file header.
+    seoExtJson: Object.keys(mergedOverrides).length === 0 ? null : JSON.stringify(mergedOverrides),
     version: existing.version + 1,
   });
 

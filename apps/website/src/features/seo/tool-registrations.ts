@@ -50,7 +50,7 @@ import {
 import { getEntryMeta, analyzeEntry } from "./seo.js";
 import { getSeoSettings, setSeoSettings } from "./settings.js";
 import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap.js";
-import type { SeoExtFields, SeoSettings } from "./types.js";
+import type { SeoExtFieldsPatch, SeoSettings } from "./types.js";
 import { setEntrySeoOverrides } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(getSeoAgentToolCatalog());
@@ -89,11 +89,15 @@ export interface SeoToolDeps {
  * the chokepoint reject it would teach a model that a field it sent was applied when it silently
  * wasn't, the same failure mode `tool-registration-kit.ts`'s `requireNoInput` doc comment warns
  * against for a no-input tool.
+ *
+ * A `null` value for any field passes through unchanged — that is this catalog's clear sentinel
+ * (see `SeoExtFieldsPatch`'s doc comment in `types.ts`); the chokepoint interprets it, this mapping
+ * layer does not need to.
  */
-function seoOverridesPatchFromInput(input: Record<string, unknown>): Partial<SeoExtFields> {
+function seoOverridesPatchFromInput(input: Record<string, unknown>): SeoExtFieldsPatch {
   const patch: Record<string, unknown> = { ...input };
   delete patch.entryId;
-  return patch as Partial<SeoExtFields>;
+  return patch as SeoExtFieldsPatch;
 }
 
 /**

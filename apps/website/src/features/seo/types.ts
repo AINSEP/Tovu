@@ -168,6 +168,21 @@ export interface SeoExtFields {
   twitterImage?: string;
 }
 
+/**
+ * The shape `setEntrySeoOverrides` (`write-service.ts`) accepts as its `patch`. Widens every
+ * `SeoExtFields` field to also allow `null`, meaning "remove this key" — the override is cleared
+ * back to absent so resolution (`seo.ts`) falls through to the site default / derived value, the
+ * same "pass null to clear" vocabulary `SeoSettings`' own nullable fields
+ * (`defaultDescription`/`defaultOgImage`/`twitterSite`, see `settings.ts`) already use. `undefined`
+ * (an omitted key) still means "leave unchanged" — only an explicit `null` clears.
+ *
+ * Clearing EVERY currently-set key in one patch (e.g. `{ description: null, title: null, ... }`)
+ * is how the entry's `seoExtJson` is expressible back to its true original `NULL` state, not just
+ * an empty bag — `setEntrySeoOverrides` collapses a merge result with zero remaining keys to `null`
+ * rather than persisting `"{}"` (see that function's own doc comment).
+ */
+export type SeoExtFieldsPatch = { [K in keyof SeoExtFields]?: SeoExtFields[K] | null };
+
 // ---------------------------------------------------------------------------
 // 2. Resolved per-entry meta — what the render + admin preview + analyze consume
 // ---------------------------------------------------------------------------
