@@ -10,8 +10,8 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
+import { resolveExternalMcpCardHandles } from "./ExternalMcpSettingsPanel.hooks";
 import {
-  buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,
   EXTERNAL_MCP_ADD_FORM_HANDLE,
   resolveExternalMcpEffectiveAuthMode,
@@ -223,10 +223,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
   }, [addForm.values, transportGuess, authModeGuess]);
 
   const banner = list.error;
-  // Not `useMemo`d: an O(n) pass (see `buildAgentListHandles`'s own `@complexity` doc, which this
-  // wraps) over one workspace's own configured external MCP servers — small and cheap enough next
-  // to the render it feeds that memoizing it was not judged worth the added indirection.
-  const cardHandles = buildExternalMcpCardHandles(list.sources.map((source) => source.id));
+  const cardHandles = resolveExternalMcpCardHandles(list.sources);
 
   return (
     <section className="external-mcp-tab">
