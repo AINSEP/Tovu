@@ -25,6 +25,7 @@ import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
+import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -182,6 +183,16 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * catalog" tripwire test), while this tool's whole pipeline is host-specific glue — the same
  * reasoning that already justified `custom-credentials`/`site-inspection`/`site-evidence` as their
  * own standalone domains.
+ *
+ * `contributeSitesTools()` (2026-09-05) is likewise a NEW domain: one tool, `sites_duplicate_site`,
+ * wiring `platform/site-dir/duplicate-site.ts`'s `duplicateSite` to the assistant, for the "a
+ * designer/developer wants one site per client" workflow the admin Sites screen's own
+ * `listSites`/`createSite` already serve. `features/sites/deps.ts`'s `SitesToolDeps` deliberately
+ * does not default `isSiteSwitcherEnabled` itself (its real implementation lives under
+ * `server/runtime/composition/`, off limits to `features/**` per `.dependency-cruiser.mjs`'s
+ * `feature-no-server-or-framework-imports`) — `assistant/tool-registrations.ts`'s
+ * `buildAssistantToolRegistrations` fills it into `enrichedRouteDeps`, the same seam that already
+ * supplies `StaticPublishToolDeps.vendorCredentials` for the identical shape of problem.
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
@@ -207,6 +218,7 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSettingsTools());
   registerToolContributor(contributeSiteEvidenceTools());
   registerToolContributor(contributeSiteInspectionTools());
+  registerToolContributor(contributeSitesTools());
   registerToolContributor(contributeSourceControlTools());
   registerToolContributor(contributeStaticPublishTools());
   registerToolContributor(contributeTaxonomyTools());

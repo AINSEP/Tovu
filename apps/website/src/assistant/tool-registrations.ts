@@ -191,6 +191,16 @@ import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations.js";
 import type { SettingsToolDeps } from "../features/settings/tool-registrations.js";
 import type { SiteInspectionToolDeps } from "../features/site-inspection/index.js";
+import type { SitesToolDeps } from "../features/sites/index.js";
+// This file's own real wiring for `SitesToolDeps.isSiteSwitcherEnabled` — that field is deliberately
+// NOT defaulted inside `features/sites/deps.ts`, because its real implementation lives under
+// `server/runtime/composition/`, which `.dependency-cruiser.mjs`'s `feature-no-server-or-framework-
+// imports` rule forbids a `features/**` module from importing. This IS the one place allowed to see
+// both sides — the same reasoning this file's own doc gives for being the sole place that sees
+// every domain's narrow type at once, and the same shape `StaticPublishToolDeps.vendorCredentials`
+// below already uses for the identical "features/deployments cannot import features/vendor-
+// credentials without closing a module cycle" problem.
+import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../server/runtime/composition/site-switcher-enabled.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
@@ -244,6 +254,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   RecoveryToolDeps &
   SettingsToolDeps &
   SiteInspectionToolDeps &
+  SitesToolDeps &
   TaxonomyToolDeps &
   ThemeToolDeps &
   WorkspaceToolDeps &
@@ -655,6 +666,7 @@ export function buildAssistantToolRegistrations(
   const enrichedRouteDeps: AssistantToolRegistryDeps = {
     ...routeDeps,
     vendorCredentials: routeDeps.vendorCredentials ?? REAL_VENDOR_CREDENTIAL_PORT,
+    isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
   };
 
   for (const slice of allToolContributors()) {
