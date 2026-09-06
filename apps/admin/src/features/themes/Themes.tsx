@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
@@ -7,6 +8,7 @@ import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
 import {
@@ -69,7 +71,7 @@ type PreviewStage = "jpg" | "png" | "failed";
  *
  * @complexity Time/space: O(1) — one `<img>`, one three-state fallback stage, one modal-open boolean.
  */
-function ThemeCardPreview({ themeId }: { themeId: string }) {
+function ThemeCardPreview({ themeId, agentHandleBase }: { themeId: string; agentHandleBase: string }) {
   // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). Interactive DOM chrome, not async/API state: no I/O, and
   // `Themes.unit.test.tsx` asserts it through REAL DOM behavior (the jpg→png→placeholder `<img>`
@@ -106,6 +108,7 @@ function ThemeCardPreview({ themeId }: { themeId: string }) {
             className="theme-card-preview-trigger"
             onClick={() => setExpanded(true)}
             aria-label={`Expand preview for ${themeId}`}
+            {...agentHandle(`${agentHandleBase}-preview`, { role: "button", label: `Expand the "${themeId}" theme's preview image` })}
           >
             <img src={src} alt="" loading="lazy" onError={handleError} />
           </button>
@@ -291,9 +294,15 @@ function MarketplaceGrid({
       </div>
     );
   }
+  // Marketplace item ids are stable and unique, same per-row-handle derivation every other list on
+  // this workstream uses (`buildAgentListHandles`).
+  const cardHandles = buildAgentListHandles(
+    "themes-marketplace-card",
+    marketplace.map((item) => item.id),
+  );
   return (
     <div className="theme-grid" role="group" aria-label={t("Marketplace")}>
-      {marketplace.map((item) => (
+      {marketplace.map((item, index) => (
         <div key={item.id} className="theme-card">
           <h3>{item.name}</h3>
           <p>{item.description}</p>
@@ -308,7 +317,12 @@ function MarketplaceGrid({
             </p>
           ) : null}
           <div className="theme-card-actions">
-            <button className="btn-primary" disabled={downloading !== null} onClick={() => void download?.(item.id)}>
+            <button
+              className="btn-primary"
+              disabled={downloading !== null}
+              onClick={() => void download?.(item.id)}
+              {...agentHandle(`${cardHandles[index]}-download`, { role: "button", label: `Download the "${item.name}" theme` })}
+            >
               {downloading === item.id ? t("Downloading…") : t("Download")}
             </button>
           </div>
@@ -343,16 +357,20 @@ function ThemeGrid({
       </div>
     );
   }
+  // Theme ids are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`).
+  const cardHandles = buildAgentListHandles("themes-card", visibleThemes);
   return (
     // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
     // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of
     // related controls with one label" rather than nothing.
     <div className="theme-grid" role="group" aria-label={t("Themes")}>
-      {visibleThemes.map((themeId) => {
+      {visibleThemes.map((themeId, index) => {
         const active = isActiveTheme(settings, themeId);
+        const handleBase = cardHandles[index]!;
         return (
           <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
-            <ThemeCardPreview themeId={themeId} />
+            <ThemeCardPreview themeId={themeId} agentHandleBase={handleBase} />
             <h3>{themeId}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
             {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
@@ -365,7 +383,12 @@ function ThemeGrid({
               {active ? (
                 <span className="theme-active-tag">{t("Active")}</span>
               ) : (
-                <button className="btn-primary" disabled={busyTheme !== null} onClick={() => activate(themeId)}>
+                <button
+                  className="btn-primary"
+                  disabled={busyTheme !== null}
+                  onClick={() => activate(themeId)}
+                  {...agentHandle(`${handleBase}-activate`, { role: "button", label: `Activate the "${themeId}" theme` })}
+                >
                   {busyTheme === themeId ? t("Activating…") : t("Activate")}
                 </button>
               )}
@@ -373,6 +396,7 @@ function ThemeGrid({
                 type="button"
                 className="btn-explore"
                 onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                {...agentHandle(`${handleBase}-explore`, { role: "button", label: `Explore the "${themeId}" theme's files` })}
               >
                 {t("Explore")}
               </button>
@@ -446,12 +470,20 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           invisible here until someone asks it to look again. In-app actions will rescan on their own;
           this is the control for every change the app never saw happen. */}
       <div className="page-toolbar">
-        <a href={siteUrl("/")} target="_blank" rel="noreferrer">{t("View site ↗")}</a>
+        <a
+          href={siteUrl("/")}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle("themes-view-site", { role: "link", label: "Open the public site in a new tab" })}
+        >
+          {t("View site ↗")}
+        </a>
         <button
           type="button"
           className="btn-secondary"
           disabled={rescanning || rescan === undefined}
           onClick={() => void rescan?.()}
+          {...agentHandle("themes-rescan", { role: "button", label: "Rescan the themes folder for changes" })}
         >
           {rescanning ? t("Rescanning…") : t("Rescan themes")}
         </button>
@@ -465,6 +497,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
         ariaLabel={t("Themes")}
         tabs={buildThemeTabs(t, grouped, marketplace)}
         activeId={activeTab}
+        containerHandle="themes-tab-bar"
         onChange={(id) => {
           // Real `navigate()`, not local state (ADR-063) — same idiom Deployment/Database's tab
           // strips use: `replace: true` so switching tabs updates the deep link without growing
