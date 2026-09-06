@@ -13,6 +13,7 @@ import {
   rmSync,
   statSync,
   writeFileSync,
+  type Stats,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -410,8 +411,15 @@ export function listThemeFiles(
  * way {@link visitThemeDirEntry}'s listing walk does) is deliberate: a symlink pointing to a real file
  * INSIDE the theme is meant to read through, which `resolveThemeFilePath`'s realpath-based containment
  * check already allows — only the cyclic case needs converting.
+ *
+ * Return type is `Stats | undefined`, not `ReturnType<typeof statSync>` — `statSync` is overloaded
+ * and never called here with `bigint: true`, so the call below can only ever produce a `Stats` (or
+ * `undefined` via `throwIfNoEntry: false`); `ReturnType<typeof statSync>` instead resolves against
+ * the type's LAST overload (`Stats | BigIntStats | undefined`), which is why callers of this
+ * function (`writeFileAtomically`) saw a `bigint` in `existing.mode`'s type that can never actually
+ * occur at runtime.
  */
-function statOrThemePathError(target: string, relativePath: string): ReturnType<typeof statSync> | undefined {
+function statOrThemePathError(target: string, relativePath: string): Stats | undefined {
   try {
     return statSync(target, { throwIfNoEntry: false });
   } catch (err) {
