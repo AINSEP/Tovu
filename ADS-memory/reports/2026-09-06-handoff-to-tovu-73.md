@@ -56,3 +56,18 @@ Ship a RED-first regression test with the bridge.
 - Never read an exit code through a pipe; `timeout` does not exist on macOS; never `2>/dev/null`; `grep` here is ugrep — it ignores `--include`/`--exclude` and silently skips files containing NUL bytes.
 - Scoped test runs only. Three runners: `apps/admin` runs from `apps/admin`, `apps/website` runs from the **repo root**, Jini has its own.
 - **Reporting:** only mistakes and things Leona must approve. No progress updates, no completion announcements. Verify a success and stay quiet. She dictates by voice, so resolve garbled proper nouns against repo vocabulary and state your reading.
+
+---
+
+## Ownership note (added 2026-09-06, after a coordinator mistake)
+
+**Both tasks above belong to the peer session, which should spawn its own subagents for them.** Leona's instruction: work moves to the peer session, not to more subagents under `tovu-72`.
+
+`tovu-72` briefly spawned a subagent (`attachment-bridge`) for these anyway, after a cross-session message expired unapproved. **That was a mistake and the agent was stopped within minutes. It committed nothing and left nothing in either working tree.**
+
+For the avoidance of doubt about what you will find dirty when you start:
+
+- `Jini/packages/chat/src/react/features/chat-pane/components/ChatPane.tsx` and its test are modified, but that predates all of this — the file was last touched **Sep 5 20:01**, and the diff contains nothing mic-, voice-, or recording-related. Another session's work. **Not yours, do not commit it.**
+- Same for the modified `Jini/packages/admin/**` files (`core/index.ts`, `core/ports/menus.ts`, `react/components/Sidebar.tsx` and neighbours) and `.gitignore`.
+
+Anything you write for these two tasks starts from a clean slate.
