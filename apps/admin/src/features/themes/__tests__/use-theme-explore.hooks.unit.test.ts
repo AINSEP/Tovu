@@ -527,6 +527,19 @@ describe("useThemeExplore — collidingContent mapping", () => {
 
     expect(result.current.files[0].collidingContent).toBeNull();
   });
+
+  it("normalizes an absent published to null too — the same ?? null idiom, its own call site", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "css/theme.css", group: "style" as const, readable: true, editable: true, resettable: true }],
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    // Strict `toBeNull()`, not merely falsy — `mapDetailFiles`'s contract is `boolean | null`, never
+    // `undefined`, and only a strict check can tell "normalized to null" apart from "the ?? was
+    // silently dropped and this is still undefined".
+    expect(result.current.files[0].published).toBeNull();
+  });
 });
 
 describe("useThemeExplore — startRename's client-side lock mirrors the server's apiVersion-aware required files", () => {
@@ -543,7 +556,13 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
 
     act(() => result.current.startRename("pages/index.html"));
     expect(result.current.renamingPath).toBeNull();
-    expect(result.current.error).toMatch(/can't be renamed/);
+    // Exact match, not a loose /can't be renamed/ regex — the index page gets its OWN "exact page"
+    // wording (`lockedIdentityChangeReason`'s first branch), distinct from the generic "exact file"
+    // message every OTHER required file gets. A loose regex can't tell the two apart, which is
+    // exactly what let this branch go untested before (mutation-sweep flagged it).
+    expect(result.current.error).toBe(
+      "pages/index.html can't be renamed — every theme requires this exact page to load at all."
+    );
 
     act(() => result.current.startRename("pages/about.html"));
     expect(result.current.renamingPath).toBe("pages/about.html");
@@ -571,7 +590,9 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
 
     act(() => result.current.startRename("render/pages/index.html"));
     expect(result.current.renamingPath).toBeNull();
-    expect(result.current.error).toMatch(/can't be renamed/);
+    expect(result.current.error).toBe(
+      "render/pages/index.html can't be renamed — every theme requires this exact page to load at all."
+    );
 
     act(() => result.current.startRename("render/pages/about.html"));
     // A v2 theme's ordinary page must still be renamable — only its required index page is locked.
@@ -680,6 +701,55 @@ describe("useThemeExplore — rename race safety", () => {
 
     expect(result.current.error).toBeNull();
     expect(result.current.notice).toBe("Renamed to css/b2.css");
+  });
+
+  /**
+   * The `finally` block's own stale-settlement guard is a THIRD, independent check from the
+   * success/catch guards above (same shape `use-themes.hooks.ts`'s `activate`/`download` finally
+   * guards document) — a test that only checks the FINAL `renaming` value can't tell whether this
+   * guard fired, since both outcomes converge to the same end state. It only diverges from a no-op
+   * when the stale call settles WHILE the newer one is still in flight.
+   */
+  it("a stale rename settling while a newer rename is still pending must not clear renaming early", async () => {
+    const deferred: Record<string, { resolve: (value: { path: string }) => void }> = {};
+    const port = createFakeThemeExplorePort({
+      files: FILES,
+      contents: { "pages/index.html": "<html></html>" },
+    });
+    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+      return new Promise<{ path: string }>((resolve) => {
+        deferred[name] = { resolve };
+      });
+    });
+
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("a2.css"));
+    act(() => result.current.commitRename());
+
+    act(() => result.current.startRename("css/b.css"));
+    act(() => result.current.setRenameDraft("b2.css"));
+    act(() => result.current.commitRename());
+
+    await waitFor(() => expect(port.renameThemeFile).toHaveBeenCalledTimes(2));
+    expect(result.current.renaming).toBe(true);
+
+    // a2 (stale) settles now, while b2's own call is STILL pending.
+    await act(async () => {
+      deferred["a2.css"]!.resolve({ path: "css/a2.css" });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // b2's rename has not settled yet — renaming must still read true, not be cleared by a2's
+    // stale settlement.
+    expect(result.current.renaming).toBe(true);
+
+    await act(async () => {
+      deferred["b2.css"]!.resolve({ path: "css/b2.css" });
+    });
+    await waitFor(() => expect(result.current.renaming).toBe(false));
   });
 });
 
@@ -919,6 +989,67 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
 
     expect(() => rejectDetail(new Error("too late"))).not.toThrow();
     expect(result.current.error).toBeNull();
+  });
+
+  /**
+   * The two tests above prove the guard doesn't THROW post-unmount, but `result.current` is frozen
+   * at the last render once unmounted — they can't observe whether a write was actually skipped.
+   * This one keeps the hook MOUNTED throughout by changing `themeId` instead (the same dependency
+   * change that runs this effect's cleanup for real), so `result.current` stays live and can prove
+   * the stale response's content never lands.
+   */
+  it("a stale successful response for an OLD themeId does not overwrite state the NEW themeId already loaded", async () => {
+    let resolveStale!: (value: {
+      id: string;
+      name: string;
+      tier: string;
+      status: string;
+      errors: string[];
+      pages: string[];
+      partials: string[];
+      lineage: null;
+      hasOriginal: boolean;
+      files: never[];
+    }) => void;
+    const port = createFakeThemeExplorePort({
+      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      files: [],
+    });
+    const realGetThemeDetail = port.getThemeDetail.bind(port);
+    port.getThemeDetail = vi.fn((themeId: string) => {
+      if (themeId === "a") return new Promise((resolve) => (resolveStale = resolve as never));
+      return realGetThemeDetail(themeId);
+    });
+
+    const { result, rerender } = renderHook(
+      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      { initialProps: { themeId: "a" } }
+    );
+    await waitFor(() => expect(port.getThemeDetail).toHaveBeenCalledWith("a"));
+
+    // Navigate to a different theme before "a"'s load ever resolves — this runs the OLD effect's
+    // cleanup (`cancelled = true`) and starts a fresh one for "b", which resolves normally.
+    rerender({ themeId: "b" });
+    await waitFor(() => expect(result.current.detail?.id).toBe("b"));
+
+    // "a"'s stale response lands now, well after "b" is already showing.
+    await act(async () => {
+      resolveStale({
+        id: "STALE-A",
+        name: "Stale A",
+        tier: "static",
+        status: "valid",
+        errors: [],
+        pages: [],
+        partials: [],
+        lineage: null,
+        hasOriginal: true,
+        files: [],
+      });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.detail?.id).toBe("b");
   });
 });
 
