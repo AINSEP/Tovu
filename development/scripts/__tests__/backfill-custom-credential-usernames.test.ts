@@ -526,6 +526,98 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   fs.rmSync(scratch, { recursive: true, force: true });
 });
 
+test("backfill-custom-credential-usernames: the FAILED-only summary line reports the database's real total row count, not just the unreadable count", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-failed-total-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  // The ONLY NULL row, and it is undecryptable — same shape as the "only corrupt" test above, so
+  // `pending === 0` and the apply loop below never runs.
+  const corruptId = "cred-only-corrupt-with-sibling";
+  const corruptSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TO_BE_CORRUPTED", username: "will-never-be-read" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: corruptId }),
+  });
+  const tamperedCiphertext = Buffer.from("this-is-not-the-real-ciphertext-and-will-fail-gcm-auth-tag-check").toString("base64");
+
+  // A SECOND row that is already migrated (`username` non-NULL) — excluded from both `pending` and
+  // `unreadable` (countPending only ever looks at NULL rows), but it is still a real row in the
+  // table. The bug this test pins: pre-fix, the "Done: ... total" line used `unreadable.length`
+  // (1) instead of the table's actual row count (2), silently dropping this row from the total.
+  const alreadyMigratedId = "cred-already-migrated-sibling";
+  const alreadyMigratedSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_ALREADY_MIGRATED" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: alreadyMigratedId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  const seedRow = (input: SeedCredentialInput) =>
+    seedDb
+      .insert(customCredentialSets)
+      .values({
+        id: input.id,
+        workspaceId: WORKSPACE,
+        label: input.label,
+        category: input.category,
+        baseUrl: input.baseUrl,
+        additionalHostsJson: null,
+        username: input.username ?? null,
+        sealedKeyId: input.sealedKeyId,
+        sealedCiphertext: input.sealedCiphertext,
+        sealedNonce: input.sealedNonce,
+        sealedAlg: input.sealedAlg,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+      .run();
+  seedRow({
+    id: corruptId,
+    label: "only-corrupt-with-sibling",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: corruptSealed.keyId,
+    sealedCiphertext: tamperedCiphertext,
+    sealedNonce: corruptSealed.nonce,
+    sealedAlg: corruptSealed.alg,
+  });
+  seedRow({
+    id: alreadyMigratedId,
+    label: "already-migrated-sibling",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    username: "already-migrated-owner",
+    sealedKeyId: alreadyMigratedSealed.keyId,
+    sealedCiphertext: alreadyMigratedSealed.ciphertext,
+    sealedNonce: alreadyMigratedSealed.nonce,
+    sealedAlg: alreadyMigratedSealed.alg,
+  });
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  let output = "";
+  try {
+    output = runScript(dbPath, rootKeyHex, ["--apply"]);
+  } catch (err) {
+    output = `${(err as { stdout?: string }).stdout ?? ""}`;
+  }
+
+  assert.match(
+    output,
+    /Done: 0 row\(s\) migrated, 1 failed, 2 total\./,
+    `expected the real 2-row table total, not just the 1 unreadable row. Got:\n${output}`
+  );
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
 test("backfill-custom-credential-usernames: a mistyped --db path fails loudly and creates nothing, instead of silently creating and migrating an empty database", () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-missingdb-");
   const missing = path.join(scratch, "content.db"); // deliberately never created

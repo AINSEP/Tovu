@@ -267,14 +267,20 @@ interface PendingCheckResult {
    *  doc), but reported so `main()` can surface them even when they are the only NULL rows in the
    *  table and the per-row apply loop would otherwise never run to catch them. */
   readonly unreadable: readonly PendingCheckUnreadableRow[];
+  /** The table's real row count — every row, not just the NULL-username ones this function
+   *  otherwise looks at. Returned so `main()` can report an honest "total" even on the path where
+   *  the apply loop below never runs (see that call site's own comment on why `unreadable.length`
+   *  alone under-reports it). */
+  readonly totalRows: number;
 }
 
 async function countPending(
   db: ContentDb,
   deps: { sealer: SecretSealerPort; keyring: KeyringPort }
 ): Promise<PendingCheckResult> {
-  const rows = db.select().from(customCredentialSets).all().filter((row) => row.username === null);
-  if (rows.length === 0) return { pending: 0, unreadable: [] };
+  const allRows = db.select().from(customCredentialSets).all();
+  const rows = allRows.filter((row) => row.username === null);
+  if (rows.length === 0) return { pending: 0, unreadable: [], totalRows: allRows.length };
 
   // Forces root-key resolution up front (cached for every derive/open call below) so a missing key
   // fails loudly here rather than masquerading as "every row is unreadable, so nothing is pending".
@@ -297,7 +303,7 @@ async function countPending(
       unreadable.push({ workspaceId: row.workspaceId, id: row.id, message: err instanceof Error ? err.message : String(err) });
     }
   }
-  return { pending, unreadable };
+  return { pending, unreadable, totalRows: allRows.length };
 }
 
 async function main(): Promise<void> {
@@ -333,7 +339,7 @@ async function main(): Promise<void> {
   const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const sealer = new AesGcmSecretSealer(keyring);
 
-  const { pending, unreadable } = await countPending(db, { sealer, keyring });
+  const { pending, unreadable, totalRows } = await countPending(db, { sealer, keyring });
 
   if (pending === 0 && unreadable.length === 0) {
     console.log("Nothing to migrate — every custom_credential_sets row already has a username column value (or genuinely has none to backfill).");
@@ -350,8 +356,11 @@ async function main(): Promise<void> {
     for (const row of unreadable) {
       console.log(`FAILED (could not decrypt): workspace=${row.workspaceId} id=${row.id}: ${row.message}`);
     }
+    // "total" is the table's real row count (`totalRows`), not `unreadable.length` — this branch
+    // can be reached with already-migrated or otherwise-excluded rows still sitting in the table
+    // that `unreadable` never counts, and this line must not silently drop them from "total".
     console.log(
-      `Done: 0 row(s) migrated, ${unreadable.length} failed, ${unreadable.length} total. No other row was pending, so no restore point was captured — nothing here was ever going to be written this run.`
+      `Done: 0 row(s) migrated, ${unreadable.length} failed, ${totalRows} total. No other row was pending, so no restore point was captured — nothing here was ever going to be written this run.`
     );
     process.exitCode = 1;
     return;
