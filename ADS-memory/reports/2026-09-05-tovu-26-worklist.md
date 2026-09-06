@@ -1289,3 +1289,61 @@ includes the largest hook file in the tree, `AssistantDock.hooks.tsx` (1,466 lin
 `use-post-editor.hooks.ts` (831), `App.hooks.tsx` (639), `Select.hooks.tsx` (630),
 `use-page-editor.hooks.ts` (486) and `use-static-publish.hooks.ts` (363). **Dispatch batch C once
 those agents finish.**
+
+---
+
+## A27 — GPT-6-Astra audit of 2026-09-04's production commits. NEW MODEL, VALIDATED.
+
+**Invocation that worked** (for reuse):
+```
+codex exec -m gpt-6-astra -c model_reasoning_effort="medium" -s read-only \
+  --skip-git-repo-check -o <report.md> - < <prompt.md>
+```
+`codex debug models` lists `gpt-6-astra` with effort levels low/medium/high/xhigh/max/ultra. Prompt
+began with `<<PEER_DISPATCH>>` (skips ADS interactive startup) and instructed it to load
+`AI-Dev-Shop/agents/programmer/skills.md` as its persona — **it confirmed the load and signed its
+report `Programmer(Direct):`.**
+
+**Scope given**: production files only from `c74fcb3b~1..438ada6a` — **42 files, 2,062 insertions,
+794 deletions** (the full day was 93 commits / 153 files / 15,053 insertions, too much to hold a
+reviewer to). Repo read access, not diff-only, deliberately: diff-only audits here have run ~24%
+fabricated.
+
+### CALIBRATION: 4 of 5 findings independently verified by me. ZERO fabricated.
+Materially better than the ~24%-fabrication baseline from the other peer model. **Worth using again.**
+
+| # | Finding | Verified? |
+|---|---|---|
+| F1 | **HIGH** — `writeFileAtomic` (`atomic-write.ts`) calls `writeFileSync` with **no mode**, so `.env` is replaced at `0644` instead of `0600`, exposing secrets to other local users. Temp file holds them loosely before the rename too. | **YES, by me** |
+| F2 | **MEDIUM** — `active-site.ts:107`'s `catch` is unconditional while its comment claims "No `.env` yet". An `EACCES` on a present `.env` is treated as absent and the file is overwritten with only `TOVU_SITE=<name>`; route returns success. | **YES, by me** |
+| F3 | **MEDIUM** — claimed `header` collision in `resolver-service.ts:953`/`:919`: markers keyed solely by `ref.id`, so two embeds of one entry can't honour different `header` values. Astra labelled it "source-derived, not observed". | **NOT verified** |
+| F4 | **LOW** — `routes/system/sites.ts:125` measures **cyclomatic 11 / cognitive 10** vs the owner's ceiling of 9. | **YES, eslint** |
+| F5 | **LOW** — `resolveMediaHook`/`resolveMediaTabsHook` are non-JSX functions inside `Media.tsx`. | **YES, by me** |
+
+### The impressive part — an unprompted correct nuance
+On F4 it **volunteered** that `eslint.config.mjs:395`'s `error`/9 block is scoped to
+`apps/admin/src/**` while `apps/website` sits at the repo-wide `warn`/15 — so the finding **meets the
+stated audit ceiling but does NOT establish a CI failure.** That is exactly the distinction recorded
+in memory as an off-by-one that has burned dispatch briefs here, and it was never mentioned in the
+prompt.
+
+### It also listed six things that are FINE despite looking suspicious
+Manual restart after Activate (approved in the sites-switcher decision record);
+`translateRunAgentPayload` at cyclomatic 13 (documented exemption + debt entry, not a new violation);
+credential hydration's legacy no-AAD branch (extraction did not disconnect it); the JSONB decoder
+(no production wiring found, so its limits prove no current corruption); `api.ts`'s header merge
+ordering (already corrected since); JSX-only component extractions (not logic-placement violations).
+**Volunteering non-findings is the behaviour that makes an audit trustworthy.**
+
+### Stated verification limits, unprompted
+No runtime reproductions, fault injection, browser or external-service checks; actual filesystem
+permissions never inspected; **graph results were stale for new symbols and caller tracing was
+unavailable**, so substantive findings were verified against current source; concurrent edits
+prevented a frozen-tree audit (it noted HEAD moved to `c34232a4` mid-review).
+
+### Disposition
+Handed to peer session **`tovu-ce`** to fix, with the brief at
+`.../scratchpad/astra-fix-prompt.md`. Scope split: `tovu-ce` takes
+`apps/website/src/{platform/site-dir,features/widgets,server/inbound/admin-http/routes/system}`;
+**F5 stays with this session's agents** since `apps/admin` is theirs. F3 must be **traced before
+being fixed** — refuting it is an acceptable outcome.
