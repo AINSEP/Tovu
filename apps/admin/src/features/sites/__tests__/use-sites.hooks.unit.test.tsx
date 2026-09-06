@@ -165,6 +165,27 @@ describe("useSites — create", () => {
   });
 });
 
+describe("useSites — createdName staleness", () => {
+  it("clears the success banner's name as soon as the operator types a new one, not just at the next submit", async () => {
+    const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } });
+    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setCreateName("gamma"));
+    await act(async () => {
+      result.current.createSite();
+    });
+    await waitFor(() => expect(result.current.createdName).toBe("gamma"));
+
+    // The operator starts typing an unrelated next name — the "Created." banner must not still
+    // claim credit for it.
+    act(() => result.current.setCreateName("delta"));
+    expect(result.current.createdName).toBeNull();
+  });
+});
+
 describe("useSites — activate does NOT switch anything", () => {
   it("keeps the serving marker on the site the server is still bound to, and marks the choice pending", async () => {
     // The server re-derives `currentSite` from what it actually booted with, so the refetch after

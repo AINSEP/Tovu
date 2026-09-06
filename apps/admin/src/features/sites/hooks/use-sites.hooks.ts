@@ -62,14 +62,18 @@ export interface SitesController {
   outlook: ActivationOutlook;
 
   createName: string;
+  /** Also clears {@link SitesController.createdName} — a still-showing "Created." banner must not
+   *  survive the operator changing what's in the field (finding 25, 2026-09-05 admin-tooling audit). */
   setCreateName: (value: string) => void;
   /** Client-side name check, already translated — `null` while the field is acceptable. */
   createNameError: string | null;
   /** Submits the create form. A no-op while the name is invalid or a write is already in flight. */
   createSite: () => void;
   creating: boolean;
-  /** The site name the last successful Create made — drives the success line, cleared on the next
-   *  Create attempt. */
+  /** The site name the last successful Create made — drives the success line. Cleared at the start
+   *  of the next Create attempt, and also the moment the operator edits {@link
+   *  SitesController.createName} again (via {@link SitesController.setCreateName}), so the banner
+   *  can never sit next to an unrelated name. */
   createdName: string | null;
 
   /** Persists `name` as the next boot's site. Never switches anything — see this file's header. */
@@ -97,7 +101,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
   useContentRefreshSubscription(SITES_RESOURCE, invalidateList);
 
-  const [createName, setCreateName] = useState("");
+  const [createName, setCreateNameRaw] = useState("");
   const [createdName, setCreatedName] = useState<string | null>(null);
   const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
   const [activatingName, setActivatingName] = useState<string | null>(null);
@@ -127,6 +131,16 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
 
   const nameErrorKey = siteNameErrorKey(createName);
 
+  // The view's own `setCreateName` — every edit to the field also clears a still-showing "Created."
+  // banner, so it can never sit next to a name the operator has since changed their mind about
+  // (finding 25, 2026-09-05 admin-tooling audit). Kept separate from `setCreateNameRaw`, which
+  // `createSite`'s own success handler below uses directly: that reset must NOT clear `createdName`
+  // — it runs right after `setCreatedName(result.site.name)` sets the very name the banner reports.
+  const setCreateName = useCallback((value: string) => {
+    setCreateNameRaw(value);
+    setCreatedName(null);
+  }, []);
+
   const createSite = useCallback(() => {
     const name = createName.trim();
     if (siteNameErrorKey(name) !== null) return;
@@ -144,7 +158,9 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       .mutate(name)
       .then((result) => {
         setCreatedName(result.site.name);
-        setCreateName("");
+        // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
+        // the very name just set on the line above before the banner ever renders it.
+        setCreateNameRaw("");
       })
       .catch(() => {})
       .finally(() => {
