@@ -168,6 +168,16 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   // that function's own note (C3 fix).
   const previewGenerationRef = useRef(0);
 
+  // Synchronous duplicate-submit guard for `checkPreview()` (2026-09-05 stale-settlement sweep, C5
+  // fix) — same reasoning `publishingRef` documents for `publish()` below, PLUS a second failure mode
+  // specific to `checkPreview`: with no guard, two overlapping calls share the one `previewLoading`
+  // flag, so whichever call's own `finally` fires FIRST clears it while the OTHER is still in flight —
+  // the Preview button (and any caller depending on `previewLoading`) would read "not loading" with a
+  // request still outstanding. A ref, not `previewLoading` (state) itself: a same-tick double call
+  // (or any caller reaching `checkPreview()` directly, not just through the disabled button) must see
+  // the other call's claim synchronously, before either has re-rendered.
+  const previewCallRef = useRef(false);
+
   // Every setter below clears the (now stale) preview as a side effect — see this file's header.
   function invalidatePreview() {
     previewGenerationRef.current += 1;
@@ -196,6 +206,14 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   }
 
   async function checkPreview() {
+    // A second call while the first is still in flight is a duplicate submit — ignore it here too,
+    // not just via the UI's `previewLoading`-gated disabled state, so the race can't still send two
+    // requests or tear down `previewLoading` out from under the call that's still running (C5 fix,
+    // same "ignored outright" idiom `publish()`'s `publishingRef` uses below). Safe against a
+    // same-tick double call specifically because it is synchronous: nothing yields between the read
+    // and the write, so a second synchronous call always observes this call's claim.
+    if (previewCallRef.current) return;
+    previewCallRef.current = true;
     // Captured BEFORE the request starts — if a field edit bumps `previewGenerationRef` while this
     // request is in flight, the comparison below after `await` tells us this result is now stale
     // (C3 fix: without it, a slow preview response for `acme/old` could resolve AFTER the operator
@@ -217,7 +235,10 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     } finally {
       // Unconditional, unlike the two branches above: this request's own spinner must stop once ITS
       // OWN network call settles regardless of generation, or a discarded stale response would leave
-      // `previewLoading` stuck true forever with nothing left in flight to ever clear it.
+      // `previewLoading` stuck true forever with nothing left in flight to ever clear it. Safe to
+      // always release `previewCallRef` here too now that duplicates are refused at entry, above —
+      // there is never a second, still-running call left whose own flag this could clobber.
+      previewCallRef.current = false;
       setPreviewLoading(false);
     }
   }

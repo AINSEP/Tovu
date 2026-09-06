@@ -68,6 +68,21 @@ describe("useStaticPublish — field state", () => {
   });
 });
 
+/** A representative valid preview result — shared by tests that only care that SOME result came
+ *  back correctly, not its exact fields (the C5 duplicate-call test below, and the first test in
+ *  this describe block which built the same shape inline before this helper existed). */
+function previewResultFixture(): AdminStaticPublishPreview {
+  return {
+    target: "github-pages",
+    valid: true,
+    validationError: null,
+    basePath: "/demo-repo",
+    credentialsConfigured: true,
+    credentialGuidance: null,
+    willInjectNojekyll: true,
+  };
+}
+
 describe("useStaticPublish — preview", () => {
   it("checkPreview sends the current field values and stores the result", async () => {
     let sentConfig: AdminStaticPublishConfig | undefined;
@@ -323,6 +338,44 @@ describe("useStaticPublish — preview", () => {
 
     act(() => result.current.setRepo("renamed-repo"));
     expect(result.current.preview).toBeUndefined();
+  });
+
+  it("REGRESSION (C5): a duplicate checkPreview() call while one is in flight must be ignored outright, not sent as a second request", async () => {
+    let calls = 0;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: () => {
+        calls += 1;
+        return new Promise((resolve) => setTimeout(() => resolve(previewResultFixture()), 5));
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+
+    // Simulate a double-click: two checkPreview() calls fired synchronously, before either has any
+    // chance to resolve (or even for React to re-render with the Preview button disabled) — same
+    // shape the C4 `publish()` regression test above uses for its own duplicate-submit guard.
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.checkPreview();
+      secondCall = result.current.checkPreview();
+    });
+    await waitFor(() => expect(result.current.previewLoading).toBe(true));
+
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    // Pre-fix, `checkPreview()` had no in-flight guard at all: both calls ran to completion, sending
+    // two requests, and whichever one's own `finally` fired FIRST cleared `previewLoading` while the
+    // other was still genuinely in flight.
+    expect(calls).toBe(1);
+    expect(result.current.preview).toEqual(previewResultFixture());
+    expect(result.current.previewLoading).toBe(false);
   });
 
   it("surfaces a rejected preview as a translated preview error", async () => {
