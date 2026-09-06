@@ -339,12 +339,20 @@ const PATH_JOIN_CALL = /\bpath\.(?:join|resolve)\s*\(/g;
  * known-and-tolerated debt, they were structurally unreachable by the classifier that would have
  * found them.
  *
- * Only the TRAILING literal run is used. The leading argument(s) — almost always a computed base
- * (`import.meta.dirname`, `REPO_ROOT`) — cannot be resolved statically and is not needed to be: the
- * literal segments layered on top of it are what encode the restructure-sensitive part of the path,
- * exactly as class 2 already resolves a hardcoded string against the (also unverifiable-by-this-tool)
- * CWD. A non-literal argument BEFORE the trailing run (a ternary, a variable, another call) simply
- * ends the run at that point; this sweep does not attempt to evaluate it.
+ * The leading argument(s) — almost always a computed base (`import.meta.dirname`, `REPO_ROOT`) —
+ * cannot be resolved statically and is not needed to be: the literal segments layered on top of it
+ * are what encode the restructure-sensitive part of the path, exactly as class 2 already resolves a
+ * hardcoded string against the (also unverifiable-by-this-tool) CWD.
+ *
+ * The common shape is the TRAILING literal run (`path.join(REPO_ROOT, "src", "server")`), tried
+ * first. But a call whose LAST argument is itself non-literal — a computed filename, e.g.
+ * `path.join(REPO_ROOT, "src", "server", fileName)` — has no trailing run at all; falling back to
+ * "no segments" there would silently drop the literal directory segments before `fileName` along
+ * with the one genuinely unresolvable argument. `leadingLiteralRunAfterBase` covers exactly that
+ * shape: the literal run starting right after the leading non-literal base(s), stopping at the next
+ * non-literal argument (found 2026-09-05, Gemini re-triage finding 14 — no live call site has this
+ * shape today; every real trailing argument in this sweep's scan scope is either fully literal or
+ * has its variable immediately after the base with no literal in between).
  *
  * @param source raw file text
  * @returns one entry per path.join/path.resolve call whose trailing arguments include at least one
@@ -360,17 +368,51 @@ export function extractPathJoinSegments(source: string): readonly PathJoinCandid
     const args = splitCallArguments(code, openParen);
     if (!args) continue;
 
-    const trailingLiterals: string[] = [];
-    for (let i = args.length - 1; i >= 0; i--) {
-      const literal = asStringLiteral(args[i]!);
-      if (literal === null) break;
-      trailingLiterals.unshift(literal);
-    }
-    if (trailingLiterals.length === 0) continue;
+    const segments = trailingLiteralRun(args) ?? leadingLiteralRunAfterBase(args);
+    if (segments.length === 0) continue;
 
-    out.push({ segments: trailingLiterals, line: lineOf(code, match.index!) });
+    out.push({ segments, line: lineOf(code, match.index!) });
   }
 
+  return out;
+}
+
+/**
+ * The run of trailing string-literal arguments, scanning backward from the end.
+ *
+ * @returns the trailing literals in call order, or `null` if the LAST argument is not itself a
+ *          string literal (so there is no trailing run to report at all)
+ * @complexity O(k) in the trailing run's length.
+ */
+function trailingLiteralRun(args: readonly string[]): readonly string[] | null {
+  const out: string[] = [];
+  for (let i = args.length - 1; i >= 0; i--) {
+    const literal = asStringLiteral(args[i]!);
+    if (literal === null) break;
+    out.unshift(literal);
+  }
+  return out.length > 0 ? out : null;
+}
+
+/**
+ * The run of string-literal arguments immediately following the leading non-literal argument(s) —
+ * used only when {@link trailingLiteralRun} finds nothing, i.e. the call's last argument is itself
+ * non-literal. See {@link extractPathJoinSegments}'s doc comment for why this shape needs its own pass.
+ *
+ * @returns the literal run in call order; `[]` if the call has no non-literal leading argument
+ *          followed by a literal (e.g. every argument is non-literal, or the first is already a
+ *          non-trailing literal with no run after it)
+ * @complexity O(n) in argument count.
+ */
+function leadingLiteralRunAfterBase(args: readonly string[]): readonly string[] {
+  let i = 0;
+  while (i < args.length && asStringLiteral(args[i]!) === null) i++; // skip the leading non-literal base
+  const out: string[] = [];
+  for (; i < args.length; i++) {
+    const literal = asStringLiteral(args[i]!);
+    if (literal === null) break;
+    out.push(literal);
+  }
   return out;
 }
 

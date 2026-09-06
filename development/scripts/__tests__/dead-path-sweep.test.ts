@@ -438,6 +438,22 @@ test("extractPathJoinSegments ignores calls other than path.join/path.resolve", 
   assert.deepEqual(extractPathJoinSegments(source), []);
 });
 
+test("extractPathJoinSegments finds the literal directory run BEFORE a trailing non-literal argument, not just before the end", () => {
+  // Gemini finding 14 (2026-09-05 re-triage): the trailing-run scan starts from the LAST argument and
+  // breaks at the first non-literal, so a call whose final argument is itself a variable (e.g. a
+  // computed filename) reported ZERO segments, dropping the literal directory segments before it
+  // entirely. The 2026-09-05 audit enumerated every path.join/path.resolve call in this sweep's real
+  // scan scope and found none with this shape -- this is a crafted direct-invocation reproduction of
+  // the mechanism, not a live file.
+  const source = `path.join(REPO_ROOT, "src", "server", fileName);`;
+  const found = extractPathJoinSegments(source);
+
+  assert.deepEqual(
+    found.map((c) => c.segments),
+    [["src", "server"]]
+  );
+});
+
 test("dropLeadingParentSegments strips only the leading .. run, keeping a .. that appears later", () => {
   assert.deepEqual(dropLeadingParentSegments(["..", "..", "src", "server"]), ["src", "server"]);
   assert.deepEqual(dropLeadingParentSegments(["src", "..", "server"]), ["src", "..", "server"]);
