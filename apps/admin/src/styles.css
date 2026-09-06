@@ -4266,3 +4266,53 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .onboarding-actions-buttons > button { width: 100%; }
   .sites-empty { padding: var(--space-6) var(--space-5); }
 }
+
+/* Sites — compact square cards (2026-09-05). The owner removed the page-level "Now serving" panel
+ * and asked for the space back: "It should just be a card in all sites with a green active button.
+ * So we save some space. And then we also have the folder, just a regular square card with a hover
+ * tooltip for the actual folder directory."
+ *
+ * Three changes, all overriding the `.sites-grid`/`.site-card` block far above rather than editing
+ * it (this stylesheet is append-only for concurrent work):
+ *
+ * 1. Narrower tracks. 16rem -> 12rem, so a typical admin width fits four cards where it fit two.
+ * 2. `aspect-ratio: 1`. A grid item's `min-height` still resolves to `auto`, so the square is a
+ *    FLOOR, not a clamp: a long folder name or a pending badge grows the card instead of clipping.
+ *    That is why the aspect goes here and not on a fixed `height`.
+ * 3. The state badge moves into the card head, alone. The head used to carry the folder name; the
+ *    name is now the body's first line, which lets the green `Serving now` pill read as the card's
+ *    own status strip — the "green active button" of the brief — without a second row of chrome.
+ *
+ * The absolute path is a `title` on `.site-card` itself (`resolveSiteCardTitle`), so hovering
+ * anywhere on the card reveals the directory. `title` is this screen's established idiom for that
+ * exact value — the panel this replaced already used one on its own truncated path. */
+.sites-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+
+.site-card { aspect-ratio: 1; }
+.site-card-head { display: flex; align-items: center; padding: var(--space-3) var(--space-4); }
+.site-card-body { gap: var(--space-1); padding: var(--space-4); }
+.site-card-name { font-size: var(--text-md); line-height: 1.3; }
+
+/* `word-break: break-all` (inherited from the rule above) is right for a long unbroken folder name
+ * but would also break a two-word display name mid-word, so the subtitle opts out. */
+.site-card-display-name { font-size: var(--text-sm); word-break: normal; overflow-wrap: anywhere; }
+
+/* The "this folder is not a real site directory" badge. Deliberately a quiet warning pill rather
+ * than the full-width amber banner it replaced — the fact has to survive (`tovu serve` would refuse
+ * this folder), but it is a footnote on one card, not a page-level alarm. */
+.site-card-flag { margin-top: var(--space-1); cursor: help; }
+
+/* Page-level facts about the PROCESS — the TOVU_SITE_DIR override and any pending choice. Collapses
+ * completely when there is nothing to say, so the grid sits directly under the page header on the
+ * normal path rather than behind a permanently-reserved gap. */
+.sites-process-notices { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.sites-process-notices:empty { display: none; }
+.sites-process-notices > * { align-self: stretch; }
+.sites-process-notices > .status { align-self: flex-start; }
+
+/* Below roughly a phone's width the square becomes a liability: a 1-column grid would render one
+ * enormous square. Two narrow tracks, aspect released. */
+@media (max-width: 30rem) {
+  .sites-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
+  .site-card { aspect-ratio: auto; }
+}

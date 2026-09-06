@@ -5,6 +5,7 @@ import {
   activationOutlook,
   readSnapshot,
   siteNameErrorKey,
+  siteRegistration,
   siteRowState,
   siteRowStateLabelKey,
   siteRowStateToneClass,
@@ -180,5 +181,37 @@ describe("siteWriteErrorKey", () => {
   it("defers to the shared fallback for any other failure", () => {
     expect(siteWriteErrorKey(new ApiError("boom", 500, "INTERNAL_ERROR"))).toBeNull();
     expect(siteWriteErrorKey(new Error("network down"))).toBeNull();
+  });
+});
+
+describe("siteRegistration", () => {
+  it("reports the served row as unregistered when currentSite.listed is false", () => {
+    // The real state of this repo: `sites/tovu-com` carries neither marker file, so `tovu serve`
+    // would refuse it even though this process is serving it.
+    const snapshot = snapshotFixture({
+      currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, listed: false },
+    });
+    expect(siteRegistration(siteFixture(), snapshot)).toBe("unregistered");
+  });
+
+  it("reports the served row as registered when currentSite.listed is true", () => {
+    expect(siteRegistration(siteFixture(), snapshotFixture())).toBe("registered");
+  });
+
+  it("reports a NON-served row as registered even while the served one is not — the flag must not smear across the grid", () => {
+    // `listSites` produced this row, which means `readSiteDir` accepted both its marker files.
+    // Reading `currentSite.listed` without the `dir` guard would paint every card in the grid with
+    // the served folder's state, which is the bug this assertion exists for.
+    const snapshot = snapshotFixture({
+      currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
+    });
+    expect(siteRegistration(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("registered");
+  });
+
+  it("matches on dir, not name, so a TOVU_SITE_DIR override pointing elsewhere does not flag the same-named row", () => {
+    const snapshot = snapshotFixture({
+      currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
+    });
+    expect(siteRegistration(siteFixture(), snapshot)).toBe("registered");
   });
 });

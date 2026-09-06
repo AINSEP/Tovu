@@ -81,6 +81,36 @@ export function siteRowStateToneClass(state: SiteRowState): string {
 }
 
 /**
+ * Whether a row is a fully-initialized site directory or the one this server happens to be serving
+ * without ever having been through `tovu init`.
+ *
+ * Mirrors `ServingSiteListEntry.registration` on the wire (`site-registry.ts`'s `includeServingSite`,
+ * 2026-09-05) but is DERIVED here from two fields the snapshot already carries, rather than read off
+ * the new one. Two reasons: the shared `AdminSiteListEntry` mirror in `lib/api.ts` has no field for
+ * it yet, and the derivation is exact — the server only ever appends an unregistered row for the
+ * directory it is serving, and `currentSite.listed` is precisely "that directory is a registered
+ * site". So `serving && !listed` is the same predicate, computed from data already typed.
+ */
+export type SiteRegistration = "registered" | "unregistered";
+
+/**
+ * {@link SiteRegistration} for one row.
+ *
+ * Matched on `dir`, not `name`, for the same reason {@link siteRowState} is: under a
+ * `TOVU_SITE_DIR` override a folder name can coincide with a directory somewhere else entirely.
+ *
+ * A row that is NOT the served one is always `registered` — `listSites` produced it, which means
+ * `readSiteDir` accepted both its marker files. Reading `currentSite.listed` for a row that is not
+ * the current site would report the WRONG directory's state on every other card.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function siteRegistration(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRegistration {
+  if (site.dir !== snapshot.currentSite.dir) return "registered";
+  return snapshot.currentSite.listed ? "registered" : "unregistered";
+}
+
+/**
  * Whether a pending activate choice exists and whether it will actually be honored.
  *
  * `pending-ignored` is the `TOVU_SITE_DIR` trap: `resolveSiteRoot` reads that variable ABOVE the

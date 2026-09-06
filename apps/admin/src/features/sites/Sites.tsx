@@ -6,7 +6,7 @@ import { navigate } from "../../lib/router";
 import { AllSitesTab } from "./AllSitesTab";
 import { CreateSiteOnboarding } from "./CreateSiteOnboarding";
 import { resolveSitesHeading, resolveSitesViewId, type SitesViewId } from "./Sites.hooks";
-import { siteRowStateLabelKey, siteRowStateToneClass, type ActivationOutlook } from "./rules";
+import type { ActivationOutlook } from "./rules";
 import { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
@@ -28,19 +28,31 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * Runner's shape, and now this one: a `+ New site` button in the page HEADER
  * (Runner's `MainHeader`, whose own button renders only on the project list) leading to a full-page
  * create screen with its own `← All sites` back link, whose title replaces the page title while it
- * is open. So: `NowServingCard`, then either {@link AllSitesTab} or `CreateSiteOnboarding`.
+ * is open. So: {@link SitesProcessNotices}, then either {@link AllSitesTab} or
+ * `CreateSiteOnboarding`.
  *
  * `?tab=` deep-linking keeps the query key every other tabbed admin screen uses (ADR-063's shared
  * guard) even though this screen renders views rather than tabs — see `resolveSitesViewId`'s own
  * doc for why a second spelling would be worse than a slightly loose name.
  *
- * **"Now serving" renders above BOTH views, unconditionally, and that placement is a requirement
- * rather than a layout preference.** It is the one fact this screen exists to state. Runner's own
- * create screen is a full-page takeover that hides its fleet chrome; this one deliberately does not
- * follow it there, because Create is the exact moment an operator is most likely to believe a
- * switch has happened. Same for the write-error banner and the switching-disabled notice — the
- * reason Create is inert has to reach the operator who opened the create screen, not only the one
- * looking at the grid.
+ * ## The "Now serving" panel is gone (2026-09-05)
+ *
+ * It used to sit above the tabs: a full-width card naming the live folder and its absolute path,
+ * with an amber "This site isn't listed below" banner under it. The owner removed it — "that top
+ * card, the now serving card should not even be there. It should just be a card in all sites with a
+ * green active button. So we save some space."
+ *
+ * It could only go once the served site actually reached the grid, and it did not: `listSites`
+ * requires `config.json` + `.site-meta.json`, this repo's own `sites/tovu-com` has neither, so the
+ * grid was empty and that panel was the screen HONESTLY reporting a backend gap. Deleting it alone
+ * would have deleted the truth and kept the bug. `includeServingSite` (`site-registry.ts`) closed
+ * the gap first; the served folder is now a card like any other, wearing the green `Serving now`
+ * badge, and the amber banner's fact became a small `Not initialized` badge on that same card.
+ *
+ * What stayed page-level is what is genuinely page-level: {@link SitesProcessNotices} — the
+ * `TOVU_SITE_DIR` override and any pending choice — plus the write-error banner and the
+ * switching-disabled notice. All four render on BOTH views, because Create is the exact moment an
+ * operator is most likely to believe a switch has happened.
  *
  * ## What was NOT ported: Runner's per-project tab strip
  *
@@ -64,12 +76,11 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * That makes the screen's real job *not lying*. Four separate things could each produce a screen
  * that implies something happened when it did not, and each has its own home here:
  *
- * 1. **The live site may not be in the grid at all.** `listSites` only counts a directory once it
- *    carries a valid `.site-meta.json` commit marker, and this repo's own `sites/tovu-com` predates
- *    that marker — so `sites[]` comes back EMPTY on a server that is plainly serving it. {@link
- *    NowServingCard} renders `currentSite` (the server's own live binding, not a card) FIRST and
- *    unconditionally, and says so explicitly when `listed` is false. The list view's empty state
- *    points back at this card in words rather than reading as "you have no sites".
+ * 1. **The served folder may not be a real site directory.** `listSites` only counts a directory
+ *    once it carries `config.json` + `.site-meta.json`, and this repo's own `sites/tovu-com` has
+ *    neither. It now gets a card regardless (`includeServingSite`), so the fix for "the grid is
+ *    empty on a running server" must not become a new lie: that card wears a `Not initialized`
+ *    badge, because `tovu serve` would still refuse the folder. See `AllSitesTab.tsx`.
  * 2. **A pending choice is not a switch.** After Activate the activated card still reports
  *    `pending-restart`, never `serving`, because the server re-derives `currentSite` from what it
  *    actually booted with. {@link PendingActivationNotice} names what is still being served.
@@ -93,42 +104,11 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  *
  * All state, effects, and `api.*` calls live in `hooks/use-sites.hooks.ts`; screen-independent
  * domain logic lives in `rules.ts`; derived values specific to this screen's own markup (a button's
- * `disabled`, the tab list, a card's agent handles) live in `Sites.hooks.tsx`, per that file's own
+ * `disabled`, a card's tooltip and badges, a card's agent handles) live in `Sites.hooks.tsx`, per that file's own
  * header. What stays here is what renders. `t` is threaded down as a prop from `Sites`'s own hook
  * rather than each subcomponent resolving its own — see `Redirects.tsx`'s header for the standing
  * i18n rule.
  */
-
-/** One `label / value` pair in the compact "Now serving" line. Plain text, not `.field-readonly`
- *  (that class renders a bordered, backgrounded box the same height as a real input — the exact
- *  "looks like a disabled text field" the owner flagged on an earlier layout). `title` carries
- *  the full value for the absolute path, which is truncated with an ellipsis at narrow widths. */
-function ServingFact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <span className="sites-now-serving-fact">
-      <span className="sites-now-serving-fact-label">{label}</span>
-      <span className={mono ? "sites-now-serving-fact-value mono" : "sites-now-serving-fact-value"} title={value}>
-        {value}
-      </span>
-    </span>
-  );
-}
-
-/** Shown when the served directory does not appear in the grid — see this file's header, point 1.
- *  Without this the screen reads as "you have no sites" on a running server. */
-function UnlistedSiteNotice({ t }: { t: Translate }) {
-  return (
-    <div
-      className="notice warning"
-      {...agentHandle("sites-unlisted-notice", {
-        role: "status",
-        label: "Warning that the site currently being served does not appear in the sites grid",
-      })}
-    >
-      {t("This site isn't listed below, but it's still what's being served.")}
-    </div>
-  );
-}
 
 /** Shown when `TOVU_SITE_DIR` is set — see this file's header, point 3. */
 function SiteDirOverrideNotice({ t }: { t: Translate }) {
@@ -188,7 +168,7 @@ function PendingActivationNotice({
   );
 }
 
-/** Nothing when no choice is pending, so {@link NowServingBadges} needs no conditional of its
+/** Nothing when no choice is pending, so {@link SitesProcessNotices} needs no conditional of its
  *  own. `status-error` (not `status-warning`) for `pending-ignored` mirrors
  *  {@link PendingActivationNotice}'s own `notice error` — the color that means "this will not
  *  happen", not just "this hasn't happened yet". The at-a-glance counterpart to that component's
@@ -205,25 +185,20 @@ function OutlookBadge({ outlook, t }: { outlook: ActivationOutlook; t: Translate
   );
 }
 
-/** The card-head's right-hand group: which site is live right now, and — when one is pending —
- *  which is queued and whether it will actually take effect. "Serving now" is called with the
- *  literal `"serving"` rather than a derived state: this card is definitionally describing that
- *  state, not a row that could be any of the three, so it reuses the row table's own label/tone
- *  functions rather than re-deriving the same string. Same wording, same color, in both places —
- *  an operator learns the vocabulary once. */
-function NowServingBadges({ outlook, t }: { outlook: ActivationOutlook; t: Translate }) {
-  return (
-    <div className="card-head-actions">
-      <span className={`status ${siteRowStateToneClass("serving")}`}>{t(siteRowStateLabelKey("serving"))}</span>
-      <OutlookBadge outlook={outlook} t={t} />
-    </div>
-  );
-}
-
-/** The live binding, first and unconditional — never a card from the grid, which may not contain
- *  it, and never inside a tab, which could hide it. One compact line plus its warnings, not a full
- *  panel — see this file's header. */
-function NowServingCard({
+/** Everything the screen must say about the PROCESS rather than about any one site: the
+ *  `TOVU_SITE_DIR` override, and a pending choice with whether a restart will honor it.
+ *
+ *  These outlived the "Now serving" panel that used to house them. They are page-level facts — they
+ *  describe this server's own environment and its `.env`, not a row — so they sit above the grid
+ *  rather than on a card, and they render on the create view too: Create is the moment an operator
+ *  is most likely to assume a switch has happened. Renders nothing at all when there is nothing to
+ *  say, so the caller has no conditional of its own and the grid moves up.
+ *
+ *  What did NOT survive is the unlisted-site banner. Its sentence ("This site isn't listed below,
+ *  but it's still what's being served.") described a screen where the served folder had no card;
+ *  it now has one, so the fact moved onto that card as a badge — see
+ *  `Sites.hooks.tsx`'s `resolveSiteRegistrationBadge`. */
+function SitesProcessNotices({
   snapshot,
   outlook,
   instructions,
@@ -238,25 +213,15 @@ function NowServingCard({
 }) {
   return (
     <div
-      className="card"
-      {...agentHandle("sites-now-serving", {
+      className="sites-process-notices"
+      {...agentHandle("sites-process-notices", {
         role: "region",
-        label: "The site this server process is actually bound to right now, and any queued change to it",
+        label: "Environment and pending-restart facts about the server process, not about any one site",
       })}
     >
-      <div className="card-head">
-        <h2 className="card-title">{t("Now serving")}</h2>
-        <NowServingBadges outlook={outlook} t={t} />
-      </div>
-      <div className="sites-now-serving">
-        <ServingFact label={t("Folder")} value={snapshot.currentSite.name} />
-        <ServingFact label={t("Path")} value={snapshot.currentSite.dir} mono />
-        <div className="sites-now-serving-notices">
-          {snapshot.currentSite.listed ? null : <UnlistedSiteNotice t={t} />}
-          {snapshot.currentSite.dirOverridden ? <SiteDirOverrideNotice t={t} /> : null}
-          <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} instructions={instructions} t={t} />
-        </div>
-      </div>
+      {snapshot.currentSite.dirOverridden ? <SiteDirOverrideNotice t={t} /> : null}
+      <OutlookBadge outlook={outlook} t={t} />
+      <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} instructions={instructions} t={t} />
     </div>
   );
 }
@@ -392,7 +357,7 @@ export function Sites(props: SitesProps = {}) {
       {writeError ? <div className="notice error">{writeError}</div> : null}
       {switchingEnabled ? null : <SwitchingDisabledNotice t={t} />}
 
-      <NowServingCard snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
+      <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
       {sitesViewBody(view, controller, snapshot)}
     </div>

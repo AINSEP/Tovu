@@ -2,11 +2,13 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
-import { formatTimestamp } from "../../lib/format-timestamp";
 import {
   resolveActivateDisabled,
   resolveSiteCardClassName,
+  resolveSiteCardTitle,
+  resolveSiteRegistrationBadge,
   resolveSiteStateDisplay,
+  resolveSiteSubtitle,
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
@@ -23,14 +25,31 @@ import {
  * one grid cell, which is the specific thing the owner rejected ("This is just awful"). Creating now
  * has a tab of its own (`NewSiteTab.tsx`).
  *
- * ## The empty state is the case this install actually hits
+ * ## The compact card (2026-09-05)
  *
- * `listSites` only counts a directory once it carries a valid `.site-meta.json` commit marker, and
- * this repo's own `sites/tovu-com` predates that marker — so on the real install this grid renders
- * ZERO cards while the server is plainly serving something. That is not an error and it must not
- * read as "you have no sites": `Sites.tsx` renders `NowServingCard` above the tab bar, naming the
- * live folder, and {@link SitesEmptyState} points back at it in words. An empty state that just said
- * "No sites yet" would contradict the card directly above it.
+ * The owner's brief: "that top card, the now serving card should not even be there. It should just
+ * be a card in all sites with a green active button. So we save some space. And then we also have
+ * the folder, just a regular square card with a hover tooltip for the actual folder directory."
+ *
+ * So the card lost its always-visible path line and its "Created" line, gained a square aspect and
+ * a `title` tooltip carrying the absolute path, and the page-level "Now serving" panel above the
+ * grid is gone entirely — the served site is a card in this grid like any other, wearing the green
+ * `Serving now` badge.
+ *
+ * That was only possible because the served site now REACHES this grid. It did not before:
+ * `listSites` requires `config.json` + `.site-meta.json`, this repo's own `sites/tovu-com` has
+ * neither, so the grid rendered zero cards on a server that was plainly serving it — which is what
+ * the removed panel existed to confess. `includeServingSite` (`site-registry.ts`) now composes the
+ * served directory into the listing, and {@link SiteCard} carries the one fact that panel's amber
+ * banner used to: `resolveSiteRegistrationBadge` marks a folder `tovu serve` would refuse. Removing
+ * the panel without that badge would have deleted the truth and kept the bug.
+ *
+ * ## The empty state
+ *
+ * Now genuinely rare rather than this install's normal state: it takes a `sites/` with nothing in it
+ * AND a served directory that is not on disk. {@link SitesEmptyState} still avoids reading as a flat
+ * "you have no sites", because the page-level notices above the grid may still be describing a
+ * pending choice.
  */
 
 /** One row's Activate control. Its own component rather than an inline `cell` body so the four
@@ -71,11 +90,33 @@ function ActivateButton({
   );
 }
 
-/** One listed site's own grid tile — folder name (the technical identifier every write on this
- *  screen takes) dominant in a tinted header; display name, state badge, and created date
- *  underneath; Activate in the footer. {@link resolveSiteCardClassName} adds the
- *  `site-card-serving` tint for whichever card is genuinely live — a purely visual echo of a fact
- *  the badge already states in words, never a substitute for it. */
+/** The card's second line and its "this folder is not really a site" badge — a plain function so
+ *  {@link SiteCard} carries neither `null` check against its own complexity budget, matching the
+ *  split every other renderer in this feature makes. */
+function SiteCardFacts({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
+  const subtitle = resolveSiteSubtitle(site);
+  const registration = resolveSiteRegistrationBadge(site, snapshot);
+  return (
+    <>
+      {subtitle === null ? null : <p className="site-card-display-name">{subtitle}</p>}
+      {registration === null ? null : (
+        <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
+          {t(registration.labelKey)}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** One site's grid tile — square, compact, and carrying the whole truth about that site.
+ *
+ *  The folder name (the technical identifier every write on this screen takes) is the dominant
+ *  element; the state badge is the green `Serving now` pill for whichever card is genuinely live.
+ *  The absolute path is a hover tooltip on the card itself rather than a visible line, which is
+ *  what the owner asked for and what buys back the vertical space.
+ *
+ *  {@link resolveSiteCardClassName} adds the `site-card-serving` tint — a purely visual echo of the
+ *  same fact the badge states in words, never a substitute for it. */
 function SiteCard({
   site,
   snapshot,
@@ -95,16 +136,13 @@ function SiteCard({
 }) {
   const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
   return (
-    <div className={resolveSiteCardClassName(site, snapshot)}>
+    <div className={resolveSiteCardClassName(site, snapshot)} title={resolveSiteCardTitle(site)}>
       <div className="site-card-head">
-        <span className="site-card-name">{site.name}</span>
+        <span className={`status ${toneClass}`}>{t(labelKey)}</span>
       </div>
       <div className="site-card-body">
-        <p className="site-card-display-name">{site.displayName}</p>
-        <span className={`status ${toneClass}`}>{t(labelKey)}</span>
-        <p className="site-card-meta">
-          {t("Created")} {formatTimestamp(site.createdAt)}
-        </p>
+        <span className="site-card-name">{site.name}</span>
+        <SiteCardFacts site={site} snapshot={snapshot} t={t} />
         <div className="site-card-actions">
           <ActivateButton
             site={site}
@@ -122,13 +160,11 @@ function SiteCard({
 }
 
 /**
- * Shown instead of the grid when nothing is listed.
+ * Shown instead of the grid when nothing is listed at all.
  *
- * The second line is load-bearing, not filler: it is what keeps this state from contradicting the
- * `Now serving` card rendered directly above the tab bar on the very same screen (see this file's
- * header). The action is a real `<a href>` rather than a `<button onClick={navigate}>` so it is
+ * The action is a real `<a href>` rather than a `<button onClick={navigate}>` so it is
  * middle-clickable, copyable, and works with the app's own internal-link interceptor — the same
- * `?tab=` URL the tab button itself produces, so there is one destination, not two.
+ * `?tab=` URL the header button itself produces, so there is one destination, not two.
  */
 function SitesEmptyState({ t }: { t: Translate }) {
   return (
@@ -140,7 +176,7 @@ function SitesEmptyState({ t }: { t: Translate }) {
       })}
     >
       <h2 className="sites-empty-title">{t("No listed sites")}</h2>
-      <p className="sites-empty-lead">{t("A folder appears here once Tovu has created it. What's serving now is above.")}</p>
+      <p className="sites-empty-lead">{t("A folder appears here once Tovu has created it.")}</p>
       <a className="btn-primary sites-empty-action" href="/admin/sites?tab=new">
         {t("New site")}
       </a>

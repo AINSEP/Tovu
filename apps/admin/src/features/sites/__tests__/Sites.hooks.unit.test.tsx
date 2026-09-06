@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminSiteListEntry } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
 import {
   resolveDatabaseOptionClassName,
+  resolveSiteCardTitle,
   resolveSiteDatabaseOptions,
+  resolveSiteRegistrationBadge,
   resolveSitesEmpty,
   resolveSitesHeading,
   resolveSitesViewId,
+  resolveSiteSubtitle,
   SITES_VIEW_IDS,
 } from "../Sites.hooks";
 
@@ -88,5 +91,48 @@ describe("resolveDatabaseOptionClassName", () => {
     // combining, so no call site can produce a vendor card that looks like the chosen database.
     expect(resolveDatabaseOptionClassName({ selected: false, available: false })).toBe("site-db-option is-unavailable");
     expect(resolveDatabaseOptionClassName({ selected: true, available: false })).toBe("site-db-option is-unavailable");
+  });
+});
+
+function snapshotFor(entryName: string, listed: boolean): AdminSitesSnapshot {
+  return {
+    switchingEnabled: true,
+    sites: [entry(entryName)],
+    currentSite: { dir: `/repo/sites/${entryName}`, name: entryName, dirOverridden: false, listed },
+    persistedSiteName: null,
+  };
+}
+
+describe("resolveSiteCardTitle", () => {
+  it("is the absolute path, which the card carries as its hover tooltip", () => {
+    expect(resolveSiteCardTitle(entry("alpha"))).toBe("/repo/sites/alpha");
+  });
+});
+
+describe("resolveSiteSubtitle", () => {
+  it("is null when the display name only repeats the folder name — initSite's own default", () => {
+    // `initSite` defaults `config.json.name` to the folder basename, so this is the common case and
+    // rendering it would spend a line of the compact card saying the same word twice.
+    expect(resolveSiteSubtitle(entry("alpha"))).toBeNull();
+  });
+
+  it("is the display name when an operator has actually set a different one", () => {
+    expect(resolveSiteSubtitle({ ...entry("alpha"), displayName: "Alpha Client Site" })).toBe("Alpha Client Site");
+  });
+});
+
+describe("resolveSiteRegistrationBadge", () => {
+  it("is null for a normal row, so no badge is rendered", () => {
+    expect(resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", true))).toBeNull();
+  });
+
+  it("names the two missing files and what refuses without them, not just 'invalid'", () => {
+    const badge = resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", false));
+    expect(badge?.labelKey).toBe("Not initialized");
+    // Asserting the tooltip's actual content, not merely that one exists: a badge saying only
+    // "Not initialized" reads as a defect rather than a specific, fixable state.
+    expect(badge?.titleKey).toContain("config.json");
+    expect(badge?.titleKey).toContain(".site-meta.json");
+    expect(badge?.titleKey).toContain("tovu serve would refuse it");
   });
 });

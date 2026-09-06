@@ -65,29 +65,57 @@ function renderSites(overrides: Partial<SitesController> = {}, tabId?: string) {
   return controller;
 }
 
-describe("Sites — the live binding is stated from currentSite, never inferred from a row", () => {
-  it("renders the served folder and its absolute path", () => {
+describe("Sites — the live binding is stated on the served site's own card", () => {
+  it("puts the absolute path in a hover tooltip on the card, not in a visible line", () => {
     renderSites();
-    expect(screen.getByText("/repo/sites/alpha")).toBeTruthy();
+    // The owner asked for "just a regular square card with a hover tooltip for the actual folder
+    // directory" — so the path must be REACHABLE but must not be spending a line of card height.
+    // Asserting both halves: a `getByTitle` alone would still pass if the path were also printed.
+    expect(screen.getByTitle("/repo/sites/alpha")).toBeTruthy();
+    expect(screen.queryByText("/repo/sites/alpha")).toBeNull();
   });
 
-  it("says so when the served site is absent from the grid, instead of reading as 'no sites'", () => {
+  it("gives the served-but-uninitialized folder a card of its own, green, flagged, and NOT the empty state", () => {
+    // The exact state of this repo: `sites/tovu-com` carries neither `config.json` nor
+    // `.site-meta.json`, so `listSites` used to drop it and this screen rendered "no sites" on a
+    // server that was plainly serving it. `includeServingSite` now composes it in.
     renderSites({
       snapshot: snapshotFixture({
-        sites: [],
+        sites: [{ name: "tovu-com", dir: "/repo/sites/tovu-com", displayName: "tovu-com", createdAt: "2026-01-01T00:00:00.000Z", active: true }],
         currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
       }),
-      sites: [],
+      sites: [{ name: "tovu-com", dir: "/repo/sites/tovu-com", displayName: "tovu-com", createdAt: "2026-01-01T00:00:00.000Z", active: true }],
     });
-    expect(screen.getByText(/isn't listed below/)).toBeTruthy();
-    // The live folder is still named on screen, even though nothing is listed.
-    expect(screen.getByText("/repo/sites/tovu-com")).toBeTruthy();
-    // Tab redesign (2026-09-05): the Create tile no longer sits in the grid, so "zero listed sites"
-    // renders as a real empty state instead — one that must NOT read as "you have no sites" while
-    // `Now serving` names a live one directly above it. Asserting the empty state's own copy (which
-    // points back at that card) rather than merely that some create control exists: an assertion on
-    // a button's presence would still pass under an empty state that said "No sites." full stop.
-    expect(screen.getByText(/What's serving now is above/)).toBeTruthy();
+
+    expect(screen.getByText("tovu-com")).toBeTruthy();
+    expect(screen.getByText("Serving now").className).toContain("status-ok");
+    // The fact the removed amber banner used to carry, now a quiet badge on the card. Without this
+    // the card would promise a folder `tovu serve` will refuse.
+    expect(screen.getByText("Not initialized")).toBeTruthy();
+    expect(screen.getByTitle(/tovu serve would refuse it/)).toBeTruthy();
+    // And the empty state is genuinely not rendered — the site is IN the grid now.
+    expect(screen.queryByText(/A folder appears here once Tovu has created it/)).toBeNull();
+  });
+
+  it("flags only the served card, never a sibling, when the served folder is uninitialized", () => {
+    // The trap this guards: reading `currentSite.listed` per row would paint every card in the grid
+    // with the served folder's own state. `siteRegistration` matches on `dir` first.
+    renderSites({
+      snapshot: snapshotFixture({
+        currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, listed: false },
+      }),
+    });
+    expect(screen.getAllByText("Not initialized")).toHaveLength(1);
+  });
+
+  it("never renders the removed 'isn't listed below' sentence, which stopped being true", () => {
+    renderSites({
+      snapshot: snapshotFixture({
+        currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, listed: false },
+      }),
+    });
+    expect(screen.queryByText(/isn't listed below/)).toBeNull();
+    expect(screen.queryByText("Now serving")).toBeNull();
   });
 
   it("warns that TOVU_SITE_DIR outranks anything Activate saves", () => {
@@ -108,10 +136,10 @@ describe("Sites — a pending choice is never presented as a completed switch", 
     });
     expect(screen.getByText(/Nothing has switched yet — this server and its agent daemon are both still on/)).toBeTruthy();
     expect(screen.getByText("Queued for next restart")).toBeTruthy();
-    // Two matches now, not one: the Now Serving card's own head badge (added for at-a-glance
-    // legibility) plus `alpha`'s row badge — both true, since `alpha` is still what's live.
-    expect(screen.getAllByText("Serving now")).toHaveLength(2);
-    expect(screen.getByText(/beta.*queued/)).toBeTruthy(); // the card head's compact "what's queued" pill
+    // ONE match now, not two: the page-level "Now serving" card that carried the second copy is
+    // gone, so the only `Serving now` on screen is `alpha`'s own card badge.
+    expect(screen.getAllByText("Serving now")).toHaveLength(1);
+    expect(screen.getByText(/beta.*queued/)).toBeTruthy(); // the compact "what's queued" pill
   });
 
   it("renders the server's own restart prose verbatim when it has one", () => {
@@ -144,11 +172,11 @@ describe("Sites — a pending choice is never presented as a completed switch", 
   });
 });
 
-describe("Sites — the Now Serving card's own head badges (at-a-glance, not just prose)", () => {
-  it("always shows the live state, in the same wording and tone the row table gives it", () => {
+describe("Sites — the queued-choice pill (at-a-glance, not just prose)", () => {
+  it("states the live site exactly once, on its own card, now that the page-level panel is gone", () => {
     renderSites();
-    // Card head badge plus `alpha`'s own row badge — same string, same color, by design.
-    expect(screen.getAllByText("Serving now")).toHaveLength(2);
+    expect(screen.getAllByText("Serving now")).toHaveLength(1);
+    expect(screen.getByText("Serving now").className).toContain("status-ok");
   });
 
   it("gives a queued-and-will-be-honored choice a warning tone, not the error tone reserved for 'won't apply'", () => {
@@ -245,8 +273,8 @@ describe("Sites — load and error states", () => {
   it("shows a write failure as a banner without hiding the list", () => {
     renderSites({ writeError: "A folder with that name already exists under sites/." });
     expect(screen.getByText("A folder with that name already exists under sites/.")).toBeTruthy();
-    // Card head badge plus `alpha`'s own row badge — see the pending-choice block above.
-    expect(screen.getAllByText("Serving now")).toHaveLength(2);
+    // The grid is still rendered underneath the banner — `alpha`'s own card badge proves it.
+    expect(screen.getAllByText("Serving now")).toHaveLength(1);
   });
 });
 
@@ -310,29 +338,26 @@ describe("Sites — the list/create views (Runner port: a header button, not a t
   });
 });
 
-describe("Sites — 'Now serving' is page-level: it renders above BOTH views", () => {
-  it("states the live binding on the create screen too, not just on the list", () => {
-    renderSites({}, "new");
-    // A bookmarked ?tab=new must never be a page that fails to say what is being served. Runner's
+describe("Sites — the PROCESS-level notices render above BOTH views", () => {
+  it("carries the TOVU_SITE_DIR override warning onto the create screen as well", () => {
+    // A bookmarked ?tab=new must never be a page that hides the reason Activate is inert. Runner's
     // own create screen is a full-page takeover that hides its fleet chrome; this deliberately does
     // not follow it there, because Create is the moment an operator is most likely to assume a
     // switch happened.
-    expect(screen.getByText("Now serving")).toBeTruthy();
-    expect(screen.getByText("/repo/sites/alpha")).toBeTruthy();
-  });
-
-  it("carries the unlisted-site warning onto the create screen as well", () => {
     renderSites(
-      {
-        snapshot: snapshotFixture({
-          sites: [],
-          currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
-        }),
-        sites: [],
-      },
+      { snapshot: snapshotFixture({ currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false } }) },
       "new",
     );
-    expect(screen.getByText(/isn't listed below/)).toBeTruthy();
+    expect(screen.getByText(/TOVU_SITE_DIR is set in this server's environment/)).toBeTruthy();
+  });
+
+  it("renders nothing at all when the process has nothing to report, so the grid moves up", () => {
+    // The point of removing the panel was the vertical space. A container that always rendered —
+    // even empty — would give it straight back, and `:empty` in CSS cannot hide a box with
+    // whitespace children, so this asserts on the DOM rather than trusting the stylesheet.
+    const { container } = render(<Sites useSitesHook={() => controllerFixture()} />);
+    const notices = container.querySelector(".sites-process-notices");
+    expect(notices?.childElementCount).toBe(0);
   });
 
   it("carries the pending-choice notice onto the create screen as well", () => {

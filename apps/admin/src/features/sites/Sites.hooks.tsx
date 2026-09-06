@@ -2,7 +2,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
+import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 
 /**
  * @file `Sites.tsx`'s own derived-value logic, split out per the `<Name>.tsx`/`<Name>.hooks.tsx`
@@ -78,6 +78,60 @@ export function resolveSiteStateDisplay(
  *  the badge itself. */
 export function resolveSiteCardClassName(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): string {
   return siteRowState(site, snapshot) === "serving" ? "site-card site-card-serving" : "site-card";
+}
+
+/**
+ * The card's hover tooltip: the site folder's absolute path.
+ *
+ * The path used to be a permanently-visible line in the "Now serving" panel above the grid. The
+ * owner removed that panel and asked for "just a regular square card with a hover tooltip for the
+ * actual folder directory", so the path moves here — one `title` on the card, which is the idiom
+ * this screen already used for the same value (the old panel truncated the path and put the full
+ * string in a `title` for exactly this reason).
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveSiteCardTitle(site: AdminSiteListEntry): string {
+  return site.dir;
+}
+
+/**
+ * The card's second line, or `null` when there is nothing worth saying.
+ *
+ * `initSite` defaults `config.json.name` to the folder's own basename, so on most sites the display
+ * name and the folder name are the same string — and rendering it twice is the kind of filler the
+ * compact card has no room for. It appears only when an operator has actually given the site a
+ * different display name.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveSiteSubtitle(site: AdminSiteListEntry): string | null {
+  return site.displayName === site.name ? null : site.displayName;
+}
+
+/**
+ * The small "this is not really a site directory" badge, or `null` for a normal row.
+ *
+ * This is where the fact the full-width amber banner used to carry now lives. The banner said "This
+ * site isn't listed below, but it's still what's being served." — a sentence that stopped being true
+ * the moment the served directory got a card of its own. What is still true, and still worth
+ * knowing, is narrower: this folder has no `config.json`/`.site-meta.json`, so `tovu serve` would
+ * refuse it. Losing that would make the card promise something the CLI will not honor.
+ *
+ * The `title` is not decoration either: the badge alone would read as a defect rather than a
+ * specific, fixable state, so the tooltip names the two files and what refuses without them.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveSiteRegistrationBadge(
+  site: AdminSiteListEntry,
+  snapshot: AdminSitesSnapshot,
+): { labelKey: string; titleKey: string } | null {
+  if (siteRegistration(site, snapshot) === "registered") return null;
+  return {
+    labelKey: "Not initialized",
+    titleKey: "No config.json or .site-meta.json in this folder — tovu serve would refuse it.",
+  };
 }
 
 /**
