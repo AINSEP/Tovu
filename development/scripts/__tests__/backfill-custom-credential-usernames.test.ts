@@ -111,9 +111,11 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
   seedDb.$client.close();
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
 
-  // --- Dry run: needs NO root key at all and must write nothing. ---
-  const dryRunOutput = runScript(dbPath, undefined);
-  assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) pending \(username NULL\), 0 already migrated, 1 total/);
+  // --- Dry run: decrypts this row (same as --apply, so its count is accurate — see the
+  // "dry run's reported would-migrate count matches --apply's" test below for the case this
+  // guards against) and so needs the root key, but must still write nothing. ---
+  const dryRunOutput = runScript(dbPath, rootKeyHex);
+  assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 0 would be skipped \(no username\), 0 would fail \(could not decrypt\), 0 already migrated, 1 total/);
   const afterDryRun = openContentDb(dbPath);
   const rowAfterDryRun = afterDryRun.select().from(customCredentialSets).all()[0]!;
   assert.equal(rowAfterDryRun.username, null, "a dry run must never write");
@@ -417,6 +419,73 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
   assert.equal(row.username, null, "an undecryptable row must never have a guessed value written");
   assert.equal(row.sealedCiphertext, tamperedCiphertext, "an undecryptable row's ciphertext must remain untouched");
   db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-custom-credential-usernames: dry run's reported would-migrate count matches --apply's real pending count on a token-only-only database", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-dryrun-accuracy-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  // A database whose ONLY NULL-username row is token-only — legitimately has nothing to backfill,
+  // ever (this file's header). The bug this test pins: pre-fix, the dry-run branch counted every
+  // `username === null` row as "would be migrated" without decrypting to exclude this case, so it
+  // reported "1 row(s) would be migrated" here while `--apply` (which does decrypt) correctly
+  // reports "Nothing to migrate" on the exact same database -- a confusing, incorrect preview.
+  const tokenOnlyId = "cred-token-only-dryrun-check";
+  const tokenOnlySealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TOKEN_ONLY_DRYRUN_CHECK" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: tokenOnlyId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  seedDb
+    .insert(customCredentialSets)
+    .values({
+      id: tokenOnlyId,
+      workspaceId: WORKSPACE,
+      label: "token-only-provider",
+      category: "general",
+      baseUrl: "https://api.example.com",
+      additionalHostsJson: null,
+      username: null,
+      sealedKeyId: tokenOnlySealed.keyId,
+      sealedCiphertext: tokenOnlySealed.ciphertext,
+      sealedNonce: tokenOnlySealed.nonce,
+      sealedAlg: tokenOnlySealed.alg,
+      createdAt: NOW,
+      updatedAt: NOW,
+    })
+    .run();
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  // Dry run now decrypts to classify the row (same as --apply), so it needs the real root key.
+  const dryRunOutput = runScript(dbPath, rootKeyHex, []);
+  assert.match(
+    dryRunOutput,
+    /DRY RUN: 0 row\(s\) would be migrated,/,
+    `dry run must not count a token-only row as "would be migrated". Got:\n${dryRunOutput}`
+  );
+
+  // THE MANDATORY PROOF: --apply against the SAME database must agree with the dry run above.
+  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(applyOutput, /Nothing to migrate/);
+  assert.doesNotMatch(applyOutput, /RESTORE POINT CAPTURED/, "a token-only-only database has nothing to migrate");
+
+  const afterApply = openContentDb(dbPath);
+  const row = afterApply.select().from(customCredentialSets).all()[0]!;
+  assert.equal(row.username, null, "a dry run must never write, and a token-only row is never backfilled");
+  assert.equal(row.sealedCiphertext, tokenOnlySealed.ciphertext);
+  afterApply.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });

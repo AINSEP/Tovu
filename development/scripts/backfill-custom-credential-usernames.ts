@@ -74,18 +74,22 @@
  *   npx tsx development/scripts/backfill-custom-credential-usernames.ts --apply
  *   npx tsx development/scripts/backfill-custom-credential-usernames.ts --db <path> --apply
  *
- * `--apply` requires `TOVU_INTEGRATIONS_ROOT_KEY` to be set to the SAME root key the live server uses
- * (`EnvOrFileKeyring({ allowFileFallback: false })` — identical construction to `server/deps.ts`'s
- * `siteAssistantSecretKeyring`, the actual instance `custom-credentials/store.ts` seals and opens
- * through today). This script deliberately does not fall back to a generated key file
+ * Both `--apply` and a dry run require `TOVU_INTEGRATIONS_ROOT_KEY` to be set to the SAME root key
+ * the live server uses (`EnvOrFileKeyring({ allowFileFallback: false })` — identical construction to
+ * `server/deps.ts`'s `siteAssistantSecretKeyring`, the actual instance `custom-credentials/store.ts`
+ * seals and opens through today) whenever the table has any `username IS NULL` row to classify — a
+ * dry run decrypts each such row exactly like `--apply` does, so its "would be migrated" count
+ * genuinely matches what `--apply` would do instead of over-counting token-only rows (see
+ * `runCustomCredentialUsernameBackfill`'s own doc). A table with no NULL rows at all needs no key
+ * either way. This script deliberately does not fall back to a generated key file
  * (`allowFileFallback: false`) so a missing env var fails loudly instead of silently minting an
- * unrelated key. A dry run never touches the keyring at all — it only compares the `username` column
- * against `NULL`, which needs no decryption — so it needs no env var.
+ * unrelated key.
  *
- * Exit codes: `0` on success, including "nothing to do" and "some rows had no username to migrate";
- * `1` if any row failed to decrypt — normally checked only after every row has been processed by the
- * apply loop, but if NO other row was pending (so the apply loop never runs at all) the pending-count
- * pass itself reports the undecryptable row and exits `1` — see `countPending`.
+ * Exit codes: `0` on success, including "nothing to do" and "some rows had no username to migrate"
+ * (a dry run always exits `0` — it only previews); `1` if `--apply` finds any row failed to decrypt —
+ * normally checked only after every row has been processed by the apply loop, but if NO other row
+ * was pending (so the apply loop never runs at all) the pending-count pass itself reports the
+ * undecryptable row and exits `1` — see `countPending`.
  */
 import path from "node:path";
 
@@ -149,12 +153,51 @@ export interface CustomCredentialUsernameBackfillResult {
   readonly total: number;
 }
 
+type CustomCredentialRow = typeof customCredentialSets.$inferSelect;
+
+/** The four buckets a row can land in — see `runCustomCredentialUsernameBackfill`'s own doc. */
+type RowClassification =
+  | { readonly kind: "alreadyMigrated" }
+  | { readonly kind: "failed"; readonly message: string }
+  | { readonly kind: "noUsername" }
+  | { readonly kind: "pending"; readonly username: string };
+
+/**
+ * Classifies one `custom_credential_sets` row without writing anything — the read-only half of the
+ * sweep below, split out so neither function alone carries the full decision tree. An already-
+ * migrated row is classified without touching the sealer at all; a NULL-username row is decrypted
+ * under its own `(workspaceId, id)` AAD and classified by whether that succeeds and whether the
+ * decrypted payload actually carries a `username` (see this file's header on why a token-only
+ * credential's `username` column stays NULL forever by design).
+ *
+ * @throws Never — a decrypt/parse failure is caught and returned as `{ kind: "failed" }`, not
+ *   propagated (this file's header, "Failure isolation").
+ * @complexity O(1) — at most one decrypt and one JSON parse.
+ */
+async function classifyRow(row: CustomCredentialRow, deps: { sealer: SecretSealerPort }): Promise<RowClassification> {
+  if (row.username !== null) return { kind: "alreadyMigrated" };
+
+  try {
+    const plaintext = await deps.sealer.open({
+      sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+      aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
+    });
+    const username = extractUsername(plaintext);
+    return username === undefined ? { kind: "noUsername" } : { kind: "pending", username };
+  } catch (err) {
+    return { kind: "failed", message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /**
  * The core sweep over `custom_credential_sets` — see this file's header for the full design.
- * `opts.apply === false` NEVER touches `deps.sealer`/`deps.keyring` (a pending row is identified
- * purely by `username IS NULL`, which needs no decryption); `opts.apply === true` decrypts each
- * pending row under its own `(workspaceId, id)` AAD and writes ONLY the `username` column for a row
- * whose sealed payload actually carries one.
+ * Every NULL-username row is decrypted under its own `(workspaceId, id)` AAD to classify it (via
+ * `classifyRow`) — this is true for `opts.apply === false` (dry run) exactly as much as
+ * `opts.apply === true`, so a dry run's counts genuinely match what `--apply` would do instead of
+ * guessing from `username IS NULL` alone (a token-only row's `username` column stays NULL forever
+ * by design — see this file's header and `countPending`'s own doc — so counting NULL rows without
+ * decrypting over-counts). The ONLY difference `opts.apply` makes is whether a `pending` row's
+ * username gets written.
  *
  * Every row is processed exactly once and lands in exactly one of the four result buckets — no row
  * can be double-counted, and a per-row failure never stops the sweep partway through (this file's
@@ -165,9 +208,8 @@ export interface CustomCredentialUsernameBackfillResult {
  *   mean the root key itself is unconfigured, not that any one row is bad — but this function never
  *   calls either eagerly, so in practice a decrypt/parse failure for one row is always caught and
  *   counted here, never propagated.
- * @complexity O(n) in the row count — one `username IS NULL` check, and for a pending row one
- *   decrypt, one parse, and at most one single-column `UPDATE`; no nested iteration over the row
- *   collection itself.
+ * @complexity O(n) in the row count — one classification per row, and for a pending `--apply` row
+ *   at most one single-column `UPDATE`; no nested iteration over the row collection itself.
  */
 export async function runCustomCredentialUsernameBackfill(
   deps: CustomCredentialUsernameBackfillDeps,
@@ -183,34 +225,26 @@ export async function runCustomCredentialUsernameBackfill(
   let failed = 0;
 
   for (const row of rows) {
-    if (row.username !== null) {
-      skippedAlreadyMigrated += 1;
-      log(`SKIPPED (already migrated): workspace=${row.workspaceId} id=${row.id}`);
-      continue;
+    const classification = await classifyRow(row, deps);
+
+    switch (classification.kind) {
+      case "alreadyMigrated":
+        skippedAlreadyMigrated += 1;
+        log(`SKIPPED (already migrated): workspace=${row.workspaceId} id=${row.id}`);
+        continue;
+      case "failed":
+        failed += 1;
+        log(`FAILED (could not decrypt): workspace=${row.workspaceId} id=${row.id}: ${classification.message}`);
+        continue;
+      case "noUsername":
+        skippedNoUsername += 1;
+        log(`SKIPPED (no username in sealed payload): workspace=${row.workspaceId} id=${row.id}`);
+        continue;
     }
 
     if (!opts.apply) {
       migrated += 1;
-      log(`DRY RUN: would inspect workspace=${row.workspaceId} id=${row.id} (username currently NULL)`);
-      continue;
-    }
-
-    let username: string | undefined;
-    try {
-      const plaintext = await deps.sealer.open({
-        sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
-        aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
-      });
-      username = extractUsername(plaintext);
-    } catch (err) {
-      failed += 1;
-      log(`FAILED (could not decrypt): workspace=${row.workspaceId} id=${row.id}: ${err instanceof Error ? err.message : String(err)}`);
-      continue;
-    }
-
-    if (username === undefined) {
-      skippedNoUsername += 1;
-      log(`SKIPPED (no username in sealed payload): workspace=${row.workspaceId} id=${row.id}`);
+      log(`DRY RUN: would migrate workspace=${row.workspaceId} id=${row.id}`);
       continue;
     }
 
@@ -218,7 +252,7 @@ export async function runCustomCredentialUsernameBackfill(
     // so they cannot be touched even by accident (this file's header).
     deps.db
       .update(customCredentialSets)
-      .set({ username })
+      .set({ username: classification.username })
       .where(and(eq(customCredentialSets.workspaceId, row.workspaceId), eq(customCredentialSets.id, row.id)))
       .run();
 
@@ -318,15 +352,18 @@ async function main(): Promise<void> {
     // Read-only open: plain `openContentDb` unconditionally runs pending migrations and writes the
     // bootstrap watermark row before a caller's own `--dry-run` check ever runs (and would silently
     // CREATE `dbPath` if it did not already exist) — `openContentDbReadOnly` opens the file in
-    // SQLite's own `readonly` connection mode, so neither can happen. Constructed unconditionally but
-    // touches no env var until `sealer.open` is actually called — a dry run never calls it, so a dry
-    // run needs no `TOVU_INTEGRATIONS_ROOT_KEY` at all.
+    // SQLite's own `readonly` connection mode, so neither can happen. A dry run now decrypts each
+    // NULL-username row exactly like `--apply` does (see `runCustomCredentialUsernameBackfill`'s own
+    // doc) so its reported counts genuinely match what `--apply` would do instead of over-counting
+    // token-only rows as "would be migrated" — it therefore needs `TOVU_INTEGRATIONS_ROOT_KEY` set
+    // whenever the table has any NULL-username row to classify, same as `--apply`. A table with no
+    // NULL rows at all (nothing to classify) still needs no key.
     const db = openContentDbReadOnly(dbPath);
     const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
     const sealer = new AesGcmSecretSealer(keyring);
     const result = await runCustomCredentialUsernameBackfill({ db, sealer, keyring }, { apply: false });
     console.log(
-      `DRY RUN: ${result.migrated} row(s) pending (username NULL), ${result.skippedAlreadyMigrated} already migrated, ${result.total} total. Re-run with --apply to write.`
+      `DRY RUN: ${result.migrated} row(s) would be migrated, ${result.skippedNoUsername} would be skipped (no username), ${result.failed} would fail (could not decrypt), ${result.skippedAlreadyMigrated} already migrated, ${result.total} total. Re-run with --apply to write.`
     );
     return;
   }
