@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { actionLabel, orEmpty, sortIssuesBySeverity } from "../rules";
+import { actionLabel, buildMediaRef, orEmpty, resolveMediaRefPreviewUrl, sortIssuesBySeverity } from "../rules";
 import type { SeoIssue } from "@/lib/api";
 
 /**
@@ -70,5 +70,48 @@ describe("actionLabel", () => {
 
   it("returns the idle label when not pending", () => {
     expect(actionLabel(false, "Saving…", "Save")).toBe("Save");
+  });
+});
+
+describe("buildMediaRef", () => {
+  it("builds the exact '{assetId}:public' shape resolveSeoImageRef parses server-side", () => {
+    expect(buildMediaRef("asset-123")).toBe("asset-123:public");
+  });
+});
+
+describe("resolveMediaRefPreviewUrl", () => {
+  const mediaOriginalUrl = vi.fn((id: string) => `https://admin.example/media/${id}/original`);
+
+  it("returns null for an empty value", () => {
+    expect(resolveMediaRefPreviewUrl("", mediaOriginalUrl)).toBeNull();
+    expect(resolveMediaRefPreviewUrl("   ", mediaOriginalUrl)).toBeNull();
+  });
+
+  it("returns an absolute http(s) URL unchanged, without calling mediaOriginalUrl", () => {
+    expect(resolveMediaRefPreviewUrl("https://cdn.example/pic.png", mediaOriginalUrl)).toBe("https://cdn.example/pic.png");
+    expect(mediaOriginalUrl).not.toHaveBeenCalled();
+  });
+
+  it("returns a protocol-relative URL unchanged", () => {
+    expect(resolveMediaRefPreviewUrl("//cdn.example/pic.png", mediaOriginalUrl)).toBe("//cdn.example/pic.png");
+  });
+
+  it("resolves an '{assetId}:{transform}' ref through the injected mediaOriginalUrl builder", () => {
+    expect(resolveMediaRefPreviewUrl("asset-123:public", mediaOriginalUrl)).toBe(
+      "https://admin.example/media/asset-123/original",
+    );
+    expect(mediaOriginalUrl).toHaveBeenCalledWith("asset-123");
+  });
+
+  it("returns null for a malformed ref with no ':'", () => {
+    expect(resolveMediaRefPreviewUrl("not-a-ref", mediaOriginalUrl)).toBeNull();
+  });
+
+  it("returns null for a ref with nothing before the ':'", () => {
+    expect(resolveMediaRefPreviewUrl(":public", mediaOriginalUrl)).toBeNull();
+  });
+
+  it("returns null for a ref with nothing after the ':'", () => {
+    expect(resolveMediaRefPreviewUrl("asset-123:", mediaOriginalUrl)).toBeNull();
   });
 });

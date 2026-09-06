@@ -81,3 +81,64 @@ export function filterSitemapEntries(entries: readonly SitemapUrlEntry[], query:
   if (!needle) return [...entries];
   return entries.filter((entry) => entry.loc.toLowerCase().includes(needle));
 }
+
+/**
+ * `MediaRefField`'s ref-building/preview logic (`ogImage`/`twitterImage`/`defaultOgImage` all
+ * share this shape — SPEC intent: "make the OG image selectable, with a preview"). The reference
+ * format itself is NOT reinvented here — it is verified, not guessed, against the one function that
+ * actually parses it server-side: `resolveSeoImageRef` (`apps/website/src/features/seo/media.ts`)
+ * accepts either an already-absolute URL, passed through unchanged, or a bare `{assetId}:{transformName}`
+ * pair split on the FIRST `:`. `isAbsoluteMediaRef`/`parseMediaRefAssetId` below duplicate that
+ * parsing rather than import across the app boundary (apps/admin has no dependency on apps/website)
+ * — kept in lockstep by this doc comment naming the source of truth; a change to that split MUST
+ * update both.
+ */
+
+/** The transform every upload receives (the server's default rendition) — the one
+ *  `buildMediaRef` always targets, matching `EmbedInsertControl.tsx`'s own
+ *  `transformName: "public"` for the identical `{assetId}:{transformName}` shape it writes into a
+ *  post body's image node. */
+const SEO_IMAGE_TRANSFORM = "public";
+
+/** Mirrors `resolveSeoImageRef`'s own `isAbsoluteUrl` (`apps/website/src/features/seo/media.ts`) —
+ *  see this section's file-header doc for why this is a duplicate, not an import. */
+const ABSOLUTE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+function isAbsoluteMediaRef(value: string): boolean {
+  return ABSOLUTE_URL_PATTERN.test(value) || value.startsWith("//");
+}
+
+/** Mirrors `resolveSeoImageRef`'s own `parseMediaRefParts`, narrowed to just the `assetId` half —
+ *  all `MediaRefField`'s preview needs. Returns `null` for an absolute URL (nothing to parse) or a
+ *  malformed ref (no `:`, or nothing on one side of it). */
+function parseMediaRefAssetId(ref: string): string | null {
+  if (!ref || isAbsoluteMediaRef(ref)) return null;
+  const separatorIndex = ref.indexOf(":");
+  if (separatorIndex <= 0 || separatorIndex === ref.length - 1) return null;
+  return ref.slice(0, separatorIndex);
+}
+
+/** Builds the `{assetId}:public` reference `MediaRefField` writes into the field on selection —
+ *  the exact shape `resolveSeoImageRef` parses server-side (verified against that function, not
+ *  guessed), and the same `transformName: "public"` `EmbedInsertControl.tsx` already writes for an
+ *  inserted image node. */
+export function buildMediaRef(assetId: string): string {
+  return `${assetId}:${SEO_IMAGE_TRANSFORM}`;
+}
+
+/** `MediaRefField`'s thumbnail `<img src>` for the field's current value. An absolute URL (the
+ *  field's other legal shape — someone pasted a raw URL) renders directly; a `{assetId}:{transform}`
+ *  ref resolves through the injected `mediaOriginalUrl` builder — the admin media library's own
+ *  preview URL (`MediaPickerPort.mediaOriginalUrl`), same as `MediaPickerDialog`'s own grid
+ *  thumbnails use, NOT the public `/m/...` rendition URL (that needs a live workspace/transform
+ *  lookup this client-side preview has no reason to perform). `null` for an empty or unparseable
+ *  value — the caller renders no preview then, rather than a broken `<img>`.
+ *
+ * @complexity O(1) — string parsing only, no I/O (the returned URL is a template; the browser
+ * performs the actual fetch only once it is used as an `<img src>`). */
+export function resolveMediaRefPreviewUrl(value: string, mediaOriginalUrl: (id: string) => string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isAbsoluteMediaRef(trimmed)) return trimmed;
+  const assetId = parseMediaRefAssetId(trimmed);
+  return assetId ? mediaOriginalUrl(assetId) : null;
+}
