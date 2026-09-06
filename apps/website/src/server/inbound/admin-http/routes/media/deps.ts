@@ -31,12 +31,13 @@ export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & Cloc
 export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
 
 /**
- * Widened (not narrowed) slice for the TWO public routes this file's `MediaRouteRegistrar`
- * also types (`routes/site/media-rendition.ts`'s `registerMediaRenditionRoute`/
- * `registerMediaOriginalVideoRoute`) — deliberately kept separate from {@link MediaRouteDeps}
- * rather than widening that shared type, so the 5 ADMIN media routes (list/upload/update/
- * trash/delete/original — all still typed against `MediaRouteDeps` above) never gain unused
- * `postRepo`/member-repo fields on their own composition surface.
+ * Widened (not narrowed) slice for the TWO public routes typed against it via
+ * {@link MediaRenditionRouteRegistrar} below (`routes/site/media-rendition.ts`'s
+ * `registerMediaRenditionRoute`/`registerMediaOriginalVideoRoute`) — deliberately kept separate
+ * from {@link MediaRouteDeps} rather than widening that shared type, so the 6 ADMIN media routes
+ * (list/upload/update/trash/delete/original — all still typed against `MediaRouteDeps` above via
+ * `MediaRouteRegistrar`) never gain unused `postRepo`/member-repo fields on their own composition
+ * surface.
  *
  * The 2026-09-03 member-gating sweep (this file's own sibling routes were never gated — see
  * `routes/site/pages.ts` ADR-030 §4, and `9bf661e9`'s content-API fix) found that these two
