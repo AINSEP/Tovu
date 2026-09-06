@@ -121,3 +121,53 @@ test("readPersistedActiveSite: reads back the name persistActiveSite just wrote"
     fs.rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+function isRoot(): boolean {
+  return typeof process.getuid === "function" && process.getuid() === 0;
+}
+
+test("persistActiveSite: a non-ENOENT read error (unreadable .env) propagates and does not replace the file", (t) => {
+  if (isRoot()) {
+    t.skip("running as root ignores file mode bits — this test cannot force EACCES");
+    return;
+  }
+  const cwd = mkRepoRootFixture();
+  const envPath = path.join(cwd, ".env");
+  try {
+    fs.writeFileSync(envPath, "TOVU_ADMIN_PASSWORD=super-secret\nTOVU_SITE=old-site\n");
+    fs.chmodSync(envPath, 0o000);
+    assert.throws(
+      () => persistActiveSite({ name: "new-site" }, { cwd }),
+      "an unreadable .env must propagate, never be treated as absent"
+    );
+    fs.chmodSync(envPath, 0o600);
+    assert.equal(
+      fs.readFileSync(envPath, "utf8"),
+      "TOVU_ADMIN_PASSWORD=super-secret\nTOVU_SITE=old-site\n",
+      "a failed read must never fall through to an overwrite that drops every other line"
+    );
+  } finally {
+    fs.chmodSync(envPath, 0o600);
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("readPersistedActiveSite: sibling — a non-ENOENT read error propagates, never reported as null", (t) => {
+  if (isRoot()) {
+    t.skip("running as root ignores file mode bits — this test cannot force EACCES");
+    return;
+  }
+  const cwd = mkRepoRootFixture();
+  const envPath = path.join(cwd, ".env");
+  try {
+    fs.writeFileSync(envPath, "TOVU_SITE=queued-site\n");
+    fs.chmodSync(envPath, 0o000);
+    assert.throws(
+      () => readPersistedActiveSite({ cwd }),
+      "an unreadable .env must propagate, never be reported as 'no site ever activated'"
+    );
+  } finally {
+    fs.chmodSync(envPath, 0o600);
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});

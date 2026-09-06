@@ -104,9 +104,15 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
   let existing: string;
   try {
     existing = fs.readFileSync(envFilePath, "utf8");
-  } catch {
-    // No `.env` yet (the common case: nothing has ever needed to override anything locally) — an
-    // empty starting point, not a failure; `upsertEnvLine` appends the one line either way.
+  } catch (err) {
+    // Only ENOENT means "no .env yet" (the common case: nothing has ever needed to override
+    // anything locally) — an empty starting point, not a failure; `upsertEnvLine` appends the one
+    // line either way. Anything else (EACCES, EISDIR, EIO, ...) is a real failure to read an
+    // EXISTING file and must propagate: replacing is gated on the containing DIRECTORY's
+    // permissions, not the file's own, so silently treating "unreadable" as "absent" here would
+    // overwrite a present-but-unreadable `.env` with a file holding only `TOVU_SITE=<name>` —
+    // every other line, secrets included, lost (2026-09-05 site-dir env perms audit, F2).
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     existing = "";
   }
   writeFileAtomic(envFilePath, upsertEnvLine(existing, "TOVU_SITE", required.name));
@@ -158,9 +164,14 @@ export function readPersistedActiveSite(optional: ActiveSiteEnvOptional = {}): s
   let existing: string;
   try {
     existing = fs.readFileSync(resolveEnvFilePath(optional), "utf8");
-  } catch {
-    // No `.env` yet — nothing has ever been activated. Same non-failure this file's writer treats
-    // an absent file as.
+  } catch (err) {
+    // Only ENOENT means "no .env yet — nothing has ever been activated" (same non-failure this
+    // file's writer treats an absent file as). Anything else (EACCES, EISDIR, EIO, ...) is a real
+    // failure to read an EXISTING file: this is read-only so it cannot destroy data the way
+    // `persistActiveSite`'s sibling bug could, but silently returning `null` here would still
+    // misreport "no site ever activated" when the true cause is a permissions/IO error — propagate
+    // instead (2026-09-05 site-dir env perms audit, F2 sibling).
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     return null;
   }
   const value = readEnvLine(existing, "TOVU_SITE");
