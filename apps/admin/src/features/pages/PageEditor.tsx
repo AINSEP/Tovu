@@ -82,15 +82,14 @@ function PageEditorHeader({
   onDeleteClick: () => void;
 }) {
   return (
-    <div className="page-header">
-      <div className="page-header-text">
-        <p className="page-kicker">Content</p>
-        <h1 className="page-title">Edit page</h1>
-        <p className="page-description">
-          Ask the assistant to build this page, or edit the HTML directly.
-        </p>
-      </div>
-      <div className="page-actions">
+    // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
+    // 2026-09-06 layout experiment: back link alone at the far left, title block centred, actions
+    // still right. Reverting the experiment is removing this one class and moving the `<a>` below
+    // back inside `.page-actions` — nothing else here depends on the arrangement.
+    <div className="page-header page-header-split">
+      {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
+          visually, so tab order and the reading order match what is on screen. */}
+      <div className="page-header-lead">
         {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
             own navigation gate is meant to apply, applied here to a human click. */}
         <a
@@ -105,6 +104,15 @@ function PageEditorHeader({
             ← Pages
           </button>
         </a>
+      </div>
+      <div className="page-header-text">
+        <p className="page-kicker">Content</p>
+        <h1 className="page-title">Edit page</h1>
+        <p className="page-description">
+          Ask the assistant to build this page, or edit the HTML directly.
+        </p>
+      </div>
+      <div className="page-actions">
         {message ? <span className="save-ok">{message}</span> : null}
         {error ? <span className="save-error">{error}</span> : null}
         <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>

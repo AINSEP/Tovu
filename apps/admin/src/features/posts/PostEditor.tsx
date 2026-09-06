@@ -633,25 +633,21 @@ function PostEditorHeader({
   t: Translate;
 }) {
   return (
+    // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
+    // 2026-09-06 layout experiment, applied to BOTH editors rather than only Pages: these two
+    // headers are the same row rendered by two components, and an operator moving between a post
+    // and a page would otherwise find the back link jumping sides. Reverting is removing the one
+    // class and moving the `<a>` below back inside `.page-actions`.
     <div
-      className="page-header"
+      className="page-header page-header-split"
       {...agentHandle("post-header", {
         role: "region",
         label: "Editor header — back link, save status, publish state and the Save button",
       })}
     >
-      <div className="page-header-text">
-        <p className="page-kicker">{t("Content")}</p>
-        <h1 className="page-title">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
-        <p className="page-description">
-          {t(
-            kindLabel === "page"
-              ? "Update this page's title, body, and publish status."
-              : "Update this post's title, body, and publish status.",
-          )}
-        </p>
-      </div>
-      <div className="page-actions">
+      {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
+          visually, so tab order and the reading order match what is on screen. */}
+      <div className="page-header-lead">
         {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
             edits — confirmed live on this exact screen (edit the title, click this link, the
             edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
@@ -676,6 +672,19 @@ function PostEditorHeader({
             ← {kindLabel === "page" ? t("Pages") : t("Posts")}
           </button>
         </a>
+      </div>
+      <div className="page-header-text">
+        <p className="page-kicker">{t("Content")}</p>
+        <h1 className="page-title">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
+        <p className="page-description">
+          {t(
+            kindLabel === "page"
+              ? "Update this page's title, body, and publish status."
+              : "Update this post's title, body, and publish status.",
+          )}
+        </p>
+      </div>
+      <div className="page-actions">
         {message ? <span className="save-ok">{message}</span> : null}
         {error ? <span className="save-error">{error}</span> : null}
         <select
