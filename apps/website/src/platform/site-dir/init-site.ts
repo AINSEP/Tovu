@@ -76,8 +76,16 @@ export interface InitSiteResult {
   dir: string;
 }
 
-/** BR-03: `--name` (trimmed) when provided, else the target directory's basename. A provided-but-empty name is VALIDATION, not a fall-through (EC-06). */
-function resolveSiteName(target: string, name: string | undefined): string {
+/**
+ * BR-03: `--name` (trimmed) when provided, else the target directory's basename. A
+ * provided-but-empty name is VALIDATION, not a fall-through (EC-06).
+ *
+ * Exported (2026-09-05) — `duplicate-site.ts` needs the IDENTICAL display-name rule for its own
+ * `name?` parameter (same shape as this function's own `required.name`), and a second copy of a
+ * validation rule is exactly the kind of drift risk this codebase's own `RAW_SQL_MANAGED_TABLES`/
+ * `declaredShape()` precedents (`db/migration/manifest.ts`) exist to avoid.
+ */
+export function resolveSiteName(target: string, name: string | undefined): string {
   if (name === undefined) return path.basename(target);
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
@@ -92,7 +100,7 @@ function resolveSiteName(target: string, name: string | undefined): string {
  * `initSite`'s own doc for the full cleanup-on-failure contract this implements (U-003-B1/B2/B3,
  * EC-10, RT-003).
  */
-function cleanupAndRethrow(err: unknown, target: string, wroteAnything: boolean): never {
+export function cleanupAndRethrow(err: unknown, target: string, wroteAnything: boolean): never {
   if (wroteAnything) {
     try {
       fs.rmSync(target, { recursive: true, force: false });
@@ -112,8 +120,16 @@ function cleanupAndRethrow(err: unknown, target: string, wroteAnything: boolean)
   throw new InternalError(`initSite: failed while creating ${target}: ${(err as Error).message}`);
 }
 
-/** BR-01 step 2 (EC-01/EC-02/AC-04): target must be absent, or an empty directory, with an existing parent. */
-function validateInitTarget(target: string): void {
+/**
+ * BR-01 step 2 (EC-01/EC-02/AC-04): target must be absent, or an empty directory, with an existing
+ * parent.
+ *
+ * Exported (2026-09-05) — `duplicateSite` reuses this verbatim for its own target-dir refusal
+ * rather than a second "is this a valid init target" implementation (the dispatch that requested
+ * `duplicateSite` explicitly named `InitDirNotEmptyError` as established precedent to reuse, not
+ * reinvent).
+ */
+export function validateInitTarget(target: string): void {
   let stat: fs.Stats | undefined;
   try {
     stat = fs.statSync(target);

@@ -19,6 +19,9 @@
  * reason: their one caller, the admin "Sites" route module
  * (`server/inbound/admin-http/routes/system/sites.ts`), sits outside `site-dir` and outside the
  * `COMPOSITION_ROOTS` exemption list, so `no-deep-imports:site-dir` requires the door.
+ *
+ * `duplicate-site.ts` joined 2026-09-05 for the identical reason: its caller is the new `sites`
+ * assistant-tool domain (`features/sites/tool-registrations.ts`), also outside `site-dir`.
  */
 export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
 export {
@@ -47,3 +50,4 @@ export {
   type PersistActiveSiteRequired,
   type ActiveSiteEnvOptional,
 } from "./active-site.js";
+export { duplicateSite, type DuplicateSiteRequired, type DuplicateSiteResult } from "./duplicate-site.js";
