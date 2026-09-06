@@ -1,11 +1,13 @@
 import "../../styles/theme-pages-tab.css";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { Translate } from "../../lib/dictionary-translator";
 import { InfoTip } from "../../components/InfoTip";
 import { navigate } from "../../lib/router";
 import { siteUrl } from "../../lib/site-url";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";
 import { ThemePageDetailsModal } from "./ThemePageDetailsModal";
@@ -106,12 +108,15 @@ function ThemePagePublishToggle({
   state,
   saving,
   onSetPublished,
+  handle,
   t,
 }: {
   row: ThemePageRow;
   state: ThemePagePublishState;
   saving: boolean;
   onSetPublished: (published: boolean) => void;
+  /** This row's own distinct handle — see {@link ThemePagesTab}'s own `rowHandles` doc. */
+  handle: string;
   t: Translate;
 }): ReactNode {
   const on = state.kind === "toggle" ? state.published : state.on;
@@ -133,6 +138,10 @@ function ThemePagePublishToggle({
       className={on ? "theme-explore-switch btn-toggle-switch is-on" : "theme-explore-switch btn-toggle-switch"}
       disabled={disabled}
       onClick={handleClick}
+      {...agentHandle(`${handle}-publish`, {
+        role: "button",
+        label: state.kind === "locked" ? "Publish switch — locked, cannot be changed from here" : "Toggle whether this theme page is published",
+      })}
     >
       <span className="theme-explore-switch-knob" aria-hidden="true" />
     </button>
@@ -187,18 +196,21 @@ function ThemePagePublishCell({
   row,
   saving,
   onSetPublished,
+  handle,
   t,
 }: {
   row: ThemePageRow;
   saving: boolean;
   onSetPublished: (published: boolean) => void;
+  /** This row's own distinct handle — see {@link ThemePagesTab}'s own `rowHandles` doc. */
+  handle: string;
   t: Translate;
 }): ReactNode {
   const state = themePagePublishState(row, t);
 
   return (
     <div className="theme-page-publish-cell">
-      <ThemePagePublishToggle row={row} state={state} saving={saving} onSetPublished={onSetPublished} t={t} />
+      <ThemePagePublishToggle row={row} state={state} saving={saving} onSetPublished={onSetPublished} handle={handle} t={t} />
       {state.kind === "locked" ? (
         <>
           <ThemePageLockGlyph />
@@ -226,7 +238,7 @@ function ThemePagePublishCell({
  *
  * @complexity O(1) — one derived state, three mutually exclusive branches, no iteration.
  */
-function ThemePagePublicUrlCell({ row, t }: { row: ThemePageRow; t: Translate }): ReactNode {
+function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle: string; t: Translate }): ReactNode {
   const link = themePagePublicLinkState(row, t);
   if (link.kind === "none") {
     return <span className="theme-page-no-url">{t("No direct URL")}</span>;
@@ -235,7 +247,12 @@ function ThemePagePublicUrlCell({ row, t }: { row: ThemePageRow; t: Translate })
     return <span className="theme-page-url-not-live">{link.path}</span>;
   }
   return (
-    <a href={siteUrl(link.path)} target="_blank" rel="noreferrer">
+    <a
+      href={siteUrl(link.path)}
+      target="_blank"
+      rel="noreferrer"
+      {...agentHandle(`${handle}-view-live`, { role: "link", label: "Open this theme page on the live public site" })}
+    >
       {link.path}
     </a>
   );
@@ -283,6 +300,13 @@ export function ThemePagesTab({
   if (!pages || activeThemeId === null) return <div className="notice">{t("Loading theme pages…")}</div>;
   const themeId = activeThemeId;
   const detailRow = pages.find((p) => p.pageId === detailPageId) ?? null;
+  // `pageId`s are the active theme's own filenames — stable and unique within one theme, so they
+  // disambiguate one row's publish/menu/link handles from another's, same reasoning as every other
+  // list on this workstream.
+  const rowHandles = buildAgentListHandles(
+    "theme-page-row",
+    pages.map((row) => row.pageId),
+  );
 
   return (
     <>
@@ -305,7 +329,7 @@ export function ThemePagesTab({
           {
             key: "url",
             header: t("URL"),
-            cell: (row) => <ThemePagePublicUrlCell row={row} t={t} />,
+            cell: (row, index) => <ThemePagePublicUrlCell row={row} handle={rowHandles[index]} t={t} />,
           },
           {
             key: "themeStudio",
@@ -314,16 +338,24 @@ export function ThemePagesTab({
             // `installInternalLinkInterceptor` (`@jini-ai/admin/browser`) deliberately declines to
             // intercept any anchor carrying a `target`, so `_blank` would cost a full SPA reload in
             // a second tab.
-            cell: (row) => <a href={themeStudioHref(themeId, row.pageId)}>{t("Edit")}</a>,
+            cell: (row, index) => (
+              <a
+                href={themeStudioHref(themeId, row.pageId)}
+                {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this theme page in Theme Studio" })}
+              >
+                {t("Edit")}
+              </a>
+            ),
           },
           {
             key: "publish",
             header: t("Publish"),
-            cell: (row) => (
+            cell: (row, index) => (
               <ThemePagePublishCell
                 row={row}
                 saving={savingPageId === row.pageId}
                 onSetPublished={(published) => setPagePublished(row.pageId, published)}
+                handle={rowHandles[index]}
                 t={t}
               />
             ),
@@ -331,9 +363,10 @@ export function ThemePagesTab({
           {
             key: "actions",
             header: t("More"),
-            cell: (row) => (
+            cell: (row, index) => (
               <RowMenu
                 triggerLabel={`Actions for "${row.pageId}"`}
+                agentHandle={`${rowHandles[index]}-menu`}
                 items={themePageRowMenuItems(
                   row,
                   { onOpenDetails: setDetailPageId, onEdit: (pageId) => navigate(themeStudioHref(themeId, pageId)) },

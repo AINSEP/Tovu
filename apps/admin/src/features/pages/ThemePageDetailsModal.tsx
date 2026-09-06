@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { adminHref, navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -217,6 +218,7 @@ function ThemePageDetailsCollisionWarning({
           e.preventDefault();
           navigate(adminPath);
         }}
+        {...agentHandle("theme-page-details-collision-open", { role: "link", label: "Open the colliding content record" })}
       >
         {t("Open {title}").replace("{title}", collision.title)}
       </a>
@@ -246,6 +248,10 @@ export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePage
       aria-labelledby={TITLE_ID}
       onCancel={handleNativeCancel}
       onClick={handleBackdropClick}
+      {...agentHandle("theme-page-details-dialog", {
+        role: "region",
+        label: "This theme page's details — file path, publish state, and any colliding content record",
+      })}
     >
       {row ? (
         <>
@@ -256,7 +262,12 @@ export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePage
         </>
       ) : null}
       <div className="theme-page-details-actions">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onClose}
+          {...agentHandle("theme-page-details-close", { role: "button", label: "Close this details dialog" })}
+        >
           {t("Close")}
         </button>
       </div>
