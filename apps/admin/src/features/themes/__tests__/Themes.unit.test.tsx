@@ -313,6 +313,22 @@ describe("Marketplace tab", () => {
     expect(download).toHaveBeenCalledWith("basic");
   });
 
+  it("shows Downloading… and disables the button while a download is in flight for that item", () => {
+    render(
+      <Themes
+        tabId="marketplace"
+        useThemesHook={() =>
+          baseController({
+            downloading: "basic",
+            marketplace: [{ id: "basic", name: "Basic", tier: "static", description: "A fixture", idTaken: false }],
+          })
+        }
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Downloading…" });
+    expect(button).toBeDisabled();
+  });
+
   it("shows no rename warning when the id is free", () => {
     render(
       <Themes
@@ -385,5 +401,73 @@ describe("theme card preview", () => {
     fireEvent.error(card.querySelector("img") as HTMLImageElement); // jpg -> png
     fireEvent.error(card.querySelector("img") as HTMLImageElement); // png -> failed
     expect(card.querySelector(".theme-card-preview-trigger")).not.toBeInTheDocument();
+  });
+});
+
+describe("rescan toast", () => {
+  it("renders nothing when there is no rescan notice (the default)", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows a status toast for an ordinary (non-duplicate) rescan result", () => {
+    render(<Themes useThemesHook={() => baseController({ rescanNotice: "added quartz" })} />);
+    const toast = screen.getByRole("status");
+    expect(toast).toHaveTextContent("added quartz");
+  });
+
+  it("shows an alert-toned alert toast when the rescan reports duplicate theme ids", () => {
+    render(
+      <Themes
+        useThemesHook={() =>
+          baseController({
+            rescanNotice: "no changes — 1 themes. Duplicate theme ids: basic — only one of each will ever load.",
+          })
+        }
+      />,
+    );
+    const toast = screen.getByRole("alert");
+    expect(toast).toHaveTextContent("Duplicate theme ids");
+  });
+
+  it("clicking Rescan calls rescan()", async () => {
+    const user = userEvent.setup();
+    const rescan = vi.fn(async () => {});
+    render(<Themes useThemesHook={() => baseController({ rescan })} />);
+
+    await user.click(screen.getByRole("button", { name: "Rescan themes" }));
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Rescanning… and disables the button while a rescan is in flight", () => {
+    render(<Themes useThemesHook={() => baseController({ rescanning: true })} />);
+    const button = screen.getByRole("button", { name: "Rescanning…" });
+    expect(button).toBeDisabled();
+  });
+});
+
+describe("Marketplace tab — loading state", () => {
+  it("shows a loading message while the listing is in flight", () => {
+    render(
+      <Themes tabId="marketplace" useThemesHook={() => baseController({ marketplaceLoading: true, marketplace: [] })} />,
+    );
+    expect(screen.getByText("Loading the marketplace…")).toBeInTheDocument();
+  });
+});
+
+describe("Explore button", () => {
+  it("navigates to the theme's own Explore screen via the SPA router", async () => {
+    window.history.replaceState(null, "", "/");
+    const user = userEvent.setup();
+    render(<Themes useThemesHook={() => baseController()} />);
+    const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
+
+    await user.click(within(columnCard).getByRole("button", { name: "Explore" }));
+
+    expect(window.location.pathname).toBe("/admin/themes/explore");
+    expect(window.location.search).toBe("?theme=column");
+    window.history.replaceState(null, "", "/");
   });
 });
