@@ -111,7 +111,7 @@ export function buildOptionId(listboxId: string, index: number): string {
  * Extracted from `useSelectDropdown` verbatim — both effect bodies are unchanged from before this
  * pass; only the `closePanel({refocusTrigger:false})` calls became `onOutOfView()`.
  */
-function usePanelPosition({
+export function usePanelPosition({
   open,
   triggerRef,
   panelRef,
