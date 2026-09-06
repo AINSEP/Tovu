@@ -14,14 +14,30 @@
  * **Not wired into `main.cjs` yet** — see `speech-ipc.cjs`'s own header for why, and this
  * feature's handoff notes for the exact `webPreferences.preload` line `createWindow` needs.
  *
- * Deliberately NOT unit-tested: this file only runs inside Electron's preload context (`contextBridge`/
- * `ipcRenderer` do not exist under plain Node), so a `node --test` run cannot exercise it at all.
- * Verified by code review only — its whole body is two `ipcRenderer.invoke` calls with no branching
- * of its own, forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end.
+ * **The two channel names below are INLINED, not `require("./speech-ipc.cjs")`'d, on purpose.**
+ * `createWindow`'s `webPreferences` already sets `sandbox: true` (see above), and Electron's
+ * sandboxed preload context gives `require` a restricted polyfill that resolves only `"electron"`,
+ * `"events"`, `"timers"` and `"url"` — a relative specifier like `"./speech-ipc.cjs"` is not
+ * resolvable there and would throw the moment this preload is actually wired up, a bug otherwise
+ * invisible until then since nothing calls it yet. `preload-speech.test.cjs` guards these two
+ * literals against drifting from `speech-ipc.cjs`'s own exports, which stay the source of truth.
+ *
+ * Deliberately NOT unit-tested beyond that guard: this file's `contextBridge.exposeInMainWorld` call
+ * only runs inside Electron's real preload context (`contextBridge`/`ipcRenderer` do not exist under
+ * plain Node — `require("electron")` there resolves to a path string, not the API), so a
+ * `node --test` run cannot exercise the bridging itself. Verified by code review only — its whole
+ * body beyond the two constants is two `ipcRenderer.invoke` calls with no branching of its own,
+ * forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end.
  */
 
 const { contextBridge, ipcRenderer } = require("electron");
-const { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } = require("./speech-ipc.cjs");
+
+/** Mirrors `speech-ipc.cjs`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header for why this
+ *  is a literal instead of an import. */
+const IPC_CHANNEL_IS_AVAILABLE = "tovu:speech:isAvailable";
+/** Mirrors `speech-ipc.cjs`'s own `IPC_CHANNEL_TRANSCRIBE` — see this file's header for why this is
+ *  a literal instead of an import. */
+const IPC_CHANNEL_TRANSCRIBE = "tovu:speech:transcribe";
 
 contextBridge.exposeInMainWorld("tovuVoice", {
   /** @returns {Promise<import("./transcription-port.cjs").TranscriptionAvailability>} */

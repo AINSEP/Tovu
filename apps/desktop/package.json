@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "electron .",
     "attach": "electron .",
-    "test": "node --test \"src/*.test.cjs\""
+    "test": "node --test \"src/**/*.test.cjs\""
   },
   "devDependencies": {
     "electron": "^43.2.0"
