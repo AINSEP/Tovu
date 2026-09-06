@@ -4,6 +4,7 @@ import { registerAdminPostGetRoute } from "#src/server/inbound/admin-http/routes
 import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
 import { registerAdminPostUpdateRoute } from "#src/server/inbound/admin-http/routes/posts/update";
 import { registerAdminPostDeleteRoute } from "#src/server/inbound/admin-http/routes/posts/delete";
+import { registerAdminPostAutosaveRoute } from "#src/server/inbound/admin-http/routes/posts/autosave";
 import { registerAdminPageListRoute } from "#src/server/inbound/admin-http/routes/pages/list";
 import { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/routes/pages/create";
 import { registerAdminPageGetRoute } from "#src/server/inbound/admin-http/routes/pages/get-by-id";
@@ -65,6 +66,12 @@ import type { ServerModuleHandle } from "./types.js";
  * 2026-08-11-template-preview-render-bug.md`): added `registerAdminPostTemplatePreviewRoute` — reuses
  * `routes/site/pages.ts`'s exported `renderViaTemplate` (why `ContentRouteDeps` grew the four render-
  * pipeline repos, see that type's own doc), no new dependency shape of its own.
+ *
+ * Standing-draft autosave (2026-09-06 dispatch): added `registerAdminPostAutosaveRoute` — see that
+ * route file's own header for why it is kind-blind (one mount point serves both Posts and Pages,
+ * mirroring `updatePost`/`deletePost`'s existing kind-blind precedent) rather than a second
+ * registration under `/pages/`. No new dependency shape: reuses `deps.postRepo`/`deps.authorize`/
+ * `deps.clock`, all already read by the posts registrations above. Now 18 registrations total.
  */
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
@@ -76,6 +83,9 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPostTemplatePreviewRoute(app, deps);
       registerAdminPostUpdateRoute(app, deps);
       registerAdminPostDeleteRoute(app, deps);
+      // Standing-draft autosave (2026-09-06) — kind-blind, serves both Posts and Pages (see the
+      // route file's own header for why this is not duplicated under /pages/).
+      registerAdminPostAutosaveRoute(app, deps);
       registerAdminPageListRoute(app, deps);
       registerAdminPageCreateRoute(app, deps);
       registerAdminPageGetRoute(app, deps);

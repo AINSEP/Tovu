@@ -49,6 +49,15 @@ class FailingSlugPostRepo implements PostRepoPort {
   softDelete(required: { workspaceId: UUID; id: UUID; deletedAt: string; updatedAt: string; version: number }): Promise<void> {
     return this.inner.softDelete(required);
   }
+  readAutosave(required: { workspaceId: UUID; id: UUID }) {
+    return this.inner.readAutosave(required);
+  }
+  writeAutosave(required: Parameters<PostRepoPort["writeAutosave"]>[0]) {
+    return this.inner.writeAutosave(required);
+  }
+  clearAutosave(required: { workspaceId: UUID; id: UUID }) {
+    return this.inner.clearAutosave(required);
+  }
 }
 
 test("exportSite: --base-path unset leaves every written byte identical to a plain export", async (t) => {

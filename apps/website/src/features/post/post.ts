@@ -122,6 +122,28 @@ export interface PostRecord {
 }
 
 /**
+ * Standing-draft autosave for one post/page row (2026-09-06 dispatch — see `posts.autosave_json`'s
+ * own schema doc for the column this persists to). Captures exactly the fields the admin editors
+ * let an operator change before a real Save/Publish — deliberately NOT `status`/`title`-as-its-own-
+ * field: a standing draft never changes whether a row is live, and a Post's title lives inside its
+ * own `bodyJson` title node (`use-post-editor.hooks.ts`), so `bodyJson` alone already carries it.
+ *
+ * `baseVersion` is the {@link PostRecord.version} this snapshot was captured against — the seam
+ * both {@link PostRepoPort.writeAutosave} (write-time staleness guard) and the recovery-banner
+ * caller (read-time "is this still relevant" check) key off, so a draft built on top of content a
+ * real save has since superseded is never silently treated as current.
+ */
+export interface PostAutosaveSnapshot {
+  readonly bodyFormat: PostBodyFormat;
+  readonly bodyJson?: JsonObject;
+  readonly bodyHtml?: string;
+  readonly slug: string;
+  readonly baseVersion: number;
+  readonly savedAt: string;
+  readonly savedByPrincipalId: UUID;
+}
+
+/**
  * SPEC-005 REQ-05 — the read-only entry snapshot handed to `BeforeSaveHookPort`. Declared
  * structurally here rather than importing `@tovu/sdk`'s `ContentEntryDraft` so `post.ts` stays
  * plugin-ignorant (Module Map): `post` knows it may call one optional function before saving, and
@@ -189,6 +211,47 @@ export interface PostRepoPort {
     updatedAt: string;
     version: number;
   }): Promise<void>;
+  /**
+   * Reads the standing-draft autosave snapshot for one row, or `null` when none is parked — the
+   * common case, and also what a caller gets after {@link clearAutosave} or once a
+   * {@link writeAutosave} call has been rejected as stale (see that method's own doc). Deliberately
+   * separate from {@link findById}: `PostRecord` never carries this field, so a recovery-banner
+   * check is always an explicit second read a caller opts into, never something that leaks into an
+   * ordinary post response by accident.
+   */
+  readAutosave(required: { workspaceId: UUID; id: UUID }): Promise<PostAutosaveSnapshot | null>;
+  /**
+   * Overwrites the standing-draft autosave snapshot for one row — ONLY when
+   * `snapshot.baseVersion` still matches the row's current {@link PostRecord.version}. A caller
+   * whose basis has already been superseded by a real Save/Publish (the only two things that ever
+   * bump `version`) is silently ignored (`applied: false`) rather than resurrecting stale content
+   * over newer real content. This is also what makes {@link clearAutosave} safe under a race: once
+   * a real save bumps `version`, every still-in-flight autosave write captured before that save is
+   * a guaranteed no-op, so a `clearAutosave` call right after that save can never be "un-cleared" by
+   * one of those late arrivals.
+   *
+   * Deliberately NOT `save()`: this touches exactly the `autosave_json` column and nothing else —
+   * never `bodyJson`/`bodyHtml`/`status`/`updatedAt`/`version` itself, never the
+   * `content.entry.beforeSave` hook, never the search index. A published row's live content is
+   * unreachable from this method by construction, which is what lets one implementation serve both
+   * a draft-status and a published-status row with no branch between them.
+   *
+   * @returns `{ applied: true }` when the write landed, `{ applied: false }` when it was rejected
+   * as stale — the route layer surfaces this so the caller can stop treating its own local edits as
+   * the current basis for the row.
+   */
+  writeAutosave(required: {
+    workspaceId: UUID;
+    id: UUID;
+    snapshot: PostAutosaveSnapshot;
+  }): Promise<{ applied: boolean }>;
+  /**
+   * Clears the standing-draft autosave snapshot for one row (back to "nothing to recover").
+   * Unconditional — unlike {@link writeAutosave}, there is no stale basis to guard against when the
+   * intent is simply "there is no longer a draft to offer", whether because the operator explicitly
+   * discarded it or because a real Save/Publish just superseded it.
+   */
+  clearAutosave(required: { workspaceId: UUID; id: UUID }): Promise<void>;
 }
 
 /** True when a row is in the trash — the single predicate every trash-aware read below applies. */

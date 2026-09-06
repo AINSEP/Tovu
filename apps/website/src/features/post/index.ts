@@ -27,6 +27,7 @@ export {
   type PostStatus,
   type BeforeSaveHookPort,
   type UpdatePostInput,
+  type PostAutosaveSnapshot,
 } from "./post.js";
 // Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
 // Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific

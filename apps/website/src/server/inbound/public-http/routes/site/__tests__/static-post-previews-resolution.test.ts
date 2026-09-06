@@ -115,6 +115,15 @@ class CountingPostRepo implements PostRepoPort {
   softDelete(required: { workspaceId: string; id: string; deletedAt: string; updatedAt: string; version: number }) {
     return this.inner.softDelete(required);
   }
+  readAutosave(required: { workspaceId: string; id: string }) {
+    return this.inner.readAutosave(required);
+  }
+  writeAutosave(required: Parameters<PostRepoPort["writeAutosave"]>[0]) {
+    return this.inner.writeAutosave(required);
+  }
+  clearAutosave(required: { workspaceId: string; id: string }) {
+    return this.inner.clearAutosave(required);
+  }
 }
 
 async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {

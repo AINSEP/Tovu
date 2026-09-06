@@ -4,7 +4,15 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import { posts } from "../../platform/db/schema.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
-import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostKind, type PostRecord, type PostRepoPort, type PostStatus } from "./post.js";
+import {
+  DEFAULT_BODY_JSON,
+  type PostAutosaveSnapshot,
+  type PostBodyFormat,
+  type PostKind,
+  type PostRecord,
+  type PostRepoPort,
+  type PostStatus,
+} from "./post.js";
 import { toPostSearchDocument } from "./search.js";
 import { indexPostSearchDocument } from "./search-index.sqlite.js";
 
@@ -200,6 +208,53 @@ export class SqlitePostRepo implements PostRepoPort {
     this.db
       .update(posts)
       .set({ deletedAt: required.deletedAt, updatedAt: required.updatedAt, version: required.version })
+      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+      .run();
+  }
+
+  /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
+   *  routed through {@link toRecord}, which has no field for it. */
+  async readAutosave(required: { workspaceId: string; id: string }): Promise<PostAutosaveSnapshot | null> {
+    const rows = this.db
+      .select({ autosaveJson: posts.autosaveJson })
+      .from(posts)
+      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
+      .all();
+    const raw = rows[0]?.autosaveJson;
+    return raw ? (JSON.parse(raw) as PostAutosaveSnapshot) : null;
+  }
+
+  /**
+   * See `PostRepoPort.writeAutosave`'s own doc for the staleness contract. The `eq(posts.version,
+   * snapshot.baseVersion)` clause IS the whole guard — a version mismatch (row not found, or a real
+   * save has since bumped it) makes the `WHERE` match zero rows, `run().changes` reports that, and
+   * this method reports `applied: false` rather than throwing or silently no-op-ing without telling
+   * the caller. One `UPDATE`, no separate read-then-compare (avoids a TOCTOU gap between the two).
+   */
+  async writeAutosave(required: {
+    workspaceId: string;
+    id: string;
+    snapshot: PostAutosaveSnapshot;
+  }): Promise<{ applied: boolean }> {
+    const result = this.db
+      .update(posts)
+      .set({ autosaveJson: JSON.stringify(required.snapshot) })
+      .where(
+        and(
+          eq(posts.workspaceId, required.workspaceId),
+          eq(posts.id, required.id),
+          eq(posts.version, required.snapshot.baseVersion)
+        )
+      )
+      .run();
+    return { applied: result.changes > 0 };
+  }
+
+  /** See `PostRepoPort.clearAutosave`'s own doc — unconditional, no version guard. */
+  async clearAutosave(required: { workspaceId: string; id: string }): Promise<void> {
+    this.db
+      .update(posts)
+      .set({ autosaveJson: null })
       .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
       .run();
   }
