@@ -128,4 +128,4 @@ Status will be updated in place as fixes land, with commit SHAs appended below.
 
 ## Fix log
 
-(updated as work proceeds)
+- **Placeholder batch (13 pages)** — wired `agentHandle="<sectionId>"` onto every bare `<Placeholder sectionId="X" />` call site in `panels.tsx` (skills, design-system, admin-appearance, plugins-marketplace, orders, products, subscriptions, billing, activity-log, import-export, notifications, trash, newsletter). Mechanical, additive, no DOM restructuring — the prop already existed on `Placeholder`/`ComingSoonNotice` from a prior "Batch 1" shared-component pass (`components/__tests__/agent-handle-batch1.unit.test.tsx`), just never threaded through from `panels.tsx`. Verified: `env -u TOVU_ADMIN_PASSWORD npx vitest run src/components/__tests__/Placeholder.unit.test.tsx src/components/__tests__/agent-handle-batch1.unit.test.tsx src/__tests__/unit/panels-render.unit.test.tsx src/__tests__/unit/app-plugins-route.unit.test.tsx` — 4 files, 95 tests, all green. Commit: (pending, see below).

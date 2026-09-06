@@ -502,7 +502,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // No screen yet — `soon: true` + `Placeholder`, the same shape `newsletter` below already uses
     // for a genuinely unbuilt-but-real nav entry. Deliberately NOT a bespoke "coming soon"
     // component: this repo has one idiom for this, and a second would be a second thing to maintain.
-    render: () => <Placeholder sectionId="skills" />,
+    render: () => <Placeholder sectionId="skills" agentHandle="skills" />,
     nav: {
       label: "Skills",
       group: "Studio",
@@ -516,7 +516,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "design-system",
-    render: () => <Placeholder sectionId="design-system" />,
+    render: () => <Placeholder sectionId="design-system" agentHandle="design-system" />,
     nav: {
       label: "Design System",
       group: "Studio",
@@ -544,6 +544,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       <Placeholder
         sectionId="admin-appearance"
         note="This is the admin panel's own look — not the public site's themes (see Themes above). Planned, not yet built."
+        agentHandle="admin-appearance"
       />
     ),
     nav: {
@@ -592,7 +593,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "plugins-marketplace",
-    render: () => <Placeholder sectionId="plugins-marketplace" />,
+    render: () => <Placeholder sectionId="plugins-marketplace" agentHandle="plugins-marketplace" />,
     nav: {
       label: "Marketplace",
       group: "Plugins",
@@ -652,7 +653,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
     // is still set, by owner decision: every row in Commerce previews as a real, clickable link
     // rather than a disabled one, so the section doesn't read as some rows working and others not.
-    render: () => <Placeholder sectionId="orders" />,
+    render: () => <Placeholder sectionId="orders" agentHandle="orders" />,
     nav: {
       label: "Orders",
       group: "Commerce",
@@ -669,7 +670,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "products",
     // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
     // in it (`store-plugin.ts`), but no admin API or screen exists yet.
-    render: () => <Placeholder sectionId="products" />,
+    render: () => <Placeholder sectionId="products" agentHandle="products" />,
     nav: {
       label: "Products",
       group: "Commerce",
@@ -695,7 +696,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
     // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
     // but with no reachable code path yet, not just an empty table waiting for traffic.
-    render: () => <Placeholder sectionId="subscriptions" />,
+    render: () => <Placeholder sectionId="subscriptions" agentHandle="subscriptions" />,
     nav: {
       label: "Subscriptions",
       group: "Commerce",
@@ -716,7 +717,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // operator pays to run the site. `soonPreviewable` matches the owner decision recorded on
     // `orders` above: every Commerce row previews as a real clickable link, so the section never
     // reads as some rows working and others not.
-    render: () => <Placeholder sectionId="billing" />,
+    render: () => <Placeholder sectionId="billing" agentHandle="billing" />,
     nav: {
       label: "Billing",
       group: "Commerce",
@@ -873,7 +874,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // nav entry. Sits beside Recovery deliberately: both answer "what happened to my site," one
     // after the fact and one as a way back. The read side already exists in the tool catalog as
     // `database_query_timeline`, so this is a missing surface rather than a missing capability.
-    render: () => <Placeholder sectionId="activity-log" />,
+    render: () => <Placeholder sectionId="activity-log" agentHandle="activity-log" />,
     nav: {
       label: "Activity Log",
       group: "Operations",
@@ -889,7 +890,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // are Database, Recovery, and Integrations — not the design surface (Studio) and not this
     // site's own configuration (Administration). It is also the one section that is as much about
     // getting data OUT as in, which is an operational guarantee rather than an authoring feature.
-    render: () => <Placeholder sectionId="import-export" />,
+    render: () => <Placeholder sectionId="import-export" agentHandle="import-export" />,
     nav: {
       label: "Import & Export",
       group: "Operations",
@@ -932,7 +933,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // a tab inside `SettingsUi`, because it ships as a `soon` NAV entry and a tab would have no nav
     // row to label. Same open question Workspace's own note records above (standalone entry vs
     // Settings tab); resolving one should probably resolve both.
-    render: () => <Placeholder sectionId="notifications" />,
+    render: () => <Placeholder sectionId="notifications" agentHandle="notifications" />,
     nav: {
       label: "Notifications",
       group: "Administration",
@@ -946,7 +947,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // `comments_trash_comment`, and `redirects_tombstone` all exist today and each currently
     // strands its deletions inside its own section. A single cross-cutting recycle bin belongs
     // with the site-wide surfaces, not under any one content type.
-    render: () => <Placeholder sectionId="trash" />,
+    render: () => <Placeholder sectionId="trash" agentHandle="trash" />,
     nav: {
       label: "Trash",
       group: "Administration",
@@ -983,7 +984,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "newsletter",
     // No screen yet — renders `Placeholder`, exactly as `#/section/newsletter` did, and exactly
     // what a genuinely unbuilt-but-real `nav` entry (`soon: true`) is for.
-    render: () => <Placeholder sectionId="newsletter" />,
+    render: () => <Placeholder sectionId="newsletter" agentHandle="newsletter" />,
     nav: {
       label: "Newsletter",
       group: "Marketing",
