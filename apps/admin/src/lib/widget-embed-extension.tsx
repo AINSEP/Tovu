@@ -191,8 +191,20 @@ function insertWidgetEmbedAtCursor(editor: WidgetEmbedEditor, widgetEntryId: str
  * cursor position. Used by both `PostEditor.tsx`'s `Toolbar` and `CollectionEntryEditor.tsx`'s
  * (currently toolbar-less) editor shell.
  */
-export function WidgetEmbedInsertControl(props: { editor: WidgetEmbedEditor | null }) {
+export function WidgetEmbedInsertControl(props: {
+  editor: WidgetEmbedEditor | null;
+  /** Pass-through to `WidgetAddControl`'s own optional `agentHandle` — see that component's doc for
+   *  the sub-handles it derives. Omit to leave this control untagged (`PostEditor.tsx`'s call site
+   *  does not pass one, unaffected by this being optional). */
+  agentHandle?: string;
+}) {
   if (!props.editor) return null;
   const editor = props.editor;
-  return <WidgetAddControl triggerLabel="Insert widget" onResolved={(widgetInstanceId) => insertWidgetEmbedAtCursor(editor, widgetInstanceId)} />;
+  return (
+    <WidgetAddControl
+      triggerLabel="Insert widget"
+      onResolved={(widgetInstanceId) => insertWidgetEmbedAtCursor(editor, widgetInstanceId)}
+      agentHandle={props.agentHandle}
+    />
+  );
 }

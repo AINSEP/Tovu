@@ -185,7 +185,11 @@ function SitesEmptyState({ t }: { t: Translate }) {
     >
       <h2 className="sites-empty-title">{t("No listed sites")}</h2>
       <p className="sites-empty-lead">{t("A folder appears here once Tovu has created it.")}</p>
-      <a className="btn-primary sites-empty-action" href="/admin/sites?tab=new">
+      <a
+        className="btn-primary sites-empty-action"
+        href="/admin/sites?tab=new"
+        {...agentHandle("sites-empty-new-site", { role: "link", label: "Go to the New site tab" })}
+      >
         {t("New site")}
       </a>
     </div>

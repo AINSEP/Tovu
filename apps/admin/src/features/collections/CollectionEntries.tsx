@@ -48,7 +48,10 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   return (
     <div className="page">
       <p className="muted-cell">
-        <a href="/admin/collections">{t("Collections")}</a> / {label}
+        <a href="/admin/collections" {...agentHandle("collection-entries-breadcrumb", { role: "link", label: "Back to the Collections list" })}>
+          {t("Collections")}
+        </a>{" "}
+        / {label}
       </p>
       <div
         className="page-header"

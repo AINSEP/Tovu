@@ -540,7 +540,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
       >
         <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
           <div className="grp">
-            <WidgetEmbedInsertControl editor={editor} />
+            <WidgetEmbedInsertControl editor={editor} agentHandle="entry-insert-widget" />
           </div>
         </div>
         {/* `role: "field"`, not `region`: this is a TipTap `contenteditable`, which the page driver
