@@ -509,6 +509,56 @@ describe("Select dropdown-hook injection", () => {
   });
 });
 
+describe("agentHandle", () => {
+  it("omits data-agent-element on the trigger and search input when agentHandle is not passed", async () => {
+    const user = userEvent.setup();
+    render(<ControlledSelect options={MANY_OPTIONS} />);
+    expect(screen.getByRole("combobox", { name: "Pick one" })).not.toHaveAttribute("data-agent-element");
+
+    await user.click(screen.getByRole("combobox", { name: "Pick one" }));
+    expect(screen.getByPlaceholderText("Search…")).not.toHaveAttribute("data-agent-element");
+  });
+
+  it("publishes the trigger and, once open, the search input as agent-addressable off the same base handle", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select value="" onChange={vi.fn()} options={MANY_OPTIONS} aria-label="Pick one" agentHandle="widget-type" />,
+    );
+    expect(screen.getByRole("combobox", { name: "Pick one" })).toHaveAttribute("data-agent-element", "widget-type");
+
+    await user.click(screen.getByRole("combobox", { name: "Pick one" }));
+    expect(screen.getByPlaceholderText("Search…")).toHaveAttribute("data-agent-element", "widget-type-search");
+  });
+
+  it("uses aria-label for the trigger's published agent label when set", () => {
+    render(
+      <Select value="" onChange={vi.fn()} options={FEW_OPTIONS} aria-label="Pick one" agentHandle="widget-type" />,
+    );
+    expect(screen.getByRole("combobox")).toHaveAttribute("data-agent-label", "Pick one");
+  });
+
+  it("falls back to the placeholder for the trigger's published agent label when aria-label is absent", () => {
+    render(
+      <Select
+        value=""
+        onChange={vi.fn()}
+        options={FEW_OPTIONS}
+        aria-labelledby="external-label"
+        placeholder="Choose a widget"
+        agentHandle="widget-type"
+      />,
+    );
+    expect(screen.getByRole("combobox")).toHaveAttribute("data-agent-label", "Choose a widget");
+  });
+
+  it("falls back to a generic agent label when neither aria-label nor placeholder is set", () => {
+    render(
+      <Select value="" onChange={vi.fn()} options={FEW_OPTIONS} aria-labelledby="external-label" agentHandle="widget-type" />,
+    );
+    expect(screen.getByRole("combobox")).toHaveAttribute("data-agent-label", "Select an option");
+  });
+});
+
 describe("resolveSelectTriggerLabel", () => {
   // Direct coverage of the trigger label/className derivation extracted out of `Select`'s own
   // render body under the tightened ≤9/≤9 pass.

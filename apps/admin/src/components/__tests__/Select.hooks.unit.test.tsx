@@ -10,6 +10,7 @@ import {
   highlightedOptionOrNull,
   repositionOrClose,
   resolveTabTarget,
+  usePanelPosition,
   useSelectDropdown,
   type SelectOption,
 } from "../Select/Select.hooks";
@@ -210,6 +211,37 @@ describe("resolveTabTarget", () => {
     document.body.innerHTML = `<button id="only">only</button>`;
     const trigger = document.createElement("button"); // never attached to the DOM
     expect(resolveTabTarget(null, trigger, false)).toBeNull();
+  });
+
+  it("returns null when there is no trigger element at all", () => {
+    document.body.innerHTML = `<button id="only">only</button>`;
+    expect(resolveTabTarget(null, null, false)).toBeNull();
+  });
+});
+
+describe("usePanelPosition — scroll/resize reposition guard", () => {
+  // `reposition()`'s own `if (!el) return;` — the trigger ref can read null if the trigger element
+  // is no longer mounted by the time a scroll/resize fires while the panel is still open. No
+  // product path drives this through the full `<Select>` component today (the trigger button is
+  // always rendered alongside the panel), so it's exercised directly against this extracted hook,
+  // whose own doc names this split's purpose as making exactly this kind of internal branch
+  // testable without mounting the whole dropdown.
+  it("is a safe no-op when the trigger ref is null when a scroll fires", () => {
+    const triggerRef = { current: null };
+    const { result } = renderHook(() =>
+      usePanelPosition({
+        open: true,
+        triggerRef,
+        panelRef: { current: null },
+        searchInputRef: { current: null },
+        showSearch: false,
+        onOutOfView: vi.fn(),
+      }),
+    );
+    const before = result.current.position;
+
+    expect(() => act(() => window.dispatchEvent(new Event("scroll")))).not.toThrow();
+    expect(result.current.position).toBe(before);
   });
 });
 
