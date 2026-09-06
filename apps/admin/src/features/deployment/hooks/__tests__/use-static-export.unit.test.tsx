@@ -282,6 +282,71 @@ describe("useStaticExport — poll loop", () => {
     });
     expect(getSiteExportStatus.mock.calls.length).toBe(callsAtBound);
   });
+
+  // Both tests below target the loop's `cancelled` guard specifically: a poll request already
+  // in-flight when the effect's cleanup runs (unmount here) has nothing that can abort the pending
+  // promise itself — `clearTimeout` only cancels the NEXT scheduled poll. Without this guard, a
+  // response arriving after unmount would still call setRun/setPollError and reschedule, resuming an
+  // "invisible" poll loop against an unmounted hook.
+  it("a successful poll response arriving after unmount does not reschedule another poll", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    let resolvePoll: (value: AdminExportRunSnapshot) => void = () => {};
+    let call = 0;
+    // Call 1 is the bootstrap read (must resolve immediately, seeding isRunning: true); call 2 is
+    // the poll under test, held pending until unmount has already run.
+    const getSiteExportStatus = vi.fn().mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.resolve(runningRun);
+      return new Promise<AdminExportRunSnapshot>((resolve) => { resolvePoll = resolve; });
+    });
+    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+
+    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isRunning).toBe(true));
+
+    // Arm the second poll, then unmount WHILE its request is still pending.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(2);
+    unmount();
+
+    // The pending request now resolves as still-running, which would normally call scheduleNext().
+    resolvePoll(runningRun);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("a poll rejection arriving after unmount does not count toward the failure bound or reschedule", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    let rejectPoll: (err: Error) => void = () => {};
+    let call = 0;
+    const getSiteExportStatus = vi.fn().mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.resolve(runningRun);
+      return new Promise<AdminExportRunSnapshot>((_resolve, reject) => { rejectPoll = reject; });
+    });
+    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+
+    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isRunning).toBe(true));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(2);
+    unmount();
+
+    rejectPoll(new Error("network blip"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getSiteExportStatus).toHaveBeenCalledTimes(2);
+  });
 });
 
 /**
