@@ -297,9 +297,39 @@ async function main(): Promise<void> {
   const app = createApp(deps);
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
-  // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here — see
-  // the handoff report for why plain TLS was the shipped tradeoff), so this is TLS-only, not HTTP/2,
-  // unlike Vite's dev server which gets HTTP/2 for free from the same cert pair.
+  // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
+  // this is TLS-only, not HTTP/2, unlike Vite's dev server which gets HTTP/2 for free from the same
+  // cert pair.
+  //
+  // TRIED AND REVERTED (2026-09-06): `http2.createSecureServer({ ...devTls.credentials, allowHTTP1:
+  // true }, app)` was attempted here, specifically to close the connection-exhaustion risk
+  // `apps/admin/vite.config.ts`'s own HTTP/2 gate exists for, now that `/admin/*` is proxied through
+  // this same server (`admin-dev-proxy.ts`) instead of served directly by Vite. It crashed the
+  // ENTIRE process, reproducibly, three separate boots in a row, always within ~15s of steady state
+  // with an admin tab open — not from any exotic client, just ordinary ambient traffic (this repo's
+  // own SSE endpoints reconnecting, e.g. `settings/events`, `frontend-sessions/stream`):
+  //
+  //   TypeError: Cannot read properties of undefined (reading 'readable')
+  //       at IncomingMessage._read (node:_http_incoming:211:19)
+  //       at Readable.read (node:internal/streams/readable:737:12)
+  //       at resume_ (node:internal/streams/readable:1260:12)
+  //
+  // Every frame is inside Node core (`node:_http_incoming`, `node:internal/streams/readable`) — none
+  // of this repo's own code appears anywhere in the trace — on Node v24.2.0. A/B-confirmed: reverting
+  // to plain `createHttpsServer` under the identical ambient conditions (same open admin tab, same
+  // reconnecting SSE clients) ran stable for 15s+ with no crash; restoring the http2 line crashed it
+  // again on the next boot. This reads as a Node-core bug/incompatibility in the `allowHTTP1`
+  // fallback's interaction with a long-lived HTTP/1.1 stream (most likely an SSE `EventSource`
+  // reconnect), not something fixable from application code — per this task's own instruction, a
+  // half-migrated server that dies under ordinary load is worse than the HTTP/1.1 status quo it
+  // would replace, so this was reverted rather than shipped. The two adjustments this attempt made to
+  // get past HTTP/2's *header*-level incompatibilities (`admin-dev-proxy.ts`'s hop-by-hop header
+  // stripping, and the SSE routes' conditional `Connection` header) are harmless under HTTP/1.1 and
+  // were kept — see each site's own comment — but they alone do not make this server HTTP/2-safe;
+  // the crash above is a transport-level fault, not a header-level one. Revisiting this needs either
+  // a newer/older Node where this is fixed, or a non-`allowHTTP1`-compat approach (e.g. a real
+  // HTTP/2-native framework in front, or `spdy`), verified under the same SSE-reconnect load before
+  // it ships.
   const server = devTls.active && devTls.credentials
     ? createHttpsServer(devTls.credentials, app).listen(port, onListening)
     : app.listen(port, onListening);
