@@ -101,6 +101,24 @@ describe("?tab= deep linking", () => {
 
     expect(window.location.search).toBe("?tab=history");
   });
+
+  // The URL-click test above only proves `?tab=` changes — it never re-renders `<Deployment>` with
+  // the new `tabId` prop (that's `panels.tsx`'s job in the real app), so `deploymentTabPanel`'s
+  // full-site/dockerfile/history branches were never actually reached by opening directly on them.
+  it("opens directly on Full Site when given that tabId", () => {
+    renderScreen(<Deployment tabId="full-site" />);
+    expect(screen.getByText("What Full Site gives you")).toBeInTheDocument();
+  });
+
+  it("opens directly on Dockerfile when given that tabId", async () => {
+    renderScreen(<Deployment tabId="dockerfile" />);
+    expect(await screen.findByText("No Dockerfile yet")).toBeInTheDocument();
+  });
+
+  it("opens directly on History when given that tabId", () => {
+    renderScreen(<Deployment tabId="history" />);
+    expect(screen.getByText("No deploys yet")).toBeInTheDocument();
+  });
 });
 
 describe("agent handles", () => {
