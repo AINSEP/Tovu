@@ -23,9 +23,13 @@ import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/so
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-// NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
-// top-level import here reaches that same cycle. See `server/app.ts`'s `runExportSiteLazily` for
-// the full trace and the crash it produced. Resolved at call time instead.
+// NOT a static import. Until 2026-08-16 this broke a real cycle: `export/site-exporter.ts` imported
+// `createApp` from `app.ts`, and importing here would have closed the loop. That edge is gone now —
+// site-exporter.ts boots via the injected `routeDeps.createSiteApp()` instead — and `app.ts`'s own
+// matching field was converted from a lazy `runExportSiteLazily` to a plain static `runExportSite`
+// on 2026-09-05 once its cycle was verified closed (commit `f7d0b1b4`; see that function's doc for
+// the full historical trace). This file's own `runExportSiteLazily` below has not had the same
+// re-verification, so it stays lazy for now. Resolved at call time.
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
@@ -1520,18 +1524,23 @@ export function createSqliteRouteDepsForWorkspace(
 // FEAT-049 (ESM migration) moved this file off CommonJS, so the bare `require` the two doc
 // comments below still describe no longer exists as a global; both `require` calls now resolve
 // through `createRequire(import.meta.url)`, which preserves the exact same synchronous-resolution
-// behavior their cycle-breaks depend on. See `server/app.ts`'s matching `runExportSiteLazily`
-// doc for the same substitution.
+// behavior their cycle-breaks depend on. `app.ts` no longer needs this substitution at all — its
+// own matching `require()` was removed outright on 2026-09-05 once that cycle closed (`f7d0b1b4`);
+// see `runExportSiteLazily`'s doc immediately below for what changed there and why this file's
+// version has not had the same treatment yet.
 const require = createRequire(import.meta.url);
 
 /**
- * `exportSite`, resolved at CALL time rather than at import time — the same fix, for the same
- * cycle, as `server/app.ts`'s `runExportSiteLazily`. See that function's doc comment for the full
- * trace: `server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts`, which
- * killed the agent daemon on every boot once its entry point started reaching this graph.
+ * `exportSite`, resolved at CALL time rather than at import time — historically the same fix, for
+ * the same cycle, as `app.ts`'s former `runExportSiteLazily`. The original trace: `app.ts ->
+ * export/index.ts -> export/site-exporter.ts -> app.ts`, which killed the agent daemon on every boot
+ * once its entry point started reaching this graph (2026-08-15).
  *
- * Both composition roots need the same treatment; leaving either one static leaves the cycle live
- * on whichever boot path uses it.
+ * That cycle closed for real on 2026-08-16 (site-exporter.ts now boots via the injected
+ * `routeDeps.createSiteApp()` instead of importing `createApp` from `app.ts`), and on 2026-09-05
+ * commit `f7d0b1b4` verified the closure and converted `app.ts`'s field to a plain static
+ * `runExportSite` — see that function's doc for the verification evidence. This file's own copy has
+ * not had the same re-verification pass, so it stays lazy until it does.
  */
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
