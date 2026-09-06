@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { useComposioKeyField } from "./hooks/use-composio-key-field.hooks";
 import type { ComposioConfigController } from "./hooks/use-composio-config.hooks";
 
@@ -68,12 +69,14 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
           onKeyDown={(event) => {
             if (event.key === "Enter") void onSave();
           }}
+          {...agentHandle("settings-composio-key", { role: "field", label: "Composio API key" })}
         />
         <button
           type="button"
           className="settings-ui-dialog-btn"
           disabled={busy || draft.trim().length === 0}
           onClick={() => void onSave()}
+          {...agentHandle("settings-composio-key-save", { role: "button", label: "Save the Composio API key" })}
         >
           {busy ? "Saving…" : "Save"}
         </button>
@@ -83,6 +86,7 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
             className="settings-ui-dialog-btn"
             disabled={busy}
             onClick={() => void composio.clear()}
+            {...agentHandle("settings-composio-key-clear", { role: "button", label: "Clear the saved Composio API key" })}
           >
             Clear
           </button>

@@ -71,6 +71,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
+import { agentHandle } from "@jini-ai/agentic";
 import { ExternalMcpSettingsPanel } from "./ExternalMcpSettingsPanel";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
@@ -785,7 +786,12 @@ export function SettingsUi(props: SettingsUiProps) {
   const pageChrome = (
     <>
       {saveStatus}
-      <button type="button" className="settings-ui-dialog-btn" onClick={() => s.setModalOpen(true)}>
+      <button
+        type="button"
+        className="settings-ui-dialog-btn"
+        onClick={() => s.setModalOpen(true)}
+        {...agentHandle("settings-open-as-dialog", { role: "button", label: "Open Settings as a dialog overlay" })}
+      >
         {t("Open as dialog")}
       </button>
     </>
