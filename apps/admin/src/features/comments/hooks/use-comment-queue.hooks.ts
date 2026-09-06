@@ -158,14 +158,27 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
     invalidate(KEYS.queueRoot);
   }
 
+  // Synchronous per-row duplicate-submit guard, shared by `onModerate`/`onPurge` below — a ref, not
+  // `rowState`'s own `busy` flag, because a real double-click can fire two calls for the SAME
+  // comment in the same synchronous tick, before React has re-rendered with `busy: true`.
+  // `RowMenu`'s items carry no `disabled` state at all (`QueueActionsCell` builds every item
+  // unconditionally, busy or not — this hook is the only gate), so two selections on one row — even
+  // two DIFFERENT actions, e.g. Approve then Spam — could otherwise both pass the old state-based
+  // check and both reach the port. Checked-then-set synchronously, so a second same-tick call always
+  // observes the first's write; `rowState.busy` (state) still exists to let the UI show a busy row.
+  const busyRowIdsRef = useRef<Set<string>>(new Set());
+
   async function onModerate(comment: AdminComment, action: CommentModerationAction) {
-    if (stateFor(comment.id).busy) return;
+    if (busyRowIdsRef.current.has(comment.id)) return;
+    busyRowIdsRef.current.add(comment.id);
     patchRowState(comment.id, { busy: true, error: null });
     try {
       await port.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
       reloadAfterAction();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeModerationError(e) });
+    } finally {
+      busyRowIdsRef.current.delete(comment.id);
     }
   }
 
@@ -179,7 +192,10 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
   async function onPurge() {
     if (!pendingPurge) return;
     const comment = pendingPurge;
-    if (stateFor(comment.id).busy) return;
+    // Same synchronous guard as `onModerate` above — shares `busyRowIdsRef` with it since both
+    // patch the same row's `rowState` entry.
+    if (busyRowIdsRef.current.has(comment.id)) return;
+    busyRowIdsRef.current.add(comment.id);
     patchRowState(comment.id, { busy: true, error: null });
     try {
       await port.purgeComment({ commentId: comment.id });
@@ -187,6 +203,7 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeApiError(e, t(locale, "Failed to purge comment.")) });
     } finally {
+      busyRowIdsRef.current.delete(comment.id);
       setPendingPurge(null);
     }
   }

@@ -143,6 +143,42 @@ describe("useCommentQueue", () => {
   });
 });
 
+/**
+ * `onModerate`'s re-entry guard (`if (stateFor(comment.id).busy) return;`) reads `rowState` —
+ * React state, not a ref — so it is NOT synchronous: two calls for the SAME comment fired in the
+ * same tick (a real double-click through `RowMenu`, whose items carry no `disabled` state at all —
+ * `QueueActionsCell` builds every menu item unconditionally, busy or not) both read `busy: false`
+ * before either call's `patchRowState({ busy: true })` has committed, so both pass the guard and
+ * both reach the port — potentially with two DIFFERENT, conflicting actions for the same comment.
+ * Same class of bug `use-static-publish.hooks.ts`'s `publishingRef` fixes for `publish()`.
+ */
+describe("useCommentQueue — same-tick double-call safety", () => {
+  it("two onModerate calls for the SAME comment in one tick must not both reach the port", async () => {
+    const port = createFakeCommentQueuePort({ items: [COMMENT] });
+    const settlers: Array<() => void> = [];
+    port.moderateComment = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          settlers.push(resolve);
+        })
+    );
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+
+    act(() => {
+      void result.current.onModerate(COMMENT, "approve");
+      void result.current.onModerate(COMMENT, "spam");
+    });
+
+    expect(port.moderateComment).toHaveBeenCalledTimes(1);
+
+    // Let the one accepted call settle so the busy flag clears cleanly.
+    await act(async () => {
+      settlers.forEach((resolve) => resolve());
+    });
+  });
+});
+
 describe("useCommentQueue — content refresh bus", () => {
   afterEach(() => resetContentRefreshBus());
 
