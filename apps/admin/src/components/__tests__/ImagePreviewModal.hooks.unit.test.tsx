@@ -106,4 +106,44 @@ describe("useImagePreviewModal", () => {
     rerender({ open: false });
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * `openDialog`/`closeDialog`'s own idempotency guards (`if (!dialog.open) …` / `if (dialog.open)
+   * …`) — the module doc's "no-op if already open" half of the modern-browser branch, never hit by
+   * the test above (there, `open` always transitions FROM the state the dialog element itself was
+   * already in). Modeled here as the DOM element having diverged from React's own `open` state by
+   * the time the effect re-runs — a native `<dialog>` can be opened/closed by something outside
+   * this hook's control (devtools, another script) — rather than by calling `showModal`/`close`
+   * twice in a row, which the effect's own `[open]` dependency array makes impossible to trigger
+   * without an intervening `open` change.
+   */
+  it("does not call showModal() again when the dialog element is already open as the effect re-runs", () => {
+    const { result, rerender } = renderHook(({ open }) => useImagePreviewModal(open, vi.fn()), {
+      initialProps: { open: false },
+    });
+    const dialog = attachDialog(result);
+    const showModal = vi.fn();
+    dialog.showModal = showModal;
+    dialog.close = vi.fn();
+    dialog.setAttribute("open", ""); // diverged: already open before this open:false -> true transition
+
+    rerender({ open: true });
+
+    expect(showModal).not.toHaveBeenCalled();
+  });
+
+  it("does not call close() again when the dialog element is already closed as the effect re-runs", () => {
+    const { result, rerender } = renderHook(({ open }) => useImagePreviewModal(open, vi.fn()), {
+      initialProps: { open: true },
+    });
+    const dialog = attachDialog(result);
+    dialog.showModal = vi.fn();
+    const close = vi.fn();
+    dialog.close = close;
+    dialog.removeAttribute("open"); // diverged: already closed before this open:true -> false transition
+
+    rerender({ open: false });
+
+    expect(close).not.toHaveBeenCalled();
+  });
 });

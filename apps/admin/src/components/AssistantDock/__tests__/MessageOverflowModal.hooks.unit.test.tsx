@@ -102,4 +102,42 @@ describe("useMessageOverflowModal", () => {
     rerender({ open: false });
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * `openDialog`/`closeDialog`'s own idempotency guards, mirroring
+   * `ImagePreviewModal.hooks.unit.test.tsx`'s equivalent addition — the DOM element diverged from
+   * React's own `open` state by the time the effect re-runs (something outside this hook's control
+   * opened/closed the native `<dialog>`), rather than two `showModal`/`close` calls in a row, which
+   * the effect's `[open]` dependency array makes impossible to trigger without an intervening
+   * `open` change.
+   */
+  it("does not call showModal() again when the dialog element is already open as the effect re-runs", () => {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+      initialProps: { open: false },
+    });
+    const dialog = attachDialog(result);
+    const showModal = vi.fn();
+    dialog.showModal = showModal;
+    dialog.close = vi.fn();
+    dialog.setAttribute("open", "");
+
+    rerender({ open: true });
+
+    expect(showModal).not.toHaveBeenCalled();
+  });
+
+  it("does not call close() again when the dialog element is already closed as the effect re-runs", () => {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+      initialProps: { open: true },
+    });
+    const dialog = attachDialog(result);
+    dialog.showModal = vi.fn();
+    const close = vi.fn();
+    dialog.close = close;
+    dialog.removeAttribute("open");
+
+    rerender({ open: false });
+
+    expect(close).not.toHaveBeenCalled();
+  });
 });

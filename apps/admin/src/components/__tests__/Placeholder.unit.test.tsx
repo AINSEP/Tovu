@@ -1,7 +1,21 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Placeholder } from "../Placeholder";
+// `Placeholder`'s "Unknown section" branch reads `useWiredAdminLocale()` directly (deliberately
+// not hook-injected — see that call site's own comment in `Placeholder.tsx`), so the one test below
+// that needs an unsupported locale mocks this module. Every other test in this file leaves the
+// mock at its default ("en", the real hook's own jsdom-unmocked fallback) so none of them observe
+// any difference from the previously-unmocked real hook.
+const mockUseWiredAdminLocale = vi.hoisted(() => vi.fn(() => "en"));
+vi.mock("../../hooks/use-admin-locale.hooks", () => ({
+  useWiredAdminLocale: mockUseWiredAdminLocale,
+}));
+
+import { ComingSoonNotice, findNavGroupLabel, Placeholder } from "../Placeholder";
+
+afterEach(() => {
+  mockUseWiredAdminLocale.mockReturnValue("en");
+});
 
 /**
  * @file `Placeholder` — pins the fix for the audit's live-verified Newsletter bug
@@ -51,5 +65,44 @@ describe("an id absent from nav.ts entirely", () => {
   it("a prototype-chain key is not mistaken for a real section", () => {
     render(<Placeholder sectionId="constructor" />);
     expect(screen.getByText(/unknown section/i)).toBeInTheDocument();
+  });
+
+  it("falls back to the English prefix when the admin locale has no UNKNOWN_SECTION_PREFIX entry", () => {
+    mockUseWiredAdminLocale.mockReturnValue("xx-unsupported");
+
+    render(<Placeholder sectionId="does-not-exist-12345" />);
+
+    expect(screen.getByText("Unknown section: does-not-exist-12345")).toBeInTheDocument();
+  });
+});
+
+describe("findNavGroupLabel", () => {
+  it("returns the item's own nav group label", () => {
+    // "newsletter" sits in the "Marketing" group (panels.tsx) — the ordinary, matching-group case.
+    expect(findNavGroupLabel("newsletter")).toBe("Marketing");
+  });
+
+  it("falls back to 'Overview' for an id in the ungrouped top row, whose nav group carries no label", () => {
+    // "dashboard" is one of `panels.tsx`'s "Ungrouped top row" entries — `buildNav` (Jini's
+    // `@jini-ai/admin/core`) deliberately omits `label` for that group, so this exercises the
+    // `group.label ?? "Overview"` fallback with REAL nav data, not a synthetic gap.
+    expect(findNavGroupLabel("dashboard")).toBe("Overview");
+  });
+
+  it("falls back to 'Overview' for an id present in no nav group at all", () => {
+    // Exercises the loop-exhausted fallback directly against this exported pure function's own
+    // contract. Both of `findNavGroupLabel`'s real callers (`Placeholder`, `PlaceholderTabs`) only
+    // ever pass an id already confirmed to exist via `getNav()`, so this path is not reachable
+    // through either of them today — but the function itself is general-purpose and exported, and
+    // its own "no match found" behavior is part of what it promises callers.
+    expect(findNavGroupLabel("no-such-section-anywhere")).toBe("Overview");
+  });
+});
+
+describe("ComingSoonNotice", () => {
+  it("falls back to the English template when locale has no COMING_SOON_TEMPLATE entry", () => {
+    render(<ComingSoonNotice kicker="Overview" label="Widgets" locale="xx-unsupported" />);
+
+    expect(screen.getByText("Widgets is coming soon.")).toBeInTheDocument();
   });
 });

@@ -36,6 +36,22 @@ describe("open/closed state", () => {
   });
 });
 
+describe("agentHandle", () => {
+  it("omits data-agent-element on the close button when agentHandle is not passed", () => {
+    render(<MessageOverflowModal open={true} title="Full view" onClose={vi.fn()}>content</MessageOverflowModal>);
+    expect(screen.getByRole("button", { name: "Close" })).not.toHaveAttribute("data-agent-element");
+  });
+
+  it("publishes the close button as agent-addressable when agentHandle is passed", () => {
+    render(
+      <MessageOverflowModal open={true} title="Full view" onClose={vi.fn()} agentHandle="overflow-modal-close">
+        content
+      </MessageOverflowModal>,
+    );
+    expect(screen.getByRole("button", { name: "Close" })).toHaveAttribute("data-agent-element", "overflow-modal-close");
+  });
+});
+
 describe("content", () => {
   it("renders the given children", () => {
     render(
