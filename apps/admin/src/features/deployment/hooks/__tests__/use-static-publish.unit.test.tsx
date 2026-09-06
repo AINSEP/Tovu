@@ -130,6 +130,63 @@ describe("useStaticPublish — preview", () => {
     expect(sentConfig).not.toHaveProperty("branch");
   });
 
+  it("includes a non-blank branch for github-pages, trimmed", async () => {
+    let sentConfig: AdminStaticPublishConfig | undefined;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: (config) => {
+        sentConfig = config;
+        return Promise.resolve({
+          target: config.target,
+          valid: true,
+          validationError: null,
+          basePath: null,
+          credentialsConfigured: false,
+          credentialGuidance: null,
+          willInjectNojekyll: false,
+        });
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+    act(() => result.current.setBranch("  main  "));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+
+    expect(sentConfig).toEqual({ target: "github-pages", owner: "octo", repo: "demo-repo", branch: "main" });
+  });
+
+  it("includes a non-blank teamId for vercel, trimmed", async () => {
+    let sentConfig: AdminStaticPublishConfig | undefined;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: (config) => {
+        sentConfig = config;
+        return Promise.resolve({
+          target: config.target,
+          valid: true,
+          validationError: null,
+          basePath: null,
+          credentialsConfigured: false,
+          credentialGuidance: null,
+          willInjectNojekyll: false,
+        });
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setTeamId("  team_123  "));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+
+    expect(sentConfig).toEqual({ target: "vercel", teamId: "team_123" });
+  });
+
   it("netlify and cloudflare-pages preview with a bare {target} config — no owner/repo/teamId carried over from a prior target", async () => {
     let sentConfig: AdminStaticPublishConfig | undefined;
     const port = createFakeStaticPublishPort({
@@ -206,6 +263,38 @@ describe("useStaticPublish — preview", () => {
     expect(result.current.repo).toBe("new");
     // The spinner must still have stopped even though the response itself was discarded — a stale
     // request being ignored must not be confused with a request that never returned.
+    expect(result.current.previewLoading).toBe(false);
+  });
+
+  it("REGRESSION (C3), error path: a stale preview REJECTION after a field edit must not surface an error for fields the operator has since changed", async () => {
+    let rejectPreview!: (err: Error) => void;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: () => new Promise((_resolve, reject) => (rejectPreview = reject)),
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("acme"));
+    act(() => result.current.setRepo("old"));
+
+    let previewPromise!: Promise<void>;
+    act(() => {
+      previewPromise = result.current.checkPreview();
+    });
+    await waitFor(() => expect(result.current.previewLoading).toBe(true));
+
+    // The operator edits the target BEFORE the slow preview request rejects.
+    act(() => result.current.setRepo("new"));
+
+    await act(async () => {
+      rejectPreview(new Error("boom"));
+      await previewPromise;
+    });
+
+    // The stale rejection must not overwrite previewError for a request the operator has already
+    // moved on from — `invalidatePreview()`'s own reset (previewError: null) is what should stand.
+    expect(result.current.previewError).toBeNull();
+    expect(result.current.repo).toBe("new");
     expect(result.current.previewLoading).toBe(false);
   });
 
@@ -387,6 +476,45 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(result.current.isPublishing).toBe(false);
   });
 
+  it("a poll that is STILL running reschedules another poll, rather than stopping after one read", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const completedRun: AdminPublishRunSnapshot = { status: "completed", startedAtIso: "t0", finishedAtIso: "t1", target: "vercel" };
+    let call = 0;
+    // Call 1 is the bootstrap read (idle — publish() below is what starts the run, distinctly from
+    // the bootstrap); calls 2 and 3 are the poll loop's own reads: still-running, then completed.
+    const getPublishStatus = vi.fn().mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.resolve(IDLE_RUN);
+      if (call === 2) return Promise.resolve(runningRun);
+      return Promise.resolve(completedRun);
+    });
+    const port = createFakeStaticPublishPort({ getPublishStatus });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
+
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(result.current.isPublishing).toBe(true);
+
+    // Poll #1 (call 2): still running — must reschedule rather than stop.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(2);
+    expect(result.current.isPublishing).toBe(true);
+
+    // Poll #2 (call 3): completed — the loop stops here.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(3);
+    expect(result.current.run?.status).toBe("completed");
+    expect(result.current.isPublishing).toBe(false);
+  });
+
   it("REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Publish button — not retried forever behind a stuck spinner", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
@@ -424,6 +552,67 @@ describe("useStaticPublish — publish trigger and poll", () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
     expect(getPublishStatus.mock.calls.length).toBe(callsAtBound);
+  });
+
+  // Both tests below target the loop's `cancelled` guard specifically — same reasoning as
+  // `use-static-export.hooks.ts`'s identical guard: `clearTimeout` only cancels the NEXT scheduled
+  // poll, not a request already in flight when the effect's cleanup (unmount here) runs.
+  it("a successful poll response arriving after unmount does not reschedule another poll", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    let resolvePoll: (value: AdminPublishRunSnapshot) => void = () => {};
+    let call = 0;
+    // Call 1 is the bootstrap read (must resolve immediately, seeding isPublishing: true); call 2 is
+    // the poll under test, held pending until unmount has already run.
+    const getPublishStatus = vi.fn().mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.resolve(runningRun);
+      return new Promise<AdminPublishRunSnapshot>((resolve) => { resolvePoll = resolve; });
+    });
+    const port = createFakeStaticPublishPort({ getPublishStatus });
+
+    const { result, unmount } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isPublishing).toBe(true));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(2);
+    unmount();
+
+    resolvePoll(runningRun);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("a poll rejection arriving after unmount does not count toward the failure bound or reschedule", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    let rejectPoll: (err: Error) => void = () => {};
+    let call = 0;
+    const getPublishStatus = vi.fn().mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.resolve(runningRun);
+      return new Promise<AdminPublishRunSnapshot>((_resolve, reject) => { rejectPoll = reject; });
+    });
+    const port = createFakeStaticPublishPort({ getPublishStatus });
+
+    const { result, unmount } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isPublishing).toBe(true));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(2);
+    unmount();
+
+    rejectPoll(new Error("network blip"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getPublishStatus).toHaveBeenCalledTimes(2);
   });
 
   it("REGRESSION (C4): a second publish() call while the first is still in flight must not send a second POST or leave a false failure message", async () => {
