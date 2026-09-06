@@ -6,10 +6,10 @@
  *
  * `window.tovuVoice` existing at all is also the renderer's own capability signal: the composer
  * slot on the Tovu-admin side (`apps/admin/src/features/voice-input/`) checks for its presence to
- * decide whether it is even running inside this desktop shell — the mic affordance never renders
- * in a plain browser tab, the same posture `AssistantDock.tsx` already documents for its working-
- * directory control ("no working-directory control renders in the web admin... the real feature
- * belongs to Tovu-Runner, which has an actual filesystem").
+ * decide whether it is even running inside this desktop shell. Its absence does not hide the mic
+ * affordance — the button still renders in a plain browser tab, disabled, saying that voice input
+ * needs the desktop app because transcription runs on-device (see
+ * `apps/admin/src/features/voice-input/voice-unavailability.ts`).
  *
  * **Not wired into `main.cjs` yet** — see `speech-ipc.cjs`'s own header for why, and this
  * feature's handoff notes for the exact `webPreferences.preload` line `createWindow` needs.

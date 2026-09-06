@@ -70,8 +70,12 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
   callbacksRef.current = { onEngage, onRelease };
 
   useEffect(() => {
-    const textarea = findComposerTextarea(anchorRef.current);
-    if (!textarea || !enabled) return undefined;
+    const found = findComposerTextarea(anchorRef.current);
+    if (!found || !enabled) return undefined;
+    // Rebound after the guard so the hoisted handlers below see a non-nullable type: TypeScript
+    // cannot narrow `found` inside a function declaration, which is callable before the guard runs
+    // as far as the checker is concerned.
+    const textarea: HTMLTextAreaElement = found;
 
     function clearHoldTimer() {
       if (timerRef.current === null) return;

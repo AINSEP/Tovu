@@ -3,10 +3,10 @@
  * injected by `apps/desktop/src/speech/preload-speech.cjs` via `contextBridge` — it exists ONLY
  * when this admin app is running inside the Electron desktop shell, never in a plain browser tab.
  * That presence check IS the capability gate: `getVoiceInputPort()` returns `null` outside
- * Electron, and every caller in this feature treats `null` as "render nothing", the same posture
- * `AssistantDock.tsx` already documents for its working-directory control ("no working-directory
- * control renders in the web admin... the real feature belongs to Tovu-Runner, which has an actual
- * filesystem").
+ * Electron. A `null` port is reported as `available: false` carrying the
+ * `NO_DESKTOP_SHELL_REASON` code, which `voice-unavailability.ts` turns into the line the disabled
+ * mic button shows — the affordance renders and explains itself rather than vanishing, since a
+ * control that is simply absent reads as a missing feature rather than an unavailable one.
  *
  * This module knows nothing about recording, keybindings, or UI — see
  * `hooks/push-to-talk-state.hooks.ts` for the state machine and `hooks/use-push-to-talk.hooks.ts`

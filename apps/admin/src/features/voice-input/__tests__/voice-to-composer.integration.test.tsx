@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
+import { ChatPane } from "@jini-ai/chat/react";
 import type { ChatTransport, StartRunInput } from "@jini-ai/chat/core";
 
 import { PushToTalkMicButton } from "../PushToTalkMicButton";
@@ -61,8 +61,10 @@ function VoiceComposerHarness({ transport, transcript }: { transport: ChatTransp
   return (
     <ChatPane
       transport={transport}
-      agents={[{ id: "claude", label: "Claude" }]}
-      composerHandle={voiceInput.composerHandle as React.RefObject<ChatPaneComposerHandle | null>}
+      // A usable agent is required, not decoration: with an empty inventory `ChatPane` treats
+      // itself as unavailable and disables the textarea, so nothing below could be typed or held.
+      agents={[{ id: "claude", name: "Claude", available: true }]}
+      composerHandle={voiceInput.composerHandle}
       leadingAccessory={
         <PushToTalkMicButton
           onTranscript={voiceInput.insertTranscript}
