@@ -521,6 +521,103 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     expect(deps.port.discardAutosaveCalled).toBe(true);
   });
 
+  /**
+   * The save-vs-in-flight-autosave race, asserted at the COMPOSED level rather than only on the
+   * shared hook — the Pages half of the same pair `use-post-editor.hooks.unit.test.tsx` covers for
+   * Posts. `discardAutosaveCalled` alone (the assertion directly above) would still be `true` under
+   * an implementation where the discard raced the in-flight PUT and lost, leaving a stale crumb the
+   * next editor load would offer back over content the save already superseded. This asserts the
+   * observable SEQUENCE the port actually saw.
+   */
+  it("a Save issued while an autosave PUT is still in flight leaves the DISCARD as the last write the server sees", async () => {
+    const ops: string[] = [];
+    let releasePut!: () => void;
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+    const base = deps.port;
+    const port: typeof base = {
+      ...base,
+      get putAutosaveCalls() {
+        return base.putAutosaveCalls;
+      },
+      get discardAutosaveCalled() {
+        return base.discardAutosaveCalled;
+      },
+      async putAutosave(id, draft) {
+        ops.push("put:start");
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        ops.push("put:end");
+        return base.putAutosave(id, draft);
+      },
+      async discardAutosave(id) {
+        ops.push("discard");
+        return base.discardAutosave(id);
+      },
+    };
+
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => usePageEditor("landing", { ...deps, port }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      act(() => result.current.setTitle("Typed then saved fast"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+      expect(ops).toEqual(["put:start"]);
+
+      let saveSettled = false;
+      act(() => {
+        void result.current.save().then(() => {
+          saveSettled = true;
+        });
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(ops).toEqual(["put:start"]);
+
+      releasePut();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(saveSettled).toBe(true);
+      expect(ops).toEqual(["put:start", "put:end", "discard"]);
+      expect(ops[ops.length - 1]).toBe("discard");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /**
+   * The "reload the page on accident or exit out of the page" case in the owner's own words, at the
+   * composed level. Proven broken in a real browser on 2026-09-06 against THIS editor: typed into
+   * the HTML pane, clicked the in-app "Pages" link one second later, and no PUT was ever issued.
+   */
+  it("navigating away mid-edit parks the pending draft instead of dropping it", async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+      const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      act(() => result.current.setHtml("<p>half-typed, then left the screen</p>"));
+      // Well inside the 3s idle window — the debounce has provably not fired yet.
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+      expect(deps.port.putAutosaveCalls).toHaveLength(0);
+
+      unmount();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+
+      expect(deps.port.putAutosaveCalls).toHaveLength(1);
+      expect(deps.port.putAutosaveCalls[0]).toMatchObject({
+        bodyFormat: "html",
+        bodyHtml: "<p>half-typed, then left the screen</p>",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("confirmLeave is true when nothing is dirty, and defers to window.confirm once the operator has edited something", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
     const { result } = renderHook(() => usePageEditor("landing", deps));

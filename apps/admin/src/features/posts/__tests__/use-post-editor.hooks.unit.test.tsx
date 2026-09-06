@@ -721,6 +721,106 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
 
     expect(port.discardAutosaveCalled).toBe(true);
   });
+
+  /**
+   * The save-vs-in-flight-autosave race, asserted at the COMPOSED level rather than only on the
+   * shared hook. `discardAutosaveCalled` alone (the assertion directly above) would still be `true`
+   * under an implementation where the discard raced the in-flight PUT and lost — the stale crumb
+   * would land AFTER the save and resurrect superseded content on the next reload. This asserts the
+   * observable SEQUENCE the port actually saw, which only an ordered implementation can produce.
+   */
+  it("a Save issued while an autosave PUT is still in flight leaves the DISCARD as the last write the server sees", async () => {
+    const ops: string[] = [];
+    let releasePut!: () => void;
+    const base = createFakePostEditorPort({ post: POST });
+    const port: typeof base = {
+      ...base,
+      get post() {
+        return base.post;
+      },
+      get putAutosaveCalls() {
+        return base.putAutosaveCalls;
+      },
+      get discardAutosaveCalled() {
+        return base.discardAutosaveCalled;
+      },
+      async putAutosave(id, draft) {
+        ops.push("put:start");
+        await new Promise<void>((resolve) => {
+          releasePut = resolve;
+        });
+        ops.push("put:end");
+        return base.putAutosave(id, draft);
+      },
+      async discardAutosave(id) {
+        ops.push("discard");
+        return base.discardAutosave(id);
+      },
+    };
+
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.editor).not.toBeNull();
+
+      // Type, let the debounce fire, and hold that PUT open — this is the in-flight autosave.
+      act(() => result.current.setTitle("Typed then saved fast"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+      expect(ops).toEqual(["put:start"]);
+
+      // The operator clicks Save while that write is still on the wire.
+      let saveSettled = false;
+      act(() => {
+        void result.current.save().then(() => {
+          saveSettled = true;
+        });
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      // The discard must NOT have jumped the queue ahead of the still-open PUT.
+      expect(ops).toEqual(["put:start"]);
+
+      releasePut();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(saveSettled).toBe(true);
+      expect(ops).toEqual(["put:start", "put:end", "discard"]);
+      // The literal defect: nothing may be written after the discard, or the next editor load
+      // would offer a crumb the save already superseded.
+      expect(ops[ops.length - 1]).toBe("discard");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /**
+   * The "reload the page on accident or exit out of the page" case in the owner's own words, at the
+   * composed level: an edit made inside the debounce window must be parked when the editor goes
+   * away, not dropped with the cancelled timer.
+   */
+  it("navigating away mid-edit parks the pending draft instead of dropping it", async () => {
+    vi.useFakeTimers();
+    try {
+      const port = createFakePostEditorPort({ post: POST });
+      const { result, unmount } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.editor).not.toBeNull();
+
+      act(() => result.current.setTitle("Half-typed, then left the screen"));
+      // Well inside the 3s idle window — the debounce has provably not fired yet.
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+      expect(port.putAutosaveCalls).toHaveLength(0);
+
+      unmount();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+
+      expect(port.putAutosaveCalls).toHaveLength(1);
+      expect(port.putAutosaveCalls[0]).toMatchObject({ title: "Half-typed, then left the screen" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("useWiredPostEditor", () => {
