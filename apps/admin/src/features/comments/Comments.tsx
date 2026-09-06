@@ -2,6 +2,7 @@ import type { AdminComment, CommentModerationAction, CommentStatus } from "../..
 import { hasPermission } from "../../lib/permissions";
 import { DataTable, RowMenu, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
@@ -60,7 +61,12 @@ function QueueToolbar({
         <label className="field-label" htmlFor="comments-status-filter">
           {t(locale, "Status")}
         </label>
-        <select id="comments-status-filter" value={status} onChange={(e) => onStatusChange(e.target.value as CommentStatus)}>
+        <select
+          id="comments-status-filter"
+          value={status}
+          onChange={(e) => onStatusChange(e.target.value as CommentStatus)}
+          {...agentHandle("comments-status-filter", { role: "field", label: "Filter the moderation queue by status" })}
+        >
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -78,6 +84,7 @@ function QueueToolbar({
  *  own directly-testable scope, per `commentRowMenuItems`'s own risk ranking. */
 function QueueActionsCell(props: {
   comment: AdminComment;
+  agentHandleBase: string;
   permissions: string[];
   status: CommentStatus;
   rowState: RowActionState;
@@ -98,6 +105,7 @@ function QueueActionsCell(props: {
           triggerLabel={interpolate(t(props.locale, 'Actions for the comment by "{author}"'), {
             author: props.comment.authorName,
           })}
+          agentHandle={`${props.agentHandleBase}-menu`}
           items={menuItems}
         />
       ) : (
@@ -122,6 +130,7 @@ function queueColumns(props: {
   locale: string;
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
+  handleForRow: (commentId: string) => string;
 }): DataTableColumn<AdminComment>[] {
   return [
     { key: "author", header: t(props.locale, "Author"), cell: (comment) => comment.authorName },
@@ -139,6 +148,7 @@ function queueColumns(props: {
       cell: (comment) => (
         <QueueActionsCell
           comment={comment}
+          agentHandleBase={props.handleForRow(comment.id)}
           permissions={props.permissions}
           status={props.status}
           rowState={props.stateFor(comment.id)}
@@ -165,15 +175,30 @@ function QueueTable(props: {
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
 }) {
+  // Rows page in over "Load more", so handles are derived fresh each render from whichever rows
+  // are currently on screen — same per-row-id lookup `Database.tsx`'s `TimelineBody` uses, needed
+  // because `DataTable`'s `cell` callback only receives the row, not its index.
+  const rowHandles = buildAgentListHandles(
+    "comments-row",
+    props.items.map((comment) => comment.id),
+  );
+  const handleById = new Map(props.items.map((comment, index) => [comment.id, rowHandles[index]!]));
+
   return (
     <>
       <DataTable
         rows={props.items}
         rowKey={(comment) => comment.id}
-        columns={queueColumns(props)}
+        columns={queueColumns({ ...props, handleForRow: (commentId) => handleById.get(commentId)! })}
       />
       {props.nextCursor ? (
-        <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={props.loadMore}
+          disabled={props.loadingMore}
+          {...agentHandle("comments-load-more", { role: "button", label: "Load more comments" })}
+        >
           {props.loadingMore ? t(props.locale, "Loading…") : t(props.locale, "Load more")}
         </button>
       ) : null}
@@ -221,6 +246,7 @@ function QueuePurgeDialog(props: {
   return (
     <ConfirmDialog
       open={props.pendingPurge !== null}
+      agentHandle="comments-purge"
       title={t(props.locale, "Permanently delete this comment?")}
       body={
         props.pendingPurge ? (
@@ -348,7 +374,12 @@ export function SettingsSection(props: SettingsSectionProps) {
       >
         <div className="field-group">
           <label className="form-checkbox-field">
-            <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
+            <input
+              type="checkbox"
+              name="enabled"
+              defaultChecked={settings.enabled}
+              {...agentHandle("comments-settings-enabled", { role: "field", label: "Whether comments are enabled at all" })}
+            />
             {t(props.locale, "Comments enabled")}
           </label>
           <label className="form-checkbox-field">
@@ -356,6 +387,10 @@ export function SettingsSection(props: SettingsSectionProps) {
               type="checkbox"
               name="requireModeration"
               defaultChecked={settings.requireModeration}
+              {...agentHandle("comments-settings-require-moderation", {
+                role: "field",
+                label: "Whether new comments start pending moderation",
+              })}
             />
             {t(props.locale, "Require moderation (new comments start pending)")}
           </label>
@@ -374,6 +409,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={0}
                 step={1}
                 defaultValue={settings.maxDepth}
+                {...agentHandle("comments-settings-max-depth", { role: "field", label: "Maximum comment thread depth" })}
               />
             </div>
             <div className="field">
@@ -387,6 +423,10 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={0}
                 step={1}
                 defaultValue={settings.closeAfterDays ?? ""}
+                {...agentHandle("comments-settings-close-after-days", {
+                  role: "field",
+                  label: "Days after which submissions close, blank for never",
+                })}
               />
             </div>
             <div className="field">
@@ -401,6 +441,7 @@ export function SettingsSection(props: SettingsSectionProps) {
                 max={1}
                 step={0.01}
                 defaultValue={settings.spamAutoRejectScore}
+                {...agentHandle("comments-settings-spam-score", { role: "field", label: "Spam auto-reject score, 0 to 1" })}
               />
             </div>
             <div className="field">
@@ -414,13 +455,18 @@ export function SettingsSection(props: SettingsSectionProps) {
                 min={1}
                 step={1}
                 defaultValue={settings.maxPerIpPerHour}
+                {...agentHandle("comments-settings-max-per-ip", { role: "field", label: "Maximum submissions per IP per hour" })}
               />
             </div>
           </div>
         </div>
 
         <div className="editor-actions form-actions">
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle("comments-settings-save", { role: "button", label: "Save the comments settings" })}
+          >
             {saving ? t(props.locale, "Saving…") : t(props.locale, "Save settings")}
           </button>
         </div>
