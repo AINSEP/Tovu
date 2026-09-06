@@ -13,6 +13,10 @@ import { isAdminAssistantEnabled } from "../../server/runtime/composition/admin-
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
+import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
+import { runBootLifecycle, type BootResult } from "../../server/runtime/lifecycle/boot-lifecycle.js";
+import { buildBootModules } from "../../server/runtime/boot/bootstrap.js";
+import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to
@@ -69,6 +73,17 @@ import { ensureAgentDaemonToken } from "../../assistant/index.js";
  * `warnIfLegacyEnvVarsIgnored()` and every boot step after it — there is no `await` point ahead of it
  * in this function either, so the same "no window exists for a plugin import to become reachable
  * first" guarantee `index.ts`'s own comment describes holds here too.
+ *
+ * Production-readiness gate + boot lifecycle (2026-09-05 dispatch, boot-path parity): this command
+ * ran NEITHER `runProductionReadinessGate` NOR `runBootLifecycle` — both `index.ts`-only until now.
+ * Fixed by calling the same shared `runProductionReadinessGateOrExit()` (see that file's own
+ * header) right after `registerPluginSdkResolver()`, and by composing+running the same
+ * `buildBootModules()` set via `runBootLifecycle()` right after `deps` is built, BEFORE
+ * `ensureAgentDaemonPortResolved()`/`createApp()`/`app.listen()` — so a `tovu serve`-booted site now
+ * gets the crash-interrupted-migration scan (previously never invoked for this boot path at all)
+ * and refuses to serve on a critical `settings`/`seo` failure, exactly like `index.ts`. Unlike
+ * `index.ts`, a lifecycle failure here `throw`s rather than `process.exit()`s, per this file's own
+ * "never map errors to exit codes" contract above.
  */
 
 export interface RunServeCommandInput {
@@ -131,6 +146,19 @@ async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerR
   return false;
 }
 
+/** Logs one line per critical, not-ready module from a failed boot — duplicated verbatim from
+ *  `index.ts`'s own helper of the same name (that file's own header explains why its boot-only
+ *  logic is never imported by, or shared via import with, a tested module; mirrors this file's
+ *  existing duplication of `agentDaemonWanted` above for the identical reason). Called only when
+ *  `lifecycleResult.ok` is false. */
+function logCriticalBootFailures(lifecycleResult: BootResult): void {
+  for (const module of lifecycleResult.modules) {
+    if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
+      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+    }
+  }
+}
+
 export async function runServeCommand(input: RunServeCommandInput): Promise<void> {
   // Unhandled-rejection guard (2026-08-28 dispatch): `index.ts`'s `main()` installs this same guard
   // first, before any boot step (see `process-error-guards.ts`'s own header for the live crash that
@@ -156,6 +184,18 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // ahead of it, for the same reason `index.ts`'s own call site gives.
   registerPluginSdkResolver();
 
+  // 2026-09-05 dispatch (boot-path parity): this command never ran the production-readiness gate
+  // either — only `src/index.ts`'s `main()` did, gated on `resolveRuntimeMode() === "production"`.
+  // That mode is a plain `TOVU_RUNTIME_MODE` env read (see `runtime-mode.ts`), not something only
+  // `index.ts`'s own boot path can reach — a self-hosted deployment launched via the packaged
+  // `tovu serve` CLI can set it exactly the same way, and until now got zero unsafe-default
+  // containment for doing so (dev secret placeholders, the default owner password, undurable
+  // "production"-classified capabilities). Inert (an immediate return) whenever
+  // `TOVU_RUNTIME_MODE` is not `"production"`, so this costs every ordinary `tovu serve` run
+  // nothing. See `boot-readiness-gate.ts`'s own header for why this is now one shared function
+  // rather than a second copy of `index.ts`'s original inline gate.
+  await runProductionReadinessGateOrExit();
+
   warnIfLegacyEnvVarsIgnored();
 
   const target = resolveInstallDirTarget(input.dir);
@@ -172,6 +212,34 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
     // `sites/tovu-com/themes` beside the operator's shell instead of the site it was given.
     themesDir: path.join(target, "themes"),
   });
+
+  // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —
+  // only `src/index.ts`'s `main()` did (ADR-046 Phase 3/SPEC-031). Two concrete gaps that opened:
+  // (1) `database-migration-reconciliation` (`reconcile-interrupted-migration.ts`) — the scan that
+  // detects a crash-interrupted migration and flips `siteStatusRepo` to `BLOCKED_PENDING_RECOVERY`
+  // — never ran for a `tovu serve`-booted site, so `site-serving-gate.ts`'s per-request enforcement
+  // (which reads that SAME `siteStatusRepo`, not this function's return value) could never trigger
+  // no matter how badly interrupted a real migration was; (2) `settings`/`seo` are CRITICAL exactly
+  // because their promise chains have no `.catch()` anywhere (an unhandled-rejection risk), so a
+  // failure there must abort boot cleanly rather than serve a half-seeded site. Composed and run
+  // BEFORE `ensureAgentDaemonPortResolved()`/`createApp()`/`app.listen()` below — mirroring
+  // `index.ts`'s exact ordering — so a critical failure refuses to serve at all, not merely to spawn
+  // the daemon. `defaultContentDbPath` is this invocation's OWN resolved `dbPath` (install-dir-
+  // relative), not `deps.ts`'s `siteDir()`-based default — passing that default here would point the
+  // `store-plugin` boot module at the wrong site entirely whenever `<dir>` differs from the default
+  // site root.
+  const lifecycleResult = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+  setReadinessSnapshot(lifecycleResult);
+  if (!lifecycleResult.ok) {
+    logCriticalBootFailures(lifecycleResult);
+    bootResult.db.$client.close();
+    // Never `process.exit()` here (unlike `index.ts`): this file's own header records the
+    // established contract — `cli` layer errors propagate uncaught to `cli/main.ts`, which maps
+    // them to an exit code via `errors.ts`. An unrecognized plain `Error` falls through to
+    // `mapErrorToCliOutcome`'s `INTERNAL` (exit 1) bucket, matching `index.ts`'s own `process.exit(1)`
+    // outcome for the identical failure without inventing a new SPEC-003 error code for it.
+    throw new Error("Refusing to boot — a critical module failed. See failures above.");
+  }
 
   // Must resolve — and, when neither `JINI_AGENT_DAEMON_URL` nor `JINI_AGENT_DAEMON_PORT` is set,
   // allocate — this instance's daemon origin BEFORE `createApp()` wires the assistant proxy's
