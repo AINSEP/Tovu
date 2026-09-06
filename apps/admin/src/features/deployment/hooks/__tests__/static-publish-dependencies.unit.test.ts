@@ -7,9 +7,10 @@ import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPubl
  * .getPublishStatus` is already exercised indirectly (the wired hook polls status on mount), but
  * `getPublishPreview` and `triggerPublish` never are — no existing suite renders
  * `useWiredStaticPublish()` and then previews or triggers a run. `createFakeStaticPublishPort`'s
- * own default `getPublishStatus` fallback (the `??` branch used when a test calls it with no
- * `overrides.getPublishStatus`) is likewise unreached — every existing caller that omits the
- * override never calls `port.getPublishStatus()`. Same thin-bind shape as
+ * own default `getPublishPreview` fallback (the `??` branch used when a test calls it with no
+ * `overrides.getPublishPreview`) is likewise unreached — every existing caller that omits the
+ * override never calls `port.getPublishPreview()` (the `getPublishStatus` default IS already
+ * exercised elsewhere, via `use-static-publish.unit.test.ts`). Same thin-bind shape as
  * `publish-credentials-dependencies.unit.test.ts`.
  */
 
@@ -60,6 +61,28 @@ describe("defaultStaticPublishPort", () => {
     getPublishStatus.mockResolvedValue(IDLE_RUN);
     await expect(defaultStaticPublishPort.getPublishStatus()).resolves.toEqual(IDLE_RUN);
     expect(getPublishStatus).toHaveBeenCalledWith();
+  });
+});
+
+describe("createFakeStaticPublishPort — getPublishPreview default", () => {
+  const IDLE_PREVIEW: AdminStaticPublishPreview = {
+    target: "vercel",
+    valid: false,
+    validationError: null,
+    basePath: null,
+    credentialsConfigured: false,
+    credentialGuidance: null,
+    willInjectNojekyll: false,
+  };
+
+  it("defaults to a neutral, invalid vercel preview when not overridden", async () => {
+    const port = createFakeStaticPublishPort();
+    await expect(port.getPublishPreview(GITHUB_CONFIG)).resolves.toEqual(IDLE_PREVIEW);
+  });
+
+  it("an explicit getPublishPreview override wins over the default", async () => {
+    const port = createFakeStaticPublishPort({ getPublishPreview: () => Promise.resolve(PREVIEW) });
+    await expect(port.getPublishPreview(GITHUB_CONFIG)).resolves.toEqual(PREVIEW);
   });
 });
 
