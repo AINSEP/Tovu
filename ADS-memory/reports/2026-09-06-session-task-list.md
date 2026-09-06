@@ -7,12 +7,14 @@ Live worklist for this session. Owner column: **L** = only Leona can run it, **A
 | # | Task | Owner | State |
 |---|---|---|---|
 | 1 | Port Tovu Runner's UI into `apps/desktop` — Projects grid becomes the app's front page, N-BrowserWindow model kept (no `<webview>` tabs) | A (`runner-ui-port`, Opus 5) | manifest first, scaffold blocked on coordinator approval |
-| 2 | Redesign the `sample-xai` landing page after x.ai + the refero design system, with code/video placeholders | A (`xai-landing`, Fable 5.1) | dispatched |
+| ~~2~~ | ~~Redesign the `sample-xai` landing page after x.ai + the refero design system, with code/video placeholders ~~ | A (`xai-landing`, Fable 5.1) | **DONE** — live, `f66ef907` + `b3f613a6`, DB v7 |
 
 ## Decided this session
 
 - **Port scope**: Runner's *look and front end*, but each site keeps its own `BrowserWindow`. Reverses part of the `2026-09-05-runner-vs-desktop-parity.md` ruling — deliberately, on Leona's word. Consequence accepted: the tab strip shows only "All", since per-project tabs are the webview model.
-- **No sign-in.** The desktop app must come up authenticated. Needs a desktop-only auto-auth path that cannot apply to anything network-reachable and must not weaken `/api/admin/session` for the web product.
+- **No sign-in — and no SITE password at all.** Leona, verbatim: *"there should be no password to login to the Tovu desktop app. Maybe there should be one for each individual admin, but not for the site."* The site's admin password is the wrong gate for a desktop app; per-admin identity is a separate later concern.
+  - This forces the **server-side single-use loopback boot token** (`serve.ts` + a new route), NOT the cheaper per-site-random-password design. The password approach only works for sites the shell itself created — every pre-existing site, `sites/tovu-com` included, is already seeded and would still show a login.
+  - The route must prove loopback rather than assume it, be single-use and short-lived, and have **no permissive fallback arm** when the token env var is unset. The server must never learn a desktop shell exists (no `TOVU_DESKTOP_*` names, no "am I in Electron" branch), which is what keeps `apps/desktop` deletable-in-place.
 - **Nav**: only Projects is live; the other pill items render but are disabled, not hidden, not wired to blank screens.
 - **Logo**: tovu-com's logo (`sites/tovu-com/themes/static/basic/`) replaces Runner's gold-runner mark, copied into `apps/desktop` rather than referenced out of the live site dir.
 
@@ -27,6 +29,17 @@ The harness auto-mode classifier refuses these for the coordinator and every sub
 ```
 
 The third has a running cost: **157 chats / 562 messages / 19 sessions are sitting in `content.db` and are invisible in the UI right now**, because the `chat.db` split is live and new chats go there. Nothing is lost.
+
+| 2b | Admin page-editor header layout experiment: centre "Edit page" + subtitle, move `← Pages` to the far left | A (`admin-header-layout`) | dispatched; must revert with a single `git revert` |
+
+## SECURITY — needs Leona
+
+**Every site `apps/desktop` has created so far is seeded with the shipped DEFAULT owner password.** `identity/wiring.ts:121` falls back to `DEFAULT_OWNER_PASSWORD` when `TOVU_ADMIN_PASSWORD` is unset, and `apps/desktop` sets neither. Pre-existing, not introduced today. Being fixed for sites created from here on (mint a per-site random password, set it on the **`init`** spawn as well as `serve`). **What to do about sites already created with the default is Leona's decision.**
+
+## Open questions for Leona
+
+- The `sample-xai` page renders dark by default, because the site opens dark and x.ai is light-canonical. Making the sample open light is a **site setting**, not a page edit.
+- Content translations for pages/posts: nothing exists (`posts` has no locale column, no translation table). Recommended shape is one row per translation joined by a group id — own slug, own publish state, own revisions — with a locale switcher in the page-editor header, "Create <locale> →" for missing ones, and a stale badge when the source outran the translation. **Not specced yet.**
 
 ## Defects found by running the app (new this session)
 
