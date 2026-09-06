@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { defaultThemeCanvasPort } from "../theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort, defaultThemeCanvasPort } from "../theme-canvas-dependencies.hooks";
 
 /**
  * @file Coverage for `theme-canvas-dependencies.hooks.ts`'s `defaultThemeCanvasPort` — neither
@@ -8,6 +8,12 @@ import { defaultThemeCanvasPort } from "../theme-canvas-dependencies.hooks";
  * constructs `createFakeThemeCanvasPort`; nothing renders `useWiredThemeCanvasStyling()`, the entry
  * point that wires this real-`fetch` port in). This covers both the success and the
  * `!res.ok`-throws path for each method directly against a stubbed global `fetch`.
+ *
+ * Also closes a mutation-survived gap in `createFakeThemeCanvasPort.fetchThemeTokens`'s own
+ * "nothing seeded at this URL" guard: `use-theme-canvas-styling.unit.test.ts` DOES call it unseeded
+ * (`createFakeThemeCanvasPort()`), but only asserts the HOOK's downstream fallback state, which
+ * turns out identical whether this guard rejects or silently resolves `undefined` — so disabling it
+ * left that test green. Asserted here directly against the port's own promise instead.
  */
 
 const originalFetch = global.fetch;
@@ -45,6 +51,15 @@ describe("defaultThemeCanvasPort.fetchTemplateMarkup", () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as typeof fetch;
     await expect(defaultThemeCanvasPort.fetchTemplateMarkup("/theme-assets/basic/pages/missing.html")).rejects.toThrow(
       "the theme server responded with 500",
+    );
+  });
+});
+
+describe("createFakeThemeCanvasPort.fetchThemeTokens — unseeded URL", () => {
+  it("rejects, naming the URL, rather than resolving with undefined", async () => {
+    const port = createFakeThemeCanvasPort();
+    await expect(port.fetchThemeTokens("/theme-assets/basic/tokens.json")).rejects.toThrow(
+      "fake theme canvas port: nothing seeded at /theme-assets/basic/tokens.json",
     );
   });
 });
