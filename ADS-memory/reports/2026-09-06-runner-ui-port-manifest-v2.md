@@ -266,29 +266,84 @@ Against the stated constraints:
   shell verifies `siteDir` after decrypt — AAD by construction, three lines, and it makes a
   slot-swap fail closed instead of silently.
 
-**Two honest weaknesses, both must be handled and neither is hidden:**
+**BUILT. Two corrections to what I wrote above, both found by RUNNING it, not by reading.**
 
-- **Already-seeded sites.** Because seeding is idempotent, an existing site dir keeps whatever
-  owner password it has and this login will 401. The shell must then **fall through to the normal
-  login screen** — never a retry loop, never a blank window, never a silent failure. So the promise
-  is "no sign-in for sites this shell created", not "no sign-in, ever". Leona should hear that
-  sentence before this is built.
-- **Sites created today already have a known default.** `wiring.ts:121` falls back to
-  `DEFAULT_OWNER_PASSWORD` when the env var is unset, and `apps/desktop` sets neither — so **every
-  site this shell has created so far is seeded with the shipped default owner password.** That is a
-  pre-existing finding, not something this design introduces, and option A improves it. Worth
-  raising on its own.
+**Correction 1 — the separate-username idea is dead, and it was dangerous.** I claimed above that
+seeding a distinct owner username (`tovu-desktop`) would cover already-seeded sites too, because
+`seedIdentity`'s early return is keyed on the username (`seed.js:178-185`). That read is accurate
+and the conclusion was still wrong. **Past** that early return, `seedIdentity` calls
+`seedBuiltinRoleWithPolicy`, which re-INSERTs the built-in roles and dies
+`UNIQUE constraint failed: roles.workspace_id, roles.name` on any site that already has them. The
+rejection reaches the boot-readiness gate and the observable damage is worse than a login form:
 
-### Option B — server-side loopback boot token. Cleaner, but out of bounds.
+```
+[cli/serve] a boot-readiness promise rejected — not starting the agent daemon
+SqliteError: UNIQUE constraint failed: roles.workspace_id, roles.name
+    at seedBuiltinRoleWithPolicy (Jini/packages/cms/src/identity/seed.ts:189:26)
+    at seedIdentity            (Jini/packages/cms/src/identity/seed.ts:269:41)
+```
+
+The site still serves, so nothing looks broken — but its assistant is silently dead. This is a
+**latent defect in `@jini-ai/cms`**, independent of this port: any host that changes
+`TOVU_ADMIN_USER` on an existing install hits it. Reported, not routed around. The username is back
+to Tovu's own default and a test pins it there with the reason.
+
+**Correction 2 — the honest scope is narrower than "no sign-in, ever".** It is **"no sign-in for a
+site the shell seeds"**, which is every site created through the app. A folder already seeded by
+someone else keeps its own owner password, `seedIdentity` takes its early return, login answers 401,
+and the operator sees the ordinary login form. That fallback is implemented and deliberate. Covering
+already-seeded folders needs option B below, which is outside `apps/desktop`.
+
+### What was actually built
+
+`apps/desktop/src/desktop-auth.cjs` plus wiring in `tovu-server.cjs` and `main.cjs`. **Zero files
+outside `apps/desktop/`.** Four things the implementation forced that the design above did not
+anticipate:
+
+- **The credential lives in the SITE DIR (`.tovu-desktop-auth.json`, 0600), not `userData`.** The
+  first version used `userData` and that was wrong twice over. Durability: the seeded credential
+  lives in the site's own database, so a cleared profile orphans it permanently — the shell would
+  mint new passwords forever and idempotent seeding would never apply them, leaving that site
+  un-loginable by the desktop path with no way back. Portability: a copied site folder keeps
+  working. The file's LOCATION is its binding, which is also why nothing re-checks a path stored
+  inside it — that would break the moment an operator renamed their site folder, and there is a
+  test for exactly that rename.
+- **Encryption is defense-in-depth, not the control.** `safeStorage` is used when available and the
+  file falls back to 0600 plaintext when it is not — measured: `isEncryptionAvailable()` is `true`
+  under a real macOS `HOME` and `false` under a scratch one, which is how the E2E suite runs, so
+  the first version silently no-opped in every test. The fallback is acceptable because the secret
+  guards an owner login to a loopback-only server whose entire contents sit unencrypted in
+  `content.db` in that same directory: anyone who can read the file can already read the database it
+  protects. What `safeStorage` still buys is that a backup or cloud-sync copy carries ciphertext.
+- **One Electron session partition per site.** Cookies ignore PORT, so every own-server site
+  otherwise shares `127.0.0.1`'s single cookie jar — site A's `tovu_session` would be sent to site
+  B's server and B's login would overwrite A's. A **multi-site correctness bug that predates the
+  auth work** and would have bitten the moment two sites were open with any cookie at all.
+- **An exported `TOVU_ADMIN_PASSWORD` is honored as-is, not overridden and not skipped.** The first
+  version treated an ambient value as a reason to SKIP seeding, on a rule copied from
+  `TOVU_AGENT_DAEMON_TOKEN`. This machine has that variable exported (a known trap in this repo's
+  own test tooling) and `TOVU_ADMIN_USER` unset, so the child seeded `admin` with the operator's
+  password while the shell logged in with a different one — a guaranteed 401 and a wasted E2E run.
+  The two are a PAIR; half of one intent plus half of another is broken, not conservative.
+
+Two smaller ones: `signInDesktopSession` is `async` so the loopback guard REJECTS rather than
+throwing synchronously (a trap for any `.catch()` caller, and that throw IS the security guard); and
+`net.request({session, useSessionCookies: true})` is used rather than parsing `Set-Cookie`, so
+Chromium stores the cookie exactly as it would for a real navigation — dropping `useSessionCookies`
+makes the whole mechanism a silent no-op, so a test is pinned to it.
+
+### Option B — server-side loopback boot token. Cleaner, but was not needed.
 
 `tovu serve` mints a single-use, short-TTL, loopback-only token at boot, writes it `0600` into the
 site dir, and a new route exchanges it for a session. Strictly better: no long-lived stored
 password, works on already-seeded sites, and the trust root is the filesystem permission on a file
 only this user can read.
 
-It requires editing `apps/website/src/cli/commands/serve.ts` and adding an auth route — **outside
-`apps/desktop/`, so it breaks the deletable-in-place invariant.** Per instruction I have stopped
-rather than started it. This is Leona's call, not mine.
+It requires editing `apps/website/src/cli/commands/serve.ts` and adding an auth route — outside
+`apps/desktop/`. **Not built. It is now the ONLY route to covering already-seeded site folders**,
+since correction 1 above killed the in-directory way of doing that. Needed if "just comes up" has to
+hold for folders the shell did not create — including, most likely, `sites/tovu-com` on Leona's own
+machine. Flagged for a decision rather than started.
 
 ### Rejected
 

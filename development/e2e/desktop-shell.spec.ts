@@ -183,4 +183,73 @@ test.describe("apps/desktop shell", () => {
       await app.close().catch(() => {});
     }
   });
+
+  test("a site created through the shell comes up AUTHENTICATED — no login form", async () => {
+    /**
+     * The desktop app must just come up. `apps/desktop/src/desktop-auth.cjs` seeds the site it
+     * spawns with its own generated owner password and logs in over loopback before the window
+     * loads, so the session cookie is already in that window's own jar by the time the admin's
+     * first request goes out.
+     *
+     * **This creates a NEW site rather than reusing a fixture, and that is the honest test.** The
+     * mechanism covers sites the shell SEEDS. A site folder already seeded by someone else keeps
+     * its existing owner password — `seedIdentity` returns early on that — so it still shows the
+     * login form by design, and asserting otherwise against a shared fixture would either fail
+     * forever or quietly depend on which test had run first.
+     *
+     * The load-bearing assertion is `GET /api/admin/v1/auth/me` **from inside the page**, not from
+     * the test runner. That is the real gate — `requireAdminSession` -> `validateSession` against a
+     * real `sessions` row — reached through the window's real cookie jar. A check for the absence
+     * of a login form would pass just as happily against a blank page, an error page, or an admin
+     * that had not finished booting; a 200 naming the principal cannot.
+     */
+    const existing = path.join(REPO_ROOT, "..", "tovu-desktop-test-sites", "site-alpha");
+    test.skip(!fs.existsSync(path.join(existing, "config.json")), `fixture site missing at ${existing}`);
+    const target = emptySiteFolder("authenticated");
+
+    const app = await launchShell({
+      HOME: scratchHome("authenticated-home"),
+      TOVU_DESKTOP_SITE_DIR: existing,
+      // An exported owner password is honored as-is by `ensureSiteCredential`, which would make
+      // this assert against the developer's shell rather than the shell's own generated secret.
+      TOVU_ADMIN_PASSWORD: "",
+    });
+    try {
+      const first = await app.firstWindow({ timeout: 150_000 });
+      await first.waitForLoadState("domcontentloaded");
+
+      await app.evaluate(async ({ dialog, Menu }, chosen) => {
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [chosen] });
+        const item = Menu.getApplicationMenu()
+          ?.items.find((i: { label: string }) => i.label === "File")
+          ?.submenu?.items.find((i: { label: string }) => i.label === "Open Site…");
+        if (!item) throw new Error("File > 'Open Site…' not found in the application menu");
+        item.click();
+      }, target);
+
+      await expect.poll(() => app.windows().length, { timeout: 150_000 }).toBe(2);
+      const opened = app.windows().find((w) => w !== first);
+      if (!opened) throw new Error("no second window");
+      await opened.waitForLoadState("domcontentloaded");
+
+      // The shell recorded a credential beside the site's own database, not under userData — so a
+      // cleared profile cannot orphan the owner it just seeded.
+      expect(fs.existsSync(path.join(target, ".tovu-desktop-auth.json"))).toBe(true);
+
+      const me = await opened.evaluate(async () => {
+        const response = await fetch("/api/admin/v1/auth/me", { credentials: "include" });
+        return { status: response.status, body: response.ok ? await response.json() : null };
+      });
+
+      expect(me.status, "the admin window is not authenticated — a login form is what the user sees").toBe(200);
+      expect(me.body?.user?.username).toBe("admin");
+      // Arrived authenticated, not unauthenticated-but-ungated: RBAC still resolves real grants.
+      expect(Array.isArray(me.body?.effectivePermissions)).toBe(true);
+      expect(me.body.effectivePermissions.length).toBeGreaterThan(0);
+
+      expect(await opened.locator('input[type="password"]').count()).toBe(0);
+    } finally {
+      await app.close();
+    }
+  });
 });
