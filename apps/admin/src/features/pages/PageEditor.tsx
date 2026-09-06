@@ -51,41 +51,20 @@ const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
 ];
 
 /**
- * The editor header's action row — back link, save status, the publish/save/delete buttons.
+ * The editor header — the back link on the left and the kicker/title/description block, and since
+ * the 2026-09-06 layout experiment nothing else: the save status, status select and the
+ * publish/save/delete buttons moved out to `PageEditorActions` below the toolbar.
  *
- * Extracted out of `PageEditor` because this is where nearly all of that component's branching
- * lived: the message/error spans, the publish button's conditional render, the save button's
- * className, and its "Saving…"/"Save •"/"Save" label are five independent decisions that don't
- * depend on the preview/HTML body below them. As a top-level function its branches are scored in
- * their own scope instead of accumulating onto `PageEditor`'s — same split as
- * `features/posts/PostEditor.tsx`'s `PostEditorHeader`.
+ * That move took this component's branching with it, so the extraction note this doc used to carry
+ * now belongs to `PageEditorActions` instead — see there. What is left here is inert markup plus
+ * the one unsaved-work guard on the back link, which is why `dirty` is the only prop that stayed.
  */
-function PageEditorHeader({
-  dirty,
-  message,
-  error,
-  status,
-  setStatus,
-  saving,
-  onPublish,
-  onSave,
-  onDeleteClick,
-}: {
-  dirty: boolean;
-  message: string | null;
-  error: string | null;
-  status: "draft" | "published";
-  setStatus: (value: "draft" | "published") => void;
-  saving: boolean;
-  onPublish: () => void;
-  onSave: () => void;
-  onDeleteClick: () => void;
-}) {
+function PageEditorHeader({ dirty }: { dirty: boolean }) {
   return (
     // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
-    // 2026-09-06 layout experiment: back link alone at the far left, title block centred, actions
-    // still right. Reverting the experiment is removing this one class and moving the `<a>` below
-    // back inside `.page-actions` — nothing else here depends on the arrangement.
+    // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
+    // header's right rail deliberately left EMPTY now that the actions live below the toolbar —
+    // see that modifier's own comment for why the empty rail has to stay reserved.
     <div className="page-header page-header-split">
       {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
           visually, so tab order and the reading order match what is on screen. */}
@@ -112,30 +91,69 @@ function PageEditorHeader({
           Ask the assistant to build this page, or edit the HTML directly.
         </p>
       </div>
-      <div className="page-actions">
-        {message ? <span className="save-ok">{message}</span> : null}
-        {error ? <span className="save-error">{error}</span> : null}
-        <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-        {status === "draft" ? (
-          <button type="button" onClick={onPublish} disabled={saving}>
-            Publish
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={status === "draft" ? "btn-secondary" : undefined}
-          onClick={onSave}
-          disabled={saving}
-        >
-          {saving ? "Saving…" : dirty ? "Save •" : "Save"}
+    </div>
+  );
+}
+
+/**
+ * The status select, save feedback and the publish/save/delete buttons — their own row, below the
+ * view/device toolbar rather than in the header (owner request, 2026-09-06: "put the published save
+ * and delete buttons under the gray desktop/tablet/mobile row").
+ *
+ * This is where `PageEditorHeader`'s branching went when the controls moved: the message/error
+ * spans, the publish button's conditional render, the save button's className, and its
+ * "Saving…"/"Save •"/"Save" label are five independent decisions, and as a top-level function they
+ * are scored in their own scope instead of accumulating onto `PageEditor`'s or the header's.
+ *
+ * `.editor-action-row` (`styles.css`) is shared with `features/posts/PostEditor.tsx`'s own
+ * `PostEditorActions`; the two components are NOT merged, because that one's copy runs through `t`
+ * and every control carries an `agentHandle` tag, neither of which this screen has.
+ */
+function PageEditorActions({
+  dirty,
+  message,
+  error,
+  status,
+  setStatus,
+  saving,
+  onPublish,
+  onSave,
+  onDeleteClick,
+}: {
+  dirty: boolean;
+  message: string | null;
+  error: string | null;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  saving: boolean;
+  onPublish: () => void;
+  onSave: () => void;
+  onDeleteClick: () => void;
+}) {
+  return (
+    <div className="editor-action-row">
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? <span className="save-error">{error}</span> : null}
+      <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+      {status === "draft" ? (
+        <button type="button" onClick={onPublish} disabled={saving}>
+          Publish
         </button>
-        <button type="button" className="btn-danger" onClick={onDeleteClick}>
-          Delete
-        </button>
-      </div>
+      ) : null}
+      <button
+        type="button"
+        className={status === "draft" ? "btn-secondary" : undefined}
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? "Saving…" : dirty ? "Save •" : "Save"}
+      </button>
+      <button type="button" className="btn-danger" onClick={onDeleteClick}>
+        Delete
+      </button>
     </div>
   );
 }
@@ -272,17 +290,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
   return (
     <div className="page">
-      <PageEditorHeader
-        dirty={dirty}
-        message={message}
-        error={error}
-        status={status}
-        setStatus={setStatus}
-        saving={saving}
-        onPublish={() => save("published")}
-        onSave={() => save()}
-        onDeleteClick={() => setConfirmingDelete(true)}
-      />
+      <PageEditorHeader dirty={dirty} />
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
@@ -346,6 +354,19 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           setTemplateChoice={setTemplateChoice}
         />
       </div>
+
+      {/* Directly under the toolbar, not in the header — see `PageEditorActions`' own doc. */}
+      <PageEditorActions
+        dirty={dirty}
+        message={message}
+        error={error}
+        status={status}
+        setStatus={setStatus}
+        saving={saving}
+        onPublish={() => save("published")}
+        onSave={() => save()}
+        onDeleteClick={() => setConfirmingDelete(true)}
+      />
 
       {view === "preview" ? (
         <PagePreview

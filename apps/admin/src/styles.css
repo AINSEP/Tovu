@@ -854,11 +854,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
 }
-.page-header-split .page-header-lead { display: flex; align-items: center; }
-.page-header-split .page-header-text { align-items: center; text-align: center; }
-/* The rail is a full `1fr` wide, so without this the buttons would sit at its LEFT edge — a third
-   of the way across the header — instead of against the page's right edge. */
-.page-header-split .page-actions { justify-content: flex-end; }
+/* Explicit placement, because the third rail is now EMPTY: the status/Save/Delete group moved out
+   of this header into `.editor-action-row` below. Without pinning the columns, auto-placement would
+   drop these two children into columns 1 and 2 and the title would sit left of centre; naming the
+   columns keeps the unoccupied third rail reserved so the title stays at true centre. */
+.page-header-split .page-header-lead { grid-column: 1; display: flex; align-items: center; }
+.page-header-split .page-header-text { grid-column: 2; align-items: center; text-align: center; }
 
 /* Three columns stop fitting well before the shell's own 900px breakpoint here, because the right
    rail is four controls wide: the title's centre column gets squeezed to its longest word while the
@@ -867,8 +868,50 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    breakpoint, one tier up because this row carries more controls than either of those. */
 @media (max-width: 900px) {
   .page-header-split { grid-template-columns: minmax(0, 1fr); }
-  .page-header-split .page-header-lead,
-  .page-header-split .page-actions { justify-content: center; }
+  .page-header-split .page-header-lead { grid-column: 1; justify-content: center; }
+  .page-header-split .page-header-text { grid-column: 1; }
+}
+
+/* Second half of the same 2026-09-06 experiment (owner: "put the published save and delete buttons
+   under the gray desktop/tablet/mobile row"). The status select, Save and Delete leave the header
+   entirely and become their own row directly beneath `.page-editor-toolbar`. One shared class, both
+   editors, same reasoning as `.page-header-split` above.
+
+   RIGHT-aligned, deliberately, not left. Left-aligning would put `Delete` one row below the
+   `HTML`/`Editor` view tab — a destructive control sitting directly under one an operator clicks
+   constantly, which is exactly the adjacency that produces mis-clicks. Right also keeps these three
+   in the column they have always occupied (the header's right edge, and now the template select's),
+   so the eye still finds them in the same place after the move.
+
+   No background, border or padding of its own: `.page`'s `gap: var(--space-6)` plus the toolbar's
+   own `margin-bottom` already leave ~36px of air above this row, which is what stops it reading as
+   a fourth group inside the toolbar strip rather than a row in its own right. */
+.editor-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Inserting a row between the toolbar and the content pane broke an assumption the pane's own
+   spacing rule was built on. `styles/pages.css`'s `.page > .page-preview-frame` (and
+   `styles/editor.css`'s `.post-editor-pane`) carry `margin-top: calc(-1 * var(--space-6))` to
+   cancel `.page`'s flex gap, because the owner asked for "very minimal space between the toolbar
+   and the content pane" (2026-08-11) and the toolbar's own 0.75rem bottom margin was meant to be
+   the only air left. With this row in between, that -24px stopped closing a toolbar/pane gap and
+   started dragging the pane flush against the Delete button — measured 0px, the frame's border
+   touching the button. Restore the normal gap, but ONLY for the pane that directly follows this
+   row: an adjacent-sibling selector, so Posts' conditional slug-collision warning (which already
+   sat between toolbar and pane before this change) keeps the spacing it always had.
+
+   `.page >` in front is not decoration — it lifts these to (0,3,0) so they beat the (0,2,0) rules
+   they override no matter which stylesheet the bundler emits first. */
+.page > .editor-action-row + .page-preview-frame,
+.page > .editor-action-row + .page-html-source,
+.page > .editor-action-row + .interactive-html-editor,
+.page > .editor-action-row + .post-editor-pane {
+  margin-top: 0;
 }
 
 /* Card — content sits inside a bordered surface with real padding, the quality Settings has and

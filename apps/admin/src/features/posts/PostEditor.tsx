@@ -601,48 +601,37 @@ function BubbleFormattingMenu({ editor }: { editor: Editor }) {
 }
 
 /**
- * The editor header's action row — back link, save status, the publish/save/delete buttons.
+ * The editor header — the back link and the kicker/title/description block, and since the
+ * 2026-09-06 layout experiment nothing else: the save status, status select and the
+ * publish/save/delete buttons moved out to `PostEditorActions` below the toolbar.
  *
- * Extracted out of `PostEditor` because this is where nearly all of that component's branching
- * lived: five independent ternaries (back-link label, the message/error spans, the publish button's
- * conditional render, and the save button's className) that don't depend on each other and don't
- * need to share scope with the body/toolbar markup below them. As a top-level function its own
- * branches are scored in their own scope instead of accumulating onto `PostEditor`'s.
+ * Most of the branching this doc used to describe went with them; see `PostEditorActions`. What
+ * stays is the back link's kind-aware `href`/label pair and its unsaved-work guard, which is why
+ * `kindLabel`, `confirmLeave` and `t` are the props that remained.
  */
 function PostEditorHeader({
   kindLabel,
   confirmLeave,
-  message,
-  error,
-  status,
-  setStatus,
-  onPublish,
-  onSave,
-  onDeleteClick,
   t,
 }: {
   kindLabel: "post" | "page";
   confirmLeave: () => boolean;
-  message: string | null;
-  error: string | null;
-  status: "draft" | "published";
-  setStatus: (value: "draft" | "published") => void;
-  onPublish: () => void;
-  onSave: () => void;
-  onDeleteClick: () => void;
   t: Translate;
 }) {
   return (
     // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
     // 2026-09-06 layout experiment, applied to BOTH editors rather than only Pages: these two
     // headers are the same row rendered by two components, and an operator moving between a post
-    // and a page would otherwise find the back link jumping sides. Reverting is removing the one
-    // class and moving the `<a>` below back inside `.page-actions`.
+    // and a page would otherwise find the back link jumping sides. The header's right rail is
+    // deliberately EMPTY now that the actions live below the toolbar — see that modifier's own
+    // comment for why the empty rail has to stay reserved.
     <div
       className="page-header page-header-split"
       {...agentHandle("post-header", {
         role: "region",
-        label: "Editor header — back link, save status, publish state and the Save button",
+        label:
+          "Editor header — the back link and the post/page title. Save, Delete and the " +
+          "Draft/Published field are NOT here: they are in the action row below the view toolbar.",
       })}
     >
       {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
@@ -684,67 +673,112 @@ function PostEditorHeader({
           )}
         </p>
       </div>
-      <div className="page-actions">
-        {message ? <span className="save-ok">{message}</span> : null}
-        {error ? <span className="save-error">{error}</span> : null}
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-          {...agentHandle("post-status", {
-            role: "field",
-            label:
-              "Whether this post is a draft or published — set with page.select_option, not click. " +
-              "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
-              "NOT the same as Delete, which moves the whole entry to the trash.",
-          })}
-        >
-          <option value="draft">{t("Draft")}</option>
-          <option value="published">{t("Published")}</option>
-        </select>
-        {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
-            while there is something to publish — once `status` is already "published" (matching
-            `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
-            already-draft row rather than showing it disabled) it disappears rather than
-            rendering disabled with nothing left to do, and plain Save takes over as the primary
-            action. The status select still covers the reverse direction (unpublish), unchanged. */}
-        {status === "draft" ? (
-          <button
-            type="button"
-            onClick={onPublish}
-            {...agentHandle("post-publish", {
-              role: "button",
-              label:
-                "Publish this post/page immediately — saves the current title, slug and body and " +
-                "sets status to Published in one action. Only shown while the post is a draft; once " +
-                "published, use Save for further edits.",
-            })}
-          >
-            {t("Publish")}
-          </button>
-        ) : null}
+    </div>
+  );
+}
+
+/**
+ * The status select, save feedback and the publish/save/delete buttons — their own row, below the
+ * view/template toolbar rather than in the header (owner request, 2026-09-06: "put the published
+ * save and delete buttons under the gray desktop/tablet/mobile row").
+ *
+ * This is where most of `PostEditorHeader`'s branching went when the controls moved: the
+ * message/error spans, the publish button's conditional render, and the save button's className.
+ * As a top-level function they are scored in their own scope instead of accumulating onto
+ * `PostEditor`'s or the header's.
+ *
+ * `.editor-action-row` (`styles.css`) is shared with `features/pages/PageEditor.tsx`'s own
+ * `PageEditorActions`, but the two components are deliberately NOT merged: this one's copy runs
+ * through `t` and every control carries an `agentHandle` tag, and Pages' has neither — a shared
+ * component would have to make both optional, which is more machinery than the two small siblings
+ * it would replace.
+ */
+function PostEditorActions({
+  message,
+  error,
+  status,
+  setStatus,
+  onPublish,
+  onSave,
+  onDeleteClick,
+  t,
+}: {
+  message: string | null;
+  error: string | null;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  onPublish: () => void;
+  onSave: () => void;
+  onDeleteClick: () => void;
+  t: Translate;
+}) {
+  return (
+    <div
+      className="editor-action-row"
+      {...agentHandle("post-actions", {
+        role: "region",
+        label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
+      })}
+    >
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? <span className="save-error">{error}</span> : null}
+      <select
+        value={status}
+        onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+        {...agentHandle("post-status", {
+          role: "field",
+          label:
+            "Whether this post is a draft or published — set with page.select_option, not click. " +
+            "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+            "NOT the same as Delete, which moves the whole entry to the trash.",
+        })}
+      >
+        <option value="draft">{t("Draft")}</option>
+        <option value="published">{t("Published")}</option>
+      </select>
+      {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
+          while there is something to publish — once `status` is already "published" (matching
+          `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
+          already-draft row rather than showing it disabled) it disappears rather than
+          rendering disabled with nothing left to do, and plain Save takes over as the primary
+          action. The status select still covers the reverse direction (unpublish), unchanged. */}
+      {status === "draft" ? (
         <button
           type="button"
-          className={status === "draft" ? "btn-secondary" : undefined}
-          onClick={onSave}
-          {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
-        >
-          {t("Save")}
-        </button>
-        <button
-          type="button"
-          className="btn-danger"
-          onClick={onDeleteClick}
-          {...agentHandle("post-delete", {
+          onClick={onPublish}
+          {...agentHandle("post-publish", {
             role: "button",
             label:
-              "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
-              "field above): the entry disappears from every list and the site. Asks for confirmation " +
-              "before deleting.",
+              "Publish this post/page immediately — saves the current title, slug and body and " +
+              "sets status to Published in one action. Only shown while the post is a draft; once " +
+              "published, use Save for further edits.",
           })}
         >
-          {t("Delete")}
+          {t("Publish")}
         </button>
-      </div>
+      ) : null}
+      <button
+        type="button"
+        className={status === "draft" ? "btn-secondary" : undefined}
+        onClick={onSave}
+        {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
+      >
+        {t("Save")}
+      </button>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={onDeleteClick}
+        {...agentHandle("post-delete", {
+          role: "button",
+          label:
+            "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
+            "field beside it): the entry disappears from every list and the site. Asks for " +
+            "confirmation before deleting.",
+        })}
+      >
+        {t("Delete")}
+      </button>
     </div>
   );
 }
@@ -1121,18 +1155,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
 
   return (
     <div className="page">
-      <PostEditorHeader
-        kindLabel={kindLabel}
-        confirmLeave={confirmLeave}
-        message={message}
-        error={error}
-        status={status}
-        setStatus={setStatus}
-        onPublish={onPublish}
-        onSave={onSave}
-        onDeleteClick={onDeleteClick}
-        t={t}
-      />
+      <PostEditorHeader kindLabel={kindLabel} confirmLeave={confirmLeave} t={t} />
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
           the bare `type="text"` announcement (slug, which had no placeholder either). The
           wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
@@ -1221,6 +1244,20 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           t={t}
         />
       </div>
+
+      {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
+          ABOVE the slug-collision warning so the row keeps the position the owner asked for
+          (immediately below the toolbar) whether or not that conditional notice is showing. */}
+      <PostEditorActions
+        message={message}
+        error={error}
+        status={status}
+        setStatus={setStatus}
+        onPublish={onPublish}
+        onSave={onSave}
+        onDeleteClick={onDeleteClick}
+        t={t}
+      />
       {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
           contract and history this extracts. */}
       <PostEditorSlugCollisionWarning
