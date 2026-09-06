@@ -201,10 +201,27 @@ beforeEach(() => {
   sitemapModalRef.current = sitemapModalController();
 });
 
-function renderSeo(overrides: Partial<SeoController> = {}) {
+/**
+ * `tabId` was added when this screen became three `?tab=` tabs (2026-09-06). It is the same value
+ * `panels.tsx` threads in from the query string, and it defaults to `undefined` — which
+ * `resolveSeoTabId` resolves to the first tab, "defaults" — so every test about the site-wide
+ * settings form reads exactly as it did before and needed no change.
+ *
+ * The suites below that exercise the sitemap actions or the per-entry panel now pass the tab their
+ * subject actually lives on. That is a real assertion, not just plumbing: passing nothing there
+ * fails, which is the tab system doing its job (an unmounted panel is genuinely absent from the
+ * DOM, not merely hidden — worth knowing, since a `[hidden]`-based tab implementation would leave
+ * these queries passing whether the tabs worked or not).
+ */
+function renderSeo(overrides: Partial<SeoController> = {}, tabId?: string) {
   seoRef.current = seoController(overrides);
-  return render(<Seo />);
+  return render(<Seo tabId={tabId} />);
 }
+
+/** The two site-wide tabs the sitemap and per-entry suites select, named so a reader does not have
+ *  to match a bare string literal against `SEO_TAB_IDS`. */
+const SITEMAP_TAB = "sitemap";
+const ENTRIES_TAB = "entries";
 
 describe("Seo — loading and error states", () => {
   it("shows a loading notice while settings is null and there is no error", () => {
@@ -228,6 +245,73 @@ describe("Seo — loading and error states", () => {
   it("shows the notice banner on success", () => {
     renderSeo({ notice: "Saved." });
     expect(screen.getByText("Saved.")).toBeInTheDocument();
+  });
+});
+
+describe("Seo — tabs", () => {
+  it("renders the three tabs, with Site defaults selected for an absent ?tab=", () => {
+    renderSeo();
+    expect(screen.getByRole("tab", { name: /Site defaults/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Sitemap/ })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /Pages & posts/ })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("selects the tab named by ?tab=", () => {
+    renderSeo({}, SITEMAP_TAB);
+    expect(screen.getByRole("tab", { name: /Sitemap/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Site defaults/ })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("falls back to Site defaults for an unrecognized ?tab= rather than rendering a blank panel", () => {
+    renderSeo({}, "not-a-real-tab");
+    expect(screen.getByRole("tab", { name: /Site defaults/ })).toHaveAttribute("aria-selected", "true");
+    expect(document.querySelector("form.card")).toBeInTheDocument();
+  });
+
+  it("mounts ONLY the active tab's panel — an inactive panel is absent from the DOM, not hidden", () => {
+    renderSeo();
+    // Site defaults is up: its form is present, and neither other panel's content exists at all.
+    expect(document.querySelector("form.card")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Regenerate sitemap" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Entry" })).not.toBeInTheDocument();
+  });
+
+  it("keeps every defaults field inside ONE form, so an uncontrolled FormData submit cannot lose one", () => {
+    // The reason the grouping is expressed as field-group headings inside one tab rather than as
+    // three tabs: `SeoDefaultsTab` reads `new FormData(e.currentTarget)` on submit, and an input on
+    // an unmounted panel would simply be absent from that payload. Pins all seven names together.
+    renderSeo();
+    const form = document.querySelector("form.card") as HTMLFormElement;
+    const names = [...form.querySelectorAll("input[name], textarea[name], select[name]")].map((el) => el.getAttribute("name"));
+    expect(names).toEqual([
+      "titleTemplate",
+      "defaultDescription",
+      "defaultOgImage",
+      "twitterSite",
+      "noindex",
+      "nofollow",
+      "sitemapEnabled",
+    ]);
+  });
+
+  it("the Sitemap tab reports whether a sitemap is published at all, rather than duplicating the switch", () => {
+    renderSeo({ settings: { ...SETTINGS, sitemapEnabled: false } }, SITEMAP_TAB);
+    expect(screen.getByText("This site does not publish a sitemap. Turn it on under Site defaults.")).toBeInTheDocument();
+    // The control itself stays on the defaults form — exactly one switch on the screen.
+    expect(screen.queryByLabelText("Sitemap enabled")).not.toBeInTheDocument();
+  });
+
+  it("every tab panel carries a heading, so a screen reader navigating by heading is not left with H1 alone", () => {
+    // `role="tab"` buttons are not in the heading list, so a panel's own <h2> is the only structure
+    // a heading-navigating reader gets below the page title.
+    renderSeo();
+    expect(document.querySelectorAll("h2").length).toBeGreaterThan(0);
+
+    renderSeo({}, SITEMAP_TAB);
+    expect(screen.getByRole("heading", { name: "Cached sitemap" })).toBeInTheDocument();
+
+    renderSeo({}, ENTRIES_TAB);
+    expect(screen.getByRole("heading", { name: "Per-entry SEO" })).toBeInTheDocument();
   });
 });
 
@@ -371,59 +455,59 @@ describe("Seo — sitemap regenerate", () => {
   it("clicking Regenerate sitemap calls regenerateSitemap", async () => {
     const user = userEvent.setup();
     const regenerateSitemap = vi.fn(async () => true);
-    renderSeo({ regenerateSitemap });
+    renderSeo({ regenerateSitemap }, SITEMAP_TAB);
     await user.click(screen.getByRole("button", { name: "Regenerate sitemap" }));
     expect(regenerateSitemap).toHaveBeenCalledTimes(1);
   });
 
   it("shows 'Working…' and disables the button while saving is true", () => {
-    renderSeo({ saving: true });
+    renderSeo({ saving: true }, SITEMAP_TAB);
     expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
   });
 });
 
 describe("Seo — View sitemap modal", () => {
   it("does not render the sitemap modal when sitemapModalOpen is false", () => {
-    renderSeo({ sitemapModalOpen: false });
+    renderSeo({ sitemapModalOpen: false }, SITEMAP_TAB);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("clicking View sitemap calls openSitemapModal", async () => {
     const user = userEvent.setup();
     const openSitemapModal = vi.fn();
-    renderSeo({ openSitemapModal });
+    renderSeo({ openSitemapModal }, SITEMAP_TAB);
     await user.click(screen.getByRole("button", { name: "View sitemap" }));
     expect(openSitemapModal).toHaveBeenCalledTimes(1);
   });
 
   it("renders the sitemap modal when sitemapModalOpen is true", () => {
-    renderSeo({ sitemapModalOpen: true });
+    renderSeo({ sitemapModalOpen: true }, SITEMAP_TAB);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });
 
 describe("SeoEntrySection / EntryPicker", () => {
   it("renders the EntryPicker with no entry selected initially", () => {
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.getByRole("combobox", { name: "Entry" })).toHaveValue("");
     expect(screen.queryByText("Per-entry overrides")).not.toBeInTheDocument();
   });
 
   it("EntryPicker: shows a loading notice while entries is null", () => {
     entryPickerRef.current = entryPickerController({ entries: null });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.getByText("Loading entries…")).toBeInTheDocument();
   });
 
   it("EntryPicker: shows its own error instead of the select", () => {
     entryPickerRef.current = entryPickerController({ entries: null, error: "failed to load entries" });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.getByText("failed to load entries")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("EntryPicker: lists each entry as '{title} ({status})'", () => {
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.getByRole("option", { name: "My Post (published)" })).toBeInTheDocument();
   });
 
@@ -431,20 +515,20 @@ describe("SeoEntrySection / EntryPicker", () => {
     const user = userEvent.setup();
     const setEntryId = vi.fn();
     seoEntrySectionRef.current = seoEntrySectionController({ setEntryId });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     await user.selectOptions(screen.getByRole("combobox", { name: "Entry" }), "p1");
     expect(setEntryId).toHaveBeenCalledWith("p1");
   });
 
   it("SeoEntryPanel is not rendered when entryId is blank", () => {
     seoEntrySectionRef.current = seoEntrySectionController({ entryId: "" });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.queryByText("Per-entry overrides")).not.toBeInTheDocument();
   });
 
   it("SeoEntryPanel renders once entryId is set", () => {
     seoEntrySectionRef.current = seoEntrySectionController({ entryId: "p1" });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
     expect(screen.getByText("Per-entry overrides")).toBeInTheDocument();
   });
 });
@@ -453,7 +537,7 @@ describe("SeoEntryPanel", () => {
   function renderPanel(overrides: Partial<SeoEntryPanelController> = {}) {
     seoEntrySectionRef.current = seoEntrySectionController({ entryId: "p1" });
     seoEntryPanelRef.current = seoEntryPanelController(overrides);
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
   }
 
   it("shows a loading notice while resolved is null and there is no loadError", () => {
@@ -648,7 +732,7 @@ describe("SeoEntryPanel — OG/Twitter image pickers (MediaRefField)", () => {
   function renderPanel(overrides: Partial<SeoEntryPanelController> = {}) {
     seoEntrySectionRef.current = seoEntrySectionController({ entryId: "p1" });
     seoEntryPanelRef.current = seoEntryPanelController(overrides);
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
   }
 
   function fieldContainer(labelText: string): HTMLElement {
@@ -700,7 +784,7 @@ describe("AnalyzePanel (reached via SeoEntryPanel's analysis)", () => {
   function renderWithAnalysis(analysis: SeoEntryAnalysis | null) {
     seoEntrySectionRef.current = seoEntrySectionController({ entryId: "p1" });
     seoEntryPanelRef.current = seoEntryPanelController({ analysis });
-    renderSeo();
+    renderSeo({}, ENTRIES_TAB);
   }
 
   it("renders the score", () => {

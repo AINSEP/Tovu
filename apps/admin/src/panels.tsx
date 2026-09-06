@@ -955,7 +955,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Marketing ---
   {
     id: "seo",
-    render: () => <Seo />,
+    // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
+    // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
+    // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
+    render: (ctx) => <Seo tabId={ctx.query.get("tab")} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
