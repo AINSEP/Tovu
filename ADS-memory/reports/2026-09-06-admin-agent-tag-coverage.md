@@ -169,6 +169,128 @@ sample, actually clicked or focused the real element:
 - **Widgets** (`/admin/widgets`) — 9 tags found live including two real per-row handles (`widgets-row-<uuid>-edit`, `widgets-row-<uuid>-trash-or-purge`) against actual seeded widget rows, confirming `buildAgentListHandles` produces working handles against real ids, not just test fixtures.
 - **Comments** (`/admin/comments`) — `comments-status-filter`, `comments-settings-enabled`, `comments-settings-save` all present and resolve to the real `<select>`/`<input>`/`<button>`.
 
+## Phase 4 — successor session (2026-09-06, continued)
+
+Scope: `ai-assistant` (never opened), `media` (never audited), and a real read-through of the 8
+"likely OK" screens the predecessor only spot-checked by `agentHandle` count: sites, collections,
+taxonomy, forms, users, deployment, source-control, access-tokens.
+
+**ai-assistant** — never opened before this pass. Read in full (1052 lines). Every Tovu-owned plain
+control now tagged: the admin-dock show/hide checkbox, the three `AdminByokKeyPanel` sub-components
+(`AdminByokMigrationPrompt`/`AdminByokKeyFooter`/`AdminByokSettingsFooter` — all three already had an
+**optional** `agentHandle` pass-through prop that neither `AiAssistant.tsx` NOR `SettingsUi.tsx`'s own
+mount was passing; fixed here for `AiAssistant.tsx` only, flagging `SettingsUi.tsx`'s identical gap
+below rather than touching a screen marked done), the daemon Restart/Check status buttons, and the
+visitor tab's enable checkbox plus Save key/Test Key/Save settings buttons. **Structural, not fixed**:
+`ExecutionTab`, `ByokProviderForm`, `ProviderChipGroup`, `SettingsDialogShell` (all `@jini-ai/ui`) have
+zero `agentHandle` support in Jini — same class of gap as Settings' 11 Jini-mounted tabs. Verified: 61
+tests green (`AiAssistant`/`AdminExecutionMode`/`AssistantDaemonRestart`/`VisitorCredentialForm`
+suites), 0 lint errors. Commit: `978a7ca3`. Status: **done** (Tovu-owned surface).
+
+**media** — never audited before this pass (landed via a different agent, `04806e6b`). Read in full
+(1017 lines): every control was ALREADY correctly tagged except one — `MediaPurgeDialog`'s
+`ConfirmDialog` had no `agentHandle`, the same systemic gap the predecessor found and partially fixed
+elsewhere. Fixed. `media-providers` tab mounts `@jini-ai/ui`'s `MediaProvidersTab`, zero `agentHandle`
+support — same structural Jini gap, not fixed. Verified: 28 tests green, 0 lint errors. Commit:
+`935762a5`. Status: **done**.
+
+**8 "likely OK" screens — real read-through, not a re-count:**
+
+- **sites** (`Sites.tsx`, `AllSitesTab.tsx`, `CreateSiteOnboarding.tsx`) — read in full. One real gap:
+  the empty-state's "New site" `<a>` link had no handle. Fixed. `CreateSiteOnboarding.tsx`'s Supabase/
+  Custom vendor fields and the SQLite radio are permanently non-interactive by design (Postgres-at-
+  creation is cancelled per standing decision) — correctly left untagged, matching the Authentication
+  screen's own precedent. Commit: `273b43cb`. Status: **done**.
+- **collections** (`Collections.tsx`, `CollectionEntries.tsx`, `CollectionEntryEditor.tsx`) — read in
+  full. Two gaps: the entries list's "Collections" breadcrumb link, and `WidgetEmbedInsertControl`
+  (`lib/widget-embed-extension.tsx`, shared with the off-limits `PostEditor.tsx`) never threaded its
+  own optional `agentHandle` through to `WidgetAddControl`. Fixed both — the shared file's prop was
+  added as a new optional field so `PostEditor.tsx`'s existing call site is byte-for-byte unaffected
+  (confirmed via `tsc --noEmit`: zero new errors anywhere, including that file). `Collections.tsx`
+  itself and its three dialogs (New content type / Edit fields / Lifecycle confirm) were already fully
+  tagged. Verified: 297 tests green across all 15 collections + widget-embed suites. Commit: `273b43cb`.
+  Status: **done**.
+- **taxonomy** (`Taxonomy.tsx`) — read in full, 828 lines. No gap found — every form, `RowMenu`, and
+  both `ConfirmDialog`s were already correctly tagged. Status: **done, confirmed**.
+- **forms** (`FormsList.tsx`, `FormEditor.tsx`) — read in full, ~1000 combined lines including the
+  field-attributes dialog and submissions detail view. No gap found. Status: **done, confirmed**.
+- **users** (`Users.tsx`) — read in full, 887 lines. No gap found (the original spot-check's
+  interactive-vs-tagged count heuristic flagged an 18-vs-17 delta; on a full read every real control,
+  including both `ConfirmDialog`s and the reveal-toggle password fields, was already tagged — a false
+  positive from the counting heuristic itself, not a real hole). Status: **done, confirmed**.
+- **deployment** (`Deployment.tsx` + `OverviewTab`/`StaticSiteTab`/`FullSiteTab`/`DockerfileTab`/
+  `HistoryTab`) — read in full, ~2000 combined lines, the largest feature in this sweep. Only two gaps
+  in the entire feature, both in `StaticSiteTab.tsx`: the provider "Create a token" external link, and
+  the completed-publish-run's live-site result link. Fixed. Verified: 100/100 `StaticSiteTab` tests
+  green, 0 lint errors. Commit: `34a69401`. Status: **done**.
+- **source-control** (`SourceControl.tsx`, `ProvidersTab.tsx`) — read in full. One gap: the same
+  "Create a token" external-link pattern `StaticSiteTab.tsx` had. Fixed (commit `c84559e8`, bundled
+  with the security fixes below since they landed in the same pass). Status: **done**.
+- **access-tokens** / Security (`Security.tsx`, `AccessTokensTab.tsx`, `OtherCredentialsSection.tsx`)
+  — read in full, ~1100 combined lines. **Real gap found**: the shared `TokenInputFields` component's
+  token/accountId/username inputs had NO `agentHandle` at all — only the sibling `Name` field in the
+  same component did, unlike the two other implementations of this identical pattern
+  (`StaticSiteTab.tsx`'s `PublishCredentialFields`, `ProvidersTab.tsx`'s
+  `SourceControlCredentialFields`), both of which already tag their token fields. Also found and
+  fixed a Tier1-vs-Tier2 inconsistency: Tier 2's (`OtherCredentialsSection.tsx`) "Remove from Tovu"
+  trigger buttons were already tagged (only the destructive Confirm *inside* the dialog is
+  deliberately untagged, per that file's own doc comment on the boundary), but Tier 1's
+  (`AccessTokensTab.tsx`) equivalent trigger was not — fixed for consistency. Every Cancel button
+  across both tiers' four dialogs was also untagged with no documented reason (unlike every other
+  screen in this admin, which tags Cancel) — fixed all four. Also fixed the "Create a token"/"Revoke
+  it on…" external links and `OtherCredentialsSection.tsx`'s `DeepLink` ("Manage on…") control, which
+  had none across all three of its render states (unconfigured placeholder, static, replaceable).
+  **Deliberately left alone, confirmed correct**: the destructive Confirm/Remove buttons inside both
+  tiers' native `<dialog>`s (Tier 1's `RemoveConfirmDialog`, Tier 2's `OtherCredentialRemoveDialog`),
+  and `OtherCredentialReplaceableRow`'s disabled masked-value preview field — both are explicitly
+  documented, deliberate security boundaries ("no agent read/act surface over a credential action"),
+  not oversights, and were NOT touched. Verified: 300 tests green across all 10 security suites, 0
+  lint errors. Commit: `c84559e8`. Status: **done**.
+
+**ConfirmDialog outstanding-11 resolved**: re-audited the full repo-wide `<ConfirmDialog` list (21
+call sites, confirmed via fresh `grep`). 14 already carried `agentHandle` before this pass. Of the
+remaining 7: **6 are in off-limits files** (`App.tsx` — global shell chrome, not a nav page, flagged
+as a bonus finding, not fixed; `posts/PostEditor.tsx`, `posts/Posts.tsx`, `pages/PageEditor.tsx`,
+`pages/Pages.tsx` — excluded per dispatch; `menus/Menus.tsx` — Leona's own uncommitted work). **The
+7th, `media/Media.tsx`'s `MediaPurgeDialog`, was the only one in scope** — fixed above. The "find and
+fix the remaining 11" instruction in the dispatch appears to have overcounted; the actual remaining,
+in-scope count was 1.
+
+**Structural/cross-repo gap now also found on `settings/SettingsUi.tsx`** (not fixed — that screen is
+marked done and off this pass's scope): it mounts the SAME `AdminByokMigrationPrompt`/
+`AdminByokKeyFooter`/`AdminByokSettingsFooter` trio `AiAssistant.tsx` does, and its own call sites
+(`SettingsUi.tsx:309,329,330`) also don't pass the optional `agentHandle` prop those three components
+have always accepted. One-line-per-call-site fix, same shape as this session's `AiAssistant.tsx` fix —
+flagging for a future pass rather than touching a screen the predecessor already marked complete.
+
+### Live verification (2026-09-06, via `https://localhost:5173/admin/`)
+
+Driven with Playwright in a dedicated tab, `:5173` only (never `:3000`), `location.href` and viewport
+asserted on every navigation. Queried the live DOM for `data-agent-element`/`data-agent-role`/
+`data-agent-label` and clicked/focused real elements — grep was not accepted as proof:
+
+- **AI Assistant** (`/admin/ai-assistant`) — `ai-assistant-admin-dock-toggle` resolves to the real
+  checkbox; **clicked** it and confirmed the dock opened. `ai-assistant-daemon-restart`/`-check-status`
+  present on the Admin tab. Switched to the Visitor tab live (`ai-assistant-visitor-enable` checkbox
+  present); `ai-assistant-visitor-save-key`/`-test-key` resolve to real buttons inside the Jini
+  `ByokProviderForm`'s `apiKeyFooter` slot — confirming the slot-injection approach actually reaches
+  the DOM, not just compiles.
+- **Media** (`/admin/media`) — uploaded nothing (read-only per house rules); confirmed
+  `media-tab-all`/`media-tab-images`/`media-tab-videos` all present and **clicked** through each;
+  `media-upload-toolbar`/`media-upload-file`/`media-upload-alt`/`media-upload-submit` all resolve to
+  real elements.
+- **Security → Access Tokens** (`/admin/access-tokens`) — clicked "+ Add" on a Tier 1 provider group
+  (GitHub) to open its add form; verified `security-add-token-name`-shaped and the newly-added
+  `security-add-tovu-github-token`/`-account`/`-username` handles resolve to real, focusable inputs
+  inside `TokenInputFields` (confirms the fix reaches the live DOM, not just the two call sites'
+  source). Did not type a real value into any credential field or press Save (read-only interaction
+  per house rules).
+- **Sites** (`/admin/sites`) — confirmed the existing site card grid renders; did not drive the empty
+  state directly (this repo's dev DB always has at least one site) but confirmed
+  `sites-empty-new-site`'s sibling handles (`sites-create-name`, `sites-create-submit`) on the adjacent
+  "New site" tab resolve correctly, confirming the `agentHandle` import/convention is live on this
+  file.
+
 ## Fix log
 
 - **Placeholder batch (13 pages)** — wired `agentHandle="<sectionId>"` onto every bare `<Placeholder sectionId="X" />` call site in `panels.tsx` (skills, design-system, admin-appearance, plugins-marketplace, orders, products, subscriptions, billing, activity-log, import-export, notifications, trash, newsletter). Mechanical, additive, no DOM restructuring — the prop already existed on `Placeholder`/`ComingSoonNotice` from a prior "Batch 1" shared-component pass (`components/__tests__/agent-handle-batch1.unit.test.tsx`), just never threaded through from `panels.tsx`. Verified: `env -u TOVU_ADMIN_PASSWORD npx vitest run src/components/__tests__/Placeholder.unit.test.tsx src/components/__tests__/agent-handle-batch1.unit.test.tsx src/__tests__/unit/panels-render.unit.test.tsx src/__tests__/unit/app-plugins-route.unit.test.tsx` — 4 files, 95 tests, all green. Commit: `ab5f4b0f`.
@@ -183,3 +305,23 @@ sample, actually clicked or focused the real element:
 - **workspace** — name/slug inputs, Save changes, disabled Delete workspace button. Commit: `b5439d94`. Status: **done**.
 - **integrations** — Add webhook/Cancel toggle, create form (3 inputs + submit), per-row label link. RowMenu/ConfirmDialog were already tagged. Commit: `be0f582a`. Status: **done**.
 - **redirects** — create-redirect form (4 fields + submit, FormData-shaped — attributes only), bulk-import textarea + button, per-row lazy "Load hits" button. RowMenu/ConfirmDialog were already tagged. Verified: 60 hook tests green, 0 lint issues. Commit: `c08155f2`. Status: **done**.
+- **ai-assistant** — full pass, see Phase 4 above. Commit: `978a7ca3`. Status: **done**.
+- **media** — `MediaPurgeDialog`'s `ConfirmDialog` was the one gap; everything else already tagged. Commit: `935762a5`. Status: **done**.
+- **sites** — empty-state "New site" link. Commit: `273b43cb`. Status: **done, verified by full read**.
+- **collections** — breadcrumb link + `WidgetEmbedInsertControl`'s missing `agentHandle` pass-through. Commit: `273b43cb`. Status: **done, verified by full read**.
+- **taxonomy, forms, users** — verified by full read, no gaps found. Status: **done, confirmed**.
+- **deployment** — two external-link gaps in `StaticSiteTab.tsx`; every other file already fully tagged. Commit: `34a69401`. Status: **done, verified by full read**.
+- **source-control** — one external-link gap in `ProvidersTab.tsx`. Commit: `c84559e8`. Status: **done, verified by full read**.
+- **access-tokens / Security** — `TokenInputFields`' missing token/accountId/username handles (the session's largest real find), plus a Tier1/Tier2 trigger-button inconsistency and four untagged Cancel buttons. Destructive Confirm/Remove buttons and the disabled masked-preview field were deliberately left untagged — pre-existing, documented security boundaries, not oversights. Commit: `c84559e8`. Status: **done, verified by full read**.
+
+## Summary at second handoff (2026-09-06, Phase 4 close)
+
+All 8 previously-"spot-check only" screens are now verified by a full line-by-line read, plus
+`ai-assistant` and `media` (the two screens never before opened/audited). Every nav page this sweep
+was ever scoped to touch is now either **done** or **structurally blocked on Jini** (Settings' 11
+tabs, `ai-assistant`'s `ExecutionTab`/`ByokProviderForm`/`ProviderChipGroup`/`SettingsDialogShell`,
+`media`'s `MediaProvidersTab` — all `@jini-ai/ui` components with zero `agentHandle` support). Excluded
+per dispatch and unchanged this session: `seo`, `menus`, `pages`, `posts`. One new flagged-not-fixed
+item: `SettingsUi.tsx`'s own mount of the `AdminByokKeyPanel` trio has the identical unpassed-optional-
+prop gap this session fixed in `AiAssistant.tsx` — a one-line-per-call-site fix for a future pass,
+not touched here since Settings is marked done.
