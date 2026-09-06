@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 
 /**
  * @file Provider-neutral Payments overview for the Commerce admin area.
@@ -71,10 +72,18 @@ export function Payments(): ReactElement {
               Commerce capabilities.
             </p>
             <div className="page-actions">
-              <a className="btn-secondary" href="/admin/products">
+              <a
+                className="btn-secondary"
+                href="/admin/products"
+                {...agentHandle("payments-open-products", { role: "link", label: "Go to Products" })}
+              >
                 Open products
               </a>
-              <a className="btn-secondary" href="/admin/subscriptions">
+              <a
+                className="btn-secondary"
+                href="/admin/subscriptions"
+                {...agentHandle("payments-open-subscriptions", { role: "link", label: "Go to Subscriptions" })}
+              >
                 Open subscriptions
               </a>
             </div>
@@ -94,7 +103,11 @@ export function Payments(): ReactElement {
               plan/execute backend boundary before this screen can operate them.
             </p>
             <div className="page-actions">
-              <a className="btn-secondary" href="/admin/orders">
+              <a
+                className="btn-secondary"
+                href="/admin/orders"
+                {...agentHandle("payments-open-orders", { role: "link", label: "Go to Orders" })}
+              >
                 Open orders
               </a>
             </div>
