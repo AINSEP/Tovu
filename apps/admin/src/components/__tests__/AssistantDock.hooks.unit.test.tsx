@@ -75,6 +75,15 @@ vi.mock("../../hooks/use-admin-locale.hooks", () => ({
   useWiredAdminLocale: mockUseWiredAdminLocale,
 }));
 
+// `useChatsSeam`'s default falls back to `useWiredAssistantChats`, whose real binding is a
+// `fetch`-backed persistence port (`assistant-chats-dependencies.hooks.ts`) — mocked here for the
+// same "assert the default without the real network call" reason as `useWiredAdminLocale` above.
+const mockUseWiredAssistantChats = vi.hoisted(() => vi.fn());
+vi.mock("../../hooks/use-assistant-chats.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../hooks/use-assistant-chats.hooks")>();
+  return { ...actual, useWiredAssistantChats: mockUseWiredAssistantChats };
+});
+
 import {
   resolveRunContext,
   shouldPublishOnMessagesChange,
@@ -83,6 +92,7 @@ import {
   useAttachmentUploader,
   useByokRuntime,
   useChatI18n,
+  useChatsSeam,
   useComposerDiscoverySelect,
   useExecutionConfig,
   useLocalCliSelection,
@@ -90,6 +100,9 @@ import {
   useRunContext,
   useRuntimeAccess,
   useSelectedAgentPlugins,
+  useSelectedPluginChips,
+  useWorkingDirectoryAccess,
+  useWorkingDirectoryAccessSeam,
 } from "../AssistantDock/hooks/AssistantDock.hooks";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -99,7 +112,10 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
-import { projectComposerCapabilities } from "../../features/plugins/composer-capabilities";
+import {
+  emptyComposerCapabilityProjection,
+  projectComposerCapabilities,
+} from "../../features/plugins/composer-capabilities";
 import type { TovuComposerCapability } from "../../features/plugins/composer-capabilities";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
@@ -163,6 +179,7 @@ beforeEach(() => {
   mockIsAgUiTransportEnabled.mockClear().mockReturnValue(false);
   mockNavigate.mockClear();
   mockUseWiredAdminLocale.mockClear().mockReturnValue("en");
+  mockUseWiredAssistantChats.mockClear();
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   settingsRefreshListeners.length = 0;
 });
@@ -344,6 +361,50 @@ describe("useExecutionConfig", () => {
     expect(mockLoadAdminExecutionCredential).not.toHaveBeenCalled();
     expect(result.current.hasStoredAdminKey).toBe(false);
   });
+
+  it("hasStoredAdminKey falls back to false and logs, rather than throwing, when the credential load rejects", async () => {
+    mockLoadAdminExecutionCredential.mockRejectedValue(new Error("credential fetch failed"));
+
+    const { result } = renderHook(() => useExecutionConfig());
+
+    await waitFor(() =>
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[AssistantDock] failed to load stored BYOK credential state",
+        expect.any(Error),
+      ),
+    );
+    expect(result.current.hasStoredAdminKey).toBe(false);
+  });
+
+  it("does not update hasStoredAdminKey after unmount, once a rejected credential load settles late", async () => {
+    let rejectLoad!: (error: Error) => void;
+    mockLoadAdminExecutionCredential.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectLoad = reject;
+      }),
+    );
+
+    const { result, unmount } = renderHook(() => useExecutionConfig());
+    unmount();
+    await act(async () => {
+      rejectLoad(new Error("credential fetch failed"));
+      await Promise.resolve();
+    });
+
+    // The console.error itself is unconditional (see the hook's own doc); only the state write is
+    // cancellation-guarded, so the assertion here is on `hasStoredAdminKey` staying at its
+    // pre-unmount value, not on whether the error was logged.
+    expect(result.current.hasStoredAdminKey).toBe(null);
+  });
+
+  it("setExecutionConfig also accepts a plain value, not only an updater function", () => {
+    const { result } = renderHook(() => useExecutionConfig());
+
+    const next = byokConfig();
+    act(() => result.current.setExecutionConfig(next));
+
+    expect(result.current.executionConfig).toBe(next);
+  });
 });
 
 describe("useByokRuntime", () => {
@@ -397,6 +458,48 @@ describe("useByokRuntime", () => {
     // Nothing to await-and-fail on: the assertion is that this settles at `[]` and never throws
     // into the test, matching the "silent" contract documented on the hook's discovery effect.
     await waitFor(() => expect(listModels).toHaveBeenCalled());
+    expect(result.current.byokRuntime.models).toEqual([]);
+  });
+
+  it("does not update byokModels after unmount, once a successful discovery settles late", async () => {
+    let resolveModels!: (models: string[]) => void;
+    const listModels = vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        resolveModels = resolve;
+      }),
+    );
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+
+    const { result, unmount } = renderHook(() =>
+      useByokRuntime({ executionConfig: byokConfig(), setExecutionConfig: vi.fn() }),
+    );
+    unmount();
+    await act(async () => {
+      resolveModels(["claude-opus-4-5"]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.byokRuntime.models).toEqual([]);
+  });
+
+  it("does not update byokModels after unmount, once a failed discovery settles late", async () => {
+    let rejectModels!: (error: Error) => void;
+    const listModels = vi.fn().mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectModels = reject;
+      }),
+    );
+    mockCreateExecutionPort.mockReturnValue({ listModels } as never);
+
+    const { result, unmount } = renderHook(() =>
+      useByokRuntime({ executionConfig: byokConfig(), setExecutionConfig: vi.fn() }),
+    );
+    unmount();
+    await act(async () => {
+      rejectModels(new Error("401"));
+      await Promise.resolve();
+    });
+
     expect(result.current.byokRuntime.models).toEqual([]);
   });
 
@@ -641,6 +744,25 @@ describe("useLocalCliSelection", () => {
     // The optimistic UI pick itself is not rolled back on a save failure — same posture as
     // `useByokRuntime`'s equivalent test.
     expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+  });
+
+  it("persists a cleared agent (empty agentId) as null, leaving the saved per-agent model map untouched", () => {
+    const config = localCliConfig({ agentId: "claude", modelByAgentId: { claude: "claude-sonnet-5" } });
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result } = renderHook(() =>
+      useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+    );
+
+    // `agentId: ""` is falsy — the same "cleared the picker" shape `ChatPane`'s own selection
+    // model uses when nothing is chosen. `nextAgentId` must become `null` (not `""`), and the
+    // untouched `modelByAgentId` map (not a fresh per-agent write) is what proves the ternary's
+    // false branch, not the true one, is what ran.
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "" }));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ localCli: { agentId: null, modelByAgentId: config.localCli.modelByAgentId } }),
+      config,
+    );
   });
 });
 
@@ -1267,5 +1389,78 @@ describe("useSelectedAgentPlugins", () => {
     act(() => result.current.removePluginRef("never-pinned"));
 
     expect(result.current.selectedPluginRefIds).toEqual([]);
+  });
+});
+
+describe("useSelectedPluginChips", () => {
+  it("labels a pinned ref from the projection when a matching capability exists", () => {
+    const capability: TovuComposerCapability = {
+      groupId: "agent-plugins",
+      groupLabel: "Agent Plugins",
+      item: { id: "ui-ux-design", label: "UI/UX Design" },
+      pluginRefId: "ui-ux-design",
+    };
+    const composerCapabilities = {
+      ...emptyComposerCapabilityProjection(),
+      byPluginRefId: new Map([["ui-ux-design", capability]]),
+    };
+
+    const { result } = renderHook(() => useSelectedPluginChips(["ui-ux-design"], composerCapabilities));
+
+    expect(result.current).toEqual([{ pluginRefId: "ui-ux-design", label: "UI/UX Design" }]);
+  });
+
+  it("falls back to the bare id when the projection has no matching capability — e.g. a stale chip from a catalog that changed shape", () => {
+    const { result } = renderHook(() =>
+      useSelectedPluginChips(["stale-ref"], emptyComposerCapabilityProjection()),
+    );
+
+    expect(result.current).toEqual([{ pluginRefId: "stale-ref", label: "stale-ref" }]);
+  });
+});
+
+describe("useWorkingDirectoryAccess", () => {
+  it("returns undefined on a browser with no native directory picker — jsdom never implements showDirectoryPicker", () => {
+    const { result } = renderHook(() => useWorkingDirectoryAccess());
+
+    expect(result.current).toBeUndefined();
+  });
+});
+
+describe("useWorkingDirectoryAccessSeam", () => {
+  it("defaults to the real useWorkingDirectoryAccess when no override is given", () => {
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("uses the override instead of the real hook when one is given", () => {
+    const fakeAccess = { pickWorkingDirectory: vi.fn() } as never;
+
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(() => fakeAccess));
+
+    expect(result.current).toBe(fakeAccess);
+  });
+});
+
+describe("useChatsSeam", () => {
+  it("defaults to the real useWiredAssistantChats when no override is given", () => {
+    const fakeChats = { activeId: null } as unknown as UseAssistantChats;
+    mockUseWiredAssistantChats.mockReturnValue(fakeChats);
+
+    const { result } = renderHook(() => useChatsSeam(undefined));
+
+    expect(result.current).toBe(fakeChats);
+    expect(mockUseWiredAssistantChats).toHaveBeenCalled();
+  });
+
+  it("uses the override instead of the real hook when one is given", () => {
+    const fakeChats = { activeId: "conv-1" } as unknown as UseAssistantChats;
+    const override = vi.fn(() => fakeChats);
+
+    const { result } = renderHook(() => useChatsSeam(override));
+
+    expect(result.current).toBe(fakeChats);
+    expect(mockUseWiredAssistantChats).not.toHaveBeenCalled();
   });
 });

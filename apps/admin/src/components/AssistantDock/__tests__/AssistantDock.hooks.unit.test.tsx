@@ -1,5 +1,18 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+// Partial mock (`importOriginal`, same pattern `AssistantDock.hooks.unit.test.tsx` uses for
+// `execution-settings`): every existing test in this file needs the REAL bundled projection to
+// keep asserting real group ids, so only `createBundledComposerCapabilitySource` is wrapped in a
+// `vi.fn` — spyable per-test via `mockReturnValueOnce`, calling through to the real implementation
+// everywhere else.
+vi.mock("../../../features/plugins/composer-capabilities", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../features/plugins/composer-capabilities")>();
+  return {
+    ...actual,
+    createBundledComposerCapabilitySource: vi.fn(actual.createBundledComposerCapabilitySource),
+  };
+});
 
 import {
   buildAssistantMcpUiSandboxProxyUrl,
@@ -9,6 +22,10 @@ import {
   useComposerCapabilities,
   useRuntimeAccess,
 } from "../hooks/AssistantDock.hooks";
+import {
+  createBundledComposerCapabilitySource,
+  emptyComposerCapabilityProjection,
+} from "../../../features/plugins/composer-capabilities";
 
 /**
  * @file Regression coverage for the 2026-08-21 owner decision to stop projecting the live
@@ -49,6 +66,45 @@ describe("useComposerCapabilities", () => {
     expect(groupIds).not.toContain("tool-catalog");
     expect(groupIds).toEqual(["regular-plugins", "agent-plugins", "skills", "mcp", "tools"]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the empty catalog and logs, rather than throwing, when the projection rejects", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(createBundledComposerCapabilitySource).mockReturnValueOnce({
+      id: "bundled",
+      list: () => Promise.reject(new Error("bad catalog")),
+    });
+
+    const { result } = renderHook(() => useComposerCapabilities());
+
+    await waitFor(() =>
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[AssistantDock] composer capability projection failed",
+        expect.any(Error),
+      ),
+    );
+    expect(result.current.composerCapabilities).toEqual(emptyComposerCapabilityProjection());
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does not update composerCapabilities after unmount, once a successful projection settles late", async () => {
+    let resolveList!: (capabilities: readonly never[]) => void;
+    vi.mocked(createBundledComposerCapabilitySource).mockReturnValueOnce({
+      id: "bundled",
+      list: () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    });
+
+    const { result, unmount } = renderHook(() => useComposerCapabilities());
+    unmount();
+    await act(async () => {
+      resolveList([]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.composerCapabilities).toEqual(emptyComposerCapabilityProjection());
   });
 });
 
