@@ -145,6 +145,25 @@ export const posts = sqliteTable(
      * module doc for what that follow-up needs.
      */
     memberAccessJson: text("member_access_json"),
+    /**
+     * Standing-draft autosave (2026-09-06 dispatch) — a raw JSON-serialized `PostAutosaveSnapshot`
+     * (`{bodyFormat, bodyJson?, bodyHtml?, slug, baseVersion, savedAt, savedByPrincipalId}`), or
+     * `NULL` when no unsaved edit is currently parked for this row. Nullable, additive, no backfill:
+     * every pre-existing row reads back as `NULL` ("nothing to recover"), mirroring
+     * `seoExtJson`/`templateChoice`/`memberAccessJson`'s identical nullable-no-backfill precedent
+     * above. Written ONLY by `features/post-autosave/`'s own targeted
+     * `UPDATE posts SET autosave_json = ? WHERE id = ? AND workspace_id = ?` — deliberately NEVER
+     * through `createPost`/`updatePost`'s `repo.save()` chokepoint, so an autosave tick never bumps
+     * `version`/`updatedAt`, never fires the `content.entry.beforeSave` hook, and never re-indexes
+     * search. Deliberately NOT the pre-existing `ext` column: `ext` is the plugin extension-field
+     * bag, written ONLY by that same hook-merge step (CIC U-004) — autosave is core product
+     * behavior, not a plugin, so it cannot write there any more than `seo`/`members` could (the same
+     * reasoning that gave each of those its own column). Deliberately NOT `bodyJson`/`bodyHtml`
+     * either: a standing draft for a `published` post must never become the row's live, publicly
+     * served content, so it lives in a column neither the public read path nor
+     * `posts_body_format_shape` below has any reason to ever look at.
+     */
+    autosaveJson: text("autosave_json"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),

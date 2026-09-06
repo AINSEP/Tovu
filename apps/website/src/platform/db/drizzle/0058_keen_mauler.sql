@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `autosave_json` text;
