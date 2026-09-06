@@ -2047,6 +2047,48 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`, {
       method: "DELETE",
     }),
+  // Standing-draft autosave (2026-09-06) — kind-blind like getPost/updatePost/deletePost above, one
+  // route serves both editors (`server/inbound/admin-http/routes/posts/autosave.ts`'s own file
+  // header explains why there is no parallel `/pages/.../autosave`).
+  //
+  // `applied: false` is an ORDINARY outcome, not a thrown error: it means the row's `version` moved
+  // (a real Save/Publish happened) since `baseVersion` was captured, so the caller's own in-memory
+  // edit is no longer the current basis and this tick was correctly dropped rather than clobbering
+  // the newer save.
+  putAutosave: (
+    id: string,
+    draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; slug: string; baseVersion: number } | {
+      bodyFormat: "html";
+      bodyHtml: string;
+      slug: string;
+      baseVersion: number;
+    }
+  ) =>
+    request<{ applied: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
+      method: "PUT",
+      body: JSON.stringify(draft),
+    }),
+  // The recovery-banner check on editor mount — reads whatever standing draft is currently parked,
+  // or `null` when there is nothing to offer.
+  getAutosave: (id: string) =>
+    request<{
+      autosave: {
+        bodyFormat: "doc" | "html";
+        bodyJson?: Record<string, unknown>;
+        bodyHtml?: string;
+        slug: string;
+        baseVersion: number;
+        savedAt: string;
+        savedByPrincipalId: string;
+      } | null;
+    }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`),
+  // Clears the standing draft — called after a real Save/Publish succeeds, and on an explicit
+  // operator Discard. Unconditional: there is no stale basis to guard against when the intent is
+  // simply "there is no longer a draft to offer".
+  discardAutosave: (id: string) =>
+    request<{ ok: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
+      method: "DELETE",
+    }),
   listPages: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/pages`),
   createPage: (title: string) =>
