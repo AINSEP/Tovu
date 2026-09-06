@@ -65,6 +65,21 @@ import type { SeoEntryAnalysis, SeoSettings } from "../../lib/api";
  * baseline that JSON's own instructions say must only shrink. One file, top-level components: the
  * ESLint gate scores functions independently of which file they sit in, so the ceiling is
  * satisfied either way — only the organizational preference differs, and the debt key decides it.
+ *
+ * ## Out of the cards (2026-09-06, same day)
+ *
+ * Owner, on the screen the section above describes: "for seo can you take the stuff out of the
+ * cards?" Every panel here was a `.card` (Site defaults, Sitemap) or a `.notice` (the two
+ * per-entry panels) and is now content laid directly on the page, held together by `SeoSection`'s
+ * heading rail and one hairline per seam. `styles/seo.css`'s header carries the measurements and
+ * the full reasoning, including why the card was never what grouped the three field groups.
+ *
+ * Two claims in the paragraph above are now stale and are corrected here rather than rewritten in
+ * place, since the tab conversion's own reasoning is still the reason the tabs exist: the defaults
+ * form has THREE field-group headings, not two ("Social sharing" was split out in the same
+ * commit), and those groups are `SeoSection`s rather than `.field-group` divs. What has NOT
+ * changed is the constraint that matters — all seven fields still live in one `<form>`, submitted
+ * as one `FormData`, with nothing about them conditional.
  */
 
 export interface SeoSectionProps {
