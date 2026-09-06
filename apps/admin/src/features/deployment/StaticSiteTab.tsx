@@ -942,7 +942,15 @@ function PublishCredentialFields({
           </p>
           <p className="field-hint">
             {translate(info.scopeGuidanceKey)}{" "}
-            <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+            <a
+              href={info.tokenPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              {...agentHandle(`deployment-static-site-credentials-token-page-${row.providerId}`, {
+                role: "link",
+                label: `Open ${info.label}'s own page for creating a personal access token`,
+              })}
+            >
               {translate("Create a token")}
             </a>
           </p>
@@ -1551,7 +1559,13 @@ function PublishRunResult({ run, t: translate }: { run: AdminPublishRunSnapshot;
     return (
       <p className="save-ok">
         {translate("Published:")}{" "}
-        <a href={run.result.url} target="_blank" rel="noreferrer" translate="no">
+        <a
+          href={run.result.url}
+          target="_blank"
+          rel="noreferrer"
+          translate="no"
+          {...agentHandle("deployment-static-site-publish-result-url", { role: "link", label: "Open the just-published site" })}
+        >
           {run.result.url}
         </a>
       </p>
