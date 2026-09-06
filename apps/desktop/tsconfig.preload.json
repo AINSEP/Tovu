@@ -1,0 +1,26 @@
+{
+  // Compiles ONLY the preload and the shared contracts it imports — never `main.cjs` or anything
+  // else under `src/`. This shell's main process is hand-written CommonJS (`main.cjs`,
+  // `src/*.cjs`, `src/speech/*.cjs`) and stays that way; Tovu-Runner's equivalent `tsconfig.json`
+  // additionally compiled `src/main/**`, which has no counterpart here until phase 2 of the port.
+  //
+  // `preload.mts` -> `dist/preload/preload.mjs`: Electron 43 supports a native-ESM preload only in
+  // an unsandboxed, context-isolated renderer, which is exactly how `main.cjs` creates the fleet
+  // window (and only that window — site-admin windows keep `sandbox: true` and the `.cjs` speech
+  // preload).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declaration": false,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/preload/**/*.mts", "src/contracts/**/*.ts"]
+}

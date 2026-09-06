@@ -1,0 +1,19 @@
+{
+  // Typecheck-only pass over the renderer (Vite does the actual transform). Mirrors Tovu-Runner's
+  // own `tsconfig.renderer.json` — the DOM libs, `react-jsx`, and `bundler` resolution that
+  // `tsconfig.preload.json` deliberately does not have.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/contracts/**/*.ts", "vite.config.mts"]
+}
