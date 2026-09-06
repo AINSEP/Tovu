@@ -1,5 +1,6 @@
 import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
@@ -143,9 +144,18 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Role name")}
-          <input value={create.name} onChange={(e) => create.setName(e.target.value)} required />
+          <input
+            value={create.name}
+            onChange={(e) => create.setName(e.target.value)}
+            required
+            {...agentHandle("roles-create-name", { role: "field", label: "New role's name" })}
+          />
         </label>
-        <button type="submit" disabled={create.saving || !create.name}>
+        <button
+          type="submit"
+          disabled={create.saving || !create.name}
+          {...agentHandle("roles-create-submit", { role: "button", label: "Create this new role" })}
+        >
           {create.saving ? t("Creating…") : t("Create role")}
         </button>
       </form>
@@ -163,9 +173,13 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           {
             key: "name",
             header: t("Name"),
-            cell: (role) =>
+            cell: (role, index) =>
               row.editingId === role.id ? (
-                <input value={row.draftName} onChange={(e) => row.setDraftName(e.target.value)} />
+                <input
+                  value={row.draftName}
+                  onChange={(e) => row.setDraftName(e.target.value)}
+                  {...agentHandle(`${roleMenuHandles[index]}-rename-name`, { role: "field", label: "This role's new name" })}
+                />
               ) : (
                 role.name
               ),
@@ -179,10 +193,19 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                 <span className="muted-cell">—</span>
               ) : row.editingId === role.id ? (
                 <span className="editor-actions">
-                  <button type="button" disabled={row.savingId === role.id} onClick={() => row.saveRename(role.id)}>
+                  <button
+                    type="button"
+                    disabled={row.savingId === role.id}
+                    onClick={() => row.saveRename(role.id)}
+                    {...agentHandle(`${roleMenuHandles[index]}-save`, { role: "button", label: `Save this role's new name` })}
+                  >
                     {row.savingId === role.id ? t("Saving…") : t("Save")}
                   </button>
-                  <button type="button" onClick={() => row.setEditingId(null)}>
+                  <button
+                    type="button"
+                    onClick={() => row.setEditingId(null)}
+                    {...agentHandle(`${roleMenuHandles[index]}-cancel`, { role: "button", label: "Cancel renaming this role" })}
+                  >
                     {t("Cancel")}
                   </button>
                 </span>
@@ -269,10 +292,19 @@ function PolicyRowActions({ policy, row, permission, agentBase, t, locale }: Pol
   if (row.editingId === policy.id) {
     return (
       <span className="editor-actions">
-        <button type="button" disabled={row.savingId === policy.id} onClick={() => row.saveRename(policy.id)}>
+        <button
+          type="button"
+          disabled={row.savingId === policy.id}
+          onClick={() => row.saveRename(policy.id)}
+          {...agentHandle(`${agentBase}-save`, { role: "button", label: "Save this policy's new name and description" })}
+        >
           {row.savingId === policy.id ? t("Saving…") : t("Save")}
         </button>
-        <button type="button" onClick={() => row.setEditingId(null)}>
+        <button
+          type="button"
+          onClick={() => row.setEditingId(null)}
+          {...agentHandle(`${agentBase}-cancel`, { role: "button", label: "Cancel renaming this policy" })}
+        >
           {t("Cancel")}
         </button>
       </span>
@@ -316,9 +348,16 @@ interface PolicyPermissionListProps {
 function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListProps) {
   if (permission.loading) return <p className="muted-cell">{t("Loading permissions…")}</p>;
   if (permission.rows.length === 0) return <p className="muted-cell">{t("No permissions yet.")}</p>;
+  // Only the currently-open policy's own permission list is ever mounted at once, so a handle
+  // needs to be unique within THIS list, not across every policy — same reasoning `Roles`' own
+  // per-policy `agentBase` already applies one level up.
+  const removeHandles = buildAgentListHandles(
+    `policy-permission-remove-${policyId}`,
+    permission.rows.map((row) => row.id),
+  );
   return (
     <ul className="permission-list">
-      {permission.rows.map((row) => (
+      {permission.rows.map((row, index) => (
         <li key={row.id}>
           <code>{row.permission}</code>
           {row.resourceType ? <span className="muted-cell"> ({row.resourceType})</span> : null}
@@ -327,6 +366,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
             disabled={permission.removingId === row.id}
             aria-label={`${t("Remove permission")} ${row.permission}`}
             onClick={() => permission.remove(policyId, row.id)}
+            {...agentHandle(removeHandles[index]!, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
           >
             {permission.removingId === row.id ? t("Removing…") : t("Remove")}
           </button>
@@ -340,6 +380,9 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
  *  "Add permission" form. Extracted out of `PolicyRow` verbatim, for the same reason as
  *  `PolicyRowActions` above. */
 function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
+  // Only the currently-open policy's own form is ever mounted at once — same reasoning
+  // `PolicyPermissionList`'s own `removeHandles` comment gives, one level up.
+  const formHandleBase = buildAgentListHandles("policy-permission-form", [policyId])[0]!;
   return (
     <tr>
       <td colSpan={4}>
@@ -353,16 +396,19 @@ function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermi
                 value={permission.permission}
                 onChange={(e) => permission.setPermission(e.target.value)}
                 placeholder={t("e.g. content.write")}
+                {...agentHandle(`${formHandleBase}-permission`, { role: "field", label: "Permission string to grant, e.g. content.write" })}
               />
               <input
                 value={permission.resourceType}
                 onChange={(e) => permission.setResourceType(e.target.value)}
                 placeholder={t("resource type (optional)")}
+                {...agentHandle(`${formHandleBase}-resource-type`, { role: "field", label: "Optional resource type this permission is scoped to" })}
               />
               <button
                 type="button"
                 disabled={!permission.permission || savingId === policyId}
                 onClick={() => permission.write(policyId)}
+                {...agentHandle(`${formHandleBase}-add`, { role: "button", label: "Add this permission to the policy" })}
               >
                 {savingId === policyId ? t("Saving…") : t("Add")}
               </button>
@@ -385,14 +431,22 @@ export function PolicyRow({ policy, row, permission, agentBase, t, locale }: Pol
       <tr>
         <td>
           {renaming ? (
-            <input value={row.draftName} onChange={(e) => row.setDraftName(e.target.value)} />
+            <input
+              value={row.draftName}
+              onChange={(e) => row.setDraftName(e.target.value)}
+              {...agentHandle(`${agentBase}-rename-name`, { role: "field", label: "This policy's new name" })}
+            />
           ) : (
             policy.name
           )}
         </td>
         <td>
           {renaming ? (
-            <input value={row.draftDescription} onChange={(e) => row.setDraftDescription(e.target.value)} />
+            <input
+              value={row.draftDescription}
+              onChange={(e) => row.setDraftDescription(e.target.value)}
+              {...agentHandle(`${agentBase}-rename-description`, { role: "field", label: "This policy's new description" })}
+            />
           ) : (
             policy.description ?? <span className="muted-cell">—</span>
           )}
@@ -451,13 +505,26 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Policy name")}
-          <input value={create.name} onChange={(e) => create.setName(e.target.value)} required />
+          <input
+            value={create.name}
+            onChange={(e) => create.setName(e.target.value)}
+            required
+            {...agentHandle("policies-create-name", { role: "field", label: "New policy's name" })}
+          />
         </label>
         <label>
           {t("Description (optional)")}
-          <input value={create.description} onChange={(e) => create.setDescription(e.target.value)} />
+          <input
+            value={create.description}
+            onChange={(e) => create.setDescription(e.target.value)}
+            {...agentHandle("policies-create-description", { role: "field", label: "New policy's optional description" })}
+          />
         </label>
-        <button type="submit" disabled={create.saving || !create.name}>
+        <button
+          type="submit"
+          disabled={create.saving || !create.name}
+          {...agentHandle("policies-create-submit", { role: "button", label: "Create this new policy" })}
+        >
           {create.saving ? t("Creating…") : t("Create policy")}
         </button>
       </form>
