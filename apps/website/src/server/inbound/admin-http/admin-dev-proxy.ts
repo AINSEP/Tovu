@@ -56,6 +56,36 @@ export function resolveAdminDevProxyPath(url: string): string {
   return `/admin/${queryIndex === -1 ? "" : url.slice(queryIndex)}`;
 }
 
+/**
+ * Hop-by-hop header names (RFC 7230 §6.1, plus `keep-alive`/`proxy-connection` which real servers
+ * still send even though the RFC only names it as an example): meaningful only between this proxy
+ * and the ONE upstream connection that produced them, never valid to relay verbatim to the actual
+ * client on the other side of a proxy. Forwarding `connection` in particular used to merely be
+ * sloppy under an HTTP/1.1-only client — under an HTTP/2 client (now possible: {@link
+ * createAdminDevProxyRequestHandler}'s `res` may be an HTTP/2 compat response once `index.ts`'s
+ * listener negotiates `h2`) it is a hard failure: Node's http2 compatibility layer throws
+ * `ERR_HTTP2_INVALID_CONNECTION_HEADER` the moment a `connection` header reaches `writeHead()`, and
+ * Vite's own Node HTTP/1.1 server sets `Connection: keep-alive` on its responses by default — so
+ * every proxied `/admin/*` response carried this header before the filter below was added.
+ */
+const HOP_BY_HOP_RESPONSE_HEADERS = new Set(["connection", "keep-alive", "proxy-connection", "transfer-encoding", "upgrade", "proxy-authenticate", "proxy-authorization", "trailer"]);
+
+/**
+ * Drops hop-by-hop headers (see {@link HOP_BY_HOP_RESPONSE_HEADERS}) from an upstream response
+ * before it is relayed to the actual client. Node's `IncomingMessage.headers` keys are already
+ * lower-cased, so a plain `Set` lookup is enough — no case-folding needed here.
+ *
+ * @complexity O(n) in the number of response headers.
+ */
+export function stripHopByHopHeaders(headers: IncomingMessage["headers"]): IncomingMessage["headers"] {
+  const filtered: IncomingMessage["headers"] = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (HOP_BY_HOP_RESPONSE_HEADERS.has(name)) continue;
+    filtered[name] = value;
+  }
+  return filtered;
+}
+
 /** One resolved upstream target: which `request()` function and agent to use for it. */
 interface AdminDevProxyUpstream {
   target: URL;
@@ -106,7 +136,7 @@ export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestH
 
   return (req: Request, res: Response) => {
     const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, req), (proxyRes) => {
-      res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+      res.writeHead(proxyRes.statusCode ?? 502, stripHopByHopHeaders(proxyRes.headers));
       proxyRes.pipe(res);
     });
     proxyReq.on("error", (error) => {

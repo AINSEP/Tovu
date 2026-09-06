@@ -6,6 +6,7 @@ import test from "node:test";
 import express from "express";
 
 import { registerAdminStatic } from "../admin-static.js";
+import { stripHopByHopHeaders } from "../admin-dev-proxy.js";
 
 /**
  * @file Proves the dev-proxy branch of `registerAdminStatic` (`admin-dev-proxy.ts`) actually
@@ -58,6 +59,45 @@ test("registerAdminStatic dev-proxy mode: forwards /admin/* to the configured Vi
   assert.equal(res.headers.get("x-fake-vite"), "1");
   assert.equal(await res.text(), "console.log('served by fake vite')");
   assert.deepEqual(receivedPaths, ["/admin/src/main.tsx?t=123"]);
+});
+
+test("stripHopByHopHeaders: drops connection/transfer-encoding/upgrade but keeps every other header untouched", () => {
+  const filtered = stripHopByHopHeaders({
+    connection: "keep-alive",
+    "transfer-encoding": "chunked",
+    upgrade: "websocket",
+    "keep-alive": "timeout=5",
+    "proxy-authenticate": "Basic",
+    "content-type": "text/javascript",
+    "x-fake-vite": "1",
+  });
+  assert.deepEqual(filtered, {
+    "content-type": "text/javascript",
+    "x-fake-vite": "1",
+  });
+});
+
+test("registerAdminStatic dev-proxy mode: does not relay the upstream's own Connection header value to the client — that header describes the proxy's hop to Vite, not the client's hop to this server, and (on an HTTP/2 client) forwarding it verbatim would throw ERR_HTTP2_INVALID_CONNECTION_HEADER outright; the fake Vite below sets `Connection: close`, a value the admin server's own keep-alive hop to the client would never choose on its own, to make a leak observable over plain HTTP/1.1 too", async (t) => {
+  const fakeVite = createHttpServer((req, res) => {
+    res.writeHead(200, { "content-type": "text/plain", connection: "close", "x-fake-vite": "1" });
+    res.end("ok");
+  });
+  fakeVite.listen(0);
+  t.after(() => new Promise<void>((resolve) => fakeVite.close(() => resolve())));
+  await new Promise<void>((resolve) => fakeVite.on("listening", () => resolve()));
+  const fakeViteAddress = fakeVite.address();
+  if (fakeViteAddress === null || typeof fakeViteAddress === "string") throw new Error("test setup: expected a bound TCP address");
+
+  process.env.TOVU_ADMIN_DEV_PROXY_URL = `http://127.0.0.1:${fakeViteAddress.port}`;
+  t.after(() => {
+    delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  });
+  const baseUrl = await startAdminApp(t, "/nonexistent-dist-dir");
+
+  const res = await fetch(`${baseUrl}/admin/whatever`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-fake-vite"), "1");
+  assert.notEqual(res.headers.get("connection"), "close");
 });
 
 test("registerAdminStatic dev-proxy mode: rewrites a bare /admin to /admin/ before it reaches Vite (Vite's own base match is exact)", async (t) => {
