@@ -173,6 +173,18 @@ test("globToRegExp: a mid-segment '*' does not span '/' — an extra path segmen
   );
 });
 
+test("globToRegExp: a trailing '**/' matches nested files, not just paths ending in '/'", () => {
+  // Gemini finding 10 (2026-09-05 re-triage): nextGlobToken compiles "**/" to "(?:.*/)?", which at the
+  // END of a pattern requires the matched string to either be empty there or end in '/'.
+  // collectRepoFiles never returns paths ending in '/', so a glob written with a trailing '**/' could
+  // never match any real file. Not currently triggered (today's ADR-INDEX.md has no trailing-'/'
+  // globs) but a real gap.
+  const re = globToRegExp("apps/website/src/features/**/");
+  assert.ok(re.test("apps/website/src/features/identity/wiring.ts"), "a nested file must still match");
+  assert.ok(re.test("apps/website/src/features/top-level.ts"), "a direct child file must still match");
+  assert.ok(!re.test("apps/website/src/server/routes/types.ts"), "an unrelated path must not match");
+});
+
 test("globMatchesAnyFile: true iff at least one candidate matches", () => {
   const files = ["apps/website/src/features/identity/wiring.ts", "apps/website/src/server/routes/types.ts"];
   assert.equal(globMatchesAnyFile("apps/website/src/features/**", files), true);

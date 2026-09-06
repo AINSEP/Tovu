@@ -146,7 +146,14 @@ interface GlobToken {
  */
 function nextGlobToken(glob: string, i: number): GlobToken {
   const c = glob[i]!;
-  if (c === "*" && glob[i + 1] === "*" && glob[i + 2] === "/") return { regexFragment: "(?:.*/)?", consumed: 3 }; // "**/" — zero or more whole path segments, including none
+  if (c === "*" && glob[i + 1] === "*" && glob[i + 2] === "/") {
+    // "**/" — zero or more whole path segments, including none. At the END of a pattern this must
+    // behave like a trailing "**" (anything, matched or not): collectRepoFiles never returns paths
+    // ending in "/", so the literal "(?:.*/)?" fragment used mid-pattern would require the matched
+    // suffix to be empty or end in "/" — a trailing "**/" would then never match any real file.
+    const isTrailing = i + 3 === glob.length;
+    return { regexFragment: isTrailing ? ".*" : "(?:.*/)?", consumed: 3 };
+  }
   if (c === "*" && glob[i + 1] === "*") return { regexFragment: ".*", consumed: 2 }; // trailing/standalone "**" — anything, including "/"
   if (c === "*") return { regexFragment: "[^/]*", consumed: 1 }; // single "*" — within one path segment only
   if (REGEX_METACHARS.test(c)) return { regexFragment: `\\${c}`, consumed: 1 };
