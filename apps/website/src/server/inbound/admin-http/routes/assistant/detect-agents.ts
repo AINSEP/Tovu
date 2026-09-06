@@ -1,12 +1,43 @@
-import { detectAgents, type DetectedAgent as RuntimeDetectedAgent } from "@jini-ai/agent-runtime";
+import {
+  detectAgents,
+  type DetectedAgent as RuntimeDetectedAgent,
+  type RuntimeModelOption,
+} from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 
-/** Narrows `agent.models` to the `{id,label}` shape the UI needs, or `{}` when the runtime found none. */
-function projectModels(agent: RuntimeDetectedAgent): { models?: Array<{ id: string; label: string }> } {
+/**
+ * Narrows one model's OWN `reasoning` (`RuntimeModelOption.reasoning` — Codex's per-model effort
+ * levels, populated by `parseCodexDebugModels`) to the `{id,label}` shape, or omits the field when
+ * the runtime reported none.
+ *
+ * `undefined` here means "this runtime doesn't report per-model levels" (see that field's own doc
+ * in `@jini-ai/agent-runtime`'s `types.ts`), never "this model supports zero" — so an absent value
+ * must stay absent. Defaulting it to `[]` would turn "unknown" into "none", which is exactly the
+ * kind of narrowing this projection has already dropped data to twice before (see this file's own
+ * header on `reasoningOptions`/`reasoningInModelId`).
+ */
+function projectModelReasoning(model: RuntimeModelOption): { reasoning?: Array<{ id: string; label: string }> } {
+  return model.reasoning?.length
+    ? { reasoning: model.reasoning.map((option) => ({ id: option.id, label: option.label })) }
+    : {};
+}
+
+/** Narrows `agent.models` to the `{id,label,reasoning?}` shape the UI needs, or `{}` when the
+ *  runtime found none. Per-model `reasoning` is carried alongside `id`/`label` via
+ *  `projectModelReasoning` rather than defaulted — see that function's doc for why. */
+function projectModels(
+  agent: RuntimeDetectedAgent,
+): { models?: Array<{ id: string; label: string; reasoning?: Array<{ id: string; label: string }> }> } {
   return agent.models?.length
-    ? { models: agent.models.map((model) => ({ id: model.id, label: model.label })) }
+    ? {
+        models: agent.models.map((model) => ({
+          id: model.id,
+          label: model.label,
+          ...projectModelReasoning(model),
+        })),
+      }
     : {};
 }
 
@@ -65,6 +96,13 @@ function projectReasoningInModelId(agent: RuntimeDetectedAgent): { reasoningInMo
  *
  * Exported for `__tests__/detect-agents-projection.test.ts`, which pins both
  * fields so the next narrowing fails there rather than silently in the UI.
+ *
+ * A third omission of the same shape, found 2026-09-05: `projectModels` dropped each model's OWN
+ * `reasoning` (`RuntimeModelOption.reasoning` — Codex's per-model effort levels), leaving no way
+ * for a future picker to narrow the effort control to what the SELECTED model actually supports
+ * instead of the agent-wide union `reasoningOptions` carries. Fixed by `projectModelReasoning`
+ * above. No `@jini-ai/ui` picker reads it yet (`AgentModelOption` there has no `reasoning` field) —
+ * this only gets the data to the browser; the picker-side narrowing is a separate, tracked change.
  */
 export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   id: string;
@@ -72,7 +110,7 @@ export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   installed: boolean;
   version?: string;
   path?: string;
-  models?: Array<{ id: string; label: string }>;
+  models?: Array<{ id: string; label: string; reasoning?: Array<{ id: string; label: string }> }>;
   modelsSource?: "live" | "fallback";
   reasoningOptions?: Array<{ id: string; label: string }>;
   reasoningInModelId?: { levels: Array<{ id: string; label: string }> };

@@ -84,6 +84,51 @@ test("toExecutionTabAgent omits both reasoning fields entirely for a runtime tha
   assert.equal("reasoningInModelId" in projected, false);
 });
 
+test("toExecutionTabAgent forwards a model's own reasoning levels when the runtime reports them", () => {
+  const projected = toExecutionTabAgent(
+    buildAgent({
+      id: "codex",
+      name: "Codex",
+      models: [
+        {
+          id: "gpt-5.5",
+          label: "GPT-5.5",
+          reasoning: [
+            { id: "low", label: "Low" },
+            { id: "xhigh", label: "Extra high" },
+          ],
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(projected.models, [
+    {
+      id: "gpt-5.5",
+      label: "GPT-5.5",
+      reasoning: [
+        { id: "low", label: "Low" },
+        { id: "xhigh", label: "Extra high" },
+      ],
+    },
+  ]);
+});
+
+test("toExecutionTabAgent leaves a model's reasoning field ABSENT, not [], when the runtime reports none", () => {
+  const projected = toExecutionTabAgent(
+    buildAgent({
+      id: "claude",
+      name: "Claude Code",
+      models: [{ id: "claude-opus-5", label: "Claude Opus 5" }],
+    }),
+  );
+  // `undefined` here means "this runtime doesn't report per-model levels" — a defaulted `[]` would
+  // misreport that as "this model supports zero levels", the exact defect this projection has
+  // already reintroduced twice for its other two reasoning fields.
+  const [model] = projected.models ?? [];
+  assert.ok(model);
+  assert.equal("reasoning" in model, false);
+});
+
 test("toExecutionTabAgent still carries the model list and its provenance alongside the reasoning fields", () => {
   const projected = toExecutionTabAgent(
     buildAgent({
