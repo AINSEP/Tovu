@@ -1,0 +1,264 @@
+/**
+ * The Runner top nav's sections, and the `runner.*` tool surface the left-hand chat
+ * drives them with.
+ *
+ * Two chats exist in this app and they must never blur:
+ *
+ *   - The LEFT chat is Runner's operator agent. It owns the fleet. Its tools are
+ *     the `runner.*` verbs declared here.
+ *   - The RIGHT chat is Tovu's own site assistant, which arrives with the Tovu
+ *     admin mounted into the main content area. It owns one site's content.
+ *
+ * ADR-014 fixes the direction: Runner composes site tools plus its own; Tovu never
+ * imports Runner tools. Keeping every verb below under a `runner.` prefix is what
+ * makes that boundary mechanical instead of a convention — a site tool can never
+ * collide with a fleet tool, so the left chat cannot accidentally edit a post.
+ *
+ * The converse half of that sentence used to read "and the right chat cannot stop a
+ * process", with the prefix as the reason, then (ADR-061) "and `site-assistant-tools.ts`
+ * — a SECOND, narrower list — keeps it away from the rest". Both are stale as of
+ * 2026-08: the operator decided the two chats should carry identical capability (single
+ * developer, single-user desktop app, no second party on either side of the Runner↔Tovu
+ * line — see `site-assistant-tools.ts`'s header for the full argument and the residual
+ * exposure), so that file now mirrors `runnerToolNames()` instead of excluding from it.
+ * Adding a verb below grants it to BOTH chats — that mirror is the current design, not
+ * an oversight this file needs to guard against. The prefix still does its own job (no
+ * collisions, no unprefixed verb, Tovu never importing a Runner tool by accident); it
+ * was just never what separated the two chats' capability, in either era.
+ *
+ * `RunnerSectionId` values are a public contract. They appear in agent tool schemas
+ * and in URLs, so renaming one silently breaks saved conversations and deep links.
+ * Add, deprecate, alias — but do not rename in place.
+ */
+
+export type RunnerSectionGroupId = 'fleet' | 'work' | 'operations' | 'access';
+
+export type RunnerSectionId =
+  | 'home'
+  | 'projects'
+  | 'templates'
+  | 'tasks'
+  | 'generation'
+  | 'activity'
+  | 'updates'
+  | 'deploy'
+  | 'diagnostics'
+  | 'api-keys'
+  | 'settings'
+  | 'account';
+
+export interface RunnerSectionGroup {
+  id: RunnerSectionGroupId;
+  label: string;
+}
+
+export interface RunnerSection {
+  id: RunnerSectionId;
+  group: RunnerSectionGroupId;
+  label: string;
+  /**
+   * Hidden from the nav, but still registered. Six sections are parked this way
+   * (see TODO.md) because twelve entries was more than the app can currently justify
+   * and their shape isn't settled yet. Kept in the registry rather than deleted or
+   * commented out: a literal comment would break the `RunnerSectionId` union and
+   * silently drop their verbs from `runnerToolNames()`, which is a worse outcome than
+   * one boolean. Flip to `false` — or delete the line — to bring one back.
+   */
+  hidden?: boolean;
+  /**
+   * Written for the model, not for the user. This is what the left chat reads to
+   * decide whether a request belongs to this section, so it states what the section
+   * governs rather than describing the screen.
+   */
+  agentDescription: string;
+  /** The `runner.*` verbs this section owns. Empty means read-only/navigation-only. */
+  tools: readonly string[];
+}
+
+export const RUNNER_SECTION_GROUPS: readonly RunnerSectionGroup[] = [
+  { id: 'fleet', label: 'Fleet' },
+  { id: 'work', label: 'Work' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'access', label: 'Access' },
+];
+
+export const RUNNER_SECTIONS = [
+  {
+    id: 'home',
+    group: 'fleet',
+    label: 'Home',
+    agentDescription:
+      'Fleet overview. How many projects exist, which are running, which are unhealthy.',
+    tools: ['runner.fleet.status'],
+  },
+  {
+    id: 'projects',
+    group: 'fleet',
+    label: 'Projects',
+    agentDescription:
+      'The project list and its lifecycle. Each project is one install dir served by one `tovu serve` OS process on one port, serving exactly one workspace for that process lifetime. Creating, starting, stopping, and opening projects all happen here.',
+    // `create_site` keeps ADR-014's exact verb name rather than being renamed to fit
+    // this file's shape — that name is already written down as an operator tool.
+    tools: [
+      'runner.create_site',
+      'runner.project.list',
+      'runner.project.start',
+      'runner.project.stop',
+      'runner.project.restart',
+      'runner.project.open',
+      'runner.project.delete',
+    ],
+  },
+  {
+    id: 'templates',
+    group: 'fleet',
+    label: 'Templates',
+    hidden: true,
+    agentDescription:
+      "Starter templates a new project is instantiated from. Per ADR-012, creating a site copies a template's data and config into a fresh install dir.",
+    tools: ['runner.template.list', 'runner.template.inspect'],
+  },
+  {
+    id: 'tasks',
+    group: 'work',
+    label: 'Tasks',
+    agentDescription:
+      'Long-running and queued operator jobs — anything that outlives a single chat turn, including bulk actions across many projects.',
+    tools: ['runner.queue_task', 'runner.task.list', 'runner.task.cancel'],
+  },
+  {
+    // Id stays `generation` deliberately: `RunnerSectionId` values are a public contract that
+    // appears in agent tool schemas and URLs (see this file's header), so the operator-facing
+    // label is what changes here, not the identifier.
+    id: 'generation',
+    group: 'work',
+    label: 'Media',
+    agentDescription:
+      'Image and video generation across projects, through the multi-provider media gateway.',
+    tools: ['runner.generate_video', 'runner.generate_image'],
+  },
+  {
+    id: 'activity',
+    group: 'operations',
+    label: 'Activity',
+    agentDescription:
+      'Fleet-wide event log and per-project output: spawns, crashes, restarts, health transitions. `tovu serve` only writes to stdout, so if Runner does not capture it nobody can see why a site died.',
+    tools: ['runner.activity.tail', 'runner.project.logs'],
+  },
+  {
+    id: 'updates',
+    group: 'operations',
+    label: 'Updates',
+    agentDescription:
+      'Schema-version drift across projects, and staggered upgrades. Each `tovu serve` self-migrates safely on its own; nothing coordinates or reports drift across the fleet, which is Runner-owned by design.',
+    tools: ['runner.migration.check_drift', 'runner.migration.upgrade'],
+  },
+  {
+    id: 'deploy',
+    group: 'operations',
+    label: 'Deploy',
+    hidden: true,
+    agentDescription: 'Publishing a local project somewhere reachable, and its deploy status.',
+    tools: ['runner.deploy.publish', 'runner.deploy.status'],
+  },
+  {
+    id: 'diagnostics',
+    group: 'operations',
+    label: 'Diagnostics',
+    hidden: true,
+    agentDescription:
+      'Support bundles: collect logs, config, and health across projects with redaction applied.',
+    tools: ['runner.diagnostics.bundle'],
+  },
+  {
+    id: 'api-keys',
+    group: 'access',
+    label: 'Keys & Access',
+    hidden: true,
+    agentDescription:
+      'API keys per project. Tovu issues an `api_key` principal per site for headless access; managing many of them across the fleet is Runner-owned.',
+    tools: ['runner.apikey.issue', 'runner.apikey.list', 'runner.apikey.revoke'],
+  },
+  {
+    id: 'settings',
+    group: 'access',
+    label: 'Settings',
+    hidden: true,
+    agentDescription:
+      "Runner's own configuration, including how provider credentials are held across the fleet.",
+    tools: ['runner.settings.get', 'runner.settings.set'],
+  },
+  {
+    id: 'account',
+    group: 'access',
+    label: 'Account',
+    hidden: true,
+    agentDescription: 'Operator identity for Runner itself, distinct from any single site’s users.',
+    tools: ['runner.account.get'],
+  },
+  // `as const satisfies` rather than a `: readonly RunnerSection[]` annotation. The annotation
+  // widened every `tools` entry to `string`, which left the type system with no vocabulary for
+  // "a verb this app actually declares" — so `site-assistant-tools.ts`'s mirror of this list could
+  // only be checked at runtime. Preserving the literals is what lets `RunnerToolName` exist, and
+  // `satisfies` keeps the shape check the annotation was there for, so nothing about this list got
+  // looser.
+] as const satisfies readonly RunnerSection[];
+
+/** Navigation is itself a tool — the left chat can move the top nav, not just answer about it. */
+export const RUNNER_NAVIGATE_TOOL = 'runner.navigate';
+
+/**
+ * `RUNNER_SECTIONS` read through the interface instead of its literal tuple type.
+ *
+ * `as const` (above) narrows each entry to exactly the keys it wrote, so `section.hidden` is a type
+ * error on the six sections that never declare it — correct, but useless to a filter that has to
+ * ask every section. Widening once here keeps the literals available where they are wanted
+ * (`RunnerToolName`) without making every consumer restate the optional key.
+ */
+const SECTIONS: readonly RunnerSection[] = RUNNER_SECTIONS;
+
+const SECTIONS_BY_ID = new Map<string, RunnerSection>(SECTIONS.map((s) => [s.id, s]));
+
+export function findSection(id: string): RunnerSection | undefined {
+  return SECTIONS_BY_ID.get(id);
+}
+
+/** Nav-visible sections in `group`. Hidden ones stay registered but unrendered. */
+export function sectionsInGroup(group: RunnerSectionGroupId): readonly RunnerSection[] {
+  return SECTIONS.filter((section) => section.group === group && section.hidden !== true);
+}
+
+/**
+ * Every nav-visible section, in declaration order and flattened across groups.
+ *
+ * The top nav is one horizontal row, so it renders sections in a single sequence rather than
+ * under the group headings the old vertical rail used. The groups themselves stay in the
+ * registry: they still describe what each section owns, and a future overflow menu is the
+ * obvious place for them to matter again.
+ */
+export function visibleSections(): readonly RunnerSection[] {
+  return SECTIONS.filter((section) => section.hidden !== true);
+}
+
+/**
+ * Every `runner.*` verb this build declares, as a literal union.
+ *
+ * Derived from {@link RUNNER_SECTIONS} rather than restated, for the same reason `SECTION_IDS` in
+ * `runner-tools.ts` is derived: a second hand-maintained copy drifts. Its job is to give
+ * `site-assistant-tools.ts`'s mirror of this list something to be checked against at compile time,
+ * so that list can never name a verb this app does not actually declare — that gate matters more,
+ * not less, now that the two lists are meant to agree, since a typo there would otherwise silently
+ * grant a site assistant a tool name Runner's own bridge never advertises.
+ */
+export type RunnerToolName =
+  | typeof RUNNER_NAVIGATE_TOOL
+  | (typeof RUNNER_SECTIONS)[number]['tools'][number];
+
+/**
+ * Every verb the left chat may call, `runner.navigate` included. The tool executor
+ * gates on this list, so a section that declares no tools grants the agent nothing
+ * beyond navigating to it.
+ */
+export function runnerToolNames(): readonly string[] {
+  return [RUNNER_NAVIGATE_TOOL, ...RUNNER_SECTIONS.flatMap((section) => section.tools)];
+}

@@ -1,0 +1,1437 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/*
+ * `@jini-ai/ui` ships remixicon's CSS but not its woff2 — it expects the host app to serve
+ * the font (Jini's own reference-web keeps a copy in `public/`). Runner never did, so the
+ * package's `url("./remixicon.woff2")` resolved to nothing inside `assets/` and EVERY icon
+ * glyph rendered as tofu, including the chat composer's Send button.
+ *
+ * The copy in `src/renderer/public/` is emitted to the renderer root, one level above
+ * `assets/`, so this re-declaration points one level up. Redeclaring the same family here
+ * (rather than patching the linked package) keeps the fix inside this app.
+ */
+@font-face {
+  font-family: 'remixicon';
+  src: url('../remixicon.woff2') format('woff2');
+  font-display: swap;
+}
+
+/*
+ * Tokens are lifted from Tovu admin's `styles.css` on purpose — Runner and the admin
+ * it hosts should read as one product, and the fastest way to break that is to
+ * eyeball a second burnt orange. `--primary` is the exact admin swatch.
+ *
+ * Colour discipline: `--primary` carries one meaning, liveness. A running project is
+ * orange; everything else is greyscale. "What's up right now" stays readable from
+ * across the room, which is the question a supervisor is always asking.
+ *
+ * Theming: `data-theme` on <html> is set by `theme.ts` to the RESOLVED value, only
+ * ever `light` or `dark`. `system` is resolved in JS, so the dark palette is written
+ * once here instead of twice (explicit choice + `prefers-color-scheme`) — that
+ * duplication is how the two halves of a theme quietly drift apart.
+ */
+:root {
+  --bg: #fff;
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96.6% 0.006 250);
+  --sunken: oklch(98.2% 0.0029 84.6);
+  --fg: oklch(24% 0.022 262);
+  --muted: oklch(53% 0.016 258);
+  --faint: oklch(66% 0.012 258);
+  --border: oklch(91.5% 0.007 255);
+  --border-strong: oklch(86% 0.01 255);
+
+  --primary: oklch(55.29% 0.1129 43.4);
+  --primary-dim: oklch(55.29% 0.1129 43.4 / 0.1);
+  --primary-ring: oklch(55.29% 0.1129 43.4 / 0.22);
+  --warning: oklch(50% 0.15 80);
+  /* Destructive only. `--warning` is already spent on degraded-but-recoverable states
+     (starting, failed), and "this erases a site" must not read the same as "this crashed". */
+  --danger: oklch(52% 0.19 25);
+  --danger-dim: oklch(52% 0.19 25 / 0.1);
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(20 28 45 / 0.05), 0 1px 3px rgb(20 28 45 / 0.05);
+  --shadow-md: 0 4px 14px rgb(20 28 45 / 0.07), 0 2px 5px rgb(20 28 45 / 0.05);
+
+  --chat-w: 320px;
+}
+
+:root[data-theme='dark'] {
+  --bg: oklch(14% 0.018 255);
+  --surface: oklch(18.5% 0.018 255);
+  --surface-2: oklch(22% 0.016 255);
+  --sunken: oklch(12% 0.018 255);
+  --fg: oklch(96% 0.004 250);
+  --muted: oklch(70% 0.012 250);
+  --faint: oklch(56% 0.012 250);
+  --border: oklch(100% 0 0 / 0.11);
+  --border-strong: oklch(100% 0 0 / 0.18);
+  --primary: oklch(56% 0.1 44);
+  --primary-dim: oklch(56% 0.1 44 / 0.16);
+  --primary-ring: oklch(56% 0.1 44 / 0.3);
+  --warning: oklch(76% 0.13 80);
+  --danger: oklch(70% 0.16 25);
+  --danger-dim: oklch(70% 0.16 25 / 0.16);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:where(button, input):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.icon { width: 20px; height: 20px; flex: none; }
+
+/* ---------- frame ---------- */
+
+/*
+ * Three stacked rows, not two columns. Runner used to own the left edge with a rail; it does
+ * not any more, because a project tab embeds that site's Tovu admin and the admin brings its
+ * own left sidebar plus its own site-assistant chat. Two sidebars side by side put the fleet's
+ * controls and one site's controls on the same axis with nothing to tell them apart — the exact
+ * blur `contracts/sections.ts` exists to prevent. Runner keeps the horizontal axis; whatever is
+ * in the tab keeps the vertical one.
+ */
+.app {
+  display: grid;
+  /* Three rows: top nav, tab strip, content. The tab strip only renders inside Projects, so its
+     row is often empty — `.main` is pinned to the last row (below) rather than auto-placed, or a
+     missing strip would slide the content pane up into row 2's `auto` track and lose the
+     `minmax(0, 1fr)` that lets it scroll instead of stretching the page. An `auto` row with no
+     item in it collapses to zero height, so the two-row and three-row cases look identical. */
+  grid-template-rows: auto auto minmax(0, 1fr);
+  /* Second column is the operator chat, and it is `auto` so it collapses to zero width when the
+     pane is not rendered — no `chatOpen` class on this element, no layout shift when it closes.
+     The chat SQUEEZES the content rather than covering it (the Tovu admin's own assistant does
+     the same), which is why this is a grid column and not the fixed-position overlay it was. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+/* ---------- top nav ---------- */
+
+.topnav {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  max-width: fit-content;
+  margin: 0.875rem auto 0;
+  padding: 0.4375rem 0.5rem 0.4375rem 1.125rem;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-md);
+}
+
+.topnav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+/* Ring + offset dot, echoing the reference nav's mark. `--primary` is load-bearing everywhere
+   else in this file (it means "live"), so the ring itself stays `currentColor` and only the dot
+   carries the accent — a brand mark, not a status. */
+.topnav__mark {
+  position: relative;
+  width: 18px; height: 18px;
+  flex: none;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.topnav__mark::after {
+  content: '';
+  position: absolute;
+  top: -2px; left: 50%;
+  width: 5px; height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.topnav__wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
+/* Deliberately NOT a scroll container: `overflow-x: auto` clips overflow on both axes, which
+   would cut off the tooltip that hangs below each icon. Icon-only links are narrow enough that
+   the nav no longer needs to scroll — revisit only if the visible section count grows. */
+.topnav__links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Icon-only: the label lives in `title`/`aria-label` (a native tooltip on hover) rather than
+   visible text — six destinations spelled out was more chrome than the app has earned yet. */
+.topnav__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.topnav__link:hover { color: var(--fg); background: var(--surface-2); }
+
+.topnav__link.is-active { color: var(--fg); background: var(--surface-2); }
+
+/* Inert nav buttons: real, focusable, hoverable `<button>`s (not the `disabled` attribute),
+   so the `data-tip` tooltip below keeps firing on hover/focus even though the click is a no-op. */
+.topnav__link--disabled { opacity: 0.45; cursor: not-allowed; }
+.topnav__link--disabled:hover { background: none; color: var(--muted); }
+
+/* The one live signal in the nav: how many projects are actually up. Pinned to the icon's
+   corner now that there is no label text to sit inline after. */
+.topnav__count {
+  position: absolute;
+  top: -2px; right: -2px;
+  min-width: 15px;
+  padding: 0 3px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.topnav__tools { display: flex; align-items: center; flex: none; }
+
+/* ---------- nav tooltip ---------- */
+
+/*
+ * The icon's name, shown on hover and on keyboard focus. This is the only place a destination
+ * is spelled out, so it is a styled element rather than the native `title` attribute — that one
+ * has a ~1s delay and OS chrome, which is fine as a redundant hint but not as the primary label.
+ * `aria-label` on the button carries the same string for assistive tech, so this is purely visual
+ * and stays `pointer-events: none` — a tooltip that can swallow a click is worse than none.
+ */
+.topnav__link[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  z-index: 20;
+  padding: 0.1875rem 0.4375rem;
+  border-radius: var(--r-sm);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.topnav__link[data-tip]:hover::after,
+.topnav__link[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topnav__link[data-tip]::after { transition: none; }
+}
+
+/* ---------- nav sub-link dropdown ---------- */
+
+.navitem { position: relative; display: inline-flex; }
+
+.navitem__dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: 0.3125rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+}
+
+.navitem__sublink {
+  padding: 0.4375rem 0.5625rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.navitem__sublink:hover { background: var(--surface-2); color: var(--fg); }
+
+/* The tooltip would otherwise sit on top of the dropdown it just opened. */
+.navitem:has(.navitem__dropdown) .topnav__link[data-tip]::after { opacity: 0; }
+
+/* ---------- settings dropdown ---------- */
+
+.settings { position: relative; }
+
+.settings__dropdown {
+  position: absolute;
+  top: calc(100% + 0.625rem);
+  right: 0;
+  z-index: 10;
+  min-width: 180px;
+  padding: 0.625rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+}
+
+.settings__dropdown .themer { width: 100%; margin-bottom: 0.375rem; }
+.settings__dropdown .themer__opt { flex: 1; }
+
+.settings__pagelink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.5625rem;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings__pagelink svg { width: 14px; height: 14px; color: var(--faint); }
+.settings__pagelink:hover { background: var(--surface-2); }
+
+/* ---------- project tabs ---------- */
+
+.tabstrip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  margin: 0.875rem 1.25rem 0;
+  padding: 0.5rem 0.75rem 0;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid var(--fg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabstrip::-webkit-scrollbar { display: none; }
+
+/*
+ * Trapezoid tabs with rounded top corners, via an SVG mask rather than `clip-path`.
+ * `clip-path: shape(...)` was tried first — it is the "correct" primitive for this and its
+ * `round <length>` corner syntax is in the spec — but this Chromium build (checked live with
+ * `CSS.supports`) parses `shape()` while rejecting every tested form of the `round` modifier,
+ * so the declaration was silently invalid and the tab rendered sharp-cornered.
+ *
+ * The corners are `Q` (quadratic Bezier) curves, not `A` (circular arc) commands. An arc's
+ * sweep-flag decides which of two possible curves it draws — one bulges outward into a rounded
+ * corner, the other bulges inward into a concave notch — and an EARLIER version of this path
+ * had that flag wrong: it rendered as a bite taken out of each top corner instead of a rounded
+ * corner, and looked plausible enough at small on-screen size to ship by mistake. A quadratic
+ * Bezier removes the ambiguity entirely: `Q <original sharp-corner point> <end>` is mathematically
+ * guaranteed to bulge toward its control point, and the control point here IS the original
+ * vertex, so the curve can only bow outward — there is no second, wrong, curve it could pick.
+ * Verified at 6x scale in isolation (not just at real tab size, which is exactly how the arc
+ * version's inversion went unnoticed) before landing here.
+ *
+ * Coordinate space is a fixed 100×34 viewBox — 34 matches `height` exactly so the vertical axis
+ * maps 1:1 to real px regardless of `mask-size: 100% 100%` stretching the horizontal axis to
+ * whatever width a tab's label gives it. The one visible consequence: the corner radius scales
+ * with tab width (bigger radius on a wider tab) rather than staying fixed — acceptable, arguably
+ * better proportioned than a fixed radius would be across the ~100–220px tab width range.
+ */
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 34px;
+  max-width: 220px;
+  padding: 0 0.5rem 0 1.375rem;
+  background: var(--surface-2);
+  color: var(--muted);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 34' preserveAspectRatio='none'%3E%3Cpath d='M0 34 L10.86 5.6 Q13 0 19 0 L81 0 Q87 0 89.14 5.6 L100 34 Z' fill='black'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 34' preserveAspectRatio='none'%3E%3Cpath d='M0 34 L10.86 5.6 Q13 0 19 0 L81 0 Q87 0 89.14 5.6 L100 34 Z' fill='black'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.tab:hover { background: var(--surface); color: var(--fg); }
+
+.tab.is-active { background: var(--fg); color: var(--bg); }
+
+.tab--fleet {
+  padding: 0 1.375rem;
+  border: 0;
+  font: inherit;
+}
+
+.tab__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.tab.is-active .tab__label { font-weight: 600; }
+
+/* Status travels with the tab so a site that died while you were looking at another one is
+   visible without switching back to the fleet grid. */
+.tab__dot {
+  width: 6px; height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.tab__dot.is-running { background: var(--primary); }
+.tab__dot.is-failed, .tab__dot.is-blocked { background: var(--warning); }
+
+.tab__close {
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  flex: none;
+  margin-left: 0.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.tab__close svg { width: 13px; height: 13px; }
+.tab__close:hover { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
+
+/* ---------- project tab placeholder ---------- */
+
+/* ---------- project workspace ---------- */
+
+/*
+ * One open project's tab. Every open project keeps a MOUNTED workspace (see App.tsx's <main>),
+ * so hiding one has to be `display: none` and nothing softer: a <webview> parked at zero opacity
+ * still paints, still loads, and still takes hit-tests, so stacked guests would fight for clicks.
+ */
+.workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.workspace.is-hidden { display: none; }
+
+/* Same technique as `.workspace.is-hidden` above, for the same reason: the create form stays
+   mounted (see `CreateWebsiteHost` in App.tsx) so navigating away and back never loses what the
+   operator typed. `display: none` also removes it from tab order and the accessibility tree. */
+.create-website-host.is-hidden { display: none; }
+
+.workspace__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* Segmented rather than two independent buttons: the admin and the front end are one choice with
+   one answer at a time, and `.workspace__url` beside it is that answer spelled out. */
+.workspace__views {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+
+.workspace__view {
+  padding: 0.1875rem 0.5625rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.workspace__view:hover { color: var(--fg); }
+.workspace__view.is-on {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.workspace.is-running .state { color: var(--primary); }
+.workspace.is-running .state__dot { box-shadow: 0 0 0 3px var(--primary-ring); }
+
+.workspace__url {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace__spacer { flex: 1; }
+
+.workspace__act {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.workspace__act:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
+.workspace__act:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.workspace__act--icon { display: grid; place-items: center; width: 28px; padding: 0; }
+.workspace__act--icon svg { width: 14px; height: 14px; }
+.workspace__act--icon[aria-pressed='true'] { border-color: var(--primary); color: var(--primary); }
+
+/* Positions the guest and its recovery overlay in the same box (see `ProjectWorkspace` in
+   App.tsx) — `min-height: 0` is load-bearing for the same reason `.workspace__frame` needed it
+   directly before this wrapper existed: without it this flex item is sized by its content, and a
+   <webview> reports none, collapsing the guest to a zero-height strip under the bar. */
+.workspace__guest { position: relative; flex: 1; min-height: 0; }
+
+.workspace__frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+
+/* Covers the still-mounted guest rather than replacing it — only reachable for `stalled`, a
+   guess, never for `failed`, a fact; see the long comment in App.tsx on why the two behave
+   differently. Opaque so a guest that is only slow, not actually broken, cannot show its own
+   in-progress paint through the panel. `display: flex` is what lets `.workspace__idle`'s own
+   `flex: 1` fill this box the same way it already fills `.workspace` in the not-running case,
+   with no separate sizing rule to keep in sync. */
+.workspace__overlay { position: absolute; inset: 0; z-index: 1; display: flex; background: var(--bg); }
+
+.workspace__idle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.75rem;
+  text-align: center;
+}
+
+.workspace__error { margin: 0; max-width: 34rem; color: var(--danger); font-size: 0.8125rem; }
+
+/* ---------- chat ---------- */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.chat__head { padding: 1rem 1.125rem 0.875rem; border-bottom: 1px solid var(--border); }
+
+.chat__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chat__scope { margin: 0.1875rem 0 0; font-size: 0.75rem; color: var(--faint); }
+
+.chat__body { flex: 1; padding: 1.125rem; overflow-y: auto; }
+
+.chat__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.chat__examples { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.375rem; }
+
+.chat__examples li {
+  padding: 0.5rem 0.6875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chat__composer { display: flex; gap: 0.5rem; padding: 0 1.125rem; }
+
+.chat__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.chat__input::placeholder { color: var(--faint); }
+
+.chat__send {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  flex: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.chat__send svg { width: 17px; height: 17px; }
+.chat__input:disabled, .chat__send:disabled { opacity: 0.45; cursor: default; }
+
+.chat__pending {
+  margin: 0.5rem 0 0;
+  padding: 0 1.125rem 1.125rem;
+  font-size: 0.6875rem;
+  color: var(--faint);
+}
+
+/* ---------- main ---------- */
+
+.main { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; overflow: auto; }
+
+.main__head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.375rem 1.75rem 1.125rem;
+}
+
+.main__spacer { flex: 1; }
+
+.main__tools {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
+.main__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- theme switch ---------- */
+
+.themer {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+
+.themer__opt {
+  padding: 0.1875rem 0.5625rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.themer__opt:hover { color: var(--fg); }
+
+.themer__opt.is-on {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* ---------- pills ---------- */
+
+.pill {
+  display: inline-block;
+  padding: 0.0625rem 0.5rem;
+  border-radius: var(--r-pill);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.pill--sample { border: 1px solid var(--border-strong); color: var(--muted); }
+.pill--local { border: 1px solid var(--border-strong); color: var(--muted); }
+.pill--deployed { background: var(--primary-dim); color: var(--primary); }
+
+/* ---------- project grid ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
+  gap: 1rem;
+  padding: 0 1.75rem 2rem;
+  align-content: start;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Clicking a card opens its site in a new tab — provisioning/blocked cards stay static,
+   since there is nothing yet (or ever, for blocked) to open. */
+.card.is-openable { cursor: pointer; }
+.card.is-openable:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.card.is-openable:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.card__tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+/* No screenshots exist, so the port stands in for the preview. It is the project's
+   real address rather than decoration, which is why it gets display size. */
+.card__port {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: var(--faint);
+}
+
+.card.is-running .card__tile { background: var(--primary-dim); }
+.card.is-running .card__port { color: var(--primary); }
+
+.card__body { padding: 0.75rem 0.875rem 0.875rem; display: grid; gap: 0.3125rem; justify-items: start; }
+
+.card__name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.card__meta {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-size: 0.75rem;
+}
+
+.card__uptime {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+/* A failure reason is operator-supplied text of unbounded length. Hard-clamp it to one
+   line so a long message can never stretch the card and break grid alignment — the full
+   text stays reachable via the element's `title`. */
+.card__detail {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--faint);
+}
+.card.is-failed .state { color: var(--warning); }
+
+.card__draft {
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.card__details {
+  margin: 0;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+/*
+ * Revealed on hover or keyboard focus rather than always drawn — a fleet screen whose every
+ * tile carries a visible delete button reads as a screen about deleting. `pointer-events` goes
+ * with the opacity so the hidden state cannot be clicked by accident.
+ */
+.card__delete {
+  position: absolute;
+  top: 0.4375rem;
+  right: 0.4375rem;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.card:hover .card__delete,
+.card:focus-within .card__delete { opacity: 1; pointer-events: auto; }
+.card__delete:hover { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
+.card__delete svg { width: 14px; height: 14px; }
+
+/*
+ * Covers the card it is about, rather than opening a page-level modal. The project being
+ * destroyed stays under the operator's cursor, so there is no window in which the confirmation
+ * and the thing confirmed can drift apart — and the grid keeps re-sorting behind a centred
+ * dialog would be exactly that window.
+ */
+.card__confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  text-align: left;
+}
+
+.card__confirmtitle { margin: 0; font-size: 0.8125rem; font-weight: 600; }
+.card__confirmbody { margin: 0; font-size: 0.75rem; line-height: 1.45; color: var(--muted); }
+.card__confirmerror { margin: 0; font-size: 0.75rem; color: var(--danger); }
+.card__confirmacts { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+.card__confirmacts .button { flex: 1; min-height: 30px; padding: 0.3125rem 0.5rem; font-size: 0.75rem; }
+
+.state { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--faint); }
+.state__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.card.is-running .state { color: var(--primary); }
+.card.is-running .state__dot { box-shadow: 0 0 0 3px var(--primary-ring); }
+.card.is-starting .state { color: var(--warning); }
+.card.is-starting .state__dot { animation: pulse 1.4s ease-in-out infinite; }
+
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .card.is-starting .state__dot { animation: none; }
+}
+
+/* ---------- add project ---------- */
+
+.card--add {
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 174px;
+  padding: 1rem;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+
+.card--add:hover {
+  border-color: var(--primary);
+  border-style: solid;
+  background: var(--primary-dim);
+  color: var(--primary);
+}
+
+.card__plus {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+}
+
+.card__plus svg { width: 18px; height: 18px; }
+.card__addlabel { font-size: 0.875rem; font-weight: 500; }
+.card__addhint { font-size: 0.75rem; color: var(--faint); }
+.card--add:hover .card__addhint { color: inherit; }
+
+/* ---------- website onboarding ---------- */
+
+.creation-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.375rem 1.75rem 1rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.creation-notice strong { color: var(--fg); font-weight: 600; }
+
+.creation-notice__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-dim);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 34px;
+  padding: 0.4375rem 0.75rem;
+  border-radius: var(--r-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button--quiet { border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+.button--quiet:hover { background: var(--surface-2); color: var(--fg); }
+.button--primary, .button--create { border: 1px solid var(--primary); background: var(--primary); color: #fff; }
+.button--primary:hover, .button--create:hover { filter: brightness(0.96); }
+.button--danger { border: 1px solid var(--danger); background: var(--danger); color: #fff; }
+.button--danger:hover:not(:disabled) { filter: brightness(0.95); }
+.button--primary:disabled,
+.button--danger:disabled,
+.button--quiet:disabled,
+.button--create:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.onboarding {
+  width: min(100% - 3.5rem, 860px);
+  margin: 0 auto 3rem;
+  padding-bottom: 2rem;
+}
+
+.onboarding__intro { margin: 0 0 1.5rem; }
+.onboarding__intro h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.625rem, 3vw, 2.25rem);
+  letter-spacing: -0.035em;
+}
+.onboarding__intro > p:last-child { max-width: 40rem; margin: 0.5rem 0 0; color: var(--muted); }
+
+.back-link {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+.back-link:hover { color: var(--primary); }
+
+.onboarding__eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--primary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.onboarding__form { display: grid; gap: 1rem; }
+.onboarding-card {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.onboarding-section {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.onboarding-section--instance {
+  background: var(--sunken);
+  border-bottom: 0;
+}
+.onboarding-card__head h3 { margin: 0; font-family: var(--font-display); font-size: 1rem; letter-spacing: -0.015em; }
+.onboarding-card__head p { margin: 0.1875rem 0 0; color: var(--muted); font-size: 0.8125rem; }
+
+.create-field { display: grid; gap: 0.4375rem; }
+.create-field__label { color: var(--fg); font-size: 0.75rem; font-weight: 600; }
+.create-field input {
+  width: 100%;
+  padding: 0.6875rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+.create-field input::placeholder { color: var(--faint); }
+.create-field__hint { min-height: 1.1rem; color: var(--faint); font-family: var(--font-mono); font-size: 0.6875rem; }
+
+.database-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; margin: 0; padding: 0; border: 0; gap: 0.625rem; }
+.database-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.625rem;
+  padding: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.database-option.is-selected { border-color: var(--primary); background: var(--primary-dim); }
+.database-option input { position: absolute; opacity: 0; pointer-events: none; }
+.database-option__radio {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+}
+.database-option.is-selected .database-option__radio { border: 5px solid var(--primary); }
+.database-option > span:last-child { display: grid; gap: 0.125rem; }
+.database-option strong { font-size: 0.8125rem; }
+.database-option small { color: var(--muted); font-size: 0.6875rem; line-height: 1.4; }
+
+.vendor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; padding-top: 0.25rem; }
+.vendor-fields--custom > :last-child { grid-column: 1 / -1; }
+.create-field__label em { color: var(--faint); font-style: normal; font-weight: 400; }
+
+.instance-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem 1rem; margin: 0; }
+.instance-summary div { display: grid; gap: 0.125rem; }
+.instance-summary dt { color: var(--faint); font-size: 0.6875rem; }
+.instance-summary dd { margin: 0; font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
+
+.onboarding__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.onboarding__actions > p { max-width: 32rem; margin: 0; color: var(--faint); font-size: 0.75rem; }
+.onboarding__actions > .onboarding__error { color: var(--warning); font-weight: 500; }
+.onboarding__actions > div { display: flex; flex: none; gap: 0.625rem; }
+
+/* ---------- Jini fleet chat ---------- */
+
+.chat-fab {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid color-mix(in oklch, var(--primary) 72%, transparent);
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 8px 24px color-mix(in oklch, var(--primary) 24%, transparent), var(--shadow-md);
+  color: #fff;
+  cursor: grab;
+  font-size: 1.125rem;
+}
+.chat-fab:hover { filter: brightness(0.97); transform: translateY(-2px); }
+/* Open state keeps the closed state's shape but drops the primary-tinted ring and glow —
+   a dark fill inside an orange ring reads as an error badge rather than a close affordance. */
+.chat-fab-open {
+  background: var(--fg);
+  border-color: var(--fg);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+/* `ChatFab` hardcodes its glyph as text content (💬/×) with no icon prop —
+   swapped visually here rather than forking the shared component. The closed-state
+   icon reuses `icons.tsx`'s `generation` sparkle path (filled, not stroked, since a
+   CSS mask needs a solid shape) so it matches the rest of the app's icon set exactly. */
+.chat-fab span[aria-hidden="true"] {
+  font-size: 0;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-color: #fff;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 2.5l1.9 4.7 4.6 1.8-4.6 1.8L10 15.5 8.1 10.8 3.5 9l4.6-1.8z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 2.5l1.9 4.7 4.6 1.8-4.6 1.8L10 15.5 8.1 10.8 3.5 9l4.6-1.8z'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+.chat-fab-open span[aria-hidden="true"] {
+  background-color: transparent;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.chat-fab-open span[aria-hidden="true"]::before { content: '×'; font-size: 1.375rem; color: #fff; }
+
+.runner-chat-pane {
+  /* Docked sidebar, not a floating card: it occupies the grid's second column in the content row,
+     so opening it narrows `.main` instead of covering it. The FAB stays `position: fixed` and
+     keeps floating — only the pane docks. */
+  grid-row: 3;
+  grid-column: 2;
+  display: grid;
+  /* Two children: the Runner-owned header, then Jini's ChatPane, which must absorb all
+     remaining height. Keep this row count in sync with the JSX — an extra `auto` row here
+     silently parks the pane in a content-sized track and leaves dead space beneath it. */
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(27rem, 40vw);
+  /* Height comes from the grid row, not a viewport calc — the row is already `minmax(0, 1fr)`
+     under two auto header rows, so `100%` tracks the real content height however tall the nav is. */
+  height: 100%;
+  /* Only a left edge: the other three sides are now the window, not a floating card's outline. */
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.runner-chat-pane__head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1rem 0.625rem; border-bottom: 1px solid var(--border); }
+.runner-chat-pane__head p { margin: 0; color: var(--primary); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.runner-chat-pane__head h2 { margin: 0.125rem 0 0; font-family: var(--font-display); font-size: 1rem; }
+.runner-chat-pane__head-actions { display: flex; align-items: center; gap: 0.5rem; }
+.runner-chat-pane__head button { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 1.25rem; line-height: 1; }
+.runner-chat-pane__head button:hover { background: var(--surface-2); color: var(--fg); }
+.runner-chat-pane__status { margin: 0; padding: 0.625rem 1rem; border-bottom: 1px solid var(--border); background: var(--sunken); color: var(--muted); font-size: 0.6875rem; line-height: 1.45; }
+.runner-chat-pane__status code { color: var(--primary); font-family: var(--font-mono); font-size: 0.65rem; }
+
+/* The conversation-delete confirmation banner (`useConversationDeleteConfirmation`) — deliberately
+   not a native `window.confirm`, which would block this renderer's own IPC (see that hook's doc,
+   and commit `204f3e6`'s project-delete precedent). Sits between the head and the pane body, so it
+   interrupts the chat without leaving the switcher's own dropdown. */
+.runner-chat-pane__confirm { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.625rem 1rem; border-bottom: 1px solid var(--border); background: var(--danger-dim); }
+.runner-chat-pane__confirm p { margin: 0; color: var(--fg); font-size: 0.75rem; line-height: 1.4; }
+.runner-chat-pane__confirm-actions { display: flex; flex: none; gap: 0.5rem; }
+.runner-chat-pane__confirm-actions button { padding: 0.3125rem 0.625rem; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.75rem; }
+.runner-chat-pane__confirm-actions button:hover { background: var(--surface-2); color: var(--fg); }
+.runner-chat-pane__confirm-delete { border-color: var(--danger) !important; color: var(--danger) !important; }
+.runner-chat-pane__confirm-delete:hover { background: var(--danger-dim) !important; }
+
+/* `@jini-ai/chat` does NOT ship unstyled markup — `ChatPane` injects its own complete default
+   theme as a `<style>` tag at mount (`Jini/packages/chat/src/react/features/chat-pane/styles.ts`),
+   appended LAST in the cascade, under selectors like `.jini-chat-pane` and
+   `.jini-chat-pane .jini-composer`. Two consequences that shaped every rule below:
+   1. Colour lives behind the `--jini-chat-*` custom properties that injected theme declares on
+      `.jini-chat-pane` itself (`--jini-chat-bg`, `--jini-chat-subtle`, etc.) — that is the
+      sanctioned host-theming seam, not more descendant selectors. But since the injected rule
+      declares them directly ON `.jini-chat-pane`, an override also has to match `.jini-chat-pane`
+      itself (an ancestor-only rule on `.runner-chat-pane` would never win — the element's own
+      declared value always beats an inherited one) with MORE than the injected rule's one class,
+      which is exactly what the block below does.
+   2. For any OTHER property, an equal-specificity collision goes to the injected tag too, because
+      it mounts after this stylesheet — so a Runner selector shaped exactly like the package's own
+      (e.g. two classes matching a `.jini-composer` two classes deep) silently ties and loses. Each
+      selector below is one class deeper than its injected counterpart specifically to win outright
+      rather than tie. Mirrors Tovu admin's identical fix for the identical package
+      (`apps/admin/src/styles/assistant.css`'s own header has the fuller account). */
+.runner-chat-pane .jini-chat-pane {
+  /* Retokenized onto Runner's own light/dark custom properties (see `:root`) so both themes track
+     automatically — a hardcoded hex here would freeze this pane in light mode forever. */
+  --jini-chat-bg: var(--surface);
+  --jini-chat-panel: var(--surface);
+  --jini-chat-subtle: var(--surface);
+  --jini-chat-text: var(--fg);
+  --jini-chat-text-strong: var(--fg);
+  --jini-chat-muted: var(--muted);
+  --jini-chat-faint: var(--faint);
+  --jini-chat-border: var(--border);
+  --jini-chat-border-strong: var(--border-strong);
+  --jini-chat-border-soft: var(--border);
+  --jini-chat-accent: var(--primary);
+  --jini-chat-accent-soft: var(--primary-dim);
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+}
+.runner-chat-pane .jini-chat-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.runner-chat-pane .jini-chat-pane__eyebrow { color: var(--faint); font-size: 0.625rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.runner-chat-pane .jini-chat-pane__new-thread {
+  padding: 0.3125rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.runner-chat-pane .jini-chat-pane__new-thread:hover { background: var(--surface-2); color: var(--fg); }
+
+.runner-chat-pane .jini-chat-pane__body { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.runner-chat-pane .jini-message-list { min-height: 0; flex: 1; padding: 0.75rem 1rem; overflow-y: auto; }
+/* `--jini-chat-subtle` now equals the pane's own background (mapped to `--surface` above), so the
+   injected theme's own user-bubble rule — `.jini-chat-pane .jini-message-user .jini-message-content
+   { background: var(--jini-chat-subtle) }`, 3 classes — would paint a white bubble on the white
+   pane: invisible. Give the bubble a background of its own, one class deeper than the injected
+   rule so it wins outright instead of tying (see the note above `.jini-chat-pane`). Tovu admin hit
+   this identical collision from this identical mapping and fixes it the identical way. */
+.runner-chat-pane .jini-message-list > .jini-message-user .jini-message-content {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.runner-chat-pane .jini-chat-pane__controls { flex: none; padding: 0.625rem 0.875rem 0.875rem; border-top: 1px solid var(--border); }
+.runner-chat-pane .jini-chat-pane__drop-target { display: block; }
+
+/* Only `display`/`gap` here still do anything. The injected theme's own
+   `.jini-chat-pane .jini-composer` rule (styles.ts) matches this same element at the SAME
+   specificity (two classes) and mounts after this stylesheet, so on every property both rules set
+   — background, border, border-radius, padding — the tie goes to the injected rule regardless of
+   source order (see the note above `.jini-chat-pane`). Those four properties used to sit here as
+   dead weight, silently overridden the whole time; removed rather than left to mislead the next
+   reader. The composer's actual background now comes from the `--jini-chat-subtle` mapping above. */
+.runner-chat-pane .jini-composer {
+  display: grid;
+  gap: 0.5rem;
+}
+.runner-chat-pane .jini-composer textarea {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  resize: none;
+}
+.runner-chat-pane .jini-composer textarea:focus { outline: none; }
+.runner-chat-pane .jini-composer button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.runner-chat-pane .jini-composer button:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
+.runner-chat-pane .jini-composer :disabled { cursor: not-allowed; opacity: 0.45; }
+.runner-chat-pane .jini-chat-pane__runtime-picker { color: var(--faint); font-size: 0.6875rem; }
+
+/* --- Conversation switcher (`ConversationList` from `@jini-ai/chat/react`) ----------------------
+ * The package ships unstyled `jini-conv-*` semantic markup and expects a host to supply CSS —
+ * see that component's own module doc. Without these rules the switcher renders as bare block
+ * elements with no dropdown surface of its own. Mirrors Tovu admin's `styles/assistant.css`
+ * (same package, same class names), retokenized onto Runner's own `--surface`/`--border`/etc.
+ * custom properties rather than Tovu's `--accent-text`/`--accent-soft`/`--danger-text`, which
+ * Runner does not define. */
+.runner-chat-pane__head-actions .jini-conv { position: relative; display: flex; align-items: center; }
+.runner-chat-pane__head-actions .jini-conv-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+.runner-chat-pane__head-actions .jini-conv-trigger:hover { background: var(--surface-2); color: var(--fg); }
+.runner-chat-pane__head-actions .jini-conv-trigger-open { border-color: var(--primary); color: var(--primary); }
+.runner-chat-pane__head-actions .jini-conv-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  z-index: 40;
+  width: max-content;
+  min-width: 230px;
+  max-width: min(300px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.runner-chat-pane__head-actions .jini-conv-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.runner-chat-pane__head-actions .jini-conv-heading { display: inline-flex; align-items: center; gap: 8px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.runner-chat-pane__head-actions .jini-conv-count { font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--muted); }
+.runner-chat-pane__head-actions .jini-conv-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+}
+.runner-chat-pane__head-actions .jini-conv-new:hover:not(:disabled) { border-color: var(--border-strong); }
+.runner-chat-pane__head-actions .jini-conv-new:disabled { opacity: 0.45; cursor: default; }
+.runner-chat-pane__head-actions .jini-conv-search { display: flex; align-items: center; gap: 8px; margin: 10px 12px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--faint); }
+.runner-chat-pane__head-actions .jini-conv-search input { flex: 1; min-width: 0; padding: 7px 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 0.8125rem; color: var(--fg); }
+.runner-chat-pane__head-actions .jini-conv-search input::-webkit-search-cancel-button { appearance: none; }
+.runner-chat-pane__head-actions .jini-conv-list { max-height: 320px; overflow-y: auto; padding: 4px 8px 8px; }
+.runner-chat-pane__head-actions .jini-conv-item { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px 8px; border-radius: var(--r-sm); }
+.runner-chat-pane__head-actions .jini-conv-item:hover { background: var(--surface-2); }
+.runner-chat-pane__head-actions .jini-conv-item-active { background: var(--primary-dim); }
+.runner-chat-pane__head-actions .jini-conv-item-select { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0; border: 0; background: transparent; font: inherit; text-align: left; color: var(--fg); cursor: pointer; }
+.runner-chat-pane__head-actions .jini-conv-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; }
+.runner-chat-pane__head-actions .jini-conv-item-meta { flex: none; font-size: 0.6875rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+.runner-chat-pane__head-actions .jini-conv-item-delete { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); cursor: pointer; opacity: 0; }
+.runner-chat-pane__head-actions .jini-conv-item:hover .jini-conv-item-delete,
+.runner-chat-pane__head-actions .jini-conv-item-delete:focus-visible { opacity: 1; }
+.runner-chat-pane__head-actions .jini-conv-item-delete:hover { background: var(--danger-dim); color: var(--danger); }
+.runner-chat-pane__head-actions .jini-conv-rename { flex: 1; min-width: 0; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); font: inherit; font-size: 0.8125rem; color: var(--fg); outline: none; }
+.runner-chat-pane__head-actions .jini-conv-empty { padding: 18px 12px; text-align: center; font-size: 0.75rem; color: var(--faint); }
+
+@media (max-width: 680px) {
+  .main__head { align-items: flex-start; }
+  .database-picker, .vendor-fields, .instance-summary { grid-template-columns: 1fr; }
+  .vendor-fields--custom > :last-child { grid-column: auto; }
+  .onboarding { width: min(100% - 2rem, 860px); }
+  .onboarding__actions { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-fab { transition: none; }
+}
+
+/* ---------- empty states ---------- */
+
+.empty { max-width: 30rem; margin: 2rem 1.75rem; }
+
+.empty__title {
+  margin: 0 0 0.375rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.empty__body { margin: 0; color: var(--muted); }

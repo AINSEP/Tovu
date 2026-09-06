@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tovu Runner</title>
+    <!--
+      kUInetic: declarative `data-kui="..."` animation attributes, available anywhere in the
+      app once loaded here. Pinned to 0.1.4 rather than the unversioned `/npm/kuinetic` — this
+      renderer exposes a privileged `window.tovuRunner` bridge (project create/start/stop, fleet
+      chat), so a third-party script here should not be able to change under us on a CDN release
+      with no corresponding change in this repo. Split bundle (CSS + JS separately, not
+      `kuinetic.all.js`) per the library's own recommendation: the CSS half keeps working even if
+      the JS is slow, blocked, or fails to load, since it's what `fade-up`-style effects reduce to
+      at the CSS level. Requires network access to the CDN — a fully offline launch loses the
+      animation layer, not the app.
+    -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/kuinetic@0.1.4/dist/kuinetic.css" />
+    <script src="https://cdn.jsdelivr.net/npm/kuinetic@0.1.4/dist/kuinetic.js"></script>
+    <script>
+      if (window.kuinetic) window.kuinetic.kuinetic({ observe: true }).start();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
