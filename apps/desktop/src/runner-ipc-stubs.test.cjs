@@ -48,12 +48,30 @@ function declaredChannels() {
   return found;
 }
 
+/**
+ * Channels the Projects screen needs for real, given real handlers in `project-ipc.cjs` (registered
+ * in `main.cjs` before `registerRunnerIpcStubs` runs) — see `RUNNER_PROJECT_CHANNELS`'s own doc.
+ * Declared by the contracts, on purpose absent from `RUNNER_STUB_CHANNELS`: a real handler and a
+ * stub for the same channel is a duplicate `ipcMain.handle` registration, which Electron itself
+ * refuses. `start`/`stop` stay stubbed — see `openWindow`'s own doc on why the N-window model never
+ * needs them — so they are NOT in this list.
+ */
+const IMPLEMENTED_CHANNELS = new Set([
+  "runner:projects:list",
+  "runner:projects:create",
+  "runner:projects:delete",
+  "runner:projects:open-external",
+  "runner:projects:open-window",
+]);
+
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {
   assert.ok(declaredChannels().size >= 20, `expected 20+ parsed channels, got ${declaredChannels().size}`);
 });
 
-test("every channel the contracts declare has a stub", () => {
-  const missing = [...declaredChannels()].filter((channel) => !RUNNER_STUB_CHANNELS.includes(channel));
+test("every channel the contracts declare has a stub or a real handler", () => {
+  const missing = [...declaredChannels()].filter(
+    (channel) => !RUNNER_STUB_CHANNELS.includes(channel) && !IMPLEMENTED_CHANNELS.has(channel),
+  );
   assert.deepEqual(missing, []);
 });
 
@@ -61,6 +79,11 @@ test("every stubbed channel is declared by a contract", () => {
   const declared = declaredChannels();
   const orphaned = RUNNER_STUB_CHANNELS.filter((channel) => !declared.has(channel));
   assert.deepEqual(orphaned, []);
+});
+
+test("no channel is both stubbed and implemented for real", () => {
+  const both = RUNNER_STUB_CHANNELS.filter((channel) => IMPLEMENTED_CHANNELS.has(channel));
+  assert.deepEqual(both, []);
 });
 
 test("the two push-only channels are NOT stubbed", () => {

@@ -10,11 +10,11 @@
  * Three boot modes, one product:
  *
  * 0. **Fleet UI** (`TOVU_DESKTOP_UI=runner`). Opens Tovu-Runner's ported renderer
- *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin. Its
- *    project verbs are not implemented yet — `src/runner-ipc-stubs.cjs` registers a throwing
- *    handler for every one of them — so this mode is opt-in and OFF by default: phase 1 of the
- *    port brought the UI across, `Tovu-Runner/src/main/` lands in phase 2 and flips the default.
- *    Leaving it off is what keeps the verified multi-site behaviour below byte-for-byte unchanged.
+ *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
+ *    Projects screen. `list`/`create`/`delete`/`open-external`/`open-window` are real
+ *    (`src/project-ipc.cjs`), routing a card click through the same `openSiteWindow`/`serializer`
+ *    path own-server mode uses below; `start`/`stop` stay throwing stubs on purpose — see
+ *    `RUNNER_PROJECT_CHANNELS.openWindow`'s own doc on why the N-window model never needs them.
  *
  * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —
  *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so
@@ -91,6 +91,8 @@ const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 const { redeemBootSession, sitePartition } = require("./src/desktop-auth.cjs");
+const { projectsFilePath } = require("./src/project-registry.cjs");
+const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
@@ -248,20 +250,18 @@ function createWindow(url, title, partition) {
 }
 
 /**
- * Open the ported Tovu-Runner fleet UI. Boot mode 0 — see this file's header.
+ * Open the ported Tovu-Runner fleet UI (the Projects screen). Boot mode 0 — see this file's header.
  *
- * Three webPreferences differ from {@link createWindow}, each forced by the renderer rather than
- * chosen:
+ * Only one webPreference differs from {@link createWindow}, forced by the renderer rather than
+ * chosen: `sandbox: false`, because {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron
+ * 43 loads one only in an unsandboxed renderer.
  *
- * - `sandbox: false`, because {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron 43
- *   loads one only in an unsandboxed renderer.
- * - `webviewTag: true`, because the fleet UI embeds each project's `tovu serve` output in a
- *   `<webview>` rather than a separate window.
- * - the `will-attach-webview` hardening below, which is the necessary counterpart to that: with
- *   `webviewTag` on, the PAGE would otherwise choose each guest's webPreferences through plain
- *   HTML attributes. Ported verbatim from Tovu-Runner's own `main.ts` — stripping `preload` and
- *   pinning `nodeIntegration`/`contextIsolation` means no guest can be handed Node access no
- *   matter what the page's markup asks for.
+ * No `webviewTag` and no `will-attach-webview` hardening — Tovu-Runner's own `main.ts` needs both
+ * because it embeds each project's `tovu serve` output in a `<webview>` inside this one window.
+ * `apps/desktop` opens each project in its OWN `BrowserWindow` instead (`openSiteWindow`, via
+ * `project-ipc.cjs`'s `runner:projects:open-window` handler), so there is no guest to attach and no
+ * page-controlled `webPreferences` to harden against — not having that attack surface beats hardening
+ * it. See `2026-09-06-runner-ui-port-manifest-v2.md` §3 for the full ledger.
  *
  * @returns the window, or `null` when the renderer has not been built yet.
  * @complexity O(1).
@@ -286,17 +286,11 @@ function openFleetWindow() {
       nodeIntegration: false,
       sandbox: false,
       preload: FLEET_PRELOAD_PATH,
-      webviewTag: true,
     },
   });
 
   if (selftestTracker) selftestTracker.add(window);
   window.on("page-title-updated", (event) => event.preventDefault());
-  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
-    delete webPreferences.preload;
-    webPreferences.nodeIntegration = false;
-    webPreferences.contextIsolation = true;
-  });
 
   void window.loadFile(FLEET_RENDERER_PATH);
   return window;
@@ -647,8 +641,34 @@ app
     applyDockIcon();
 
     // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
-    // spawns no `tovu serve`, so none of the site-dir/registry/menu machinery below applies to it.
+    // spawns no `tovu serve` of its own at boot — only when a project card is clicked, through the
+    // SAME `openSiteWindow`/`serializer` path own-server mode uses below.
     if (fleetUiRequested()) {
+      const fleetCtx = {
+        cliMode: resolveCliMode(),
+        statePath: stateFilePath(app.getPath("userData")),
+        registryPath: registryFilePath(app.getPath("userData")),
+        projectsPath: projectsFilePath(app.getPath("userData")),
+      };
+      // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
+      // five real handlers must claim their channels first — see `project-ipc.cjs`'s own header.
+      registerProjectIpcHandlers({
+        ipcMain,
+        dialog,
+        shell,
+        openSites,
+        serializer,
+        projectsPath: fleetCtx.projectsPath,
+        registryPath: fleetCtx.registryPath,
+        repoRoot: REPO_ROOT,
+        statePath: fleetCtx.statePath,
+        cliMode: fleetCtx.cliMode,
+        readSiteName,
+        adoptSiteDir,
+        openSiteWindow,
+        recordSiteClosed,
+        ctx: fleetCtx,
+      });
       registerRunnerIpcStubs({ ipcMain });
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       openFleetWindow();

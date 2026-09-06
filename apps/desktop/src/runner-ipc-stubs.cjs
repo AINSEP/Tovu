@@ -38,13 +38,12 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   "runner:agents:list",
   "runner:agents:rescan",
   "runner:daemon:online",
-  // contracts/project.ts
-  "runner:projects:list",
-  "runner:projects:create",
+  // contracts/project.ts — list/create/delete/open-external/open-window are real handlers now
+  // (`project-ipc.cjs`, registered in `main.cjs` before this module runs); start/stop stay
+  // stubbed on purpose — see `RUNNER_PROJECT_CHANNELS.openWindow`'s own doc on why the N-window
+  // model never needs them.
   "runner:projects:start",
   "runner:projects:stop",
-  "runner:projects:delete",
-  "runner:projects:open-external",
   // contracts/fleet-chat.ts — `event` and `navigate` are push-only, see this file's header
   "runner:chat:start",
   "runner:chat:reattach",

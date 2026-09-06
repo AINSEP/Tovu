@@ -28,6 +28,8 @@ export interface RunnerInventoryBridge {
   deleteProject: (id: string) => Promise<void>;
   /** Hands one of a project's surfaces to the default browser. Main derives the url from the id. */
   openProjectExternal: (input: OpenProjectViewInput) => Promise<void>;
+  /** Opens (or focuses) a project in its own window — see `RUNNER_PROJECT_CHANNELS.openWindow`. */
+  openProjectWindow: (id: string) => Promise<void>;
   chatStart: (input: RunnerChatStartInput) => Promise<RunnerChatStartResult>;
   chatReattach: (input: RunnerChatReattachInput) => Promise<void>;
   chatDetach: (subscriptionId: string) => Promise<void>;

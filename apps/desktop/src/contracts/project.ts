@@ -76,4 +76,14 @@ export const RUNNER_PROJECT_CHANNELS = {
    * name a destination and main has nothing to validate on arrival.
    */
   openExternal: 'runner:projects:open-external',
+  /**
+   * Opens (or focuses) a project in its own `BrowserWindow` — the N-BrowserWindow model's answer
+   * to a click on a project card. Carries only the project id; main resolves it to a site dir
+   * through the tracked project list and hands it to the same `openSiteWindow`/`serializer` path
+   * "Open Site…" already uses, spawning the site's own `tovu serve` if it is not already running.
+   * Deliberately not a `start`/`stop` pair: under N windows a site cannot run without a window
+   * (see `main.cjs`'s own doc on `openSiteWindow`), so "open" already covers "start", and closing
+   * the window is what stops it.
+   */
+  openWindow: 'runner:projects:open-window',
 } as const;
