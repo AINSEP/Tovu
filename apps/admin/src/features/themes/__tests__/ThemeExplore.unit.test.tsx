@@ -1077,4 +1077,123 @@ describe("slug-collision warning — a content record claims this page's own URL
     const link = screen.getByRole("link", { name: /Home/ });
     expect(link).toHaveAttribute("href", "/admin/pages/home-1");
   });
+
+  it("clicking the link navigates via the SPA router instead of a full page load", async () => {
+    window.history.replaceState(null, "", "/");
+    const user = userEvent.setup();
+    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
+    const link = screen.getByRole("link", { name: /What Is Tovu\?/ });
+
+    await user.click(link);
+
+    expect(window.location.pathname).toBe("/admin/posts/post-1");
+    window.history.replaceState(null, "", "/");
+  });
+});
+
+describe("editable HTML source textarea", () => {
+  it("calls setSource as the operator types", async () => {
+    const user = userEvent.setup();
+    const setSource = vi.fn();
+    renderExplore({ view: "html", selected: "pages/index.html", source: "", setSource });
+
+    const textarea = screen.getByRole("textbox", { name: "Theme file source" });
+    await user.type(textarea, "x");
+
+    expect(setSource).toHaveBeenCalledWith("x");
+  });
+});
+
+describe("ThemeExploreDirectionsNotice — no stored original", () => {
+  it("shows nothing when the theme has a stored original (the default)", () => {
+    renderExplore();
+    expect(screen.queryByText(/cannot be reset/)).not.toBeInTheDocument();
+  });
+
+  it("warns that edits cannot be reset when the theme has no stored original", () => {
+    renderExplore({
+      detail: {
+        id: "novice",
+        name: "Novice",
+        tier: "static",
+        apiVersion: undefined,
+        status: "valid",
+        errors: [],
+        lineage: null,
+        hasOriginal: false,
+      },
+    });
+    expect(screen.getByText(/cannot be reset/)).toBeInTheDocument();
+  });
+});
+
+describe("ThemeExploreStatusNotice — theme failing to load", () => {
+  it("shows nothing when the theme's status is valid (the default)", () => {
+    renderExplore();
+    expect(screen.queryByText("This theme is not loading:")).not.toBeInTheDocument();
+  });
+
+  it("shows the theme's own errors when its status is not valid", () => {
+    renderExplore({
+      detail: {
+        id: "novice",
+        name: "Novice",
+        tier: "static",
+        apiVersion: undefined,
+        status: "error",
+        errors: ["theme.json is not valid JSON", "missing pages/index.html"],
+        lineage: null,
+        hasOriginal: true,
+      },
+    });
+    expect(screen.getByText(/This theme is not loading:/)).toBeInTheDocument();
+    expect(screen.getByText(/theme\.json is not valid JSON; missing pages\/index\.html/)).toBeInTheDocument();
+  });
+});
+
+describe("Preview/HTML view tabs", () => {
+  it("clicking the HTML tab calls setView", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ setView });
+
+    await user.click(screen.getByRole("tab", { name: "HTML" }));
+
+    expect(setView).toHaveBeenCalledWith("html");
+  });
+
+  it("clicking the Preview tab calls setView", async () => {
+    const user = userEvent.setup();
+    const setView = vi.fn();
+    renderExplore({ view: "html", setView });
+
+    await user.click(screen.getByRole("tab", { name: "Preview" }));
+
+    expect(setView).toHaveBeenCalledWith("preview");
+  });
+});
+
+describe("reset confirm dialog — confirming actually resets", () => {
+  it("clicking 'Reset file' in the confirm dialog calls reset()", async () => {
+    const user = userEvent.setup();
+    const reset = vi.fn();
+    renderExplore({ resetConfirmOpen: true, reset });
+
+    await user.click(screen.getByRole("button", { name: "Reset file" }));
+
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("'← All themes' navigates back to the theme list", () => {
+  it("clicking it navigates via the SPA router instead of a full page load", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=novice");
+    const user = userEvent.setup();
+    renderExplore();
+
+    await user.click(screen.getByRole("button", { name: "← All themes" }));
+
+    expect(window.location.pathname).toBe("/admin/themes");
+    window.history.replaceState(null, "", "/");
+  });
 });
