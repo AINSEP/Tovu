@@ -132,6 +132,7 @@ import {
   createOwnedRunListHandler,
   createRunOwnerRegistry,
   requireRunOwnership,
+  RUN_PRINCIPAL_HEADER,
   parseRunStartContextRef,
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
@@ -144,6 +145,7 @@ import {
 } from "#src/assistant/agent-daemon-port";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
+import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -404,6 +406,20 @@ if (mediaUploadAssetRegistration) {
     `[agent-daemon] '${MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID}' not registered: 'media_upload_asset' is not wired`,
   );
 }
+
+/**
+ * `chat_list_pending_attachments` — the discovery half of the chat-attachment bridge (see
+ * `list-pending-chat-attachments.ts`'s own header for the full design/scoping rationale). Registered
+ * unconditionally (unlike the promote tool above, it delegates to no other registration) alongside
+ * it, for the same "daemon-only capability with no meaning elsewhere" reasoning.
+ */
+registry.register(
+  buildListPendingChatAttachmentsTool({
+    // A thunk, not `attachmentStore` itself — same reasoning as `buildPromoteChatAttachmentTool`'s
+    // own `getStore` just above: this line runs before `start()` assigns it.
+    getStore: () => attachmentStore,
+  }),
+);
 
 /**
  * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,
@@ -1156,7 +1172,18 @@ async function start(): Promise<void> {
   // non-JSON `content-type` is what actually protects the upload route — see
   // `src/server/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  registerAttachmentRoutes(app, { store: attachmentStore }, adapter);
+  registerAttachmentRoutes(
+    app,
+    {
+      store: attachmentStore,
+      // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
+      // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
+      // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
+      // (`list-pending-chat-attachments.ts`) scopes its listing by.
+      resolveOwnerId: (req) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+    },
+    adapter,
+  );
 
   const server = app.listen(port, "127.0.0.1", () => {
     console.log(`[agent-daemon] listening on ${daemonUrl}`);

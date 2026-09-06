@@ -37,7 +37,7 @@ export {
 export { registerA2uiActionsRoute } from "./a2ui-actions-route.js";
 export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route.js";
 export { resolveMcpJsonInjection } from "./mcp-injection.js";
-export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership.js";
+export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 export { parseRunStartContextRef } from "./run-start-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery } from "./tool-catalog-query.js";

@@ -55,6 +55,7 @@ import {
   unionModels,
   isMcpUiToolCallAllowed,
   MCP_UI_TOOL_CALLS_PATH,
+  RUN_PRINCIPAL_HEADER,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "#src/assistant/index";
@@ -335,11 +336,17 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * out exactly this class of bug ("a dropped `.json` file... `express.json()` eats the body") for
  * the daemon's OWN mount of this route pack — the same reasoning applies one hop earlier, here.
  *
- * No `RUN_PRINCIPAL_HEADER` stamp: unlike every other forwarded route, an attachment upload has no
- * `runId` yet (a run doesn't exist until `POST /api/runs`, which happens after the composer has
- * already staged its uploads) — there is nothing for the daemon's per-run ownership check to
- * compare against, and the daemon-side attachment store does not read that header. Authentication
- * is still enforced twice: `requireAdminSession` below (browser session) and the bearer token this
+ * `RUN_PRINCIPAL_HEADER` IS stamped here, even though (unlike every other forwarded route) an
+ * attachment upload has no `runId` yet to compare it against (a run doesn't exist until
+ * `POST /api/runs`, which happens after the composer has already staged its uploads) — so it is not
+ * for `run-ownership.ts`'s own check. `agent-daemon-server.ts` instead reads it via
+ * `AttachmentsHttpDeps.resolveOwnerId` and records it as the attachment's `ownerId`
+ * (`@jini-ai/http-kit`'s `attachments.ts`), which is what lets `chat_list_pending_attachments`
+ * later find an attachment the model was never told about in-run. Safe to assert here for the same
+ * reason `outboundHeaders` already asserts it for every JSON-proxied route: this function is only
+ * ever reached downstream of `requireAdminSession` (mounted on this whole path below), so the value
+ * is always a server-verified session principal, never anything the browser chose. Authentication
+ * is still enforced twice: `requireAdminSession` (browser session) and the bearer token this
  * function still attaches (proves the call came from Tovu's own proxy, not an arbitrary local
  * process) — see `daemon-auth.ts`.
  */
@@ -351,6 +358,9 @@ async function forwardAttachmentUpload(req: Request, res: Response): Promise<voi
   };
   const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
   if (token) headers.Authorization = `Bearer ${token}`;
+  // See this function's own doc: not for run ownership (no run exists yet), but so the daemon can
+  // record who this attachment belongs to.
+  headers[RUN_PRINCIPAL_HEADER] = getAuthedPrincipal(res).id;
 
   let upstream: globalThis.Response;
   try {

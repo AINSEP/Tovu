@@ -387,6 +387,37 @@ test("a browser-supplied principal header is overwritten, never trusted", async 
   );
 });
 
+/**
+ * The dedicated attachment-upload proxy (`forwardAttachmentUpload`) builds its own header set from
+ * scratch rather than going through `outboundHeaders` — see that function's own doc for why (a raw
+ * byte stream, not JSON). It used to omit `RUN_PRINCIPAL_HEADER` entirely, on the reasoning that an
+ * attachment upload has no `runId` yet for the daemon's per-run ownership check to compare against.
+ * That reasoning no longer covers the whole picture: `AttachmentStore.listPendingForOwner`
+ * (`@jini-ai/http-kit`) now scopes a chat-attachment discovery listing to whichever principal
+ * uploaded a file, and it can only do that if this proxy hop names the uploader — the same way every
+ * other proxied route already names the run's owner. Without this header the daemon has no owner to
+ * record, so an attachment can never be found by `chat_list_pending_attachments` at all.
+ */
+test("the attachment-upload proxy also asserts the session-verified principal, so a later listing tool can scope pending uploads to their uploader", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as {
+    user: { id: string };
+  };
+
+  await fetch(`${baseUrl}/api/attachments?batch=batch-1&name=a.txt`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/octet-stream" },
+    body: Buffer.from("file bytes"),
+  });
+
+  assert.equal(recorded.length, 1);
+  assert.equal(
+    recorded[0].headers[RUN_PRINCIPAL_HEADER],
+    me.user.id,
+    "an attachment upload must name its uploader, or a later listing tool can never scope to it"
+  );
+});
+
 test("the run-start body rewrite still stamps the session principal into contextRef alongside the new headers", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
 
