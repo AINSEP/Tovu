@@ -1355,6 +1355,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
       )}
       <ConfirmDialog
         open={confirmingDelete}
+        agentHandle="post-delete-confirm"
         title={t("Move to trash?")}
         body={<PostDeleteConfirmBody kindLabel={kindLabel} postTitle={post.title} t={t} />}
         confirmLabel={t("Move to trash")}
