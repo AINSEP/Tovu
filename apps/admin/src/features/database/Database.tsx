@@ -1,6 +1,8 @@
 import { type AdminLedgerRow } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
 import { useWiredRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
@@ -108,7 +110,12 @@ function TimelineFilterForm(props: {
     <form className="notice database-filter-bar toolbar" onSubmit={props.onSubmit}>
       <div className="field">
         <label className="field-label" htmlFor="database-filter-kind">{t(locale, "Kind")}</label>
-        <select id="database-filter-kind" value={props.kind} onChange={(e) => props.onKindChange(e.target.value)}>
+        <select
+          id="database-filter-kind"
+          value={props.kind}
+          onChange={(e) => props.onKindChange(e.target.value)}
+          {...agentHandle("database-filter-kind", { role: "field", label: "Filter the timeline by event kind" })}
+        >
           <option value="">{t(locale, "(any)")}</option>
           {KIND_OPTIONS.map((k) => (
             <option key={k} value={k}>
@@ -124,6 +131,7 @@ function TimelineFilterForm(props: {
           value={props.outcome}
           onChange={(e) => props.onOutcomeChange(e.target.value)}
           placeholder={t(locale, "e.g. success")}
+          {...agentHandle("database-filter-outcome", { role: "field", label: "Filter the timeline by outcome text" })}
         />
       </div>
       <div className="field">
@@ -133,13 +141,26 @@ function TimelineFilterForm(props: {
           type="date"
           value={props.fromDate}
           onChange={(e) => props.onFromDateChange(e.target.value)}
+          {...agentHandle("database-filter-from", { role: "field", label: "Filter the timeline to entries on or after this date" })}
         />
       </div>
       <div className="field">
         <label className="field-label" htmlFor="database-filter-to">{t(locale, "To")}</label>
-        <input id="database-filter-to" type="date" value={props.toDate} onChange={(e) => props.onToDateChange(e.target.value)} />
+        <input
+          id="database-filter-to"
+          type="date"
+          value={props.toDate}
+          onChange={(e) => props.onToDateChange(e.target.value)}
+          {...agentHandle("database-filter-to", { role: "field", label: "Filter the timeline to entries on or before this date" })}
+        />
       </div>
-      <button type="submit" className="btn-secondary">{t(locale, "Apply filters")}</button>
+      <button
+        type="submit"
+        className="btn-secondary"
+        {...agentHandle("database-filter-apply", { role: "button", label: "Apply the timeline filters" })}
+      >
+        {t(locale, "Apply filters")}
+      </button>
     </form>
   );
 }
@@ -147,7 +168,14 @@ function TimelineFilterForm(props: {
 /** Builds the Timeline `DataTable`'s column descriptors. A plain function rather than a closure
  *  declared inside `TimelineBody`'s body — it closes over nothing but module-scope values, so it
  *  takes no parameters at all beyond `locale`. */
-function timelineColumns(locale: string): Array<{
+/** Timeline rows page in over "Load more", so handles are derived fresh each render from
+ *  whichever rows are currently on screen — same per-row-id derivation every other list on this
+ *  workstream uses (`buildAgentListHandles`), keyed by a lookup rather than row position because
+ *  `DataTable`'s `cell` callback only receives the row, not its index. */
+function timelineColumns(
+  locale: string,
+  handleForRestorePointCell: (rowId: string) => string,
+): Array<{
   key: string;
   header: string;
   cell: (row: AdminLedgerRow) => React.ReactNode;
@@ -164,7 +192,15 @@ function timelineColumns(locale: string): Array<{
       header: t(locale, "Restore point"),
       cell: (row: AdminLedgerRow) =>
         row.restorePointId ? (
-          <button type="button" className="database-restore-point-link" onClick={() => navigateToRecoveryWithDeepLink(row)}>
+          <button
+            type="button"
+            className="database-restore-point-link"
+            onClick={() => navigateToRecoveryWithDeepLink(row)}
+            {...agentHandle(handleForRestorePointCell(row.id), {
+              role: "button",
+              label: "Open this ledger entry's restore point in Recovery",
+            })}
+          >
             {t(locale, "View in Recovery →")}
           </button>
         ) : (
@@ -189,11 +225,27 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
       </div>
     );
   }
+  const restorePointHandles = buildAgentListHandles(
+    "database-timeline-restore-point",
+    props.rows.map((row) => row.id),
+  );
+  const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]!]));
+
   return (
     <>
-      <DataTable rows={props.rows} rowKey={(row) => row.id} columns={timelineColumns(locale)} />
+      <DataTable
+        rows={props.rows}
+        rowKey={(row) => row.id}
+        columns={timelineColumns(locale, (rowId) => restorePointHandleById.get(rowId)!)}
+      />
       {props.nextCursor ? (
-        <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={props.loadMore}
+          disabled={props.loadingMore}
+          {...agentHandle("database-timeline-load-more", { role: "button", label: "Load more timeline rows" })}
+        >
           {props.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
         </button>
       ) : null}
@@ -262,7 +314,12 @@ function RestorePointsSection({ useRestorePointsSectionHook = useWiredRestorePoi
     <div>
       <div className="editor-header">
         <h2>{t("Restore points")}</h2>
-        <button type="button" onClick={createRestorePoint} disabled={creating}>
+        <button
+          type="button"
+          onClick={createRestorePoint}
+          disabled={creating}
+          {...agentHandle("database-create-restore-point", { role: "button", label: "Create a new restore point now" })}
+        >
           {creating ? t("Creating…") : t("Create restore point")}
         </button>
       </div>
@@ -301,7 +358,13 @@ export interface MigrateForwardSectionProps {
 /** step === "idle": the entry point into the ceremony. */
 function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: () => void }) {
   return (
-    <button type="button" className="btn-ghost" onClick={props.onStartPlan} disabled={props.busy}>
+    <button
+      type="button"
+      className="btn-ghost"
+      onClick={props.onStartPlan}
+      disabled={props.busy}
+      {...agentHandle("database-migrate-plan", { role: "button", label: "Plan the forward migration" })}
+    >
       {props.busy ? t(props.locale, "Planning…") : t(props.locale, "Plan migration")}
     </button>
   );
@@ -315,7 +378,13 @@ function PlannedStep(props: { locale: string; plan: { planId: string }; busy: bo
   return (
     <div className="notice">
       <p>{planReadyMessage(props.locale, props.plan.planId)}</p>
-      <button type="button" className="btn-secondary" onClick={props.onConfirm} disabled={props.busy}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={props.onConfirm}
+        disabled={props.busy}
+        {...agentHandle("database-migrate-confirm", { role: "button", label: "Confirm the planned migration, issuing a one-time execution token" })}
+      >
         {props.busy ? t(props.locale, "Confirming…") : t(props.locale, "Confirm migration")}
       </button>
     </div>
@@ -328,7 +397,13 @@ function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => 
   return (
     <div className="notice">
       <p>{t(props.locale, "Confirmed. Executing runs the migration now.")}</p>
-      <button type="button" className="btn-warning" onClick={props.onExecute} disabled={props.busy}>
+      <button
+        type="button"
+        className="btn-warning"
+        onClick={props.onExecute}
+        disabled={props.busy}
+        {...agentHandle("database-migrate-execute", { role: "button", label: "Execute the confirmed migration now" })}
+      >
         {props.busy ? t(props.locale, "Migrating…") : t(props.locale, "Execute migration")}
       </button>
     </div>
@@ -380,7 +455,13 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateF
       <div className="editor-header">
         <h2>{t("Migrate forward")}</h2>
         {step !== "idle" ? (
-          <button type="button" className="btn-ghost" onClick={reset} disabled={busy}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={reset}
+            disabled={busy}
+            {...agentHandle("database-migrate-reset", { role: "button", label: "Reset the migrate-forward ceremony back to idle" })}
+          >
             {t("Reset")}
           </button>
         ) : null}
@@ -481,7 +562,13 @@ export function Database(props: DatabaseProps) {
         </div>
       </div>
       <SchemaStateWarningBanner />
-      <TabBar ariaLabel={t(locale, "Database")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} />
+      <TabBar
+        ariaLabel={t(locale, "Database")}
+        tabs={tabs}
+        activeId={activeTabId}
+        onChange={handleTabChange}
+        containerHandle="database-tab-bar"
+      />
       {databaseTabPanel(activeTabId)}
     </div>
   );
