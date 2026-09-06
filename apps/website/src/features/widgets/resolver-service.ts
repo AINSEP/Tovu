@@ -873,9 +873,15 @@ async function resolvePostTypeEmbeds(
  *
  * `ref.header` (2026-09-04, {@link PageHtmlEmbedRef.header}'s own doc) is threaded into IR
  * `props.header` unchanged in BOTH branches below — the DB lookup and the `pendingContentOverride`
- * short-circuit both read it off the SAME scanned `ref`, so the operator's preview and the published
- * page can never disagree about whether a given marker suppresses `render.ts`'s
- * `renderWidgetPostContent` header wrapper.
+ * short-circuit both read it off the SAME scanned `ref`. This value is only ever a STAGING default,
+ * though, not what actually renders: `resolved` below is keyed by `ref.id`, one IR per id, so if the
+ * same id is embedded twice with different `header` options the two `resolved.set` calls race and
+ * one silently overwrites the other here — the `fc1a506a` bug (2026-09-05). `render.ts`'s
+ * `renderHtmlPageBody`/`withOccurrenceHeader` is what actually makes this safe: it discards this
+ * staged `header` and re-applies the CURRENT occurrence's own `ref.header` at substitution time,
+ * where the real per-occurrence ref is available. See the `resolved` map's own comment immediately
+ * below before adding another per-occurrence option here — the same collision reopens unless it
+ * gets the same substitution-time treatment.
  *
  * @complexity O(e) over the `content` refs present (already capped upstream at
  * `MAX_HTML_EMBEDS_PER_PAGE`) — one `findPublishedPostById` call per ref not satisfied by
@@ -887,6 +893,15 @@ async function resolveContentTypeEmbeds(
   deps: ResolveHtmlPageEmbedsDeps,
   context: WidgetResolveContext
 ): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  // Keyed by `ref.id`, ONE staged IR per id — not per occurrence. Any prop set here from
+  // occurrence-specific data (e.g. `header` in `props` below) is only a default: if the same id is
+  // embedded more than once on a page with different per-occurrence options, the concurrent
+  // `resolved.set` calls below race and whichever ref wins decides that prop for every occurrence,
+  // silently dropping the others' — the exact bug `fc1a506a` (2026-09-05) fixed for `header`.
+  // Occurrence-specific options must be re-applied at SUBSTITUTION time instead, where the real
+  // per-occurrence `ref` is available (`render.ts`'s `renderHtmlPageBody`/`withOccurrenceHeader` is
+  // `header`'s own fix); staging one here is fine only as long as every consumer of this Map applies
+  // that same override for its own option.
   const resolved = new Map<string, WidgetRenderIR>();
   const { postRepo, pendingContentOverride } = deps;
   if (!postRepo && !pendingContentOverride) {
