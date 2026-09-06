@@ -66,6 +66,21 @@ function runScript(dbPath: string, extraArgs: string[] = [], envOverrides: Recor
   });
 }
 
+/** Same as `runScript`, but passes `--db=<path>` as a single `=`-joined token instead of the
+ *  space-separated `--db <path>` form — this script's own `--username=`/`--password=` flags only
+ *  ever use the `=` form, so an operator naturally reaches for it with `--db` too. */
+function runScriptDbEquals(dbPath: string, extraArgs: string[] = [], envOverrides: Record<string, string | undefined> = {}): string {
+  const env = { ...process.env, ...envOverrides };
+  for (const [key, value] of Object.entries(envOverrides)) {
+    if (value === undefined) delete env[key];
+  }
+  return execFileSync("node", ["--import", "tsx", SCRIPT, `--db=${dbPath}`, ...extraArgs], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    env,
+  });
+}
+
 /** Seeds a fresh content.db with a workspace row (required by the script's own `resolveWorkspace`
  *  call) and the standard identity seed (owner username `admin`, seed-default password `tovu-dev`,
  *  via `createSqliteIdentityRouteDeps`'s own first-boot seeding — the exact same seeding every real
@@ -206,4 +221,32 @@ test("backfill-reset-admin-password: a mistyped --db path fails loudly and creat
   assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: --db=<path> (the same '=' form --username=/--password= already use) resolves the real database, instead of silently falling back to the missing default", async () => {
+  const scratch = tmpDir("backfill-reset-admin-password-dbequals-");
+  const dbPath = path.join(scratch, "content.db");
+  await seedWorkspaceAndIdentity(dbPath);
+
+  // The defect this guards: pre-fix, parseArgs() only recognized the exact `--db <path>` token
+  // pair, so `--db=<path>` was silently ignored and fell back to the (nonexistent, per this file's
+  // own header) default REPO_ROOT/infra/content.db, surfacing as "database not found" at the WRONG
+  // path instead of finding the real one this test seeded.
+  const dryRunOutput = runScriptDbEquals(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
+  assert.match(dryRunOutput, /DRY RUN: found user 'admin'/);
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: --db= with no value fails loudly instead of resolving to an empty/unintended path", () => {
+  let threw = false;
+  let stderr = "";
+  try {
+    execFileSync("node", ["--import", "tsx", SCRIPT, "--db="], { cwd: REPO_ROOT, encoding: "utf8" });
+  } catch (err) {
+    threw = true;
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(threw, true, "an empty --db= value must fail rather than silently resolve to some default");
+  assert.match(stderr, /--db= requires a path/);
 });

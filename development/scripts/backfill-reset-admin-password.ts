@@ -79,12 +79,34 @@ interface Args {
   readonly apply: boolean;
 }
 
+/**
+ * Resolves the `--db` value in either the space-separated (`--db <path>`) or `=`-joined
+ * (`--db=<path>`) form. This script's own `--username=`/`--password=` flags only ever use the `=`
+ * form, so an operator typing `--db=<path>` out of habit must not silently fall back to the
+ * (nonexistent) default path — see this file's own header on why a wrong `dbPath` must fail loudly
+ * rather than open-and-migrate an empty database.
+ *
+ * @returns `undefined` when neither form is present, so the caller can apply its own default.
+ * @throws `Error` if `--db=` is present with an empty value (e.g. `--db=`) — an obviously broken
+ *   invocation should fail immediately rather than resolve to an unintended path.
+ * @complexity O(argv.length) — one linear scan for each form.
+ */
+function resolveDbArg(argv: readonly string[]): string | undefined {
+  const equalsFlag = argv.find((a) => a.startsWith("--db="));
+  if (equalsFlag !== undefined) {
+    const value = equalsFlag.slice("--db=".length);
+    if (value.length === 0) throw new Error("--db= requires a path (e.g. --db=sites/<site>/content.db).");
+    return path.resolve(value);
+  }
+  const spaceFlag = argv.indexOf("--db");
+  return spaceFlag === -1 ? undefined : path.resolve(argv[spaceFlag + 1]);
+}
+
 function parseArgs(argv: readonly string[]): Args {
-  const dbFlag = argv.indexOf("--db");
   const usernameFlag = argv.find((a) => a.startsWith("--username="));
   const passwordFlag = argv.find((a) => a.startsWith("--password="));
   return {
-    dbPath: dbFlag === -1 ? path.join(REPO_ROOT, "infra", "content.db") : path.resolve(argv[dbFlag + 1]),
+    dbPath: resolveDbArg(argv) ?? path.join(REPO_ROOT, "infra", "content.db"),
     username: usernameFlag ? usernameFlag.slice("--username=".length) : "admin",
     // Env var preferred (keeps the secret out of shell history) — see this file's own header.
     password: process.env.TOVU_ADMIN_RESET_PASSWORD ?? (passwordFlag ? passwordFlag.slice("--password=".length) : undefined),
