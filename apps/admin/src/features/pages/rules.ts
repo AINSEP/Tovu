@@ -3,6 +3,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
+import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
 import { PAGES_DICT } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 
@@ -204,6 +205,32 @@ export function buildPageSavePlan(
       ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }),
     },
   };
+}
+
+/** The subset {@link buildPageAutosaveDraft} reads — {@link SavablePage} plus `version`, which the
+ *  draft's `baseVersion` is captured from (see `PostRepoPort.writeAutosave`'s own server-side doc
+ *  for why that field matters: it's what lets a stale autosave be rejected rather than silently
+ *  clobbering a newer real save). */
+interface AutosavablePage extends SavablePage {
+  version: number;
+}
+
+/**
+ * What to send `putAutosave` for the CURRENT working copy — mirrors {@link buildPageSavePlan}'s own
+ * doc-vs-html split. A doc-format Page has no editable body in this editor (see `usePageEditor`'s
+ * load effect, and {@link buildPageSavePlan}'s identical reasoning), so its `bodyJson` round-trips
+ * unchanged — the same inert-but-required placeholder a real Save already sends for that case.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function buildPageAutosaveDraft(
+  page: AutosavablePage,
+  form: { title: string; slug: string; html: string }
+): StandingDraftAutosaveInput {
+  if (page.bodyFormat === "html") {
+    return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
+  }
+  return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split

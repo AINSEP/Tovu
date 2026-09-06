@@ -3,9 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import {
+  useStandingDraftAutosave,
+  type StandingDraftAutosaveSnapshot,
+} from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
-import { buildPageSavePlan, pageSaveSuccessMessage } from "../rules";
+import { buildPageAutosaveDraft, buildPageSavePlan, pageSaveSuccessMessage } from "../rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
@@ -141,6 +146,25 @@ export interface PageEditorController {
   confirmingDelete: boolean;
   setConfirmingDelete: (value: boolean) => void;
   deleting: boolean;
+  /** Call before an in-app navigation the operator triggered (the back link). `true` means it's
+   *  safe to proceed. `beforeunload` is wired automatically by the same `useDirtyGuard` call this
+   *  reads off — see `use-dirty-guard.hooks.ts`. Audit finding (2026-08-01): unlike `PostEditor`,
+   *  this screen had NO unsaved-work guard of any kind until now — fixed alongside standing-draft
+   *  autosave since both exist to protect the same at-risk work. */
+  confirmLeave: () => boolean;
+  /**
+   * Standing-draft autosave (2026-09-06) — non-null once the mount-time recovery check finds a
+   * draft parked from a previous session. Never auto-applied; `PageEditor.tsx` renders an explicit
+   * "restore or discard" banner and calls {@link restoreRecoveredDraft}/{@link discardRecoveredDraft}
+   * on the operator's own action.
+   */
+  recoverableDraft: StandingDraftAutosaveSnapshot | null;
+  /** Applies the recovered draft into the working copy (title/slug/html) and dismisses the banner.
+   *  Does NOT itself tell the server anything — the restored edit re-enters the normal autosave/Save
+   *  flow from here, the same as any other in-progress edit. */
+  restoreRecoveredDraft: () => void;
+  /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
+  discardRecoveredDraft: () => Promise<void>;
 }
 
 /** `contentDirty`'s own computation, named out of `usePageEditor`'s body purely to keep that
@@ -254,6 +278,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `use-post-editor.hooks.ts`'s `saveGenerationRef` (commit `42c6a534`), the reference this pattern
   // was modelled on.
   const saveGenerationRef = useRef(0);
+
+  // Standing-draft autosave (2026-09-06) — see `use-standing-draft-autosave.hooks.ts`'s own header
+  // for the ordering guarantee `clearStandingDraft` relies on. `entryId`/`enabled` both key off
+  // `page` rather than `routeSlug`: the recovery check needs the row's REAL id (routeSlug can be a
+  // stale/legacy bookmark), and must not run at all before the id is known.
+  const autosave = useStandingDraftAutosave({ port, entryId: page?.id ?? null, enabled: page !== null });
 
   // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
   // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
@@ -418,6 +448,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
           t,
           locale,
         );
+        // The real content just landed — any parked standing draft is now obsolete. Not awaited:
+        // this is best-effort background bookkeeping (errors are already caught inside the hook),
+        // not part of what "Save succeeded" means to the operator.
+        void autosave.clearStandingDraft();
       } catch (e) {
         if (saveGenerationRef.current !== generation) return;
         setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
@@ -428,7 +462,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         if (saveGenerationRef.current === generation) setSaving(false);
       }
     },
-    [page, html, title, slug, status, templateChoice, locale, port, t]
+    [page, html, title, slug, status, templateChoice, locale, port, t, autosave.clearStandingDraft]
   );
 
   const remove = useCallback(async () => {
@@ -447,6 +481,40 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
+
+  // Unsaved-work guard (2026-09-06, alongside standing-draft autosave — audit finding: this screen
+  // had none at all, unlike `usePostEditor`'s own `useDirtyGuard` call). Same five-field comparison
+  // `dirty` above already makes (title/slug/status/body/templateChoice), just handed to the guard
+  // instead of computed inline, so `confirmLeave`/the automatic `beforeunload` listener agree with
+  // what the Save button itself considers dirty.
+  const { confirmLeave } = useDirtyGuard(
+    { title, slug, status, html, templateChoice },
+    page ? { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice } : null
+  );
+
+  // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
+  // differs from what's saved. Deliberately does NOT clear the draft when `contentDirty` goes back
+  // to `false` on its own (e.g. the operator edits back to the original value): only a real
+  // Save/Publish or an explicit Discard ever clears a parked draft (see `save`'s own
+  // `clearStandingDraft` call, and `discardRecoveredDraft` below) — auto-clearing here on a merely
+  // quiet moment is not one of those two things.
+  useEffect(() => {
+    if (!page || !contentDirty) return;
+    autosave.scheduleAutosave(buildPageAutosaveDraft(page, { title, slug, html }));
+  }, [page, contentDirty, title, slug, html, autosave.scheduleAutosave]);
+
+  const restoreRecoveredDraft = useCallback(() => {
+    const draft = autosave.recoverableDraft;
+    if (!draft) return;
+    setTitle(draft.title);
+    setSlug(draft.slug);
+    if (draft.bodyFormat === "html" && draft.bodyHtml !== undefined) setHtml(draft.bodyHtml);
+    autosave.dismissRecoverable();
+  }, [autosave.recoverableDraft, autosave.dismissRecoverable]);
+
+  const discardRecoveredDraft = useCallback(async () => {
+    await autosave.clearStandingDraft();
+  }, [autosave.clearStandingDraft]);
 
   // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
   // expression rather than state or a `useMemo`.
@@ -515,6 +583,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     confirmingDelete,
     setConfirmingDelete,
     deleting,
+    confirmLeave,
+    recoverableDraft: autosave.recoverableDraft,
+    restoreRecoveredDraft,
+    discardRecoveredDraft,
   };
 }
 

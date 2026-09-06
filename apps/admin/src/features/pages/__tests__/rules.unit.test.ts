@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
+  buildPageAutosaveDraft,
   comparePagesByStatus,
   comparePagesBySlug,
   comparePagesByTitle,
@@ -315,5 +316,44 @@ describe("pageColumnSortLabel", () => {
 
   it("all three states produce different labels", () => {
     expect(new Set([pageColumnSortLabel("Title", null), pageColumnSortLabel("Title", "asc"), pageColumnSortLabel("Title", "desc")]).size).toBe(3);
+  });
+});
+
+describe("buildPageAutosaveDraft", () => {
+  it("an html-format page sends bodyHtml, never the inert bodyJson placeholder", () => {
+    const draft = buildPageAutosaveDraft(
+      { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 3 },
+      { title: "About", slug: "about", html: "<main>hi</main>" }
+    );
+    expect(draft).toEqual({
+      bodyFormat: "html",
+      bodyHtml: "<main>hi</main>",
+      title: "About",
+      slug: "about",
+      baseVersion: 3,
+    });
+  });
+
+  it("a doc-format page round-trips bodyJson unchanged — this editor has no way to edit it", () => {
+    const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
+    const draft = buildPageAutosaveDraft(
+      { bodyFormat: "doc", bodyJson, version: 1 },
+      { title: "About", slug: "about", html: "ignored for a doc-format page" }
+    );
+    expect(draft).toEqual({
+      bodyFormat: "doc",
+      bodyJson,
+      title: "About",
+      slug: "about",
+      baseVersion: 1,
+    });
+  });
+
+  it("baseVersion always comes from the page's own version, not a caller-supplied guess", () => {
+    const draft = buildPageAutosaveDraft(
+      { bodyFormat: "html", bodyJson: {}, version: 42 },
+      { title: "About", slug: "about", html: "<p/>" }
+    );
+    expect(draft.baseVersion).toBe(42);
   });
 });

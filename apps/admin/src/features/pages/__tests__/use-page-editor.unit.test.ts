@@ -96,6 +96,12 @@ async function mountLoaded(routeSlug: string, page: unknown) {
   fetchMock.mockResolvedValueOnce(jsonResponse(body));
   fetchMock.mockResolvedValueOnce(jsonResponse(body));
   fetchMock.mockResolvedValueOnce(jsonResponse(body));
+  // Standing-draft autosave's own mount-time recovery check (`useStandingDraftAutosave`'s
+  // `getAutosave` call) only fires once `page` is set — i.e. strictly after the three racing loads
+  // above settle — so it consumes this 4th queued response, never one of the three. Queued as a real
+  // `{autosave: null}` shape (not the shape-tolerant merged `body` above) so a test that doesn't
+  // care about autosave still gets a clean, valid response instead of `undefined`.
+  fetchMock.mockResolvedValueOnce(jsonResponse({ autosave: null }));
   const view = renderHook(() => useWiredPageEditor(routeSlug));
   await waitFor(() => expect(view.result.current.page).not.toBeNull());
   return view;
@@ -144,10 +150,12 @@ describe("save() on a doc-format Page (the F01 regression)", () => {
       await result.current.save("draft");
     });
 
-    const [, init] = fetchMock.mock.calls.find((call) => String(call[0]).includes("/posts/pg-doc")) as [
-      string,
-      RequestInit,
-    ];
+    // Method-filtered, not just a URL substring: `/posts/pg-doc` now also matches the standing-draft
+    // autosave GET (mount-time recovery check) and DELETE (fired after this save succeeds) — only
+    // the metadata write itself is a PUT.
+    const [, init] = fetchMock.mock.calls.find(
+      (call) => String(call[0]).includes("/posts/pg-doc") && (call[1] as RequestInit | undefined)?.method === "PUT"
+    ) as [string, RequestInit];
     // bodyJson must round-trip the EXISTING value unchanged — this editor has no way to edit it, so
     // sending anything else (or omitting it, see the test above) would be wrong.
     expect(JSON.parse(String(init.body))).toMatchObject({ status: "draft", bodyJson: DOC_PAGE.bodyJson });
@@ -186,7 +194,12 @@ describe("save() on an html-format Page (existing behavior, must not regress)", 
 
     const calls = urlsCalled();
     const htmlIndex = calls.findIndex((u) => u.includes("/pages/pg-html/html"));
-    const metaIndex = calls.findIndex((u) => u.includes("/posts/pg-html"));
+    // Method-filtered, not just a URL substring: `/posts/pg-html` now also matches the standing-
+    // draft autosave GET (mount-time recovery check) and DELETE (fired after this save succeeds) —
+    // only the metadata write itself is a PUT, and it is the one this assertion cares about.
+    const metaIndex = fetchMock.mock.calls.findIndex(
+      (call) => String(call[0]).includes("/posts/pg-html") && (call[1] as RequestInit | undefined)?.method === "PUT"
+    );
     expect(htmlIndex).toBeGreaterThanOrEqual(0);
     expect(metaIndex).toBeGreaterThan(htmlIndex);
     expect(result.current.message).toBe("Saved");
@@ -379,6 +392,150 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     expect(result.current.error).toBe("boom");
     expect(deps.navigate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Standing-draft autosave (2026-09-06) + the unsaved-work guard added alongside it — this screen
+ * had NEITHER before this dispatch (audit finding: `use-dirty-guard.hooks.ts`'s own file header).
+ * Debounce/ordering mechanics themselves are proven once, generically, in
+ * `use-standing-draft-autosave.unit.test.ts`; these tests prove WIRING — that `usePageEditor` feeds
+ * the hook the right shape and reacts to it correctly — via the injected fake port, no `fetch` stub.
+ */
+describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor", () => {
+  function fakeDepsWithAutosave(overrides: {
+    page: unknown;
+    autosave?: Parameters<typeof createFakePageEditorPort>[0]["autosave"];
+  }) {
+    const port = createFakePageEditorPort({
+      page: overrides.page as Parameters<typeof createFakePageEditorPort>[0]["page"],
+      autosave: overrides.autosave,
+    });
+    const navigate = vi.fn();
+    const t = (locale: string, key: string) => `${locale}:${key}`;
+    const themeCanvasPort = createFakeThemeCanvasPort();
+    return { port, themeCanvasPort, navigate, t, locale: "en" };
+  }
+
+  it("a seeded standing draft is exposed as recoverableDraft on load, and never silently applied to the working copy", async () => {
+    const seeded = {
+      bodyFormat: "html" as const,
+      bodyHtml: "<p>recovered</p>",
+      title: "Recovered title",
+      slug: "landing",
+      baseVersion: HTML_PAGE.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    expect(result.current.recoverableDraft).toEqual(seeded);
+    // The banner is offered, not applied — the loaded page's own title/html are still what's shown.
+    expect(result.current.title).toBe(HTML_PAGE.title);
+    expect(result.current.html).toBe(HTML_PAGE.bodyHtml);
+  });
+
+  it("restoreRecoveredDraft applies the draft into the working copy and dismisses the banner, without telling the server", async () => {
+    const seeded = {
+      bodyFormat: "html" as const,
+      bodyHtml: "<p>recovered</p>",
+      title: "Recovered title",
+      slug: "recovered-slug",
+      baseVersion: HTML_PAGE.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    act(() => result.current.restoreRecoveredDraft());
+
+    expect(result.current.title).toBe("Recovered title");
+    expect(result.current.slug).toBe("recovered-slug");
+    expect(result.current.html).toBe("<p>recovered</p>");
+    expect(result.current.recoverableDraft).toBeNull();
+    expect(deps.port.discardAutosaveCalled).toBe(false);
+  });
+
+  it("discardRecoveredDraft clears the standing draft server-side and dismisses the banner", async () => {
+    const seeded = {
+      bodyFormat: "html" as const,
+      bodyHtml: "<p>recovered</p>",
+      title: "Recovered title",
+      slug: "landing",
+      baseVersion: HTML_PAGE.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    await act(async () => result.current.discardRecoveredDraft());
+
+    expect(deps.port.discardAutosaveCalled).toBe(true);
+    expect(result.current.recoverableDraft).toBeNull();
+    // Discarding must not silently apply the draft it just threw away.
+    expect(result.current.title).toBe(HTML_PAGE.title);
+  });
+
+  it("editing schedules a debounced autosave PUT matching buildPageAutosaveDraft's own shape", async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      act(() => result.current.setTitle("Edited via autosave"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(deps.port.putAutosaveCalls).toEqual([
+        {
+          bodyFormat: "html",
+          bodyHtml: HTML_PAGE.bodyHtml,
+          title: "Edited via autosave",
+          slug: HTML_PAGE.slug,
+          baseVersion: HTML_PAGE.version,
+        },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a successful save clears the standing draft, even when nothing was ever recovered", async () => {
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setTitle("Saved for real"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(deps.port.discardAutosaveCalled).toBe(true);
+  });
+
+  it("confirmLeave is true when nothing is dirty, and defers to window.confirm once the operator has edited something", async () => {
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    expect(result.current.confirmLeave()).toBe(true);
+
+    act(() => result.current.setTitle("Now dirty"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      expect(result.current.confirmLeave()).toBe(false);
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });
 

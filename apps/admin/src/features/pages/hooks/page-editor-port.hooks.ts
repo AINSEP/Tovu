@@ -1,4 +1,5 @@
 import type { AdminPost } from "@/lib/api";
+import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
  * @file What `usePageEditor` needs from the outside world, as an interface rather than a direct
@@ -16,7 +17,14 @@ import type { AdminPost } from "@/lib/api";
  * the hook: the active theme's `apiVersion` lives on `availableThemes`, keyed by id, and
  * `page-editor-dependencies.hooks.ts` resolves it rather than handing the whole array through.
  */
-export interface PageEditorPort {
+/**
+ * Standing-draft autosave (2026-09-06 dispatch) — `putAutosave`/`getAutosave`/`discardAutosave` are
+ * pulled in from the shared, feature-agnostic hook rather than redeclared here, so this port and
+ * `PostEditorPort`'s identical extension stay structurally IDENTICAL by construction (one type,
+ * not two hand-copied signatures that could quietly drift). See `use-standing-draft-autosave.hooks.ts`'s
+ * own header for why the hook itself stays ignorant of both features either way.
+ */
+export interface PageEditorPort extends StandingDraftAutosavePort {
   getPage(routeSlug: string): Promise<{ post: AdminPost }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
