@@ -106,6 +106,14 @@ development/e2e/.artifacts/
 
 # stray/local artifacts (do not track)
 admin-page.png
+# Ad-hoc verification screenshots agents drop at the repo root (Playwright runs, manual checks).
+# Root-anchored so it only covers this directory -- every tracked .png in the repo lives under a
+# subdirectory (content/brand/icons/, ADS-memory/reports/), none at the root itself.
+/*.png
+# Root-level scratch dir agents already use for local-only artifacts (dropped stash patches,
+# screenshots) -- distinct from ADS-memory/.local-artifacts/ ignored above. Found untracked-but-
+# unignored during the 2026-09-05 cleanup, same wide-`git add` hazard as /coverage/ above.
+/.local-artifacts/
 # Playwright accessibility-tree dump from an interactive exploration pass; regenerate on demand.
 explore-snapshot.md
 # Stray SQLite journal written outside infra/ by a local run. Runtime data, not source.
