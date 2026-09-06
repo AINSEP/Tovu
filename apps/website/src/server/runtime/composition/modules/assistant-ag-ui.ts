@@ -402,11 +402,14 @@ function writeAgUiEvent(res: Response, event: AgUiEvent): void {
   res.write(agUiEncoder.encodeSSE(event));
 }
 
-function beginAgUiStream(res: Response, requestId: string): void {
+function beginAgUiStream(req: Request, res: Response, requestId: string): void {
   res.status(200).set({
     "content-type": agUiEncoder.getContentType(),
     "cache-control": "no-cache, no-transform",
-    connection: "keep-alive",
+    // Same reasoning as `site-assistant.ts`'s identical guard: HTTP/2 throws
+    // `ERR_HTTP2_INVALID_CONNECTION_HEADER` on a `connection` header, and dropping it changes
+    // nothing observable for an HTTP/1.1 client (keep-alive is already its default there).
+    ...(req.httpVersionMajor < 2 ? { connection: "keep-alive" } : {}),
     "x-accel-buffering": "no",
     // Correlation for audit tooling (`protocol-surfaces.spec.md`'s `requestId`), carried as a
     // response header rather than folded into the wire body — AG-UI's own `runId`/`threadId`
@@ -730,7 +733,7 @@ async function handleAgUiRun(req: Request, res: Response): Promise<void> {
   if (!subscribedReader) return;
   reader = subscribedReader;
 
-  beginAgUiStream(res, run.requestId);
+  beginAgUiStream(req, res, run.requestId);
   writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
   const state = createAgUiTranslationState();

@@ -137,11 +137,15 @@ function sse(res: Response, event: string, data: unknown): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
-function beginStream(res: Response): void {
+function beginStream(req: Request, res: Response): void {
   res.status(200).set({
     "content-type": "text/event-stream",
     "cache-control": "no-cache, no-transform",
-    connection: "keep-alive",
+    // Omitted on HTTP/2: Node's http2 compat layer throws `ERR_HTTP2_INVALID_CONNECTION_HEADER` the
+    // moment a `connection` header reaches the wire, and HTTP/2 has no per-hop connection to name
+    // one for. `keep-alive` was never anything but HTTP/1.1's already-default persistent-connection
+    // behavior, so an HTTP/1.1 client sees no change.
+    ...(req.httpVersionMajor < 2 ? { connection: "keep-alive" } : {}),
     // Proxies that buffer will otherwise hold the whole stream and deliver it at once, which reads
     // to a visitor as a hang rather than a stream.
     "x-accel-buffering": "no",
@@ -382,7 +386,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           }
         };
 
-        beginStream(res);
+        beginStream(req, res);
         // A visitor closing the tab must stop the upstream request; without this the provider call
         // runs to completion and is billed for output nobody will ever read.
         //

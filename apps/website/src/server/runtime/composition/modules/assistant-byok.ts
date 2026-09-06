@@ -68,7 +68,6 @@ import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { defaultContentDbPath } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -76,15 +75,27 @@ import type { ServerModuleHandle } from "./types.js";
  * Resolves the sink `search_tools`/`describe_tool` calls are logged to when
  * {@link createAssistantByokModule} builds its own default `ByokToolSurface` (a caller-supplied
  * `toolSurface` bypasses this entirely, so no test that injects one pays for a connection it does not
- * need). Mirrors `agent-daemon-server.ts`'s identical `auditSink` construction byte-for-byte,
- * including its `TOVU_DB=memory` branch and its reason for opening a dedicated handle rather than
- * reusing `RouteDeps`': that type does not expose its own `ContentDb`, by the same design choice
- * documented there.
+ * need). Mirrors `agent-daemon-server.ts`'s identical `auditSink` construction shape, including its
+ * `TOVU_DB=memory` branch and its reason for opening a dedicated handle rather than reusing
+ * `RouteDeps`': that type does not expose its own `ContentDb`, by the same design choice documented
+ * there — but NOT that function's own path resolution. `agent-daemon-server.ts` runs as a genuinely
+ * separate process spawned with `TOVU_SITE_DIR` already set to the real install dir
+ * (`daemon-supervisor.ts`'s `buildDaemonSpawnEnvOverrides`), so its own `defaultContentDbPath()` call
+ * is correct in that context. This module runs IN-PROCESS with `createApp()`, sharing `routeDeps`
+ * with every other module here — `defaultContentDbPath()` would instead recompute the path fresh from
+ * `process.cwd()`/env, which disagrees with `routeDeps.contentDbPath` (this composition root's real,
+ * already-resolved path) whenever `tovu serve <dir>` was launched with a `<dir>` other than the
+ * process's own default site root, or from a cwd other than the install dir (CR-R04's exact
+ * scenario) — silently opening (and, since `openContentDb` migrates unconditionally, migrating) a
+ * DIFFERENT database than the one this composition root's other 50+ repos read and write. Fixed by
+ * reading the path this `RouteDeps` was actually built from — see `RouteDeps.contentDbPath`'s own
+ * doc.
  */
-function resolveToolAttemptAuditSink() {
+function resolveToolAttemptAuditSink(routeDeps: RouteDeps) {
+  console.error("[DEBUG] contentDbPath=", routeDeps.contentDbPath, "TOVU_DB=", process.env.TOVU_DB);
   return process.env.TOVU_DB === "memory"
     ? createInMemoryToolAttemptAuditSink()
-    : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
+    : new SqliteToolAttemptAuditSink(openContentDb(routeDeps.contentDbPath));
 }
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
@@ -125,11 +136,14 @@ function sse(res: Response, event: string, data: unknown): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
-function beginStream(res: Response): void {
+function beginStream(req: Request, res: Response): void {
   res.status(200).set({
     "content-type": "text/event-stream",
     "cache-control": "no-cache, no-transform",
-    connection: "keep-alive",
+    // Same reasoning as `site-assistant.ts`'s identical guard: HTTP/2 throws
+    // `ERR_HTTP2_INVALID_CONNECTION_HEADER` on a `connection` header, and dropping it changes
+    // nothing observable for an HTTP/1.1 client (keep-alive is already its default there).
+    ...(req.httpVersionMajor < 2 ? { connection: "keep-alive" } : {}),
     "x-accel-buffering": "no",
   });
   res.flushHeaders?.();
@@ -341,7 +355,7 @@ export function createAssistantByokModule(
   const resolvedToolSurface =
     toolSurface ??
     createByokToolSurface(routeDeps as unknown as ByokToolSurfaceDeps, {
-      toolAttemptAudit: { sink: resolveToolAttemptAuditSink(), workspaceId: routeDeps.workspaceId },
+      toolAttemptAudit: { sink: resolveToolAttemptAuditSink(routeDeps), workspaceId: routeDeps.workspaceId },
     });
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
@@ -375,7 +389,7 @@ export function createAssistantByokModule(
 
     const run = { id: randomUUID() };
 
-    beginStream(res);
+    beginStream(req, res);
     // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
     // upstream provider call and any in-flight tool execution, not run to completion unobserved.
     const abort = new AbortController();

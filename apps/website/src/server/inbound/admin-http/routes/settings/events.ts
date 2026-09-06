@@ -3,6 +3,7 @@ import {
   type ChangeFeedViewer,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import type { Request } from "express";
 import type { SettingsRouteRegistrar } from "./deps.js";
 
 /**
@@ -98,6 +99,28 @@ const REAUTHORIZE_INTERVAL_MS = 30_000;
  *  drained on the following ticks rather than loaded at once. */
 const REVISION_PAGE_SIZE = 200;
 
+/**
+ * Response headers for this SSE stream's opening `writeHead()`, minus `Connection` on an HTTP/2
+ * request. Node's http2 compatibility layer throws `ERR_HTTP2_INVALID_CONNECTION_HEADER` the moment
+ * a `connection` header reaches `writeHead()` — HTTP/2 has no per-hop connection semantics for it to
+ * describe. Dropping it there costs nothing real: `keep-alive` was never anything but HTTP/1.1's
+ * already-default behavior for a persistent connection, so omitting the header changes no observable
+ * behavior for an HTTP/1.1 client, only stops a header HTTP/2 cannot accept from being sent to one.
+ *
+ * @param req - the originating request; only `httpVersionMajor` is read.
+ * @complexity O(1).
+ */
+function sseWriteHeadHeaders(req: Request): Record<string, string> {
+  return {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    ...(req.httpVersionMajor < 2 ? { Connection: "keep-alive" } : {}),
+    // Defeats nginx response buffering, which otherwise holds frames until the buffer fills —
+    // indistinguishable from the feed being broken.
+    "X-Accel-Buffering": "no",
+  };
+}
+
 export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -131,14 +154,7 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
 
     const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
 
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      // Defeats nginx response buffering, which otherwise holds frames until the buffer fills —
-      // indistinguishable from the feed being broken.
-      "X-Accel-Buffering": "no",
-    });
+    res.writeHead(200, sseWriteHeadHeaders(req));
 
     /**
      * Resume point. `Last-Event-ID` is set by the browser automatically on `EventSource`'s own
