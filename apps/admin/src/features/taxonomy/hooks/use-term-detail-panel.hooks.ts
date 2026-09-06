@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminTerm } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -49,11 +49,28 @@ export function useTermDetailPanel(
   const { term, onRenamed } = options;
   const [newName, setNewName] = useState(term.name);
   const [message, setMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const renameMutation = useFetchMutation({
     run: (name: string) => port.renameTerm({ termId: term.id, newName: name }),
     invalidates: [KEYS.list],
   });
+
+  // Stale-response guard (2026-09-05, same class of bug `use-widget-instance-editor.hooks.ts`'s
+  // `activeEntityRef` already fixes for its own save()-after-navigate case): `Taxonomy.tsx` mounts
+  // `TermDetailPanel` with no `key={term.id}` — switching the selected term re-renders this SAME
+  // hook instance with a new `term` prop rather than remounting a fresh one, so a `rename()` in
+  // flight for the term the operator just navigated AWAY FROM has no effect-cleanup moment of its
+  // own to learn that happened. `activeTermIdRef` always holds the latest term id this hook was
+  // RENDERED with (updated every render, not just on effect re-run); `rename()`'s completion
+  // handlers below skip committing `message`/`error`/`saving` onto whatever term is on screen now
+  // once the operator has switched. `saving`/`error` are local state rather than read straight off
+  // `renameMutation.status`/`.error` for the same reason: that mutation object is NOT re-created per
+  // term, so a stale settlement could otherwise flip it again after the term-change effect below has
+  // already reset it.
+  const activeTermIdRef = useRef(term.id);
+  activeTermIdRef.current = term.id;
 
   // `renameMutation` intentionally excluded — same deps as the pre-migration effect
   // ([term.id, term.name]); including the mutation object would re-run this on every status change.
@@ -61,24 +78,30 @@ export function useTermDetailPanel(
   useEffect(() => {
     setNewName(term.name);
     setMessage(null);
+    setError(null);
+    setSaving(false);
     renameMutation.reset();
   }, [term.id, term.name]);
 
   async function rename(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || newName.trim() === term.name) return;
+    const renamingForTermId = term.id;
     setMessage(null);
+    setError(null);
+    setSaving(true);
     try {
       await renameMutation.mutate(newName.trim());
+      if (activeTermIdRef.current !== renamingForTermId) return; // superseded by a term switch
       setMessage(t(locale, "Renamed."));
       onRenamed();
-    } catch {
-      // already surfaced through renameMutation.error -> error below
+    } catch (err) {
+      if (activeTermIdRef.current !== renamingForTermId) return;
+      setError(describeApiError(err, t(locale, "Failed to rename term")));
+    } finally {
+      if (activeTermIdRef.current === renamingForTermId) setSaving(false);
     }
   }
-
-  const saving = renameMutation.status === "pending";
-  const error = renameMutation.error ? describeApiError(renameMutation.error, t(locale, "Failed to rename term")) : null;
 
   return { newName, setNewName, saving, message, error, rename };
 }

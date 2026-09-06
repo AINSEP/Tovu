@@ -147,6 +147,58 @@ describe("resetting when the selected term changes", () => {
   });
 });
 
+describe("stale rename settlement across a term switch (no key={term.id} remount)", () => {
+  /**
+   * `Taxonomy.tsx` mounts `TermDetailPanel` with no `key={selected.term.id}` — switching the
+   * selected term re-renders the SAME hook instance with a new `term` prop rather than remounting a
+   * fresh one. The term-change effect resets `newName`/`message`/`renameMutation` the moment `term`
+   * changes, but a `rename()` call already in flight for the PREVIOUS term has no way to know that
+   * happened: its `then`/`catch` still unconditionally writes `message`/(via the mutation's own
+   * `.error`) into state that is now rendering the NEW term's form. Same class of bug
+   * `use-widget-instance-editor.hooks.ts`'s `activeEntityRef` guard already fixes for its own
+   * save()-after-navigate case — this hook has no equivalent guard.
+   */
+  it("a rename started for term A that settles AFTER switching to term B must not show its outcome against B's form", async () => {
+    const term1 = termFixture({ id: "t1", name: "Term A" });
+    const term2 = termFixture({ id: "t2", name: "Term B" });
+    const port = createFakeTaxonomyPort({
+      groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term1, term2] }],
+    });
+    let resolveRename!: (v: { term: AdminTerm }) => void;
+    port.renameTerm = vi.fn(() => new Promise((resolve) => (resolveRename = resolve)));
+
+    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en"), {
+      initialProps: { term: term1 },
+      wrapper,
+    });
+
+    act(() => result.current.setNewName("Renamed A"));
+    act(() => {
+      void result.current.rename(formEvent());
+    });
+    await waitFor(() => expect(port.renameTerm).toHaveBeenCalledTimes(1));
+
+    // Operator switches the selection to term B while A's rename is still in flight — the SAME
+    // hook instance re-renders with a new `term` prop (no remount).
+    rerender({ term: term2 });
+    await waitFor(() => expect(result.current.newName).toBe("Term B"));
+    expect(result.current.message).toBeNull();
+    expect(result.current.error).toBeNull();
+
+    // A's stale rename now settles.
+    await act(async () => {
+      resolveRename({ term: { ...term1, name: "Renamed A" } });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // Must still read as term B's untouched form — A's late success must not paint "Renamed." (or
+    // any state at all) onto a form that is now showing a different term.
+    expect(result.current.message).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.newName).toBe("Term B");
+  });
+});
+
 describe("useTermDetailPanel — injected port", () => {
   it("renames through the fake port and reports success, with no fetch involved", async () => {
     const networkMock = vi.fn();
