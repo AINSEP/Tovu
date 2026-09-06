@@ -493,6 +493,21 @@ describe("SeoEntrySection / EntryPicker", () => {
     expect(screen.queryByText("Per-entry overrides")).not.toBeInTheDocument();
   });
 
+  it("EntryPicker: keeps the 'Entry' caption as a real label but stops painting it", () => {
+    // Owner asked for the visible word gone ("you can actually just get rid of 'Entry'") — the
+    // placeholder option already says "Choose an entry…". The accessible name is NOT allowed to go
+    // with it: a select whose only text is a placeholder option has no name at all, which is the
+    // exact defect a previous accessibility pass found on `MenuEditor.tsx`'s target-kind select.
+    // Both halves are asserted together, because either one alone still passes on the old markup
+    // (name-only was already green before the caption was hidden) or on a broken one (hidden-only
+    // would pass on a `<span>` with no label around it).
+    renderSeo({}, ENTRIES_TAB);
+    const select = screen.getByRole("combobox", { name: "Entry" });
+    const caption = screen.getByText("Entry");
+    expect(caption).toHaveClass("visually-hidden");
+    expect(caption.closest("label")).toContainElement(select);
+  });
+
   it("EntryPicker: shows a loading notice while entries is null", () => {
     entryPickerRef.current = entryPickerController({ entries: null });
     renderSeo({}, ENTRIES_TAB);

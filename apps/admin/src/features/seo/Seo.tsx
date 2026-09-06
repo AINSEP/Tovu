@@ -133,9 +133,18 @@ function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useWiredE
   if (error) return <div className="notice error">{error}</div>;
   if (!entries) return <div className="notice">{t(locale, "Loading entries…")}</div>;
 
+  /* The "Entry" caption is no longer painted (owner, 2026-09-06: "you can actually just get rid of
+     'Entry'") — the placeholder option already says "Choose an entry…", so the visible word was
+     saying it twice, and with no gap between the two it read as one smashed-together control.
+     It stays a REAL label rather than becoming a placeholder-only select: this is the exact
+     `<label class="a11y-label-wrap">` + `.visually-hidden` idiom `styles/editor.css` documents for
+     the four controls a previous accessibility pass found unnamed — including, by name, a
+     `<select>` with no accessible name at all. `display: contents` drops the wrapper's own box, so
+     the select keeps the section body's sizing exactly as if the label were not there.
+     The i18n key is unchanged and still passed through `t`, so nothing dangles. */
   return (
-    <label>
-      {t(locale, "Entry")}
+    <label className="a11y-label-wrap">
+      <span className="visually-hidden">{t(locale, "Entry")}</span>
       <select value={entryId} onChange={(e) => onChange(e.target.value)}>
         <option value="">{t(locale, "Choose an entry…")}</option>
         {entries.map((entry) => (
@@ -331,7 +340,7 @@ function SeoEntrySection({ locale, useSeoEntrySectionHook = useSeoEntrySection }
 
   return (
     <div
-      className="seo-panel seo-entry-section"
+      className="seo-panel seo-panel--full seo-entry-section"
       {...agentHandle("seo-per-entry", {
         role: "region",
         label: "Per-entry SEO overrides — pick one entry and edit or analyze its metadata",

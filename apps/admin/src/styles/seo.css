@@ -150,13 +150,43 @@
   padding-block-start: var(--space-6);
 }
 
-/* The entry picker is a bare `<label>` wrapping its `<select>`, so the select sizes to its widest
-   option with nothing capping it — measured at 390: right edge 393px against a 378px column, i.e.
-   clipped by the page, which does not scroll horizontally so there is no way to see the rest of it.
-   Pre-existing (the old container was equally unconstrained) but newly obvious without the box.
-   One declaration, and only at widths where it binds: at 1440 the select measures 380px inside a
-   672px column, so this changes nothing there. */
+/* --- Full-width panels: the rail comes off when it has nothing to list -------
+ *
+ * Owner, 2026-09-06, on the Pages & posts tab: "you can actually just get rid of 'Entry' and have
+ * the page take up the whole width."
+ *
+ * The rail pays for its 224px + 32px on Site defaults, where THREE titles stack into a column an
+ * operator can scan without reading the form. On Pages & posts there is exactly one title, so
+ * there is no list to scan — just a lonely heading with a third of the page empty beside it, held
+ * open for the entire scroll of an eleven-field form that is being squeezed into what is left.
+ * Measured at 1440: the form ran 672px inside a 1300px page.
+ *
+ * So the rule is about section COUNT, not about this tab: the rail is a list of group names, and a
+ * list of one is dead space. Applied here to Pages & posts only. Sitemap also has a single section
+ * and keeps its rail deliberately — nothing there is being squeezed (four short lines), and its
+ * prose would run a 1300px measure without the column to sit in. Site defaults keeps it because
+ * three titles are the case the rail was built for. Say the word and Sitemap flattens too; it is
+ * one class.
+ */
+.seo-panel--full .seo-section {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/* Full width means full width — the measure cap that keeps the defaults form's seven controls
+   readable is the opposite of what this tab asked for, and unlike that form this one is mostly
+   URLs and media refs (Canonical URL, OG image, Twitter image) that were being truncated inside
+   672px. The one field this trades away is Description, whose textarea now runs the page width. */
+.seo-panel--full .seo-section-body {
+  max-width: none;
+}
+
+/* The picker keeps its content width instead of stretching to that full measure. A 1300px select
+   over entry titles is not a wider control, it is 900px of empty chevron gap. `max-width` because
+   at 390 the widest option measures 381px against a 366px column and the page does not scroll
+   horizontally, so the overhang was simply unreachable; at 1440 it binds on nothing. */
 .seo-entry-section .seo-section-body select {
+  align-self: start;
   max-width: 100%;
 }
 
