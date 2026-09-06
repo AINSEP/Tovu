@@ -934,6 +934,23 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
   });
 
+  // Visibility-gap fix — mirrors `PageEditor.tsx`'s own equivalent test in
+  // `pages/__tests__/PageEditor.unit.test.tsx` ("places the raw-body-fallback notice BEFORE the preview
+  // frame"), which fixed this exact gap for Pages on 2026-08-11 but was never ported to Posts. A
+  // brand-new post is always a draft, so this is the very first thing an operator sees in Preview: the
+  // raw editor-buffer sandbox renders inside `.post-editor-pane` up to full pane height, and the notice
+  // explaining why it's unstyled was placed AFTER that pane — reachable only by scrolling an internal
+  // `main.admin-content` scroll container most operators never notice needs scrolling (confirmed live,
+  // QA dispatch 2026-09-06: the notice sat a few px past the visible viewport). Asserts DOM order, not
+  // mere presence — presence alone already passed before this fix; the bug was the notice being
+  // unreachable, not missing.
+  it("places the raw-body-fallback notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
+    renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
+    const notice = screen.getByText(/publish this post to preview it with the theme/i);
+    const preview = screen.getByTitle("Post preview");
+    expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // The template picker is a publish-time setting, not tab-specific content — it has to survive the
   // toolbar restructure (2026-08-11: moved out of its own `.editor-slug-row` into this toolbar's
   // right-hand side) and stay visible regardless of which tab is active.

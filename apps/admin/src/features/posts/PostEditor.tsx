@@ -1416,6 +1416,11 @@ function PostPreview({
 
   return (
     <>
+      {canShowLiveSite ? null : (
+        <p className="editor-preview-notice">
+          {postPreviewNotice({ canShowTemplatePreview, canShowPendingContentPreview })}
+        </p>
+      )}
       <div className="editor-shell post-editor-pane">
         <PostPreviewFrame
           canShowLiveSite={canShowLiveSite}
@@ -1429,11 +1434,6 @@ function PostPreview({
           previewFormTarget={previewFormTarget}
         />
       </div>
-      {canShowLiveSite ? null : (
-        <p className="editor-preview-notice">
-          {postPreviewNotice({ canShowTemplatePreview, canShowPendingContentPreview })}
-        </p>
-      )}
     </>
   );
 }
@@ -1501,8 +1501,12 @@ function PostPreviewFrame({
   return <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />;
 }
 
-/** The notice text under a preview that isn't the live site — one branch per `PostPreviewFrame` case
- *  minus the live-site one (which shows no notice at all; `PostPreview` skips calling this then). */
+/** The notice text ABOVE a preview that isn't the live site — one branch per `PostPreviewFrame` case
+ *  minus the live-site one (which shows no notice at all; `PostPreview` skips calling this then).
+ *  Rendered BEFORE `.post-editor-pane` in `PostPreview`, not after (visibility-gap fix, 2026-09-06,
+ *  mirroring `PageEditor.tsx`'s own `pagePreviewNotice` fix from 2026-08-11 — that fix was never
+ *  ported to Posts until now; see `PostPreview`'s own branch-4 doc and this file's
+ *  `postPreviewNotice`-ordering unit test for the live symptom this fixes). */
 function postPreviewNotice({
   canShowTemplatePreview,
   canShowPendingContentPreview,
