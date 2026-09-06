@@ -108,6 +108,19 @@ export function redirectLegacyHashUrl(): boolean {
 }
 
 /**
+ * `useSyncExternalStore`'s required `getServerSnapshot` for {@link useRouteLocation} — named and
+ * exported, rather than left as an inline arrow, so its contractually-required return value is
+ * directly assertable. React only calls this during SSR/hydration; this admin is a pure-CSR Vite
+ * SPA with no SSR entry point, so it never runs in production, but `useSyncExternalStore` still
+ * requires the argument. `"/"` (route paths, not URLs — see this file's own doc) is the same safe,
+ * unauthenticated-looking default `currentRoutePath` falls back to when nothing more specific is
+ * knowable yet.
+ */
+export function getServerRouteSnapshot(): string {
+  return "/";
+}
+
+/**
  * The address bar as an external store.
  *
  * `useSyncExternalStore` rather than `useState` + an effect: the URL is genuinely external state,
@@ -122,6 +135,6 @@ export function useRouteLocation(): string {
   return useSyncExternalStore(
     subscribeToRoute,
     () => `${currentRoutePath()}${window.location.search}`,
-    () => "/",
+    getServerRouteSnapshot,
   );
 }
