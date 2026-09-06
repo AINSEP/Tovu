@@ -1,4 +1,3 @@
-import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { describeApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "../../lib/api";
@@ -8,6 +7,7 @@ import {
   resolveActivateDisabled,
   resolveCreateInputDisabled,
   resolveCreateSubmitDisabled,
+  resolveSiteCardClassName,
   resolveSiteStateDisplay,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
@@ -16,8 +16,28 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
  * @file Sites admin screen (2026-09-04 sites-switcher decision,
- * `ADS-memory/reports/2026-09-04-sites-switcher-decision.md`) — the `/admin/sites` route. List the
- * site folders under `sites/`, create one, and choose which one this server serves NEXT.
+ * `ADS-memory/reports/2026-09-04-sites-switcher-decision.md`; card-grid redesign 2026-09-05, owner
+ * verdict: "Tovu Runner uses space better ... it shows all the sites we have up front") — the
+ * `/admin/sites` route. List the site folders under `sites/`, create one, and choose which one this
+ * server serves NEXT.
+ *
+ * ## Layout: a compact status line, then a card grid — not a stacked column of panels
+ *
+ * The previous layout was a single narrow column: a large "Now serving" panel (two full-width
+ * disabled-input-styled fields), a "Create a site" panel below it, and only then a table of sites
+ * far down the page — the one thing this screen is FOR was the last thing reached, and the
+ * horizontal space of a real admin screen went unused for a per-site table row. This pass:
+ *
+ * - Shrinks "Now serving" to one line of label/value text plus its warnings — same facts, a
+ *   fraction of the height, see {@link NowServingCard}.
+ * - Replaces the table with `.sites-grid`, a responsive grid of `.site-card` tiles ({@link
+ *   SiteCard}) — the same `auto-fill` idiom `Themes.tsx`'s `.theme-grid` already uses so that a
+ *   single site (this admin's common case) does not balloon into one giant card.
+ * - Puts Create IN that grid as its first tile ({@link CreateSiteCard}) instead of a form panel
+ *   above the list — modeled on Tovu Runner's Projects screen (owner's own comparison), which
+ *   opens with a dashed "+" card rather than a form. Unlike Runner's version, this tile's form
+ *   stays inline rather than opening a modal: a layout pass is not the place to add a new
+ *   disclosure/modal state with its own behavior to cover.
  *
  * ## The design constraint that shapes every section below
  *
@@ -30,12 +50,12 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * That makes the screen's real job *not lying*. Three separate things could each produce a screen
  * that implies a switch happened when it did not, and each has its own section here:
  *
- * 1. **The live site may not be in the list at all.** `listSites` only counts a directory once it
+ * 1. **The live site may not be in the grid at all.** `listSites` only counts a directory once it
  *    carries a valid `.site-meta.json` commit marker, and this repo's own `sites/tovu-com` predates
  *    that marker — so `sites[]` comes back EMPTY on a server that is plainly serving it. {@link
- *    NowServingCard} renders `currentSite` (the server's own live binding, not a row) FIRST and
+ *    NowServingCard} renders `currentSite` (the server's own live binding, not a card) FIRST and
  *    unconditionally, and says so explicitly when `listed` is false.
- * 2. **A pending choice is not a switch.** After Activate the activated row still reports
+ * 2. **A pending choice is not a switch.** After Activate the activated card still reports
  *    `pending-restart`, never `serving`, because the server re-derives `currentSite` from what it
  *    actually booted with. {@link PendingActivationNotice} names what is still being served.
  * 3. **A pending choice can be inert.** `resolveSiteRoot` reads `TOVU_SITE_DIR` ABOVE the
@@ -53,26 +73,28 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  *
  * All state, effects, and `api.*` calls live in `hooks/use-sites.hooks.ts`; screen-independent
  * domain logic lives in `rules.ts`; derived values specific to this screen's own markup (a button's
- * `disabled`, a row's agent handles) live in `Sites.hooks.tsx`, per that file's own header. What
- * stays here is what renders. `t` is threaded down as a prop from `Sites`'s own hook rather than
- * each subcomponent resolving its own — see `Redirects.tsx`'s header for the standing i18n rule.
+ * `disabled`, a card's agent handles, a card's "currently serving" class) live in `Sites.hooks.tsx`,
+ * per that file's own header. What stays here is what renders. `t` is threaded down as a prop from
+ * `Sites`'s own hook rather than each subcomponent resolving its own — see `Redirects.tsx`'s header
+ * for the standing i18n rule.
  */
 
-/** One `label / value` pair in the "Now serving" card. The value is a `.field-readonly` rather than
- *  plain text because both values it holds are absolute paths, which need to scroll rather than
- *  wrap or blow out the card. */
+/** One `label / value` pair in the compact "Now serving" line. Plain text, not `.field-readonly`
+ *  (that class renders a bordered, backgrounded box the same height as a real input — the exact
+ *  "looks like a disabled text field" the owner flagged on the previous layout). `title` carries
+ *  the full value for the absolute path, which is truncated with an ellipsis at narrow widths. */
 function ServingFact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="field">
-      <span className="field-label">{label}</span>
-      <div className="field-readonly-row">
-        <span className={mono ? "field-readonly field-mono" : "field-readonly"}>{value}</span>
-      </div>
-    </div>
+    <span className="sites-now-serving-fact">
+      <span className="sites-now-serving-fact-label">{label}</span>
+      <span className={mono ? "sites-now-serving-fact-value mono" : "sites-now-serving-fact-value"} title={value}>
+        {value}
+      </span>
+    </span>
   );
 }
 
-/** Shown when the served directory does not appear in the table below — see this file's header,
+/** Shown when the served directory does not appear in the grid below — see this file's header,
  *  point 1. Without this the screen reads as "you have no sites" on a running server. */
 function UnlistedSiteNotice({ t }: { t: Translate }) {
   return (
@@ -80,10 +102,10 @@ function UnlistedSiteNotice({ t }: { t: Translate }) {
       className="notice warning"
       {...agentHandle("sites-unlisted-notice", {
         role: "status",
-        label: "Warning that the site currently being served does not appear in the sites table",
+        label: "Warning that the site currently being served does not appear in the sites grid",
       })}
     >
-      {t("This site isn't in the table below, but it's still what's being served.")}
+      {t("This site isn't listed below, but it's still what's being served.")}
     </div>
   );
 }
@@ -178,8 +200,8 @@ function NowServingBadges({ outlook, t }: { outlook: ActivationOutlook; t: Trans
   );
 }
 
-/** The live binding, first and unconditional — never a row from the table, which may not contain
- *  it. See this file's header. */
+/** The live binding, first and unconditional — never a card from the grid, which may not contain
+ *  it. One compact line plus its warnings, not a full panel — see this file's header. */
 function NowServingCard({
   snapshot,
   outlook,
@@ -205,13 +227,15 @@ function NowServingCard({
         <h2 className="card-title">{t("Now serving")}</h2>
         <NowServingBadges outlook={outlook} t={t} />
       </div>
-      <div className="field-group">
+      <div className="sites-now-serving">
         <ServingFact label={t("Folder")} value={snapshot.currentSite.name} />
         <ServingFact label={t("Path")} value={snapshot.currentSite.dir} mono />
+        <div className="sites-now-serving-notices">
+          {snapshot.currentSite.listed ? null : <UnlistedSiteNotice t={t} />}
+          {snapshot.currentSite.dirOverridden ? <SiteDirOverrideNotice t={t} /> : null}
+          <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} instructions={instructions} t={t} />
+        </div>
       </div>
-      {snapshot.currentSite.listed ? null : <UnlistedSiteNotice t={t} />}
-      {snapshot.currentSite.dirOverridden ? <SiteDirOverrideNotice t={t} /> : null}
-      <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} instructions={instructions} t={t} />
     </div>
   );
 }
@@ -225,53 +249,67 @@ export interface CreateSiteFormProps {
 
 /** Create a site folder through the same `initSite` path `tovu init` uses, so an admin-created site
  *  and a CLI-created one are identical. Creating never touches the running server's binding — the
- *  new site sits on disk until it is activated and the server restarts, which is what the hint
- *  under the button says. */
-function CreateSiteForm({ controller }: CreateSiteFormProps) {
+ *  new site sits on disk until it is activated and the server restarts, which is what the success
+ *  line says.
+ *
+ *  Rendered as the grid's own first tile (dashed outline, `+`) rather than a form panel above the
+ *  list — the Runner comparison the owner gave for this redesign. Unlike Runner's card, the form
+ *  stays inline here instead of opening on click: this pass is a layout change, not a new
+ *  disclosure/modal interaction with its own states to cover. All three of today's create-form
+ *  guards carry over unchanged: the name field disables while a create is in flight or switching is
+ *  off ({@link resolveCreateInputDisabled}), the submit button has its own four-condition guard
+ *  ({@link resolveCreateSubmitDisabled}), and the "Created." line clears the moment the operator
+ *  edits the name again (`useSites`'s own `setCreateName`). */
+function CreateSiteCard({ controller }: CreateSiteFormProps) {
   const { createName, setCreateName, createNameError, createSite, creating, createdName, switchingEnabled, t } = controller;
   return (
     <form
-      className="card"
+      className="site-card site-card-create"
       {...agentHandle("sites-create-form", { role: "form", label: "Create a new site folder under sites/" })}
       onSubmit={(e) => {
         e.preventDefault();
         createSite();
       }}
     >
-      <h2 className="card-title">{t("Create a site")}</h2>
-      <p className="card-lead">
-        {t("Makes a new folder under sites/ with its own database, uploads, themes, and a starting home page — the same thing tovu init produces.")}
-      </p>
-      <div className="field">
-        <label className="field-label" htmlFor="site-name">
-          {t("Folder name")}
-        </label>
-        <input
-          id="site-name"
-          name="name"
-          value={createName}
-          disabled={resolveCreateInputDisabled({ creating, switchingEnabled })}
-          placeholder="my-second-site"
-          onChange={(e) => setCreateName(e.target.value)}
-          {...agentHandle("sites-create-name", { role: "field", label: "New site folder name" })}
-        />
-        {createNameError ? (
-          <p className="field-error">{createNameError}</p>
-        ) : (
-          <p className="field-hint">{t("Lowercase letters, digits, and dashes. This is the folder name, and the name Activate takes.")}</p>
-        )}
+      <div className="site-card-head">
+        <span className="site-card-create-title">
+          <span className="site-card-create-plus" aria-hidden="true">
+            +
+          </span>
+          {t("New site")}
+        </span>
       </div>
-      <div className="editor-actions form-actions">
-        <button
-          type="submit"
-          disabled={resolveCreateSubmitDisabled({ creating, switchingEnabled, createNameError, createName })}
-          {...agentHandle("sites-create-submit", { role: "button", label: "Create the site folder" })}
-        >
-          {creating ? t("Creating…") : t("Create site")}
-        </button>
-        {createdName ? (
-          <span className="save-ok">{t("Created. Activate it below to serve it after the next restart.")}</span>
-        ) : null}
+      <div className="site-card-body">
+        <p className="card-lead">{t("A new folder under sites/, with its own content, uploads, and themes.")}</p>
+        <div className="field">
+          <label className="field-label" htmlFor="site-name">
+            {t("Folder name")}
+          </label>
+          <input
+            id="site-name"
+            name="name"
+            value={createName}
+            disabled={resolveCreateInputDisabled({ creating, switchingEnabled })}
+            placeholder="my-second-site"
+            onChange={(e) => setCreateName(e.target.value)}
+            {...agentHandle("sites-create-name", { role: "field", label: "New site folder name" })}
+          />
+          {createNameError ? (
+            <p className="field-error">{createNameError}</p>
+          ) : (
+            <p className="field-hint">{t("Lowercase letters, digits, and dashes.")}</p>
+          )}
+        </div>
+        <div className="editor-actions form-actions">
+          <button
+            type="submit"
+            disabled={resolveCreateSubmitDisabled({ creating, switchingEnabled, createNameError, createName })}
+            {...agentHandle("sites-create-submit", { role: "button", label: "Create the site folder" })}
+          >
+            {creating ? t("Creating…") : t("Create site")}
+          </button>
+        </div>
+        {createdName ? <p className="save-ok">{t("Created. Activate it to serve after the next restart.")}</p> : null}
       </div>
     </form>
   );
@@ -331,6 +369,57 @@ function ActivateButton({
   );
 }
 
+/** One listed site's own grid tile — folder name (the technical identifier every write on this
+ *  screen takes) dominant in a tinted header, same role Tovu Runner's port number plays on its own
+ *  Projects card; display name, state badge, and created date underneath; Activate in the footer.
+ *  {@link resolveSiteCardClassName} adds the `site-card-serving` tint for whichever card is
+ *  genuinely live — the one place this redesign adds a purely visual echo of a fact the badge
+ *  already states in words, never a substitute for it. */
+function SiteCard({
+  site,
+  snapshot,
+  handle,
+  switchingEnabled,
+  activatingName,
+  onActivate,
+  t,
+}: {
+  site: AdminSiteListEntry;
+  snapshot: AdminSitesSnapshot;
+  handle: string;
+  switchingEnabled: boolean;
+  activatingName: string | null;
+  onActivate: (name: string) => void;
+  t: Translate;
+}) {
+  const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+  return (
+    <div className={resolveSiteCardClassName(site, snapshot)}>
+      <div className="site-card-head">
+        <span className="site-card-name">{site.name}</span>
+      </div>
+      <div className="site-card-body">
+        <p className="site-card-display-name">{site.displayName}</p>
+        <span className={`status ${toneClass}`}>{t(labelKey)}</span>
+        <p className="site-card-meta">
+          {t("Created")} {formatTimestamp(site.createdAt)}
+        </p>
+        <div className="site-card-actions">
+          <ActivateButton
+            site={site}
+            snapshot={snapshot}
+            handle={handle}
+            switchingEnabled={switchingEnabled}
+            activatingName={activatingName}
+            onActivate={onActivate}
+            t={t}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export interface SitesProps {
   /** Dependency injection seam for tests — same convention as every other wired-hook prop in this
    *  app. See `PostsProps.usePostsHook` for the full rationale. */
@@ -367,7 +456,7 @@ export function Sites(props: SitesProps = {}) {
           <p className="page-kicker">{t("Overview")}</p>
           <h1 className="page-title">{t("Sites")}</h1>
           <p className="page-description">
-            {t("Every site folder under sites/. Each one owns its own content, uploads and themes. Switching between them takes a restart.")}
+            {t("Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart.")}
           </p>
         </div>
       </div>
@@ -377,51 +466,21 @@ export function Sites(props: SitesProps = {}) {
 
       <NowServingCard snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
-      <CreateSiteForm controller={controller} />
-
-      <DataTable
-        rows={sites}
-        rowKey={(site: AdminSiteListEntry) => site.name}
-        empty={
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("No sites are listed yet. Create one above.")}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          { key: "name", header: t("Folder"), cell: (site: AdminSiteListEntry) => site.name },
-          { key: "displayName", header: t("Name"), cell: (site: AdminSiteListEntry) => site.displayName },
-          {
-            key: "created",
-            header: t("Created"),
-            cell: (site: AdminSiteListEntry) => <span className="muted-cell">{formatTimestamp(site.createdAt)}</span>,
-          },
-          {
-            key: "state",
-            header: t("State"),
-            cell: (site: AdminSiteListEntry) => {
-              const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
-              return <span className={`status ${toneClass}`}>{t(labelKey)}</span>;
-            },
-          },
-          {
-            key: "actions",
-            header: t("Activate"),
-            cell: (site: AdminSiteListEntry, index: number) => (
-              <ActivateButton
-                site={site}
-                snapshot={snapshot}
-                handle={`${rowHandles[index]}-activate`}
-                switchingEnabled={switchingEnabled}
-                activatingName={activatingName}
-                onActivate={activate}
-                t={t}
-              />
-            ),
-          },
-        ]}
-      />
+      <div className="sites-grid" role="group" aria-label={t("Sites")}>
+        <CreateSiteCard controller={controller} />
+        {sites.map((site, index) => (
+          <SiteCard
+            key={site.name}
+            site={site}
+            snapshot={snapshot}
+            handle={`${rowHandles[index]}-activate`}
+            switchingEnabled={switchingEnabled}
+            activatingName={activatingName}
+            onActivate={activate}
+            t={t}
+          />
+        ))}
+      </div>
     </div>
   );
 }

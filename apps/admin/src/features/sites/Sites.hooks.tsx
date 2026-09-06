@@ -58,8 +58,8 @@ export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): st
   );
 }
 
-/** The table's `state` column display for one row: the tone class and copy key together, so
- *  `Sites.tsx`'s `cell` callback consumes one function's result rather than composing
+/** One grid card's `state` badge: the tone class and copy key together, so `Sites.tsx`'s
+ *  `SiteCard` consumes one function's result rather than composing
  *  `siteRowStateToneClass`/`siteRowStateLabelKey` on top of its own `siteRowState` call. */
 export function resolveSiteStateDisplay(
   site: AdminSiteListEntry,
@@ -67,4 +67,13 @@ export function resolveSiteStateDisplay(
 ): { toneClass: string; labelKey: string } {
   const state = siteRowState(site, snapshot);
   return { toneClass: siteRowStateToneClass(state), labelKey: siteRowStateLabelKey(state) };
+}
+
+/** One grid card's own class name: adds `site-card-serving` for whichever card is genuinely the
+ *  live binding (2026-09-05 card-grid redesign) — a purely visual echo of the same
+ *  `siteRowState`/`"serving"` fact the badge in {@link resolveSiteStateDisplay} already states in
+ *  words, so the two can never disagree (one source, two renderings), and never a substitute for
+ *  the badge itself. */
+export function resolveSiteCardClassName(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): string {
+  return siteRowState(site, snapshot) === "serving" ? "site-card site-card-serving" : "site-card";
 }

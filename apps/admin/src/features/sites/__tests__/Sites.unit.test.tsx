@@ -66,7 +66,7 @@ describe("Sites — the live binding is stated from currentSite, never inferred 
     expect(screen.getByText("/repo/sites/alpha")).toBeTruthy();
   });
 
-  it("says so when the served site is absent from the table, instead of reading as 'no sites'", () => {
+  it("says so when the served site is absent from the grid, instead of reading as 'no sites'", () => {
     renderSites({
       snapshot: snapshotFixture({
         sites: [],
@@ -74,10 +74,15 @@ describe("Sites — the live binding is stated from currentSite, never inferred 
       }),
       sites: [],
     });
-    expect(screen.getByText(/isn't in the table below/)).toBeTruthy();
+    // Card-grid redesign (2026-09-05): the table's "no sites are listed" empty-state sentence is
+    // gone because there is no longer a table to be empty — the Create tile is always the grid's
+    // first tile, so "zero listed sites" already renders as exactly that (the Create tile alone),
+    // not a separate "nothing here" message. The wording below moved from "table" to "listed" for
+    // the same reason.
+    expect(screen.getByText(/isn't listed below/)).toBeTruthy();
     // The live folder is still named on screen, even though nothing is listed.
     expect(screen.getByText("/repo/sites/tovu-com")).toBeTruthy();
-    expect(screen.getByText("No sites are listed yet. Create one above.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create site" })).toBeTruthy();
   });
 
   it("warns that TOVU_SITE_DIR outranks anything Activate saves", () => {
@@ -205,10 +210,11 @@ describe("Sites — load and error states", () => {
     expect(screen.getByText("Loading sites…")).toBeTruthy();
   });
 
-  it("renders the read failure rather than an empty table", () => {
+  it("renders the read failure rather than an empty grid", () => {
     renderSites({ snapshot: undefined, sites: [], listStatus: "error", listError: new Error("server down") });
     expect(screen.getByText("server down")).toBeTruthy();
-    expect(screen.queryByText("No sites are listed yet. Create one above.")).toBeNull();
+    // The full-screen error guard returns before the grid (or its Create tile) ever renders.
+    expect(screen.queryByRole("button", { name: "Create site" })).toBeNull();
   });
 
   it("shows a write failure as a banner without hiding the list", () => {

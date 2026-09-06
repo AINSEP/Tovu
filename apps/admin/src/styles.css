@@ -4074,3 +4074,70 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   --jini-bg-elevated: var(--surface);
 }
 .deployment-action-reason { margin: 0; font-size: var(--text-xs); color: var(--muted); max-width: 60ch; }
+
+/* Sites — card grid redesign (2026-09-05, owner verdict comparing this screen against Tovu
+ * Runner's Projects screen: "Tovu Runner uses space better ... it shows all the sites we have up
+ * front"). Replaces the previous single-column stack (a large "Now serving" panel with two
+ * full-width disabled-input-styled fields, a "Create a site" panel, then a table far down the
+ * page) with a compact one-line status ({@link .sites-now-serving} family below) and a responsive
+ * grid of site tiles with Create as the grid's own first tile.
+ *
+ * `.sites-grid` uses `auto-fill`, NOT `auto-fit` — the exact choice `.theme-grid` above already
+ * makes and documents: a lone site (this admin's common case, per the owner) must not have its
+ * one card balloon to the grid's full width the way `auto-fit` would (it collapses unused tracks
+ * into the occupied ones); `auto-fill` reserves the phantom tracks instead, so a lone card sizes
+ * the same as it would in a fully populated row. */
+.sites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-4); }
+
+.site-card {
+  display: flex; flex-direction: column;
+  border-radius: var(--r-lg); padding: 0; overflow: hidden;
+  background: var(--surface); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm);
+  transition: transform 0.14s, box-shadow 0.14s;
+}
+.site-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+/* The tinted header carries the folder name — the technical identifier every write on this screen
+ * takes (Activate, the create form's own field) — as the card's dominant element, the same role
+ * Tovu Runner's port number plays on its own project card. */
+.site-card-head { padding: var(--space-4) var(--space-5); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.site-card-name { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 700; color: var(--fg); word-break: break-all; }
+
+/* The one purely visual signal this redesign adds: a tint on whichever card is genuinely the live
+ * binding, so it reads at a glance in a grid of several — never a substitute for the `status`
+ * badge below, which states the same `siteRowState`-derived fact in words
+ * ({@link resolveSiteCardClassName} in `Sites.hooks.tsx`). */
+.site-card-serving .site-card-head { background: var(--primary-dim); }
+
+.site-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
+.site-card-display-name { margin: 0; font-size: var(--text-md); color: var(--fg-2); }
+.site-card-meta { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+.site-card-actions { margin-top: auto; padding-top: var(--space-2); align-self: stretch; display: flex; justify-content: flex-end; }
+
+/* The Create tile — dashed outline, no tint, sits first in the grid (`Sites.tsx`'s own render
+ * order) so creating a site reads as one more card rather than a form bolted above the list. The
+ * form itself stays inline rather than opening on click, unlike Runner's own "+" tile — see
+ * `CreateSiteCard`'s own doc comment in `Sites.tsx` for why. */
+.site-card-create { border-style: dashed; border-color: var(--border-strong); background: transparent; box-shadow: none; }
+.site-card-create:hover { transform: none; box-shadow: none; border-color: var(--faint); }
+.site-card-create .site-card-head { background: transparent; border-bottom: none; padding-bottom: 0; }
+.site-card-create-title { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; }
+.site-card-create-plus {
+  display: inline-flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem;
+  border-radius: var(--r-pill); border: 1.5px dashed var(--border-strong); font-size: 0.95rem; line-height: 1; color: var(--muted);
+}
+.site-card-create .site-card-body { width: 100%; box-sizing: border-box; }
+.site-card-create .field { width: 100%; }
+
+/* The compact "Now serving" line (`NowServingCard` in `Sites.tsx`) — plain label/value text
+ * instead of the two `.field-readonly` boxes the previous layout used, which rendered as
+ * disabled-looking text inputs for a fact that is never actually editable here. `title` on the
+ * value carries the untruncated string; `text-overflow: ellipsis` only clips the display at
+ * narrow widths, the full text stays in the DOM. */
+.sites-now-serving { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-6); }
+.sites-now-serving-fact { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; max-width: 100%; }
+.sites-now-serving-fact-label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+.sites-now-serving-fact-value { font-size: var(--text-sm); color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 26rem; }
+.sites-now-serving-fact-value.mono { font-family: var(--font-mono); }
+.sites-now-serving-notices { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--space-2); }
+.sites-now-serving-notices:empty { display: none; }
