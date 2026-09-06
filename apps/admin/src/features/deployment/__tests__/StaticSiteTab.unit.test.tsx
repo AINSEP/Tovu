@@ -347,6 +347,22 @@ describe("StaticSiteTab — build export action", () => {
     expect(screen.getByText("Lost track of this export's status and stopped checking.")).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-export-poll-error"]')).toBeInTheDocument();
   });
+
+  it("omits the 'Written to' fact entirely when a completed run carries no outputDir", () => {
+    renderTab({
+      exportController: {
+        run: {
+          status: "completed",
+          startedAtIso: "t0",
+          finishedAtIso: "t1",
+          outputDir: null,
+          ok: true,
+          counts: { routesSucceeded: 1, routesFailed: 0, assetsSucceeded: 0, assetsFailed: 0 },
+        },
+      },
+    });
+    expect(screen.queryByText("Written to")).not.toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () => {
@@ -830,6 +846,102 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({ publishController: { pollError: "Lost track of this publish's status and stopped checking." } });
     expect(screen.getByText("Lost track of this publish's status and stopped checking.")).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-poll-error"]')).toBeInTheDocument();
+  });
+
+  it("typing into the GitHub Pages owner/repo/branch fields calls the injected setters", async () => {
+    const user = userEvent.setup();
+    const setOwner = vi.fn();
+    const setRepo = vi.fn();
+    const setBranch = vi.fn();
+    renderTab({ publishController: { target: "github-pages", setOwner, setRepo, setBranch } });
+
+    await user.type(screen.getByLabelText("GitHub owner or org"), "o");
+    expect(setOwner).toHaveBeenCalledWith("o");
+    await user.type(screen.getByLabelText("Repository"), "r");
+    expect(setRepo).toHaveBeenCalledWith("r");
+    await user.type(screen.getByLabelText("Branch (optional)"), "b");
+    expect(setBranch).toHaveBeenCalledWith("b");
+  });
+
+  it("typing into the Vercel team field calls the injected setTeamId", async () => {
+    const user = userEvent.setup();
+    const setTeamId = vi.fn();
+    renderTab({ publishController: { target: "vercel", setTeamId } });
+
+    await user.type(screen.getByLabelText("Vercel team (optional)"), "t");
+    expect(setTeamId).toHaveBeenCalledWith("t");
+  });
+
+  it("typing into the project name field calls the injected setProjectName", async () => {
+    const user = userEvent.setup();
+    const setProjectName = vi.fn();
+    renderTab({ publishController: { target: "vercel", setProjectName } });
+
+    await user.type(screen.getByLabelText("Vercel project name"), "p");
+    expect(setProjectName).toHaveBeenCalledWith("p");
+  });
+
+  it("shows the 'Checking…' label while a preview request is in flight", () => {
+    renderTab({ publishController: { previewLoading: true } });
+    expect(screen.getByRole("button", { name: "Checking…" })).toBeInTheDocument();
+  });
+
+  it("surfaces a rejected preview as an alert", () => {
+    renderTab({ publishController: { previewError: "Could not check this target (boom)." } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not check this target (boom).");
+  });
+
+  it("surfaces a rejected publish trigger as an alert", () => {
+    renderTab({ publishController: { target: "vercel", projectName: "my-site", publishError: "a publish is already running" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("a publish is already running");
+  });
+
+  it("a valid preview with no base path (Vercel/root) shows the domain-root note, not an empty value", () => {
+    renderTab({
+      publishController: {
+        target: "vercel",
+        preview: {
+          target: "vercel",
+          valid: true,
+          validationError: null,
+          basePath: null,
+          credentialsConfigured: true,
+          credentialGuidance: null,
+          willInjectNojekyll: false,
+        },
+      },
+    });
+    expect(screen.getByText("None — serves from the domain root")).toBeInTheDocument();
+    expect(screen.getByText("Configured")).toBeInTheDocument();
+    // A configured credential has nothing to guide the reader to fix — no guidance paragraph at all.
+    expect(screen.queryByText(/GITHUB_TOKEN|VERCEL_TOKEN/)).not.toBeInTheDocument();
+  });
+
+  it("a non-terminal run (still running) renders no PublishRunResult output of its own", () => {
+    renderTab({
+      publishController: {
+        target: "vercel",
+        run: { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" },
+      },
+    });
+    // The "Publishing…" status pill/button belong to PublishTriggerAction itself, not
+    // PublishRunResult — this only asserts the latter contributes nothing (no run-result link, no
+    // result alert) while the run is still in flight. Scoped to a URL-shaped link name and a
+    // save-error alert specifically, since the credential section elsewhere on this tab always
+    // renders its own unrelated "Create a token" link.
+    expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
+  });
+
+  it("a terminal run with neither a result nor an error renders nothing from PublishRunResult", () => {
+    renderTab({
+      publishController: {
+        target: "vercel",
+        run: { status: "completed", startedAtIso: "t0", finishedAtIso: "t1", target: "vercel" },
+      },
+    });
+    expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
   });
 
   it("names the destination section distinctly from the credential section above it, with an explanation of the difference", () => {
