@@ -24,7 +24,7 @@ being called done.
 |---|---|
 | `seo` (`features/seo/**`) | Another agent (`seo-tools`) is tagging this screen's per-entry fields right now. `agentHandle_uses=37` already — do not re-audit or touch. |
 | `menus` (`features/menus/**`) | Leona's own uncommitted work (`MenuEditor.tsx` modified, `MenuEditor.hooks.tsx` new, both untracked/uncommitted as of this pass). `agentHandle_uses=0` on `Menus.tsx`/`MenuEditor.tsx` currently — real gap, but off limits until she lands it. |
-| `pages`, `posts` | Do-last per dispatch; posts has a live autosave-drafts feature (`34694309 wip(posts): autosave recovery banner in PostEditor, state unverified` — landed as a WIP commit, not clean). `posts` already carries `agentHandle_uses=21` (`PostEditor.tsx`). `pages` is unaudited this pass. |
+| `pages`, `posts` | **EXCLUDED ENTIRELY (2026-09-06 scope change, superseding the original "do last")** — a separate agent is dispatched to finish the autosave-drafts feature in exactly these directories; two agents editing the same files would collide on the shared git tree. Audit only, no edits, from here on. `posts` (`PostEditor.tsx`, `Posts.tsx`) carries `agentHandle_uses=21` — a live autosave-drafts feature landed mid-session as a WIP commit (`34694309 wip(posts): autosave recovery banner in PostEditor, state unverified`), so its coverage is a moving target regardless. `pages` (`PageEditor.tsx`, `Pages.tsx`, `ThemePagesTab.tsx`, `ThemePageDetailsModal.tsx`+hooks, 5 files) has `agentHandle_uses=0` across every file (grep-only measurement, read-only — not opened, no edits made). A real gap, but off-limits per this scope change. |
 | `media` (`features/media/Media.tsx`) | Was mid-flight (git status showed it modified) at dispatch time; confirmed via `git log` it has since landed clean (`04806e6b feat(media): accept AVIF in the admin upload surfaces, with regression tests`). Not touched this pass to avoid crossing paths with whichever agent owns it (`avif-bridge`) — flagged for a future pass, not a hard exclusion. `agentHandle_uses=23`. |
 
 ## Out of scope (not a nav page)
@@ -70,8 +70,8 @@ interactive controls on any of them):
 | dashboard | Overview | `Dashboard.tsx` | 0 | **read-verified**, gap | Stat cards + "All posts"/"Change" links + "View site" link are all plain `<a>` — none tagged. Add `role: "link"` handles. |
 | sites | Sites | `Sites.tsx`, `AllSitesTab.tsx`, `CreateSiteOnboarding.tsx` | 12 | grep-estimated, likely OK | Spot-check only (budget) |
 | ai-assistant | AI Assistant | `AiAssistant.tsx` | 0 | grep-estimated, gap | Not opened this pass — flagged for next agent |
-| pages | Pages | `Pages.tsx`, `PageEditor.tsx` | 0 | excluded (do last) | — |
-| posts | Posts | `Posts.tsx`, `PostEditor.tsx` | 21 | excluded (do last / WIP) | — |
+| pages | Pages | `Pages.tsx`, `PageEditor.tsx` | 0 | **EXCLUDED ENTIRELY** (2026-09-06 scope change) | — |
+| posts | Posts | `Posts.tsx`, `PostEditor.tsx` | 21 | **EXCLUDED ENTIRELY** (2026-09-06 scope change) / WIP | — |
 | media | Media | `Media.tsx` | 23 | excluded (recently landed elsewhere) | — |
 | collections | Collections | `Collections.tsx`, `CollectionEntries.tsx`, `CollectionEntryEditor.tsx` | 36 | grep-estimated, likely OK | Spot-check only |
 | menus | Menus | `Menus.tsx`, `MenuEditor.tsx` | 0 | **excluded** (Leona's WIP) | — |
@@ -143,7 +143,7 @@ Status will be updated in place as fixes land, with commit SHAs appended below.
 **Explicitly off-limits, still real gaps — pick up once unblocked:**
 - `menus` (`Menus.tsx`/`MenuEditor.tsx`, `agentHandle_uses=0`) — Leona's own uncommitted WIP as of this session.
 - `seo` — another agent's live work as of this session; check its own final state before assuming it's incomplete.
-- `pages`/`posts` — do last per the original dispatch; `posts` had a WIP autosave commit landing during this session.
+- `pages`/`posts` — **excluded entirely** (2026-09-06 scope change): a separate agent owns finishing autosave-drafts in exactly these directories. Do not edit even after that lands without re-confirming scope; `posts` had a WIP autosave commit landing during this session already.
 
 **Structural, cross-repo (not a Tovu-only fix):**
 - Settings' 11 Jini-UI-mounted tabs (see above) — needs `agentHandle` support added inside `Jini/packages/ui`'s components, then a Jini rebuild. Do not attempt without explicit sign-off; this is exactly the kind of unscoped Jini change the house rules warn against.
