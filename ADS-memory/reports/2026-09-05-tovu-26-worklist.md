@@ -1170,3 +1170,64 @@ generation refs** — this bug class was known and solved there. `use-settings-s
 **All 46 `*-port.hooks.ts` / `*-dependencies.hooks.ts` in scope: grepped for
 `useState|useRef|useEffect|useReducer` — zero matches.** DI wiring and interfaces only; cannot race,
 and they never appear in lcov either. Not gaps, not risks.
+
+---
+
+## A23 — the `if (dispatch)` guard was KEPT, not deleted. The premise did not hold. (`2fc9bd86`)
+
+Leona authorised deleting it **conditional on confirming unreachability**. The confirmation failed,
+so it was kept and covered instead — **100% branch (12/12), with zero production code changed.**
+
+**The evidence, from `node_modules/@tiptap/core`:**
+- `CommandProps.dispatch` is typed `((args?: any) => any) | undefined` (`src/types.ts:637`), and
+  **`CommandManager.createCan()` (`CommandManager.ts:106-121`) really does hand every
+  `.can()`-reachable command a literal `dispatch: undefined`.** So "dispatch undefined" is a real,
+  documented shape — **not vestigial boilerplate**, which was the premise for deleting it.
+- Reaching *this* handler that way depends on Tiptap internals: `addKeyboardShortcuts` entries are
+  wired through a separate `keymap()` plugin (`ExtensionManager.ts:118-146`), **structurally disjoint
+  from the `rawCommands` table `.can()`/`.chain()` walk**. A real keydown only reaches the closure via
+  `this.editor.commands.command(cb)`, the dispatching path.
+
+**That separation is a fact about someone else's package, not about this repo's wiring** — which is
+exactly the "rests on an EXTERNAL contract" half of the rule. **KEEP + direct-invoke-test**, because
+the proof can change on a dependency bump.
+
+Covered by capturing the private callback during a real Enter keydown and re-invoking it with a
+fabricated dispatch-less props object — **the same treatment the file already gave its "no title
+node" branch.**
+
+**This is the outcome the twelve byte-for-byte restorations were meant to teach.** The instruction
+was to delete; the agent checked, found the premise false, and reported it. That is the behaviour to
+reward.
+
+## A24 — logic extracted out of two `.tsx` files (`2a0cd1c4`)
+- `TabBar.tsx` → `tabHandleProps` (pure props-builder, no JSX) moved to new `TabBar.hooks.tsx`.
+  **`tabDotAccessibleSuffix` deliberately KEPT in place** — it returns JSX, making it a render helper
+  in the same category as the file's existing `TabBarButton` subcomponent, not the derived logic the
+  rule targets. Judged and justified rather than force-moved.
+- `PlaceholderTabs.tsx` → the `props.tabs.map(...)` transform moved to new
+  `PlaceholderTabs.hooks.tsx` as `toSettingsDialogTabs`.
+- **PlaceholderTabs stays** — the owner confirmed it is deliberate scaffolding for future placeholder
+  tab sections. Its stale-but-intentional import in `panels.tsx` was left alone on instruction.
+- All four files pass complexity ≤9 / cognitive ≤9; **no function moved closer to budget.**
+- **`27388361`'s tests pass UNMODIFIED** — TabBar 13/13, PlaceholderTabs 4/4, combined coverage 100%.
+  That was the pure-refactor gate: had a test needed editing, behaviour had changed.
+
+## A25 — `PostEditor.tsx` interim: 60% → 93.75% lines (`400eba77`)
+**What the large uncovered block actually was:** the **entire formatting-toolbar interaction
+surface** — every mark/heading/list toggle, link, text/bg colour, font/size/line-height select,
+image-by-url, YouTube, mention picker, divider/table, undo/redo, code-language select — plus header
+wiring (back-link `confirmLeave` guard, status select, title/slug typing) and the load-error/loading
+guards. **All of it had only ever been RENDERED in tests, never clicked or changed.**
+
+Driven now through real `userEvent` interaction against a real mounted TipTap editor (confirmed
+empirically that the default cursor lands in the body paragraph, not the title node, so block-level
+commands are structurally valid there). Directory-wide 85.71% → 96.15%; 250/250 green, up from 202.
+`fireEvent` used only for a few deliberate defensive-branch cases `userEvent` cannot produce (native
+colour-input value, a mention slug absent from `mentionablePosts`).
+
+**Remaining: `BubbleFormattingMenu` only** (lines 579-594 — the text-selection bubble menu's
+bold/italic/underline/highlight/link handlers). Not accepted as unreachable: Meta+A landed on a
+NodeSelection/gapcursor; Shift+ArrowRight left `document.getSelection()` collapsed; next attempt is a
+real DOM Range across the paragraph's text node plus a `selectionchange` dispatch to see whether
+ProseMirror's view syncs from it. No production code touched, so no complexity delta.
