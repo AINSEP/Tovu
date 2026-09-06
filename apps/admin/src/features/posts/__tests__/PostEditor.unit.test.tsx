@@ -85,10 +85,29 @@ let activeThemeTemplates: string[];
  *  below overrides it to exercise the populated-list render and insert paths. */
 let mentionablePostsFixture: Array<{ id: string; workspaceId: string; kind: "post" | "page"; title: string; slug: string }>;
 
+/** Per-test override for the standing-draft autosave recovery check's GET response — `null` (the
+ *  default) keeps every pre-existing assertion in this file unchanged (no banner); the "standing-
+ *  draft autosave recovery banner" describe block below seeds one. */
+let autosaveFixture: {
+  bodyFormat: "doc" | "html";
+  bodyJson?: Record<string, unknown>;
+  bodyHtml?: string;
+  title: string;
+  slug: string;
+  baseVersion: number;
+  savedAt: string;
+  savedByPrincipalId: string;
+} | null;
+
+/** How many DELETE `.../autosave` calls this test has seen — the discard/post-save-clear proof. */
+let autosaveDiscardCalls = 0;
+
 beforeEach(() => {
   fetchMock = vi.fn();
   activeThemeTemplates = [];
   mentionablePostsFixture = [];
+  autosaveFixture = null;
+  autosaveDiscardCalls = 0;
   // `useWiredPostEditor` (2026-08-11: `useAdminLocale`/`POSTS_DICT` moved out of `PostEditor.tsx`
   // and into the hook, per the standing i18n rule — see `use-post-editor.hooks.ts`'s file header)
   // now reads `core.language.locale` (via `useAdminLocale`) to build its own bound `t`, a real
@@ -141,7 +160,9 @@ beforeEach(() => {
     // exercises the recovery banner itself; that behavior is covered at the hook level
     // (`use-post-editor.hooks.unit.test.tsx`'s own "standing-draft autosave + recovery" block).
     if (url.includes("/autosave")) {
-      return Promise.resolve(jsonResponse((init?.method ?? "GET") === "GET" ? { autosave: null } : { ok: true }));
+      if ((init?.method ?? "GET") === "GET") return Promise.resolve(jsonResponse({ autosave: autosaveFixture }));
+      if (init?.method === "DELETE") autosaveDiscardCalls += 1;
+      return Promise.resolve(jsonResponse({ ok: true }));
     }
     return fetchMock(input, init);
   });

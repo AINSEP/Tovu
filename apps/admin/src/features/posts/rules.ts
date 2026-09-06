@@ -5,6 +5,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import type { AdminPost } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
+import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
 import { POSTS_DICT } from "./posts-i18n";
 
 /**
@@ -94,6 +95,26 @@ export function buildPostAutosaveDraft(
   form: { title: string; slug: string; bodyJson: Record<string, unknown> }
 ): StandingDraftAutosaveInput {
   return { bodyFormat: "doc", bodyJson: form.bodyJson, title: form.title, slug: form.slug, baseVersion: post.version };
+}
+
+/** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
+ *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
+ *  Mirrors `features/pages/rules.ts`'s identical predicate (kept feature-local rather than shared,
+ *  same "no cross-feature import" boundary every other rule in this file already respects). */
+export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: number): boolean {
+  return draftBaseVersion !== currentVersion;
+}
+
+/**
+ * The recovery banner's own message. NOT run through `t()`, deliberately: like
+ * `formatSaveSuccessMessage`/`formatSaveErrorMessage` (`use-post-editor.hooks.ts`) just above it in
+ * this file's sibling, this is a fully computed, interpolated sentence — this codebase's existing
+ * dynamic-message convention leaves those untranslated rather than half-templating them through the
+ * static `POSTS_DICT[locale][key]` lookup, which has no interpolation mechanism at all.
+ */
+export function postAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
+  const when = formatRelativeMinutesAgo(savedAt, nowMs);
+  return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the

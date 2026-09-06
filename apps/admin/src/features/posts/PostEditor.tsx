@@ -10,6 +10,7 @@ import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedIns
 import type { AdminPost, ThemeTier } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
+import type { StandingDraftAutosaveSnapshot } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
 import {
@@ -20,7 +21,9 @@ import {
   LINE_HEIGHT_OPTIONS,
   CODE_LANGUAGE_OPTIONS,
   degradeUnplayableEmbedsForRawPreview,
+  isAutosaveDraftStale,
   overridesThemePageFromSelectValue,
+  postAutosaveBannerMessage,
 } from "./rules";
 
 /**
@@ -678,6 +681,58 @@ function PostEditorHeader({
 }
 
 /**
+ * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
+ * unless `usePostEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
+ * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
+ * a different tab/operator's work. `postAutosaveBannerMessage`/`isAutosaveDraftStale` (`rules.ts`)
+ * own the actual wording decision so this component stays markup only. Mirrors
+ * `features/pages/PageEditor.tsx`'s identical `PageAutosaveRecoveryBanner`, `agentHandle`-tagged
+ * and copy-through-`t` because this screen already uses both throughout, unlike Pages'.
+ */
+function PostAutosaveRecoveryBanner({
+  recoverableDraft,
+  currentVersion,
+  onRestore,
+  onDiscard,
+  t,
+}: {
+  recoverableDraft: StandingDraftAutosaveSnapshot;
+  currentVersion: number;
+  onRestore: () => void;
+  onDiscard: () => void;
+  t: Translate;
+}) {
+  const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
+  return (
+    <div
+      className="notice warning"
+      {...agentHandle("post-autosave-recovery", {
+        role: "region",
+        label: "An unsaved draft from a previous session was found — restore it or discard it",
+      })}
+    >
+      <p>{postAutosaveBannerMessage(recoverableDraft.savedAt, Date.now(), stale)}</p>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onRestore}
+        {...agentHandle("post-autosave-restore", { role: "button", label: "Apply the recovered draft into the editor" })}
+      >
+        {t("Restore")}
+      </button>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onDiscard}
+        {...agentHandle("post-autosave-discard", { role: "button", label: "Discard the recovered draft without applying it" })}
+      >
+        {t("Discard")}
+      </button>
+    </div>
+  );
+}
+
+/**
  * The status select, save feedback and the publish/save/delete buttons — their own row, below the
  * view/template toolbar rather than in the header (owner request, 2026-09-06: "put the published
  * save and delete buttons under the gray desktop/tablet/mobile row").
@@ -1146,6 +1201,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     onDeleteCancel,
     onViewTemplateClick,
     onCloseTemplateModal,
+    recoverableDraft,
+    restoreRecoveredDraft,
+    discardRecoveredDraft,
   } = usePostEditorHook(postId);
 
   if (error && !post) return <div className="notice error">{error}</div>;
@@ -1156,6 +1214,16 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   return (
     <div className="page">
       <PostEditorHeader kindLabel={kindLabel} confirmLeave={confirmLeave} t={t} />
+
+      {recoverableDraft ? (
+        <PostAutosaveRecoveryBanner
+          recoverableDraft={recoverableDraft}
+          currentVersion={post.version}
+          onRestore={restoreRecoveredDraft}
+          onDiscard={discardRecoveredDraft}
+          t={t}
+        />
+      ) : null}
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
           the bare `type="text"` announcement (slug, which had no placeholder either). The
           wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
