@@ -25,7 +25,11 @@ import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
-import { handleImageDrop, readFileAsDataUrl, titleNodeText, withTitleNode } from "../rules";
+import {
+  useStandingDraftAutosave,
+  type StandingDraftAutosaveSnapshot,
+} from "@/hooks/use-standing-draft-autosave.hooks";
+import { buildPostAutosaveDraft, handleImageDrop, readFileAsDataUrl, titleNodeText, withTitleNode } from "../rules";
 import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
@@ -195,6 +199,20 @@ export interface PostEditorController extends PostEditorUiController {
   /** Bound translator — `key` already resolved against the caller's locale, so `PostEditor.tsx`
    *  never imports `useAdminLocale`/`POSTS_DICT` itself. See this file's header. */
   t: Translate;
+  /**
+   * Standing-draft autosave (2026-09-06) — non-null once the mount-time recovery check finds a
+   * draft parked from a previous session. Never auto-applied; `PostEditor.tsx` renders an explicit
+   * "restore or discard" banner and calls {@link restoreRecoveredDraft}/{@link discardRecoveredDraft}
+   * on the operator's own action. Mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s
+   * identical fields.
+   */
+  recoverableDraft: StandingDraftAutosaveSnapshot | null;
+  /** Applies the recovered draft into the working copy (title/slug/body) and dismisses the banner.
+   *  Does NOT itself tell the server anything — the restored edit re-enters the normal
+   *  autosave/Save flow from here, the same as any other in-progress edit. */
+  restoreRecoveredDraft: () => void;
+  /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
+  discardRecoveredDraft: () => Promise<void>;
 }
 
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
@@ -446,6 +464,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // `use-static-publish.hooks.ts`'s `publishingRef` documents for itself.
   const saveGenerationRef = useRef(0);
 
+  // Standing-draft autosave (2026-09-06) — see `use-standing-draft-autosave.hooks.ts`'s own header
+  // for the ordering guarantee `clearStandingDraft` relies on. `postId` (the URL param) is very
+  // often actually the post's SLUG, not its id (`Posts.tsx`'s row links build `/admin/posts/{slug}`)
+  // — same as `save()`'s own `port.updatePost({ id: postId }, ...)` just below, this relies on the
+  // server route resolving id-or-slug itself (`getAdminPostByIdOrSlug`, mirroring `posts/update.ts`)
+  // rather than waiting for `post.id` to load first.
+  const autosave = useStandingDraftAutosave({ port, entryId: postId, enabled: post !== null });
+
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
     // only TextAlign needed adding. `document: false` turns off StarterKit's own `doc` node so
@@ -687,6 +713,18 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // above for the comparison itself.
   const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage }, original);
 
+  // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
+  // differs from what's saved. Deliberately does NOT clear the draft when `contentDirty` goes back
+  // to `false` on its own (e.g. the operator edits back to the original value): only a real
+  // Save/Publish (`save`'s own `clearStandingDraft` call below) or an explicit Discard
+  // (`discardRecoveredDraft`) ever clears a parked draft.
+  useEffect(() => {
+    if (!post || !contentDirty || bodyJson === null) return;
+    autosave.scheduleAutosave(
+      buildPostAutosaveDraft(post, { title, slug, bodyJson: bodyJson as Record<string, unknown> })
+    );
+  }, [post, contentDirty, title, slug, bodyJson, autosave.scheduleAutosave]);
+
   // Template-preview URL (moved from `PostEditor.tsx`/`PostPreview`, see `PostEditorController
   // .templatePreviewUrl`'s own doc) and the pending-content-preview's hidden form target (moved from
   // `PostPreview`'s own `useRef` — a plain per-render string suffices since `post.id` is stable once
@@ -749,6 +787,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       setStatus(nextStatus);
       setMessage(formatSaveSuccessMessage(statusOverride, saved.version));
       setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage });
+      // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
+      // is best-effort background bookkeeping (errors are already caught inside the hook), not part
+      // of what "Save succeeded" means to the operator.
+      void autosave.clearStandingDraft();
     } catch (e) {
       if (saveGenerationRef.current === generation) setError(formatSaveErrorMessage(e, statusOverride));
     }
@@ -793,6 +835,27 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       setDeleting(false);
       setConfirmingDelete(false);
     }
+  }
+
+  /**
+   * Applies a recovered standing draft into the working copy and dismisses the banner. Mirrors the
+   * load effect's own `editor.commands.setContent(withTitleNode(...))` + `setTitle`/`setSlug` — the
+   * restored edit then re-enters the normal autosave/Save flow exactly like any other in-progress
+   * change, since {@link editor} is the single source of truth `contentDirty`/`bodyJson` both read.
+   * Does NOT itself tell the server anything.
+   */
+  function restoreRecoveredDraft(): void {
+    const draft = autosave.recoverableDraft;
+    if (!draft || !editor || draft.bodyJson === undefined) return;
+    editor.commands.setContent(withTitleNode(draft.bodyJson, draft.title) as never);
+    setTitle(draft.title);
+    setSlug(draft.slug);
+    autosave.dismissRecoverable();
+  }
+
+  /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
+  async function discardRecoveredDraft(): Promise<void> {
+    await autosave.clearStandingDraft();
   }
 
   /**
@@ -856,6 +919,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     save,
     remove,
     t,
+    recoverableDraft: autosave.recoverableDraft,
+    restoreRecoveredDraft,
+    discardRecoveredDraft,
   };
 }
 

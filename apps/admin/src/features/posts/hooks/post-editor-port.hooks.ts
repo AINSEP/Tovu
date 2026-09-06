@@ -1,4 +1,5 @@
 import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
  * @file What `use-post-editor.hooks.ts` needs from the outside world, as an interface rather than a
@@ -19,7 +20,14 @@ import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } f
  * directly rather than having them injected, same reasoning `assistant-chats-port.hooks.ts` gives for
  * `persistableMessages`), and the latter is editor/local-state infrastructure, not a host service.
  */
-export interface PostEditorPort {
+/**
+ * Standing-draft autosave (2026-09-06 dispatch) — `putAutosave`/`getAutosave`/`discardAutosave` are
+ * pulled in from the shared, feature-agnostic hook rather than redeclared here, so this port and
+ * `PageEditorPort`'s identical extension stay structurally IDENTICAL by construction. See
+ * `use-standing-draft-autosave.hooks.ts`'s own header for why the hook itself stays ignorant of
+ * both features either way.
+ */
+export interface PostEditorPort extends StandingDraftAutosavePort {
   getPost(id: string): Promise<{ post: AdminPost }>;
   getPresentation(): Promise<{
     settings: PresentationSettings;

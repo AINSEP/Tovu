@@ -401,6 +401,15 @@ describe("usePostEditor — save", () => {
         throw new Error("not used by this test");
       },
       templatePreviewUrl: () => "",
+      async putAutosave() {
+        return { applied: true };
+      },
+      async getAutosave() {
+        return { autosave: null };
+      },
+      async discardAutosave() {
+        return { ok: true };
+      },
     };
 
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
@@ -602,6 +611,115 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
       expect(inserted).toHaveLength(1); // only the successful upload landed
       expect(inserted[0]?.attrs).toMatchObject({ alt: "good.png" });
     });
+  });
+});
+
+/**
+ * Standing-draft autosave (2026-09-06) — debounce/ordering mechanics are proven once, generically,
+ * in `use-standing-draft-autosave.unit.test.ts`; these prove WIRING — that `usePostEditor` feeds the
+ * hook the right shape and reacts to it correctly — via `createFakePostEditorPort`.
+ */
+describe("usePostEditor — standing-draft autosave + recovery", () => {
+  it("a seeded standing draft is exposed as recoverableDraft on load, and never silently applied to the working copy", async () => {
+    const seeded = {
+      bodyFormat: "doc" as const,
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "recovered" }] }] },
+      title: "Recovered title",
+      slug: "hello-world",
+      baseVersion: POST.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const port = createFakePostEditorPort({ post: POST, autosave: seeded });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    expect(result.current.recoverableDraft).toEqual(seeded);
+    // The banner is offered, not applied — the loaded post's own title is still what's shown.
+    expect(result.current.title).toBe(POST.title);
+  });
+
+  it("restoreRecoveredDraft applies the draft into the editor/title/slug and dismisses the banner, without telling the server", async () => {
+    const seeded = {
+      bodyFormat: "doc" as const,
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "recovered" }] }] },
+      title: "Recovered title",
+      slug: "recovered-slug",
+      baseVersion: POST.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const port = createFakePostEditorPort({ post: POST, autosave: seeded });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    act(() => result.current.restoreRecoveredDraft());
+
+    expect(result.current.title).toBe("Recovered title");
+    expect(result.current.slug).toBe("recovered-slug");
+    expect(result.current.recoverableDraft).toBeNull();
+    expect(port.discardAutosaveCalled).toBe(false);
+  });
+
+  it("discardRecoveredDraft clears the standing draft server-side and dismisses the banner", async () => {
+    const seeded = {
+      bodyFormat: "doc" as const,
+      bodyJson: { type: "doc", content: [] },
+      title: "Recovered title",
+      slug: "hello-world",
+      baseVersion: POST.version,
+      savedAt: "2026-09-06T00:00:00.000Z",
+      savedByPrincipalId: "user-local",
+    };
+    const port = createFakePostEditorPort({ post: POST, autosave: seeded });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    await act(async () => result.current.discardRecoveredDraft());
+
+    expect(port.discardAutosaveCalled).toBe(true);
+    expect(result.current.recoverableDraft).toBeNull();
+    // Discarding must not silently apply the draft it just threw away.
+    expect(result.current.title).toBe(POST.title);
+  });
+
+  it("editing schedules a debounced autosave PUT matching buildPostAutosaveDraft's own shape", async () => {
+    vi.useFakeTimers();
+    try {
+      const port = createFakePostEditorPort({ post: POST });
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.editor).not.toBeNull();
+
+      act(() => result.current.setTitle("Edited via autosave"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(port.putAutosaveCalls).toHaveLength(1);
+      expect(port.putAutosaveCalls[0]).toMatchObject({
+        bodyFormat: "doc",
+        title: "Edited via autosave",
+        slug: POST.slug,
+        baseVersion: POST.version,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a successful save clears the standing draft, even when nothing was ever recovered", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    act(() => result.current.setTitle("Saved for real"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.discardAutosaveCalled).toBe(true);
   });
 });
 

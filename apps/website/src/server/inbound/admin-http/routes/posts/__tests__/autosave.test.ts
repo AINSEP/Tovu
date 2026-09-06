@@ -38,15 +38,15 @@ async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
   return { baseUrl, cookie, deps };
 }
 
-async function createSeedPost(baseUrl: string, cookie: string): Promise<{ id: string; version: number }> {
+async function createSeedPost(baseUrl: string, cookie: string): Promise<{ id: string; slug: string; version: number }> {
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ title: "Autosave fixture" }),
   });
   assert.equal(res.status, 201);
-  const body = (await res.json()) as { post: { id: string; version: number } };
-  return { id: body.post.id, version: body.post.version };
+  const body = (await res.json()) as { post: { id: string; slug: string; version: number } };
+  return { id: body.post.id, slug: body.post.slug, version: body.post.version };
 }
 
 function autosaveUrl(baseUrl: string, postId: string): string {
@@ -175,4 +175,36 @@ test("workspace mismatch in the URL 404s before any autosave read/write", async 
     headers: { cookie },
   });
   assert.equal(res.status, 404);
+});
+
+test("the URL segment resolves by SLUG, not just id — the admin's own Posts list links to /admin/posts/{slug}", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  // PUT through the SLUG-shaped URL a real operator's browser would actually hit.
+  const put = await fetch(autosaveUrl(baseUrl, post.slug), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      bodyFormat: "doc",
+      title: "Autosave fixture",
+      bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
+      slug: post.slug,
+      baseVersion: post.version,
+    }),
+  });
+  assert.equal(put.status, 200);
+  assert.deepEqual(await put.json(), { applied: true });
+
+  // Reading back through the ID-shaped URL must see the SAME row's draft — proving both URL shapes
+  // resolve to one real id, not two independent (and for the slug one, always-empty) targets.
+  const getById = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
+  const { autosave } = (await getById.json()) as { autosave: { bodyJson: unknown } | null };
+  assert.ok(autosave);
+  assert.deepEqual(autosave.bodyJson, { type: "doc", content: [{ type: "paragraph" }] });
+
+  const del = await fetch(autosaveUrl(baseUrl, post.slug), { method: "DELETE", headers: { cookie } });
+  assert.equal(del.status, 200);
+  const getAfterDelete = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
+  assert.deepEqual(await getAfterDelete.json(), { autosave: null });
 });

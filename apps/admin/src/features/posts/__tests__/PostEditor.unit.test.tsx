@@ -132,6 +132,17 @@ beforeEach(() => {
     if (/\/posts$/.test(url) && (init?.method ?? "GET") === "GET") {
       return Promise.resolve(jsonResponse({ posts: mentionablePostsFixture.map((post) => ({ post })) }));
     }
+    // Standing-draft autosave (2026-09-06) — `usePostEditor`'s own mount-time recovery check (a GET)
+    // and its post-save clear (a DELETE, fired-and-forgotten — see `use-post-editor.hooks.ts`'s
+    // `save()`) are both real `fetch` calls no test below ever queued for. Same reasoning as
+    // `/settings/effective`/`/presentation`/the mention list just above: routed here so they never
+    // eat a slot from the post-load/save `mockResolvedValueOnce` sequence every test still queues on
+    // `fetchMock` itself. Defaults to "nothing to recover"/"cleared ok" — no test in this file
+    // exercises the recovery banner itself; that behavior is covered at the hook level
+    // (`use-post-editor.hooks.unit.test.tsx`'s own "standing-draft autosave + recovery" block).
+    if (url.includes("/autosave")) {
+      return Promise.resolve(jsonResponse((init?.method ?? "GET") === "GET" ? { autosave: null } : { ok: true }));
+    }
     return fetchMock(input, init);
   });
 });

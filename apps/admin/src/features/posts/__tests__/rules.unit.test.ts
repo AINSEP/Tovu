@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_POST_SORT,
+  buildPostAutosaveDraft,
   buildPostRowMenuHandleMap,
   comparePostsByStatus,
   comparePostsBySlug,
@@ -696,5 +697,18 @@ describe("degradeUnplayableEmbedsForRawPreview", () => {
 
   it("returns '' for an empty string rather than throwing", () => {
     expect(degradeUnplayableEmbedsForRawPreview("")).toBe("");
+  });
+});
+
+describe("buildPostAutosaveDraft", () => {
+  it("always sends bodyFormat 'doc' — a Post can never carry bodyFormat 'html'", () => {
+    const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
+    const draft = buildPostAutosaveDraft({ version: 5 }, { title: "Hello", slug: "hello", bodyJson });
+    expect(draft).toEqual({ bodyFormat: "doc", bodyJson, title: "Hello", slug: "hello", baseVersion: 5 });
+  });
+
+  it("baseVersion always comes from the post's own version, not a caller-supplied guess", () => {
+    const draft = buildPostAutosaveDraft({ version: 42 }, { title: "T", slug: "t", bodyJson: {} });
+    expect(draft.baseVersion).toBe(42);
   });
 });

@@ -1,4 +1,5 @@
 import { api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**
@@ -16,6 +17,9 @@ export const defaultPostEditorPort: PostEditorPort = {
   listPosts: () => api.listPosts(),
   uploadMedia: (input) => api.uploadMedia(input),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
+  putAutosave: (id, draft) => api.putAutosave(id, draft),
+  getAutosave: (id) => api.getAutosave(id),
+  discardAutosave: (id) => api.discardAutosave(id),
 };
 
 /** Seed state for {@link createFakePostEditorPort}. */
@@ -42,6 +46,9 @@ export interface FakePostEditorPortOptions {
   uploadMediaResult?: AdminMedia;
   /** Rejects `uploadMedia` with this message instead of resolving — the upload-failure path. */
   uploadMediaError?: string;
+  /** Seeds a standing draft as though a previous session had already parked one — the recovery-
+   *  banner test seam. Absent/`undefined` means "nothing to recover", the common case. */
+  autosave?: StandingDraftAutosaveSnapshot;
 }
 
 const DEFAULT_POST: AdminPost = {
@@ -94,6 +101,10 @@ const DEFAULT_MEDIA: AdminMedia = {
 export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}): PostEditorPort & {
   /** The fake's current row — read directly to assert a save/delete's effect without a second `getPost` round-trip. */
   post: AdminPost;
+  /** Every `putAutosave` draft this fake received, in call order. */
+  readonly putAutosaveCalls: StandingDraftAutosaveInput[];
+  /** Whether `discardAutosave` has been called at least once. */
+  readonly discardAutosaveCalled: boolean;
 } {
   const state = { post: options.post ?? { ...DEFAULT_POST } };
   const settings: PresentationSettings = {
@@ -102,6 +113,9 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     updatedAt: new Date(0).toISOString(),
     ...options.presentation?.settings,
   };
+  let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
+  const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
+  let discardAutosaveCalled = false;
 
   return {
     get post() {
@@ -109,6 +123,10 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     },
     set post(value) {
       state.post = value;
+    },
+    putAutosaveCalls,
+    get discardAutosaveCalled() {
+      return discardAutosaveCalled;
     },
 
     async getPost() {
@@ -152,6 +170,23 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     // `createFakePageEditorPort`'s identical member documents.
     templatePreviewUrl(id, templateChoice) {
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
+    },
+
+    async putAutosave(id, draft) {
+      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
+      putAutosaveCalls.push(draft);
+      autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
+      return { applied: true };
+    },
+
+    async getAutosave() {
+      return { autosave };
+    },
+
+    async discardAutosave() {
+      discardAutosaveCalled = true;
+      autosave = null;
+      return { ok: true };
     },
   };
 }

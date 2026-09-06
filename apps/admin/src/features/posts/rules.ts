@@ -4,6 +4,7 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import type { AdminPost } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
 import { POSTS_DICT } from "./posts-i18n";
 
 /**
@@ -77,6 +78,22 @@ export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string
     posts.map((post) => post.id),
   );
   return new Map(posts.map((post, index) => [post.id, handles[index]!]));
+}
+
+/**
+ * Standing-draft autosave (2026-09-06) — what to send `putAutosave` for the current working copy.
+ * Unlike `features/pages`' `buildPageAutosaveDraft`, there is no doc-vs-html split here: `PostEditor`
+ * is reached only via `/admin/posts/{id}` for `kind: "post"` rows (`panels.tsx`), and a Post can
+ * never carry `bodyFormat: "html"` (`post.ts`'s own `resolveBodyFields`/CIC-3) — every draft this
+ * editor ever sends is `bodyFormat: "doc"`.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function buildPostAutosaveDraft(
+  post: { version: number },
+  form: { title: string; slug: string; bodyJson: Record<string, unknown> }
+): StandingDraftAutosaveInput {
+  return { bodyFormat: "doc", bodyJson: form.bodyJson, title: form.title, slug: form.slug, baseVersion: post.version };
 }
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the

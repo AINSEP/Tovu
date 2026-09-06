@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { PostAutosaveSnapshot, PostBodyFormat } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -22,6 +22,21 @@ import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js
  * of the same "may this principal edit this content" capability as saving it for real.
  */
 const REQUIRED_PERMISSION = "content.write";
+
+/**
+ * Resolves the URL's `:postId` segment to the row's real id — the admin's own Posts list links to
+ * `/admin/posts/{slug}`, not `/admin/posts/{id}` (`apps/admin/src/features/posts/Posts.tsx`), so
+ * this param is very often a slug, not the id `PostRepoPort` methods key off. Mirrors
+ * `posts/update.ts`'s identical resolution exactly: falls back to the raw param on no match, which
+ * every handler below already treats as a safe "no such row" no-op (`writeAutosave`/`readAutosave`/
+ * `clearAutosave` — see `PostRepoPort`'s own doc), so no separate 404 branch is needed here.
+ */
+async function resolvePostId(repo: PostRepoPort, workspaceId: string, rawParam: string): Promise<string> {
+  const resolved = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId, idOrSlug: rawParam } }).catch(
+    () => null
+  );
+  return resolved?.post.id ?? rawParam;
+}
 
 /** Mirrors `pages/update-html.ts`'s `allowedToWrite` — same permission, same 403 shape, extracted
  *  for the same complexity-ceiling reason. */
@@ -89,11 +104,8 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
       savedAt: deps.clock.nowIso(),
       savedByPrincipalId: principal.id,
     };
-    const result = await deps.postRepo.writeAutosave({
-      workspaceId: deps.workspaceId,
-      id: String(req.params.postId ?? ""),
-      snapshot,
-    });
+    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+    const result = await deps.postRepo.writeAutosave({ workspaceId: deps.workspaceId, id: postId, snapshot });
     res.json(result);
   });
 
@@ -104,10 +116,8 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     }
     if (!(await allowedToWrite(deps, res))) return;
 
-    const autosave = await deps.postRepo.readAutosave({
-      workspaceId: deps.workspaceId,
-      id: String(req.params.postId ?? ""),
-    });
+    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+    const autosave = await deps.postRepo.readAutosave({ workspaceId: deps.workspaceId, id: postId });
     res.json({ autosave });
   });
 
@@ -118,10 +128,8 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     }
     if (!(await allowedToWrite(deps, res))) return;
 
-    await deps.postRepo.clearAutosave({
-      workspaceId: deps.workspaceId,
-      id: String(req.params.postId ?? ""),
-    });
+    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+    await deps.postRepo.clearAutosave({ workspaceId: deps.workspaceId, id: postId });
     res.json({ ok: true });
   });
 };
