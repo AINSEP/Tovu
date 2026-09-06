@@ -89,10 +89,19 @@ for (const run of [1, 2, 4, 5, 6]) {
   });
 }
 
-test("real fixture: run5's src/contracts/core/embeds/marker.ts block is CONTAMINATED but not severe -- a different, real partial-match file", () => {
+test("real fixture: run5's src/core/embeds/marker.ts block is CONTAMINATED but not severe -- a different, real partial-match file", () => {
+  // `warn-run5-embeds-marker.lcov.info` is real, frozen historical lcov data (see this file's own
+  // header comment: renaming/repointing these fixtures would misrepresent provenance), predating the
+  // 2026-08-27 `src/contracts/` move (ba3a61b4) and the later apps/website restructure. Its `SF:` line
+  // still literally reads `src/core/embeds/marker.ts` -- ba3a61b4's mechanical import-rewrite swept
+  // this ASSERTION STRING along with real import specifiers, even though it names a frozen fixture's
+  // byte-for-byte content, not a live path. check-coverage-integrity.ts's `file` field is a verbatim
+  // pass-through of the lcov `SF:` line (check-coverage-integrity.ts:342, `sfMatch[1].trim()` -- no
+  // resolution against the real source tree), so this must match the fixture's own text, not today's
+  // real file location.
   const { contaminated } = checkCoverageIntegrity(readFixture("warn-run5-embeds-marker.lcov.info"));
   assert.equal(contaminated.length, 1);
-  assert.equal(contaminated[0].file, "src/contracts/core/embeds/marker.ts");
+  assert.equal(contaminated[0].file, "src/core/embeds/marker.ts");
   assert.equal(contaminated[0].severe, false);
 });
 
