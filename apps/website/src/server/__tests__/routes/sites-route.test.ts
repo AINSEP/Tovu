@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
@@ -94,7 +97,9 @@ test("sites: List — 200 with switchingEnabled + the injected site list, regard
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
     switchingEnabled: false,
-    sites: [SAMPLE_SITE],
+    // `registration` is added by `includeServingSite` (2026-09-05): every row `listSites` returned
+    // is by definition a directory `tovu serve` would accept.
+    sites: [{ ...SAMPLE_SITE, registration: "registered" }],
     currentSite: { ...SAMPLE_BINDING, listed: true },
     persistedSiteName: null,
   });
@@ -104,8 +109,9 @@ test("sites: List — currentSite.listed is FALSE when the served directory is a
   const deps: RouteDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
-    // Exactly this repo's own situation: `sites/tovu-com` predates the `.site-meta.json` commit
-    // marker, so `listSites` skips it and the list comes back EMPTY while it is being served.
+    // A served directory that is not on disk at all (`/repo/...` does not exist here). Distinct
+    // from the marker-less-but-real case below, which DOES get a row: `includeServingSite` refuses
+    // to invent a card for a folder that is not there, so this stays empty and `listed` stays false.
     listSites: () => [],
     describeSiteBinding: () => SAMPLE_BINDING,
     readPersistedActiveSite: () => null,
@@ -118,6 +124,90 @@ test("sites: List — currentSite.listed is FALSE when the served directory is a
   assert.deepEqual(body.sites, []);
   assert.equal(body.currentSite.listed, false);
   assert.equal(body.currentSite.name, "tovu-com");
+});
+
+/** A real directory on disk carrying neither `config.json` nor `.site-meta.json` — a byte-for-byte
+ *  stand-in for this repo's own `sites/tovu-com`, which is exactly the state the owner is looking
+ *  at. Registered with the test runner so it is removed whether the test passes or throws. */
+function mkServedButUnregisteredDir(t: { after: (fn: () => void) => void }): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-sites-route-"));
+  const dir = path.join(root, "sites", "tovu-com");
+  fs.mkdirSync(dir, { recursive: true });
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  return dir;
+}
+
+test("sites: List — the served directory appears in sites[] as `unregistered` even though listSites() drops it", async (t) => {
+  const dir = mkServedButUnregisteredDir(t);
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    // The real gap the owner reported: the folder is plainly being served, and `listSites` returns
+    // nothing because `readSiteDir` requires both marker files.
+    listSites: () => [],
+    describeSiteBinding: () => ({ dir, name: "tovu-com", dirOverridden: false }),
+    readPersistedActiveSite: () => null,
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, { headers: { cookie } });
+  const body = await res.json();
+
+  assert.equal(body.sites.length, 1, "the site being served must not be missing from its own listing");
+  assert.equal(body.sites[0].name, "tovu-com");
+  assert.equal(body.sites[0].dir, dir);
+  assert.equal(body.sites[0].active, true, "it is genuinely the live binding, so the card shows an active state");
+  assert.equal(body.sites[0].registration, "unregistered", "the card must still be able to say `tovu serve` would refuse this folder");
+  assert.equal(
+    body.currentSite.listed,
+    false,
+    "`listed` keeps its original meaning — whether the served dir is a REGISTERED site — even though sites[] now carries a row for it",
+  );
+});
+
+test("sites: List — a served directory that IS registered reports registration:'registered' and listed:true", async (t) => {
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    listSites: () => [SAMPLE_SITE],
+    describeSiteBinding: () => SAMPLE_BINDING,
+    readPersistedActiveSite: () => null,
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, { headers: { cookie } });
+  const body = await res.json();
+
+  assert.equal(body.sites.length, 1, "an already-listed served site must not be duplicated by the composer");
+  assert.equal(body.sites[0].registration, "registered");
+  assert.equal(body.currentSite.listed, true);
+});
+
+test("sites: Activate — an `unregistered` served name is STILL a 404, because the write path keeps using the strict listSites()", async (t) => {
+  const dir = mkServedButUnregisteredDir(t);
+  let called = false;
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    listSites: () => [],
+    describeSiteBinding: () => ({ dir, name: "tovu-com", dirOverridden: false }),
+    persistActiveSite: () => {
+      called = true;
+    },
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites/tovu-com/activate`, {
+    method: "POST",
+    headers: { cookie },
+  });
+
+  assert.equal(res.status, 404, "showing a folder in the listing must not silently make it activatable");
+  assert.deepEqual(await res.json(), { error: "site 'tovu-com' was not found", code: "SITE_NOT_FOUND" });
+  assert.equal(called, false, "nothing may be persisted for a directory tovu serve would refuse");
 });
 
 test("sites: List — reports a pending persisted choice and the TOVU_SITE_DIR override that would defeat it", async (t) => {

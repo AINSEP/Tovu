@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.js";
 import { ValidationError } from "../../errors.js";
-import { createSite, describeSiteBinding, listSites, SITE_NAME_PATTERN } from "../../site-registry.js";
+import { createSite, describeSiteBinding, includeServingSite, listSites, SITE_NAME_PATTERN } from "../../site-registry.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `site-registry.ts`'s list/create half.
@@ -158,6 +158,138 @@ test("describeSiteBinding: agrees with listSites()'s own `active` flag for a rea
     const active = listed.filter((site) => site.active);
     assert.equal(active.length, 1);
     assert.equal(active[0].dir, binding.dir, "the two derivations must never disagree about which site is live");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+/**
+ * `includeServingSite` — the served-but-unregistered case (2026-09-05 sites-listing fix).
+ *
+ * This repo's own `sites/tovu-com` carries neither `config.json` nor `.site-meta.json` (verified on
+ * disk), so `readSiteDir` rejects it and `listSites` silently drops it — the admin Sites screen
+ * rendered "All sites 0" while that very directory was being served. These tests fix the shape of
+ * the composer that closes that gap WITHOUT loosening the validator: `listSites` keeps meaning
+ * "directories `tovu serve` would accept", and the extra entry carries `registration:
+ * "unregistered"` so the fact never goes missing.
+ */
+
+/** A serving directory that exists but carries no init markers — exactly `sites/tovu-com`. */
+function mkUnregisteredServingDir(): { cwd: string; dir: string } {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-unregistered-"));
+  const dir = path.join(cwd, "sites", "tovu-com");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "content.db"), "not a real db, but the folder is plainly in use");
+  return { cwd, dir };
+}
+
+test("includeServingSite: appends the served directory as `unregistered` when it carries no init markers", () => {
+  const { cwd, dir } = mkUnregisteredServingDir();
+  try {
+    const binding = describeSiteBinding({ cwd, env: {} });
+    assert.equal(binding.dir, dir, "precondition: the default binding resolves to this folder");
+    assert.deepEqual(listSites({ cwd, env: {} }), [], "precondition: the strict listing still drops it");
+
+    const composed = includeServingSite({ sites: listSites({ cwd, env: {} }), binding });
+
+    assert.equal(composed.length, 1, "the site being served must appear in the listing");
+    assert.equal(composed[0]?.name, "tovu-com");
+    assert.equal(composed[0]?.dir, dir);
+    assert.equal(composed[0]?.registration, "unregistered", "the card must still be able to say `tovu serve` would reject this folder");
+    assert.equal(composed[0]?.active, true, "the only entry this ever appends is the one being served");
+    assert.equal(composed[0]?.displayName, "tovu-com", "no config.json exists to read a display name from — the folder name is the honest answer");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("includeServingSite: marks a real initialized site `registered` and appends nothing", () => {
+  const { cwd } = mkSitesRoot();
+  try {
+    createSite({ name: "bound-site" }, { cwd });
+    const env = { TOVU_SITE: "bound-site" };
+    const binding = describeSiteBinding({ cwd, env });
+
+    const composed = includeServingSite({ sites: listSites({ cwd, env }), binding });
+
+    assert.equal(composed.length, 1, "a served site already in the strict listing must not be duplicated");
+    assert.equal(composed[0]?.name, "bound-site");
+    assert.equal(composed[0]?.registration, "registered");
+    assert.equal(composed[0]?.active, true);
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("includeServingSite: appends nothing when the served directory does not exist on disk", () => {
+  const { cwd } = mkSitesRoot();
+  try {
+    const binding = describeSiteBinding({ cwd, env: { TOVU_SITE: "never-created" } });
+    assert.equal(fs.existsSync(binding.dir), false, "precondition: nothing was ever created there");
+
+    assert.deepEqual(includeServingSite({ sites: listSites({ cwd, env: {} }), binding }), [], "a card for a folder that is not there would be its own lie");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("includeServingSite: appends nothing when the served path is a FILE rather than a directory", () => {
+  const { cwd, sitesDir } = mkSitesRoot();
+  try {
+    fs.writeFileSync(path.join(sitesDir, "a-file"), "not a directory");
+    const binding = describeSiteBinding({ cwd, env: { TOVU_SITE: "a-file" } });
+
+    assert.deepEqual(includeServingSite({ sites: listSites({ cwd, env: {} }), binding }), []);
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("includeServingSite: keeps every registered sibling, and the appended entry is the ONLY active one", () => {
+  const { cwd } = mkUnregisteredServingDir();
+  try {
+    createSite({ name: "site-a" }, { cwd });
+    createSite({ name: "site-b" }, { cwd });
+    const binding = describeSiteBinding({ cwd, env: {} });
+
+    const composed = includeServingSite({ sites: listSites({ cwd, env: {} }), binding });
+
+    assert.deepEqual(
+      composed.map((site) => [site.name, site.registration, site.active]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      [
+        ["site-a", "registered", false],
+        ["site-b", "registered", false],
+        ["tovu-com", "unregistered", true],
+      ],
+      "the two real sites keep their own state; only the served folder is added, and only it is active",
+    );
+    // The invariant the Activate button leans on: an `unregistered` entry is ALWAYS the serving one,
+    // and the UI disables Activate for whatever is already serving. That is what keeps the activate
+    // route's own strict `listSites()` 404 unreachable from this screen — see `sites-route.test.ts`.
+    for (const site of composed) {
+      if (site.registration === "unregistered") assert.equal(site.active, true);
+    }
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("includeServingSite: does NOT loosen readSiteDir — a half-written site is still absent from both the strict and the composed listing", () => {
+  const { cwd, sitesDir } = mkSitesRoot();
+  try {
+    // A `config.json` but no `.site-meta.json` commit marker: an interrupted `initSite` (INV-02).
+    const halfWritten = path.join(sitesDir, "half-written");
+    fs.mkdirSync(halfWritten);
+    fs.writeFileSync(path.join(halfWritten, "config.json"), JSON.stringify({ name: "x", domain: null, port: null }));
+    const binding = describeSiteBinding({ cwd, env: { TOVU_SITE: "some-other-site" } });
+
+    const composed = includeServingSite({ sites: listSites({ cwd, env: {} }), binding });
+
+    assert.deepEqual(
+      composed.map((site) => site.name),
+      [],
+      "only the SERVED directory is ever added — a half-written folder nobody is serving stays out",
+    );
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }

@@ -3,11 +3,13 @@ import type { Express, Response } from "express";
 import {
   createSite as createSiteReal,
   describeSiteBinding as describeSiteBindingReal,
+  includeServingSite,
   listSites as listSitesReal,
   persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
   InitDirNotEmptyError,
   ValidationError,
+  type ServingSiteListEntry,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
 import { isSiteSwitcherEnabled as isSiteSwitcherEnabledReal } from "#src/server/runtime/composition/site-switcher-enabled";
@@ -37,15 +39,24 @@ import type { RouteDeps } from "#src/server/routes/types";
  * HAPPENED (2026-09-05, admin Sites screen). Neither is derivable from `sites[]`:
  *
  * - `currentSite` — what this process is bound to RIGHT NOW (`describeSiteBinding`), plus `listed`:
- *   whether that directory appears in `sites[]` at all. It legitimately may not — `listSites` skips
- *   any directory without a valid `.site-meta.json` commit marker, and this repo's own live
- *   `sites/tovu-com` predates that marker, so `sites[]` comes back EMPTY while a site is plainly
- *   being served. A screen holding only the list would render "no sites" on a running server.
+ *   whether that directory is a REGISTERED site, i.e. one `tovu serve` would accept. It legitimately
+ *   may not be — `listSites` skips any directory without a valid `.site-meta.json` commit marker,
+ *   and this repo's own live `sites/tovu-com` carries neither marker file, so it was being served
+ *   while `listSites` returned nothing and the screen rendered "All sites 0" (2026-09-05).
  *   `currentSite.dirOverridden` reports the `TOVU_SITE_DIR` precedence trap — see {@link
  *   SiteBinding.dirOverridden}: with it set, an activate is inert and the UI must say so.
  * - `persistedSiteName` — the pending `TOVU_SITE` choice a previous activate left in `.env`
  *   (`readPersistedActiveSite`), so "serving A, B queued for the next restart" survives a page
  *   reload rather than living only in the activate response the reload threw away.
+ *
+ * `sites[]` is therefore `includeServingSite`'s composition, not `listSites`'s raw output: the
+ * served directory always has a row, and every row carries `registration`. `registration:
+ * "unregistered"` is the served-but-not-a-real-site case, and it is what lets one card say both
+ * "this is active" and "`tovu serve` would refuse this folder" instead of the screen having to
+ * choose. `listed` keeps its ORIGINAL meaning under that change — it is now read off the served
+ * row's own `registration` rather than from row presence, which is the same predicate as before
+ * (a row is `registered` exactly when `listSites` produced it) but stays correct now that presence
+ * alone no longer implies it.
  *
  * `POST .../system/sites` — Create. Refuses `SITE_SWITCHING_DISABLED` when the flag is off,
  * checked BEFORE `authorize()` (a deployment-wide gate, independent of the caller's own
@@ -140,12 +151,14 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      const sites: SiteListEntry[] = listSites();
+      const registered: SiteListEntry[] = listSites();
       const binding = describeSiteBinding();
+      const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
+      const serving = sites.find((site) => site.dir === binding.dir);
       res.status(200).json({
         switchingEnabled: isSiteSwitcherEnabled(),
         sites,
-        currentSite: { ...binding, listed: sites.some((site) => site.dir === binding.dir) },
+        currentSite: { ...binding, listed: serving?.registration === "registered" },
         persistedSiteName: readPersistedActiveSite(),
       });
     } catch (err) {

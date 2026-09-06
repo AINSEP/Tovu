@@ -143,6 +143,113 @@ export function createSite(required: CreateSiteRequired, optional: ListSitesOpti
   return { ...result, name };
 }
 
+/**
+ * Whether a listed directory carries `initSite`'s own commit markers (`config.json` +
+ * `.site-meta.json`, INV-02) — which is exactly the difference between a folder `tovu serve` would
+ * accept and one it would refuse with `SiteDirInvalidError`.
+ *
+ * A distinct STATE rather than a loosened validator. {@link listSites} still means "directories
+ * `serve` would accept", because that is what its two write-path callers (this route's Activate,
+ * and `features/sites/tool-registrations.ts`'s duplicate-source lookup) need it to mean.
+ */
+export type SiteRegistration = "registered" | "unregistered";
+
+/**
+ * A {@link SiteListEntry} carrying the one fact the strict listing has no way to express: whether
+ * this row is a real initialized site or the directory this process happens to be serving without
+ * one. Every field except {@link ServingSiteListEntry.registration} means what it does on the base
+ * type; see {@link includeServingSite} for what an `unregistered` row's fields are derived from.
+ */
+export interface ServingSiteListEntry extends SiteListEntry {
+  registration: SiteRegistration;
+}
+
+export interface IncludeServingSiteRequired {
+  /** {@link listSites}'s own output — unmodified, and every entry becomes `registered`. */
+  sites: readonly SiteListEntry[];
+  /** {@link describeSiteBinding}'s output for the SAME `cwd`/`env`, so the two agree about which
+   *  directory "serving" means. */
+  binding: SiteBinding;
+}
+
+/** The served directory's `fs.Stats` when it exists and is a directory, `null` otherwise. One
+ *  `statSync`, reused for the entry's `createdAt`, so the existence check and the timestamp can
+ *  never describe two different states of the filesystem.
+ *
+ *  @complexity O(1) — a single stat. */
+function readServingDirStat(dir: string): fs.Stats | null {
+  try {
+    const stat = fs.statSync(dir);
+    return stat.isDirectory() ? stat : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The synthetic row for a served directory that {@link listSites} rejected.
+ *
+ * Every field is a fact about the directory itself rather than a guess at what its missing
+ * `config.json`/`.site-meta.json` would have said:
+ * - `displayName` is the folder name, because no `config.json` exists to read one from.
+ * - `createdAt` is the FOLDER's own creation time, not `initSite`'s commit-marker timestamp (there
+ *   isn't one). `birthtime` where the filesystem records it, `mtime` where it reports zero.
+ * - `active` is unconditionally `true`: this function is only ever called for the directory this
+ *   process is bound to, which is what makes the `unregistered`-implies-`active` invariant hold.
+ *
+ * @complexity O(1).
+ */
+function describeUnregisteredServingSite(binding: SiteBinding, stat: fs.Stats): ServingSiteListEntry {
+  const born = stat.birthtimeMs > 0 ? stat.birthtime : stat.mtime;
+  return {
+    name: binding.name,
+    dir: binding.dir,
+    displayName: binding.name,
+    createdAt: born.toISOString(),
+    active: true,
+    registration: "unregistered",
+  };
+}
+
+/**
+ * The listing the admin Sites screen renders: every real site, plus the directory this process is
+ * actually serving when that directory is not one of them.
+ *
+ * ## Why this exists rather than a change to `listSites`
+ *
+ * This repo's own `sites/tovu-com` carries neither marker file, so `readSiteDir` rejects it,
+ * `listSites` drops it, and the screen showed "All sites 0" while that exact folder was being
+ * served. Loosening `readSiteDir` would have fixed the screen by breaking the contract two write
+ * paths depend on: Activate uses `listSites` as its existence check, and `sites_duplicate_site`
+ * uses it to find a duplicate SOURCE — and `duplicateSite` reads the source's `.site-meta.json`
+ * schema stamp, so handing it a marker-less directory turns a clean refusal into a thrown
+ * `SiteDirInvalidError` mid-operation. Composing here instead leaves both untouched.
+ *
+ * ## The invariant callers may rely on
+ *
+ * An `unregistered` entry is ALWAYS the served one (`active: true`), because that is the only
+ * entry this function ever adds. So a UI that disables Activate for whatever is already serving —
+ * as the Sites screen does — can never route an `unregistered` name to Activate's strict
+ * `listSites` lookup and collect a `SITE_NOT_FOUND`.
+ *
+ * A directory that does not exist, or a path that is a file, adds nothing: a card for a folder
+ * that is not there would be its own kind of lie.
+ *
+ * @param required.sites - `listSites()`'s output for some `cwd`/`env`.
+ * @param required.binding - `describeSiteBinding()`'s output for that SAME `cwd`/`env`.
+ * @returns Every input entry as `registered`, in input order, plus at most one appended
+ *   `unregistered` entry for the served directory.
+ * @complexity O(n) in the number of sites already listed, plus one `stat`.
+ */
+export function includeServingSite(required: IncludeServingSiteRequired): ServingSiteListEntry[] {
+  const { binding } = required;
+  const registered: ServingSiteListEntry[] = required.sites.map((site) => ({ ...site, registration: "registered" }));
+  if (registered.some((site) => site.dir === binding.dir)) return registered;
+  const stat = readServingDirStat(binding.dir);
+  if (stat === null) return registered;
+  return [...registered, describeUnregisteredServingSite(binding, stat)];
+}
+
 /** What THIS process is actually bound to right now — see {@link describeSiteBinding}. */
 export interface SiteBinding {
   /** Absolute path this process resolved at boot (`resolveSiteRoot()`), re-derived fresh. */
