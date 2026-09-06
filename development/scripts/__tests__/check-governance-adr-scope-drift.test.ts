@@ -90,6 +90,26 @@ test("parseAdrIndexTable: a commented-out example row is never parsed, even when
   assert.equal(rows[0]!.title, "Real Rule");
 });
 
+test("parseAdrIndexTable: a Scope Globs cell wrapping EACH glob individually strips cleanly, not just the outer pair", () => {
+  // Gemini finding 11 (2026-09-05 re-triage): unbacktick() was applied once to the WHOLE cell before
+  // splitting on ';'. Today's real ADR-INDEX.md wraps the whole cell once (`glob1; glob2`), which that
+  // handles fine, but a cell that backtick-wraps each glob individually (`glob1`; `glob2`) would have
+  // only its outermost backtick pair recognized and stripped -- because those two outermost characters
+  // happen to be backticks too -- leaving a stray backtick on each split token. Not currently
+  // triggered (today's index only uses the whole-cell form) but a real gap.
+  const markdown = [
+    "| ID | Title | Enforcement | Scope Globs | Status | File |",
+    "|---|---|---|---|---|---|",
+    "| GOV-ADR-778 | Some Rule | MANDATORY | `apps/website/src/features/**`; `apps/website/src/other/**` | ACCEPTED | `GOV-ADR-778-fixture.md` |",
+    "",
+  ].join("\n");
+
+  const rows = parseAdrIndexTable(markdown);
+
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0]!.scopeGlobs, ["apps/website/src/features/**", "apps/website/src/other/**"]);
+});
+
 test("parseAdrIndexTable: an empty table (only header/separator) parses to zero rows", () => {
   const markdown = ["| ID | Title | Enforcement | Scope Globs | Status | File |", "|---|---|---|---|---|---|"].join("\n");
   assert.deepEqual(parseAdrIndexTable(markdown), []);

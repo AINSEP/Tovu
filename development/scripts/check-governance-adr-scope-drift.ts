@@ -83,6 +83,32 @@ function unbacktick(cell: string): string {
   return cell.length >= 2 && cell.startsWith("`") && cell.endsWith("`") ? cell.slice(1, -1) : cell;
 }
 
+/**
+ * Splits a "Scope Globs" cell into individual globs, stripping backticks whether the whole cell is
+ * wrapped once (`` `glob1; glob2` ``, today's real `ADR-INDEX.md` convention) or each glob is wrapped
+ * individually (`` `glob1`; `glob2` ``).
+ *
+ * Per-glob wrapping is stripped first, via `unbacktick` on each split token — a token that is itself
+ * backtick-wrapped on both ends round-trips cleanly through that pass. Only after that pass can a
+ * residual leading backtick on the FIRST token and a residual trailing backtick on the LAST token be
+ * attributed unambiguously to a single whole-cell wrap: a per-glob-wrapped token is always fully
+ * consumed by the first pass, so no other case leaves that specific residue behind.
+ *
+ * @param cell the raw "Scope Globs" table cell, before any backtick-stripping
+ * @returns non-empty, trimmed, backtick-free globs
+ * @complexity O(n) in cell length.
+ */
+function splitScopeGlobs(cell: string): readonly string[] {
+  const tokens = cell.split(";").map((g) => unbacktick(g.trim()));
+  const first = tokens[0];
+  const last = tokens[tokens.length - 1];
+  if (first !== undefined && last !== undefined && first.startsWith("`") && last.endsWith("`")) {
+    tokens[0] = first.slice(1);
+    tokens[tokens.length - 1] = last.slice(0, -1);
+  }
+  return tokens.filter((g) => g.length > 0);
+}
+
 /** Splits one markdown table row into trimmed cells, or `[]` if the line is not a table row. */
 function splitRow(line: string): readonly string[] {
   const match = TABLE_ROW.exec(line.trim());
@@ -117,10 +143,7 @@ export function parseAdrIndexTable(markdown: string): readonly AdrIndexRow[] {
       id: unbacktick(id),
       title,
       enforcement: unbacktick(enforcement),
-      scopeGlobs: unbacktick(scopeGlobsCell)
-        .split(";")
-        .map((g) => g.trim())
-        .filter((g) => g.length > 0),
+      scopeGlobs: splitScopeGlobs(scopeGlobsCell),
       status: unbacktick(status),
       file: unbacktick(file),
     });
