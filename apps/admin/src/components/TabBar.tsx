@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
+import { tabHandleProps } from "./TabBar.hooks";
 
 /**
  * @file A generic horizontal tab row — id/label pairs, an active id, a change callback. No routing,
@@ -81,13 +82,6 @@ export interface TabBarProps {
   containerHandle?: string;
 }
 
-/** {@link TabBarButton}'s own `agentHandle()` spread, as a plain function rather than an inline
- *  ternary in the JSX below — one more small piece pulled out for the same complexity-gate reason
- *  {@link TabBarButton}'s own doc gives. */
-function tabHandleProps(tab: TabBarTab) {
-  return tab.handle ? agentHandle(tab.handle, { role: "button", label: tab.handleLabel ?? tab.label }) : {};
-}
-
 /** The visually-hidden accessible-name SUFFIX {@link TabBarTab.dot} adds — e.g. "GitHub Pages,
  *  Connected", never "Connected GitHub Pages". Deliberately its own function rather than folded into
  *  the visual dot span rendered before the label (`TabBarButton` below): the visual dot is
@@ -109,9 +103,11 @@ function tabDotAccessibleSuffix(tab: TabBarTab) {
  *  `TabBar` from 9 over budget. A named top-level component has no enclosing function to nest
  *  inside, so its own branches are scored on their own, same reasoning this app's other per-row
  *  extractions give (e.g. `StaticSiteTab.tsx`'s `ProviderCliRow`, split out of `GettingItOnlineCard`'s
- *  own `.map()` for the identical reason) — {@link tabHandleProps}/{@link tabDotAccessibleSuffix}
- *  above take the same treatment one level further, since even this component alone still counted
- *  over budget with every branch inlined. No behavior moved, only where the branches are counted. */
+ *  own `.map()` for the identical reason) — `tabHandleProps` (now in `TabBar.hooks.tsx`, per the
+ *  admin TSX-logic-sweep, 2026-09-05: it returns a plain props object, no JSX) and
+ *  {@link tabDotAccessibleSuffix} below take the same treatment one level further, since even this
+ *  component alone still counted over budget with every branch inlined. No behavior moved, only
+ *  where the branches are counted. */
 function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boolean; onChange: (id: string) => void }) {
   return (
     <button

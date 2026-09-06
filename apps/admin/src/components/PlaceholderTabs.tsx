@@ -1,11 +1,7 @@
-import {
-  I18nProvider,
-  SETTINGS_DIALOG_DICTIONARIES,
-  SettingsDialogShell,
-  type SettingsDialogTab,
-} from "@jini-ai/ui";
+import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { findNavGroupLabel } from "./Placeholder";
+import { toSettingsDialogTabs } from "./PlaceholderTabs.hooks";
 
 /**
  * @file The `SettingsDialogShell` tab chrome mounted over N honest "coming soon" panels, for a
@@ -41,20 +37,7 @@ export interface PlaceholderTabSpec {
 
 export function PlaceholderTabs(props: { sectionId: string; tabs: readonly PlaceholderTabSpec[] }) {
   const kicker = findNavGroupLabel(props.sectionId);
-  const tabs: SettingsDialogTab[] = props.tabs.map((tab) => ({
-    id: tab.id,
-    label: tab.label,
-    // Header strings, not panel content — the shell renders these above the tab strip (see the
-    // file header for why this replaced a `ComingSoonNotice` mounted as the panel). `subtitle`
-    // reuses `ComingSoonNotice`'s exact copy so the on-screen text is unchanged, only its position.
-    title: tab.label,
-    subtitle: `${tab.label} is coming soon.`,
-    // Nothing left to show below the divider: the header above already states the one fact this
-    // tab has ("X is coming soon"), and a second copy of it in the body would be the same
-    // duplicate-heading problem `.settings-ui-section`'s own comment in styles.css calls out for
-    // stacking a second header above the shell's.
-    panel: null,
-  }));
+  const tabs = toSettingsDialogTabs(props.tabs);
 
   return (
     // `I18nProvider` is required, not decorative: `SettingsDialogShell` calls `useT()` for its own
