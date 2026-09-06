@@ -49,6 +49,12 @@ const FIELD_INTEGER: ContentTypeFieldDef = { name: "prep_time", kind: "integer",
 const FIELD_REAL: ContentTypeFieldDef = { name: "rating", kind: "real", required: false, queryable: false };
 const FIELD_BOOLEAN: ContentTypeFieldDef = { name: "featured", kind: "boolean", required: false, queryable: false };
 const FIELD_DATETIME: ContentTypeFieldDef = { name: "cook_by", kind: "datetime", required: false, queryable: false };
+// `relation`/`json` (Jini `df1be096`, 2026-09-05): the crash-repro kinds — before this fix,
+// `FIELD_CONTROLS[field.kind]` was `undefined` for either one, and `<Control .../>` threw
+// synchronously during render (would fail these tests with an uncaught render error, not a
+// regular assertion failure).
+const FIELD_RELATION: ContentTypeFieldDef = { name: "author_id", kind: "relation", required: false, queryable: true };
+const FIELD_JSON: ContentTypeFieldDef = { name: "meta", kind: "json", required: false, queryable: false };
 
 const CONTENT_TYPE: AdminContentType = {
   workspaceId: "w1",
@@ -415,6 +421,65 @@ describe("DynamicField — one control per ContentTypeFieldDef.kind", () => {
     await user.click(screen.getByLabelText("featured"));
     const updater = setExtFields.mock.calls.at(-1)![0] as (c: Record<string, unknown>) => Record<string, unknown>;
     expect(updater({})).toEqual({ featured: true });
+  });
+
+  it("relation: renders a plain text input (not a crash) holding the current foreign-id value", () => {
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_RELATION] }, extFields: { author_id: "user-42" } });
+    const input = screen.getByLabelText("author_id");
+    expect(input.tagName).toBe("INPUT");
+    expect(input).not.toHaveAttribute("type"); // same plain text input as `text`, not a special widget
+    expect(input).toHaveValue("user-42");
+  });
+
+  it("typing into a relation field calls setExtFields with the raw string id, same as a text field", async () => {
+    const user = userEvent.setup();
+    const setExtFields = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_RELATION] }, setExtFields });
+    await user.type(screen.getByLabelText("author_id"), "x");
+    const updater = setExtFields.mock.calls.at(-1)![0] as (c: Record<string, unknown>) => Record<string, unknown>;
+    expect(updater({})).toEqual({ author_id: "x" });
+  });
+
+  it("json: renders a textarea (not a crash) showing the current value pretty-printed", () => {
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta: { tags: ["a", "b"], count: 3 } } });
+    const control = screen.getByLabelText("meta");
+    expect(control.tagName).toBe("TEXTAREA");
+    expect(JSON.parse((control as HTMLTextAreaElement).value)).toEqual({ tags: ["a", "b"], count: 3 });
+  });
+
+  it("json: an untouched field's textarea round-trips the exact stored value — same shape back out", () => {
+    const meta = { tags: ["a", "b"], count: 3, nested: { ok: true } };
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta } });
+    const control = screen.getByLabelText("meta") as HTMLTextAreaElement;
+    expect(JSON.parse(control.value)).toEqual(meta);
+  });
+
+  it("json: no stored value yet renders 'null', not a crash or an empty/undefined buffer", () => {
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: {} });
+    expect((screen.getByLabelText("meta") as HTMLTextAreaElement).value).toBe("null");
+  });
+
+  it("editing a json field to valid JSON calls setExtFields with the PARSED value, not the raw text", () => {
+    const setExtFields = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, setExtFields });
+    fireEvent.change(screen.getByLabelText("meta"), { target: { value: '{"tags":["x"],"count":1}' } });
+    const updater = setExtFields.mock.calls.at(-1)![0] as (c: Record<string, unknown>) => Record<string, unknown>;
+    expect(updater({})).toEqual({ meta: { tags: ["x"], count: 1 } });
+  });
+
+  it("editing a json field to INVALID JSON does not call setExtFields — the last valid value is never overwritten by a parse failure", () => {
+    const setExtFields = vi.fn();
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta: { count: 1 } }, setExtFields });
+    fireEvent.change(screen.getByLabelText("meta"), { target: { value: "{not valid json" } });
+    expect(setExtFields).not.toHaveBeenCalled();
+  });
+
+  it("json: flags an unparseable buffer via aria-invalid, without touching the stored value", () => {
+    renderEditor({ contentType: { ...CONTENT_TYPE, fields: [FIELD_JSON] }, extFields: { meta: { count: 1 } } });
+    const control = screen.getByLabelText("meta");
+    expect(control).toHaveAttribute("aria-invalid", "false");
+    fireEvent.change(control, { target: { value: "{not valid json" } });
+    expect(control).toHaveAttribute("aria-invalid", "true");
   });
 });
 

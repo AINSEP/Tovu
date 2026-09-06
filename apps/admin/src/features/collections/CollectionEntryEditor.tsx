@@ -5,6 +5,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
+import { useJsonFieldControl } from "./hooks/use-json-field-control.hooks";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
@@ -113,16 +114,39 @@ function DatetimeFieldControl({ inputId, value, onChange, agentHandleProps }: Fi
   );
 }
 
+/** `json`-kind field control: a raw-JSON textarea backed by `useJsonFieldControl` (state/parsing
+ * lives there, not here — see that hook's own header). `aria-invalid` flags an unparseable buffer
+ * without inventing new copy for it; the last value that DID parse is what stays in `extFields`
+ * and what a save sends, regardless of how the buffer currently looks. */
+function JsonFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
+  const { text, parseError, handleTextChange } = useJsonFieldControl({ value, onChange });
+  return (
+    <textarea
+      id={inputId}
+      value={text}
+      aria-invalid={parseError}
+      onChange={(e) => handleTextChange(e.target.value)}
+      {...agentHandleProps}
+    />
+  );
+}
+
 /** One control per `ContentTypeFieldDef.kind` (design-spec.md §1.5). A `Record` keyed by the
  * closed `kind` union rather than a switch/ternary chain — same exhaustiveness guarantee (add a
  * kind to the union and `tsc` rejects this object until a control is added for it), but as a flat
- * lookup instead of nested conditionals. */
+ * lookup instead of nested conditionals.
+ *
+ * `relation` deliberately reuses `TextFieldControl` rather than a same-shaped duplicate: it stores
+ * a foreign entity id and shares `text`'s storage class server-side (`@jini-ai/cms`'s
+ * `content-types/types.ts`), so a plain text input is a correct control for it, not a fallback. */
 const FIELD_CONTROLS: Record<ContentTypeFieldDef["kind"], (props: FieldControlProps) => React.JSX.Element> = {
   text: TextFieldControl,
   integer: IntegerFieldControl,
   real: RealFieldControl,
   boolean: BooleanFieldControl,
   datetime: DatetimeFieldControl,
+  relation: TextFieldControl,
+  json: JsonFieldControl,
 };
 
 function DynamicField(props: {
