@@ -285,6 +285,41 @@ describe("useExternalMcp — updateSource", () => {
 
     expect(outcome).toBeNull();
   });
+
+  it("two concurrent updateSource calls for the SAME id must not let the later write revert the earlier one's change (stale merge-base race)", async () => {
+    // `existing`'s row starts enabled, with a known command — the merge base both concurrent
+    // calls below read from before either one's own write has landed.
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ serverId: "existing", command: "npx", enabled: true })],
+    });
+    // Echoes back whatever body was actually sent, so each call's own `lastKnown` update reflects
+    // that specific write — the same shape a real PUT-then-reread round trip has.
+    saveExternalMcpServer.mockImplementation((id: string, body: Record<string, unknown>) =>
+      Promise.resolve({
+        server: server({ serverId: id, command: body.command as string, enabled: body.enabled as boolean }),
+        restartRequired: true,
+      }),
+    );
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources(); // populates lastKnown
+
+    // Neither call is awaited before the other starts — reproduces two edits to the SAME server
+    // firing close together (e.g. toggling "enabled" while a field edit is also mid-flight).
+    // Call A only ever touches `enabled`; call B only ever touches `command`. Whichever order the
+    // two writes land in, the SECOND one must merge against the FIRST one's already-committed
+    // result, not a snapshot from before either write landed — otherwise the second write's own
+    // patch silently reverts the field neither of its own edits ever named.
+    await act(async () => {
+      await Promise.all([
+        result.current.dependencies.port.updateSource!("existing", { enabled: false }),
+        result.current.dependencies.port.updateSource!("existing", { fields: { command: "newcmd" } }),
+      ]);
+    });
+
+    const [, secondBody] = saveExternalMcpServer.mock.calls[1]!;
+    expect(secondBody.enabled).toBe(false);
+    expect(secondBody.command).toBe("newcmd");
+  });
 });
 
 describe("useExternalMcp — addSource rejects a malformed OAuth identity before calling the API", () => {

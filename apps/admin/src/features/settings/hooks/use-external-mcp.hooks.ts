@@ -203,12 +203,51 @@ export interface ExternalMcpController {
  * @complexity O(n) per fetch in the configured server count.
  * @overallScore 100
  */
+/**
+ * Runs `task` behind whatever `updateSource` write for THIS SAME id is already in flight, so a
+ * second concurrent edit never reads `lastKnown` until the first one has actually committed its
+ * own result there.
+ *
+ * The merge in `updateSource` is a read-then-write over `lastKnown` (see that ref's own doc), and
+ * nothing else serializes two calls for the same id: `SourceConfigList` can fire a toggle and a
+ * field-save close together (e.g. flipping "enabled" while a command edit is still saving), and
+ * without this both reads see the SAME pre-write snapshot. Whichever write then lands second wins
+ * outright — not merges — because it built its own full-row body from a `previous` that never
+ * saw the first write's change, so the field the first write touched (and the second's own patch
+ * never named) silently reverts the moment the second write's response arrives. Chaining per id
+ * closes that: the second call's `previous` read is delayed until the first call's `lastKnown.set`
+ * has actually run, so it merges against the true current state instead of a stale one. Different
+ * ids are NOT serialized against each other — they are independent rows with no shared merge base.
+ *
+ * @complexity O(1) beyond the chained promise itself.
+ */
+function chainedSourceWrite(
+  chain: React.MutableRefObject<Map<string, Promise<unknown>>>,
+  id: string,
+  task: () => Promise<SourceConfigItem | null>,
+): Promise<SourceConfigItem | null> {
+  const prior = chain.current.get(id) ?? Promise.resolve();
+  const next = prior.then(task, task);
+  // Swallow the outcome for the CHAIN's own bookkeeping only — `next` itself (returned below)
+  // still carries the real result/rejection to this call's own caller.
+  chain.current.set(
+    id,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
+}
+
 export function useExternalMcp(): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);
   // `updateSource` receives a PARTIAL patch, but the write route replaces the whole row, so the
   // last-known field values are kept here to merge against. Without this, toggling `enabled` would
   // blank out `command` and the allowlist.
   const lastKnown = useRef(new Map<string, SourceConfigItem>());
+  // Serializes `updateSource` per id — see `chainedSourceWrite`'s own doc for the race this closes.
+  const updateChain = useRef(new Map<string, Promise<unknown>>());
 
   const dependencies = useMemo<SourceConfigDependencies<SourceConfigItem>>(
     () => ({
@@ -251,17 +290,19 @@ export function useExternalMcp(): ExternalMcpController {
         },
 
         async updateSource(id: string, patch: SourceUpdateInput) {
-          const previous = lastKnown.current.get(id);
-          const merged = mergeSourceUpdate(previous, patch);
-          try {
-            const { server } = await api.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
-            setRestartRequired(true);
-            const item = toItem(server);
-            lastKnown.current.set(item.id, item);
-            return item;
-          } catch {
-            return null;
-          }
+          return chainedSourceWrite(updateChain, id, async () => {
+            const previous = lastKnown.current.get(id);
+            const merged = mergeSourceUpdate(previous, patch);
+            try {
+              const { server } = await api.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
+              setRestartRequired(true);
+              const item = toItem(server);
+              lastKnown.current.set(item.id, item);
+              return item;
+            } catch {
+              return null;
+            }
+          });
         },
 
         /**
