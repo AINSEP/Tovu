@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -111,6 +112,7 @@ function MemberRow({
             className="link-button"
             onClick={() => void onToggleDetail(member)}
             aria-expanded={isExpanded}
+            {...agentHandle(`${agentBase}-toggle-detail`, { role: "button", label: `Expand or collapse ${member.email}'s detail panel` })}
           >
             {member.email}
           </button>
@@ -244,6 +246,7 @@ export function Members({ useMembersHook = useWiredMembers }: MembersProps = {})
       )}
       <ConfirmDialog
         open={confirmingDisable !== null}
+        agentHandle="members-disable"
         title={t("Disable this member?")}
         body={
           confirmingDisable ? (

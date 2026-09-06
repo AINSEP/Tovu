@@ -581,6 +581,7 @@ function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId
   return (
     <ConfirmDialog
       open={pendingRoleDelete !== null}
+      agentHandle="roles-delete-role"
       title={t("Delete role?")}
       body={
         pendingRoleDelete ? (
@@ -615,6 +616,7 @@ function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSa
   return (
     <ConfirmDialog
       open={pendingPolicyDelete !== null}
+      agentHandle="roles-delete-policy"
       title={t("Delete policy?")}
       body={
         pendingPolicyDelete ? (
