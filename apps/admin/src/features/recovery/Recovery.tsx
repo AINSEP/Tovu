@@ -1,6 +1,8 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { InfoTip } from "../../components/InfoTip";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import { categoryLabel, costClassExplanation, costClassLabel, isAssertiveRecoveryBanner, recoveryBannerTone } from "./rules";
@@ -82,12 +84,20 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
     <div className={`notice ${tone} recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
-        <a href="/admin/database">
+        <a
+          href="/admin/database"
+          {...agentHandle("recovery-banner-go-to-database", { role: "link", label: "Go to Database to resolve the pending migration" })}
+        >
           <button type="button" className="btn-secondary">{t(locale, "Go to Database")}</button>
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (
-        <button type="button" disabled title={t(locale, "No unblock route exists yet — see this screen's file header.")}>
+        <button
+          type="button"
+          disabled
+          title={t(locale, "No unblock route exists yet — see this screen's file header.")}
+          {...agentHandle("recovery-banner-unblock", { role: "button", label: "Unblock an interrupted migration (not yet available)" })}
+        >
           {t(locale, "Unblock (not yet available)")}
         </button>
       ) : null}
@@ -101,6 +111,14 @@ function RestorePointsList(props: {
   onSelect: (point: AdminRestorePoint) => void;
 }) {
   const { locale } = props;
+  // Restore-point ids are stable and unique, same per-row-handle derivation every other list on
+  // this workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback
+  // only receives the row, not its index.
+  const rowHandles = buildAgentListHandles(
+    "recovery-row",
+    props.points.map((p) => p.id),
+  );
+  const rowHandleById = new Map(props.points.map((p, index) => [p.id, rowHandles[index]!]));
   return (
     <DataTable
       rows={props.points}
@@ -126,7 +144,11 @@ function RestorePointsList(props: {
             p.costClass === "unavailable" ? (
               <span className="muted-cell">{t(locale, "No restore-point mechanism available — see the runbook.")}</span>
             ) : (
-              <button type="button" onClick={() => props.onSelect(p)}>
+              <button
+                type="button"
+                onClick={() => props.onSelect(p)}
+                {...agentHandle(`${rowHandleById.get(p.id)}-restore`, { role: "button", label: "Begin the restore ceremony for this restore point" })}
+              >
                 {t(locale, "Restore…")}
               </button>
             ),
@@ -170,6 +192,10 @@ function DisclosurePanel(props: {
           type="checkbox"
           checked={props.acknowledged}
           onChange={(e) => props.onAcknowledgeChange(e.target.checked)}
+          {...agentHandle("recovery-disclosure-acknowledge", {
+            role: "field",
+            label: "Acknowledge the discarded-write-window disclosure",
+          })}
         />
         {t(locale, "I understand this count is partial, not exhaustive, and accept the loss window described above.")}
       </label>
@@ -213,6 +239,7 @@ function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: b
         aria-describedby="recovery-ack-label"
         title={!acknowledged ? t(locale, "Acknowledge the disclosure above to continue.") : undefined}
         onClick={onStart}
+        {...agentHandle("recovery-restore-start", { role: "button", label: "Continue to confirm the restore" })}
       >
         {busy ? t(locale, "Planning…") : t(locale, "Continue to confirm")}
       </button>
@@ -226,7 +253,13 @@ function RestorePlannedStep(props: { locale: string; planId: string; busy: boole
   return (
     <div className="notice">
       <p>{restorePlanReadyMessage(locale, planId)}</p>
-      <button type="button" className="btn-secondary" onClick={onConfirm} disabled={busy}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onConfirm}
+        disabled={busy}
+        {...agentHandle("recovery-restore-confirm", { role: "button", label: "Confirm the planned restore, issuing a one-time execution token" })}
+      >
         {busy ? t(locale, "Confirming…") : t(locale, "Confirm restore")}
       </button>
     </div>
@@ -239,7 +272,13 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
   return (
     <div className="notice">
       <p>{t(locale, "Confirmed. Executing performs the restore — this cannot be undone.")}</p>
-      <button type="button" className="btn-danger" onClick={onExecute} disabled={busy}>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={onExecute}
+        disabled={busy}
+        {...agentHandle("recovery-restore-execute", { role: "button", label: "Execute the confirmed restore now — cannot be undone" })}
+      >
         {busy ? t(locale, "Restoring…") : t(locale, "Execute restore")}
       </button>
     </div>
@@ -331,7 +370,12 @@ function RestoreFlow({
 
   return (
     <div>
-      <button type="button" className="btn-ghost" onClick={onBack}>
+      <button
+        type="button"
+        className="btn-ghost"
+        onClick={onBack}
+        {...agentHandle("recovery-back-to-list", { role: "button", label: "Back to the restore points list" })}
+      >
         {t("← Restore points")}
       </button>
       <h2>
