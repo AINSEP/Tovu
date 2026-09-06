@@ -1231,3 +1231,61 @@ bold/italic/underline/highlight/link handlers). Not accepted as unreachable: Met
 NodeSelection/gapcursor; Shift+ArrowRight left `document.getSelection()` collapsed; next attempt is a
 real DOM Range across the paragraph's text node plus a `selectionchange` dispatch to see whether
 ProseMirror's view syncs from it. No production code touched, so no complexity delta.
+
+---
+
+## A26 — hook sweep batch A complete. 4 more fixes, TWO new root causes. Total now 20.
+
+49 files examined in `features/{media,widgets,database,comments,taxonomy}/hooks/**`; every
+`-dependencies`/`-port` file confirmed pure DI with no state. Each fix RED-before-fix against the
+unmodified module, complexity gate clean at 9, own suite plus driving component suite green,
+committed individually.
+
+| Commit | File | Bug |
+|---|---|---|
+| `8f1b99e5` | `use-media.hooks.ts` | shared `rowSavingId` **unlocks a destructive dialog** |
+| `147dc300` | `use-comment-queue.hooks.ts` | state-based re-entry guard; double-click sends two conflicting actions |
+| `f7001fa0` | `use-term-detail-panel.hooks.ts` | **missing `key=`** — stale rename paints onto a different term |
+| `3c31e493` | `use-merge-term-section.hooks.ts` | same no-remount shape, all 3 wizard steps |
+
+### NEW ROOT CAUSE 1 — a shared busy field can UNLOCK a destructive dialog
+`trash()` (no confirm, reachable on any row) and `purge()` (behind a confirm dialog) share ONE
+`rowSavingId`. An unrelated `trash` settling **cleared it unconditionally**, flipping
+`MediaPurgeDialog`'s `pending` prop to `false` **while a DIFFERENT item's purge was still in
+flight** — re-enabling a second Confirm click and Escape/backdrop dismissal on an unsettled
+destructive delete. **Look for a busy field shared across actions of different destructiveness, not
+just across ids.**
+
+### NEW ROOT CAUSE 2 — a component mounted without `key={entity.id}` keeps its identity
+`Taxonomy.tsx` mounts `TermDetailPanel` with **no key**, so selecting a different term re-renders the
+**same instance**. An in-flight `rename()` for the term navigated away from painted "Renamed." — or
+a stale error — onto **a different term's form**, with `saving`/`error` read straight off a
+`useFetchMutation` object never re-created per term. Fixed with `activeTermIdRef`, but **the real
+smell is the missing `key`.** Contrast `use-new-term-form`, refuted precisely because it sits inside
+`<section key={group.taxonomy.id}>` and always remounts.
+
+### The near-miss
+`use-comment-queue`'s `RowMenu` items carry **no `disabled` state at all**, so a real double-click had
+both calls observe `busy:false` and reach the port — potentially **Approve then Spam on one comment**.
+Fixed with a synchronous `busyRowIdsRef` (`Set<string>`).
+
+### The refutation that shows the bar
+`use-taxonomy`'s `confirmDeleteTerm`/`confirmDeleteTaxonomy` is **structurally** the widgets-library
+bug (unconditional `clearPending`) but **not reachable**: unlike widgets-library there is no ungated
+"first attempt" before a dialog exists, and the native `<dialog>` with `pending`-gated
+Escape/backdrop genuinely blocks reaching another row mid-flight. **Verified in `ConfirmDialog.tsx`'s
+own source and `Taxonomy.tsx`'s wiring, not inferred.**
+
+### Already-correct reference implementations found
+`use-widget-instance-editor` and `use-widget-region-editor` (`activeEntityRef`/`loadRequestIdRef`,
+from a 2026-08-12 audit), `use-timeline-section` (`filtersRef`), `use-form-submissions` (`formIdRef`),
+and `use-assistant-chats.hooks.ts` with **12 documented fixed races**. The pattern was solved
+repeatedly in isolated places and never propagated.
+
+### STILL UNSWEPT — a third batch is warranted
+Excluded from both batches because coverage agents owned them: **`apps/admin/src/components/**`,
+`apps/admin/src/lib/**`, and `features/{posts,pages,deployment,themes,menus}/hooks/**`.** That
+includes the largest hook file in the tree, `AssistantDock.hooks.tsx` (1,466 lines), plus
+`use-post-editor.hooks.ts` (831), `App.hooks.tsx` (639), `Select.hooks.tsx` (630),
+`use-page-editor.hooks.ts` (486) and `use-static-publish.hooks.ts` (363). **Dispatch batch C once
+those agents finish.**
