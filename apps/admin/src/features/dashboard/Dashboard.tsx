@@ -2,6 +2,7 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
+import { agentHandle } from "@jini-ai/agentic";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 
@@ -124,24 +125,56 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
         </div>
         <div className="page-actions">
-          <a className="btn-secondary" href={siteUrl("/")} target="_blank" rel="noreferrer">
+          <a
+            className="btn-secondary"
+            href={siteUrl("/")}
+            target="_blank"
+            rel="noreferrer"
+            {...agentHandle("dashboard-view-site", { role: "link", label: "Open the public site in a new tab" })}
+          >
             {t("View site ↗")}
           </a>
         </div>
       </div>
 
       <div className="dash-stats">
-        <Stat href="/admin/posts" label={t("Posts")} state={posts} meta={postsStatMeta(published)} />
-        <Stat href="/admin/pages" label={t("Pages")} state={pages} meta={pagesStatMeta(drafts)} />
-        <Stat href="/admin/media" label={t("Media")} state={media} meta={t("items in the library")} />
-        <Stat href="/admin/comments" label={t("Comments")} state={comments} meta={commentsStatMeta(comments.value)} />
+        <Stat
+          href="/admin/posts"
+          label={t("Posts")}
+          state={posts}
+          meta={postsStatMeta(published)}
+          agentHandleId="dashboard-stat-posts"
+        />
+        <Stat
+          href="/admin/pages"
+          label={t("Pages")}
+          state={pages}
+          meta={pagesStatMeta(drafts)}
+          agentHandleId="dashboard-stat-pages"
+        />
+        <Stat
+          href="/admin/media"
+          label={t("Media")}
+          state={media}
+          meta={t("items in the library")}
+          agentHandleId="dashboard-stat-media"
+        />
+        <Stat
+          href="/admin/comments"
+          label={t("Comments")}
+          state={comments}
+          meta={commentsStatMeta(comments.value)}
+          agentHandleId="dashboard-stat-comments"
+        />
       </div>
 
       <div className="dash-panels">
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Recently updated")}</h2>
-            <a href="/admin/posts">{t("All posts")}</a>
+            <a href="/admin/posts" {...agentHandle("dashboard-all-posts", { role: "link", label: "Go to the full posts list" })}>
+              {t("All posts")}
+            </a>
           </div>
           <RecentActivityBody recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
         </div>
@@ -149,7 +182,9 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Appearance")}</h2>
-            <a href="/admin/themes">{t("Change")}</a>
+            <a href="/admin/themes" {...agentHandle("dashboard-change-theme", { role: "link", label: "Go to Themes to change the active theme" })}>
+              {t("Change")}
+            </a>
           </div>
           <div className="dash-panel-body">
             <AppearanceBody themeError={themeError} themeId={themeId} t={t} />
@@ -160,10 +195,14 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
   );
 }
 
-function Stat(props: { href: string; label: string; state: StatState; meta: string }) {
+function Stat(props: { href: string; label: string; state: StatState; meta: string; agentHandleId: string }) {
   const failed = props.state.error !== null;
   return (
-    <a className="dash-stat" href={props.href}>
+    <a
+      className="dash-stat"
+      href={props.href}
+      {...agentHandle(props.agentHandleId, { role: "link", label: `${props.label} stat card — go to ${props.href}` })}
+    >
       <span className="dash-stat-label">{props.label}</span>
       <span className={`dash-stat-value${failed ? " is-error" : ""}`}>
         {failed ? "—" : (props.state.value ?? "…")}
