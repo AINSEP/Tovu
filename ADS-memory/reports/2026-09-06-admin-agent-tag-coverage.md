@@ -24,7 +24,7 @@ being called done.
 |---|---|
 | `seo` (`features/seo/**`) | Another agent (`seo-tools`) is tagging this screen's per-entry fields right now. `agentHandle_uses=37` already — do not re-audit or touch. |
 | `menus` (`features/menus/**`) | Leona's own uncommitted work (`MenuEditor.tsx` modified, `MenuEditor.hooks.tsx` new, both untracked/uncommitted as of this pass). `agentHandle_uses=0` on `Menus.tsx`/`MenuEditor.tsx` currently — real gap, but off limits until she lands it. |
-| `pages`, `posts` | **EXCLUDED ENTIRELY (2026-09-06 scope change, superseding the original "do last")** — a separate agent is dispatched to finish the autosave-drafts feature in exactly these directories; two agents editing the same files would collide on the shared git tree. Audit only, no edits, from here on. `posts` (`PostEditor.tsx`, `Posts.tsx`) carries `agentHandle_uses=21` — a live autosave-drafts feature landed mid-session as a WIP commit (`34694309 wip(posts): autosave recovery banner in PostEditor, state unverified`), so its coverage is a moving target regardless. `pages` (`PageEditor.tsx`, `Pages.tsx`, `ThemePagesTab.tsx`, `ThemePageDetailsModal.tsx`+hooks, 5 files) has `agentHandle_uses=0` across every file (grep-only measurement, read-only — not opened, no edits made). A real gap, but off-limits per this scope change. |
+| `pages`, `posts` | **EXCLUSION LIFTED (2026-09-06, later the same day)** — the autosave-drafts feature landed (commits `05782b71`/`559655cb`/`a4b99c90`/`34694309`/`10efb899`) and its authoring agent stood down, so a fresh dispatch picked up exactly these directories once they were clean. Both are now **done** — see the table rows below and the Phase 5 section for the fix log. The zero/partial counts recorded below are the real BEFORE measurements from when this exclusion was written, kept as historical data rather than silently overwritten. |
 | `media` (`features/media/Media.tsx`) | Was mid-flight (git status showed it modified) at dispatch time; confirmed via `git log` it has since landed clean (`04806e6b feat(media): accept AVIF in the admin upload surfaces, with regression tests`). Not touched this pass to avoid crossing paths with whichever agent owns it (`avif-bridge`) — flagged for a future pass, not a hard exclusion. `agentHandle_uses=23`. |
 
 ## Out of scope (not a nav page)
@@ -70,8 +70,8 @@ interactive controls on any of them):
 | dashboard | Overview | `Dashboard.tsx` | 0 | **read-verified**, gap | Stat cards + "All posts"/"Change" links + "View site" link are all plain `<a>` — none tagged. Add `role: "link"` handles. |
 | sites | Sites | `Sites.tsx`, `AllSitesTab.tsx`, `CreateSiteOnboarding.tsx` | 12 | grep-estimated, likely OK | Spot-check only (budget) |
 | ai-assistant | AI Assistant | `AiAssistant.tsx` | 0 | grep-estimated, gap | Not opened this pass — flagged for next agent |
-| pages | Pages | `Pages.tsx`, `PageEditor.tsx` | 0 | **EXCLUDED ENTIRELY** (2026-09-06 scope change) | — |
-| posts | Posts | `Posts.tsx`, `PostEditor.tsx` | 21 | **EXCLUDED ENTIRELY** (2026-09-06 scope change) / WIP | — |
+| pages | Pages | `Pages.tsx`, `PageEditor.tsx`, `ThemePagesTab.tsx`, `ThemePageDetailsModal.tsx` | was 0 across all 5 files | **done** (exclusion lifted, see Phase 5) | — |
+| posts | Posts | `Posts.tsx`, `PostEditor.tsx`, `PostTemplateModal.tsx` | was 21 (`PostEditor.tsx` only; `Posts.tsx`/`PostTemplateModal.tsx` were 0) | **done** (exclusion lifted, see Phase 5) | — |
 | media | Media | `Media.tsx` | 23 | excluded (recently landed elsewhere) | — |
 | collections | Collections | `Collections.tsx`, `CollectionEntries.tsx`, `CollectionEntryEditor.tsx` | 36 | grep-estimated, likely OK | Spot-check only |
 | menus | Menus | `Menus.tsx`, `MenuEditor.tsx` | 0 | **excluded** (Leona's WIP) | — |
@@ -325,7 +325,54 @@ All 8 previously-"spot-check only" screens are now verified by a full line-by-li
 was ever scoped to touch is now either **done** or **structurally blocked on Jini** (Settings' 11
 tabs, `ai-assistant`'s `ExecutionTab`/`ByokProviderForm`/`ProviderChipGroup`/`SettingsDialogShell`,
 `media`'s `MediaProvidersTab` — all `@jini-ai/ui` components with zero `agentHandle` support). Excluded
-per dispatch and unchanged this session: `seo`, `menus`, `pages`, `posts`. One new flagged-not-fixed
+per dispatch and unchanged this session: `seo`, `menus`. `pages`/`posts` were unchanged AT THE TIME
+this section was written but have since been fixed — see Phase 5 below. One new flagged-not-fixed
 item: `SettingsUi.tsx`'s own mount of the `AdminByokKeyPanel` trio has the identical unpassed-optional-
 prop gap this session fixed in `AiAssistant.tsx` — a one-line-per-call-site fix for a future pass,
 not touched here since Settings is marked done.
+
+## Phase 5 — `pages`/`posts` exclusion lifted (2026-09-06, later the same day)
+
+The autosave-drafts feature (see the standing-draft commits named above) landed and its authoring
+agent stood down with both directories clean, so a fresh dispatch picked up the real gap Phase 4's
+predecessor had flagged but left untouched. Fixed across several concurrent passes on the shared
+tree (commits below), each verified live at `https://localhost:5173/admin/` in a dedicated tab —
+`location.href` and viewport asserted on every navigation, DOM queried for `data-agent-element`
+rather than trusting a grep:
+
+- **Pages.tsx** (list) — "New Page", per-row title/slug/menu handles (`buildAgentListHandles`,
+  matching `Posts.tsx`'s own pattern), the delete `ConfirmDialog` (`agentHandle="pages-delete"`),
+  and the tab bar (`containerHandle="pages-tab-bar"`, per-tab handles).
+- **PageEditor.tsx** — the header/back-link, the title/slug fields and the public-site link, the
+  template picker (both branches), the action row (status/publish/save/delete), the new standing-
+  draft recovery banner (region + Restore/Discard buttons), the delete `ConfirmDialog`
+  (`agentHandle="page-delete-confirm"`), and the view/device toolbar controls. Live-verified against
+  a real (then-deleted) test page: typed a title, let the 3s autosave debounce fire, reloaded to
+  confirm the recovery banner appears with a real Restore button that actually applies the
+  recovered title into the field, then deleted the test page through the tagged Delete button and
+  ConfirmDialog to leave the tree clean.
+- **ThemePagesTab.tsx** / **ThemePageDetailsModal.tsx** — per-row publish-toggle handles, the
+  details dialog's own region/Close button, and the slug-collision "Open {title}" link.
+- **Posts.tsx** (list) — "New Post" and per-row handles, matching Pages.tsx's shape exactly.
+- **PostEditor.tsx** — already carried 20 handles from the autosave-drafts pass itself (including
+  the new recovery banner's Restore/Discard, already tagged when that feature landed). The one real
+  gap found: its delete `ConfirmDialog` had no `agentHandle`, unlike `Posts.tsx`'s own
+  `"posts-delete"` — fixed with `agentHandle="post-delete-confirm"`. Live-verified the same way as
+  Pages: created a test post, opened the confirm dialog, confirmed both sub-handles
+  (`post-delete-confirm-confirm`/`-cancel`) resolve to real buttons, then deleted the test post.
+- **PostTemplateModal.tsx** — audited, zero gap to fix: fully delegated to Jini's
+  `PreviewModalShell` (`@jini-ai/ui/renderers`), same structural "no `agentHandle` support upstream"
+  gap as `AgentPluginDetailsModal`'s Close button and Settings' 11 Jini-mounted tabs — not fixable
+  from Tovu alone.
+
+Commits: `2202253d`, `56f6b46b`, `3ad87f39`, `f3579456`, `48bf42c8` (this list is not exhaustive —
+several agents landed overlapping commits on this shared tree in the same window; see `git log --
+oneline -- apps/admin/src/features/pages apps/admin/src/features/posts` for the authoritative
+sequence).
+
+**Known pre-existing issue, NOT introduced by this pass and NOT fixed** (out of scope — a structural
+refactor, not a tagging gap): `PageEditor.tsx`'s top-level `PageEditor` function already exceeded the
+cognitive-complexity ceiling (10 vs. the 9 allowed, `sonarjs/cognitive-complexity`) on the committed
+baseline before any of this session's edits — confirmed by linting the pre-edit version from `git
+show`. Flagging for whoever picks up complexity-ceiling cleanup next; adding `agentHandle` props did
+not change this function's branch count.
