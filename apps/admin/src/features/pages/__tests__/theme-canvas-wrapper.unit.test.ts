@@ -111,6 +111,16 @@ describe("deriveContentWrapperChain", () => {
     expect(deriveContentWrapperChain(html)).toBeNull();
   });
 
+  it("treats a literal JSON null data-embed-config value as not-a-marker, without throwing", () => {
+    // Distinct from the string/array cases above: `.type` on a string or array is simply
+    // `undefined` either way, so those two would pass even without the `parsed === null` check.
+    // `.type` on `null` itself THROWS — this is the one disjunct that actually guards the caller
+    // from a crash rather than merely duplicating what `.type === "content"` already returns.
+    const html = `<body><main><div data-embed-config='null'></div></main></body>`;
+    expect(() => deriveContentWrapperChain(html)).not.toThrow();
+    expect(deriveContentWrapperChain(html)).toBeNull();
+  });
+
   it("works from a bare fragment with no explicit <html>/<body> — DOMParser supplies both", () => {
     const chain = deriveContentWrapperChain(`<main><article class="wrap"><div data-embed-config='{"type":"content"}'></div></article></main>`);
     expect(chain).toEqual([
