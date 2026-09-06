@@ -383,6 +383,69 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 });
 
 /**
+ * `save()`'s stale-settlement guard (2026-09-05 sweep) — `saving` (state) already disables both the
+ * Save and Publish buttons, but that alone cannot stop a slower call from applying its own stale
+ * response after a faster, more-recent call already settled: whichever `port.updatePost()` resolved
+ * LAST used to win, regardless of which one was issued last. Reproduced here by holding the first
+ * `save()` call's write open past the second's completion — the exact "last-to-settle beats
+ * last-clicked" shape `use-post-editor.hooks.ts`'s own `saveGenerationRef` fix (commit `42c6a534`)
+ * regression-tests, mirrored onto this hook's own `save(nextStatus?)` signature.
+ */
+describe("save() stale-settlement guard (2026-09-05 sweep)", () => {
+  it("a slower Save settling after a faster Publish must not revert the just-published status", async () => {
+    const page = { ...DOC_PAGE, status: "draft" as const };
+    const port = createFakePageEditorPort({ page });
+    let resolveSlowSave!: (value: { post: typeof page }) => void;
+    const slowSave = new Promise<{ post: typeof page }>((resolve) => {
+      resolveSlowSave = resolve;
+    });
+    const realUpdatePost = port.updatePost.bind(port);
+    let callCount = 0;
+    port.updatePost = (async (target, patch) => {
+      callCount += 1;
+      // The FIRST call (plain "Save", captured before Publish is clicked) is held open — it must not
+      // settle until after the second call ("Publish") already has, so its own eventual response is
+      // demonstrably stale by the time it arrives.
+      if (callCount === 1) return slowSave;
+      return realUpdatePost(target, patch);
+    }) as typeof port.updatePost;
+
+    const deps = {
+      port,
+      themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(),
+      t: (_locale: string, key: string) => key,
+      locale: "en",
+    };
+    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.status).toBe("draft");
+
+    // Click "Save" (no status override) — this is the call whose write we hold open above.
+    let saveDone!: Promise<void>;
+    act(() => {
+      saveDone = result.current.save();
+    });
+
+    // Click "Publish" while the Save above is still in flight — this one resolves immediately.
+    await act(async () => {
+      await result.current.save("published");
+    });
+    expect(result.current.status).toBe("published");
+
+    // NOW let the slow Save settle, echoing the OLD (pre-Publish) status it was sent with — its
+    // response must be discarded as stale rather than reverting the status Publish already set.
+    await act(async () => {
+      resolveSlowSave({ post: { ...page, status: "draft" } });
+      await saveDone;
+    });
+
+    expect(result.current.status).toBe("published");
+    expect(result.current.saving).toBe(false);
+  });
+});
+
+/**
  * `canvasStyling`'s page-shell fallback (the Interactive-tab bug, 2026-09-02) —
  * `/admin/pages/passeios-noroeste-do-pacifico` (kind:page, bodyFormat:html, templateChoice:NULL, the
  * state every Page starts in) rendered the Interactive canvas full-bleed with no container, while
