@@ -110,7 +110,7 @@ Cache invalidation needs real signals. `src/features/post/post.ts`'s `updatePost
 
 ### 6. `ogImage`/`twitterImage` resolution — a small read-only helper over existing `media` repos
 
-`src/seo/media.ts` adds `resolveSeoImageRef(ref, deps): Promise<string | undefined>`: if `ref` already looks like an absolute URL, pass through; otherwise parse the `{assetId}:{transformName}` ref and look up the latest generated rendition via the already-existing `MediaRepoPort`/`AssetRenditionRepoPort`/`TransformDefinitionRepoPort` (read-only, no new port) to compose the frozen `/m/{assetId}/{transformName}.v{version}/{slug}.{ext}` URL; returns `undefined` (field omitted, EC-07) on any lookup miss (deleted asset, unregistered transform) rather than throwing.
+`src/seo/media.ts` adds `resolveSeoImageRef(ref, deps): Promise<string | undefined>`: if `ref` already looks like an absolute URL, pass through; otherwise parse the `{assetId}:{transformName}` ref and look up the latest registered transform version via the already-existing `MediaRepoPort`/`AssetRenditionRepoPort`/`TransformDefinitionRepoPort` (read-only, no new port) to compose the frozen `/m/{assetId}/{transformName}.v{version}/{slug}.{ext}` URL; returns `undefined` (field omitted, EC-07) on any lookup miss (deleted asset, unregistered transform) rather than throwing. **EC-07's original "and on an ungenerated rendition" clause was overturned 2026-09-05 — see Amendments below.**
 
 ### 7. `seo.sitemap.collect` (OQ-01) and the expression index (OQ-02) — resolved
 
@@ -356,6 +356,56 @@ How do we prevent violations?
 | Article Violated | Why This Complexity Is Needed | Simpler Alternative Considered | Why Simpler Alternative Was Insufficient |
 |-----------------|-------------------------------|-------------------------------|------------------------------------------|
 | III (not a violation — documented for auditability) | `SettingValueSchema` gains `{type:"json"}` solely to store `seo.robots_policy` (REQ-11), a variable-length array of structured rules that cannot be scalar-decomposed the way `defaultRobots` was | A bespoke `seo_robots_rules` table | Duplicates the ADR-028 ledger's own revision/audit machinery for one ≤50-row array; a new table for this is more complexity, not less, and would still need its own write chokepoint |
+
+## Amendments
+
+### 2026-09-05 — EC-07's "never generates" clause OVERTURNED (owner ruling)
+
+**What changed:** Decision §6's `resolveSeoImageRef` originally resolved `undefined` (field omitted)
+whenever the composed rendition had not yet been generated, in addition to the genuine-miss cases
+(deleted/trashed asset, unregistered transform) — see EC-07 and `src/seo/__tests__/media.test.ts`'s
+former "a registered transform with no generated rendition yet resolves undefined (never generates)"
+certification. As of 2026-09-05 that clause is **removed**: `resolveSeoImageRef` now always composes
+and returns the URL for the latest registered transform version, regardless of whether that exact
+rendition row already exists. The genuine-miss cases (deleted asset, trashed asset, unregistered
+transform, malformed ref) are unchanged and still resolve `undefined`.
+
+**Why:** Every published entry's `og:image`/`twitter:image` was missing site-wide. A dedicated
+OG/featured image is the normal shape for `seoExtJson.ogImage`/`twitterImage` — it is not embedded in
+any entry body (the admin's `Seo.tsx` field is a plain text ref input with no picker/preview that
+would otherwise trigger a fetch and warm the rendition), so under the old rule no other code path ever
+generated it, and the tag stayed omitted forever. The owner ruled directly on this, verbatim: *"I want
+this to be viewable by everybody. Like, I don't want... I'm not hiding anything. I want this to be
+indexed by any crawler or anything like that."* The rejected alternative — eager rendition warm-up on
+publish/save — was explicitly out of scope for this change.
+
+**Safety argument (why this does not trade correctness for a shipped tag):** `resolveSeoImageRef`
+always selects the **latest** registered version of the named transform (`resolveLatestTransformVersion`
+— highest `version`, same "current latest" query `transform-registry.ts`'s `getLatestTransformDefinition`
+answers). The public serving route (`routes/site/media-rendition.ts` -> `resolveMediaRendition` in
+`@jini-ai/cms/media`'s `rendition-service.ts`) allows anonymous lazy generation of a not-yet-generated
+rendition whenever `isLatestTransformVersion` is true for the requested `(name, version)` — which it
+always is for the exact version this function selects. So every URL `resolveSeoImageRef` can now emit
+is guaranteed servable on first anonymous fetch; there is no code path where relaxing this rule can
+produce a tag pointing at a 404. The media access gate (`resolveMediaAccessDecision`,
+`gating.length === 0 -> allowed: true`) already treats an asset with no live-post referrer as
+ungated by default — unaffected and untouched by this change; its own doc comment already names
+`resolveShareImages`'s OG/Twitter URLs as a measured, deliberate counter-example to a blanket
+referrer-required default.
+
+**Verified/re-confirmed 2026-09-05** by direct reads of `rendition-service.ts::resolveMediaRendition`
+and `transform-registry.ts::isLatestTransformVersion`/`getLatestTransformDefinition` in
+`Jini/packages/cms/src/media/` (symlinked into this repo as `@jini-ai/cms/media`), not inherited from
+a prior agent's characterization alone.
+
+**What did NOT change:** the media access gate, auth, RBAC, or any gating logic; eager
+warm-up/pre-generation (still out of scope); the genuine-miss branches of `resolveSeoImageRef`.
+
+**Record:** `src/seo/__tests__/media.test.ts`'s EC-07 rendition-miss test was rewritten (not deleted)
+to assert the new contract — a missing rendition row no longer suppresses the URL. A new end-to-end
+test, `src/server/__tests__/routes/seo-og-image-crawlability.test.ts`, certifies the full path: a
+published entry with an unwarmed `ogImage` ref renders an absolute `og:image` URL, and fetching that
+exact URL anonymously (no cookies, no auth) returns 200 with an `image/*` content type.
 
 ## Related Decisions
 
