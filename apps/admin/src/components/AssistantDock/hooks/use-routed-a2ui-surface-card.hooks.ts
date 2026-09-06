@@ -68,6 +68,18 @@ function isErrorMessage(message: unknown): message is { error: { surfaceId?: unk
 }
 
 /**
+ * `useSyncExternalStore`'s required `getServerSnapshot` for the Playground render-target
+ * subscription below — named and exported, rather than left as an inline arrow, so its
+ * contractually-required return value is directly assertable. React only calls this during SSR/
+ * hydration; this admin is a pure-CSR Vite SPA with no SSR entry point. Same structural,
+ * pre-existing gap as `lib/router.ts`'s `useRouteLocation` third argument (`getServerRouteSnapshot`)
+ * — given the identical direct-invocation treatment here.
+ */
+export function getServerRenderTargetSnapshot(): null {
+  return null;
+}
+
+/**
  * Owns `RoutedA2uiSurfaceCard`'s routing target, dismiss flag, and per-surfaceId error tracking —
  * everything the component needs to decide inline-vs-portal and to wrap the host's `onAgentAction`.
  *
@@ -90,10 +102,7 @@ export function useRoutedA2uiSurfaceCard(props: A2uiSurfaceCardProps) {
   const target = useSyncExternalStore(
     subscribeToPlaygroundRenderTarget,
     getPlaygroundRenderTarget,
-    // getServerSnapshot — React only calls this during SSR/pre-hydration, which this app's
-    // jsdom-only test environment never exercises. Same structural, pre-existing gap as
-    // `lib/router.ts`'s `useRouteLocation` third argument; not a defect introduced here.
-    () => null,
+    getServerRenderTargetSnapshot,
   );
   // Not written back to the render-target bus: this hook instance already corresponds 1:1 to one
   // drawn surface (one ext-event group), so hiding its own portal is enough — nothing else needs
