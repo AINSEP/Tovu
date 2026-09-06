@@ -7,7 +7,14 @@
  * `apps/desktop/` returns the repo to exactly its previous state. That is the whole point: the
  * desktop mode is a second CONSUMER of the existing product, never a fork of it.
  *
- * Two boot modes, one product:
+ * Three boot modes, one product:
+ *
+ * 0. **Fleet UI** (`TOVU_DESKTOP_UI=runner`). Opens Tovu-Runner's ported renderer
+ *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin. Its
+ *    project verbs are not implemented yet — `src/runner-ipc-stubs.cjs` registers a throwing
+ *    handler for every one of them — so this mode is opt-in and OFF by default: phase 1 of the
+ *    port brought the UI across, `Tovu-Runner/src/main/` lands in phase 2 and flips the default.
+ *    Leaving it off is what keeps the verified multi-site behaviour below byte-for-byte unchanged.
  *
  * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —
  *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so
@@ -59,6 +66,8 @@
  * reports every opened window's URL and title, then quits 0 once all have loaded (1 on any failure).
  *
  * Environment:
+ * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported fleet renderer and nothing else; unset
+ *   (the default) leaves every mode below exactly as it was before the port.
  * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site).
  * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker.
  * - `TOVU_DESKTOP_SITE_DIRS` — comma-separated site dirs to open at launch, one window each —
@@ -80,6 +89,7 @@ const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed }
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
+const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
@@ -87,8 +97,24 @@ const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
  *  neither this path nor {@link registerSpeechIpc} ever called from here). */
 const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
 
+/** The built fleet renderer. `npm run build:renderer` produces it; `openFleetWindow` reports its
+ *  absence rather than opening a blank window on a source-only checkout. */
+const FLEET_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html");
+
+/** Preload for the FLEET window only. A native-ESM preload, which Electron 43 supports solely in an
+ *  unsandboxed renderer — hence `sandbox: false` in {@link openFleetWindow}, and hence site-admin
+ *  windows keeping {@link SPEECH_PRELOAD_PATH} and `sandbox: true` untouched. It exposes BOTH
+ *  `window.tovuRunner` and `window.tovuVoice`; see its own header on why the mic bridge had to be
+ *  duplicated rather than shared. */
+const FLEET_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
+
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
+
+/** `true` only for an explicit `TOVU_DESKTOP_UI=runner` — see this file's header, boot mode 0. */
+function fleetUiRequested() {
+  return process.env.TOVU_DESKTOP_UI?.trim() === "runner";
+}
 
 /** `siteDir -> { server, window }` for every site this process currently has open. Replaces the
  *  single-site `tovuServer` variable the shell used before multi-site. */
@@ -202,6 +228,61 @@ function createWindow(url, title) {
   });
 
   void window.loadURL(url);
+  return window;
+}
+
+/**
+ * Open the ported Tovu-Runner fleet UI. Boot mode 0 — see this file's header.
+ *
+ * Three webPreferences differ from {@link createWindow}, each forced by the renderer rather than
+ * chosen:
+ *
+ * - `sandbox: false`, because {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron 43
+ *   loads one only in an unsandboxed renderer.
+ * - `webviewTag: true`, because the fleet UI embeds each project's `tovu serve` output in a
+ *   `<webview>` rather than a separate window.
+ * - the `will-attach-webview` hardening below, which is the necessary counterpart to that: with
+ *   `webviewTag` on, the PAGE would otherwise choose each guest's webPreferences through plain
+ *   HTML attributes. Ported verbatim from Tovu-Runner's own `main.ts` — stripping `preload` and
+ *   pinning `nodeIntegration`/`contextIsolation` means no guest can be handed Node access no
+ *   matter what the page's markup asks for.
+ *
+ * @returns the window, or `null` when the renderer has not been built yet.
+ * @complexity O(1).
+ */
+function openFleetWindow() {
+  if (!fs.existsSync(FLEET_RENDERER_PATH)) {
+    const message = `The fleet UI is not built. Run \`npm run build\` in apps/desktop, or unset TOVU_DESKTOP_UI to launch a site instead.\n\nExpected: ${FLEET_RENDERER_PATH}`;
+    console.error(`tovu desktop: ${message}`);
+    process.exitCode = 1;
+    if (!SELFTEST) dialog.showErrorBox("Tovu could not start", message);
+    app.quit();
+    return null;
+  }
+
+  const window = new BrowserWindow({
+    width: 1360,
+    height: 900,
+    title: "Tovu Runner",
+    show: !SELFTEST,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      preload: FLEET_PRELOAD_PATH,
+      webviewTag: true,
+    },
+  });
+
+  if (selftestTracker) selftestTracker.add(window);
+  window.on("page-title-updated", (event) => event.preventDefault());
+  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+  });
+
+  void window.loadFile(FLEET_RENDERER_PATH);
   return window;
 }
 
@@ -424,6 +505,15 @@ app
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
     // needed for `window.tovuVoice` to exist at all.
     registerSpeechIpc({ ipcMain });
+
+    // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
+    // spawns no `tovu serve`, so none of the site-dir/registry/menu machinery below applies to it.
+    if (fleetUiRequested()) {
+      registerRunnerIpcStubs({ ipcMain });
+      if (SELFTEST) selftestTracker = buildSelftestTracker(1);
+      openFleetWindow();
+      return;
+    }
 
     const attachUrl = process.env.TOVU_DESKTOP_URL?.trim();
     if (attachUrl) {

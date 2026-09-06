@@ -1,0 +1,98 @@
+/**
+ * @file Coverage for `runner-ipc-stubs.cjs`.
+ *
+ * Two jobs. The behavioural one: prove every stub REJECTS rather than resolving — a stub that
+ * quietly returned `[]` or `null` would render as real, correct, empty state, which is the exact
+ * failure mode this module exists to prevent.
+ *
+ * The drift one: `runner-ipc-stubs.cjs` inlines its channel literals because it is CommonJS
+ * main-process code and the contracts are TypeScript (see that file's header). This test parses
+ * `src/contracts/*.ts` for the real `RUNNER_*_CHANNELS` object literals and compares both
+ * directions, so renaming a channel in a contract, or adding a new verb to one, fails here instead
+ * of at runtime inside Electron.
+ */
+
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const {
+  registerRunnerIpcStubs,
+  notPortedError,
+  RUNNER_STUB_CHANNELS,
+  RUNNER_MAIN_NOT_PORTED,
+} = require("./runner-ipc-stubs.cjs");
+
+const CONTRACTS_DIR = path.join(__dirname, "contracts");
+
+/**
+ * Channels declared by `src/contracts/*.ts`, minus the two push-only ones.
+ *
+ * Reads the `'runner:...'` string literals straight out of the contract sources rather than
+ * importing them: these are `.ts` files with no compiled output guaranteed to exist at test time.
+ * The match is anchored on the `runner:` prefix the whole IPC surface shares, so a channel added
+ * to any contract file is picked up with no change here.
+ */
+function declaredChannels() {
+  const found = new Set();
+  for (const entry of fs.readdirSync(CONTRACTS_DIR)) {
+    if (!entry.endsWith(".ts")) continue;
+    const source = fs.readFileSync(path.join(CONTRACTS_DIR, entry), "utf8");
+    for (const match of source.matchAll(/'(runner:[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]);
+  }
+  // Main->renderer sends, not `invoke` targets: there is no handler to register for either, so
+  // `runner-ipc-stubs.cjs` deliberately omits them.
+  found.delete("runner:chat:event");
+  found.delete("runner:chat:navigate");
+  return found;
+}
+
+test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {
+  assert.ok(declaredChannels().size >= 20, `expected 20+ parsed channels, got ${declaredChannels().size}`);
+});
+
+test("every channel the contracts declare has a stub", () => {
+  const missing = [...declaredChannels()].filter((channel) => !RUNNER_STUB_CHANNELS.includes(channel));
+  assert.deepEqual(missing, []);
+});
+
+test("every stubbed channel is declared by a contract", () => {
+  const declared = declaredChannels();
+  const orphaned = RUNNER_STUB_CHANNELS.filter((channel) => !declared.has(channel));
+  assert.deepEqual(orphaned, []);
+});
+
+test("the two push-only channels are NOT stubbed", () => {
+  assert.equal(RUNNER_STUB_CHANNELS.includes("runner:chat:event"), false);
+  assert.equal(RUNNER_STUB_CHANNELS.includes("runner:chat:navigate"), false);
+});
+
+test("registerRunnerIpcStubs registers one handler per channel", () => {
+  const registered = new Map();
+  const returned = registerRunnerIpcStubs({ ipcMain: { handle: (c, l) => registered.set(c, l) } });
+
+  assert.deepEqual([...registered.keys()], [...RUNNER_STUB_CHANNELS]);
+  assert.deepEqual(returned, RUNNER_STUB_CHANNELS);
+});
+
+test("every registered handler throws rather than returning any value", () => {
+  const registered = new Map();
+  registerRunnerIpcStubs({ ipcMain: { handle: (c, l) => registered.set(c, l) } });
+
+  for (const [channel, handler] of registered) {
+    assert.throws(handler, (error) => {
+      assert.equal(error.code, RUNNER_MAIN_NOT_PORTED);
+      assert.equal(error.channel, channel);
+      assert.match(error.message, new RegExp(`^${RUNNER_MAIN_NOT_PORTED}: ${channel} has no main-process implementation yet\\.`));
+      return true;
+    }, `handler for ${channel} did not throw`);
+  }
+});
+
+test("notPortedError names the channel it was built for, not a shared one", () => {
+  assert.notEqual(
+    notPortedError("runner:projects:list").message,
+    notPortedError("runner:projects:stop").message,
+  );
+});
