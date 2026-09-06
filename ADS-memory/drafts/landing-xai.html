@@ -16,8 +16,18 @@
    Tokens follow the xAI style sheet on refero (the authoritative source where
    it and x.ai disagree): Paper page, Cream cards, Sand wash, one Dove
    hairline, Jet ink; radii 9999 / 16 / 8 / 6; 4px spacing scale; the filled
-   black pill is the one defining control, everything else is ghost or
+   pill is the one defining control, everything else is ghost or
    surface-toned; depth is a single hairline ring, never a shadow stack.
+
+   Brand colours are gold, black and white (owner, 2026-09-06). The gold is
+   the logo's own: #f8b838, the dominant bucket of logo@2x.png sampled on a
+   canvas, and the same value the theme's light --accent already carries.
+   Rules: gold FILLS, gold never carries text on a light ground (1.7:1 on
+   white); black text on gold is 11.2:1 in both modes. The filled pill is
+   black-on-white in light (x.ai's signature) and gold-with-black-text in
+   dark, because a black pill on the black ground was the one thing that
+   read wrong. Every filled control reads --x-fill / --x-on-fill, so the
+   flip happens once, in the tokens.
 
    Structure mirrors x.ai's homepage: centered hero -> bento of product
    mockups -> developer split with the code panel on the page's one vivid
@@ -52,10 +62,10 @@
   --x-sand:     #f2ede5;
   --x-cream:    #f9f8f6;
   --x-paper:    #ffffff;
+  --x-gold:     #f8b838;  /* the logo's gold; fills only, never text on light */
+  --x-fill:     #0a0a0a;  /* the filled pill: black on white, x.ai's signature */
   --x-on-fill:  #ffffff;
   --x-panel-fg: #f2ede5;
-  --x-warm-a:   #d97b63;  /* the one vivid accent: the code card */
-  --x-warm-b:   #f0c9a6;
   --x-grid:     rgba(10, 10, 10, 0.07);
 
   --fg: #0a0a0a;
@@ -79,10 +89,10 @@
   --x-sand:     #1c1a17;
   --x-cream:    #141312;
   --x-paper:    #0a0a0a;
+  --x-gold:     #f8b838;  /* identical in both modes */
+  --x-fill:     #f8b838;  /* the filled pill goes gold on the black ground */
   --x-on-fill:  #0a0a0a;
   --x-panel-fg: #e8e4dc;
-  --x-warm-a:   #a8503d;
-  --x-warm-b:   #c9906a;
   --x-grid:     rgba(247, 245, 241, 0.08);
 
   --fg: #f7f5f1;
@@ -91,8 +101,11 @@
   --surface: #141312;
   --surface-2: #1c1a17;
   --border: rgba(247, 245, 241, 0.14);
-  --border-strong: rgba(247, 245, 241, 0.22);
-  --accent: #f7f5f1;
+  /* .42, not .22: this token draws the theme-toggle's ring. At .22 the ring
+     is ~2:1 against the ground and the toggle reads as a black disc on black;
+     .42 clears the 3:1 WCAG 1.4.11 floor for a control boundary. */
+  --border-strong: rgba(247, 245, 241, 0.42);
+  --accent: #f8b838;
   --accent-fg: #0a0a0a;
 }
 
@@ -115,7 +128,7 @@ main > article.post-detail .post-detail-header { display: none; }
 }
 .site-header.scrolled { border-bottom-color: var(--x-dove); }
 .site-header .btn, .xai .btn { border-radius: 9999px; }
-.site-header .btn-solid { background: var(--x-ink); color: var(--x-on-fill); border-color: transparent; }
+.site-header .btn-solid { background: var(--x-fill); color: var(--x-on-fill); border-color: transparent; }
 .site-header .btn-solid:hover { opacity: 0.88; }
 .site-header .btn-ghost,
 .site-header .nav-toggle { border-color: transparent; background: transparent; color: var(--x-ink); }
@@ -166,14 +179,14 @@ main > article.post-detail .post-detail-header { display: none; }
 .xai li { margin: 0; }
 .xai figure { margin: 0; }
 
-/* The one chromatic line on the page: a warm rule under the hero's verb, which
-   x.ai cycles. kUInetic's `word-cycler` (catalog §D, structural) does the same:
+/* A gold rule under the hero's verb, which x.ai cycles (theirs is amber).
+   kUInetic's `word-cycler` (catalog §D, structural) does the same:
    `words:'a|b|c'` in single quotes because the value carries spaces, `interval:`
    paces it, and the swap is a 150ms opacity dip via .kui-word-cycler-swap — the
    transition below turns that dip into a fade. The three phrases are all 13
    characters so the centered line does not re-wrap between them. */
 .xai .xai-ul {
-  background-image: linear-gradient(90deg, #f0a35a, #e0655a);
+  background-image: linear-gradient(90deg, var(--x-gold), var(--x-gold));
   background-repeat: no-repeat;
   background-size: 100% 0.06em;
   background-position: 0 100%;
@@ -190,7 +203,7 @@ main > article.post-detail .post-detail-header { display: none; }
 }
 .xai .xai-badge b {
   font-family: var(--x-mono); font-weight: 500; font-size: 11px; line-height: 18px; letter-spacing: 0.06em;
-  color: var(--x-ink); background: var(--x-sand); border-radius: 9999px; padding: 0 8px;
+  color: #0a0a0a; background: var(--x-gold); border-radius: 9999px; padding: 0 8px;
 }
 
 /* ---- buttons ---- */
@@ -202,7 +215,7 @@ main > article.post-detail .post-detail-header { display: none; }
   border: 1px solid transparent; cursor: pointer; text-decoration: none;
   transition: opacity 0.15s ease, border-color 0.15s ease;
 }
-.xai .xai-btn-fill { background: var(--x-ink); color: var(--x-on-fill); }
+.xai .xai-btn-fill { background: var(--x-fill); color: var(--x-on-fill); }
 .xai .xai-btn-fill:hover { opacity: 0.88; }
 .xai .xai-btn-ghost { background: transparent; color: var(--x-ink); border-color: var(--x-dove); }
 .xai .xai-btn-ghost:hover { border-color: var(--x-fog); }
@@ -252,7 +265,7 @@ main > article.post-detail .post-detail-header { display: none; }
   color: var(--x-ink); background: var(--x-paper); border: 1px solid var(--x-dove); border-radius: 9999px; padding: 1px 10px;
 }
 .xai .xai-ph-play {
-  width: 64px; height: 64px; border-radius: 9999px; background: var(--x-ink); color: var(--x-on-fill);
+  width: 64px; height: 64px; border-radius: 9999px; background: var(--x-fill); color: var(--x-on-fill);
   display: grid; place-items: center;
 }
 .xai .xai-ph-play svg { width: 22px; height: 22px; margin-left: 3px; fill: currentColor; }
@@ -277,10 +290,12 @@ main > article.post-detail .post-detail-header { display: none; }
   border: 1px solid var(--x-dove); border-radius: 9999px; padding: 4px 10px;
   font-family: var(--x-mono); font-size: 11.5px; line-height: 1.6; color: var(--x-ink); background: var(--x-paper);
 }
-.xai .xai-tool::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: #28c840; }
+.xai .xai-tool::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: var(--x-gold); }
 
 /* ---- dark panels: terminal + code. Dark in both modes. ---- */
-.xai .xai-panel { background: var(--x-charcoal); border-radius: 12px; overflow: hidden; color: var(--x-panel-fg); display: flex; flex-direction: column; }
+/* The hairline ring is what keeps a #151515 panel from dissolving into the
+   #141312 tile behind it in dark mode. */
+.xai .xai-panel { background: var(--x-charcoal); border-radius: 12px; overflow: hidden; color: var(--x-panel-fg); display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--x-dove); }
 .xai .xai-panel-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid rgba(242, 237, 229, 0.12); }
 .xai .xai-lights { display: flex; gap: 6px; }
 .xai .xai-lights span { width: 10px; height: 10px; border-radius: 9999px; display: block; }
@@ -288,7 +303,7 @@ main > article.post-detail .post-detail-header { display: none; }
 .xai .xai-lights span:nth-child(2) { background: #ffbd2e; }
 .xai .xai-lights span:nth-child(3) { background: #28c840; }
 .xai .xai-panel-title { font-family: var(--x-mono); font-size: 12px; line-height: 1.67; color: #a8a29a; margin-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.xai .xai-panel-chip { margin-left: auto; font-family: var(--x-mono); font-size: 11px; line-height: 18px; color: #a8a29a; border: 1px solid rgba(242, 237, 229, 0.18); border-radius: 9999px; padding: 0 8px; }
+.xai .xai-panel-chip { margin-left: auto; font-family: var(--x-mono); font-size: 11px; line-height: 18px; color: var(--x-gold); border: 1px solid rgba(248, 184, 56, 0.45); border-radius: 9999px; padding: 0 8px; }
 .xai .xai-panel pre {
   margin: 0; padding: 16px; overflow-x: auto; flex: 1 1 auto;
   font-family: var(--x-mono); font-size: 12.5px; line-height: 1.75; color: var(--x-panel-fg);
@@ -305,7 +320,7 @@ main > article.post-detail .post-detail-header { display: none; }
 
 /* ---- [CODE PLACEHOLDER] ---- */
 .xai .xai-ph-code { margin: 14px; flex: 1 1 auto; border: 1px dashed rgba(242, 237, 229, 0.4); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 250px; }
-.xai .xai-ph-code .xai-ph-tag { position: static; background: transparent; border-color: rgba(242, 237, 229, 0.3); color: #f0c98d; align-self: flex-start; }
+.xai .xai-ph-code .xai-ph-tag { position: static; background: transparent; border-color: rgba(248, 184, 56, 0.45); color: var(--x-gold); align-self: flex-start; }
 .xai .xai-skel { display: block; height: 9px; border-radius: 9999px; background: rgba(242, 237, 229, 0.16); }
 .xai .xai-skel-lines { display: flex; flex-direction: column; gap: 11px; margin-top: 4px; }
 .xai .xai-ph-code p { font-family: var(--x-mono); font-size: 12px; line-height: 1.6; color: #a8a29a; margin-top: auto; }
@@ -320,28 +335,30 @@ main > article.post-detail .post-detail-header { display: none; }
 .xai .xai-tree .note { color: var(--x-steel); }
 
 /* ============================================================================
-   7. DEVELOPER SPLIT — text left, the page's one vivid gradient right.
+   7. DEVELOPER SPLIT — text left, the page's one gold flood right: the black
+   terminal on the brand gold is the logo's own pairing. Identical in both
+   modes; nothing on the card carries text except the panel inside it.
    ============================================================================ */
 .xai .xai-dev { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: center; }
 .xai .xai-dev-text { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
 .xai .xai-dev-text .xai-cta { margin-top: 8px; }
 .xai .xai-codecard {
   position: relative; border-radius: 16px; padding: 40px;
-  background: linear-gradient(135deg, var(--x-warm-a) 0%, var(--x-warm-b) 100%);
+  background: linear-gradient(135deg, var(--x-gold) 0%, #ffd06a 100%);
 }
-/* viewfinder marks, as on the reference */
+/* viewfinder marks, as on the reference — black on gold in both modes */
 .xai .xai-codecard::before, .xai .xai-codecard::after,
 .xai .xai-codecard .xai-mark::before, .xai .xai-codecard .xai-mark::after {
-  content: ""; position: absolute; width: 10px; height: 10px; background: var(--x-paper); border-radius: 2px;
+  content: ""; position: absolute; width: 10px; height: 10px; background: #0a0a0a; border-radius: 2px;
 }
 .xai .xai-codecard::before { top: 22px; left: 22px; }
 .xai .xai-codecard::after { top: 22px; right: 22px; }
 .xai .xai-codecard .xai-mark::before { bottom: 22px; left: 22px; }
 .xai .xai-codecard .xai-mark::after { bottom: 22px; right: 22px; }
-.xai .xai-codecard .xai-panel { min-height: 320px; box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.15); }
+.xai .xai-codecard .xai-panel { min-height: 320px; box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.3); }
 .xai .xai-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
 .xai .xai-tab { font-family: var(--x-mono); font-size: 13px; line-height: 20px; border-radius: 9999px; padding: 6px 12px; color: var(--x-steel); }
-.xai .xai-tab[aria-current="true"] { background: var(--x-ink); color: var(--x-on-fill); }
+.xai .xai-tab[aria-current="true"] { background: var(--x-fill); color: var(--x-on-fill); }
 
 /* ============================================================================
    8. NUMBERS — three large figures on a faint grid.
