@@ -30,6 +30,16 @@
  * function itself trivial and stateless rather than growing a settings/themeTiers-shaped
  * parameter only one caller needs.
  *
+ * `defaultId` is caller-supplied too, and gets the same "don't trust it blindly" treatment as
+ * `tabId` (2026-09-05 Gemini audit finding 17): the four fixed-constant callers get an invalid
+ * default caught at compile time (`T` infers from their literal `as const` tuple), but
+ * `Themes.tsx`'s dynamically-computed default widens `validIds` to plain `readonly string[]`,
+ * where `T` infers as `string` and a `defaultThemeTabGroup`/`THEME_TAB_GROUPS` drift would
+ * type-check cleanly while returning an id nothing in `validIds` recognizes. Falling back to
+ * `validIds[0]` when `defaultId` itself is invalid keeps this function's contract absolute —
+ * its return value is always a member of `validIds` — rather than resting on every caller getting
+ * its own default right.
+ *
  * @complexity O(n) in `validIds.length` (`Array.includes`) — every existing caller's list is a
  * small fixed-size constant, not caller-controlled in size.
  */
@@ -38,5 +48,7 @@ export function resolveActiveTabId<T extends string>(
   validIds: readonly T[],
   defaultId: T,
 ): T {
-  return tabId && (validIds as readonly string[]).includes(tabId) ? (tabId as T) : defaultId;
+  const ids = validIds as readonly string[];
+  const safeDefault = ids.includes(defaultId) ? defaultId : validIds[0];
+  return tabId && ids.includes(tabId) ? (tabId as T) : safeDefault;
 }
