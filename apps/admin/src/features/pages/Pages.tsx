@@ -1,10 +1,12 @@
 import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { TabBar } from "../../components/TabBar";
 import {
   pageRowMenuItems,
@@ -148,6 +150,15 @@ export function Pages(props: PagesProps) {
   // `rows={pages}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
   if (!pages) return null;
 
+  // Page ids are stable and unique, so they disambiguate one row's title/slug/menu handles from
+  // another's — same reasoning as every other list on this workstream (`Posts.tsx`'s identical
+  // `rowMenuHandleById`, computed in its own hook rather than here since this screen has no
+  // equivalent hook-side map yet).
+  const rowHandles = buildAgentListHandles(
+    "pages-row",
+    pages.map((page) => page.id),
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -158,7 +169,11 @@ export function Pages(props: PagesProps) {
         </div>
         {activeTab === "mine" ? (
           <div className="page-actions">
-            <button onClick={createPage} disabled={creating}>
+            <button
+              onClick={createPage}
+              disabled={creating}
+              {...agentHandle("pages-new", { role: "button", label: "Create a new page" })}
+            >
               {creating ? t("Creating…") : t("New Page")}
             </button>
           </div>
@@ -167,11 +182,12 @@ export function Pages(props: PagesProps) {
       <TabBar
         ariaLabel={t("Pages")}
         tabs={[
-          { id: "mine", label: t("My Pages"), count: pages.length },
-          { id: "theme", label: t("Theme Pages"), count: themePagesCount },
+          { id: "mine", label: t("My Pages"), count: pages.length, handle: "pages-tab-mine", handleLabel: "Switch to My Pages" },
+          { id: "theme", label: t("Theme Pages"), count: themePagesCount, handle: "pages-tab-theme", handleLabel: "Switch to Theme Pages" },
         ]}
         activeId={activeTab}
         onChange={(id) => selectTab(id as PagesTabId)}
+        containerHandle="pages-tab-bar"
       />
       {activeTab === "mine" ? (
         <>
@@ -203,7 +219,14 @@ export function Pages(props: PagesProps) {
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
                 // link reads as a slug for every ordinary page and falls back to the id only for that
                 // one. `adminHref` (`lib/router.ts`) turns the bare route path into a real `<a href>`.
-                cell: (page) => <a href={adminHref(pageAdminPath(page))}>{page.title}</a>,
+                cell: (page, index) => (
+                  <a
+                    href={adminHref(pageAdminPath(page))}
+                    {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this page's editor" })}
+                  >
+                    {page.title}
+                  </a>
+                ),
               },
               {
                 key: "slug",
@@ -212,8 +235,13 @@ export function Pages(props: PagesProps) {
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
-                cell: (page) => (
-                  <a href={siteUrl(pagePublicPath(page.slug))} target="_blank" rel="noreferrer">
+                cell: (page, index) => (
+                  <a
+                    href={siteUrl(pagePublicPath(page.slug))}
+                    target="_blank"
+                    rel="noreferrer"
+                    {...agentHandle(`${rowHandles[index]}-view-live`, { role: "link", label: "Open this page on the live public site" })}
+                  >
                     {pagePublicPath(page.slug)}
                   </a>
                 ),
@@ -235,9 +263,10 @@ export function Pages(props: PagesProps) {
               {
                 key: "actions",
                 header: t("More"),
-                cell: (page) => (
+                cell: (page, index) => (
                   <RowMenu
                     triggerLabel={`Actions for "${page.title}"`}
+                    agentHandle={`${rowHandles[index]}-menu`}
                     items={pageRowMenuItems(
                       page,
                       {
@@ -267,6 +296,7 @@ export function Pages(props: PagesProps) {
       )}
       <ConfirmDialog
         open={pendingDelete !== null}
+        agentHandle="pages-delete"
         title={t("Move to trash?")}
         body={
           pendingDelete ? (
