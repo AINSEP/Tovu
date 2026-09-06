@@ -28,6 +28,14 @@ export function resolveCreateSubmitDisabled(args: {
   return args.creating || !args.switchingEnabled || args.createNameError !== null || args.createName.trim().length === 0;
 }
 
+/** The create-name input's own `disabled` state: also disabled while a create is already in flight,
+ *  not just when the deployment can't switch sites — an enabled field mid-request lets an operator
+ *  type a second name that a same-tick success handler would silently overwrite (finding 24,
+ *  2026-09-05 admin-tooling audit). */
+export function resolveCreateInputDisabled(args: { creating: boolean; switchingEnabled: boolean }): boolean {
+  return args.creating || !args.switchingEnabled;
+}
+
 /** One row's Activate button `disabled` state. Extracting {@link ActivateButton} into its own
  *  component (a prior pass) did not by itself resolve this rule violation — the boolean was still
  *  composed inline in that component's own body; only moving the composition itself out does. */

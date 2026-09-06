@@ -187,6 +187,18 @@ describe("Sites — the capability flag", () => {
   });
 });
 
+describe("Sites — create form safety", () => {
+  it("disables the create-name input while a create is in flight, so a second name can't be typed and silently lost", () => {
+    renderSites({ creating: true });
+    expect(screen.getByLabelText("Folder name").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("leaves the create-name input enabled when nothing is in flight", () => {
+    renderSites({ creating: false });
+    expect(screen.getByLabelText("Folder name").hasAttribute("disabled")).toBe(false);
+  });
+});
+
 describe("Sites — load and error states", () => {
   it("renders a loading notice before the first snapshot arrives", () => {
     renderSites({ snapshot: undefined, sites: [], listStatus: "loading" });

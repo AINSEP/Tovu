@@ -4,7 +4,13 @@ import { agentHandle } from "@jini-ai/agentic";
 import { describeApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { resolveActivateDisabled, resolveCreateSubmitDisabled, resolveSiteStateDisplay, resolveSitesRowHandles } from "./Sites.hooks";
+import {
+  resolveActivateDisabled,
+  resolveCreateInputDisabled,
+  resolveCreateSubmitDisabled,
+  resolveSiteStateDisplay,
+  resolveSitesRowHandles,
+} from "./Sites.hooks";
 import { siteRowStateLabelKey, siteRowStateToneClass, type ActivationOutlook } from "./rules";
 import { useWiredSites } from "./hooks/use-sites.hooks";
 
@@ -244,7 +250,7 @@ function CreateSiteForm({ controller }: CreateSiteFormProps) {
           id="site-name"
           name="name"
           value={createName}
-          disabled={!switchingEnabled}
+          disabled={resolveCreateInputDisabled({ creating, switchingEnabled })}
           placeholder="my-second-site"
           onChange={(e) => setCreateName(e.target.value)}
           {...agentHandle("sites-create-name", { role: "field", label: "New site folder name" })}
