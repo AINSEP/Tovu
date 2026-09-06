@@ -4,8 +4,8 @@ import { agentHandle } from "@jini-ai/agentic";
 import { describeApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { siteRowState, siteRowStateLabelKey, siteRowStateToneClass, type ActivationOutlook } from "./rules";
+import { resolveActivateDisabled, resolveCreateSubmitDisabled, resolveSiteStateDisplay, resolveSitesRowHandles } from "./Sites.hooks";
+import { siteRowStateLabelKey, siteRowStateToneClass, type ActivationOutlook } from "./rules";
 import { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
@@ -45,10 +45,11 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  *
  * ## Markup only
  *
- * All state, effects, and `api.*` calls live in `hooks/use-sites.hooks.ts`; all derivations live in
- * `rules.ts`. What stays here is what renders. `t` is threaded down as a prop from `Sites`'s own
- * hook rather than each subcomponent resolving its own — see `Redirects.tsx`'s header for the
- * standing i18n rule.
+ * All state, effects, and `api.*` calls live in `hooks/use-sites.hooks.ts`; screen-independent
+ * domain logic lives in `rules.ts`; derived values specific to this screen's own markup (a button's
+ * `disabled`, a row's agent handles) live in `Sites.hooks.tsx`, per that file's own header. What
+ * stays here is what renders. `t` is threaded down as a prop from `Sites`'s own hook rather than
+ * each subcomponent resolving its own — see `Redirects.tsx`'s header for the standing i18n rule.
  */
 
 /** One `label / value` pair in the "Now serving" card. The value is a `.field-readonly` rather than
@@ -257,7 +258,7 @@ function CreateSiteForm({ controller }: CreateSiteFormProps) {
       <div className="editor-actions form-actions">
         <button
           type="submit"
-          disabled={creating || !switchingEnabled || createNameError !== null || createName.trim().length === 0}
+          disabled={resolveCreateSubmitDisabled({ creating, switchingEnabled, createNameError, createName })}
           {...agentHandle("sites-create-submit", { role: "button", label: "Create the site folder" })}
         >
           {creating ? t("Creating…") : t("Create site")}
@@ -312,7 +313,7 @@ function ActivateButton({
     <button
       type="button"
       className="btn-secondary"
-      disabled={!switchingEnabled || activatingName !== null || siteRowState(site, snapshot) === "serving"}
+      disabled={resolveActivateDisabled({ switchingEnabled, activatingName, site, snapshot })}
       onClick={() => onActivate(site.name)}
       {...agentHandle(handle, {
         role: "button",
@@ -351,10 +352,7 @@ export function Sites(props: SitesProps = {}) {
 
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one row's controls from another's — same reasoning as every other list on this workstream.
-  const rowHandles = buildAgentListHandles(
-    "sites-row",
-    sites.map((site: AdminSiteListEntry) => site.name),
-  );
+  const rowHandles = resolveSitesRowHandles(sites);
 
   return (
     <div className="page">
@@ -397,8 +395,8 @@ export function Sites(props: SitesProps = {}) {
             key: "state",
             header: t("State"),
             cell: (site: AdminSiteListEntry) => {
-              const state = siteRowState(site, snapshot);
-              return <span className={`status ${siteRowStateToneClass(state)}`}>{t(siteRowStateLabelKey(state))}</span>;
+              const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+              return <span className={`status ${toneClass}`}>{t(labelKey)}</span>;
             },
           },
           {
