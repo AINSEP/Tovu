@@ -4316,3 +4316,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .sites-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
   .site-card { aspect-ratio: auto; }
 }
+
+/* The square is a floor, so on a short card (one badge, no display name) the content sat at the top
+ * with the action pinned to the bottom and a band of dead space between them. Two `auto` margins
+ * split that free space evenly instead — above the name and below the badges — which centers the
+ * identity block in the card and leaves the action on the baseline. */
+.site-card-name { margin-top: auto; }
