@@ -145,7 +145,14 @@ function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useWiredE
   return (
     <label className="a11y-label-wrap">
       <span className="visually-hidden">{t(locale, "Entry")}</span>
-      <select value={entryId} onChange={(e) => onChange(e.target.value)}>
+      <select
+        value={entryId}
+        onChange={(e) => onChange(e.target.value)}
+        {...agentHandle("seo-entry-picker", {
+          role: "field",
+          label: "Choose which page or post to edit or analyze SEO for",
+        })}
+      >
         <option value="">{t(locale, "Choose an entry…")}</option>
         {entries.map((entry) => (
           <option key={entry.id} value={entry.id}>
@@ -232,13 +239,18 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
 
       <label>
         {t(locale, "Title")}
-        <input value={fieldValue("title", resolved.title) ?? ""} onChange={(e) => setField("title", e.target.value)} />
+        <input
+          value={fieldValue("title", resolved.title) ?? ""}
+          onChange={(e) => setField("title", e.target.value)}
+          {...agentHandle("seo-entry-title", { role: "field", label: "This entry's SEO title override" })}
+        />
       </label>
       <label>
         {t(locale, "Description")}
         <textarea
           value={fieldValue("description", resolved.description ?? "") ?? ""}
           onChange={(e) => setField("description", e.target.value)}
+          {...agentHandle("seo-entry-description", { role: "field", label: "This entry's SEO description override" })}
         />
       </label>
       <label>
@@ -246,6 +258,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("canonical", resolved.canonical) ?? ""}
           onChange={(e) => setField("canonical", e.target.value)}
+          {...agentHandle("seo-entry-canonical", { role: "field", label: "This entry's canonical URL override" })}
         />
       </label>
       <label>
@@ -253,6 +266,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           type="checkbox"
           checked={fieldValue("noindex", resolved.robots.noindex) ?? false}
           onChange={(e) => setField("noindex", e.target.checked)}
+          {...agentHandle("seo-entry-noindex", { role: "checkbox", label: "Override this entry's robots noindex directive" })}
         />
         {t(locale, "Noindex")}
       </label>
@@ -261,6 +275,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
           type="checkbox"
           checked={fieldValue("nofollow", resolved.robots.nofollow) ?? false}
           onChange={(e) => setField("nofollow", e.target.checked)}
+          {...agentHandle("seo-entry-nofollow", { role: "checkbox", label: "Override this entry's robots nofollow directive" })}
         />
         {t(locale, "Nofollow")}
       </label>
@@ -269,6 +284,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("ogTitle", resolved.openGraph.title) ?? ""}
           onChange={(e) => setField("ogTitle", e.target.value)}
+          {...agentHandle("seo-entry-og-title", { role: "field", label: "This entry's Open Graph title override" })}
         />
       </label>
       <label>
@@ -276,6 +292,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("ogDescription", resolved.openGraph.description ?? "") ?? ""}
           onChange={(e) => setField("ogDescription", e.target.value)}
+          {...agentHandle("seo-entry-og-description", { role: "field", label: "This entry's Open Graph description override" })}
         />
       </label>
       <MediaRefField
@@ -291,6 +308,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("twitterTitle", resolved.twitter.title) ?? ""}
           onChange={(e) => setField("twitterTitle", e.target.value)}
+          {...agentHandle("seo-entry-twitter-title", { role: "field", label: "This entry's Twitter card title override" })}
         />
       </label>
       <label>
@@ -298,6 +316,7 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
         <input
           value={fieldValue("twitterDescription", resolved.twitter.description ?? "") ?? ""}
           onChange={(e) => setField("twitterDescription", e.target.value)}
+          {...agentHandle("seo-entry-twitter-description", { role: "field", label: "This entry's Twitter card description override" })}
         />
       </label>
       <MediaRefField
@@ -310,7 +329,13 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
       />
 
       <span className="editor-actions">
-        <button type="button" className="btn-secondary" onClick={save} disabled={saving || Object.keys(touched).length === 0}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={save}
+          disabled={saving || Object.keys(touched).length === 0}
+          {...agentHandle("seo-entry-save-overrides", { role: "button", label: "Save this entry's SEO overrides" })}
+        >
           {saving ? t(locale, "Saving…") : t(locale, "Save overrides")}
         </button>
       </span>
