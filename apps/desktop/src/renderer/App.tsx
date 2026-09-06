@@ -216,10 +216,10 @@ function TopNav({
   onSelectSection: (id: RunnerSectionId) => void;
 }) {
   return (
-    <nav className="topnav" aria-label="Runner sections">
+    <nav className="topnav" aria-label="Tovu sections">
       <span className="topnav__brand">
         <span className="topnav__mark" aria-hidden="true" />
-        <span className="topnav__wordmark">Runner</span>
+        <span className="topnav__wordmark">Tovu</span>
       </span>
 
       <div className="topnav__links">

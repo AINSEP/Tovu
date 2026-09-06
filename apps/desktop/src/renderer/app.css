@@ -170,22 +170,28 @@ button { font: inherit; color: inherit; }
 /* Ring + offset dot, echoing the reference nav's mark. `--primary` is load-bearing everywhere
    else in this file (it means "live"), so the ring itself stays `currentColor` and only the dot
    carries the accent — a brand mark, not a status. */
+/*
+ * The Tovu mark, from the tovu-com theme's own `assets/logo.png` (128x128, transparent) with its
+ * 256px sibling for retina. It replaces the CSS-drawn circle-and-dot Tovu-Runner used, which was
+ * never an image at all — Runner's `gold-runner-*.png` brand files were in `public/` but referenced
+ * by nothing, and have been deleted rather than carried over unused.
+ *
+ * 20px rather than the 18px the drawn mark used: the logo is a browser frame around a "T" plus a
+ * sparkle, and below about 20px the T stops resolving. `contain` and a square box keep it circular
+ * without cropping, since the source already has its own padding and transparency — no
+ * `border-radius` clip is needed or wanted.
+ *
+ * `../brand/`, not `./brand/`: everything under `src/renderer/public/` is emitted to the renderer
+ * ROOT, while this stylesheet is bundled into `assets/`. A relative `./` would resolve to
+ * `assets/brand/` and 404 — the exact trap the remixicon `@font-face` above already documents.
+ */
 .topnav__mark {
-  position: relative;
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   flex: none;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-}
-
-.topnav__mark::after {
-  content: '';
-  position: absolute;
-  top: -2px; left: 50%;
-  width: 5px; height: 5px;
-  margin-left: -2.5px;
-  border-radius: 50%;
-  background: var(--primary);
+  background-image: image-set(url('../brand/tovu-mark.png') 1x, url('../brand/tovu-mark@2x.png') 2x);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 .topnav__wordmark {
