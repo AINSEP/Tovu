@@ -2,7 +2,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { adminHref, currentRoutePath, navigate, redirectLegacyHashUrl, useRouteLocation } from "../router";
+import {
+  adminHref,
+  currentRoutePath,
+  getServerRouteSnapshot,
+  navigate,
+  redirectLegacyHashUrl,
+  useRouteLocation,
+} from "../router";
 
 /**
  * @file `lib/router.ts` — the cases two rounds of external audit turned up, each of which was a real
@@ -137,5 +144,9 @@ describe("useRouteLocation", () => {
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 
     expect(result.current).toBe("/posts/abc");
+  });
+
+  it("getServerRouteSnapshot returns the SSR/hydration fallback path — React only calls this off jsdom's render path (no SSR entry point exists here), so it is asserted by direct invocation", () => {
+    expect(getServerRouteSnapshot()).toBe("/");
   });
 });
