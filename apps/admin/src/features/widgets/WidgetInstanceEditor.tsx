@@ -1,4 +1,5 @@
 import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetConfigFields";
+import { agentHandle } from "@jini-ai/agentic";
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWiredWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
 import type { AdminWidget, AdminWidgetWhereUsed } from "../../lib/api";
@@ -130,7 +131,7 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           <p className="page-description">{t("Configure this widget's title and settings.")}</p>
         </div>
         <div className="page-actions">
-          <a href="/admin/widgets">
+          <a href="/admin/widgets" {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}>
             <button type="button" className="btn-secondary">
               ← {t("Widgets")}
             </button>
@@ -141,7 +142,11 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
               {error}
             </span>
           ) : null}
-          <button onClick={save} disabled={saving}>
+          <button
+            onClick={save}
+            disabled={saving}
+            {...agentHandle("widget-instance-save", { role: "button", label: "Save this widget" })}
+          >
             {saving ? t("Saving…") : t("Save")}
           </button>
         </div>
@@ -153,12 +158,18 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
       <label className="a11y-label-wrap">
         <span className="visually-hidden">Widget title</span>
-        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Widget title")} />
+        <input
+          className="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("Widget title")}
+          {...agentHandle("widget-instance-title", { role: "field", label: "This widget's title" })}
+        />
       </label>
       <p className="muted-cell">{t("Type:")} {widgetTypeLabel(widgetType, locale)}</p>
 
       <div className="widget-config-form">
-        <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} />
+        <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} agentHandle="widget-instance-config" />
         {fieldErrors.map((fe, i) => (
           <p key={i} className="save-error" role="alert">
             {fe.field}: {fe.reason}

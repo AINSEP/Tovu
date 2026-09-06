@@ -1,6 +1,8 @@
 import { type AdminWidgetType } from "../../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { widgetTypeLabel } from "./rules";
 import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
 
@@ -70,6 +72,15 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
   if (error && !widgets) return <div className="notice error">{error}</div>;
   if (!widgets) return <div className="notice">Loading widgets…</div>;
 
+  // Widget ids are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`) — the title link and the Trash/Delete button both
+  // need one, since `DataTable`'s `cell` callback only receives the row, not its index.
+  const rowHandles = buildAgentListHandles(
+    "widgets-row",
+    widgets.map((widget) => widget.id),
+  );
+  const rowHandleById = new Map(widgets.map((widget, index) => [widget.id, rowHandles[index]!]));
+
   return (
     <div className="page">
       <div className="page-header">
@@ -81,15 +92,28 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           </p>
         </div>
         <div className="page-actions">
-          <a href="/admin/widgets/regions">{t("Regions →")}</a>
-          <select value={createType} onChange={(e) => setCreateType(e.target.value as AdminWidgetType)} aria-label="Widget type to create">
+          <a
+            href="/admin/widgets/regions"
+            {...agentHandle("widgets-regions-link", { role: "link", label: "Go to Widget Regions" })}
+          >
+            {t("Regions →")}
+          </a>
+          <select
+            value={createType}
+            onChange={(e) => setCreateType(e.target.value as AdminWidgetType)}
+            aria-label="Widget type to create"
+            {...agentHandle("widgets-create-type", { role: "field", label: "Widget type to create" })}
+          >
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
-          <a href={`/admin/widgets/new?type=${createType}`}>
+          <a
+            href={`/admin/widgets/new?type=${createType}`}
+            {...agentHandle("widgets-add-new", { role: "link", label: "Create a new widget of the selected type" })}
+          >
             <button>{t("Add New")}</button>
           </a>
         </div>
@@ -110,7 +134,14 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
           {
             key: "title",
             header: t("Title"),
-            cell: (widget) => <a href={`/admin/widgets/${widget.id}`}>{widget.title}</a>,
+            cell: (widget) => (
+              <a
+                href={`/admin/widgets/${widget.id}`}
+                {...agentHandle(`${rowHandleById.get(widget.id)}-edit`, { role: "link", label: `Edit the "${widget.title}" widget` })}
+              >
+                {widget.title}
+              </a>
+            ),
           },
           {
             key: "type",
@@ -131,7 +162,13 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             // column that isn't a bare `<th></th>`.
             headerLabel: t("Actions"),
             cell: (widget) => (
-              <button onClick={() => trashOrPurge(widget)}>
+              <button
+                onClick={() => trashOrPurge(widget)}
+                {...agentHandle(`${rowHandleById.get(widget.id)}-trash-or-purge`, {
+                  role: "button",
+                  label: widget.status === "active" ? `Move "${widget.title}" to trash` : `Permanently delete "${widget.title}"`,
+                })}
+              >
                 {widget.status === "active" ? t("Trash") : t("Delete permanently")}
               </button>
             ),

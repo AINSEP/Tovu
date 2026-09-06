@@ -1,4 +1,6 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredWidgetRegions } from "./hooks/use-widget-regions.hooks";
 
 /**
@@ -25,9 +27,20 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
   if (error && !regions) return <div className="notice error">{error}</div>;
   if (!regions) return <div className="notice">Loading regions…</div>;
 
+  // Region keys are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback only
+  // receives the row, not its index.
+  const rowHandles = buildAgentListHandles(
+    "widget-regions-row",
+    regions.map((region) => region.regionKey),
+  );
+  const rowHandleByKey = new Map(regions.map((region, index) => [region.regionKey, rowHandles[index]!]));
+
   return (
     <div className="page">
-      <a href="/admin/widgets">← {t("Widgets")}</a>
+      <a href="/admin/widgets" {...agentHandle("widget-regions-back", { role: "link", label: "Back to Widgets" })}>
+        ← {t("Widgets")}
+      </a>
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
@@ -39,8 +52,17 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
           </p>
         </div>
         <div className="page-actions">
-          <input value={newRegionKey} onChange={(e) => setNewRegionKey(e.target.value)} placeholder="e.g. footer" />
-          <button onClick={bind} disabled={binding || !newRegionKey.trim()}>
+          <input
+            value={newRegionKey}
+            onChange={(e) => setNewRegionKey(e.target.value)}
+            placeholder="e.g. footer"
+            {...agentHandle("widget-regions-new-key", { role: "field", label: "New region key to bind, e.g. footer" })}
+          />
+          <button
+            onClick={bind}
+            disabled={binding || !newRegionKey.trim()}
+            {...agentHandle("widget-regions-bind", { role: "button", label: "Bind this region key" })}
+          >
             {binding ? t("Binding…") : t("Bind region")}
           </button>
         </div>
@@ -60,13 +82,23 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
           {
             key: "region-key",
             header: t("Region key"),
-            cell: (region) => <a href={`/admin/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>,
+            cell: (region) => (
+              <a
+                href={`/admin/widgets/regions/${region.regionKey}`}
+                {...agentHandle(`${rowHandleByKey.get(region.regionKey)}-key`, { role: "link", label: `Manage the "${region.regionKey}" region` })}
+              >
+                {region.regionKey}
+              </a>
+            ),
           },
           { key: "placements", header: t("Placements"), cell: (region) => region.placementCount },
           {
             key: "manage",
             cell: (region) => (
-              <a href={`/admin/widgets/regions/${region.regionKey}`}>
+              <a
+                href={`/admin/widgets/regions/${region.regionKey}`}
+                {...agentHandle(`${rowHandleByKey.get(region.regionKey)}-manage`, { role: "link", label: `Manage the "${region.regionKey}" region` })}
+              >
                 <button>{t("Manage")}</button>
               </a>
             ),

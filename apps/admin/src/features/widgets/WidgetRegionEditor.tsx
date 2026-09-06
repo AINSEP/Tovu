@@ -1,4 +1,6 @@
 import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPickerDialog";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
 
 /**
@@ -41,7 +43,10 @@ export function WidgetRegionEditorHeaderActions({
 }) {
   return (
     <div className="page-actions">
-      <a href="/admin/widgets/regions">
+      <a
+        href="/admin/widgets/regions"
+        {...agentHandle("widget-region-editor-back", { role: "link", label: "Back to Widget Regions" })}
+      >
         <button type="button" className="btn-secondary">
           ← {t("Regions")}
         </button>
@@ -52,7 +57,11 @@ export function WidgetRegionEditorHeaderActions({
           {error}
         </span>
       ) : null}
-      <button onClick={onSave} disabled={saving}>
+      <button
+        onClick={onSave}
+        disabled={saving}
+        {...agentHandle("widget-region-editor-save", { role: "button", label: "Save this region's placements" })}
+      >
         {saving ? t("Saving…") : t("Save")}
       </button>
     </div>
@@ -67,6 +76,13 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
   if (error && !area) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading region…</div>;
   if (!area) return null;
+
+  // Placement ids are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`).
+  const placementHandles = buildAgentListHandles(
+    "widget-region-placement",
+    placements.map((placement) => placement.placementId),
+  );
 
   return (
     <div className="page">
@@ -98,23 +114,47 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                   </span>
                 )}
                 <label>
-                  <input type="checkbox" checked={placement.enabled} onChange={() => toggleEnabled(placement.placementId)} />
+                  <input
+                    type="checkbox"
+                    checked={placement.enabled}
+                    onChange={() => toggleEnabled(placement.placementId)}
+                    {...agentHandle(`${placementHandles[i]}-enabled`, { role: "field", label: `Whether "${placement.widgetTitle}" is enabled` })}
+                  />
                   {t("Enabled")}
                 </label>
-                <button className="tb-btn" onClick={() => moveAt(i, -1)} title="Move up">
+                <button
+                  className="tb-btn"
+                  onClick={() => moveAt(i, -1)}
+                  title="Move up"
+                  {...agentHandle(`${placementHandles[i]}-move-up`, { role: "button", label: `Move "${placement.widgetTitle}" up` })}
+                >
                   ↑
                 </button>
-                <button className="tb-btn" onClick={() => moveAt(i, 1)} title="Move down">
+                <button
+                  className="tb-btn"
+                  onClick={() => moveAt(i, 1)}
+                  title="Move down"
+                  {...agentHandle(`${placementHandles[i]}-move-down`, { role: "button", label: `Move "${placement.widgetTitle}" down` })}
+                >
                   ↓
                 </button>
-                <button className="tb-btn" onClick={() => removeAt(placement.placementId)} title="Remove">
+                <button
+                  className="tb-btn"
+                  onClick={() => removeAt(placement.placementId)}
+                  title="Remove"
+                  {...agentHandle(`${placementHandles[i]}-remove`, { role: "button", label: `Remove "${placement.widgetTitle}" from this region` })}
+                >
                   ✕
                 </button>
               </div>
             </div>
           ))
         )}
-        <WidgetAddControl triggerLabel={t("+ Add widget")} onResolved={(widgetInstanceId) => addPlacement(widgetInstanceId)} />
+        <WidgetAddControl
+          triggerLabel={t("+ Add widget")}
+          onResolved={(widgetInstanceId) => addPlacement(widgetInstanceId)}
+          agentHandle="widget-region-add"
+        />
       </div>
     </div>
   );
