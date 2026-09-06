@@ -134,9 +134,19 @@ function OtherCredentialEntryBody({ store, row, controller }: { store: OtherCred
   return <OtherCredentialStaticRow row={row} controller={controller} />;
 }
 
-function DeepLink({ store, t: translate }: { store: OtherCredentialStoreInfo; t: Translate }) {
+/** @param handleSuffix - Distinguishes this deep link from every other row's — a bare store id for
+ *  the unconfigured placeholder (only one ever renders per store) or {@link rowHandleBase} for a
+ *  real row, since a store like `media-provider` can hold more than one configured item. */
+function DeepLink({ store, handleSuffix, t: translate }: { store: OtherCredentialStoreInfo; handleSuffix: string; t: Translate }) {
   return (
-    <a className="btn-secondary" href={`/admin${store.screenPath}`}>
+    <a
+      className="btn-secondary"
+      href={`/admin${store.screenPath}`}
+      {...safeAgentHandle(`security-other-credentials-manage-${handleSuffix}`, {
+        role: "link",
+        label: `Open ${store.screenLabel} to manage this credential`,
+      })}
+    >
       {translate("Manage on")} {translate(store.screenLabel)} ↗
     </a>
   );
@@ -153,7 +163,7 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
         <span className="access-tokens-row-name">{translate("Not configured")}</span>
       </div>
       <div className="access-tokens-row-actions">
-        <DeepLink store={store} t={translate} />
+        <DeepLink store={store} handleSuffix={store.id} t={translate} />
       </div>
     </div>
   );
@@ -176,7 +186,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         ) : null}
       </div>
       <div className="access-tokens-row-actions">
-        <DeepLink store={row.store} t={translate} />
+        <DeepLink store={row.store} handleSuffix={rowHandleBase(row)} t={translate} />
         <button
           type="button"
           className="btn-danger"
@@ -236,7 +246,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
           </div>
         </div>
         <div className="access-tokens-row-actions access-tokens-row-actions-top">
-          <DeepLink store={row.store} t={translate} />
+          <DeepLink store={row.store} handleSuffix={rowHandleBase(row)} t={translate} />
           <button
             type="button"
             className="btn-danger"
@@ -282,7 +292,11 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
             `purposeLabel` for both params reproduces this row's exact previous copy unchanged. */}
         <p className="confirm-dialog-body">{removeDialogBody(locale, row.store.purposeLabel, row.store.purposeLabel)}</p>
         <div className="confirm-dialog-actions">
-          <button type="button" onClick={close}>
+          <button
+            type="button"
+            onClick={close}
+            {...safeAgentHandle(`security-other-credentials-remove-cancel-${rowHandleBase(row)}`, { role: "button", label: "Close this dialog without removing the credential" })}
+          >
             {translate("Cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>

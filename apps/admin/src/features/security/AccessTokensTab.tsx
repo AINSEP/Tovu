@@ -435,7 +435,14 @@ function TokenInputFields({
             read as a login surface and the first text-like field (the search box) got the site's
             saved username. Fixing the search box's own attribute could not work: the search box was
             the symptom, these fields are the trigger. */}
-        <input id={`${idPrefix}-token`} type="password" autoComplete="new-password" value={token} onChange={(e) => onTokenChange(e.target.value)} />
+        <input
+          id={`${idPrefix}-token`}
+          type="password"
+          autoComplete="new-password"
+          value={token}
+          onChange={(e) => onTokenChange(e.target.value)}
+          {...agentHandle(`${idPrefix}-token`, { role: "field", label: "This token's secret value — stored encrypted, never shown again once saved" })}
+        />
         <p className="field-hint">
           {connected ? translate("Leave blank to keep the current token.") : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
         </p>
@@ -446,7 +453,12 @@ function TokenInputFields({
           </summary>
           <p className="field-hint">
             {translate(info.scopeGuidanceKey)}{" "}
-            <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+            <a
+              href={info.tokenPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              {...agentHandle(`${idPrefix}-token-page`, { role: "link", label: `Open ${info.label}'s own page for creating a personal access token` })}
+            >
               {translate("Create a token")}
             </a>
           </p>
@@ -457,7 +469,13 @@ function TokenInputFields({
           <label className="field-label" htmlFor={`${idPrefix}-account`}>
             {translate("Account ID")}
           </label>
-          <input id={`${idPrefix}-account`} type="text" value={accountId} onChange={(e) => onAccountIdChange(e.target.value)} />
+          <input
+            id={`${idPrefix}-account`}
+            type="text"
+            value={accountId}
+            onChange={(e) => onAccountIdChange(e.target.value)}
+            {...agentHandle(`${idPrefix}-account`, { role: "field", label: "This provider's account id" })}
+          />
           <p className="field-hint">{translate("Shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.")}</p>
         </div>
       ) : null}
@@ -466,7 +484,13 @@ function TokenInputFields({
           <label className="field-label" htmlFor={`${idPrefix}-username`}>
             {translate("Username")}
           </label>
-          <input id={`${idPrefix}-username`} type="text" value={username} onChange={(e) => onUsernameChange(e.target.value)} />
+          <input
+            id={`${idPrefix}-username`}
+            type="text"
+            value={username}
+            onChange={(e) => onUsernameChange(e.target.value)}
+            {...agentHandle(`${idPrefix}-username`, { role: "field", label: "The username this token authenticates against, when this provider needs one" })}
+          />
           <p className="field-hint">
             {info.kind === "custom"
               ? translate("Optional — only needed if this provider authenticates a token against a username.")
@@ -524,7 +548,12 @@ function ExistingTokenFields({
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
-        <button type="button" className="btn-danger" onClick={onRemoveClick}>
+        <button
+          type="button"
+          className="btn-danger"
+          onClick={onRemoveClick}
+          {...agentHandle(`security-access-tokens-remove-${state.row.id}`, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
+        >
           {translate("Remove from Tovu")}
         </button>
         {state.error ? (
@@ -566,7 +595,12 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
-        <button type="button" className="link-button" onClick={() => controller.closeAddForm(ref)}>
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => controller.closeAddForm(ref)}
+          {...agentHandle(`security-access-tokens-cancel-${info.kind}-${info.providerId}`, { role: "button", label: "Close this add-token form without saving" })}
+        >
           {translate("Cancel")}
         </button>
         {state.error ? (
@@ -605,13 +639,22 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
               Pages"/"Cloudflare Pages" are destinations with no revoke console of their own. See
               `rules.ts`'s `AccessTokenProviderInfo.vendorLabel` doc for the full reasoning; every
               other `info.label` on this page still names the destination on purpose. */}
-          <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+          <a
+            href={info.tokenPageUrl}
+            target="_blank"
+            rel="noreferrer"
+            {...agentHandle(`security-access-tokens-revoke-page-${row.id}`, { role: "link", label: `Open ${info.vendorLabel} to revoke this token at the source` })}
+          >
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
         </p>
         {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote(locale, info.label)}</p> : null}
         <div className="confirm-dialog-actions">
-          <button type="button" onClick={close}>
+          <button
+            type="button"
+            onClick={close}
+            {...agentHandle(`security-access-tokens-remove-cancel-${row.id}`, { role: "button", label: "Close this dialog without removing the token" })}
+          >
             {translate("Cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>
@@ -786,7 +829,11 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
           </p>
         ) : null}
         <div className="confirm-dialog-actions">
-          <button type="button" onClick={close}>
+          <button
+            type="button"
+            onClick={close}
+            {...agentHandle("security-access-tokens-add-custom-cancel", { role: "button", label: "Close this dialog without saving a custom provider" })}
+          >
             {translate("Cancel")}
           </button>
           <button

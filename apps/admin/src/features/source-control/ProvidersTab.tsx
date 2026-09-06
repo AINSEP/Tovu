@@ -388,7 +388,15 @@ function SourceControlCredentialFields({
             </summary>
             <p className="field-hint">
               {translate(info.scopeGuidanceKey)}{" "}
-              <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+              <a
+                href={info.tokenPageUrl}
+                target="_blank"
+                rel="noreferrer"
+                {...agentHandle(`source-control-credentials-token-page-${row.providerId}`, {
+                  role: "link",
+                  label: `Open ${info.label}'s own page for creating a personal access token`,
+                })}
+              >
                 {translate("Create a token")}
               </a>
             </p>
