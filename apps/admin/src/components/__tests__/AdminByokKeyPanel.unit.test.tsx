@@ -112,6 +112,15 @@ describe("AdminByokKeyFooter", () => {
     render(<AdminByokKeyFooter controller={controller({ saveState: { status: "error", message: "failed to save the key" } })} />);
     expect(screen.getByText("failed to save the key")).toBeInTheDocument();
   });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every test above uses "idle"/"saved"/"error" — "saving" itself,
+   * the in-flight state the button's own label swaps to, had never been rendered.
+   */
+  it("shows 'Saving…' and disables the button while the save is in flight", () => {
+    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saving" }, canSaveKey: true })} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
 });
 
 describe("AdminByokSettingsFooter", () => {

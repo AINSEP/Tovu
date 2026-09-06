@@ -101,6 +101,21 @@ it("still focuses Title once instances resolve as empty (a genuinely fresh widge
   await waitFor(() => expect(screen.getByLabelText("Title")).toHaveFocus());
 });
 
+/**
+ * Coverage-gap-fill (2026-09-05). `WidgetPickerDialog.hooks.unit.test.tsx` already pins
+ * `submitCreateNew`'s "Title is required." STATE directly; nothing renders the real component with
+ * that state to prove the `role="alert"` banner (`WidgetPickerDialog.tsx`'s own `{error ? (...) :
+ * null}`) actually appears.
+ */
+it("submitting Create new with a blank title renders the error as a role=alert banner", async () => {
+  const user = userEvent.setup();
+  render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
+
+  await user.click(screen.getByRole("button", { name: "Create and place" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Title is required.");
+});
+
 describe("WidgetPickerDialog dialog-hook injection", () => {
   it("renders purely off an injected fake, proving useWidgetPickerDialog is not hardcoded", async () => {
     // A fake that never touches `listWidgets`/`document`-level Escape handling at all — if
@@ -177,5 +192,40 @@ describe("WidgetAddControl add-control-hook injection", () => {
     expect(screen.getByRole("button", { name: "+ Add widget" })).toBeInTheDocument();
     // `pickerType: null` in the fake means no dialog renders — same as the real hook's own default.
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Coverage-gap-fill (2026-09-05). The injection block above always drives `WidgetAddControl`
+ * through a FAKE `useAddControl`, so three real-hook-only lines had never run: the type `<Select>`'s
+ * own `onChange` (only its presence was asserted, never a change), the "Create new" Title input's
+ * `onChange`, and `WidgetAddControl`'s own `onCancel={() => setPickerType(null)}` (distinct from
+ * `WidgetPickerDialog`'s own Escape-driven `onCancel` tested above, which renders the dialog
+ * directly rather than through `WidgetAddControl`).
+ */
+describe("WidgetAddControl — real flow (unmocked useWidgetAddControl)", () => {
+  it("changing the type Select, typing a new title, then Cancel — all three reach the real hook with no widget created", async () => {
+    const user = userEvent.setup();
+    // No existing instances of ANY type — forces the dialog straight to "Create new", the section
+    // the Title input lives in.
+    fetchMock.mockResolvedValue(jsonResponse({ widgets: [] }));
+    const onResolved = vi.fn();
+
+    render(<WidgetAddControl triggerLabel="Insert widget" onResolved={onResolved} />);
+
+    await user.click(screen.getByRole("combobox", { name: "Widget type" }));
+    await user.click(screen.getByRole("option", { name: "Social Links" }));
+
+    await user.click(screen.getByRole("button", { name: "Insert widget" }));
+    expect(await screen.findByRole("heading", { name: "Place a Social Links widget" })).toBeInTheDocument();
+
+    const titleInput = screen.getByLabelText("Title");
+    await user.type(titleInput, "My new widget");
+    expect(titleInput).toHaveValue("My new widget");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onResolved).not.toHaveBeenCalled();
   });
 });

@@ -103,6 +103,10 @@ import {
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { navigate } from "../../lib/router";
 import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
+import { registerExtEventRenderer } from "@jini-ai/chat/react";
+import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
+import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
+import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
@@ -602,5 +606,105 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { bridgeAccess?: unknown } };
     expect(props.agentControl?.bridgeAccess).toBeUndefined();
+  });
+});
+
+/**
+ * Coverage-gap-fill (2026-09-05). `registerExtEventRenderer` is mocked (`vi.fn()`) at the top of
+ * this file — a real MCP-UI runtime is what would normally invoke the registered renderer, and this
+ * file never runs one. That leaves the renderer callback itself (`AssistantDock.tsx`'s own
+ * `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (...))`) captured by the mock but
+ * never called. The registration runs once at module import time (this file's own `import {
+ * AssistantDock } from "../AssistantDock/AssistantDock"` already triggered it), so the callback is
+ * captured here and invoked directly with a fabricated `props` object — the same direct-invocation
+ * treatment this repo gives a callback that only a framework/runtime, not a test, would otherwise
+ * call.
+ */
+describe("AssistantDock — ext event renderer registrations", () => {
+  type Renderer = (props: Record<string, unknown>) => { type: unknown; props: Record<string, unknown> };
+
+  it("registers a renderer under MCP_UI_EXT_EVENT_NAME that renders OverflowAwareMcpUiSurfaceCard with every prop passed through, plus a real onToolCall", () => {
+    const mockedRegister = vi.mocked(registerExtEventRenderer);
+    const [, renderer] = mockedRegister.mock.calls[0] as [string, Renderer];
+    expect(renderer).toBeInstanceOf(Function);
+
+    const element = renderer({ toolCallId: "tc-1", someProp: "value" });
+
+    expect(element.type).toBe(OverflowAwareMcpUiSurfaceCard);
+    expect(element.props).toMatchObject({ toolCallId: "tc-1", someProp: "value" });
+    expect(typeof element.props.onToolCall).toBe("function");
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Same shape as the MCP-UI registration above, for the other two
+   * module-scope-once `registerExtEventRenderer` calls in `AssistantDock.tsx`
+   * (`"a2ui"` -> `RoutedA2uiSurfaceCard`, `"slow_running"` -> `SlowRunNoticeCard`) — neither renderer
+   * callback had ever been invoked, since `registerExtEventRenderer` itself is mocked in this file.
+   */
+  it("registers a renderer under 'a2ui' that renders RoutedA2uiSurfaceCard with every prop passed through, plus a real onAgentAction", () => {
+    const mockedRegister = vi.mocked(registerExtEventRenderer);
+    const [eventName, renderer] = mockedRegister.mock.calls[1] as [string, Renderer];
+    expect(eventName).toBe("a2ui");
+
+    const element = renderer({ actionId: "a-1", someProp: "value" });
+
+    expect(element.type).toBe(RoutedA2uiSurfaceCard);
+    expect(element.props).toMatchObject({ actionId: "a-1", someProp: "value" });
+    expect(typeof element.props.onAgentAction).toBe("function");
+  });
+
+  it("registers a renderer under 'slow_running' that renders SlowRunNoticeCard with every prop passed through", () => {
+    const mockedRegister = vi.mocked(registerExtEventRenderer);
+    const [eventName, renderer] = mockedRegister.mock.calls[2] as [string, Renderer];
+    expect(eventName).toBe("slow_running");
+
+    const element = renderer({ runId: "r-1", someProp: "value" });
+
+    expect(element.type).toBe(SlowRunNoticeCard);
+    expect(element.props).toMatchObject({ runId: "r-1", someProp: "value" });
+  });
+});
+
+/**
+ * Coverage-gap-fill (2026-09-05). Every test above uses `fakeChats()`'s default `conversations: []`
+ * — `.find((c) => c.id === chats.activeId)`'s predicate is never invoked at all for an empty array
+ * (`Array.prototype.find` skips the callback entirely), so the pane title's "look up the active
+ * conversation's own title" path had never run; every prior assertion only exercised the `??
+ * t("Tovu assistant")` fallback.
+ */
+describe("AssistantDock — pane title reads the active conversation's own title", () => {
+  function conversation(overrides: Partial<UseAssistantChats["conversations"][number]> = {}): UseAssistantChats["conversations"][number] {
+    return { id: "conv-1", title: "My chat", titleSource: "manual", messageCount: 1, createdAt: 0, updatedAt: 0, ...overrides };
+  }
+
+  /** `ChatPane` itself is mocked to a bare recorder that does not render its `header` prop (see
+   *  this file's own `ChatPane` factory), so the title has to be read out of the captured prop and
+   *  rendered separately, the same way this describe block's sibling tests read other captured
+   *  props directly off `chatPaneSpy` rather than off the DOM. */
+  function renderedHeader() {
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { header: ReactNode };
+    render(props.header);
+  }
+
+  it("shows the matching conversation's own title, not the default, when one is found", () => {
+    render(
+      <AssistantDock
+        useChats={() => fakeChats({ conversations: [conversation({ id: "conv-1", title: "Find my posts" })], activeId: "conv-1" })}
+      />,
+    );
+    renderedHeader();
+
+    expect(screen.getByRole("heading", { level: 2, name: "Find my posts" })).toBeInTheDocument();
+  });
+
+  it("falls back to the default title when activeId matches no conversation in the list", () => {
+    render(
+      <AssistantDock
+        useChats={() => fakeChats({ conversations: [conversation({ id: "conv-1", title: "Find my posts" })], activeId: "conv-does-not-exist" })}
+      />,
+    );
+    renderedHeader();
+
+    expect(screen.getByRole("heading", { level: 2, name: "Tovu assistant" })).toBeInTheDocument();
   });
 });

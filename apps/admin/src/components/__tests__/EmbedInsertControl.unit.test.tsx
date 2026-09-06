@@ -134,6 +134,49 @@ describe("EmbedInsertControl — Media", () => {
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). The test above only ever selects an asset that already has
+   * `alt` text, so `alt: item.alt || item.title`'s fallback (an asset with no alt text at all) had
+   * never run.
+   */
+  it("falls back to the asset's title as alt text when it carries no alt text of its own", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "m2", title: "Untitled photo", alt: "" })] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Media" }));
+    await user.click(await screen.findByTitle("Untitled photo"));
+
+    expect(editor.commands.insertMediaRef).toHaveBeenCalledWith({
+      assetId: "m2",
+      transformName: "public",
+      alt: "Untitled photo",
+    });
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). The test above only ever completes MediaPickerDialog's "select"
+   * path; `EmbedInsertControl.tsx`'s own `onCancel={() => setMediaPicking(false)}` (the dialog's
+   * OTHER dismiss path) had never fired.
+   */
+  it("Cancel closes MediaPickerDialog without inserting anything", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Media" }));
+    await screen.findByTitle("Sunset");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(editor.commands.insertMediaRef).not.toHaveBeenCalled();
+  });
 });
 
 describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", () => {
@@ -187,6 +230,44 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  /**
+   * Coverage-gap-fill (2026-09-05). `WidgetShortcutPicker`'s own `onCancel` (for BOTH the Form and
+   * Menu pinned dialogs — two separate arrow functions, `formControl.setPickerType(null)` and
+   * `menuControl.setPickerType(null)`) had never fired; every prior test either used the dialog or
+   * left it untouched.
+   */
+  it("Form: Cancel closes the dialog and inserts nothing", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Form" }));
+    await screen.findByRole("heading", { name: "Place a Contact Form widget" });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(editor.commands.insertWidgetEmbed).not.toHaveBeenCalled();
+  });
+
+  it("Menu: Cancel closes the dialog and inserts nothing", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Menu" }));
+    await screen.findByRole("heading", { name: "Place a Menu widget" });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(editor.commands.insertWidgetEmbed).not.toHaveBeenCalled();
+  });
+
   it("mints a fresh placementId per insertion — two inserts never reuse the same id", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "menu1", title: "Main nav", widgetType: "menu" })] });
@@ -220,6 +301,38 @@ describe("EmbedInsertControl — Widget…", () => {
     expect(screen.queryByRole("menuitem", { name: "Media" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Insert widget" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Widget type" })).toBeInTheDocument();
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every test above only proves the "Widget…" entry point renders
+   * the full `WidgetAddControl` flow's own controls; none carries it through to completion, so
+   * `EmbedMenu`'s `onWidgetResolved` prop (`EmbedInsertControl.tsx`'s own `insertWidget(...);
+   * setOpen(false); setWidgetMode(false);`) had never fired. This is the "Widget…" flow's
+   * equivalent of the "Form: selecting an existing contact-form widget..." test above, using the
+   * un-pinned type <Select> (default "text") instead of a pinned shortcut.
+   */
+  it("selecting an existing text widget through the full flow inserts it, closes the menu, and drops back out of widget mode", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "w1", title: "Hero banner", widgetType: "text" })] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Widget…" }));
+    await user.click(screen.getByRole("button", { name: "Insert widget" }));
+
+    const combobox = await screen.findByRole("combobox", { name: /existing text widgets/i });
+    await user.click(combobox);
+    await user.click(screen.getByRole("option", { name: "Hero banner" }));
+    await user.click(screen.getByRole("button", { name: "Use this widget" }));
+
+    await waitFor(() => expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledTimes(1));
+    const [attrs] = editor.commands.insertWidgetEmbed.mock.calls[0] as [{ widgetEntryId: string }];
+    expect(attrs.widgetEntryId).toBe("w1");
+    // `setWidgetMode(false)` ran — the type <Select> from the full flow is gone, and so is the
+    // dialog itself, both signs the menu returned to its closed, non-widget-mode default.
+    expect(screen.queryByRole("combobox", { name: "Widget type" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
 

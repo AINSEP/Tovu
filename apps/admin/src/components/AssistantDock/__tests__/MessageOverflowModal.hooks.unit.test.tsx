@@ -76,4 +76,30 @@ describe("useMessageOverflowModal", () => {
     act(() => result.current.handleBackdropClick({ target: dialog } as never));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Coverage-gap-fill (2026-09-05), mirroring `ImagePreviewModal.hooks.unit.test.tsx`'s equivalent
+   * addition: every test above exercises the jsdom fallback branch only. This polyfills
+   * `showModal`/`close` onto the attached dialog element to exercise the real-browser branch too.
+   */
+  it("calls showModal()/close() directly, not the attribute fallback, when the browser implements them", () => {
+    const { result, rerender } = renderHook(({ open }) => useMessageOverflowModal(open, vi.fn()), {
+      initialProps: { open: false },
+    });
+    const dialog = attachDialog(result);
+    const showModal = vi.fn(() => {
+      dialog.setAttribute("open", "");
+    });
+    const close = vi.fn(() => {
+      dialog.removeAttribute("open");
+    });
+    dialog.showModal = showModal;
+    dialog.close = close;
+
+    rerender({ open: true });
+    expect(showModal).toHaveBeenCalledTimes(1);
+
+    rerender({ open: false });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

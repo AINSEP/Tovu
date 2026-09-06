@@ -6,7 +6,7 @@ import { InfoTip } from "../InfoTip";
 import { SeeMore } from "../SeeMore/SeeMore";
 import { Select, type SelectOption } from "../Select/Select";
 import { ImagePreviewModal } from "../ImagePreviewModal";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../AdminByokKeyPanel";
 import { ComingSoonNotice, Placeholder } from "../Placeholder";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
 
@@ -168,6 +168,23 @@ describe("AdminByokKeyFooter agentHandle", () => {
   it("publishes the single Save key button directly under the caller's base handle (no suffix)", () => {
     render(<AdminByokKeyFooter controller={controller()} agentHandle="byok-footer" />);
     expect(screen.getByRole("button", { name: /save key/i })).toHaveAttribute(AGENT_ELEMENT, "byok-footer");
+  });
+});
+
+/**
+ * Coverage-gap-fill (2026-09-05). `AdminByokSettingsFooter` — the sibling footer this file's own
+ * header names alongside `AdminByokKeyFooter` — was never actually imported or tested here; its own
+ * `agentHandle` ternary had no coverage at all.
+ */
+describe("AdminByokSettingsFooter agentHandle", () => {
+  it("omits data-agent-* on the Save settings button when agentHandle is not passed", () => {
+    render(<AdminByokSettingsFooter controller={controller()} />);
+    expect(screen.getByRole("button", { name: /save settings/i })).not.toHaveAttribute(AGENT_ELEMENT);
+  });
+
+  it("publishes the single Save settings button directly under the caller's base handle (no suffix)", () => {
+    render(<AdminByokSettingsFooter controller={controller()} agentHandle="byok-settings-footer" />);
+    expect(screen.getByRole("button", { name: /save settings/i })).toHaveAttribute(AGENT_ELEMENT, "byok-settings-footer");
   });
 });
 

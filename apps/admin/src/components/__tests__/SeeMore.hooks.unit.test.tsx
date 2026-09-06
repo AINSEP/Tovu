@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { useSeeMoreClamp } from "../SeeMore/SeeMore.hooks";
 
@@ -83,5 +83,52 @@ describe("useSeeMoreClamp", () => {
     });
     rerender({ children: "c" });
     expect(result.current.overflows).toBe(true);
+  });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every test above runs with no `ResizeObserver` global at all —
+   * this file's own header notes jsdom implements none, which is exactly the branch the hook's
+   * `typeof ResizeObserver !== "function"` guard exists for. This polyfills a fake `ResizeObserver`
+   * (real browser shape) so the OTHER branch — actually constructing, observing, and disconnecting
+   * one — gets exercised too.
+   */
+  it("observes the element via ResizeObserver when the host environment provides one, and disconnects on unmount", () => {
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    let storedCallback: (() => void) | undefined;
+    class FakeResizeObserver {
+      constructor(callback: () => void) {
+        storedCallback = callback;
+      }
+      observe = observe;
+      disconnect = disconnect;
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    try {
+      const { result, unmount } = renderHook(() => useSeeMoreClamp({ lines: 2, children: "x" }));
+      // The effect's deps are `[expanded, measure]`, and `measure` is referentially stable — setting
+      // `textRef.current` alone (a mutation, not a render) does not re-run it. Toggling `expanded`
+      // true-then-false does, and by the time it flips back to false, `textRef.current` already
+      // points at the fake element below — the same mount-order reality a real render would produce
+      // once the ref actually attaches.
+      result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, CLAMPED_BOX_HEIGHT);
+      act(() => result.current.setExpanded(true));
+      act(() => result.current.setExpanded(false));
+
+      expect(observe).toHaveBeenCalledTimes(1);
+      expect(storedCallback).toBeDefined();
+
+      // The observer's own callback re-runs `measure()` — a width-driven reflow, not a children
+      // change, so this is the one path the layout effect above can never reach on its own.
+      result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, FULL_TEXT_HEIGHT);
+      act(() => storedCallback!());
+      expect(result.current.overflows).toBe(true);
+
+      unmount();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

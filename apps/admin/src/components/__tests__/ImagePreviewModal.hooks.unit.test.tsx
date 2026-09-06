@@ -79,4 +79,31 @@ describe("useImagePreviewModal", () => {
     act(() => result.current.handleBackdropClick({ target: dialog } as never));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Coverage-gap-fill (2026-09-05). Every test above exercises the jsdom fallback branch only (this
+   * file's own header names that as deliberate). This polyfills `showModal`/`close` onto the
+   * attached dialog element, the real-browser shape the fallback exists to substitute for, so the
+   * "modern browser" branch itself gets exercised at least once too.
+   */
+  it("calls showModal()/close() directly, not the attribute fallback, when the browser implements them", () => {
+    const { result, rerender } = renderHook(({ open }) => useImagePreviewModal(open, vi.fn()), {
+      initialProps: { open: false },
+    });
+    const dialog = attachDialog(result);
+    const showModal = vi.fn(() => {
+      dialog.setAttribute("open", "");
+    });
+    const close = vi.fn(() => {
+      dialog.removeAttribute("open");
+    });
+    dialog.showModal = showModal;
+    dialog.close = close;
+
+    rerender({ open: true });
+    expect(showModal).toHaveBeenCalledTimes(1);
+
+    rerender({ open: false });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

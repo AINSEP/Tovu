@@ -159,3 +159,24 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
     expect(result.current.items).toBeNull();
   });
 });
+
+/**
+ * Coverage-gap-fill (2026-09-05). Every test above calls `createFakeMediaPickerPort` for its
+ * `listMedia` behavior only; `mediaOriginalUrl` had never been called on the fake.
+ */
+describe("createFakeMediaPickerPort — mediaOriginalUrl", () => {
+  it("returns a distinct fake:// URL, never the real api.mediaOriginalUrl shape", () => {
+    const port = createFakeMediaPickerPort();
+    expect(port.mediaOriginalUrl("m1")).toBe("fake://media-picker-original/m1");
+  });
+});
+
+describe("createFakeMediaPickerPort — listMedia with no options", () => {
+  it("defaults to an empty media list when called with no options at all, not just no media key", async () => {
+    // Every other call site in this file passes `{ media: [...] }` explicitly, so the `options.media
+    // ?? []` fallback (for the zero-argument call this type's own default parameter allows) had
+    // never run.
+    const port = createFakeMediaPickerPort();
+    await expect(port.listMedia()).resolves.toEqual({ media: [] });
+  });
+});

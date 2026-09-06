@@ -41,7 +41,7 @@ describe("PlaceholderTabs", () => {
     expect(screen.getByText("Stripe is coming soon.")).toBeInTheDocument();
   });
 
-  it("renders one nav entry per tab, each carrying its own label", () => {
+  it("renders one nav entry per tab as a real accessible button, each carrying its own label", () => {
     render(
       <PlaceholderTabs
         sectionId="payments"
@@ -52,11 +52,17 @@ describe("PlaceholderTabs", () => {
       />,
     );
 
+    // `getByRole` (not just the testid) — the underlying `TabbedDialog` nav item is a real
+    // `<button>` with `aria-pressed`, not decorative markup, and the active one is pressed.
+    const stripeButton = screen.getByRole("button", { name: /Stripe/ });
+    const paypalButton = screen.getByRole("button", { name: /PayPal/ });
+    expect(stripeButton).toHaveAttribute("aria-pressed", "true");
+    expect(paypalButton).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("settings-dialog-nav-stripe")).toHaveTextContent("Stripe");
     expect(screen.getByTestId("settings-dialog-nav-paypal")).toHaveTextContent("PayPal");
   });
 
-  it("switching tabs updates the title and the per-tab 'coming soon' subtitle, and renders no panel body", async () => {
+  it("switching tabs (via a real accessible button, clicked with userEvent) updates the title and the per-tab 'coming soon' subtitle, and renders no panel body", async () => {
     const user = userEvent.setup();
     render(
       <PlaceholderTabs
@@ -68,9 +74,11 @@ describe("PlaceholderTabs", () => {
       />,
     );
 
-    await user.click(screen.getByTestId("settings-dialog-nav-paypal"));
+    await user.click(screen.getByRole("button", { name: /PayPal/ }));
 
     expect(screen.getByRole("heading", { level: 2, name: "PayPal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /PayPal/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Stripe/ })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("PayPal is coming soon.")).toBeInTheDocument();
     expect(screen.queryByText("Stripe is coming soon.")).not.toBeInTheDocument();
     // `panel: null` for every tab — nothing renders in the content area below the header.

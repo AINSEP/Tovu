@@ -58,6 +58,13 @@ describe("TabBar — render", () => {
     expect(screen.getByRole("tab", { name: /Tab A/ }).querySelector(".tab-bar-count")).toHaveTextContent("3");
     expect(screen.getByRole("tab", { name: "Tab B" }).querySelector(".tab-bar-count")).not.toBeInTheDocument();
   });
+
+  it("renders an empty tablist without crashing when there are no tabs (empty-state edge case)", () => {
+    render(<TabBar tabs={[]} activeId="" onChange={vi.fn()} ariaLabel="My tabs" />);
+
+    expect(screen.getByRole("tablist", { name: "My tabs" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+  });
 });
 
 describe("TabBar — disabled tabs", () => {
