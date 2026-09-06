@@ -1117,3 +1117,56 @@ written and it is **not** claimed broken.
 **Not verified**: whether `ConfirmDialog` (external `@jini-ai/admin/react`) blocks background
 interaction in a real browser. Every fix works at hook-level reachability, the same level as the
 reference fixes — real-browser reachability was not attempted.
+
+---
+
+## A22 — hook sweep batch B complete (`72caa7f5`). 1 real bug, 2 reasoned refutations.
+
+**Scope correction: the "~28 unswept admin hooks" figure was wrong. There are 181 hook files**
+(25,798 lines); 30 carry the bug shape (8,159 lines). The 28 was a prior agent's grep-filtered subset.
+
+### FIXED — `use-external-mcp.hooks.ts`, a lost-update race (`72caa7f5`)
+`updateSource(id, patch)` reads `lastKnown.current.get(id)` as its merge base, because the server
+route (`external-mcp/put.ts`) does a **full-row replace**, not a per-field merge, for
+`command`/`args`/`allowedToolNames`/`enabled`. **Two calls for the SAME id close together** — e.g.
+toggling `enabled` while a field save is in flight, realistic on the External MCP settings tab —
+**both read the same pre-write snapshot, so whichever lands second silently reverts the first**, its
+body having been built from data that never saw the earlier change.
+
+Fix: `chainedSourceWrite`, a per-id promise chain (same idiom as `use-settings-slice.hooks.ts`'s
+`saveChain`), delaying a queued write's merge-base read until the prior write for that id has
+committed to `lastKnown`. **Different ids are NOT serialized against each other.** RED reproduced
+(second PUT body carried `enabled: true`, reverted); GREEN across 26 + 6 + 6 tests. Complexity clean
+at 9 before and after.
+
+### REFUTED — `use-other-credentials.hooks.ts`, and the refutation is the interesting part
+`writeReplace`/`writeRemove` do read-full-map-then-write-full-map via `rebuildMediaProviderMap`,
+unserialized across `itemId`s — **exactly the lost-update shape.** Refuted by reading the SERVER:
+`put-providers.ts` + `provider-credential-store.ts` send every non-target provider as `{}`, and **the
+server resolves blank-vs-value against its OWN live stored state inside the write's transaction**
+("an entry with no apiKey keeps the stored key") — never trusting the client's snapshot. So a stale
+client read cannot lose a sibling's update. **This is the "trace the call chain, don't stop at the
+cited lines" discipline working.**
+Minor nit flagged, not fixed: `remove()` never sets `saving: true` (asymmetric with `replace()`), so
+no busy indicator during removal — enables only a harmless idempotent double-fire, not corruption.
+
+### REFUTED — `use-members.hooks.ts`
+Per-id keyed `rowState` (safe by construction), but the busy guard is state-based — the shape proven
+insufficient elsewhere today. Refuted on **reachability**: `onResendSignInLink` is a `RowMenu` item
+(the menu must reopen between clicks, so no same-tick path) and `onDisable` sits behind a
+`ConfirmDialog` holding one target.
+
+### Examined and clear — reasons recorded per file
+`security/*` (incl. `use-access-tokens`, the reference generation-guard impl), `redirects/*`,
+`recovery/*`, `integrations/*` (queries keyed on id cancel stale by construction), `source-control/*`,
+`settings/*`, `forms/*` (`use-forms-list`'s shared `rowSavingId` is **documented as intentional
+single-flight**; `use-form-submissions` already has a `formIdRef` generation guard), all 8
+`collections/*`, all `ai-assistant/*`, and the root `hooks/*`.
+
+**Notable: `use-assistant-chats.hooks.ts` already carries 12 documented, fixed race conditions with
+generation refs** — this bug class was known and solved there. `use-settings-slice.hooks.ts` has the
+`saveChain`/`saveTicket`/`commits` machinery the external-mcp fix was modelled on.
+
+**All 46 `*-port.hooks.ts` / `*-dependencies.hooks.ts` in scope: grepped for
+`useState|useRef|useEffect|useReducer` — zero matches.** DI wiring and interfaces only; cannot race,
+and they never appear in lcov either. Not gaps, not risks.
