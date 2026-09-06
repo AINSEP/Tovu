@@ -883,16 +883,51 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    in the column they have always occupied (the header's right edge, and now the template select's),
    so the eye still finds them in the same place after the move.
 
-   No background, border or padding of its own: `.page`'s `gap: var(--space-6)` plus the toolbar's
-   own `margin-bottom` already leave ~36px of air above this row, which is what stops it reading as
-   a fourth group inside the toolbar strip rather than a row in its own right. */
+   SPACING (owner, 2026-09-06: "compress the space. There's way too much space above and below the
+   new set of buttons ... That's unacceptable"). The first attempt left 36px above and 24px below a
+   37px row — a ~97px band, 79% of it empty. The measurable fault was not the total, it was the
+   RATIO: 36 above and 24 below put the row nearer the canvas than the toolbar, so proximity
+   assigned it to neither and it read as a gap someone forgot to fill. Both sides are now the same
+   12px the toolbar was already tuned to sit from the canvas (2026-08-11, "very minimal space"), so
+   toolbar / actions / canvas read as one tight chrome stack in the rhythm this screen already had.
+   Band: 97px -> 61px, and 37px of what is left is the controls themselves. */
 .editor-action-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
   flex-wrap: wrap;
+  /* Cancels `.page`'s own 24px flex gap so the only air above this row is the toolbar's existing
+     0.75rem bottom margin. Same token and same idiom `styles/pages.css` uses to pull the content
+     pane up under the toolbar — one mechanism for "sit tight under the row above", not two. */
+  margin-top: calc(-1 * var(--space-6));
 }
+
+/* The status field goes to the row's LEFT end, leaving the actions on the right. Three problems,
+   one move:
+
+   1. Right-aligning everything left ~1030px of a 1300px row empty, and a bar with content at only
+      one end reads as a row someone forgot to finish rather than as a deliberate action bar.
+      Anchoring both ends is what makes the whitespace between them read as intentional.
+   2. Stacked directly under `.editor-template-picker`'s own select, 12px apart in the same column,
+      it put two unrelated dropdowns (which template renders / whether this is published) in one
+      vertical pair — the reader has to stop and tell them apart.
+   3. Draft-vs-Published is a STATE FIELD, not an action. Sharing a cluster with Save and Delete
+      grouped it with the things that commit. Left/right now splits the row the way the meaning
+      does: state on one side, actions on the other — matching the toolbar above, whose left is
+      likewise view STATE (the tabs) and whose right is configuration.
+
+   `order`, not a markup move, so this stays a stylesheet-only change and reverts as one. Focus
+   order is unaffected in the way that matters: the reordered select is the first focusable child
+   in the DOM too, so tabbing still runs left-to-right across the row exactly as it reads. */
+.editor-action-row > select { order: -1; margin-right: auto; }
+
+/* Delete is destructive and must not sit at Save's own adjacency — doubling the gap (12px -> 24px)
+   makes the row read as [state field] [commit] | [destructive] instead of four equal controls in a
+   line. Spacing alone, no new color or size: `.btn-danger` already carries the semantic weight, and
+   this row is chrome, not a place to raise the volume of the one control nobody should hit by
+   accident. */
+.editor-action-row .btn-danger { margin-left: var(--space-3); }
 
 /* Inserting a row between the toolbar and the content pane broke an assumption the pane's own
    spacing rule was built on. `styles/pages.css`'s `.page > .page-preview-frame` (and
@@ -906,12 +941,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    sat between toolbar and pane before this change) keeps the spacing it always had.
 
    `.page >` in front is not decoration — it lifts these to (0,3,0) so they beat the (0,2,0) rules
-   they override no matter which stylesheet the bundler emits first. */
+   they override no matter which stylesheet the bundler emits first.
+
+   The replacement is 12px, not the 24px this first shipped with: that is the gap the toolbar itself
+   had to the pane before this row existed, so the canvas keeps the "very minimal space" it was
+   tuned for and the action row is not left floating closer to the content than to the chrome it
+   belongs to. */
 .page > .editor-action-row + .page-preview-frame,
 .page > .editor-action-row + .page-html-source,
 .page > .editor-action-row + .interactive-html-editor,
 .page > .editor-action-row + .post-editor-pane {
-  margin-top: 0;
+  margin-top: calc(-1 * var(--space-3));
 }
 
 /* Card — content sits inside a bordered surface with real padding, the quality Settings has and
