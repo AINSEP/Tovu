@@ -1,4 +1,5 @@
 import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
@@ -101,7 +102,11 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           <p className="page-description">{t("Manage and publish every post on this site.")}</p>
         </div>
         <div className="page-actions">
-          <button onClick={createPost} disabled={creating}>
+          <button
+            onClick={createPost}
+            disabled={creating}
+            {...agentHandle("posts-new", { role: "button", label: "Create a new post" })}
+          >
             {creating ? t("Creating…") : t("New Post")}
           </button>
         </div>
@@ -129,14 +134,26 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
             // domain-specific comparator and label wording stay here (`rules.ts`).
             sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel("Title", direction) },
-            cell: (post) => <a href={`/admin/posts/${post.slug}`}>{post.title}</a>,
+            cell: (post) => (
+              <a
+                href={`/admin/posts/${post.slug}`}
+                {...agentHandle(`${rowMenuHandleById.get(post.id)}-edit`, { role: "link", label: "Open this post's editor" })}
+              >
+                {post.title}
+              </a>
+            ),
           },
           {
             key: "slug",
             header: "Slug",
             sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel("Slug", direction) },
             cell: (post) => (
-              <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
+              <a
+                href={siteUrl(`/${post.slug}`)}
+                target="_blank"
+                rel="noreferrer"
+                {...agentHandle(`${rowMenuHandleById.get(post.id)}-view-live`, { role: "link", label: "Open this post on the live public site" })}
+              >
                 /{post.slug}
               </a>
             ),
@@ -178,6 +195,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
       />
       <ConfirmDialog
         open={pendingDelete !== null}
+        agentHandle="posts-delete"
         title={t("Move to trash?")}
         body={
           pendingDelete ? (
