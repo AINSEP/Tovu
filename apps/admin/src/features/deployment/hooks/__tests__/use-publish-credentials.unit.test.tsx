@@ -64,6 +64,80 @@ describe("usePublishCredentials — initial load", () => {
   });
 });
 
+/**
+ * `credentials` (the raw state `rows` is derived from) is `undefined` only in the window before the
+ * initial `listCredentials()` read resolves — every setter afterward keeps it a real array forever.
+ * `save`/`verify`/`credentialsForProvider` all read it through a `credentials ?? []` fallback rather
+ * than an explicit "not loaded yet" guard, so calling one in that window is a real, reachable path
+ * (not merely a defensive one) that treats the not-yet-loaded state as "nothing saved yet".
+ */
+describe("usePublishCredentials — called before the initial load resolves", () => {
+  it("save() proceeds as a create (credentials ?? [] finds nothing 'existing' to update)", async () => {
+    const created: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, providerId: "vercel", id: "cred-new" };
+    let sentInput: { label?: string; connection?: unknown } | undefined;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => new Promise(() => {}), // never resolves
+      createCredential: (input) => {
+        sentInput = input;
+        return Promise.resolve(created);
+      },
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    expect(result.current.rows).toBeUndefined();
+
+    act(() => result.current.setToken("vercel", "vc_abc"));
+    await act(async () => {
+      await result.current.save("vercel");
+    });
+
+    expect(sentInput).toEqual({ label: "default", connection: { providerId: "vercel", token: "vc_abc" } });
+  });
+
+  it("verify() is a no-op (credentials ?? [] finds no 'connected' row to verify)", async () => {
+    const verifyCredential = vi.fn();
+    const port = createFakePublishCredentialsPort({ listCredentials: () => new Promise(() => {}), verifyCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+
+    await act(async () => {
+      await result.current.verify("vercel");
+    });
+    expect(verifyCredential).not.toHaveBeenCalled();
+  });
+
+  it("credentialsForProvider returns [] rather than throwing", () => {
+    const port = createFakePublishCredentialsPort({ listCredentials: () => new Promise(() => {}) });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+
+    expect(result.current.credentialsForProvider("vercel")).toEqual([]);
+  });
+
+  it("selectCredential proceeds (credentials ?? [] finds no current default to already match)", async () => {
+    const promoted: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, isDefault: true };
+    let sentId: string | undefined;
+    let listCalls = 0;
+    const port = createFakePublishCredentialsPort({
+      // Call 1 is the bootstrap read (must stay pending so `credentials` state is still undefined
+      // when selectCredential runs); call 2 is selectCredential's own direct re-fetch afterward.
+      listCredentials: () => {
+        listCalls += 1;
+        if (listCalls === 1) return new Promise(() => {});
+        return Promise.resolve({ credentials: [promoted], executionMode: "self-hosted-cli" as const });
+      },
+      updateCredential: (id) => {
+        sentId = id;
+        return Promise.resolve(promoted);
+      },
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    expect(result.current.rows).toBeUndefined();
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-1");
+    });
+    expect(sentId).toBe("cred-1");
+  });
+});
+
 describe("usePublishCredentials — row shape", () => {
   it("a provider with no saved connection shows saved: undefined and blank draft fields", async () => {
     const port = createFakePublishCredentialsPort();
@@ -255,6 +329,25 @@ describe("usePublishCredentials — save, provider already connected (update)", 
     expect(updateCredential).not.toHaveBeenCalled();
   });
 
+  it("updating the default credential never touches a SIBLING credential for the same provider", async () => {
+    const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+    const updated: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, updatedAt: "2026-08-15T12:00:00.000Z" };
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      updateCredential: () => Promise.resolve(updated),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("github-pages", "new-token"));
+    await act(async () => {
+      await result.current.save("github-pages"); // updates the DEFAULT (cred-1), not the backup
+    });
+
+    expect(result.current.credentialsForProvider("github-pages").find((c) => c.id === "cred-1")).toEqual(updated);
+    expect(result.current.credentialsForProvider("github-pages").find((c) => c.id === "cred-2")).toEqual(backup);
+  });
+
   it("preserves the row's own existing label — the replaced connection is sent without a label field at all", async () => {
     const renamedRow: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, label: "some legacy label" };
     let sentInput: { label?: string } | undefined;
@@ -346,6 +439,26 @@ describe("usePublishCredentials — selectCredential (the Static Site token-pick
     });
     expect(updateCredential).not.toHaveBeenCalled();
   });
+
+  it("proceeds when the provider has no default credential at all yet — 'already selected' can't be true of nothing", async () => {
+    const promoted: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, isDefault: true };
+    let sentId: string | undefined;
+    const port = createFakePublishCredentialsPort({
+      // Nothing saved for github-pages at all — `defaultCredentialForProvider` finds no current row.
+      listCredentials: () => Promise.resolve({ credentials: [], executionMode: "self-hosted-cli" }),
+      updateCredential: (id) => {
+        sentId = id;
+        return Promise.resolve(promoted);
+      },
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-1");
+    });
+    expect(sentId).toBe("cred-1");
+  });
 });
 
 describe("usePublishCredentials — verify (the 'hit verify on the token' button the assistant's own guidance assumed existed)", () => {
@@ -390,6 +503,24 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
     expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.saved?.accountLabel).toBe("leonaburime-ucla");
   });
 
+  it("healing the verified credential's accountLabel never touches a SIBLING credential for the same provider", async () => {
+    const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      verifyCredential: () =>
+        Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("github-pages"); // verifies the DEFAULT (cred-1), not the backup
+    });
+
+    expect(result.current.credentialsForProvider("github-pages").find((c) => c.id === "cred-1")!.accountLabel).toBe("leonaburime-ucla");
+    expect(result.current.credentialsForProvider("github-pages").find((c) => c.id === "cred-2")).toEqual(backup);
+  });
+
   it("a result with NO accountLabel leaves whatever the row already had alone — only a truthy finding heals forward", async () => {
     const alreadyLabeled: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, accountLabel: "leonaburime-ucla" };
     const port = createFakePublishCredentialsPort({
@@ -416,6 +547,15 @@ describe("usePublishCredentials — verify (the 'hit verify on the token' button
       await result.current.verify("vercel");
     });
     expect(verifyCredential).not.toHaveBeenCalled();
+    // Without the early `if (!connected) return`, execution would still reach `connected.id` on
+    // `undefined` — a TypeError caught by the surrounding try/catch, which would ALSO leave
+    // verifyCredential uncalled, silently masking a missing guard. Assert the row itself stays
+    // completely untouched (in particular no translated verifyError from that caught crash) so a
+    // removed guard is distinguishable from a present one.
+    const row = result.current.rows!.find((r) => r.providerId === "vercel")!;
+    expect(row.verifying).toBe(false);
+    expect(row.verifyError).toBeNull();
+    expect(row.verification).toBeUndefined();
   });
 
   it("a rejected verify surfaces a translated, per-row verifyError and leaves any prior verification result alone", async () => {
@@ -496,6 +636,22 @@ describe("usePublishCredentials — save, error handling", () => {
 
     const row = result.current.rows!.find((r) => r.providerId === "vercel")!;
     expect(row.error).toBe("This connection was already saved — reload the page and try again.");
+  });
+
+  it("a VALIDATION rejection surfaces the server's own detail through the save-error template", async () => {
+    const port = createFakePublishCredentialsPort({
+      createCredential: () => Promise.reject(new ApiError("VALIDATION", 400, undefined, { detail: "owner is required" })),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setToken("vercel", "vc_abc"));
+    await act(async () => {
+      await result.current.save("vercel");
+    });
+
+    const row = result.current.rows!.find((r) => r.providerId === "vercel")!;
+    expect(row.error).toBe("Could not save this token (owner is required).");
   });
 
   it("an error on one provider's row never touches another provider's row", async () => {
