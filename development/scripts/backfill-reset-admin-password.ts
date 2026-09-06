@@ -147,7 +147,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (!args.password) {
+  // Rejected, not trimmed: trailing/leading whitespace can be a deliberate part of a real password,
+  // so silently trimming it would change what the operator asked to set without telling them. A
+  // password that is ENTIRELY whitespace has no legitimate reading, though — `--password="   "` is
+  // truthy and would otherwise pass straight through and get hashed as the literal new password
+  // (indistinguishable from a copy-paste/blank-secret accident until the next login attempt fails).
+  if (!args.password || args.password.trim().length === 0) {
     console.error(
       "Refusing to --apply with no new password: set TOVU_ADMIN_RESET_PASSWORD or pass --password=<new-password>."
     );

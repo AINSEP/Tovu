@@ -10,7 +10,7 @@ import { login, AuthInvalidCredentialsError, type AuthServiceDeps, type Identity
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { workspaces } from "../../../apps/website/src/platform/db/schema.js";
-import { createSqliteIdentityRouteDeps } from "../../../apps/website/src/features/identity/wiring.js";
+import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_PASSWORD } from "../../../apps/website/src/features/identity/wiring.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
@@ -112,6 +112,57 @@ test("backfill-reset-admin-password: dry run reports the target user and writes 
     assert.match(output, /Refusing to --apply with no new password/);
   }
   assert.equal(threw, true, "the process must exit non-zero rather than apply with no password");
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: --apply with a whitespace-only password refuses to write, instead of hashing the literal whitespace as the new password", async () => {
+  const scratch = tmpDir("backfill-reset-admin-password-blankpw-");
+  const dbPath = path.join(scratch, "content.db");
+  await seedWorkspaceAndIdentity(dbPath);
+
+  // The defect this guards: `--password="   "` (or TOVU_ADMIN_RESET_PASSWORD="   ") is truthy, so
+  // it passed the old `!args.password` guard unchanged and got hashed as the literal new password —
+  // a copy-paste/blank-secret accident that "succeeds" silently, discovered only on the next login
+  // attempt. Deliberately NOT trimmed instead: trailing/leading whitespace can be a meaningful part
+  // of a real password, so a non-blank password with incidental whitespace must pass through as-is.
+  let threw = false;
+  let stderr = "";
+  try {
+    runScript(dbPath, ["--apply"], { TOVU_ADMIN_RESET_PASSWORD: "   " });
+  } catch (err) {
+    threw = true;
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(threw, true, "the process must exit non-zero rather than apply a whitespace-only password");
+  assert.match(stderr, /Refusing to --apply with no new password/);
+
+  // THE MANDATORY PROOF: assert on real state, not just the log line — the seed-default password
+  // must still authenticate, confirming nothing was actually written.
+  const db = openContentDb(dbPath);
+  const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  await identity.identityReady;
+  const repos: IdentityRepos = {
+    principals: identity.principalRepo,
+    users: identity.userRepo,
+    sessions: identity.sessionRepo,
+    roles: identity.roleRepo,
+    policies: identity.policyRepo,
+    policyPermissions: identity.policyPermissionRepo,
+    rolePolicies: identity.rolePolicyRepo,
+    principalRoles: identity.principalRoleRepo,
+    principalPolicies: identity.principalPolicyRepo,
+  };
+  const auth: AuthServiceDeps = { repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+  // Not hardcoded "tovu-dev": `createSqliteIdentityRouteDeps` seeds with
+  // `process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD` (`wiring.ts`), and this ambient
+  // override IS set in some environments (see the repo's own test-running notes on this exact env
+  // var) — asserting the literal default here would falsely pass or fail depending on the
+  // environment this test happens to run in, independent of whether the refusal actually worked.
+  const seedPassword = process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD;
+  const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } });
+  assert.ok(principal.id, "the seed-default password must still authenticate — the refused apply must not have written anything");
+  db.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });
