@@ -1,0 +1,186 @@
+/* --- /admin/seo: sections OF the page, not boxes ON the page -----------------
+ *
+ * Owner report, 2026-09-06, looking at `/admin/seo`: "for seo can you take the stuff out of the
+ * cards?"
+ *
+ * Measured live at 1440 before changing anything (`getBoundingClientRect` over `.page .card`, not
+ * read off the rules). What she is looking at:
+ *
+ *   - Site defaults — ONE `.card`, 1300 x 770, holding the entire seven-field form.
+ *   - Sitemap      — ONE `.card`, 1300 x 190, holding a heading, two sentences and two buttons.
+ *     A 247,000px^2 bordered rectangle around four short lines on an otherwise empty page is the
+ *     clearest statement of the problem: the frame is the largest thing on the screen and it is
+ *     drawing attention to nothing.
+ *
+ * `.card` earns its border on a screen that shows SEVERAL cards — the frame is what says "these
+ * are separate objects, and there are three of them" (`Deployment.tsx`'s Overview tab, Workspace's
+ * danger zone). Every panel on this screen is a lone child of its tab. A border around the only
+ * thing in a region separates it from nothing; all it does is inset the content 24px from a page
+ * edge it is already inset from, and add a second rectangle inside the tab strip's.
+ *
+ * THE GROUPING DOES NOT COME FROM THE CARD, and this is the load-bearing observation. All three
+ * field groups — Search appearance / Social sharing / Crawling, added an hour ago in `56e87ae0` —
+ * live INSIDE the one card. The card wraps all of them together; it has never distinguished one
+ * from another. What separated them was `.card-title` headings and `.field-group + .field-group`'s
+ * 20px. So deleting the frame removes no grouping information whatsoever — but 20px between a
+ * heading and the group above it is thin, and with the frame gone that thinness is what would read
+ * as an undifferentiated wall of fields. The grouping is therefore not merely preserved here, it
+ * is made louder than the card ever made it:
+ *
+ *   1. A HEADING RAIL. Each group is a two-column `<section>` — its title in a fixed left column,
+ *      its controls in the right. The titles line up in their own vertical column down the page,
+ *      which is a stronger scan structure than headings inline above their fields, because the eye
+ *      can read the group names as a list without parsing the form. This is the settings-page
+ *      idiom (`interface-design`: reuse a recognizable pattern set rather than invent one), and it
+ *      is what replaces the box.
+ *   2. A HAIRLINE between sections instead of a border around everything. One 1px rule per seam
+ *      rather than four sides per group: the lightest mark that still says "new section".
+ *   3. A 32px band above and below each section against 16px between fields inside one — a 2:1
+ *      ratio, so proximity alone groups the fields even with the rule ignored
+ *      (`kole-jain`: whitespace groups related elements and separates unrelated ones).
+ *
+ * The rail also fixes something the card was hiding: inside it, every input was 1258px wide. A
+ * single-line text field a metre long is not a design decision anyone made, it is what `width:
+ * 100%` does in a 1300px container. `--seo-measure` caps the control column at 42rem, so the
+ * fields now have a deliberate measure and the rail's left column is paid for out of space that
+ * was empty anyway.
+ *
+ * Feature-scoped file, `.seo-*` classes only, imported from `main.tsx` alongside the other
+ * per-screen sheets. Nothing here can reach a screen outside `/admin/seo`, and `styles.css` is
+ * untouched — including the one legacy rule this has to defeat (`.seo-entry-section`'s
+ * `margin-top`, neutralized below at higher specificity rather than edited in place).
+ */
+
+.seo-panel {
+  /* Both the section grid and the un-railed action row measure off these, so the fields and the
+     Save button under them cannot drift apart. */
+  --seo-rail: 14rem;
+  --seo-gutter: var(--space-8);
+  --seo-measure: 42rem;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* `.seo-entry-section`'s `margin-top: 1.6rem` (styles.css L2613) predates `.page`'s own
+   `gap: var(--space-6)` and now stacks on top of it — measured 25.6px + 24px = ~50px of dead air
+   between the tab strip and the first heading on the Pages & posts tab, against 24px on the other
+   two. Neutralized here at (0,2,0) rather than edited there: `styles.css` is contended, and the
+   rule may still be load-bearing for a caller this dispatch has not audited. */
+.seo-panel.seo-entry-section {
+  margin-top: 0;
+}
+
+/* One field group. Grid rather than flex because the two columns must share a baseline row per
+   section — a heading and its controls, not a heading floated beside them. */
+.seo-section {
+  display: grid;
+  grid-template-columns: minmax(0, var(--seo-rail)) minmax(0, 1fr);
+  gap: var(--space-3) var(--seo-gutter);
+  align-items: start;
+  padding-block: var(--space-7);
+}
+
+/* The panel's own top edge is already spaced by `.page`'s gap below the tab strip; a second 32px
+   band there would push the first heading a third of a screen down. */
+.seo-section:first-child {
+  padding-block-start: 0;
+}
+
+.seo-section + .seo-section {
+  border-top: 1px solid var(--border);
+}
+
+.seo-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Same family as `.card-title` (`--font-display`, 700, -0.005em) so a section title on this screen
+   and a card title on the next read as the same tier, one step quieter: 1.05rem against 1.15rem,
+   because a title in its own column carries more weight from position than one inline above the
+   fields it names, and matching the card size made it compete with the 26.4px page title. */
+.seo-section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+  color: var(--fg);
+  text-wrap: balance;
+}
+
+.seo-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--seo-measure);
+  min-width: 0;
+}
+
+/* The gap above is the ONLY vertical rhythm in this column. A prose `<p>` still carries the app's
+   own paragraph margin, which stacks on top of it — measured on the Sitemap tab: 55px between the
+   state line and the sentence under it, against the 16px every other pair of children in this
+   column gets. `.card-lead` already zeroes its own; this does the same for the plain ones. */
+.seo-section-body > p {
+  margin: 0;
+}
+
+/* The submit row is not a section — it has no title and takes no rule of its own above the seam,
+   so it gets the seam and then aligns its buttons to the control column. Indenting it is the
+   point: a Save button flush to the page's left edge reads as belonging to the page, not to the
+   form whose fields all start 256px in. */
+.seo-actions {
+  border-top: 1px solid var(--border);
+  padding-block-start: var(--space-6);
+  padding-inline-start: calc(var(--seo-rail) + var(--seo-gutter));
+}
+
+/* Per-entry drill-down (Pages & posts): the panel that opens under the entry picker. It was a
+   `.notice` — `--surface` fill, `--border-strong` hairline, `--shadow-sm` — which is the same
+   "boxed" complaint one tab over, and worse there: `.notice` is this admin's ERROR/INFO banner
+   surface, so an eleven-field editing form was wearing the styling of a message. Its own save
+   confirmations and errors, which are real notices, keep it and now stand out inside the form
+   instead of blending into an identically-boxed parent. */
+.seo-entry-panel {
+  border-top: 1px solid var(--border);
+  padding-block-start: var(--space-6);
+}
+
+/* `.seo-entry-panel label` (styles.css L2615) is `flex-direction: column` for the eight text
+   fields it was written for, and the two checkbox rows inherit it — measured live: the box sits
+   ABOVE its own word, "Noindex" on the line below the control it labels. Invisible enough inside
+   a box; with the box gone it is the most obviously broken thing on the tab. Scoped by `:has()`
+   to labels that actually wrap a checkbox (the idiom `styles.css` already uses in three places),
+   so the text fields keep their stacked layout. */
+.seo-entry-panel label:has(> input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The analysis readout under the same form. Also formerly a `.notice`, and the one place on this
+   screen where losing the frame genuinely costs something: it is a RESULT, not more form, and
+   nothing but position said so. The seam plus its own heading carries that now — the same two
+   devices the sections above use, so it does not become a third kind of separator. */
+.seo-analyze-panel {
+  border-top: 1px solid var(--border);
+  padding-block-start: var(--space-5);
+}
+
+/* Below ~960px the rail's 224px + 32px gutter leaves the control column narrower than the fields
+   need, so the section stacks: title above its group, seam and spacing unchanged. The action row
+   loses its indent at the same breakpoint or it would hang off a form whose fields start at 0. */
+@media (max-width: 60rem) {
+  .seo-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .seo-actions {
+    padding-inline-start: 0;
+  }
+}

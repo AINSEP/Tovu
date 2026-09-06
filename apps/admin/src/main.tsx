@@ -12,6 +12,7 @@ import "./styles/media.css";
 import "./styles/source-control.css";
 import "./styles/access-tokens.css";
 import "./styles/settings.css";
+import "./styles/seo.css";
 
 // `@jini-ai/ui`'s `RemixIcon` component loads its default webfont/CSS itself, but it does so via
 // `new URL('./remixicon.css', import.meta.url)` + a runtime `<link>` injection rather than a

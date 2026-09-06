@@ -239,7 +239,7 @@ describe("Seo — loading and error states", () => {
     expect(screen.getByText("failed to save SEO settings")).toBeInTheDocument();
     // The <form> has no accessible name, so it carries no implicit ARIA "form" role — assert its
     // presence structurally instead.
-    expect(document.querySelector("form.card")).toBeInTheDocument();
+    expect(document.querySelector("form.seo-panel")).toBeInTheDocument();
   });
 
   it("shows the notice banner on success", () => {
@@ -265,13 +265,13 @@ describe("Seo — tabs", () => {
   it("falls back to Site defaults for an unrecognized ?tab= rather than rendering a blank panel", () => {
     renderSeo({}, "not-a-real-tab");
     expect(screen.getByRole("tab", { name: /Site defaults/ })).toHaveAttribute("aria-selected", "true");
-    expect(document.querySelector("form.card")).toBeInTheDocument();
+    expect(document.querySelector("form.seo-panel")).toBeInTheDocument();
   });
 
   it("mounts ONLY the active tab's panel — an inactive panel is absent from the DOM, not hidden", () => {
     renderSeo();
     // Site defaults is up: its form is present, and neither other panel's content exists at all.
-    expect(document.querySelector("form.card")).toBeInTheDocument();
+    expect(document.querySelector("form.seo-panel")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Regenerate sitemap" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Entry" })).not.toBeInTheDocument();
   });
@@ -281,7 +281,7 @@ describe("Seo — tabs", () => {
     // three tabs: `SeoDefaultsTab` reads `new FormData(e.currentTarget)` on submit, and an input on
     // an unmounted panel would simply be absent from that payload. Pins all seven names together.
     renderSeo();
-    const form = document.querySelector("form.card") as HTMLFormElement;
+    const form = document.querySelector("form.seo-panel") as HTMLFormElement;
     const names = [...form.querySelectorAll("input[name], textarea[name], select[name]")].map((el) => el.getAttribute("name"));
     expect(names).toEqual([
       "titleTemplate",

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { agentHandle } from "@jini-ai/agentic";
 
 import { TabBar } from "../../components/TabBar";
@@ -64,6 +66,40 @@ import type { SeoEntryAnalysis, SeoSettings } from "../../lib/api";
  * ESLint gate scores functions independently of which file they sit in, so the ceiling is
  * satisfied either way — only the organizational preference differs, and the debt key decides it.
  */
+
+export interface SeoSectionProps {
+  title: string;
+  children: ReactNode;
+}
+
+/**
+ * One titled group on this screen — title in the left rail, controls in the right column. Markup
+ * only; every visual decision and the reasoning for the rail lives in `styles/seo.css`'s header.
+ *
+ * This is the 1:1 replacement for the `<div className="field-group"><h2 className="card-title">`
+ * pair `56e87ae0` introduced, and the swap is deliberately structure-preserving: the section body
+ * carries `.field-group`'s exact `flex-column` + `--space-4` gap, so the fields inside are laid
+ * out identically and NOTHING becomes conditional. That matters more here than anywhere else in
+ * this file — `SeoDefaultsTab` submits via `new FormData(e.currentTarget)`, so a field that stops
+ * being mounted is simply absent from the payload and silently saves as blank. A wrapper element
+ * cannot unmount anything, and `Seo.unit.test.tsx`'s "keeps every defaults field inside ONE form"
+ * pins all seven names, in order, against exactly that.
+ *
+ * Fixed `<h2>` rather than a `level` prop: both callers are top-level groups under the page `H1`,
+ * and the one heading on this screen that is genuinely subordinate — `SeoEntryPanel`'s "Per-entry
+ * overrides", which sits INSIDE the "Per-entry SEO" section — keeps its own `<h3>` and is not
+ * routed through here.
+ */
+function SeoSection({ title, children }: SeoSectionProps) {
+  return (
+    <section className="seo-section">
+      <div className="seo-section-head">
+        <h2 className="seo-section-title">{title}</h2>
+      </div>
+      <div className="seo-section-body">{children}</div>
+    </section>
+  );
+}
 
 export interface EntryPickerProps {
   locale: string;
@@ -328,7 +364,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
 
   return (
     <form
-      className="card"
+      className="seo-panel"
       {...agentHandle("seo-defaults-form", {
         role: "form",
         label: "Site-wide SEO defaults — title template, meta description, social image, robots",
@@ -338,8 +374,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
         save(buildSeoSettingsPatch(new FormData(e.currentTarget)));
       }}
     >
-      <div className="field-group">
-        <h2 className="card-title">{t(locale, "Search appearance")}</h2>
+      <SeoSection title={t(locale, "Search appearance")}>
         <div className="field">
           <label className="field-label" htmlFor="seo-title-template">
             {t(locale, "Title template (must contain %s)")}
@@ -368,15 +403,14 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             })}
           />
         </div>
-      </div>
+      </SeoSection>
 
       {/* Its own group, not a tail on "Search appearance". These two fields are what a link to this
           site looks like when it is PASTED somewhere — a different question from what a search
           result looks like, and the split every SEO tool an operator has already used makes. The
           form previously ran all four together in one unlabelled `.field-group`, so the OG image
           read as a search-result setting. */}
-      <div className="field-group">
-        <h2 className="card-title">{t(locale, "Social sharing")}</h2>
+      <SeoSection title={t(locale, "Social sharing")}>
         <MediaRefField
           locale={locale}
           id="seo-default-og-image"
@@ -400,10 +434,9 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
             })}
           />
         </div>
-      </div>
+      </SeoSection>
 
-      <div className="field-group">
-        <h2 className="card-title">{t(locale, "Crawling")}</h2>
+      <SeoSection title={t(locale, "Crawling")}>
         <label className="form-checkbox-field">
           <input
             type="checkbox"
@@ -440,9 +473,9 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
           />
           {t(locale, "Sitemap enabled")}
         </label>
-      </div>
+      </SeoSection>
 
-      <div className="editor-actions form-actions">
+      <div className="editor-actions form-actions seo-actions">
         <button
           type="submit"
           disabled={saving}
@@ -480,39 +513,40 @@ function SeoSitemapTab({ controller }: { controller: SeoTabController }) {
 
   return (
     <div
-      className="card"
+      className="seo-panel"
       {...agentHandle("seo-sitemap", {
         role: "region",
         label: "Sitemap — force a rebuild of the cached sitemap",
       })}
     >
-      <h2 className="card-title">{t(locale, "Cached sitemap")}</h2>
-      <p className="card-lead">{sitemapStateLabel(locale, settings.sitemapEnabled)}</p>
-      <p>{t(locale, "Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.")}</p>
-      <span className="editor-actions">
-        <button
-          className="btn-secondary"
-          disabled={saving}
-          onClick={regenerateSitemap}
-          {...agentHandle("seo-regenerate-sitemap", {
-            role: "button",
-            label: "Rebuild the cached sitemap now, bypassing the cache",
-          })}
-        >
-          {actionLabel(saving, t(locale, "Working…"), t(locale, "Regenerate sitemap"))}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={openSitemapModal}
-          {...agentHandle("seo-view-sitemap", {
-            role: "button",
-            label: "Open a modal showing the sitemap's URLs, or its raw XML",
-          })}
-        >
-          {t(locale, "View sitemap")}
-        </button>
-      </span>
+      <SeoSection title={t(locale, "Cached sitemap")}>
+        <p className="card-lead">{sitemapStateLabel(locale, settings.sitemapEnabled)}</p>
+        <p>{t(locale, "Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.")}</p>
+        <span className="editor-actions">
+          <button
+            className="btn-secondary"
+            disabled={saving}
+            onClick={regenerateSitemap}
+            {...agentHandle("seo-regenerate-sitemap", {
+              role: "button",
+              label: "Rebuild the cached sitemap now, bypassing the cache",
+            })}
+          >
+            {actionLabel(saving, t(locale, "Working…"), t(locale, "Regenerate sitemap"))}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={openSitemapModal}
+            {...agentHandle("seo-view-sitemap", {
+              role: "button",
+              label: "Open a modal showing the sitemap's URLs, or its raw XML",
+            })}
+          >
+            {t(locale, "View sitemap")}
+          </button>
+        </span>
+      </SeoSection>
     </div>
   );
 }
