@@ -57,6 +57,7 @@
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 
 import express from "express";
 
@@ -142,6 +143,7 @@ import {
   buildAssistantToolRegistrations,
 } from "#src/assistant/agent-daemon-port";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -363,11 +365,44 @@ const surfaceExchanges = createSurfaceExchangeStore();
 installFirstPartyToolContributors();
 
 const registry = createToolRegistry();
-for (const registration of buildAssistantToolRegistrations(
+// Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
+// to the already-built `media_upload_asset` registration — see `promote-chat-attachment.ts`'s own
+// header for why reusing that handler, rather than re-implementing its gate, is the whole design.
+const assistantRegistrations = buildAssistantToolRegistrations(
   { ...routeDeps, magicLinkPerEmailLimiter },
   { surfaceExchanges },
-)) {
+);
+for (const registration of assistantRegistrations) {
   registry.register(registration);
+}
+
+/**
+ * `media_promote_chat_attachment` — the chat-attachment -> media-library bridge (see
+ * `promote-chat-attachment.ts`'s own header for the full design/authorization rationale). Registered
+ * directly here, alongside `frontendControl.toolRegistrations` below, rather than through the generic
+ * per-workspace tool-contribution registry: both are daemon-only capabilities with no meaning in a
+ * process that does not also run this file's `attachmentStore`/frontend-binding state.
+ *
+ * Silently skipped (not thrown) when `media_upload_asset` is somehow unwired: this bridge is strictly
+ * additive to that tool and must never be the reason the whole daemon fails to boot.
+ */
+const mediaUploadAssetRegistration = assistantRegistrations.find(
+  (registration) => registration.descriptor.id === "media_upload_asset",
+);
+if (mediaUploadAssetRegistration) {
+  registry.register(
+    buildPromoteChatAttachmentTool({
+      // A thunk, not `attachmentStore` itself: this line runs before `start()` assigns it (see that
+      // binding's own doc) — the closure must read the CURRENT value at call time, not now.
+      getStore: () => attachmentStore,
+      mediaUploadHandler: mediaUploadAssetRegistration.handler,
+      readFile,
+    }),
+  );
+} else {
+  console.error(
+    `[agent-daemon] '${MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID}' not registered: 'media_upload_asset' is not wired`,
+  );
 }
 
 /**

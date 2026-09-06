@@ -58,6 +58,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   media_trash_asset: "image images photo delete remove trash file picture attachment",
   media_update_metadata: "image alt text caption description rename file photo metadata",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
+  media_promote_chat_attachment: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
 
   // --- webhooks (formerly integrations) -----------------------------------------------------
   webhooks_list_subscriptions: "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
