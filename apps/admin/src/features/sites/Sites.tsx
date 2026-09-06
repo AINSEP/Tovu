@@ -3,10 +3,12 @@ import { agentHandle } from "@jini-ai/agentic";
 import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { navigate } from "../../lib/router";
+import { TabBar } from "../../components/TabBar";
 import { AllSitesTab } from "./AllSitesTab";
 import { CreateSiteOnboarding } from "./CreateSiteOnboarding";
-import { resolveSitesHeading, resolveSitesViewId, type SitesViewId } from "./Sites.hooks";
+import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.hooks";
 import type { ActivationOutlook } from "./rules";
+import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
@@ -15,25 +17,36 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * redesign 2026-09-05) — the `/admin/sites` route. List the site folders under `sites/`, create one,
  * and choose which one this server serves NEXT.
  *
- * ## Layout: a list view and a create view, ported from Tovu Runner
+ * ## Layout: two tabs — "All sites" and "New site"
  *
- * An earlier pass put the create form in the site grid as a dashed tile — a whole form (label,
- * description, input, hint, button) stuffed into one grid cell, sitting alone next to no site cards
- * on the only install that exists. The owner's verdict was "This is just awful". A second pass made
- * it a tab; that was also wrong. The owner then pointed at Tovu Runner, which already has the shape
- * she wants, and directed that it be ported (overriding the standing decision not to port Runner's
- * renderer — that decision still holds for the rest of it; this screen and the grid are the named
- * exceptions).
+ * {@link SitesProcessNotices}, then a real `TabBar`, then one of {@link AllSitesTab} /
+ * `CreateSiteOnboarding`. The create form lives INSIDE the second tab; there is no separate page
+ * and no header button.
  *
- * Runner's shape, and now this one: a `+ New site` button in the page HEADER
- * (Runner's `MainHeader`, whose own button renders only on the project list) leading to a full-page
- * create screen with its own `← All sites` back link, whose title replaces the page title while it
- * is open. So: {@link SitesProcessNotices}, then either {@link AllSitesTab} or
- * `CreateSiteOnboarding`.
+ * Getting here took three passes, and the two wrong ones are worth naming because the same mistake
+ * is easy to make again:
  *
- * `?tab=` deep-linking keeps the query key every other tabbed admin screen uses (ADR-063's shared
- * guard) even though this screen renders views rather than tabs — see `resolveSitesViewId`'s own
- * doc for why a second spelling would be worse than a slightly loose name.
+ * 1. The create form was a dashed tile in the site grid — a whole form stuffed into one grid cell.
+ *    Owner's verdict: "This is just awful."
+ * 2. Her replacement was a tab system, stated in words: *"the first tab is all sites. Second tab is
+ *    create new."* It was built that way (`92731735`).
+ * 3. Screenshots of Tovu Runner — where "Create website" is a header button leading to a full page
+ *    — were then relayed as a correction, and that override deleted the tab bar she had asked for
+ *    (`554f6183`). Her response: *"What I wanted was a tab system. I specifically told you a tab
+ *    system … It shouldn't go to another page. It makes no sense to have a `?tab=...` that's
+ *    another page and then delete the tab I specifically asked you to create in the first place."*
+ *
+ * **A reference screenshot is not an instruction. When a reference conflicts with what the owner
+ * stated in words, the words win — or you ask.** What survived from pass 3 is the part she liked:
+ * the onboarding form's own content (its sections and the three database options) is unchanged,
+ * just rendered inside the tab instead of on a page of its own.
+ *
+ * A successful create returns to "All sites" with the new site's card showing — her requirement,
+ * wired through `useReturnToSiteListOnCreate` (`hooks/use-created-site-return.hooks.ts`), and the
+ * confirmation line moved with it, onto the tab where the new card actually is.
+ *
+ * `?tab=all|new` deep-linking runs through the shared `resolveActiveTabId` guard (ADR-063), the
+ * same convention Deployment/Database/Themes use.
  *
  * ## The "Now serving" panel is gone (2026-09-05)
  *
@@ -51,8 +64,9 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  *
  * What stayed page-level is what is genuinely page-level: {@link SitesProcessNotices} — the
  * `TOVU_SITE_DIR` override and any pending choice — plus the write-error banner and the
- * switching-disabled notice. All four render on BOTH views, because Create is the exact moment an
- * operator is most likely to believe a switch has happened.
+ * switching-disabled notice. All four sit ABOVE the tab bar and render on BOTH tabs, because
+ * Create is the exact moment an operator is most likely to believe a switch has happened, and a
+ * bookmarked `?tab=new` must not be a page that hides why Create is inert.
  *
  * ## What was NOT ported: Runner's per-project tab strip
  *
@@ -89,7 +103,7 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  *    entirely. `activationOutlook` (`rules.ts`) reports that case separately and the copy says the
  *    restart will NOT pick the choice up.
  * 4. **A database picker could promise a backend that does not exist.** Site creation is SQLite and
- *    only SQLite today, while Runner's ported picker offers three backends; the create screen shows
+ *    only SQLite today, while Runner's ported picker offers three backends; the New site tab shows
  *    all three without being able to act on two of them. See `CreateSiteOnboarding.tsx`'s own
  *    header — that guarantee is structural, and it is the same class of honesty the three points
  *    above are.
@@ -190,7 +204,8 @@ function OutlookBadge({ outlook, t }: { outlook: ActivationOutlook; t: Translate
  *
  *  These outlived the "Now serving" panel that used to house them. They are page-level facts — they
  *  describe this server's own environment and its `.env`, not a row — so they sit above the grid
- *  rather than on a card, and they render on the create view too: Create is the moment an operator
+ *  rather than on a card, and they render above the tab bar so the New site tab keeps them too:
+ *  Create is the moment an operator
  *  is most likely to assume a switch has happened. Renders nothing at all when there is nothing to
  *  say, so the caller has no conditional of its own and the grid moves up.
  *
@@ -261,97 +276,64 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
   return override ?? useWiredSites;
 }
 
-/** Dispatches the active view as a flat if-chain — a plain function rather than a ternary written
- *  directly in `Sites`'s JSX, which would be counted against that component's own complexity.
+/** Dispatches the active tab's panel as a flat if-chain — a plain function rather than a ternary
+ *  written directly in `Sites`'s JSX, which would be counted against that component's own
+ *  complexity. Same split `Deployment.tsx`'s own `deploymentTabPanel` makes for the identical gate.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function sitesViewBody(view: SitesViewId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
-  if (view === "new") return <CreateSiteOnboarding controller={controller} onBack={goToSiteList} />;
+function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
+  if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
   return (
     <AllSitesTab
       sites={controller.sites}
       snapshot={snapshot}
       switchingEnabled={controller.switchingEnabled}
       activatingName={controller.activatingName}
+      createdName={controller.createdName}
       onActivate={controller.activate}
       t={controller.t}
     />
   );
 }
 
-/** `replace: true` so moving between the list and the create screen does not grow the back stack
- *  one entry per click — the same call `Deployment.tsx` makes for its own `?tab=`. Two named
- *  functions rather than one parameterised call site: each is passed directly as an `onClick`, and
- *  an inline arrow at either would be a function written in a `.tsx` body. */
+/** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
+ *  — the same call `Themes.tsx`/`Deployment.tsx` make for their own `?tab=`. A module-level
+ *  function, not an inline arrow: `TabBar`'s `onChange` takes it directly, and
+ *  {@link goToSiteList} below has to keep a stable identity for
+ *  {@link useReturnToSiteListOnCreate}'s effect. */
+function goToSitesTab(id: string) {
+  navigate(`/sites?tab=${id}`, { replace: true });
+}
+
+/** Back to the first tab: Cancel's destination, and where a successful create lands. */
 function goToSiteList() {
-  navigate("/sites", { replace: true });
-}
-
-function goToCreateSite() {
-  navigate("/sites?tab=new", { replace: true });
-}
-
-/** The header's `+ New site` button — Runner's `MainHeader` renders its own `+ Create website`
- *  only on the project list and never on the onboarding screen it leads to, and this follows that:
- *  the create screen offers Cancel and a back link instead, so there is no button on screen that
- *  navigates to where you already are. */
-function NewSiteAction({ t }: { t: Translate }) {
-  return (
-    <div className="page-actions">
-      <button type="button" onClick={goToCreateSite} {...agentHandle("sites-new", { role: "button", label: "Open the create-a-site onboarding screen" })}>
-        <span aria-hidden="true">+ </span>
-        {t("New site")}
-      </button>
-    </div>
-  );
-}
-
-/** The create screen's own `← All sites` back link, ported from Runner's `back-link`. A real
- *  `<a href>` rather than a button: it is a navigation to a URL that exists, so it should be
- *  middle-clickable and copyable, and the app's own internal-link interceptor handles the rest. */
-function BackToSitesLink({ t }: { t: Translate }) {
-  return (
-    <a className="back-link" href="/admin/sites">
-      <span aria-hidden="true">← </span>
-      {t("All sites")}
-    </a>
-  );
-}
-
-/** Nothing on the list view, the back link on the create view — a plain function so `Sites` itself
- *  carries neither branch.
- *  @complexity O(1). */
-function sitesViewLead(view: SitesViewId, t: Translate) {
-  return view === "new" ? <BackToSitesLink t={t} /> : null;
-}
-
-/** The header's right-hand action, on the list view only — see {@link NewSiteAction}.
- *  @complexity O(1). */
-function sitesHeaderAction(view: SitesViewId, t: Translate) {
-  return view === "new" ? null : <NewSiteAction t={t} />;
+  navigate("/sites?tab=all", { replace: true });
 }
 
 export function Sites(props: SitesProps = {}) {
   const controller = resolveSitesHook(props.useSitesHook)();
-  const { snapshot, listStatus, listError, writeError, switchingEnabled, outlook, restartInstructions, t } = controller;
+  const { snapshot, listStatus, listError, writeError, switchingEnabled, outlook, restartInstructions, createdName, sites, t } = controller;
+
+  // Before the early returns below, so this screen never changes its hook order between the
+  // loading, error, and loaded renders.
+  useReturnToSiteListOnCreate(createdName, goToSiteList);
 
   if (listStatus === "error" && !snapshot) {
     return <div className="notice error">{describeApiError(listError, t("Could not load the site list."))}</div>;
   }
   if (!snapshot) return <div className="notice">{t("Loading sites…")}</div>;
 
-  const view = resolveSitesViewId(props.tabId);
-  const heading = resolveSitesHeading(view, t);
+  const tab = resolveSitesTabId(props.tabId);
 
   return (
     <div className="page">
-      {sitesViewLead(view, t)}
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{heading.kicker}</p>
-          <h1 className="page-title">{heading.title}</h1>
-          <p className="page-description">{heading.description}</p>
+          <p className="page-kicker">{t("Overview")}</p>
+          <h1 className="page-title">{t("Sites")}</h1>
+          <p className="page-description">
+            {t("Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart.")}
+          </p>
         </div>
-        {sitesHeaderAction(view, t)}
       </div>
 
       {writeError ? <div className="notice error">{writeError}</div> : null}
@@ -359,7 +341,15 @@ export function Sites(props: SitesProps = {}) {
 
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
-      {sitesViewBody(view, controller, snapshot)}
+      <TabBar
+        tabs={resolveSitesTabs(t, sites.length)}
+        activeId={tab}
+        onChange={goToSitesTab}
+        ariaLabel={t("Sites")}
+        containerHandle="sites-tabs"
+      />
+
+      {sitesTabPanel(tab, controller, snapshot)}
     </div>
   );
 }

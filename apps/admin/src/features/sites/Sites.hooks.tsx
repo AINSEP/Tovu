@@ -2,6 +2,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import type { TabBarTab } from "../../components/TabBar";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 
 /**
@@ -135,48 +136,54 @@ export function resolveSiteRegistrationBadge(
 }
 
 /**
- * This screen's two VIEWS — the list, and the create-a-site onboarding screen (Runner port,
- * 2026-09-05).
+ * This screen's two TABS — the site list, and the create-a-site form.
  *
- * Not tabs. An earlier pass made "New site" a second tab; Tovu Runner, which the owner asked this
- * screen to follow, reaches its onboarding from a `+ Create website` button in the page header
- * (`MainHeader` in Runner's `App.tsx`) and shows it as a full-page screen with its own `← All
- * websites` back link. Runner's own tab strip means something else entirely — see `Sites.tsx`'s
- * header.
+ * Tabs, and this is the third time this has been settled. The owner asked for a tab system in
+ * words, twice: *"the first tab is all sites. Second tab is create new"*, and then again after a
+ * pass replaced them with a header button and a full-page `?tab=new` screen — *"What I wanted was a
+ * tab system. I specifically told you a tab system … It shouldn't go to another page."* The header
+ * button came from a Tovu Runner screenshot being relayed as a correction; **a reference screenshot
+ * is not an instruction, and when a reference conflicts with what the owner said in words, the
+ * words win.** Runner's own tab strip means something else entirely — see `Sites.tsx`'s header.
  *
- * The URL key stays `?tab=` rather than becoming `?view=`: it is the query key every other tabbed
- * admin screen already uses, it is what `panels.tsx` threads in, and one screen inventing a second
- * spelling for "which sub-state of this panel am I on" is the drift ADR-063's shared guard exists to
- * stop. What changed is how the resolved value is RENDERED, not how it is addressed.
+ * The URL key is `?tab=`, the same one every other tabbed admin screen uses and the one
+ * `panels.tsx` threads in, so the two tabs stay deep-linkable and bookmarkable.
  */
-export const SITES_VIEW_IDS = ["all", "new"] as const;
-export type SitesViewId = (typeof SITES_VIEW_IDS)[number];
+export const SITES_TAB_IDS = ["all", "new"] as const;
+export type SitesTabId = (typeof SITES_TAB_IDS)[number];
 
 /** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
  *  guard `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the
  *  list, never a blank panel. */
-export function resolveSitesViewId(tabId: string | null | undefined): SitesViewId {
-  return resolveActiveTabId(tabId, SITES_VIEW_IDS, "all");
+export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
+  return resolveActiveTabId(tabId, SITES_TAB_IDS, "all");
 }
 
-/** The page header's own kicker/title/description, which differ per view — Runner swaps its
- *  `main__title` to "Create a website" while its onboarding is open (`MainHeader`), so the header
- *  names the screen you are actually on rather than the section you came from.
+/**
+ * The two tabs themselves, in the shape `TabBar` takes.
  *
- *  @complexity Time/space: O(1). */
-export function resolveSitesHeading(view: SitesViewId, t: Translate): { kicker: string; title: string; description: string } {
-  if (view === "new") {
-    return {
-      kicker: t("New site"),
-      title: t("Create a site"),
-      description: t("Each site gets its own folder, content database, uploads, and themes."),
-    };
-  }
-  return {
-    kicker: t("Overview"),
-    title: t("Sites"),
-    description: t("Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart."),
-  };
+ * The count is `listedCount` and nothing else — never nudged up to include a live binding that is
+ * not in the list, which would restate the exact lie the `Not initialized` badge exists to prevent.
+ * "New site" carries no count: it is an action, not a collection.
+ *
+ * @complexity Time/space: O(1) — a fixed two-element array.
+ */
+export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[] {
+  return [
+    {
+      id: "all",
+      label: t("All sites"),
+      count: listedCount,
+      handle: "sites-tab-all",
+      handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
+    },
+    {
+      id: "new",
+      label: t("New site"),
+      handle: "sites-tab-new",
+      handleLabel: "Switch to the New site tab — the form that creates a site folder",
+    },
+  ];
 }
 
 /** Whether the site list renders its empty state instead of the grid. Its own function rather than

@@ -23,7 +23,14 @@ import {
  * `.sites-grid`, the tinted `site-card-serving` head, the per-card state badge and Activate button
  * all render exactly as they did. What left this tab is the Create tile: a whole form crammed into
  * one grid cell, which is the specific thing the owner rejected ("This is just awful"). Creating now
- * has a tab of its own (`NewSiteTab.tsx`).
+ * has a tab of its own (`CreateSiteOnboarding.tsx`).
+ *
+ * ## The create confirmation lives here, not on the form
+ *
+ * A successful create returns to this tab — the owner's requirement, *"That should go back to the
+ * first tab, and then we should see the new website created there"* — so {@link CreatedSiteNotice}
+ * is what she lands on, directly above the grid that now contains the new card. It used to sit in
+ * the create form's own footer, where after the return it could only ever be read as stale.
  *
  * ## The compact card (2026-09-05)
  *
@@ -163,8 +170,9 @@ function SiteCard({
  * Shown instead of the grid when nothing is listed at all.
  *
  * The action is a real `<a href>` rather than a `<button onClick={navigate}>` so it is
- * middle-clickable, copyable, and works with the app's own internal-link interceptor — the same
- * `?tab=` URL the header button itself produces, so there is one destination, not two.
+ * middle-clickable, copyable, and works with the app's own internal-link interceptor — and it
+ * targets the same `?tab=new` URL the "New site" tab itself does, so there is one destination, not
+ * two.
  */
 function SitesEmptyState({ t }: { t: Translate }) {
   return (
@@ -184,11 +192,33 @@ function SitesEmptyState({ t }: { t: Translate }) {
   );
 }
 
+/** The line an operator lands on after a successful create — see this file's header. Renders
+ *  nothing when there has not been one, so {@link AllSitesTab} needs no conditional of its own.
+ *
+ *  The name is rendered VERBATIM and never through `t()`: it is data (a folder name), the same
+ *  treatment every other site name on this screen gets. */
+function CreatedSiteNotice({ createdName, t }: { createdName: string | null; t: Translate }) {
+  if (createdName === null) return null;
+  return (
+    <p
+      className="save-ok"
+      {...agentHandle("sites-created-notice", {
+        role: "status",
+        label: "Confirmation that a site folder was created, and that creating it switched nothing",
+      })}
+    >
+      <strong>{createdName}</strong> {t("was created. Activate it to serve after the next restart.")}
+    </p>
+  );
+}
+
 export interface AllSitesTabProps {
   sites: AdminSiteListEntry[];
   snapshot: AdminSitesSnapshot;
   switchingEnabled: boolean;
   activatingName: string | null;
+  /** The site the last successful create made, or `null` — see {@link CreatedSiteNotice}. */
+  createdName: string | null;
   onActivate: (name: string) => void;
   t: Translate;
 }
@@ -225,5 +255,10 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
 }
 
 export function AllSitesTab(props: AllSitesTabProps) {
-  return sitesGridOrEmpty(props);
+  return (
+    <>
+      <CreatedSiteNotice createdName={props.createdName} t={props.t} />
+      {sitesGridOrEmpty(props)}
+    </>
+  );
 }

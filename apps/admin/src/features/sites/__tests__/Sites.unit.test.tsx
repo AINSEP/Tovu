@@ -55,9 +55,9 @@ function controllerFixture(overrides: Partial<SitesController> = {}): SitesContr
 }
 
 /**
- * `tabId` is the `?tab=` value `panels.tsx` threads in (tab redesign, 2026-09-05) — omitted here it
- * falls back to the "all" tab, exactly as an operator arriving at a bare `/admin/sites` gets. Tests
- * that exercise the create questionnaire pass `"new"`, because that is now where the form lives.
+ * `tabId` is the `?tab=` value `panels.tsx` threads in — omitted here it falls back to the "all"
+ * tab, exactly as an operator arriving at a bare `/admin/sites` gets. Tests that exercise the
+ * create form pass `"new"`, because that is the tab it lives in.
  */
 function renderSites(overrides: Partial<SitesController> = {}, tabId?: string) {
   const controller = controllerFixture(overrides);
@@ -244,12 +244,11 @@ describe("Sites — create form safety", () => {
     expect(screen.getByLabelText("Folder name").hasAttribute("disabled")).toBe(false);
   });
 
-  it("clears the 'Created.' banner the moment the name is edited again", () => {
+  it("routes every edit through the controller's setCreateName, which is what clears the confirmation", () => {
     const controller = renderSites({ createdName: "gamma" }, "new");
-    expect(screen.getByText(/Created\./)).toBeTruthy();
     // The clearing itself lives in `useSites.setCreateName` (pinned by its own hook test); what
-    // this pins is that the questionnaire still routes its input through THAT setter rather than a
-    // local one of its own, which is how the guard would silently die in this restructure.
+    // this pins is that the form still routes its input through THAT setter rather than a local one
+    // of its own, which is how the guard would silently die in a restructure.
     fireEvent.change(screen.getByLabelText("Folder name"), { target: { value: "gamma-2" } });
     expect(controller.setCreateName).toHaveBeenCalledWith("gamma-2");
   });
@@ -264,10 +263,10 @@ describe("Sites — load and error states", () => {
   it("renders the read failure rather than an empty grid", () => {
     renderSites({ snapshot: undefined, sites: [], listStatus: "error", listError: new Error("server down") });
     expect(screen.getByText("server down")).toBeTruthy();
-    // The full-screen error guard returns before the page header renders — asserting on the
-    // header's own New site button, which the list view always shows, rather than on "Create site",
-    // which is absent from the list view anyway and would pass even if the screen had rendered.
-    expect(screen.queryByRole("button", { name: /New site/ })).toBeNull();
+    // The full-screen error guard returns before the page header and the tab bar render — asserting
+    // on the tab bar, which BOTH tabs always show, rather than on "Create site", which is absent
+    // from the list tab anyway and would pass even if the screen had rendered.
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 
   it("shows a write failure as a banner without hiding the list", () => {
@@ -294,41 +293,62 @@ describe("Sites — hook injection", () => {
   });
 });
 
-describe("Sites — the list/create views (Runner port: a header button, not a tab)", () => {
-  it("opens on the list for a bare URL, and shows the site cards rather than the create screen", () => {
+describe("Sites — the two tabs the owner asked for, in words, twice", () => {
+  it("renders a real tab bar with both tabs on it", () => {
+    renderSites();
+    // The regression this exists for: a pass that replaced the tabs with a header button plus a
+    // `?tab=new` page ended up deleting the one-item tab bar entirely. A tablist with BOTH tabs on
+    // it is the shape she asked for, so both halves are asserted — a `getByRole("tablist")` alone
+    // would pass on a bar with one tab in it.
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /All sites/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /New site/ })).toBeTruthy();
+  });
+
+  it("offers New site as a TAB, never as a header button beside the title", () => {
+    renderSites();
+    expect(screen.queryByRole("button", { name: /^\+ ?New site$/ })).toBeNull();
+    expect(screen.getByRole("tab", { name: /New site/ })).toBeTruthy();
+  });
+
+  it("counts only the LISTED sites on the All sites tab", () => {
+    renderSites();
+    expect(screen.getByRole("tab", { name: /All sites/ }).textContent).toContain("2");
+  });
+
+  it("opens on the list for a bare URL, and shows the site cards rather than the create form", () => {
     renderSites();
     // Asserting on the DISPLAY names, which only the cards render — the folder name "alpha" also
-    // appears in the `Now serving` card above, so it would match with no grid at all.
+    // appears elsewhere on the page, so it would match with no grid at all.
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Beta")).toBeTruthy();
     expect(screen.queryByLabelText("Folder name")).toBeNull();
+    expect(screen.getByRole("tab", { name: /All sites/ }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("offers New site as a header button, never as a tab", () => {
-    renderSites();
-    expect(screen.getByRole("button", { name: /New site/ })).toBeTruthy();
-    // The pass this replaced made it a tab. Nothing on this screen is a tablist any more, so a
-    // regression back to that shape fails here rather than silently passing a button query.
-    expect(screen.queryByRole("tablist")).toBeNull();
-  });
-
-  it("opens the create screen on ?tab=new, and stops rendering the grid's cards", () => {
+  it("opens the create form INSIDE the second tab, with the tab bar still on screen", () => {
     renderSites({}, "new");
     expect(screen.getByLabelText("Folder name")).toBeTruthy();
-    // The grid is genuinely gone, not merely visually hidden behind the create screen.
+    // Not another page: the tab bar is still there, still shows both tabs, and marks this one
+    // selected. This is the exact assertion the deleted-tab-bar regression would fail.
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /New site/ }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: /All sites/ })).toBeTruthy();
+    // And the grid is genuinely gone, not merely hidden behind the form.
     expect(screen.queryByRole("button", { name: "Serve after restart" })).toBeNull();
   });
 
-  it("retitles the page on the create screen, the way Runner's own header does", () => {
+  it("keeps ONE page title across both tabs — a tab is not a page, so nothing retitles", () => {
     renderSites({}, "new");
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Create a site");
-    // And puts the way back on screen — Runner's `← All websites`.
-    expect(screen.getByRole("link", { name: /All sites/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Sites");
+    // The full-page port's `← All sites` back link went with the page. A tab bar IS the way back.
+    expect(screen.queryByRole("link", { name: /← ?All sites/ })).toBeNull();
   });
 
-  it("hides the header's New site button on the create screen, so nothing links to where you are", () => {
-    renderSites({}, "new");
-    expect(screen.queryByRole("button", { name: /New site/ })).toBeNull();
+  it("navigates rather than holding tab state locally, so ?tab= stays a real deep link", () => {
+    renderSites();
+    fireEvent.click(screen.getByRole("tab", { name: /New site/ }));
+    expect(window.location.search).toBe("?tab=new");
   });
 
   it("falls back to the list for a stale or typo'd ?tab= value rather than blanking the panel", () => {
@@ -338,12 +358,11 @@ describe("Sites — the list/create views (Runner port: a header button, not a t
   });
 });
 
-describe("Sites — the PROCESS-level notices render above BOTH views", () => {
-  it("carries the TOVU_SITE_DIR override warning onto the create screen as well", () => {
-    // A bookmarked ?tab=new must never be a page that hides the reason Activate is inert. Runner's
-    // own create screen is a full-page takeover that hides its fleet chrome; this deliberately does
-    // not follow it there, because Create is the moment an operator is most likely to assume a
-    // switch happened.
+describe("Sites — the PROCESS-level notices render above BOTH tabs", () => {
+  it("carries the TOVU_SITE_DIR override warning onto the New site tab as well", () => {
+    // A bookmarked ?tab=new must never hide the reason Activate is inert, and these notices sit
+    // ABOVE the tab bar for exactly that reason: Create is the moment an operator is most likely to
+    // assume a switch happened.
     renderSites(
       { snapshot: snapshotFixture({ currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false } }) },
       "new",
@@ -360,7 +379,7 @@ describe("Sites — the PROCESS-level notices render above BOTH views", () => {
     expect(notices?.childElementCount).toBe(0);
   });
 
-  it("carries the pending-choice notice onto the create screen as well", () => {
+  it("carries the pending-choice notice onto the New site tab as well", () => {
     renderSites(
       { snapshot: snapshotFixture({ persistedSiteName: "beta" }), outlook: { kind: "pending", name: "beta" } },
       "new",
@@ -428,13 +447,48 @@ describe("Sites — the ported database picker tells the truth about what it can
   });
 });
 
-describe("Sites — the create screen's own navigation", () => {
-  it("offers Cancel as a way out that creates nothing", () => {
+describe("Sites — creating returns to the first tab, where the new card is", () => {
+  it("offers Cancel as a way back to All sites that creates nothing", () => {
     const controller = renderSites({ createName: "gamma" }, "new");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     // Leaving is not creating — the guard that matters here is that Cancel never submits the form
     // it sits inside, which a `<button>` without an explicit `type="button"` would do by default.
     expect(controller.createSite).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?tab=all");
+  });
+
+  it("returns to All sites when a create SUCCEEDS", () => {
+    // The owner's own requirement: "That should go back to the first tab, and then we should see
+    // the new website created there." Driven through the controller's `createdName` transition,
+    // which is the only signal a success produces.
+    window.history.replaceState(null, "", "/admin/sites?tab=new");
+    const { rerender } = render(<Sites useSitesHook={() => controllerFixture()} tabId="new" />);
+    expect(window.location.search).toBe("?tab=new");
+
+    const created = controllerFixture({ createdName: "gamma" });
+    rerender(<Sites useSitesHook={() => created} tabId="new" />);
+    expect(window.location.search).toBe("?tab=all");
+  });
+
+  it("does NOT yank the operator off a tab they opened deliberately when a create is already recorded", () => {
+    // The bug a plain `if (createdName !== null)` effect would ship: mounting with the state
+    // already set is not a success EVENT. An operator reopening New site after a create must stay
+    // on New site.
+    window.history.replaceState(null, "", "/admin/sites?tab=new");
+    renderSites({ createdName: "gamma" }, "new");
+    expect(window.location.search).toBe("?tab=new");
+    expect(screen.getByLabelText("Folder name")).toBeTruthy();
+  });
+
+  it("puts the confirmation on All sites, not in the form footer nobody returns to", () => {
+    renderSites({ createdName: "gamma" });
+    expect(screen.getByText("gamma")).toBeTruthy();
+    expect(screen.getByText(/was created\. Activate it to serve after the next restart\./)).toBeTruthy();
+  });
+
+  it("keeps no stale confirmation on the New site tab", () => {
+    renderSites({ createdName: "gamma" }, "new");
+    expect(screen.queryByText(/was created\./)).toBeNull();
   });
 });
 
@@ -456,9 +510,14 @@ describe("Sites — the create screen still carries every create guard the tile 
     expect(screen.getByRole("button", { name: "Create site" }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("says the new site is not switched to, only created — the restart truth survives the move", () => {
-    renderSites({ createdName: "gamma" }, "new");
+  it("says a created site is not switched to, only created — the restart truth survives the move", () => {
+    renderSites({ createdName: "gamma" });
     expect(screen.getByText(/Activate it to serve after the next restart/)).toBeTruthy();
+  });
+
+  it("still warns on the form itself that creating switches nothing, before anything is created", () => {
+    renderSites({}, "new");
+    expect(screen.getByText(/Creating a site never switches this server onto it/)).toBeTruthy();
   });
 });
 

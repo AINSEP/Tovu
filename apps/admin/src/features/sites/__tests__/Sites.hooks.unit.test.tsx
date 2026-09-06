@@ -7,10 +7,10 @@ import {
   resolveSiteDatabaseOptions,
   resolveSiteRegistrationBadge,
   resolveSitesEmpty,
-  resolveSitesHeading,
-  resolveSitesViewId,
+  resolveSitesTabId,
+  resolveSitesTabs,
   resolveSiteSubtitle,
-  SITES_VIEW_IDS,
+  SITES_TAB_IDS,
 } from "../Sites.hooks";
 
 /**
@@ -30,30 +30,34 @@ function entry(name: string): AdminSiteListEntry {
   return { name, dir: `/repo/sites/${name}`, displayName: name, createdAt: "2026-01-01T00:00:00.000Z", active: false };
 }
 
-describe("resolveSitesViewId", () => {
-  it("returns each known view id unchanged", () => {
-    for (const id of SITES_VIEW_IDS) expect(resolveSitesViewId(id)).toBe(id);
+describe("resolveSitesTabId", () => {
+  it("returns each known tab id unchanged", () => {
+    for (const id of SITES_TAB_IDS) expect(resolveSitesTabId(id)).toBe(id);
   });
 
   it("falls back to the list, not the form, for absent/unknown values", () => {
-    expect(resolveSitesViewId(null)).toBe("all");
-    expect(resolveSitesViewId(undefined)).toBe("all");
-    expect(resolveSitesViewId("")).toBe("all");
-    // A stale bookmark from the pre-tab layout, and a plausible near-miss for the real id.
-    expect(resolveSitesViewId("create")).toBe("all");
-    expect(resolveSitesViewId("New")).toBe("all");
+    expect(resolveSitesTabId(null)).toBe("all");
+    expect(resolveSitesTabId(undefined)).toBe("all");
+    expect(resolveSitesTabId("")).toBe("all");
+    // A stale bookmark from an earlier layout, and a plausible near-miss for the real id.
+    expect(resolveSitesTabId("create")).toBe("all");
+    expect(resolveSitesTabId("New")).toBe("all");
   });
 });
 
-describe("resolveSitesHeading", () => {
-  it("names the create screen on the create view, the way Runner's header does", () => {
-    expect(resolveSitesHeading("new", fakeT).title).toBe("Create a site");
+describe("resolveSitesTabs", () => {
+  it("is exactly two tabs, All sites first", () => {
+    // The shape the owner asked for in words, twice. A pass that reduced this to one entry is what
+    // led to the bar being deleted, so the LENGTH is asserted, not just the presence of each id.
+    const tabs = resolveSitesTabs(fakeT, 0);
+    expect(tabs).toHaveLength(2);
+    expect(tabs.map((tab) => tab.id)).toEqual(["all", "new"]);
   });
 
-  it("keeps the section title on the list view", () => {
-    const heading = resolveSitesHeading("all", fakeT);
-    expect(heading.title).toBe("Sites");
-    expect(heading.description).toContain("takes a restart");
+  it("counts the listed sites on All sites, and puts no count on an action tab", () => {
+    const tabs = resolveSitesTabs(fakeT, 3);
+    expect(tabs[0].count).toBe(3);
+    expect(tabs[1].count).toBeUndefined();
   });
 });
 

@@ -11,20 +11,22 @@ import {
 import type { useWiredSites } from "./hooks/use-sites.hooks";
 
 /**
- * @file The create-a-site onboarding screen — a full-page view, not a tab and not a tile.
+ * @file The create-a-site form — the body of the **"New site" tab**, not a page of its own.
  *
- * Ported from Tovu Runner's `CreateWebsiteOnboarding.tsx` at the owner's direction, overriding the
- * standing decision not to port Runner's renderer (that decision still holds for the other ~3,300
- * lines; this screen and the grid shape are the named exceptions).
+ * Its CONTENT was ported from Tovu Runner's `CreateWebsiteOnboarding.tsx` and the owner kept it.
+ * Its PLACEMENT was not hers and is now corrected: the port also moved creation onto a full-page
+ * `?tab=new` screen reached from a header button, which deleted the tab bar she had asked for in
+ * words, twice. See `Sites.tsx`'s header for the full sequence and the rule it produced. What
+ * changed here is the frame — no back link, no page-title swap, Cancel returns to the first tab —
+ * and nothing inside the card.
  *
  * ## What was ported, and what was rebuilt
  *
- * PORTED — the shape and the words: a full-page screen reached from a `+ New site` button in the
- * page header, its own `← All sites` back link, and one sectioned card running "Site details" ->
- * "Database" -> actions, with Cancel beside the submit. The three database options keep Runner's
- * own titles and hint wording ("Default · …", "Hosted · requires a project URL and API key", "Any
- * vendor · add its endpoint and credential") so the two products read as one family, and each
- * unavailable vendor still shows the fields Runner shows for it.
+ * PORTED — the shape and the words: one sectioned card running "Site details" -> "Database" ->
+ * actions, with Cancel beside the submit. The three database options keep Runner's own titles and
+ * hint wording ("Default · …", "Hosted · requires a project URL and API key", "Any vendor · add its
+ * endpoint and credential") so the two products read as one family, and each unavailable vendor
+ * still shows the fields Runner shows for it.
  *
  * REBUILT — everything below the markup. Runner's version is backed by `useCreateWebsiteForm`, with
  * `database` state, `supabaseUrl`/`customProvider`/`customConnection` state, two credential refs,
@@ -72,19 +74,26 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
  * All three create-form guards survive this move as they survived the last one, each with its own
  * test: the name field disables while a create is in flight or switching is off ({@link
  * resolveCreateInputDisabled}), the submit button keeps its four-condition guard ({@link
- * resolveCreateSubmitDisabled}), and the "Created." line clears the moment the operator edits the
- * name again (via the controller's own `setCreateName`, which this screen routes every edit
- * through rather than holding a copy of its own).
+ * resolveCreateSubmitDisabled}), and every edit still routes through the controller's own
+ * `setCreateName` rather than a local copy — which is also what clears the confirmation line.
+ *
+ * ## Where the "Created." line went
+ *
+ * To `AllSitesTab`. A successful create now returns to the "All sites" tab (the owner's own
+ * requirement: *"That should go back to the first tab, and then we should see the new website
+ * created there"*), so a confirmation rendered in this footer could only ever be seen in the state
+ * where it is STALE — an operator coming back to this tab after a create, with the field already
+ * cleared. The confirmation belongs where the new card is.
  */
 
 export interface CreateSiteOnboardingProps {
   controller: Pick<
     ReturnType<typeof useWiredSites>,
-    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "createdName" | "switchingEnabled" | "t"
+    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "t"
   >;
-  /** Back to the site list. Supplied by `Sites.tsx` so this screen owns no routing of its own —
-   *  same seam Runner's own `onBack` is. */
-  onBack: () => void;
+  /** Back to the "All sites" tab, creating nothing. Supplied by `Sites.tsx` so this form owns no
+   *  routing of its own — same seam Runner's own `onBack` is. */
+  onCancel: () => void;
 }
 
 /** The vendor credential fields Runner shows under a selected Supabase option. Rendered here
@@ -250,14 +259,13 @@ function DetailsSection({ controller }: { controller: CreateSiteOnboardingProps[
  *  actions` shape, where a sentence about what will actually happen sits beside the buttons.
  *  Creating never switches the running server, and this is the moment an operator would otherwise
  *  assume it did. */
-function OnboardingActions({ controller, onBack }: CreateSiteOnboardingProps) {
-  const { createName, createNameError, creating, switchingEnabled, createdName, t } = controller;
+function OnboardingActions({ controller, onCancel }: CreateSiteOnboardingProps) {
+  const { createName, createNameError, creating, switchingEnabled, t } = controller;
   return (
     <footer className="onboarding-actions">
       <p className="onboarding-actions-note">{t("Creating a site never switches this server onto it. Activate it from All sites, then restart.")}</p>
-      {createdName ? <p className="save-ok">{t("Created. Activate it to serve after the next restart.")}</p> : null}
       <div className="onboarding-actions-buttons">
-        <button type="button" className="btn-secondary" onClick={onBack} {...agentHandle("sites-create-cancel", { role: "button", label: "Go back to the site list without creating anything" })}>
+        <button type="button" className="btn-secondary" onClick={onCancel} {...agentHandle("sites-create-cancel", { role: "button", label: "Go back to the site list without creating anything" })}>
           {t("Cancel")}
         </button>
         <button
@@ -272,7 +280,7 @@ function OnboardingActions({ controller, onBack }: CreateSiteOnboardingProps) {
   );
 }
 
-export function CreateSiteOnboarding({ controller, onBack }: CreateSiteOnboardingProps) {
+export function CreateSiteOnboarding({ controller, onCancel }: CreateSiteOnboardingProps) {
   return (
     <form
       className="onboarding"
@@ -285,7 +293,7 @@ export function CreateSiteOnboarding({ controller, onBack }: CreateSiteOnboardin
       <div className="onboarding-card">
         <DetailsSection controller={controller} />
         <DatabaseSection t={controller.t} />
-        <OnboardingActions controller={controller} onBack={onBack} />
+        <OnboardingActions controller={controller} onCancel={onCancel} />
       </div>
     </form>
   );
