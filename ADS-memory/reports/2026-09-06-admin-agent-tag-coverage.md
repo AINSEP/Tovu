@@ -279,12 +279,16 @@ asserted on every navigation. Queried the live DOM for `data-agent-element`/`dat
   `media-tab-all`/`media-tab-images`/`media-tab-videos` all present and **clicked** through each;
   `media-upload-toolbar`/`media-upload-file`/`media-upload-alt`/`media-upload-submit` all resolve to
   real elements.
-- **Security → Access Tokens** (`/admin/access-tokens`) — clicked "+ Add" on a Tier 1 provider group
-  (GitHub) to open its add form; verified `security-add-token-name`-shaped and the newly-added
-  `security-add-tovu-github-token`/`-account`/`-username` handles resolve to real, focusable inputs
-  inside `TokenInputFields` (confirms the fix reaches the live DOM, not just the two call sites'
-  source). Did not type a real value into any credential field or press Save (read-only interaction
-  per house rules).
+- **Security → Access Tokens** (`/admin/access-tokens`) — clicked
+  `security-access-tokens-connect-source-control-github` to open its add form; confirmed
+  `security-add-source-control-github-name`/`-token` both resolve to real inputs (the `-token` field
+  is the actual fix — previously absent). GitHub's own form correctly omits `-username` (not one of
+  its required/optional fields); clicked the Bitbucket row instead and confirmed
+  `security-add-source-control-bitbucket-username` resolves too, proving `TokenInputFields`' per-field
+  conditional gating renders correctly for both providers. Also confirmed
+  `security-access-tokens-cancel-source-control-github` (one of the 4 newly-tagged Cancel buttons)
+  resolves to a real button. Did not type a real value into any credential field or press Save
+  (read-only interaction per house rules).
 - **Sites** (`/admin/sites`) — confirmed the existing site card grid renders; did not drive the empty
   state directly (this repo's dev DB always has at least one site) but confirmed
   `sites-empty-new-site`'s sibling handles (`sites-create-name`, `sites-create-submit`) on the adjacent
