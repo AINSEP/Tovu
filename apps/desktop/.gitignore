@@ -1,0 +1,4 @@
+# Lazily-compiled speech helper binary (`src/speech/mac-on-device-transcriber.cjs`'s
+# `ensureHelperCompiled`) — built on first use from the committed `.swift` source, never itself
+# committed. Same posture as any other local build output.
+src/speech/.build/
