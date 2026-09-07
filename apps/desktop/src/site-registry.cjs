@@ -134,6 +134,51 @@ function readProcessCommand(pid) {
 }
 
 /**
+ * A live process's parent pid, read the same argv-only way as {@link readProcessCommand} (`ps`'s
+ * plain `ppid=` column is a number, never environment, so nothing sensitive can leak through it).
+ *
+ * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable.
+ * @complexity O(1); one subprocess call.
+ */
+function readProcessParentPid(pid) {
+  try {
+    const parsed = Number.parseInt(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim(), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `pid`'s own parent is gone — the property that separates a real ORPHAN from a live
+ * sibling instance's perfectly healthy child.
+ *
+ * This distinction became load-bearing when {@link reconcileOrphans} moved above `main.cjs`'s
+ * boot-mode split so the fleet UI reaps orphans too. Nothing prevents two Electron instances running
+ * at once (there is no `requestSingleInstanceLock`), and the identity proof above cannot help: a
+ * live sibling's child matches its own row's argv EXACTLY, by construction. Without this check the
+ * second instance's boot would SIGTERM every site the first instance has open.
+ *
+ * Parentage rather than a persisted owner-pid field on purpose. A field only protects rows written
+ * by a build that has the field, so the very first launch after shipping it would still reap the
+ * children of an instance already running from the previous build — the one case that matters most.
+ * Parentage is a property of the running process, so it protects rows of every vintage immediately.
+ *
+ * Measured on macOS 2026-09-06 against `tovu-server.cjs`'s exact `detached: true` spawn shape:
+ * `detached` makes the child a process-GROUP leader and leaves its parent unchanged, so its ppid is
+ * the Electron main pid while that process lives and becomes `1` (launchd) the moment it dies.
+ *
+ * Fails CLOSED in the only direction that matters: anything other than a confirmed reparent-to-
+ * launchd reads as "not an orphan" and is left running. Leaking a stray process costs a port and
+ * some memory; killing a live sibling's server costs whatever that site was doing.
+ *
+ * @complexity O(1) beyond {@link readProcessParentPid}'s own subprocess call.
+ */
+function isOrphanedProcess(pid) {
+  return readProcessParentPid(pid) === 1;
+}
+
+/**
  * Runner's `isProjectSidecar` technique: a pid is only trusted to BE this row's `tovu serve` once
  * its live argv contains both the site dir and its `--port <n>` flag — never taken on faith just
  * because a number in a persisted row happens to still name a running process.
@@ -187,8 +232,13 @@ async function terminateOrphan(row, graceMs = DEFAULT_TERMINATE_GRACE_MS) {
  * will ever call that child's own `stop()` again, and a plain SIGTERM here still gives it the same
  * BR-07 graceful drain `serve.ts` runs for any other shutdown signal.
  *
- * Always leaves the registry holding zero rows on return — every row looked at is removed whether it
- * was reconciled or found already gone, so a later boot never re-processes the same entry twice.
+ * Returns holding only the rows belonging to a LIVE SIBLING instance ({@link isOrphanedProcess}).
+ * Everything else is removed — reconciled or found already gone — so a later boot never re-processes
+ * the same entry twice. **This is a deliberate change from the previous "always zero rows on
+ * return"**: wiping a sibling's rows would leave its children unreapable if IT were later hard
+ * killed, converting a protected process into a permanent leak. Two instances writing this flat file
+ * can still race (there is no lock, and never was), but a racing write now loses at most a row the
+ * sibling can rewrite, instead of every row unconditionally.
  *
  * @returns the rows that were found to be live orphans and terminated — for logging/reporting only.
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll.
@@ -196,15 +246,20 @@ async function terminateOrphan(row, graceMs = DEFAULT_TERMINATE_GRACE_MS) {
 async function reconcileOrphans(registryPath) {
   const { sites } = readRegistry(registryPath);
   const reconciled = [];
+  const stillSupervised = [];
 
   for (const row of sites) {
-    if (isProcessAlive(row.pid) && isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) {
-      reconciled.push(row);
-      await terminateOrphan(row);
+    if (!isProcessAlive(row.pid)) continue;
+    if (!isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) continue;
+    if (!isOrphanedProcess(row.pid)) {
+      stillSupervised.push(row);
+      continue;
     }
+    reconciled.push(row);
+    await terminateOrphan(row);
   }
 
-  writeRegistry(registryPath, { sites: [] });
+  writeRegistry(registryPath, { sites: stillSupervised });
   return reconciled;
 }
 
@@ -217,6 +272,8 @@ module.exports = {
   recordSiteClosed,
   isProcessAlive,
   readProcessCommand,
+  readProcessParentPid,
+  isOrphanedProcess,
   isServeProcessForSite,
   terminateOrphan,
   reconcileOrphans,

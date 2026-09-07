@@ -12,7 +12,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, execFileSync } = require("node:child_process");
 
 const {
   registryFilePath,
@@ -22,6 +22,8 @@ const {
   recordSiteClosed,
   isProcessAlive,
   readProcessCommand,
+  readProcessParentPid,
+  isOrphanedProcess,
   isServeProcessForSite,
   terminateOrphan,
   reconcileOrphans,
@@ -40,6 +42,27 @@ function spawnFakeServeChild(siteDir, port, { ignoreSigterm = false } = {}) {
 
 async function waitForExit(child) {
   await new Promise((resolve) => child.once("exit", resolve));
+}
+
+/**
+ * A long-lived fake `tovu serve` that is a REAL orphan: spawned by a throwaway launcher which then
+ * exits, so the kernel reparents it to launchd. `spawnFakeServeChild` above cannot stand in for one
+ * — its parent is this test process, which is very much alive, which is exactly the live-sibling
+ * case `reconcileOrphans` must now refuse to kill.
+ */
+async function spawnOrphanedServeChild(siteDir, port) {
+  const launcher = [
+    'const { spawn } = require("node:child_process");',
+    `const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000);", ${JSON.stringify(siteDir)}, "--port", ${JSON.stringify(String(port))}], { detached: true, stdio: "ignore" });`,
+    "child.unref();",
+    "console.log(child.pid);",
+  ].join("\n");
+  const pid = Number(execFileSync(process.execPath, ["-e", launcher], { encoding: "utf8" }).trim());
+  const deadline = Date.now() + 5000;
+  while (readProcessParentPid(pid) !== 1 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return pid;
 }
 
 test("registryFilePath places the file inside the given userData dir", () => {
@@ -140,14 +163,43 @@ test("reconcileOrphans terminates a live, identity-confirmed orphan and empties 
   const registryPath = tempStatePath();
   const siteDir = "/fake/site/marker-5";
   const port = 4005;
-  const child = spawnFakeServeChild(siteDir, port);
-  recordSiteOpened(registryPath, { siteDir, port, workspaceId: "w5", pid: child.pid, updatedAt: Date.now() });
+  // A genuine orphan (parent exited, reparented to launchd) rather than a child of this test
+  // process — see `spawnOrphanedServeChild`'s own doc on why the distinction is now the rule.
+  const pid = await spawnOrphanedServeChild(siteDir, port);
+  recordSiteOpened(registryPath, { siteDir, port, workspaceId: "w5", pid, updatedAt: Date.now() });
 
   const reconciled = await reconcileOrphans(registryPath);
 
   assert.deepEqual(reconciled.map((row) => row.siteDir), [siteDir]);
-  assert.equal(isProcessAlive(child.pid), false);
+  assert.equal(isProcessAlive(pid), false);
   assert.deepEqual(readRegistry(registryPath).sites, []);
+});
+
+test("readProcessParentPid reports the real parent, and null once the pid is gone", async () => {
+  const child = spawnFakeServeChild("/fake/site/marker-8", 4008);
+  try {
+    assert.equal(readProcessParentPid(child.pid), process.pid);
+    assert.equal(isOrphanedProcess(child.pid), false, "a child of a live parent is not an orphan");
+  } finally {
+    child.kill("SIGKILL");
+    await waitForExit(child);
+  }
+  assert.equal(readProcessParentPid(child.pid), null);
+  assert.equal(isOrphanedProcess(child.pid), false, "a pid that is gone cannot be proven orphaned");
+});
+
+test("isOrphanedProcess is true for a process whose parent has exited", async () => {
+  const pid = await spawnOrphanedServeChild("/fake/site/marker-9", 4009);
+  try {
+    assert.equal(readProcessParentPid(pid), 1);
+    assert.equal(isOrphanedProcess(pid), true);
+  } finally {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      /* already gone */
+    }
+  }
 });
 
 test("reconcileOrphans leaves an unrelated process alone when a recycled pid no longer matches the row's identity", async () => {
@@ -179,4 +231,54 @@ test("reconcileOrphans silently drops a row whose pid is already gone", async ()
 
   assert.deepEqual(reconciled, []);
   assert.deepEqual(readRegistry(registryPath).sites, []);
+});
+
+// --- live-sibling protection (2026-09-06) ---------------------------------------------------
+//
+// `reconcileOrphans` moved above the boot-mode split so the fleet UI (the default since a53c80df)
+// reaps orphans too. Nothing stops two Electron instances running at once — there is no
+// `requestSingleInstanceLock` in `main.cjs` — so the SECOND instance's boot-time reconciliation
+// reads the FIRST instance's rows, whose pids are alive and whose argv matches their row exactly.
+// Only the child's own parentage distinguishes the two cases.
+
+/** A fake `tovu serve` whose parent process is STILL ALIVE — a live sibling instance's child. */
+function spawnSupervisedServeChild(siteDir, port) {
+  const launcher = [
+    'const { spawn } = require("node:child_process");',
+    `const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000);", ${JSON.stringify(siteDir)}, "--port", ${JSON.stringify(String(port))}], { detached: true, stdio: "ignore" });`,
+    "console.log(child.pid);",
+    "setTimeout(() => {}, 60000);",
+  ].join("\n");
+  const supervisor = spawn(process.execPath, ["-e", launcher], { stdio: ["ignore", "pipe", "ignore"] });
+  return new Promise((resolve) => {
+    let buffered = "";
+    supervisor.stdout.on("data", (chunk) => {
+      buffered += chunk;
+      if (buffered.includes("\n")) resolve({ supervisor, childPid: Number(buffered.trim()) });
+    });
+  });
+}
+
+test("reconcileOrphans leaves a LIVE sibling instance's child alone, and keeps its row", async () => {
+  const registryPath = tempStatePath();
+  const siteDir = "/sites/owned-by-a-live-sibling";
+  const port = 45001;
+  const { supervisor, childPid } = await spawnSupervisedServeChild(siteDir, port);
+  const row = { siteDir, port, workspaceId: "w1", pid: childPid, updatedAt: 1 };
+  writeRegistry(registryPath, { sites: [row] });
+
+  try {
+    const reconciled = await reconcileOrphans(registryPath);
+
+    assert.deepEqual(reconciled, [], "a live sibling's child is not an orphan and must not be terminated");
+    assert.equal(isProcessAlive(childPid), true, "the live sibling's tovu serve must still be running");
+    assert.deepEqual(readRegistry(registryPath).sites, [row], "its row must survive so the sibling can still be reconciled later");
+  } finally {
+    supervisor.kill("SIGKILL");
+    try {
+      process.kill(childPid, "SIGKILL");
+    } catch {
+      /* already gone */
+    }
+  }
 });

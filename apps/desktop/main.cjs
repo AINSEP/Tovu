@@ -55,7 +55,10 @@
  * `tovu serve` (identity-before-kill — see that file's own header), and terminates it before any
  * window opens. This was `main.cjs`'s own prior comment's deferred item: "that machinery belongs
  * with the fleet supervisor... reported rather than ported." It is now built, sized to what this
- * shell actually needs (not Tovu-Runner's full fleet registry).
+ * shell actually needs (not Tovu-Runner's full fleet registry). That reconciliation runs for EVERY
+ * boot mode ({@link reconcileOrphansOnBoot}, above the mode split); it lived inside own-server mode
+ * alone until 2026-09-06, which left the fleet UI — the default, and the mode that actually produces
+ * these rows — leaking a stranded child per open site on every hard kill.
  *
  * **The `dist/` schema-skew fix**: own-server mode now runs the CLI's own TypeScript source under
  * `--import tsx` by default (`TOVU_DESKTOP_CLI_MODE=source`), not the compiled `dist/` this
@@ -661,8 +664,38 @@ function applyDockIcon() {
 }
 
 /**
- * Boot mode 2 — own server. Reconcile any orphan left by a hard kill, build the menu, then open
- * every startup site.
+ * Reap every `tovu serve` a PREVIOUS launch left running, and say so. Called once per launch, ABOVE
+ * the boot-mode split, before any window exists.
+ *
+ * It used to live inside {@link bootOwnServerMode}, which meant the fleet UI — the DEFAULT since
+ * a53c80df — never reconciled anything at all. That is the mode where it matters most: opening a
+ * project card calls `openSiteWindow`, which writes a crash-safety row, so the fleet path has always
+ * PRODUCED rows and never consumed them. A hard kill of Electron therefore stranded every open
+ * site's child, the next launch reaped none of them, and clicking the same card allocated a fresh
+ * port and started a SECOND `tovu serve` over the same `content.db`. Two writers on one sqlite file
+ * is the part that mattered; the leaked port and memory were the visible symptom.
+ *
+ * Safe above the split for all three modes. Every mode resolves the same `registryPath` from the
+ * same `userData`, so there is one registry to reconcile whichever way this launch goes, and attach
+ * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
+ * fleet launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
+ * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
+ * launchd before terminating it, and retains the rows of any still-supervised sibling (see
+ * `site-registry.cjs`'s `isOrphanedProcess`).
+ *
+ * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
+ *   so a launch can be delayed by up to that grace window per genuine orphan.
+ */
+async function reconcileOrphansOnBoot(registryPath) {
+  const reconciled = await reconcileOrphans(registryPath);
+  if (reconciled.length === 0) return;
+  console.log(
+    `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}`,
+  );
+}
+
+/**
+ * Boot mode 2 — own server. Build the menu, then open every startup site.
  *
  * Extracted from the `whenReady` handler rather than left inline: with a third boot mode added,
  * that one arrow carried every branch of all three and measured cyclomatic complexity 10 against
@@ -678,13 +711,6 @@ async function bootOwnServerMode() {
     statePath: stateFilePath(app.getPath("userData")),
     registryPath: registryFilePath(app.getPath("userData")),
   };
-
-  const reconciled = await reconcileOrphans(ctx.registryPath);
-  if (reconciled.length > 0) {
-    console.log(
-      `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}`,
-    );
-  }
 
   refreshAppMenu(ctx);
 
@@ -714,6 +740,12 @@ app
     // needed for `window.tovuVoice` to exist at all.
     registerSpeechIpc({ ipcMain });
     applyDockIcon();
+
+    // ABOVE the mode split, deliberately: the fleet UI writes crash-safety rows (every card click
+    // goes through `openSiteWindow`) but used to read none back, so a hard kill leaked every open
+    // site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running it for all
+    // three modes is correct and why it cannot reap a live sibling instance's children.
+    await reconcileOrphansOnBoot(registryFilePath(app.getPath("userData")));
 
     // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
     // spawns no `tovu serve` of its own at boot — only when a project card is clicked, through the
