@@ -23,6 +23,7 @@ const {
   classifySiteDir,
   resolveDevFallback,
   initSiteDir,
+  resolveOrInitSiteDir,
   adoptSiteDir,
   resolveSiteDir,
 } = require("./site-dir-store.cjs");
@@ -142,8 +143,10 @@ test("existingRecentSiteDirs drops folders that were moved or deleted since they
 
 test("resolveSiteDir lets TOVU_DESKTOP_SITE_DIR win over everything, without asking", async () => {
   let asked = false;
+  const override = fakeSiteDir();
   const dir = await resolveSiteDir({
-    envDir: "/explicit/override",
+    envDir: override,
+    onMissingSite: "fail",
     statePath: tempStatePath(),
     devFallbackDir: fakeSiteDir(),
     repoRoot: fakeRepoRoot(),
@@ -152,8 +155,60 @@ test("resolveSiteDir lets TOVU_DESKTOP_SITE_DIR win over everything, without ask
       return null;
     },
   });
-  assert.equal(dir, "/explicit/override");
+  assert.equal(dir, override);
   assert.equal(asked, false);
+});
+
+test('resolveSiteDir fails fast, with a specific reason, when TOVU_DESKTOP_SITE_DIR names an empty folder under the "fail" policy', async () => {
+  const empty = tempDir();
+  await assert.rejects(
+    resolveSiteDir({
+      envDir: empty,
+      onMissingSite: "fail",
+      statePath: tempStatePath(),
+      repoRoot: fakeRepoRoot(),
+      pickDir: () => assert.fail("an env override must never fall through to the picker"),
+    }),
+    /has no Tovu site in it yet/,
+  );
+  // Refusing to init means refusing to init — no marker files appear.
+  assert.equal(fs.existsSync(path.join(empty, "config.json")), false);
+});
+
+test('resolveSiteDir DOES initialize an empty TOVU_DESKTOP_SITE_DIR under the "init" policy — the policy is what decides, not the branch', async () => {
+  const empty = tempDir();
+  let args;
+  const dir = await resolveSiteDir({
+    envDir: empty,
+    onMissingSite: "init",
+    statePath: tempStatePath(),
+    repoRoot: fakeRepoRoot(),
+    spawnFn: (_command, spawnArgs) => {
+      args = spawnArgs;
+      return fakeInitChild(0);
+    },
+    pickDir: () => assert.fail("an env override must never fall through to the picker"),
+  });
+  assert.equal(dir, empty);
+  assert.deepEqual(args.slice(1), ["init", empty]);
+});
+
+test("resolveSiteDir still refuses an occupied or half-initialized TOVU_DESKTOP_SITE_DIR under either policy", async () => {
+  const occupied = tempDir();
+  fs.writeFileSync(path.join(occupied, "taxes.pdf"), "");
+  for (const onMissingSite of ["init", "fail"]) {
+    await assert.rejects(
+      resolveSiteDir({ envDir: occupied, onMissingSite, statePath: tempStatePath(), repoRoot: fakeRepoRoot() }),
+      /is not a Tovu site and is not empty/,
+    );
+  }
+});
+
+test("resolveSiteDir requires an explicit onMissingSite when envDir is set — no silent default", async () => {
+  await assert.rejects(
+    resolveSiteDir({ envDir: fakeSiteDir(), statePath: tempStatePath(), repoRoot: fakeRepoRoot() }),
+    /onMissingSite must be "init" or "fail"/,
+  );
 });
 
 test("resolveSiteDir reuses the most recent remembered site, so the user is asked exactly once", async () => {
@@ -278,6 +333,49 @@ test("resolveSiteDir reports a cancelled picker as a cancellation, not a failure
     resolveSiteDir({ statePath: tempStatePath(), repoRoot: fakeRepoRoot(), pickDir: () => null }),
     SiteDirSelectionCancelled,
   );
+});
+
+test('resolveOrInitSiteDir returns an already-valid site unchanged under either policy', async () => {
+  const site = fakeSiteDir();
+  for (const onMissingSite of ["init", "fail"]) {
+    assert.equal(await resolveOrInitSiteDir({ dir: site, onMissingSite }), site);
+  }
+});
+
+test('resolveOrInitSiteDir("init") runs `tovu init` for an empty folder, the same as adoptSiteDir', async () => {
+  const empty = tempDir();
+  let args;
+  const dir = await resolveOrInitSiteDir({
+    dir: empty,
+    onMissingSite: "init",
+    repoRoot: fakeRepoRoot(),
+    name: "My Site",
+    spawnFn: (_command, spawnArgs) => {
+      args = spawnArgs;
+      return fakeInitChild(0);
+    },
+  });
+  assert.equal(dir, empty);
+  assert.deepEqual(args.slice(1), ["init", empty, "--name", "My Site"]);
+});
+
+test('resolveOrInitSiteDir("fail") refuses an empty folder with a specific reason instead of creating anything', async () => {
+  const empty = tempDir();
+  await assert.rejects(
+    resolveOrInitSiteDir({ dir: empty, onMissingSite: "fail", spawnFn: () => assert.fail("must not run tovu init under the fail policy") }),
+    /has no Tovu site in it yet/,
+  );
+});
+
+test("resolveOrInitSiteDir refuses occupied and incomplete folders regardless of onMissingSite — neither is a policy decision", async () => {
+  const occupied = tempDir();
+  fs.writeFileSync(path.join(occupied, "taxes.pdf"), "");
+  const incomplete = tempDir();
+  fs.writeFileSync(path.join(incomplete, "config.json"), JSON.stringify({ name: "half" }));
+  for (const onMissingSite of ["init", "fail"]) {
+    await assert.rejects(resolveOrInitSiteDir({ dir: occupied, onMissingSite }), /is not a Tovu site and is not empty/);
+    await assert.rejects(resolveOrInitSiteDir({ dir: incomplete, onMissingSite }), /is missing \.site-meta\.json/);
+  }
 });
 
 test("adoptSiteDir refuses a folder of unrelated files instead of writing a database into it", async () => {

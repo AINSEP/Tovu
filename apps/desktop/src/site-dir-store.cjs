@@ -180,17 +180,30 @@ function initSiteDir(input) {
 }
 
 /**
- * Turn a folder the user just picked into a servable site dir, creating one if the folder is empty.
+ * THE single chokepoint through which any folder becomes a servable site dir, or is refused with a
+ * specific reason. Every entry point that turns an operator-named folder into a site dir — the
+ * picker, "+ Create website", an env-var override — must call this rather than re-deciding for
+ * itself, so the four kinds {@link classifySiteDir} distinguishes are handled identically everywhere.
+ * The ONLY thing allowed to vary between call sites is `onMissingSite`, declared explicitly by each
+ * one — never an accident of which branch happened to run. This is what closed the bug where the
+ * picker initialized an empty folder correctly but the env-var arms handed the same empty folder
+ * straight to `tovu serve`, which does not know how to create a site and dies confusingly.
  *
- * @throws {Error} when the folder holds unrelated files (`"occupied"`) — refusing is the safe half
- *   of that classification, since the alternative is writing a database into someone's Documents
- *   folder — or when it is a half-initialized site (`"incomplete"`): naming it here rather than
- *   letting it through is the same reasoning that fixed `classifySiteDir`'s own gap (see that
- *   constant's doc) — a folder this function silently accepted as-is would only fail once the
- *   spawned `tovu serve` child died, not here where the reason is still in hand.
- * @complexity O(1) beyond `classifySiteDir` and, for an empty folder, `tovu init`.
+ * `"occupied"` and `"incomplete"` always refuse, regardless of `onMissingSite` — neither is a
+ * *missing* site for the policy to have an opinion about: `"occupied"` is the WRONG folder (someone's
+ * real, unrelated files) and `"incomplete"` is a corrupt/half-written one. Auto-repairing either would
+ * risk data loss no policy should paper over silently.
+ *
+ * @param input.onMissingSite `"init"` — an EMPTY folder is a real answer to "start a new site here";
+ *   run `tovu init` and return `dir`, same as {@link classifySiteDir}'s own doc on `"empty"`.
+ *   `"fail"` — refuse an empty folder with a specific, informative error instead of creating anything
+ *   there; for a call site that treats `dir` as a claim the site already exists (`resolveSiteDir`'s
+ *   own doc: an operator override is "taken as given") rather than an invitation to create one.
+ * @throws {Error} naming the exact reason: occupied, incomplete (naming which marker file(s) are
+ *   missing), or — under `"fail"` only — empty.
+ * @complexity O(1) beyond `classifySiteDir`'s and, for `"init"` on an empty dir, `initSiteDir`'s own cost.
  */
-async function adoptSiteDir(input) {
+async function resolveOrInitSiteDir(input) {
   const kind = classifySiteDir(input.dir);
   if (kind === "occupied") {
     throw new Error(`${input.dir} is not a Tovu site and is not empty. Choose an empty folder to create a new site, or a folder that already contains a site (one with a ${SITE_MARKER_FILE} and a ${SITE_META_FILE}).`);
@@ -200,8 +213,28 @@ async function adoptSiteDir(input) {
     throw new Error(`${input.dir} is missing ${missing} — it looks like a half-initialized site, not a complete one. Choose a different folder.`);
   }
   if (kind === "empty") {
+    if (input.onMissingSite === "fail") {
+      throw new Error(
+        `${input.dir} has no Tovu site in it yet (no ${SITE_MARKER_FILE}/${SITE_META_FILE}). This folder was named directly rather than picked interactively, so Tovu will not create a site there automatically — point it at an existing site's folder, or use "Open Site…" to create a new one there yourself.`,
+      );
+    }
     await initSiteDir({ repoRoot: input.repoRoot, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn, cliMode: input.cliMode });
   }
+  return input.dir;
+}
+
+/**
+ * Turn a folder the user just picked into a servable site dir, creating one if the folder is empty.
+ * A thin, fixed-policy wrapper over {@link resolveOrInitSiteDir} (`onMissingSite: "init"`) — the
+ * picker's and "+ Create website"'s own semantics: an empty folder IS a legitimate answer to "start a
+ * new site here" when a person just chose it — plus remembering the result in the MRU, which is a
+ * picker-specific concern {@link resolveOrInitSiteDir} itself has no opinion about.
+ *
+ * @throws {Error} see {@link resolveOrInitSiteDir}.
+ * @complexity O(1) beyond {@link resolveOrInitSiteDir}'s own cost.
+ */
+async function adoptSiteDir(input) {
+  await resolveOrInitSiteDir({ ...input, onMissingSite: "init" });
   rememberSiteDir(input.statePath, input.dir);
   return input.dir;
 }
@@ -234,13 +267,21 @@ function resolveDevFallback(devFallbackDir) {
  * Decide which site dir this launch serves.
  *
  * Precedence, most explicit first:
- * 1. `TOVU_DESKTOP_SITE_DIR` — an operator override always wins, and is taken as given.
+ * 1. `TOVU_DESKTOP_SITE_DIR` — an operator override always wins. Routed through
+ *    {@link resolveOrInitSiteDir} like every other entry point, under whichever `onMissingSite`
+ *    policy `input.onMissingSite` declares for this one — see this function's own param doc for why
+ *    that is `"fail"` in production, not `"init"`.
  * 2. The most recent remembered folder that is still a site — so the user is asked exactly once.
  * 3. `devFallbackDir` (`<repo>/sites/tovu-com` in a checkout), when it is a site. Correct for a
  *    developer, absent in a packaged app, which is why it cannot be the only answer. See
  *    {@link resolveDevFallback}.
  * 4. Ask, via `pickDir`. An empty folder becomes a new site; a folder of unrelated files is refused.
  *
+ * @param input.onMissingSite Required — the policy step 1 declares for its OWN branch only; steps
+ *   2-3 never reach an empty/incomplete/occupied dir at all (each already filters to `"site"` before
+ *   returning), and step 4 (the picker) always uses `"init"` via `adoptSiteDir`. Required rather than
+ *   defaulted so a call site cannot skip declaring it — the whole point of routing this branch through
+ *   {@link resolveOrInitSiteDir} at all.
  * @param input.pickDir async `(rejectedDefault) => string | null`; `null` means the user
  *   cancelled. `rejectedDefault` is `null` when there was nothing to try (no `devFallbackDir`, or a
  *   packaged app that never sets one), else `{ dir, kind, missing? }` naming the candidate step 3
@@ -250,11 +291,26 @@ function resolveDevFallback(devFallbackDir) {
  * @param input.cliMode `"source"` or `"compiled"` — threaded through to `initSiteDir` via
  *   `adoptSiteDir` when the picked folder is empty; see `tovu-server.cjs`'s `buildCliSpawnPlan`.
  * @throws {SiteDirSelectionCancelled} when the user dismisses the picker.
+ * @throws {Error} see {@link resolveOrInitSiteDir} — when `envDir` is set but is not a usable site
+ *   under the declared `onMissingSite` policy.
  * @complexity O(n) stat calls over the MRU, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
 async function resolveSiteDir(input) {
   const envDir = input.envDir?.trim();
-  if (envDir) return envDir;
+  if (envDir) {
+    if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
+      throw new Error('resolveSiteDir: input.onMissingSite must be "init" or "fail" when envDir is set.');
+    }
+    return await resolveOrInitSiteDir({
+      dir: envDir,
+      onMissingSite: input.onMissingSite,
+      repoRoot: input.repoRoot,
+      name: input.name,
+      baseEnv: input.baseEnv,
+      spawnFn: input.spawnFn,
+      cliMode: input.cliMode,
+    });
+  }
 
   const [mostRecent] = existingRecentSiteDirs(input.statePath);
   if (mostRecent !== undefined) return mostRecent;
@@ -291,6 +347,7 @@ module.exports = {
   classifySiteDir,
   resolveDevFallback,
   initSiteDir,
+  resolveOrInitSiteDir,
   adoptSiteDir,
   resolveSiteDir,
 };

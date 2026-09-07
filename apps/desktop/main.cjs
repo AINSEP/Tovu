@@ -95,7 +95,7 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
-const { resolveSiteDir, adoptSiteDir, classifySiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
+const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
@@ -526,6 +526,20 @@ function refreshAppMenu(ctx) {
  * indistinguishable from the app being broken. A short info dialog closes that gap without turning a
  * legitimate decline into an error.
  */
+/**
+ * `true` when this launch named its site dir(s) directly via env var rather than through the
+ * interactive picker — `TOVU_DESKTOP_SITE_DIR`/`TOVU_DESKTOP_SITE_DIRS`, documented at the top of
+ * this file as "chiefly for verification/automation". {@link reportBootFailure} uses this to decide
+ * whether a boot failure may show a blocking native dialog at all: measured live (2026-09-06), a
+ * `dialog.showErrorBox` shown from one of these launches — no interactive user to dismiss it — left
+ * the whole Electron process hung indefinitely rather than exiting, defeating the entire point of a
+ * "fail fast" policy for an automation-facing arm. An interactive picker failure still gets the
+ * dialog, because a human is at the keyboard there to see and dismiss it.
+ */
+function isUnattendedSiteLaunch() {
+  return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs() !== null;
+}
+
 async function reportBootFailure(error) {
   if (error instanceof SiteDirSelectionCancelled) {
     if (!SELFTEST) {
@@ -541,8 +555,18 @@ async function reportBootFailure(error) {
   }
   console.error(`tovu desktop: ${error.message}`);
   process.exitCode = 1;
-  if (!SELFTEST) dialog.showErrorBox("Tovu could not start", error.message);
-  app.quit();
+  if (!SELFTEST && !isUnattendedSiteLaunch()) dialog.showErrorBox("Tovu could not start", error.message);
+  // `app.exit(1)` ONLY when nothing is open — a boot failure this early (resolving which site
+  // dir(s) to serve, before any window exists) always has `openSites` empty, so there is nothing
+  // for the graceful `before-quit` drain to do, and `app.exit` guarantees the process actually
+  // exits with `1` rather than depending on `app.quit()`'s normal shutdown to have honored
+  // `process.exitCode` (measured live, 2026-09-06: it did not — the process reported `exitCode=0`
+  // to its parent despite this same line running). When a site IS already open (a later site in a
+  // multi-dir launch failing after an earlier one succeeded), `app.quit()` stays exactly as before
+  // so `before-quit` still gets the chance to stop that child gracefully; that path's exit code is
+  // unchanged pre-existing behavior, not something this fix touches.
+  if (openSites.size === 0) app.exit(1);
+  else app.quit();
 }
 
 /**
@@ -570,17 +594,37 @@ function buildSelftestTracker(expectedCount) {
  *  doc for why registration must happen per-window, at creation time. */
 let selftestTracker = null;
 
+/**
+ * The policy BOTH env-var arms below declare for a folder they name that turns out to be empty.
+ *
+ * `"fail"`, not `"init"`: `resolveSiteDir`'s own doc calls an env override "taken as given" — the
+ * operator is asserting a site already lives there, not asking Tovu to invent one. These vars are
+ * also named as chiefly for verification/automation (see this file's header), where a typo'd or
+ * stale path silently becoming a brand-new, empty site is a worse failure than a loud, specific error:
+ * it would hide the mistake behind a window that opens showing nothing, rather than naming the exact
+ * folder and reason immediately. The interactive picker is the one place `"init"` is right, because a
+ * human just chose that empty folder on purpose, in the moment (see `adoptSiteDir`'s own doc).
+ */
+const ENV_SITE_DIR_ON_MISSING = "fail";
+
 /** Resolves the site dir(s) to open at launch: `TOVU_DESKTOP_SITE_DIRS` (plural) wins outright when
  *  set — chiefly for verification/automation — otherwise the existing single-site precedence chain
- *  (`resolveSiteDir`) picks exactly one.
- *  @complexity O(1) plus `resolveSiteDir`'s own cost in the single-site case. */
+ *  (`resolveSiteDir`) picks exactly one. Both env-var arms route through the same
+ *  `resolveOrInitSiteDir`/`resolveSiteDir` chokepoint the picker uses, under the explicit policy
+ *  {@link ENV_SITE_DIR_ON_MISSING} declares — see that constant's own doc for why.
+ *  @complexity O(n) in the explicit-dirs count, plus `resolveSiteDir`'s own cost in the single-site case. */
 async function resolveStartupSiteDirs(ctx) {
   const explicit = explicitStartupSiteDirs();
-  if (explicit) return explicit;
+  if (explicit) {
+    return await Promise.all(
+      explicit.map((dir) => resolveOrInitSiteDir({ dir, onMissingSite: ENV_SITE_DIR_ON_MISSING, repoRoot: REPO_ROOT, cliMode: ctx.cliMode })),
+    );
+  }
 
   const pinnedPort = process.env.TOVU_DESKTOP_PORT?.trim();
   const siteDir = await resolveSiteDir({
     envDir: process.env.TOVU_DESKTOP_SITE_DIR,
+    onMissingSite: ENV_SITE_DIR_ON_MISSING,
     statePath: ctx.statePath,
     // Correct for a developer, absent in a packaged app — one tier of a precedence chain rather
     // than a hardcoded default.

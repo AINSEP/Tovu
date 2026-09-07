@@ -161,45 +161,51 @@ test.describe("apps/desktop shell", () => {
     }
   });
 
-  test("TOVU_DESKTOP_SITE_DIR onto an empty folder initializes it, like the picker does", async () => {
-    /**
-     * REGRESSION (found 2026-09-06, currently RED).
-     *
-     * The picker arm is FINE — the test above proves "Open Site…" onto an empty folder really does
-     * run `tovu init` and serve the result. The defect is in the two env-var arms only:
-     * `resolveSiteDir`'s first branch is `if (envDir) return envDir`, so the path is returned raw and
-     * never reaches `adoptSiteDir`; `main.cjs`'s `TOVU_DESKTOP_SITE_DIRS` bypasses `adoptSiteDir` the
-     * same way. Either one pointed at an empty folder hands it straight to `tovu serve`, which dies
-     * `SITE_DIR_INVALID: config.json is missing`, and no window ever opens.
-     *
-     * This repo's most common defect shape is a fix landing in one arm of a conditional and not its
-     * siblings — the `TOVU_SITE_DIR` crash fix went into `serve`, then `init` (`9f0b5913`), and these
-     * are the arms it still has not reached. The env arm's own doc says an operator override is
-     * "taken as given", so initializing may not be the right fix; failing with a message that names
-     * the real problem would also close it. What is not defensible is the current behavior, where a
-     * folder the picker would happily turn into a site is rejected with a low-level error purely
-     * because of which entry point named it.
-     *
-     * Short timeout on purpose: the failure mode is the app dying before it ever opens a window, so
-     * this must fail in seconds rather than sitting out the suite-level 180s.
-     */
+  /**
+   * Both env-var arms below (`TOVU_DESKTOP_SITE_DIR`, `TOVU_DESKTOP_SITE_DIRS`) now route through the
+   * SAME `resolveOrInitSiteDir` chokepoint the picker uses (`site-dir-store.cjs`), under an explicit
+   * `onMissingSite: "fail"` policy — `main.cjs`'s `ENV_SITE_DIR_ON_MISSING`. An operator override is
+   * "taken as given" (`resolveSiteDir`'s own doc): these vars name a folder that is asserted to
+   * already hold a site, not an invitation to create one, and both are chiefly for
+   * verification/automation, where a typo'd or stale path silently becoming a brand-new, empty site
+   * is a worse failure than a loud, specific, fast one. The picker keeps `onMissingSite: "init"`
+   * (via `adoptSiteDir`) because there a human just chose that empty folder on purpose, in the moment.
+   *
+   * Was a REGRESSION (found 2026-09-06): `resolveSiteDir`'s env branch used to return the raw path
+   * with no validation at all, and `main.cjs`'s multi-dir branch bypassed `adoptSiteDir` the same way
+   * — either one pointed at an empty folder handed it straight to `tovu serve`, which died with a
+   * low-level `SITE_DIR_INVALID: config.json is missing` and no window ever opened. Fixed by giving
+   * every entry point that resolves a site dir one shared chokepoint with an explicit,
+   * per-call-site policy, rather than patching this one arm and leaving its sibling (`_SITE_DIR` vs.
+   * `_SITE_DIRS`) to diverge again later — this repo's most common defect shape.
+   *
+   * **Why these two assert on a REJECTED `launchShell(...)` rather than an `ElectronApplication`**:
+   * the old regression's failure came from a spawned `tovu serve` child actually dying (real seconds
+   * of `tsx` boot before it crashed), which gave Playwright's `electron.launch()` time to attach
+   * before the process exited. The fixed failure is a pure fs check with no child ever spawned, so
+   * the whole app now exits before Playwright's own CDP handshake completes at all — measured live,
+   * `electron.launch()` itself rejects with `Target page, context or browser has been closed` rather
+   * than resolving. That rejection bundles the child's captured stdout/stderr into its own message
+   * (Playwright's own behavior for a launch failure), which is what this asserts against — the
+   * rejection IS the proof of "fail fast", not a workaround for one.
+   */
+  test("TOVU_DESKTOP_SITE_DIR onto an empty folder fails fast with a specific reason, not a low-level crash", async () => {
     const target = emptySiteFolder("env-empty");
-    const app = await launchShell({
-      HOME: scratchHome("env-empty-home"),
-      TOVU_DESKTOP_SITE_DIR: target,
-    });
-    // The app exits on this path, so race the window against the process to avoid a hang.
-    const exited = new Promise<"exited">((resolve) => app.process().once("exit", () => resolve("exited")));
-    try {
-      const outcome = await Promise.race([
-        app.firstWindow({ timeout: 60_000 }).then(() => "window" as const),
-        exited,
-      ]);
-      expect(outcome, "the shell exited instead of opening a window on the new site").toBe("window");
-      expect(fs.existsSync(path.join(target, "config.json"))).toBe(true);
-    } finally {
-      await app.close().catch(() => {});
-    }
+    await expect(
+      launchShell({ HOME: scratchHome("env-empty-home"), TOVU_DESKTOP_SITE_DIR: target }),
+      "the shell should refuse to boot fast enough that Playwright cannot even attach — not hang, and not open a window",
+    ).rejects.toThrow(/has no Tovu site in it yet/);
+    // Refusing to init means refusing to init — the fail policy must not create anything.
+    expect(fs.existsSync(path.join(target, "config.json"))).toBe(false);
+  });
+
+  test("TOVU_DESKTOP_SITE_DIRS onto an empty folder fails the same way as the single-dir arm", async () => {
+    const target = emptySiteFolder("env-empty-multi");
+    await expect(
+      launchShell({ HOME: scratchHome("env-empty-multi-home"), TOVU_DESKTOP_SITE_DIRS: target }),
+      "the shell should refuse to boot fast enough that Playwright cannot even attach — not hang, and not open a window",
+    ).rejects.toThrow(/has no Tovu site in it yet/);
+    expect(fs.existsSync(path.join(target, "config.json"))).toBe(false);
   });
 
   test("an EXISTING site comes up AUTHENTICATED — no login form", async () => {
