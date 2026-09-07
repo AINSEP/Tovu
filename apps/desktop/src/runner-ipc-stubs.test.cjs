@@ -53,15 +53,15 @@ function declaredChannels() {
  * in `main.cjs` before `registerRunnerIpcStubs` runs) — see `RUNNER_PROJECT_CHANNELS`'s own doc.
  * Declared by the contracts, on purpose absent from `RUNNER_STUB_CHANNELS`: a real handler and a
  * stub for the same channel is a duplicate `ipcMain.handle` registration, which Electron itself
- * refuses. `start`/`stop` stay stubbed — see `openWindow`'s own doc on why the N-window model never
- * needs them — so they are NOT in this list.
+ * refuses. `stop` stays stubbed — no control in the per-project bar calls it yet — so it is NOT in
+ * this list.
  */
 const IMPLEMENTED_CHANNELS = new Set([
   "runner:projects:list",
   "runner:projects:create",
   "runner:projects:delete",
   "runner:projects:open-external",
-  "runner:projects:open-window",
+  "runner:projects:start",
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {

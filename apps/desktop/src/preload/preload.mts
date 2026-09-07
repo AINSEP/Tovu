@@ -79,7 +79,6 @@ contextBridge.exposeInMainWorld(
     deleteProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.delete, id),
     openProjectExternal: (input: OpenProjectViewInput) =>
       ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.openExternal, input),
-    openProjectWindow: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.openWindow, id),
     chatStart: (input: RunnerChatStartInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.start, input),
     chatReattach: (input: RunnerChatReattachInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.reattach, input),
     chatDetach: (subscriptionId: string) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.detach, { subscriptionId }),

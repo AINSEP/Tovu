@@ -29,6 +29,14 @@ export interface ProjectRecord {
   displayName: string;
   installDir: string;
   port: number;
+  /**
+   * This project's own Electron session-partition string (`desktop-auth.cjs`'s `sitePartition`,
+   * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `ProjectWorkspace`) sets this
+   * as its `<webview partition>` so the guest's cookie jar is the exact one main seeded with a
+   * signed-in session — see that function's own header, property 2, on why one jar per site is a
+   * correctness requirement (cookies ignore port) and not a hardening nicety.
+   */
+  partition: string;
   templateId: string;
   templateVersion: string | null;
   database: ProjectDatabaseSummary;
@@ -75,7 +83,15 @@ export interface OpenProjectViewInput {
 export const RUNNER_PROJECT_CHANNELS = {
   list: 'runner:projects:list',
   create: 'runner:projects:create',
+  /**
+   * A project tab's own answer to "not running yet": ensure the site's `tovu serve` is up
+   * (spawning it, or reusing it if another tab already has it open), then return its fresh
+   * `ProjectRecord`. Real (`project-ipc.cjs`'s `handleStart`/`openSiteServer`) — not a stub — as
+   * of the embedded-tab model; nothing here creates a `BrowserWindow`.
+   */
   start: 'runner:projects:start',
+  /** Not implemented yet — no control in the per-project bar calls it. Closing the app
+   *  (`before-quit`) or deleting the project are the two ways a fleet-opened site stops today. */
   stop: 'runner:projects:stop',
   /** Irreversible: stops the process, removes the install dir, drops the row. Returns nothing. */
   delete: 'runner:projects:delete',
@@ -85,14 +101,4 @@ export const RUNNER_PROJECT_CHANNELS = {
    * name a destination and main has nothing to validate on arrival.
    */
   openExternal: 'runner:projects:open-external',
-  /**
-   * Opens (or focuses) a project in its own `BrowserWindow` — the N-BrowserWindow model's answer
-   * to a click on a project card. Carries only the project id; main resolves it to a site dir
-   * through the tracked project list and hands it to the same `openSiteWindow`/`serializer` path
-   * "Open Site…" already uses, spawning the site's own `tovu serve` if it is not already running.
-   * Deliberately not a `start`/`stop` pair: under N windows a site cannot run without a window
-   * (see `main.cjs`'s own doc on `openSiteWindow`), so "open" already covers "start", and closing
-   * the window is what stops it.
-   */
-  openWindow: 'runner:projects:open-window',
 } as const;

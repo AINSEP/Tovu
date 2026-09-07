@@ -1,7 +1,7 @@
 /**
  * @file Coverage for `project-ipc.cjs` — the five real `runner:projects:*` handlers the Projects
  * screen needs. No real Electron anywhere: `ipcMain`/`dialog`/`shell` are plain fakes, `openSites`
- * is a real `Map` standing in for `main.cjs`'s module-level one, and `openSiteWindow`/`adoptSiteDir`
+ * is a real `Map` standing in for `main.cjs`'s module-level one, and `openSiteServer`/`adoptSiteDir`
  * are spies rather than the real functions — those are covered by `main.cjs`'s own doc and by the
  * E2E suite; this file's job is the IPC wiring and the pure `buildProjectRecord` join.
  */
@@ -18,7 +18,7 @@ const {
   handleCreate,
   handleDelete,
   handleOpenExternal,
-  handleOpenWindow,
+  handleStart,
   registerProjectIpcHandlers,
 } = require("./project-ipc.cjs");
 const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } = require("./project-registry.cjs");
@@ -71,6 +71,25 @@ test("buildProjectRecord reports an open project as running, with its real port"
   assert.equal(record.status, "running");
   assert.equal(record.desiredState, "running");
   assert.equal(record.port, 4321);
+});
+
+test("buildProjectRecord's partition is stable for the same site dir and independent of running status", () => {
+  const deps = baseDeps();
+  const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
+
+  const stopped = buildProjectRecord(row, deps);
+  deps.openSites.set("/sites/a", { server: { port: 4321 } });
+  const running = buildProjectRecord(row, deps);
+
+  assert.match(stopped.partition, /^persist:tovu-site-[0-9a-f]{32}$/);
+  assert.equal(stopped.partition, running.partition);
+});
+
+test("buildProjectRecord gives two different site dirs two different partitions", () => {
+  const deps = baseDeps();
+  const a = buildProjectRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
+  const b = buildProjectRecord({ siteDir: "/sites/b", createdAt: "2026-01-01" }, deps);
+  assert.notEqual(a.partition, b.partition);
 });
 
 test("handleList returns one record per tracked row, joined against openSites", () => {
@@ -144,6 +163,20 @@ test("handleDelete on a running project the app CREATED stops the server before 
   assert.deepEqual(readTrackedProjects(deps.projectsPath), []);
 });
 
+test("handleDelete stops a fleet-opened (embedded-tab) entry that carries no window at all", async () => {
+  const siteDir = path.join(tempDir(), "embedded-tab-site");
+  fs.mkdirSync(siteDir);
+  const deps = baseDeps();
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+  let stopped = false;
+  deps.openSites.set(siteDir, { server: { stop: async () => { stopped = true; } } });
+
+  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+
+  assert.equal(stopped, true);
+  assert.equal(deps.openSites.has(siteDir), false);
+});
+
 test("handleOpenExternal throws when the project is not currently open", async () => {
   const deps = baseDeps();
   await assert.rejects(() => handleOpenExternal({ projectId: "/sites/a", view: "admin" }, deps), /not open/);
@@ -160,23 +193,26 @@ test("handleOpenExternal opens the admin surface by default, the site surface wh
   assert.deepEqual(opened, ["http://127.0.0.1:4321/admin/", "http://127.0.0.1:4321/"]);
 });
 
-test("handleOpenWindow refuses an id this shell is not tracking", async () => {
-  const deps = baseDeps({ openSiteWindow: async () => assert.fail("must not be called") });
-  await assert.rejects(() => handleOpenWindow("/sites/unknown", deps), /Unknown project/);
+test("handleStart refuses an id this shell is not tracking", async () => {
+  const deps = baseDeps({ openSiteServer: async () => assert.fail("must not be called") });
+  await assert.rejects(() => handleStart("/sites/unknown", deps), /Unknown project/);
 });
 
-test("handleOpenWindow serializes on the site dir and calls openSiteWindow with ctx", async () => {
+test("handleStart serializes on the site dir, calls openSiteServer with ctx, and returns the fresh record", async () => {
   let openedWith = null;
   const deps = baseDeps({
-    openSiteWindow: async (siteDir, ctx) => {
+    openSiteServer: async (siteDir, ctx) => {
       openedWith = { siteDir, ctx };
+      deps.openSites.set(siteDir, { server: { port: 4321 } });
     },
   });
   trackProject(deps.projectsPath, "/sites/a");
 
-  await handleOpenWindow("/sites/a", deps);
+  const record = await handleStart("/sites/a", deps);
 
   assert.deepEqual(openedWith, { siteDir: "/sites/a", ctx: deps.ctx });
+  assert.equal(record.status, "running");
+  assert.equal(record.port, 4321);
 });
 
 test("registerProjectIpcHandlers registers exactly the five real channels", () => {

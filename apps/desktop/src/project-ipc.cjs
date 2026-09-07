@@ -5,10 +5,9 @@
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
  * that ever regresses (see `runner-ipc-stubs.cjs`'s own doc).
  *
- * `start`/`stop` are deliberately absent — under the N-`BrowserWindow` model a site cannot run
- * without a window (`openSites` is keyed by an entry that only exists alongside one), so opening a
- * project already covers starting it, and closing its window already covers stopping it. They stay
- * registered as throwing stubs.
+ * `stop` is deliberately absent — no control in the per-project bar calls it yet; closing the app
+ * (`before-quit`, `main.cjs`) or deleting the project (`handleDelete` below) are the two ways a
+ * fleet-opened site stops today. It stays registered as a throwing stub.
  *
  * The channel literals below are INLINED rather than imported from `contracts/project.ts`, same
  * reason `runner-ipc-stubs.cjs` inlines its own: this is CommonJS main-process code and the
@@ -24,13 +23,14 @@ const fsp = require("node:fs/promises");
 
 const { PROJECT_ORIGIN, readTrackedProjects, trackProject, untrackProject } = require("./project-registry.cjs");
 const { mayEraseProjectDirectory } = require("./project-delete-guard.cjs");
+const { sitePartition } = require("./desktop-auth.cjs");
 
 const RUNNER_PROJECT_CHANNELS = Object.freeze({
   list: "runner:projects:list",
   create: "runner:projects:create",
   delete: "runner:projects:delete",
   openExternal: "runner:projects:open-external",
-  openWindow: "runner:projects:open-window",
+  start: "runner:projects:start",
 });
 
 /**
@@ -51,6 +51,11 @@ function buildProjectRecord(row, deps) {
     displayName: deps.readSiteName(row.siteDir),
     installDir: row.siteDir,
     port: running ? openEntry.server.port : 0,
+    // Independent of `running` — a project's partition is a pure function of its own directory
+    // (`desktop-auth.cjs`'s `sitePartition`), not of whether a server currently answers on it. The
+    // embedded-tab renderer needs it either way: `ProjectWorkspace`'s `<webview>` sets it up front,
+    // before the tab knows whether the site is up yet.
+    partition: sitePartition(row.siteDir),
     templateId: "tovu",
     templateVersion: null,
     database: { kind: "sqlite" },
@@ -144,7 +149,9 @@ async function handleDelete(id, deps) {
     await openEntry.server.stop();
     deps.openSites.delete(id);
     deps.recordSiteClosed(deps.registryPath, id);
-    if (!openEntry.window.isDestroyed()) openEntry.window.destroy();
+    // A fleet-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
+    // `main.cjs` — so this is optional, not a missing null check.
+    if (openEntry.window && !openEntry.window.isDestroyed()) openEntry.window.destroy();
   }
 
   untrackProject(deps.projectsPath, id);
@@ -172,22 +179,28 @@ async function handleOpenExternal(input, deps) {
 }
 
 /**
- * A project card's click target: open the site in its own window, spawning its `tovu serve` if it
- * is not already running, or simply focus the window if it is. Reuses `openSiteWindow` — the same
- * verified path "Open Site…"/"Open Recent"/startup already use — through `serializer.run`, so a
- * fast double-click on the same card cannot double-spawn its server (see `main.cjs`'s own doc on
- * `openSiteWindow`/`keyed-serializer.cjs`).
+ * A project tab's "not running yet" answer: ensure the site's `tovu serve` is up, spawning it if it
+ * is not already running, or reusing it if another tab already has it open — never a `BrowserWindow`.
+ * Reuses `openSiteServer` — `main.cjs`'s spawn-only counterpart to the `openSiteWindow` "Open
+ * Site…"/"Open Recent"/startup already use — through `serializer.run`, so opening the same tab twice
+ * fast cannot double-spawn its server (see `main.cjs`'s own doc on `openSiteServer`/
+ * `keyed-serializer.cjs`).
+ *
+ * Returns the project's fresh record rather than nothing: the renderer's `<webview>` needs the
+ * `port` this call just produced, and re-deriving it would mean a second `list` round trip for
+ * every tab open.
  *
  * @throws {Error} when `id` names a project this shell is not tracking — a stale id from a renderer
  *   that has not yet re-polled past a delete, refused rather than opening an arbitrary path.
- * @complexity O(1) beyond `openSiteWindow`'s own cost.
+ * @complexity O(1) beyond `openSiteServer`'s own cost.
  */
-async function handleOpenWindow(id, deps) {
-  const tracked = readTrackedProjects(deps.projectsPath);
-  if (!tracked.some((row) => row.siteDir === id)) {
+async function handleStart(id, deps) {
+  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
+  if (row === undefined) {
     throw new Error(`Unknown project: ${id}`);
   }
-  await deps.serializer.run(id, () => deps.openSiteWindow(id, deps.ctx));
+  await deps.serializer.run(id, () => deps.openSiteServer(id, deps.ctx));
+  return buildProjectRecord(row, deps);
 }
 
 /**
@@ -197,8 +210,9 @@ async function handleOpenWindow(id, deps) {
  * @param {{handle: Function}} deps.ipcMain
  * @param {{showOpenDialog: Function}} deps.dialog
  * @param {{openExternal: Function}} deps.shell
- * @param {Map<string, {server: object, window: object}>} deps.openSites live open sites, keyed by
- *   site dir — `main.cjs`'s own module-level map, passed in rather than imported.
+ * @param {Map<string, {server: object, window?: object}>} deps.openSites live open sites, keyed by
+ *   site dir — `main.cjs`'s own module-level map, passed in rather than imported. A fleet-opened
+ *   (embedded-tab) entry carries no `window`; only own-server-mode entries do.
  * @param {{run: Function}} deps.serializer per-site-dir operation serializer (`keyed-serializer.cjs`).
  * @param {string} deps.projectsPath `project-registry.cjs`'s tracked-project JSON file.
  * @param {string} deps.registryPath crash-safety registry file (`site-registry.cjs`), for
@@ -211,9 +225,10 @@ async function handleOpenWindow(id, deps) {
  * @param {Function} deps.classifySiteDir `site-dir-store.cjs`'s classifier, called by `handleCreate`
  *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.cjs`.
- * @param {Function} deps.openSiteWindow `main.cjs`'s spawn-or-focus-a-site's-window function.
+ * @param {Function} deps.openSiteServer `main.cjs`'s spawn-or-reuse-a-site's-backend function
+ *   (no `BrowserWindow` — see that function's own doc).
  * @param {Function} deps.recordSiteClosed `site-registry.cjs`'s crash-safety row remover.
- * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteWindow`'s own second argument.
+ * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — five registrations.
  */
 function registerProjectIpcHandlers(deps) {
@@ -221,7 +236,7 @@ function registerProjectIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openWindow, (_event, id) => handleOpenWindow(id, deps));
+  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.start, (_event, id) => handleStart(id, deps));
 }
 
 module.exports = {
@@ -231,6 +246,6 @@ module.exports = {
   handleCreate,
   handleDelete,
   handleOpenExternal,
-  handleOpenWindow,
+  handleStart,
   registerProjectIpcHandlers,
 };

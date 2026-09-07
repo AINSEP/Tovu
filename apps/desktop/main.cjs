@@ -11,12 +11,14 @@
  *
  * 0. **Fleet UI** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
  *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
- *    Projects screen, now the app's actual front page. `list`/`create`/`delete`/`open-external`/
- *    `open-window` are real (`src/project-ipc.cjs`), routing a card click through the same
- *    `openSiteWindow`/`serializer` path own-server mode uses below; `start`/`stop` stay throwing
- *    stubs on purpose — see `RUNNER_PROJECT_CHANNELS.openWindow`'s own doc on why the N-window
- *    model never needs them. See `fleetUiRequested`'s own doc for exactly which env vars bypass
- *    this default and fall through to modes 1/2 instead.
+ *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this
+ *    SAME window, in a `<webview>` (`App.tsx`'s `ProjectWorkspace`), rather than popping it into its
+ *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was
+ *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.cjs`),
+ *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse
+ *    below (the fleet counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a
+ *    throwing stub — no control in the per-project bar calls it yet. See `fleetUiRequested`'s own doc
+ *    for exactly which env vars bypass this default and fall through to modes 1/2 instead.
  *
  * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —
  *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so
@@ -36,11 +38,13 @@
  *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation
  *    byte-for-byte unaffected by the fleet UI becoming the default.
  *
- * **Multi-site, concretely:**
- * - `openSites` (a `Map<siteDir, {server, window}>`) replaces the old single `tovuServer` variable.
+ * **Multi-site, concretely (own-server/attach modes):**
+ * - `openSites` (a `Map<siteDir, {server, window?}>`) replaces the old single `tovuServer` variable.
+ *   The fleet UI (mode 0) shares this same map but never sets `window` — see `openSiteServer`.
  * - Each open site gets its own `BrowserWindow`, titled with the site's own name — Electron's native
  *   `role: "windowMenu"` (macOS) then lists every open window and switches between them for free.
  *   That IS the site switcher: no custom panel was needed, every open site is just another window.
+ *   The fleet UI's own switcher is its tab strip instead (`App.tsx`'s `TabStrip`) — one window, N tabs.
  * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites
  *   are already open. "Open Recent" lists `site-dir-store.cjs`'s existing MRU.
  * - `keyed-serializer.cjs` serializes opens PER SITE DIR, so a fast double-click on the same recent-
@@ -306,16 +310,18 @@ function createWindow(url, title, partition) {
 /**
  * Open the ported Tovu-Runner fleet UI (the Projects screen). Boot mode 0 — see this file's header.
  *
- * Only one webPreference differs from {@link createWindow}, forced by the renderer rather than
- * chosen: `sandbox: false`, because {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron
- * 43 loads one only in an unsandboxed renderer.
+ * Two webPreferences differ from {@link createWindow}. `sandbox: false` is forced by the renderer
+ * rather than chosen: {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron 43 loads one
+ * only in an unsandboxed renderer. `webviewTag: true` is what lets a project tab embed that site's
+ * own `tovu serve` output in a `<webview>` inside THIS window (`App.tsx`'s `ProjectWorkspace`) —
+ * matching Tovu-Runner's own `main.ts`, which needs the same tag for the same reason.
  *
- * No `webviewTag` and no `will-attach-webview` hardening — Tovu-Runner's own `main.ts` needs both
- * because it embeds each project's `tovu serve` output in a `<webview>` inside this one window.
- * `apps/desktop` opens each project in its OWN `BrowserWindow` instead (`openSiteWindow`, via
- * `project-ipc.cjs`'s `runner:projects:open-window` handler), so there is no guest to attach and no
- * page-controlled `webPreferences` to harden against — not having that attack surface beats hardening
- * it. See `2026-09-06-runner-ui-port-manifest-v2.md` §3 for the full ledger.
+ * `webviewTag` on its own lets the PAGE choose the guest's `webPreferences` via attributes. Runner
+ * writes those attributes today (partition aside — see `ProjectWorkspace`'s own doc on why this
+ * shell's guest sets one and Runner's does not), and `will-attach-webview` below is the boundary
+ * that keeps that trustworthy: the guest never gets Node, never gets this window's own preload, and
+ * can never re-enable either from inside the page. `registerGuestNavigationPolicy` (called once,
+ * before this function, from the fleet boot branch) is the other half — see its own doc.
  *
  * @returns the window, or `null` when the renderer has not been built yet.
  * @complexity O(1).
@@ -340,11 +346,18 @@ function openFleetWindow() {
       nodeIntegration: false,
       sandbox: false,
       preload: FLEET_PRELOAD_PATH,
+      webviewTag: true,
     },
   });
 
   if (selftestTracker) selftestTracker.add(window);
   window.on("page-title-updated", (event) => event.preventDefault());
+
+  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+  });
 
   void window.loadFile(FLEET_RENDERER_PATH);
   return window;
@@ -395,50 +408,30 @@ async function authenticateSiteSession(siteDir, server, partition) {
 }
 
 /**
- * Open one site: spawn its own `tovu serve` (own-server mode only — attach mode never reaches this),
- * or just focus its window if it is already open. Records the new child to the crash-safety
- * registry the moment it is confirmed ready, and gives its window a distinct title so the native
- * Window menu doubles as the switcher (see this file's own header).
+ * Spawn (or reuse) `siteDir`'s own `tovu serve` and put a valid admin session in its cookie jar —
+ * every step both {@link openSiteWindow} (own-server mode, one `BrowserWindow` per site) and
+ * {@link openSiteServer} (fleet mode, one embedded `<webview>` tab per site) need, and NOTHING
+ * either of them does with the result: this never touches `openSites`, a `BrowserWindow`, or a
+ * `<webview>` — callers own that bookkeeping, so a caller whose next step fails (`createWindow`,
+ * say) decides for itself how to unwind the server this just started.
  *
- * The registry row and the in-memory `openSites` entry are made or unmade TOGETHER, never one
- * without the other. Recording the row before `createWindow` runs (rather than after) is
- * deliberate — a row must exist for the whole time the server is actually alive, since that is
- * exactly the window `reconcileOrphans()` on the NEXT launch needs to find it if this process is
- * killed before either commits — but if `createWindow` itself throws, this attempt failed as a
- * whole: no window means no way for THIS process to reach or stop that server again (no `openSites`
- * entry, no `closed` listener), so leaving its row behind would strand it silently — recorded but
- * untracked, both here and (should this same siteDir be tried again) unreachable through
- * `already.window` either. The `catch` below stops the just-spawned server and drops the row rather
- * than leaving either half of that inconsistent, then rethrows so the caller still reports the
- * failure.
- *
- * Callers MUST run this through `serializer.run(siteDir, ...)` — this function itself does not
- * serialize, so two concurrent calls for the same `siteDir` (a fast double-click) could otherwise
- * both see "not open yet" and spawn two children for the same site.
+ * A site already authenticated from a previous launch keeps its session cookie in this
+ * `persist:`-prefixed partition (see `desktop-auth.cjs`'s header, property 2) across app restarts.
+ * Minting and redeeming a fresh boot token here TOO was the defect: a brand-new 30-day session on
+ * every open, one per launch, none of them ever revoked — 713 live rows found in one site's own
+ * database. Skipping the mint when a session cookie is already present is what stops that
+ * accumulation at its source; ending the session on close (both callers' own cleanup) is the other
+ * half.
  *
  * @param options.port pin this site's port (only ever passed for the startup call honoring
  *   `TOVU_DESKTOP_PORT` — see `resolveStartupSiteDirs`); every other call self-allocates so two
  *   sites opened in the same launch can never collide.
- * @returns the site's `BrowserWindow`.
+ * @returns `{server, partition}` — `partition` is the exact Electron session-partition string the
+ *   caller's own `BrowserWindow`/`<webview>` must use, so the cookie this just seeded is visible to it.
  * @complexity O(1) beyond `startTovuServer`'s own cost.
  */
-async function openSiteWindow(siteDir, ctx, options = {}) {
-  const already = openSites.get(siteDir);
-  if (already) {
-    already.window.show();
-    already.window.focus();
-    return already.window;
-  }
-
+async function startSiteBackend(siteDir, ctx, options = {}) {
   const partition = sitePartition(siteDir);
-
-  // A site already authenticated from a previous launch keeps its session cookie in this
-  // `persist:`-prefixed partition (see `desktop-auth.cjs`'s header, property 2) across app restarts.
-  // Minting and redeeming a fresh boot token here TOO was the defect: a brand-new 30-day session on
-  // every open, one per launch, none of them ever revoked — 713 live rows found in one site's own
-  // database. Skipping the mint when a session cookie is already present is what stops that
-  // accumulation at its source; `window.on("closed", ...)` below is the other half — giving a
-  // session a real end instead of leaving it to expire on its own.
   const alreadyAuthenticated = await hasActiveSessionCookie({ session: session.fromPartition(partition) });
 
   // `emitBootToken` is what makes `server.bootToken` non-null below — see `desktop-auth.cjs`'s
@@ -461,11 +454,49 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
   });
 
   if (!alreadyAuthenticated) {
-    // Before the window exists, so the cookie is already in the jar when `loadURL` fires and the
-    // admin's very first `/api/admin/v1/auth/me` call is authenticated — a session applied after the
-    // page had loaded would still show the login form until a reload.
+    // Before the caller's window/guest exists, so the cookie is already in the jar when its first
+    // navigation fires and the admin's very first `/api/admin/v1/auth/me` call is authenticated — a
+    // session applied after the page had loaded would still show the login form until a reload.
     await authenticateSiteSession(siteDir, server, partition);
   }
+
+  return { server, partition };
+}
+
+/**
+ * Open one site in its own window: spawn its own `tovu serve` (own-server mode only — attach mode
+ * never reaches this), or just focus its window if it is already open. Records the new child to the
+ * crash-safety registry the moment it is confirmed ready, and gives its window a distinct title so
+ * the native Window menu doubles as the switcher (see this file's own header).
+ *
+ * The registry row and the in-memory `openSites` entry are made or unmade TOGETHER, never one
+ * without the other. {@link startSiteBackend} records the row before this returns (rather than
+ * after `createWindow` runs) — a row must exist for the whole time the server is actually alive,
+ * since that is exactly the window `reconcileOrphans()` on the NEXT launch needs to find it if this
+ * process is killed before either commits — but if `createWindow` itself throws, this attempt
+ * failed as a whole: no window means no way for THIS process to reach or stop that server again (no
+ * `openSites` entry, no `closed` listener), so leaving its row behind would strand it silently —
+ * recorded but untracked, both here and (should this same siteDir be tried again) unreachable
+ * through `already.window` either. The `catch` below stops the just-spawned server and drops the
+ * row rather than leaving either half of that inconsistent, then rethrows so the caller still
+ * reports the failure.
+ *
+ * Callers MUST run this through `serializer.run(siteDir, ...)` — this function itself does not
+ * serialize, so two concurrent calls for the same `siteDir` (a fast double-click) could otherwise
+ * both see "not open yet" and spawn two children for the same site.
+ *
+ * @returns the site's `BrowserWindow`.
+ * @complexity O(1) beyond `startSiteBackend`'s own cost.
+ */
+async function openSiteWindow(siteDir, ctx, options = {}) {
+  const already = openSites.get(siteDir);
+  if (already) {
+    already.window.show();
+    already.window.focus();
+    return already.window;
+  }
+
+  const { server, partition } = await startSiteBackend(siteDir, ctx, options);
 
   let window;
   try {
@@ -489,6 +520,100 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
       .finally(() => void server.stop());
   });
   return window;
+}
+
+/**
+ * The fleet UI's counterpart to {@link openSiteWindow}: ensure `siteDir`'s own `tovu serve` is
+ * running and return its `server` handle, WITHOUT a `BrowserWindow`. The Projects screen embeds the
+ * result directly in a `<webview>` tab inside its one window instead (`App.tsx`'s
+ * `ProjectWorkspace`, reading `port`/`partition` off the `ProjectRecord` `project-ipc.cjs`'s
+ * `handleStart` returns). Reused, not re-spawned, when already open — same as `openSiteWindow`.
+ *
+ * Nothing here ever closes what it opens. Unlike a `BrowserWindow`, a `<webview>` tab has no
+ * per-tab lifecycle event to hang a stop on: closing a tab is a renderer-only concern
+ * (`App.hooks.ts`'s `closeProjectTab`) and deliberately leaves the site running, the same way
+ * Tovu-Runner leaves a project running when its tab closes. `app.on("before-quit")` below still
+ * stops every entry in `openSites` on quit, fleet-opened or not, and `project-ipc.cjs`'s
+ * `handleDelete` still stops one explicitly.
+ *
+ * Callers MUST run this through `serializer.run(siteDir, ...)`, same requirement as
+ * `openSiteWindow` and for the same reason.
+ *
+ * @returns the started (or reused) server handle.
+ * @complexity O(1) beyond `startSiteBackend`'s own cost.
+ */
+async function openSiteServer(siteDir, ctx, options = {}) {
+  const already = openSites.get(siteDir);
+  if (already) return already.server;
+
+  const { server } = await startSiteBackend(siteDir, ctx, options);
+  openSites.set(siteDir, { server });
+  return server;
+}
+
+/**
+ * Whether `raw` points at a site this launch is currently supervising through the fleet UI's
+ * embedded tabs — the boundary {@link registerGuestNavigationPolicy} enforces before ever handing a
+ * guest-requested url to the operator's own browser. Scoped to `openSites`' own live ports rather
+ * than a separate registry, since `openSites` already IS this shell's registry of what is running.
+ *
+ * @complexity O(n) in currently open sites.
+ */
+function isSupervisedGuestUrl(raw) {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") return false;
+  return [...openSites.values()].some((entry) => entry.server && String(entry.server.port) === url.port);
+}
+
+/**
+ * Answers navigation/window-open requests an embedded project's `<webview>` guest makes — the same
+ * two-part boundary Tovu-Runner's own `registerGuestNavigationPolicy` enforces
+ * (`Tovu-Runner/src/main/main.ts`): a same-origin navigation (the site steering itself — a login
+ * redirect, an admin route that round-trips the server) is left alone, since the tab IS that
+ * project's admin and has to keep working; anything that would leave the guest's own origin is
+ * denied INSIDE the guest and, only when it targets a site this launch actually supervises, handed
+ * to the operator's own default browser instead. `allowpopups` on the tag (`App.tsx`) is the other
+ * half — without it Electron's guest-view manager never lets a `target="_blank"` request reach this
+ * process at all, so `setWindowOpenHandler` below would never fire.
+ *
+ * Registered once, globally, from the fleet boot branch: `web-contents-created` fires for every
+ * guest ANY window's `<webview>` ever attaches, and `contents.getType() !== "webview"` filters out
+ * everything else (the fleet window's own top-level content included).
+ *
+ * @complexity O(1) per event, beyond `isSupervisedGuestUrl`'s own cost.
+ */
+function registerGuestNavigationPolicy() {
+  const openExternally = (url) => {
+    if (isSupervisedGuestUrl(url)) void shell.openExternal(url);
+  };
+
+  app.on("web-contents-created", (_event, contents) => {
+    if (contents.getType() !== "webview") return;
+
+    contents.setWindowOpenHandler(({ url }) => {
+      openExternally(url);
+      return { action: "deny" };
+    });
+
+    contents.on("will-navigate", (event, url) => {
+      let target;
+      let current;
+      try {
+        target = new URL(url).origin;
+        current = new URL(contents.getURL()).origin;
+      } catch {
+        return;
+      }
+      if (target === current) return;
+      event.preventDefault();
+      openExternally(url);
+    });
+  });
 }
 
 /**
@@ -781,15 +906,16 @@ app
     registerSpeechIpc({ ipcMain });
     applyDockIcon();
 
-    // ABOVE the mode split, deliberately: the fleet UI writes crash-safety rows (every card click
-    // goes through `openSiteWindow`) but used to read none back, so a hard kill leaked every open
-    // site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running it for all
-    // three modes is correct and why it cannot reap a live sibling instance's children.
+    // ABOVE the mode split, deliberately: the fleet UI writes crash-safety rows (every project tab's
+    // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
+    // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
+    // it for all three modes is correct and why it cannot reap a live sibling instance's children.
     await reconcileOrphansOnBoot(registryFilePath(app.getPath("userData")));
 
     // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
-    // spawns no `tovu serve` of its own at boot — only when a project card is clicked, through the
-    // SAME `openSiteWindow`/`serializer` path own-server mode uses below.
+    // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
+    // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the fleet counterpart of the
+    // `openSiteWindow` own-server mode uses below).
     if (fleetUiRequested()) {
       const fleetCtx = {
         cliMode: resolveCliMode(),
@@ -824,11 +950,14 @@ app
         // whether this app CREATED the directory or merely adopted one that already existed — the
         // fact `project-delete-guard.cjs` needs before any delete may erase anything.
         classifySiteDir,
-        openSiteWindow,
+        openSiteServer,
         recordSiteClosed,
         ctx: fleetCtx,
       });
       registerRunnerIpcStubs({ ipcMain });
+      // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
+      // registration covers every project tab's `<webview>` guest.
+      registerGuestNavigationPolicy();
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       openFleetWindow();
       return;
