@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { describeApiError, type SeoEntryAnalysis, type SeoEntryMeta, type SeoEntryOverridesPatch } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { overrideOrClear } from "../rules";
 import { t } from "../seo-i18n";
 import { defaultSeoPort } from "./seo-dependencies.hooks";
 import type { SeoPort } from "./seo-port.hooks";
@@ -33,10 +34,15 @@ export interface SeoEntryPanelController {
   saveError: string | null;
   notice: string | null;
   /** Reads back whatever the operator touched for `key`, falling back to the resolved
-   *  (server-effective) value for any field not yet edited this session. */
+   *  (server-effective) value for any field not yet edited this session. A field the operator
+   *  EMPTIED reads back as `null` (the pending clear), which `Seo.tsx`'s own `?? ""` renders as an
+   *  empty box — so the field the operator cleared stays cleared on screen. */
   fieldValue: <K extends keyof SeoEntryOverridesPatch>(key: K, resolvedValue: SeoEntryOverridesPatch[K]) => SeoEntryOverridesPatch[K];
   setField: <K extends keyof SeoEntryOverridesPatch>(key: K, value: SeoEntryOverridesPatch[K]) => void;
   save: () => Promise<void>;
+  /** The patch `save` will PUT — only the fields the operator actually touched this session, with
+   *  `null` for each one they emptied. An untouched field is ABSENT, never `null`: "unchanged" must
+   *  never become "clear". */
   touched: SeoEntryOverridesPatch;
 }
 
@@ -71,8 +77,13 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions, port: SeoPort, l
     return key in touched ? touched[key] : resolvedValue;
   }
 
+  // The `overrideOrClear` call is the whole clear-an-override fix, and it lives HERE rather than at
+  // the eleven `onChange` handlers in `Seo.tsx` deliberately: normalizing at the single sink means
+  // no field can be added to that form later and silently miss it (the "correct primitive, unwired
+  // call site" failure this codebase keeps hitting), and it keeps `Seo.tsx` markup-only. `touched`
+  // therefore holds `null` for a field the operator emptied, which is exactly what `save` PUTs.
   function setField<K extends keyof SeoEntryOverridesPatch>(key: K, value: SeoEntryOverridesPatch[K]) {
-    setTouched((current) => ({ ...current, [key]: value }));
+    setTouched((current) => ({ ...current, [key]: overrideOrClear(value) }));
   }
 
   async function save() {

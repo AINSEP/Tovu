@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { actionLabel, buildMediaRef, orEmpty, resolveMediaRefPreviewUrl, sortIssuesBySeverity } from "../rules";
+import { actionLabel, buildMediaRef, orEmpty, overrideOrClear, resolveMediaRefPreviewUrl, sortIssuesBySeverity } from "../rules";
 import type { SeoIssue } from "@/lib/api";
 
 /**
@@ -60,6 +60,34 @@ describe("orEmpty", () => {
 
   it("does not fall back for an explicit empty string", () => {
     expect(orEmpty("")).toBe("");
+  });
+});
+
+describe("overrideOrClear", () => {
+  it("maps an emptied box to null — the wire sentinel that REMOVES the override", () => {
+    // Not `""`: `setEntrySeoOverrides` stores `""` as a genuine override and `getEntryMeta`
+    // resolves overrides with `??`, so a stored `""` beats the site default. Not `undefined`
+    // either: `JSON.stringify` drops undefined keys, so the field would never reach the PUT body.
+    expect(overrideOrClear("")).toBeNull();
+    expect(JSON.parse(JSON.stringify({ title: overrideOrClear("") }))).toEqual({ title: null });
+  });
+
+  it("returns a non-empty string unchanged", () => {
+    expect(overrideOrClear("A title")).toBe("A title");
+  });
+
+  it("does not treat a whitespace-only box as a clear", () => {
+    // Deliberate: trimming here would silently rewrite what the operator typed. A space-only
+    // override is still an override, and the server's length bound is the only rule on it.
+    expect(overrideOrClear("   ")).toBe("   ");
+  });
+
+  it("passes both booleans through, so an unchecked robots box stays `false` and never becomes a clear", () => {
+    // The noindex/nofollow checkboxes go through the same setter. `false` means "override this
+    // entry to indexable", which is NOT the same as removing the override; only a string field has
+    // an "emptied" gesture with which to ask for a clear.
+    expect(overrideOrClear(false)).toBe(false);
+    expect(overrideOrClear(true)).toBe(true);
   });
 });
 

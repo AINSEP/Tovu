@@ -19,7 +19,7 @@ import {
 import { MediaRefField } from "./MediaRefField";
 import { SitemapModal } from "./SitemapModal";
 import { t } from "./seo-i18n";
-import type { SeoEntryAnalysis, SeoSettings } from "../../lib/api";
+import type { SeoEntryAnalysis, SeoSettings, SeoSettingsPatch } from "../../lib/api";
 
 /**
  * `SeoSettingsScreen` (SPEC-008 ui.spec.md §2.4) — the site-wide `seo.*` settings form +
@@ -227,8 +227,16 @@ function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntr
   return (
     <div className="seo-entry-panel">
       <h3>{t(locale, "Per-entry overrides")}</h3>
+      {/* Two `t()` calls in one paragraph, not one longer string: the first sentence's English text
+          IS its i18n key and is translated in all 21 locales (`seo-i18n.ts`), so extending it would
+          orphan every one of those translations. The second sentence is a new English-only key that
+          falls through to itself — the disclosed, additive trade `Seo.hooks.tsx`'s header already
+          makes for the tab labels. It exists because a field's two empty states used to be
+          indistinguishable AND unescapable: emptying a box stored `""` as a real override, which
+          `seo.ts` resolves ahead of the site default, so the operator had no way back. */}
       <p className="muted-cell">
-        {t(locale, "Fields show the currently-effective value (author override, or site default, or derived from the entry). Only fields you change here are saved as overrides.")}
+        {t(locale, "Fields show the currently-effective value (author override, or site default, or derived from the entry). Only fields you change here are saved as overrides.")}{" "}
+        {t(locale, "Empty a field and save to remove its override — the entry falls back to the site default.")}
       </p>
       {notice ? <div className="notice">{notice}</div> : null}
       {saveError ? (
@@ -387,7 +395,7 @@ interface SeoTabController {
   locale: string;
   settings: SeoSettings;
   saving: boolean;
-  save: (patch: Partial<SeoSettings>) => Promise<void>;
+  save: (patch: SeoSettingsPatch) => Promise<void>;
   defaultOgImage: string;
   setDefaultOgImage: (value: string) => void;
   regenerateSitemap: () => void;

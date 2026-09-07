@@ -888,6 +888,23 @@ export interface SeoSettings {
 }
 
 /**
+ * The shape `setSeoSettings` accepts — `Partial<SeoSettings>` with the three nullable-on-write
+ * scalars widened to also allow `null`.
+ *
+ * Same vocabulary as {@link SeoEntryOverridesPatch}: `null` CLEARS the site default (the server's
+ * `SEO_DEFINITIONS` register these three as `nullable: true` and `buildScalarWrites` normalizes
+ * `null` to its `""` absent-sentinel, which `getSeoSettings` reads back as `undefined`), while an
+ * omitted key means "leave unchanged" — `setSeoSettings` is a merge, and `buildScalarWrites` skips
+ * every `undefined` key outright. `SeoSettings` itself stays un-widened because it is also the
+ * RESPONSE shape, where these three are only ever `string | undefined`.
+ */
+export type SeoSettingsPatch = Partial<Omit<SeoSettings, "defaultDescription" | "defaultOgImage" | "twitterSite">> & {
+  defaultDescription?: string | null;
+  defaultOgImage?: string | null;
+  twitterSite?: string | null;
+};
+
+/**
  * Per-entry SEO (SPEC-008, mirrored from `src/seo/types.ts` per SPEC-037 REQ-06/07 — read
  * directly off `SeoMeta`/`SeoAnalysis`/`SeoIssue`, not guessed).
  */
@@ -924,8 +941,14 @@ export interface SeoEntryMeta {
   jsonLd: Record<string, unknown>[];
 }
 
-/** Mirrors `src/seo/types.ts`'s `SeoExtFields` — the partial override bag `putSeoEntry` accepts. */
-export interface SeoEntryOverridesPatch {
+/**
+ * Mirrors `apps/website/src/features/seo/types.ts`'s `SeoExtFields` — the per-entry override
+ * fields themselves. (The old comment here said "Mirrors `src/seo/types.ts`'s `SeoExtFields` — the
+ * partial override bag `putSeoEntry` accepts", which had been wrong on both halves since
+ * `eb10f5de`: the path moved, and the shape the route accepts is `SeoExtFieldsPatch`, not
+ * `SeoExtFields`. See {@link SeoEntryOverridesPatch} below.)
+ */
+export interface SeoEntryOverrides {
   title?: string;
   description?: string;
   canonical?: string;
@@ -941,6 +964,20 @@ export interface SeoEntryOverridesPatch {
   twitterDescription?: string;
   twitterImage?: string;
 }
+
+/**
+ * Mirrors that same file's `SeoExtFieldsPatch` — the bag `putSeoEntry` actually accepts, which
+ * widens every field to also allow `null`.
+ *
+ * `null` means REMOVE this override, so resolution falls back through the site default to the
+ * derived value; `undefined` (an omitted key) still means "leave unchanged". This distinction is
+ * the whole point of the type: `setEntrySeoOverrides` (`write-service.ts`) stores `""` as a
+ * genuine override, and `getEntryMeta` (`features/seo/seo.ts`) resolves overrides with `??`, so an
+ * override of `""` BEATS the site default and pins the entry to a blank. Before this widening the
+ * admin could only ever send `""`, which is how a post reached `{"description":""}` with no way
+ * back from the UI.
+ */
+export type SeoEntryOverridesPatch = { [K in keyof SeoEntryOverrides]?: SeoEntryOverrides[K] | null };
 
 export type SeoIssueSeverity = "error" | "warning" | "info";
 
@@ -2845,7 +2882,7 @@ export const api = {
       method: "DELETE",
     }),
   getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
-  setSeoSettings: (options: Partial<SeoSettings> = {}) =>
+  setSeoSettings: (options: SeoSettingsPatch = {}) =>
     request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`, {
       method: "PUT",
       body: JSON.stringify(options),

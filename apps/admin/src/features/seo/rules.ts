@@ -24,6 +24,28 @@ export function sortIssuesBySeverity(issues: readonly SeoIssue[]): SeoIssue[] {
   return [...issues].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
 }
 
+/**
+ * One edited per-entry override field's outgoing value. An emptied text/URL box means "remove this
+ * override so the entry falls back to the site default", which on the wire is `null` — the clear
+ * sentinel `SeoExtFieldsPatch` documents (`apps/website/src/features/seo/types.ts`) and
+ * `setEntrySeoOverrides` implements by `delete`-ing the key.
+ *
+ * It is NOT `""`. `write-service.ts` stores `""` as a genuine override and `seo.ts` resolves
+ * overrides with `??`, so a blank override beats the site default — the exact trap that left one
+ * post pinned at `{"description":""}` with no way back from the admin UI. It is not `undefined`
+ * either: an omitted key means "leave unchanged", and `JSON.stringify` would drop it from the
+ * request body entirely.
+ *
+ * Generic and value-shaped rather than key-shaped on purpose — the two robots checkboxes go
+ * through the same setter and pass straight through, since a checkbox has no "empty" gesture with
+ * which to express a clear. Only a genuinely emptied string can mean one.
+ *
+ * @complexity O(1) — one equality test.
+ */
+export function overrideOrClear<V>(value: V): V | null {
+  return value === "" ? null : value;
+}
+
 /** An optional site-wide default's controlled-input value — `Seo.tsx`'s three optional defaults
  *  (`defaultDescription`, `defaultOgImage`, `twitterSite`) all fall back to `""` the same way. */
 export function orEmpty(value: string | undefined): string {

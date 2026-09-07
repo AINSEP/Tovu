@@ -5,6 +5,7 @@ import {
   type SeoEntryMeta,
   type SeoEntryOverridesPatch,
   type SeoSettings,
+  type SeoSettingsPatch,
 } from "@/lib/api";
 import type { SeoPort } from "./seo-port.hooks";
 
@@ -54,8 +55,14 @@ function defaultSettings(): SeoSettings {
  *  inlining `??` at each of its 13 fields: a plain function call isn't a decision point the way an
  *  inline `??` is, so this is what keeps that merge under the complexity ceiling (same fix this
  *  codebase's `orEmpty` established elsewhere for the same class of violation — a flat run of
- *  independent fallbacks, not real branching logic). */
-function orMeta<T>(patchValue: T | undefined, metaValue: T): T {
+ *  independent fallbacks, not real branching logic).
+ *
+ *  `null` (the patch's CLEAR sentinel) falls through to the meta value by the same `??`, which is
+ *  the right model for this fake: the server drops the override and re-resolves, and the seeded
+ *  `meta` is the closest thing this fake has to that resolved value. It is only an approximation —
+ *  a test that needs to prove a clear actually reached the wire must assert on the PUT body, not on
+ *  what comes back. */
+function orMeta<T>(patchValue: T | null | undefined, metaValue: T): T {
   return patchValue ?? metaValue;
 }
 
@@ -90,6 +97,33 @@ function applySeoPatch(meta: SeoEntryMeta, patch: SeoEntryOverridesPatch): SeoEn
   };
 }
 
+/** One of the three site-wide scalars the server registers as `nullable: true` (`SEO_DEFINITIONS`,
+ *  `apps/website/src/features/seo/settings.ts`), under the real write's own rule: an omitted key
+ *  (`undefined`) keeps the current value, `null` clears it, and a string overwrites. */
+function settingOrCleared(patchValue: string | null | undefined, currentValue: string | undefined): string | undefined {
+  if (patchValue === undefined) return currentValue;
+  return patchValue ?? undefined;
+}
+
+/** Applies a {@link SeoSettingsPatch} the way the real `setSeoSettings` does: an omitted key leaves
+ *  the current value alone (it is a MERGE — `buildScalarWrites` skips every `undefined`), and a
+ *  `null` on one of the three nullable scalars clears it back to absent, which `getSeoSettings`
+ *  reads back as `undefined` (via its `undefinedIfEmpty`). Naming those three explicitly rather
+ *  than spreading the patch verbatim is what stops a `null` from surviving into a `SeoSettings`
+ *  the fake hands back — no real response can contain one.
+ *
+ *  @complexity O(1) — three fixed field reads, no iteration. */
+function applySettingsPatch(current: SeoSettings, patch: SeoSettingsPatch): SeoSettings {
+  const { defaultDescription, defaultOgImage, twitterSite, ...rest } = patch;
+  return {
+    ...current,
+    ...rest,
+    defaultDescription: settingOrCleared(defaultDescription, current.defaultDescription),
+    defaultOgImage: settingOrCleared(defaultOgImage, current.defaultOgImage),
+    twitterSite: settingOrCleared(twitterSite, current.twitterSite),
+  };
+}
+
 /**
  * An in-memory {@link SeoPort} for tests — the fake that lets a test describe "these are the
  * site-wide settings" or "this entry resolves to this meta" directly, instead of hand-building
@@ -118,7 +152,7 @@ export function createFakeSeoPort(options: FakeSeoPortOptions = {}): SeoPort & {
     },
 
     async setSeoSettings(patch = {}) {
-      settings = { ...settings, ...patch };
+      settings = applySettingsPatch(settings, patch);
       return { data: settings };
     },
 

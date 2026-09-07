@@ -4,6 +4,7 @@ import type {
   SeoEntryMeta,
   SeoEntryOverridesPatch,
   SeoSettings,
+  SeoSettingsPatch,
 } from "@/lib/api";
 
 /**
@@ -23,7 +24,9 @@ import type {
  */
 export interface SeoPort {
   getSeoSettings(): Promise<{ data: SeoSettings }>;
-  setSeoSettings(options?: Partial<SeoSettings>): Promise<{ data: SeoSettings }>;
+  /** `SeoSettingsPatch`, not `Partial<SeoSettings>`: the three optional scalars take `null` to
+   *  CLEAR the site default, which `Partial<SeoSettings>` cannot express (see `lib/api.ts`). */
+  setSeoSettings(options?: SeoSettingsPatch): Promise<{ data: SeoSettings }>;
   regenerateSitemap(): Promise<{ data: { accepted: true } }>;
   getSeoEntry(entryId: string): Promise<{ data: SeoEntryMeta }>;
   putSeoEntry(target: { entryId: string }, options?: SeoEntryOverridesPatch): Promise<{ data: SeoEntryMeta }>;

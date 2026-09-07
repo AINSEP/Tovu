@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SeoSettings } from "@/lib/api";
+import type { SeoSettings, SeoSettingsPatch } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../seo-i18n";
 import { defaultSeoPort } from "./seo-dependencies.hooks";
@@ -35,7 +35,10 @@ export interface SeoController {
   error: string | null;
   saving: boolean;
   notice: string | null;
-  save: (patch: Partial<SeoSettings>) => Promise<void>;
+  /** Takes a `SeoSettingsPatch` rather than a `Partial<SeoSettings>` so an emptied optional field
+   *  can send `null` and actually clear its site default — `setSeoSettings` is a merge, so an
+   *  omitted key means "unchanged" (see `lib/api.ts`'s `SeoSettingsPatch`). */
+  save: (patch: SeoSettingsPatch) => Promise<void>;
   /** The site-wide default OG/Twitter image field's own controlled value (MediaRefField picker
    *  support, 2026-09-05) — every OTHER default on this screen stays an uncontrolled `defaultValue`
    *  (read via `FormData` on submit, `Seo.tsx`'s own file header), but a picker needs somewhere to
@@ -90,7 +93,7 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
       .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load SEO settings")));
   }, [port]);
 
-  async function save(patch: Partial<SeoSettings>) {
+  async function save(patch: SeoSettingsPatch) {
     setSaving(true);
     setError(null);
     setNotice(null);

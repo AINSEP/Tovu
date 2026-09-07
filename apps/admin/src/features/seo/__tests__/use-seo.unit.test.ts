@@ -51,6 +51,34 @@ describe("useSeo — injected port", () => {
     expect(result.current.notice).toBe("Saved.");
   });
 
+  it("saving null for an optional default clears it, and the cleared value reads back as undefined — never a literal null", async () => {
+    // The fake models `setSeoSettings`' real clear path (`buildScalarWrites` normalizes `null` to
+    // the `""` absent-sentinel, which `getSeoSettings` reads back through `undefinedIfEmpty`).
+    // Spreading the patch verbatim instead would hand the UI a `null` no real response contains.
+    const port = createFakeSeoPort({ settings: settingsFixture({ defaultDescription: "Seeded default" }) });
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+
+    await act(async () => {
+      await result.current.save({ defaultDescription: null });
+    });
+
+    expect(result.current.settings?.defaultDescription).toBeUndefined();
+    expect(result.current.settings).not.toHaveProperty("defaultDescription", null);
+  });
+
+  it("a key omitted from the patch is left alone — the write is a merge, so 'unchanged' must not clear", async () => {
+    const port = createFakeSeoPort({ settings: settingsFixture({ defaultDescription: "Seeded default" }) });
+    const { result } = renderHook(() => useSeo(port, "en"));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+
+    await act(async () => {
+      await result.current.save({ titleTemplate: "%s | Updated" });
+    });
+
+    expect(result.current.settings?.defaultDescription).toBe("Seeded default");
+  });
+
   it("regenerateSitemap calls the port without touching settings", async () => {
     const port = createFakeSeoPort({ settings: settingsFixture() });
     const { result } = renderHook(() => useSeo(port, "en"));

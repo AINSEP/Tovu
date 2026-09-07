@@ -2,7 +2,7 @@ import type { TabBarTab } from "../../components/TabBar";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { navigate } from "../../lib/router";
 import { t } from "./seo-i18n";
-import type { SeoSettings } from "../../lib/api";
+import type { SeoSettingsPatch } from "../../lib/api";
 
 /**
  * @file The `/admin/seo` tab system's non-JSX logic, plus the three tab glyphs.
@@ -172,21 +172,39 @@ function formString(form: FormData, key: string, fallback = ""): string {
   return String(form.get(key) ?? fallback);
 }
 
-/** A `FormData` field that is omitted entirely when blank, rather than persisted as an empty
- *  string. Preserves the exact `String(...) || undefined` semantics the inline version had — an
- *  empty box means "no site default", not "a default that is the empty string". */
-function optionalFormString(form: FormData, key: string): string | undefined {
-  return formString(form, key) || undefined;
+/**
+ * A `FormData` field that is sent as `null` when blank, rather than persisted as an empty string.
+ *
+ * `null` is what CLEARS a site default: the server registers these three (`default_description`,
+ * `default_og_image`, `twitter_site`) as `nullable: true` and `buildScalarWrites`
+ * (`apps/website/src/features/seo/settings.ts`) normalizes `null` to the `""` absent-sentinel that
+ * `getSeoSettings` reads back as `undefined`.
+ *
+ * It used to return `undefined`, under a comment claiming "an empty box means 'no site default'".
+ * That was false and is the bug this replaces: `setSeoSettings` is a MERGE, and `buildScalarWrites`
+ * does `if (raw === undefined) continue;` — so an omitted key means UNCHANGED, and an operator who
+ * emptied "Default meta description" to remove it just saw it come back on the next load, with no
+ * way to remove it from this form at all. `undefined` also cannot survive the request: the client
+ * `JSON.stringify`s this patch, which drops `undefined` keys and keeps `null` ones.
+ */
+function optionalFormString(form: FormData, key: string): string | null {
+  return formString(form, key) || null;
 }
 
 /**
- * The site-wide settings patch the defaults form submits — lifted verbatim out of the form's own
- * inline `onSubmit` when this screen gained tabs. Same seven fields, same fallbacks, same
- * `checkbox === "on"` reading of the three toggles; nothing about what gets saved changed.
+ * The site-wide settings patch the defaults form submits — lifted out of the form's own inline
+ * `onSubmit` when this screen gained tabs. Same seven fields, same `checkbox === "on"` reading of
+ * the three toggles.
+ *
+ * ONE deliberate behavior change since that lift (2026-09-06): the three optional scalars now
+ * submit `null` rather than `undefined` when their box is empty, so emptying one CLEARS the site
+ * default instead of silently leaving it as it was. See {@link optionalFormString}. `titleTemplate`
+ * is unaffected — it is not nullable server-side and an emptied box still submits `""`, which the
+ * server rejects with its "must contain '%s'" validation error.
  *
  * @complexity O(1) — a fixed set of field reads, no iteration.
  */
-export function buildSeoSettingsPatch(form: FormData): Partial<SeoSettings> {
+export function buildSeoSettingsPatch(form: FormData): SeoSettingsPatch {
   return {
     titleTemplate: formString(form, "titleTemplate", "%s"),
     defaultDescription: optionalFormString(form, "defaultDescription"),

@@ -8,7 +8,7 @@ import type { EntryPickerController } from "../hooks/use-entry-picker.hooks";
 import type { SeoEntryPanelController } from "../hooks/use-seo-entry-panel.hooks";
 import type { SeoEntrySectionController } from "../hooks/use-seo-entry-section.hooks";
 import type { SitemapModalController } from "../hooks/use-sitemap-modal.hooks";
-import { api, type AdminMedia, type AdminPost, type SeoEntryAnalysis, type SeoEntryMeta, type SeoSettings } from "@/lib/api";
+import { api, type AdminMedia, type AdminPost, type SeoEntryAnalysis, type SeoEntryMeta, type SeoSettings, type SeoSettingsPatch } from "@/lib/api";
 
 /**
  * @file `Seo` — the SEO settings screen (SPEC-008 §2.4/§2.5/§2.6, SPEC-037 REQ-06/07/08). Only
@@ -338,7 +338,7 @@ describe("Seo — defaults form", () => {
 
   it("submitting the form calls save with FormData parsed into a SeoSettings patch", async () => {
     const user = userEvent.setup();
-    const save = vi.fn(async (_patch: Partial<SeoSettings>) => {});
+    const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
     renderSeo({ save });
     await user.click(screen.getByRole("button", { name: "Save settings" }));
 
@@ -354,7 +354,7 @@ describe("Seo — defaults form", () => {
 
   it("submitting with the robots checkboxes checked sends noindex/nofollow true", async () => {
     const user = userEvent.setup();
-    const save = vi.fn(async (_patch: Partial<SeoSettings>) => {});
+    const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
     renderSeo({ save });
     await user.click(screen.getByRole("checkbox", { name: "Default noindex" }));
     await user.click(screen.getByRole("checkbox", { name: "Default nofollow" }));
@@ -364,9 +364,15 @@ describe("Seo — defaults form", () => {
     expect(patch.defaultRobots).toEqual({ noindex: true, nofollow: true });
   });
 
-  it("submits blank optional fields as undefined, not empty strings", async () => {
+  // Was "submits blank optional fields as undefined, not empty strings", pinning the behavior a
+  // 2026-09-06 review found to be the bug: `setSeoSettings` is a MERGE (`buildScalarWrites` skips
+  // every `undefined` key), so an omitted field means UNCHANGED, and an operator who emptied
+  // "Default meta description" to remove it saw it come straight back. `null` is the server's
+  // documented clear sentinel for these three (`SEO_DEFINITIONS`, `apps/website/src/features/seo/
+  // settings.ts`) and is what an emptied box now sends.
+  it("submits blank optional fields as null — the server's clear sentinel — not undefined, which would mean 'leave unchanged'", async () => {
     const user = userEvent.setup();
-    const save = vi.fn(async (_patch: Partial<SeoSettings>) => {});
+    const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
     renderSeo({
       settings: { titleTemplate: "%s", defaultRobots: { noindex: false, nofollow: false }, sitemapEnabled: false, robotsRules: [] },
       save,
@@ -374,14 +380,30 @@ describe("Seo — defaults form", () => {
     await user.click(screen.getByRole("button", { name: "Save settings" }));
 
     const patch = save.mock.calls.at(-1)![0];
-    expect(patch.defaultDescription).toBeUndefined();
-    expect(patch.defaultOgImage).toBeUndefined();
-    expect(patch.twitterSite).toBeUndefined();
+    expect(patch.defaultDescription).toBeNull();
+    expect(patch.defaultOgImage).toBeNull();
+    expect(patch.twitterSite).toBeNull();
+    // `JSON.stringify` drops `undefined` keys and keeps `null` ones, so this is the assertion that
+    // actually distinguishes "clear" from "unchanged" on the wire.
+    expect(Object.keys(JSON.parse(JSON.stringify(patch)))).toEqual(
+      expect.arrayContaining(["defaultDescription", "defaultOgImage", "twitterSite"])
+    );
+  });
+
+  it("a filled optional field still submits its string, so clearing is opt-in per box", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
+    renderSeo({ save });
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+
+    const patch = save.mock.calls.at(-1)![0];
+    expect(patch.defaultDescription).toBe("A default description");
+    expect(patch.twitterSite).toBe("@site");
   });
 
   it("submits an emptied titleTemplate as '', NOT the '%s' fallback — FormData.get() returns '' for a present-but-empty field, never null, so the `?? \"%s\"` fallback is unreachable through the real form", async () => {
     const user = userEvent.setup();
-    const save = vi.fn(async (_patch: Partial<SeoSettings>) => {});
+    const save = vi.fn(async (_patch: SeoSettingsPatch) => {});
     renderSeo({ save });
     await user.clear(screen.getByLabelText(/Title template/));
     await user.click(screen.getByRole("button", { name: "Save settings" }));
