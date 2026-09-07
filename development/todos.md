@@ -22,6 +22,89 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
+
+**Owner's words:** "when we start a site or a project, we create a new tab, but we don't pop the site
+out into a new window. It just stays in the window… This is the same setup I want for Tovu… let's
+just have it all in one window first."
+
+**Reference implementation is Tovu Runner** (`/Users/la/Programming/Tovu-Runner`, separate checkout,
+separate app, its own `userData` and a SQLite `runner_projects` registry — nothing is shared). She
+supplied screenshots of Runner as the target. Read Runner's source and follow its structure rather
+than inventing one; never edit that checkout.
+
+Target, as seen in Runner:
+
+1. **Tab strip** under the top toolbar — a permanent `All` tab plus one tab per opened project, each
+   with a status dot, its display name, and an `×` to close.
+2. Selecting a project tab shows that site **embedded in the same window**. No `BrowserWindow` per
+   project.
+3. **Per-project bar** above the embedded view: status dot, a **View admin** / **View site**
+   segmented toggle, the current URL as plain text (`http://127.0.0.1:3001/admin/`), then
+   **Reload**, **Open in browser**, and an **expand** icon button on the right.
+4. **Expand** gives the embedded site the whole window (tab strip and toolbar hidden), reversibly.
+
+**Explicitly deferred:** a "pop out into its own window" button. Her words: "maybe we can have a
+button to say pop out into its own window, but let's just have it all in one window first." Do not
+build it; note it if the architecture makes it cheap.
+
+Starting points: `apps/desktop/src/project-ipc.cjs` (`handleList`/`handleCreate`),
+`project-registry.cjs` (the `desktop-projects.json` rows), `tovu-server.cjs` (how a site's server is
+spawned), `runner-ipc-stubs.cjs` (may already anticipate this), and `apps/desktop/src/renderer/`.
+Prefer `WebContentsView` over the deprecated `BrowserView` unless Runner justifies otherwise.
+
+Traps: a green `tsc` says nothing about `.cjs`, and most of this shell is `.cjs`. Electron's
+`userData` ignores a `HOME` override on macOS — isolate with `--user-data-dir`. Drive/screenshot
+Electron via Playwright's `_electron` with an explicit `executablePath`.
+
+Related, same package: the e2e suite writes into the **real** `userData`, which is what left the
+Projects grid empty (see the desktop-registry notes) — being fixed separately.
+
+---
+
+## Missing tool: import a remote image URL into the media library (found live, 2026-09-06)
+
+Higgsfield's `generate_image` produced a real 2048×1152 PNG on its CDN, and **nothing in the tool
+catalog could pull it into Media**. The assistant's own account: `media_upload_asset` needs base64
+bytes, `media_promote_chat_attachment` needs a chat attachment, and **there is no import-by-URL
+tool**. The only offered workarounds were "download it and re-attach it to the chat" or "re-generate
+with `media_generate_asset` (gpt-image-2)" — a second image, and it costs money.
+
+This is the exact motivating case `apps/website/src/assistant/demo-image-tool.ts`'s header describes
+as the owner's own: an external MCP server generating an image, then saving it to media. The
+generation half works; the save half has no path.
+
+Also blocking the `media_generate_asset` alternative: **`media_provider_credentials` is empty** — no
+image provider is configured at all, so that tool has nothing to call.
+
+---
+
+## Surface federated-MCP tool refusals in the UI, not only the daemon log (found live, 2026-09-06)
+
+`mcp-federation/trust.ts` refuses a remote tool that declares `readOnlyHint: false` unless the
+operator has ALSO named it in `writeAllowedToolNames` — a second list beyond `allowedToolNames`.
+Every refusal reaches only `development/.dev-server.log`:
+
+```
+mcp-federation: 'higgsfield' refused remote tool 'generate_image' — remote-declares-not-read-only
+```
+
+Nothing surfaces in the admin UI, and nothing reaches the model — asked in-chat why it could not
+generate, the assistant invented a wrong cause. Two sessions lost time to this before the log was
+read. The write-grant field itself was unreachable in the UI until `ae13e739`.
+
+The codebase already has the right instinct — `allowlistedButAbsent` and
+`writeAllowedButNotAllowlisted` exist so a config that can never take effect is reported rather than
+inert. Finish it: render refusals where the operator can see and fix them ("3 tools refused:
+`generate_image` needs *Allowed to make changes*"), with a one-click grant. On a desktop app nobody
+can SSH into, this is also the support tool.
+
+Related: federation config is read at **daemon start**, so a saved grant does nothing until the
+daemon restarts. The Settings UI says "Changes apply when Tovu restarts" — that round trip is itself
+worth removing.
+
+---
+
 ## Admin SSE connection-pool exhaustion — C1 is ON; one anomaly still unexplained
 
 Dev HTTP/2 (ADR C1) is **enabled**: `.certs/localhost.pem` + `localhost-key.pem` exist at the repo
