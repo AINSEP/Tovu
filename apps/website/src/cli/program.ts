@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { runAdoptCommand } from "./commands/adopt.js";
 import { runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
@@ -45,6 +46,20 @@ export function createProgram(): Command {
     .option("--name <name>", "site display name (defaults to the directory's basename)")
     .action(async (dir: string, options: { name?: string }) => {
       await runInitCommand({ dir, name: options.name });
+    });
+
+  // Registered next to `init` deliberately: the two are the only ways a directory becomes servable,
+  // and they are exact complements — `init` creates a site in an EMPTY folder, `adopt` takes an
+  // EXISTING one that predates the marker convention. Keeping them adjacent in `--help` is what
+  // makes the second discoverable to an operator who only knows the first.
+  program
+    .command("adopt")
+    .description("give an existing site directory the marker files 'serve' requires — derived from its own database, which is never modified")
+    .argument("<dir>", "existing site directory to adopt")
+    .option("--name <name>", "site display name (defaults to the directory's basename)")
+    .option("--dry-run", "print exactly what would be written, and write nothing")
+    .action(async (dir: string, options: { name?: string; dryRun?: boolean }) => {
+      await runAdoptCommand({ dir, name: options.name, dryRun: options.dryRun === true });
     });
 
   program

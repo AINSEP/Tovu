@@ -6,7 +6,9 @@ import {
   SiteCorruptError,
   SiteDirInvalidError,
   SiteNewerThanRuntimeError,
+  SiteRepairRefusedError,
   ValidationError,
+  type SiteRepairRefusalReason,
 } from "../platform/site-dir/index.js";
 import { ExportOutputNotEmptyError } from "../platform/export/index.js";
 
@@ -72,6 +74,27 @@ const EXIT_CODE_BY_ERROR_CODE: Record<string, number> = {
   EXPORT_INCOMPLETE: 6,
 };
 
+/**
+ * `tovu adopt`'s refusals (`site-dir/repair-site.ts`) mapped onto the EXISTING registry above — no
+ * new exit code is minted, because each refusal is already one of the registry's documented
+ * conditions, just detected before a boot rather than during one:
+ *   - the first four are all "this directory is not a valid site dir" — the same condition `serve`
+ *     answers with `SITE_DIR_INVALID` (3) for the very same directory;
+ *   - a divergent lineage is `SITE_NEWER_THAN_RUNTIME` (4) by that code's own definition, which is
+ *     "newer than, OR DIVERGES FROM, the runtime's" (REQ-05(b)/RT-005) — `compareSchemaVersion`
+ *     raises exactly this for the same divergence at `serve` time, so `adopt` refusing earlier must
+ *     not report it under a different code.
+ * Mapped from the typed `reason`, never from the message text, so a reworded refusal cannot silently
+ * change an exit code.
+ */
+const OUTCOME_BY_REPAIR_REFUSAL: Record<SiteRepairRefusalReason, "SITE_DIR_INVALID" | "SITE_NEWER_THAN_RUNTIME"> = {
+  NOT_A_DIRECTORY: "SITE_DIR_INVALID",
+  MARKER_ALREADY_EXISTS: "SITE_DIR_INVALID",
+  CONTENT_DB_MISSING: "SITE_DIR_INVALID",
+  CONTENT_DB_UNMIGRATED: "SITE_DIR_INVALID",
+  CONTENT_DB_DIVERGED: "SITE_NEWER_THAN_RUNTIME",
+};
+
 function stderrLine(code: string, message: string): string {
   return `tovu: ${code}: ${message}`;
 }
@@ -89,6 +112,43 @@ const COMMANDER_VALIDATION_CODES = new Set([
 
 /** commander error codes that represent a SUCCESSFUL outcome (help/version already printed by commander itself). */
 const COMMANDER_SUCCESS_CODES = new Set(["commander.helpDisplayed", "commander.help", "commander.version"]);
+
+/**
+ * The `site-dir` domain's own typed errors, mapped 1:1 by CLASS (never by `.name`, so a foreign
+ * object merely carrying the same `name` string can never claim a domain exit code). Split out of
+ * {@link mapErrorToCliOutcome} 2026-09-06 when `SiteRepairRefusedError` was added: the single
+ * `instanceof` chain had already reached the cognitive-complexity ceiling, and one more branch
+ * would have pushed it over. Behavior is unchanged — same classes, same codes, and the classes are
+ * mutually exclusive (none extends another), so the split cannot reorder any outcome.
+ *
+ * `InternalError` is deliberately NOT here: it stays in the caller's own final position, immediately
+ * before the "any uncaught error" fallback it shares an exit code with.
+ *
+ * @returns the outcome, or `undefined` when `err` is not one of these — never a partial match.
+ * @complexity O(1) — a fixed sequence of `instanceof` checks.
+ */
+function mapSiteDirError(err: unknown): CliOutcome | undefined {
+  if (err instanceof ValidationError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message) };
+  }
+  if (err instanceof InitDirNotEmptyError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INIT_DIR_NOT_EMPTY, stderrLine: stderrLine("INIT_DIR_NOT_EMPTY", err.message) };
+  }
+  if (err instanceof SiteDirInvalidError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_DIR_INVALID, stderrLine: stderrLine("SITE_DIR_INVALID", err.message) };
+  }
+  if (err instanceof SiteNewerThanRuntimeError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_NEWER_THAN_RUNTIME, stderrLine: stderrLine("SITE_NEWER_THAN_RUNTIME", err.message) };
+  }
+  if (err instanceof SiteCorruptError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_CORRUPT, stderrLine: stderrLine("SITE_CORRUPT", err.message) };
+  }
+  if (err instanceof SiteRepairRefusedError) {
+    const code = OUTCOME_BY_REPAIR_REFUSAL[err.reason];
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine(code, err.message) };
+  }
+  return undefined;
+}
 
 /**
  * Map any error `cli/main.ts` catches to `{ exitCode, stderrLine?, printUsage? }`.
@@ -117,21 +177,9 @@ export function mapErrorToCliOutcome(err: unknown): CliOutcome {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message.replace(/^error:\s*/, "")) };
   }
 
-  if (err instanceof ValidationError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message) };
-  }
-  if (err instanceof InitDirNotEmptyError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INIT_DIR_NOT_EMPTY, stderrLine: stderrLine("INIT_DIR_NOT_EMPTY", err.message) };
-  }
-  if (err instanceof SiteDirInvalidError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_DIR_INVALID, stderrLine: stderrLine("SITE_DIR_INVALID", err.message) };
-  }
-  if (err instanceof SiteNewerThanRuntimeError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_NEWER_THAN_RUNTIME, stderrLine: stderrLine("SITE_NEWER_THAN_RUNTIME", err.message) };
-  }
-  if (err instanceof SiteCorruptError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_CORRUPT, stderrLine: stderrLine("SITE_CORRUPT", err.message) };
-  }
+  const siteDirOutcome = mapSiteDirError(err);
+  if (siteDirOutcome) return siteDirOutcome;
+
   if (err instanceof PortInUseError) {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.PORT_IN_USE, stderrLine: stderrLine("PORT_IN_USE", err.message) };
   }
