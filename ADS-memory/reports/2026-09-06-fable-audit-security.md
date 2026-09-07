@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 00:33 — daemon-auth, INV-05 route, external-mcp guard/put/trust read. §1b–1d.
 - 00:22 — boot token (`15548bef`) read end to end: `boot-session-token.ts`, `dev-auth.ts:391-427`, `serve.ts:259-283`, `desktop-auth.cjs`, `tovu-server.cjs`. Verdict below (§3a). INV-05 fix commit read; route file next.
 - 00:12 — desktop read at frozen SHA: `project-delete-guard.cjs`, `project-ipc.cjs`, `main.cjs`, `desktop-auth.cjs`, `tovu-server.cjs`, `keyed-serializer.cjs`, `preload.mts`, `site-registry.cjs` (partial). D-04/D-05 verdicts below.
 
@@ -60,8 +61,20 @@ Read: `apps/website/src/features/identity/boot-session-token.ts` (whole), `apps/
 - **SEC-04 (Low, CONFIRMED):** `TOVU_AGENT_DAEMON_TOKEN` is minted per launch into the child's ENVIRONMENT (`tovu-server.cjs:299-301`), and `desktop-auth.cjs:22-24` itself states the reason env is unsuitable for a secret ("readable from the process list by anything running as this user"). The same reasoning was applied to the boot token and not to the daemon token. What the daemon token grants is examined in §1b (daemon-auth). Not written to disk by anything in this repo — the "launcher at 0700 baking a bearer" generation path is Tovu-Runner's, not found here: no `writeFileSync`/`chmod 0o700` of a token exists under `apps/desktop`, `development/scripts`, or `apps/website/src` (grep for `0o700|chmodSync|launcher` — only `agent-plugins/install.ts` dirs, `webhooks/keyring.env.ts` key file at 0600, `atomic-write.ts`).
 - No rate limiter on `/auth/boot-session` (login has `LOGIN_STRICT`). Irrelevant at 256-bit entropy and loopback-only; noting for completeness, not a finding.
 
+## 1b. Daemon token — what holding `TOVU_AGENT_DAEMON_TOKEN` grants
+Read `apps/website/src/assistant/daemon-auth.ts` (whole), `agent-daemon-server.ts:27-57, 891-935, 1245`. The daemon binds `127.0.0.1` (`:1245`) and gates every route with `requireAgentDaemonToken` (no loopback exemption) except `POST /api/delegated-tool-calls`, which is exempt but requires a live `runId` (`resolvePrincipal`, `:891`). A holder of the token can start runs and execute tools against `content.db` — as the principal the proxy stamps into the run (`:27`, `:670` — decoded from the forwarded request). So the daemon token ≈ "any local process can drive the assistant as whichever principal id it stamps". Same-user threat model only; consistent with SEC-04 being Low.
+
+## 1c. INV-05 fix (`8e973578`) — verified
+`routes/workspace/delete.ts:64-98`: `:workspaceId !== deps.workspaceId` → 404; `authorize(workspace.manage)`; then identity guard `targetWorkspaceId === deps.workspaceId` → 409 `BOUND_WORKSPACE`. Because the first check narrows the target to the bound id, `deleteWorkspace` (`:92`) is unreachable over HTTP. Guard is on identity not count — matches the fix's claim. No sibling arm exists (workspace_delete tool is unwired per Jini's `UNWIRED_WORKSPACE_TOOL_IDS`; not re-verified in Jini, taken as a CLAIM). **Fix holds.**
+
+## 1d. External MCP write grants (`0d9e41d5`, `ae13e739`, `37ac1943`) — in progress
+- `routes/external-mcp/guard.ts:32-59`: one gate for list/put/delete — workspace narrow + `admin.integrations.manage` (site-owner level; a stored `command` is spawned as a child at daemon boot, so this permission == code execution as the Tovu process, stated in the file). Consistent across the three arms.
+- `routes/external-mcp/put.ts:86`: `writeAllowedToolNames` is `asStringField` — a non-string collapses to `""` → clears every write grant (fail-closed; noted in-file as known).
+- `mcp-federation/trust.ts:403-450`: both lists consulted; `writeAllowedButNotAllowlisted` is surfaced, never admitted. Admission is computed once at connect (R5) — config read at daemon start, confirmed by `put.ts:105-108` `restartRequired: true`.
+- `refusal-notice.ts` (what the MODEL is told) — pending read for secret leakage.
+
 ## 2. Codex `pending` commits (priority 2)
-_(in progress — §1b daemon-auth, INV-05 route file, MCP federation next)_
+_(in progress)_
 
 ## 3. Rest of window (priority 3)
 _(pending)_
