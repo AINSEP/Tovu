@@ -273,60 +273,49 @@ plugin**, to expose the missing core-mediated primitives as a concrete "dead wit
 (3) **Tier-2 content analyzer** over the ABI via worker/RPC, no sandbox, with a written note on any
 DX pain.
 
-## Completed (WordPress Specs)
-All WordPress spec work is complete. See `wordpress_specs/` for the full library (53 files).
-- ✓ wp-includes (20 specs)
-- ✓ wp-content (overview)
-- ✓ wp-admin (12 specs including users)
-- ✓ wp-root (3 condensed specs + 12 originals archived)
-- ✓ Plugin & Theme Authoring Structure
-- ✓ Headless CMS paradigm
+## Completed — historical record (pointers only)
 
-## Completed (Architecture)
-- ✓ `tovu-architecture.md` — combined, renamed Forge→Tovu, includes appendix of all general patterns
-- ✓ `competitor-analysis.md` — Ghost, Payload, Directus breakdown
-- ✓ `tovu/` scaffold initialized (TypeScript, Express, tests, modular structure)
-- ✓ `tovu/` conventions captured (`PROJECT_MEMORY.md`, local `AGENTS.md`, module `INFO.md`)
-
-Prioritization source: `tovu-architecture.md` section 13 (User Friction Coverage).
-
----
+- **WordPress spec library** — complete, now at `development/other-repos-specs/wordpress_specs/`
+  (**78** `.md` files; this entry used to say 53): wp-includes, wp-content, wp-admin, wp-root, plugin
+  & theme authoring structure, headless-CMS paradigm.
+- **Architecture groundwork** — `ADS-memory/docs/architecture/tovu-architecture.md` and
+  `ADS-memory/docs/research/competitor-analysis.md` (Ghost/Payload/Directus); the `tovu/` scaffold and
+  its conventions. Prioritization source: `tovu-architecture.md` §13 (User Friction Coverage).
 
 ## Canonical Architecture Decisions (ADRs)
 
-This checklist is the **capability backlog**, not the decision record. Where an ADR
-exists, it is the source of truth and supersedes the loose wording below. Index:
-`ADS-memory/reports/architecture/ADR-INDEX.md`.
+This checklist is the **capability backlog**, not the decision record. Where an ADR exists it is the
+source of truth and supersedes the loose wording below. Index:
+`ADS-memory/reports/architecture/ADR-INDEX.md` — **note: 7 ADRs on disk (053, 055, 056, 057, 059,
+063, 064) have no row in that index**, so it is not a complete list.
 
 Which ADR owns which inventory area:
-- **§1 Kernel / §10 Server** — ADR-001 (agent-native modular monolith), ADR-009
-  (decoupling: sync calls + outbox + hooks).
-- **§3 Data Layer** — ADR-006 (ports need two adapters), ADR-007 (`workspaceId`
-  everywhere). **Site content lives in a per-site `content.db` behind
-  `SiteStorePort`** (better-sqlite3 now → Supabase later) — ADR-012 + ADR-013.
-- **§5 Storage/Media** — media blobs under the site folder's `uploads/`, metadata
-  rows in that site's `content.db` (ADR-012).
+- **§1 Kernel / §10 Server** — ADR-001 (agent-native modular monolith), ADR-009 (decoupling: sync
+  calls + outbox + hooks).
+- **§3 Data Layer** — ADR-006 (ports need two adapters), ADR-007 (`workspaceId` everywhere). Site
+  content lives in a per-site `content.db` behind `SiteStorePort` — ADR-012 + ADR-013.
+- **§5 Storage/Media** — media blobs under the site folder's `uploads/`, metadata rows in that site's
+  `content.db` (ADR-012).
 - **§7 Feature Modules** — the `features/*` slices are the site content model
   (post/page/media/presentation), scoped per ADR-007/012.
-- **§8 Theme System** — ADR-010 (declarative themes by default; code = trusted
-  mode), ADR-002 (React blessed renderer). Two planes: site theme vs app chrome —
-  see `admin-sitemap.md §1`.
-- **§9 Plugin System** — ADR-003 (plugins never run DDL), ADR-004 (prebuilt ESM +
-  signed manifest), ADR-005 (SDK compatibility).
-- **§11 Admin UI** — IA in `admin-sitemap.md`; per-screen UI brief in
-  `docs/design/admin-sections-ui-brief.md`; rail pages in
-  `docs/design/rail-pages-ui-brief.md`.
-- **§12 Agentic UI / AI Layer** — **ADR-013**: one CopilotKit client + one AG-UI
-  daemon agent; `tools.ts` registry with an execution `surface` (frontend/data);
-  agent detection ported from open-design; composer rebuilt headless. Paradigm note:
+- **§8 Theme System** — ADR-010 (declarative themes by default; code = trusted mode), ADR-002 (React
+  blessed renderer). Two planes: site theme vs app chrome — see
+  `ADS-memory/reports/architecture/admin-sitemap.md` §1.
+- **§9 Plugin System** — ADR-003 (plugins never run DDL), ADR-004 (prebuilt ESM + signed manifest),
+  ADR-005 (SDK compatibility), ADR-023 (core-mediated plugin data modules).
+- **§11 Admin UI** — IA in `ADS-memory/reports/architecture/admin-sitemap.md`. **The two per-screen
+  UI briefs this section used to cite (`docs/design/admin-sections-ui-brief.md`,
+  `docs/design/rail-pages-ui-brief.md`) no longer exist anywhere in the repo** — the live registry is
+  `apps/admin/src/panels.tsx`.
+- **§12 Agentic UI / AI Layer** — **ADR-059 is current** (assistant transport, AG-UI canary,
+  Accepted 2026-08-18). It supersedes ADR-049's rejection of AG-UI, which had itself superseded
+  ADR-013's original CopilotKit + AG-UI choice. Paradigm note:
   `ADS-memory/docs/architecture/appendices/A12-tool-use-first-architecture.md`.
-- **§13 Protocols** — ADR-011 (two deployment topologies; open-design desktop host),
-  ADR-013 (AG-UI/MCP surface, tool exposure).
+- **§13 Protocols** — ADR-011 (two deployment topologies; open-design desktop host), ADR-013 (AG-UI /
+  MCP surface, tool exposure).
 
-A "site" everywhere below = **a folder (install dir) with its own `content.db` +
-`uploads/` + themes/plugins**, instantiated from a versioned template (ADR-012).
-
----
+A "site" everywhere below = **a folder (install dir) with its own `content.db` + `uploads/` +
+themes/plugins**, instantiated from a versioned template (ADR-012).
 
 ## Learn (What You Need to Understand)
 
@@ -351,28 +340,37 @@ A "site" everywhere below = **a folder (install dir) with its own `content.db` +
 ## Accomplish (What We Need to Build)
 
 ### Foundation (active)
-- [ ] Split `src/contracts/core/ports.ts` into domain-focused port files (including `core/events/ports.ts`)
-- [ ] Add server route tests in `src/server/__tests__/` (status code + payload assertions)
-- [ ] Add first persistent adapter set (DB-backed repo + DB-backed outbox)
-- [ ] Add structured logging + request IDs
+- [ ] Add structured logging + request IDs. Nothing implements either today — no logger module
+      exists, and `requestId` appears only in `apps/website/src/server/__specs__/00-foundation/`
+      specs plus one AG-UI module.
 
 ### First real capabilities
-- [ ] Workspace management beyond create (read/list/update/delete)
-- [ ] Basic auth boundary (identity extraction + role checks)
-- [ ] Plugin/module registration skeleton
-- [ ] Feature flag support (for safe rollout)
+- [ ] Feature-flag support (for safe rollout). `featureFlag` appears only in
+      `server/__specs__/00-foundation/request-context.spec.md` — no implementation.
 
 ### Reliability and safety
-- [ ] Outbox retry policy with exponential backoff
-- [ ] Idempotency strategy for event handlers
-- [ ] Error taxonomy + standardized API error responses
-- [ ] Safe-mode/rollback concept draft (from architecture section 13)
+- [ ] **Outbox retry policy with exponential backoff — and an attempt cap.** The schema already
+      supports it (`outbox_events.attempts`, `nextAttemptAt`), but
+      `apps/website/src/contracts/core/events/outbox-worker.ts:34` calls
+      `markFailed(row.id, message, now)` — it re-queues the failed event for retry *immediately*, so a
+      permanently-failing event spins at full batch rate. No `maxAttempts` and no dead-letter path
+      exist anywhere in `contracts/core/events/`.
+- [ ] Idempotency strategy for event handlers. (`operation-lock.ts` guards concurrent mutations; it
+      is not handler-level idempotency.)
+- [ ] Error taxonomy + standardized API error responses. `apps/website/src/server/error-mapping/`
+      exists but contains **only `INFO.md`** — it names itself "the intended home for the canonical
+      error envelope, status mapping helpers, and route-safe translation", with no code. Per-feature
+      `errors.ts` files exist but there is no shared envelope.
+- [ ] Safe-mode / rollback concept draft (from architecture §13). Recovery ships one shape of this
+      (restore points, plan→confirm→execute), but "safe mode" itself is only mentioned in
+      `server/__specs__/`.
 
 ### Agent capability surface (added 2026-07-27)
 
 Backed by a source-level survey of ten shipped products; full reports in
 `/Users/la/Programming/OSS-Repos/AI-Capabilities/`. Design written up in
-`tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29. Build in this order.
+`development/tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29 (both verified present).
+Build in this order.
 
 - [ ] **Split control plane from retrieval plane.** One capability registry, two postures: agent/admin
       writes go through authorize → confirm → execute → audit; end-user search runs as the *user*,
@@ -433,7 +431,8 @@ what is findable.
 
 ## Backlog: Directus Research (Still Needed)
 
-Directus is still valuable for reference and can run in parallel with implementation.
+Directus is still valuable for reference and can run in parallel with implementation. Existing
+material: `development/other-repos-specs/directus_specs/`.
 
 - [ ] General Directus architecture map
 - [ ] Directus AI layer deep spec (priority)
@@ -441,31 +440,40 @@ Directus is still valuable for reference and can run in parallel with implementa
 
 ## Backlog: Admin IA Research (Needed Before Admin Build)
 
-Placeholder admin structure exists at `tovu/apps/admin/sections/` (one INFO.md per section, WordPress-derived). It is a DRAFT until this research lands.
+**Path correction 2026-09-06:** the `tovu/apps/admin/sections/` placeholder set this entry was
+written against **no longer exists**. The live admin registry is `apps/admin/src/panels.tsx` (46
+panels), and the Admin Section Spec Sweep above already reconciled it against source — so the third
+bullet's "confirm/adjust the placeholder set" half is obsolete. The competitor research itself is
+still genuinely open.
 
-- [ ] Capture the admin information architecture of Directus, Ghost, Payload, Strapi, and WordPress (specs already in `other-repos-specs/wordpress_specs/wp-admin/`): sidebar taxonomy, screen inventory per section, navigation depth, and where each puts settings vs content vs system surfaces. CBM indexes exist for all five repos.
-- [ ] Capture each CMS's admin *extension* pattern (how plugins contribute panels/menu items/dashboard widgets): WP menu/meta-box registration, Directus extensions-sdk app surfaces, Payload admin components, Strapi admin plugin API, Ghost admin-x apps.
-- [ ] Synthesize into a Tovu admin IA spec: confirm/adjust the `apps/admin/sections/` placeholder set, define the surface-descriptor types each section needs (feeds Master Build Inventory §11 Admin UI), and mark which sections are core vs registry-contributed vs plugin-shipped.
+- [ ] Capture the admin information architecture of Directus, Ghost, Payload, Strapi, and WordPress
+      (WordPress specs already at `development/other-repos-specs/wordpress_specs/wp-admin/`): sidebar
+      taxonomy, screen inventory per section, navigation depth, and where each puts settings vs
+      content vs system surfaces. CBM indexes exist for all five repos.
+- [ ] Capture each CMS's admin *extension* pattern (how plugins contribute panels/menu items/dashboard
+      widgets): WP menu/meta-box registration, Directus extensions-sdk app surfaces, Payload admin
+      components, Strapi admin plugin API, Ghost admin-x apps.
+- [ ] Synthesize into a Tovu admin IA spec: define the surface-descriptor types each section needs
+      (feeds Master Build Inventory §11 Admin UI) and mark which panels are core vs
+      registry-contributed vs plugin-shipped.
 
 ## Backlog: Shopify Research (Still Needed)
 
-Shopify capture work has a detailed checklist in `other-repos-specs/shopify_specs/TODO.md`.
-
-- [ ] Review and execute the Shopify research TODO before restarting Shopify decomposition or agent-build-packet work.
+- [ ] Review and execute `development/other-repos-specs/shopify_specs/TODO.md` before restarting
+      Shopify decomposition or agent-build-packet work.
 
 ## Backlog: Medusa Research (Still Needed)
 
-Medusa follow-on decomposition notes live in `other-repos-specs/medusa_specs/TODO.md`.
-
-- [ ] Review the Medusa research TODO before adding deeper Medusa internals, route DTO inventories, admin SDK notes, telemetry notes, or hosted-cloud caveats.
+- [ ] Review `development/other-repos-specs/medusa_specs/TODO.md` before adding deeper Medusa
+      internals, route DTO inventories, admin SDK notes, telemetry notes, or hosted-cloud caveats.
 
 ## Backlog: Commerce Platform Crosswalk (Still Needed)
 
-Shopify + Medusa synthesis notes live in `other-repos/TODO.md`.
-
-- [ ] Review the Shopify + Medusa follow-on TODO before turning commerce research into a Tovu capability map or V1 commerce platform architecture.
-
----
+- [ ] Turn the Shopify + Medusa research into a Tovu capability map / V1 commerce platform
+      architecture, working from
+      `development/other-repos-specs/{shopify_specs,medusa_specs}/TODO.md`.
+      **[UNVERIFIED 2026-09-06]** This entry's original pointer, `other-repos/TODO.md`, does not
+      exist anywhere in the repo — the synthesis notes it referred to were not located.
 
 ## Master Build Inventory (Everything)
 

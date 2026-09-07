@@ -95,3 +95,40 @@ My pass-3 helper replaced an `###` block by spanning from its heading to the **n
 
 Restored byte-identically from `5e593ab4:development/todos.md` lines 332-388 (`diff` against the restored range returns rc=0) in a separate commit before pass 4 began. Pass 3's intended AW-1..AW-7 edits are unaffected and stand.
 
+---
+
+## Pass 4 — Completed / ADR map / Accomplish / Agent capability surface / research backlogs
+
+(The Completed and ADR-map sections were not assigned to a pass in the dispatch; they sit between the pass-3 and pass-4 material and carried dead paths, so they were handled here.)
+
+### Deleted (rule 1)
+- `## Completed (Architecture)` merged into one `## Completed — historical record` pointer block with the two docs' **current** locations: `ADS-memory/docs/architecture/tovu-architecture.md` and `ADS-memory/docs/research/competitor-analysis.md`.
+- **Accomplish → Foundation:** "Split `src/contracts/core/ports.ts` into domain-focused port files" — **done**. There is no `contracts/core/ports.ts`; the split files exist (`contracts/core/gated-mutations/ports.ts`, `contracts/core/entry-refs/ports.ts`, `contracts/core/events/index.ts` + `memory-bus.ts` + `outbox-worker.ts`).
+- "Add server route tests in `src/server/__tests__/`" — **done**: `apps/website/src/server/__tests__/` holds dozens of route tests (`admin-database-timeline-route.test.ts`, `admin-connectors-routes.test.ts`, …).
+- "Add first persistent adapter set (DB-backed repo + DB-backed outbox)" — **done**: `apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts` plus contract/integration tests under `contracts/core/events/__tests__/`.
+- **Accomplish → First real capabilities:** workspace CRUD (`server/inbound/admin-http/routes/workspace/{get,create,list,update,delete}.ts`), auth boundary (`server/inbound/admin-http/authorize-guard.ts`), and the plugin/module registration skeleton (the whole SPEC-005 plugin system) are all built.
+
+### Corrected paths (the apps/website + ADS-memory restructures)
+| Claim | Now |
+|---|---|
+| "`wordpress_specs/` … 53 files" | `development/other-repos-specs/wordpress_specs/` — **78** `.md` files |
+| "`other-repos-specs/shopify_specs/TODO.md`" | `development/other-repos-specs/shopify_specs/TODO.md` (exists) |
+| "`other-repos-specs/medusa_specs/TODO.md`" | `development/other-repos-specs/medusa_specs/TODO.md` (exists) |
+| "`tovu/apps/admin/sections/` placeholder, one INFO.md per section" | **Gone.** No such directory. The live registry is `apps/admin/src/panels.tsx` (46 panels), already reconciled by the sweep above. The only `sections/` left in the repo is `ADS-memory/docs/architecture/sections/`, which is the architecture document split into 15 chunks — unrelated. |
+| "`docs/design/admin-sections-ui-brief.md`" and "`docs/design/rail-pages-ui-brief.md`" (ADR map §11) | **Neither exists anywhere in the repo** (`find . -name "*ui-brief*"` returns nothing). |
+| "`admin-sitemap.md`" | `ADS-memory/reports/architecture/admin-sitemap.md` |
+| "`tovu-v2-design.md`" | `development/tovu-v2-design.md` |
+| ADR map §12: "ADR-013: one CopilotKit client + one AG-UI daemon agent" | **ADR-059 is current** (Accepted 2026-08-18); it supersedes ADR-049, which had superseded ADR-013's transport choice. The map was two supersessions behind. |
+
+### Left `[UNVERIFIED 2026-09-06]`
+- **Backlog: Commerce Platform Crosswalk** — its pointer, `other-repos/TODO.md`, does not exist anywhere in the repo and the synthesis notes it named could not be located. Kept the work item (redirected at the two upstream TODOs that do exist) and flagged the missing source rather than deleting it.
+
+### Kept verbatim (rule 4/5)
+- **Agent capability surface (13 items)** — a design backlog whose `file:line` citations are all to *other* repos (Directus, Strapi, Payload, WordPress). Verified only that its evidence roots exist: `/Users/la/Programming/OSS-Repos/AI-Capabilities/` (per-repo `.md` + `.metrics.json`) and `/Users/la/Programming/Jini/ai-control-plane.md`. Settling the individual items would require reading Jini's control plane, which is out of scope here.
+- **Learn (What You Need to Understand)** — a study list, not a claim about this repo's state.
+- **Backlog: Directus Research** — 3 items, genuinely open; added the pointer to `development/other-repos-specs/directus_specs/`.
+
+### New gaps discovered while verifying (NOT fixed)
+- **The outbox has no backoff and no attempt cap.** `apps/website/src/contracts/core/events/outbox-worker.ts:34` calls `outbox.markFailed(row.id, message, now)` — `now` is the `nextAttemptAt`, so a failed event becomes immediately claimable again. `outbox-repo.sqlite.ts:87-90` faithfully writes whatever it is handed. `attempts` is incremented but nothing reads it: `maxAttempts` and `dead-letter` have **zero** hits under `contracts/core/events/` and `platform/db`. A permanently-failing handler spins at full batch rate (20/tick) forever. This was already an open todo item; what is new is that the schema supports the fix and the worker simply does not use it.
+- **`apps/website/src/server/error-mapping/` is an empty promise** — one `INFO.md` declaring itself "the intended home for the canonical error envelope, status mapping helpers, and route-safe translation", with no implementation file beside it.
+
