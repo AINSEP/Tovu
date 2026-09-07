@@ -63,6 +63,29 @@ describe("nextPushToTalkState", () => {
     expect(nextPushToTalkState(idle, { type: "mic-granted" })).toBe(idle);
     expect(nextPushToTalkState(idle, { type: "mic-denied", reason: "x" })).toBe(idle);
   });
+
+  // REGRESSION (2026-09-06, section C item 4 of the tovu-8f handoff): releasing the mic button
+  // while the permission prompt is still open used to have no transition at all — `stop` was
+  // simply ignored in `requesting-mic`, so the state machine sailed on into `recording` once
+  // permission resolved even though nothing was holding the button down anymore, leaving the
+  // microphone live with no way to stop it short of a page reload. `cancelling` is what lets
+  // `usePushToTalk`'s own `startHold().then()` (the only place that can actually release the
+  // capture, since it owns the one live reference to it) tell the difference between "still held"
+  // and "already let go" once permission finally settles.
+  it("requesting-mic -stop-> cancelling (released before permission resolved)", () => {
+    const state = nextPushToTalkState({ status: "requesting-mic" }, { type: "stop" });
+    expect(state).toEqual({ status: "cancelling" });
+  });
+
+  it("cancelling -mic-granted-> idle, never recording — the hold is already over", () => {
+    const state = nextPushToTalkState({ status: "cancelling" }, { type: "mic-granted" });
+    expect(state).toEqual({ status: "idle" });
+  });
+
+  it("cancelling -mic-denied-> idle, no error shown for a prompt nobody is watching anymore", () => {
+    const state = nextPushToTalkState({ status: "cancelling" }, { type: "mic-denied", reason: "Permission denied" });
+    expect(state).toEqual({ status: "idle" });
+  });
 });
 
 describe("describePushToTalkIndicator", () => {

@@ -9,7 +9,11 @@
  * never at risk of being hijacked, regardless of composer focus or content.
  */
 
-export type PushToTalkStatus = "idle" | "requesting-mic" | "recording" | "transcribing" | "error";
+/** `"cancelling"`: the hold ended (key released, or the button lost the pointer) while still
+ *  waiting on the permission prompt (`"requesting-mic"`). There is no capture to stop yet at that
+ *  point — `usePushToTalk`'s own `startHold().then()` is what actually releases the microphone,
+ *  once permission resolves, by checking whether the machine landed here instead of `"recording"`. */
+export type PushToTalkStatus = "idle" | "requesting-mic" | "recording" | "transcribing" | "error" | "cancelling";
 
 export interface PushToTalkState {
   status: PushToTalkStatus;
@@ -51,11 +55,20 @@ const TRANSITIONS: Partial<Record<TransitionKey, (event: PushToTalkEvent) => Pus
   "idle:start": () => ({ status: "requesting-mic" }),
   "requesting-mic:mic-granted": () => ({ status: "recording" }),
   "requesting-mic:mic-denied": errorState,
+  // The hold ended before the permission prompt resolved — see `PushToTalkStatus`'s own doc on
+  // `"cancelling"` for why this can't go straight to `"idle"`: `mic-granted`/`mic-denied` are
+  // still coming, asynchronously, and the machine has to be somewhere that tells `usePushToTalk`
+  // to release the mic instead of starting to record it.
+  "requesting-mic:stop": () => ({ status: "cancelling" }),
   "recording:stop": () => ({ status: "transcribing" }),
   "transcribing:transcript-ready": () => ({ status: "idle" }),
   "transcribing:transcribe-failed": errorState,
   "error:dismiss-error": () => ({ status: "idle" }),
   "error:start": () => ({ status: "requesting-mic" }),
+  // Permission finally settled after the hold already ended. Neither outcome starts a recording
+  // nor shows an error — nobody is watching this prompt anymore.
+  "cancelling:mic-granted": () => ({ status: "idle" }),
+  "cancelling:mic-denied": () => ({ status: "idle" }),
 };
 
 /**
@@ -101,6 +114,11 @@ export function describePushToTalkIndicator(state: PushToTalkState): PushToTalkI
       return { label: "Transcribing…", ariaLive: "polite", isRecording: false };
     case "error":
       return { label: state.errorReason ?? "Voice input failed", ariaLive: "assertive", isRecording: false };
+    case "cancelling":
+      // The hold is already over from the user's own point of view (they released the button) —
+      // same resting copy as `"idle"`, not a distinct "cancelling…" message nobody would be
+      // holding still long enough to read.
+      return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
     default:
       return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
   }

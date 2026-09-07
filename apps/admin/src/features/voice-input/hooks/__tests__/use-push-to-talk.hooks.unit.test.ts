@@ -160,6 +160,41 @@ describe("usePushToTalk — recording lifecycle", () => {
     expect(result.current.indicator.isRecording).toBe(false);
   });
 
+  // REGRESSION (2026-09-06, section C item 4 of the tovu-8f handoff): releasing the key while the
+  // browser permission prompt is still open used to no-op (`endHold` only acted on `"recording"`),
+  // so once permission resolved the machine sailed into `recording` anyway with nothing holding
+  // the button down — the microphone stayed live with no way to stop it. `capture.start()` is left
+  // unresolved here to hold the hook in `requesting-mic` deliberately, so `endHold` fires into
+  // that exact window.
+  it("REGRESSION: releasing during requesting-mic still releases the microphone once permission resolves, and never enters recording", async () => {
+    let resolveStart: () => void = () => {};
+    const startPromise = new Promise<void>((resolve) => {
+      resolveStart = resolve;
+    });
+    const capture = fakeCapture({ start: vi.fn().mockReturnValue(startPromise) });
+    const onTranscript = vi.fn();
+    const { result } = renderHook(() =>
+      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+    );
+    await waitFor(() => expect(result.current.available).toBe(true));
+
+    act(() => result.current.startHold());
+    await waitFor(() => expect(result.current.indicator.label).toBe("Requesting microphone…"));
+
+    // The user let go before the permission prompt resolved.
+    act(() => result.current.endHold());
+
+    // Permission now resolves — nothing is holding the button anymore, so the mic must be
+    // released immediately rather than entering `recording`. Resolving bare (not wrapped in a
+    // manual `act()`) and letting `waitFor` drive the aftermath matches this file's other
+    // deferred-capture tests below (e.g. the retry test's `callCount`-gated capture).
+    resolveStart();
+    await waitFor(() => expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1));
+
+    expect(result.current.indicator.isRecording).toBe(false);
+    expect(onTranscript).not.toHaveBeenCalled();
+  });
+
   it("a retry after an error works: pointerdown from the error state starts a fresh capture", async () => {
     const deniedCapture = fakeCapture({ start: vi.fn().mockRejectedValue(new Error("Permission denied")) });
     const grantedCapture = fakeCapture({ stopAndTranscribe: vi.fn().mockResolvedValue("retry worked") });
