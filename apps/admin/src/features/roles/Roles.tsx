@@ -140,7 +140,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           "Per-entry SEO" heading stays VISIBLE by the same rule: it is not a verbatim repeat of its
           tab ("Pages & posts"), so it still tells a sighted reader something. */}
       <h2 className="visually-hidden">{t("Roles")}</h2>
-      <form onSubmit={create.submit} className="notice integrations-form">
+      <form onSubmit={create.submit} className="notice integrations-form form-measure">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Role name")}
@@ -501,7 +501,7 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
     <>
       {/* Hidden for view, kept for assistive tech — see the matching note in `RolesSection`. */}
       <h2 className="visually-hidden">{t("Policies")}</h2>
-      <form onSubmit={create.submit} className="notice integrations-form">
+      <form onSubmit={create.submit} className="notice integrations-form form-measure">
         {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Policy name")}

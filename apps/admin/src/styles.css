@@ -143,6 +143,11 @@
   --space-7: 2rem;    /* 32px */
   --space-8: 2.5rem;  /* 40px */
 
+  /* Measures — the one width a single-column form surface takes (`.form-measure` below, in the
+     shared page primitives). A token rather than a literal on each rule so `.workspace-page`,
+     the SEO defaults column and every `.form-measure` site stay the same width by construction. */
+  --form-measure: 42rem;
+
   /* Type scale — sized against Settings' own measured computed styles (`.jini-tabbed-dialog-
      kicker` 11px, `-subtitle` 13px, panel body 16px, page `h2` 26px) so the primitives below
      reproduce its rhythm using this file's own tokens rather than `--jini-*`. */
@@ -458,7 +463,64 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    column), so a cap belongs on a scoped wrapper class, not the shared shell. Workspace is a single-
    column settings form; at a wide viewport it ran edge-to-edge with the card boxes stretching to
    fill leftover space and no readable measure of their own. */
-.workspace-page { max-width: 42rem; }
+.workspace-page { max-width: var(--form-measure); }
+
+/* Form measure (2026-09-06, owner: "excessively long cards" — Roles › Policies, Source Control,
+   Workspace, Redirects, Database › Timeline). The ONE width decision every single-column form
+   surface now shares, as a token (`--form-measure`, in the token block above) so the screens
+   cannot drift apart again.
+
+   Measured live at 1440 (`getBoundingClientRect`, 1300px page column) before changing anything:
+     - Roles › Policies: a `.notice.integrations-form` 1300px wide holding two 448px inputs.
+     - Redirects: a `form.card` 1300px wide, and a `details.notice` 1300px wide around the two
+       words "Bulk import".
+     - Source Control: three accordion rows 1300px wide; the expanded token input was 1226px.
+     - Workspace: already capped at 42rem (`.workspace-page` above, 2026-08-31) — but its inputs
+       stayed at 28rem, so a third of the box was still empty, and the ID/Created chips stacked
+       because the form's `align-items: flex-start` shrink-wrapped their `auto-fit` grid to one
+       column. The owner flagged it in that state, which is what settled "controls fill" below.
+   None of these render through one primitive (`.notice`, `.card`, a `<details>`, a per-tab
+   wrapper), so the shared fix is a shared class + token applied at each site, not a cap on
+   `.card` or `.notice` — both of those also wrap tables, banners and side-by-side grids that
+   legitimately want the whole column (`.page` carries no max-width for the same reason, see
+   `.workspace-page`'s own note above).
+
+   42rem is not a new number: it is the measure already accepted on the two screens the owner
+   asked to fix most recently — `.workspace-page` and `/admin/seo`'s `--seo-measure` — and it sits
+   inside the 40–46rem band every other deliberate form column here uses (`.onboarding` 40rem,
+   `.access-tokens-row` 40rem, `.settings-ui-section--page-flow` 46rem).
+
+   A definite measure, not `fit-content`: `.integrations-form label` is `width: 100%`, and a
+   percentage inside a shrink-wrapped parent resolves against the children rather than the column,
+   so a fit-to-content box would collapse to the input's intrinsic ~11rem. The container has to be
+   the definite thing and the controls fill it.
+
+   Controls FILL the measure: `.integrations-form label`'s own 28rem cap is lifted inside a
+   measured form. The point of the pass is a box no wider than what it holds, and a 42rem box
+   around a 28rem input is the same complaint at two-thirds scale. 42rem minus the box's padding
+   is the ~40rem control width the SEO defaults form already ships with, so the two rhyme.
+
+   Inside the measure a `.field-row` goes two-up, not four-up: the shared `minmax(10rem, 1fr)`
+   packs three 10rem columns into the 624px that remain and orphans the fourth field beneath them
+   (Redirects' Match type / From / To / Status code). 14rem tracks give two 19rem columns at this
+   width and fall back to one column below ~29rem — and a row of two is what reads as a form
+   rather than a spreadsheet at this measure. (0,2,0) so it beats the (0,1,0) base rule wherever
+   the bundler puts this file. */
+.form-measure { max-width: var(--form-measure); }
+.form-measure.integrations-form label { max-width: none; }
+/* Workspace's ID/Created chips (`.settings-layer-grid` inside the form) span the measured box so
+   the `auto-fit` grid has a width to fit into — see the Workspace bullet above. */
+.form-measure.integrations-form > .settings-layer-grid { align-self: stretch; }
+.form-measure .field-row { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+
+/* The Database › Timeline filter bar is the one flagged surface that is a TOOLBAR, not a form
+   column: five controls with intrinsic widths (a select, a text input, two date inputs, a button —
+   ~815px in a row at 1440) that need no measure to fill. Capped at `--form-measure` it would wrap
+   the last two onto a second line inside a 672px box; hugging its row is the same decision — a
+   box no wider than what it holds — expressed for controls that already have a width of their
+   own. `max-width: 100%` hands control back to `.toolbar`'s own `flex-wrap` once the column is
+   narrower than the row. */
+.database-filter-bar { width: fit-content; max-width: 100%; }
 
 /* Kicker + title + description on the left, actions on the right — mirrors the measured
    Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */

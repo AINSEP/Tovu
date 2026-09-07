@@ -70,7 +70,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
         </div>
       </div>
 
-      <form onSubmit={onSave} className="notice integrations-form">
+      <form onSubmit={onSave} className="notice integrations-form form-measure">
         <WorkspaceFormStatus locale={locale} saveError={saveError} saved={saved} dirty={dirty} />
         <label>
           {t("Name")}

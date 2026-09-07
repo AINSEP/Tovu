@@ -103,7 +103,7 @@ export function ProvidersTab(props: ProvidersTabProps) {
 
   return (
     <div
-      className="source-control-tab"
+      className="source-control-tab form-measure"
       {...agentHandle("source-control-providers", {
         role: "region",
         label: "Connect a GitHub, GitLab, or Bitbucket account so Tovu can read and later push to your repositories",

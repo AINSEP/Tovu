@@ -118,7 +118,7 @@ function ImportRedirectsForm({ t, locale, useImportRedirectsFormHook = useWiredI
   const { raw, setRaw, error, result, importing, submit } = useImportRedirectsFormHook({ t, locale });
 
   return (
-    <details className="notice redirects-import">
+    <details className="notice redirects-import form-measure">
       <summary>{t("Bulk import")}</summary>
       <form onSubmit={submit}>
         <label htmlFor="redirects-import-json">
@@ -234,7 +234,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
       <form
-        className="card"
+        className="card form-measure"
         onSubmit={(e) => {
           e.preventDefault();
           createRedirect(new FormData(e.currentTarget));
