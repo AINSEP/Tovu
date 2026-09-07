@@ -714,6 +714,21 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const resolvedConversationId = conversationId;
     const resolvedAgentId = request.agentId ?? DEFAULT_AGENT_ID;
     void runLifecycle.stream(run.id, (event) => {
+      // Terminal-outcome log line (2026-09-06 chat-death investigation). This subscription already
+      // exists, already sees every `end` event, and already has `run.id` in scope — so this is the
+      // cheapest possible place to write down HOW a run ended. Until now nothing did: the daemon
+      // logged a run that `failed to start` (see the `.catch` at the bottom of this function) but
+      // said nothing at all about a run that started fine and then died, which is exactly the case
+      // an operator cannot otherwise diagnose. `@jini-ai/daemon`'s `finish()` emits this `end` event
+      // as the ONLY record of the terminal status, the event log backing it is in-memory
+      // (`createInMemoryEventLog()` above), and the admin client discards the status — so without
+      // this line the exit code exists nowhere durable and nowhere visible.
+      if (event.kind === "end") {
+        const endPayload = event.payload as { status?: unknown; code?: unknown; signal?: unknown; resumable?: unknown };
+        const line = `[agent-daemon] run ${run.id} ended: ${String(endPayload.status ?? "unknown")} (code=${String(endPayload.code ?? "none")}, signal=${String(endPayload.signal ?? "none")}, resumable=${String(endPayload.resumable ?? false)}, agent=${resolvedAgentId}, conversation=${resolvedConversationId}, resumeAttempted=${attemptedResumeSessionId !== null})`;
+        if (endPayload.status === "succeeded") console.log(line);
+        else console.error(line);
+      }
       const sessionRef = extractSessionRefFromEndEvent(event);
       if (sessionRef !== undefined) {
         void routeDeps.agentSessions.setSessionId(resolvedConversationId, resolvedAgentId, sessionRef).catch((error: unknown) => {

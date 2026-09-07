@@ -215,6 +215,13 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     childHasExited = false;
     const child = deps.spawnDaemonProcess();
     currentChild = child;
+    // Spawn/exit breadcrumbs (2026-09-06 chat-death investigation). A daemon respawn kills every
+    // run in flight, and a run killed that way looks — in `chat.db` and in the pane — exactly like
+    // a chat that "just stopped answering". Nothing timestamped the daemon's lifecycle anywhere, so
+    // after the fact there was no way to correlate a dead chat against a restart. `shuttingDown`
+    // exits are deliberately still logged (below): a save under `apps/website/src` restarts the
+    // whole API, which is precisely the correlation an operator needs to be able to make.
+    console.log(`[daemon-supervisor] ${new Date().toISOString()} spawned agent daemon pid=${child.pid ?? "unknown"}`);
 
     child.on("error", (error) => {
       // Verified directly (not assumed): for a spawn-level failure like ENOENT, Node fires ONLY
@@ -236,6 +243,9 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     });
     child.on("exit", (code, signal) => {
       childHasExited = true;
+      console.log(
+        `[daemon-supervisor] ${new Date().toISOString()} agent daemon pid=${child.pid ?? "unknown"} exited (code=${String(code)}, signal=${String(signal)}, deliberate=${shuttingDown}) — any run in flight died with it`,
+      );
       if (shuttingDown) return;
       handleUnexpectedExit(code, signal);
     });

@@ -201,6 +201,47 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
   };
 }
 
+/**
+ * Turns a daemon `end` frame's terminal outcome into a visible `status` event when — and only when —
+ * the run did NOT succeed.
+ *
+ * WHY THIS EXISTS (2026-09-06 chat-death investigation, `ADS-memory/reports/2026-09-06-chat-death-investigation.md`):
+ * `@jini-ai/protocol`'s `RunEndPayload` carries `status`/`code`/`signal`/`resumable`, and
+ * `@jini-ai/daemon`'s `finish()` is the ONLY event a terminal run emits — there is no separate
+ * `error` frame for a failed run. {@link subscribeToRun}'s `end` listener read only `reason` (a
+ * field `RunEndPayload` does not even have — it is BYOK-only), so a run the daemon had already
+ * classified `failed` arrived here indistinguishable from a completed one, was reported through
+ * `onDone`, and was persisted to `chat.db` as `run_status='succeeded'` with empty content. Two such
+ * rows exist in `sites/tovu-com/chat.db` — one `codex`, one `claude`, 578 ms and 552 ms — and they
+ * are what "the chat just craps out with no error" actually looks like on disk.
+ *
+ * Emitted as a `status` event, NOT via `handlers.onError`, deliberately: routing this to `onError`
+ * would flip the persisted `run_status` to `failed`, which is a behavior change to what the product
+ * writes down and is out of scope until the owner signs off. This is the additive half — the
+ * operator SEES the failure and its exit code; what gets stored is unchanged.
+ *
+ * Returns `null` for a successful or absent status so a normal turn gains no extra event.
+ */
+export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | null {
+  if (!raw) return null;
+  let payload: Record<string, unknown>;
+  try {
+    payload = ((JSON.parse(raw) as Record<string, unknown>).payload ?? {}) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const status = payload.status;
+  if (status !== "failed" && status !== "canceled") return null;
+  const code = typeof payload.code === "number" ? String(payload.code) : "none";
+  const signal = typeof payload.signal === "string" ? payload.signal : "none";
+  const resumable = payload.resumable === true ? "yes" : "no";
+  return {
+    kind: "status",
+    label: status === "canceled" ? "Run canceled" : "Run failed \u2014 the agent process exited without answering",
+    detail: `exit code ${code}, signal ${signal}, resumable ${resumable}. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for \`[agent-daemon] run <id> ended\`.`,
+  };
+}
+
 /** Reads a terminal frame's `reason` from either stream shape without letting a malformed or absent
  *  body prevent the turn from ending: the daemon path wraps it in a `RunProtocolEventWire.payload`,
  *  the BYOK path sends a bare `{reason}`, and `subscribeToRun`'s `end` event may carry no data at
@@ -298,6 +339,20 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     handlers.onEvent(translated);
   });
 
+  // The agent CLI's stderr. `@jini-ai/daemon`'s `agent-executor.ts` emits this as its own SSE event
+  // kind (one `lifecycle.emit(runId, { event: 'stderr', ... })` per supported driver), and until
+  // 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named event with no
+  // listener. That is where a dying CLI prints WHY it is dying, so every diagnostic for the failure
+  // class this whole file's `terminalOutcomeNotice` exists to surface was crossing the wire and
+  // being discarded in the browser. Rendered as `raw`, exactly like `stdout` above.
+  source.addEventListener("stderr", (event) => {
+    const frame = JSON.parse((event as MessageEvent<string>).data) as RunProtocolEventWire;
+    const chunk = asString((frame.payload as { chunk?: unknown }).chunk);
+    const translated: AgentEvent = { kind: "raw", line: chunk };
+    collected.push(translated);
+    handlers.onEvent(translated);
+  });
+
   source.addEventListener("error", (event) => {
     const raw = (event as MessageEvent<string>).data;
     if (raw) {
@@ -312,10 +367,19 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
   });
 
   source.addEventListener("end", (event) => {
-    const notice = terminalReasonNotice(readTerminalReason((event as MessageEvent<string>).data, true));
+    const raw = (event as MessageEvent<string>).data;
+    const notice = terminalReasonNotice(readTerminalReason(raw, true));
     if (notice) {
       collected.push(notice);
       handlers.onEvent(notice);
+    }
+    // Additive, and ordered after `terminalReasonNotice` so a `max_tool_turns` turn keeps its own
+    // more specific wording first. `terminalOutcomeNotice` returns null on a successful run, so a
+    // normal turn is byte-identical to before.
+    const outcome = terminalOutcomeNotice(raw);
+    if (outcome) {
+      collected.push(outcome);
+      handlers.onEvent(outcome);
     }
     finish();
   });
