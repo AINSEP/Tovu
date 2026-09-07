@@ -771,6 +771,86 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
   assert.deepEqual(capture.jsonBody, { error: "internal error" });
 });
 
+test("update-tree: a menu item with a missing or null target is a 400 with a specific message, NOT an opaque 500", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Primary", slug: "primary-target-guard" }),
+  });
+  assert.equal(created.status, 201);
+  const { menu } = (await created.json()) as { menu: { id: string; version: number } };
+
+  // Cross-package contract lock. `validateTarget` in @jini-ai/cms/navigation read `target.kind`
+  // unguarded, so an item with no target threw a raw TypeError that this route's catch-all
+  // flattened into a 500 -- an operator saw "internal error" for what is purely a malformed
+  // request body. Fixed upstream in Jini e467f5c4; asserted here because Tovu consumes that
+  // package as a prebuilt dist, so a stale or reverted build would silently restore the 500 and
+  // no Tovu test would notice.
+  for (const badItem of [{ id: "item-1", label: "Home" }, { id: "item-1", label: "Home", target: null }]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ expectedVersion: menu.version, items: [badItem] }),
+    });
+
+    assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(badItem)}, got ${res.status}`);
+    // Assert the message, not just the status: a 400 carrying "internal error" would still be
+    // useless to the operator this fix exists for.
+    assert.equal(((await res.json()) as { error: string }).error, "every menu item requires a target");
+  }
+});
+
+test("update-tree: the catch-all 500 branch logs the unmapped error server-side instead of discarding it", async () => {
+  const throwingMenuRepo: MenuRepoPort = {
+    findById: async () => {
+      throw new Error("boom: repo exploded");
+    },
+    findBySlug: async () => null,
+    list: async () => [],
+    save: async () => {},
+    remove: async () => {},
+  };
+  const deps: MenuRouteDeps = {
+    ...createRouteDeps(),
+    menuRepo: throwingMenuRepo,
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+  };
+  const app = express();
+  registerAdminMenuUpdateTreeRoute(app, deps);
+
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  const logged: string[] = [];
+  const realError = console.error;
+  console.error = (...args: unknown[]) => void logged.push(args.map(String).join(" "));
+  try {
+    await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
+  } finally {
+    console.error = realError;
+  }
+
+  // The wire response is deliberately unchanged -- the fix is the diagnostic, not the envelope.
+  assert.equal(capture.statusCode, 500);
+  assert.deepEqual(capture.jsonBody, { error: "internal error" });
+
+  assert.equal(logged.length, 1, "expected exactly one server-side log for the unmapped error");
+  // Assert the ORIGINAL error text reached the log. Asserting only that console.error fired would
+  // pass under a log that printed "internal error" and threw the real cause away -- which is the
+  // exact defect being fixed.
+  assert.match(logged[0]!, /boom: repo exploded/);
+});
+
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
   const { readFileSync, readdirSync } = await import("node:fs");
   const { join } = await import("node:path");

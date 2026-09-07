@@ -30,6 +30,15 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
 }
 
 /** Maps `updateMenuTree`'s thrown error types onto the admin error envelope.
+ *
+ * The three typed cases carry their own message through to the caller. Anything else is a genuine
+ * server fault and is flattened to an opaque "internal error" — but logged first, matching
+ * `routes/connectors/errors.ts`'s `sendConnectorError`. Without that log the flattening is total:
+ * an unmapped throw (the `TypeError` a missing menu-item `target` used to raise before
+ * `@jini-ai/cms`'s `e467f5c4` guarded it) reached an operator as "something broke" with no
+ * message, no stack, and no way to tell a client-shaped bug from a real outage. The response
+ * body is deliberately unchanged — only the server-side diagnostic is added.
+ *
  *  @complexity O(1). */
 function sendUpdateMenuTreeError(res: Response, err: unknown): void {
   if (err instanceof MenuValidationError) {
@@ -44,6 +53,7 @@ function sendUpdateMenuTreeError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message });
     return;
   }
+  console.error(`admin menu update-tree route failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
   res.status(500).json({ error: "internal error" });
 }
 
