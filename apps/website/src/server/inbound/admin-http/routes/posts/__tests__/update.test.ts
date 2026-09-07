@@ -358,3 +358,169 @@ test("PUT posts/:postId: `parsePostUpdateBody`'s `(rawBody ?? {})` fallback, for
   assert.equal(statusCode(), 400);
   assert.match((jsonBody() as { error: string }).error, /title is required/);
 });
+
+/* ------------------------------------------------------------------------------------------------
+ * Optimistic concurrency (2026-09-06) — `expectedVersion` wired through this route.
+ *
+ * `be45461e` added the guard to `updatePost` itself but left it inert: `parsePostUpdateBody` never
+ * forwarded the field, so two operators editing the same post still silently clobbered each other.
+ * These tests drive the real HTTP surface, so they fail if the route stops forwarding the value
+ * even while the domain guard itself stays correct.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** One PUT against this route, returning the parsed envelope alongside the status — the version
+ *  tests all need to read `post.version` / `code` off the body, which the existing helpers above
+ *  (shaped for status-only assertions) do not hand back. */
+async function putPost(
+  baseUrl: string,
+  cookie: string,
+  id: string,
+  body: Record<string, unknown>
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify(body),
+  });
+  const raw = await res.text();
+  return { status: res.status, body: JSON.parse(raw) as Record<string, unknown> };
+}
+
+/** The current server-side row, read back through the real GET route — the only way to prove a
+ *  rejected save left NOTHING behind rather than merely returning an error after writing. */
+async function getPost(baseUrl: string, cookie: string, id: string): Promise<{ title: string; version: number }> {
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${encodeURIComponent(id)}`, { headers: { cookie } });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  return (JSON.parse(raw) as { post: { title: string; version: number } }).post;
+}
+
+test("PUT posts/:postId 409 VERSION_CONFLICT: a second operator's save built on a superseded version is rejected, and does not land", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const { id } = await createPost(baseUrl, cookie, { title: "Shared Post", slug: "shared-post" });
+
+  // Both operators loaded the row at this version.
+  const loaded = await getPost(baseUrl, cookie, id);
+
+  // Operator A saves first, from the shared basis. Asserted, not assumed: if this PUT did not
+  // actually advance the row's version, the conflict assertion below would be meaningless.
+  const first = await putPost(baseUrl, cookie, id, {
+    title: "Operator A's document",
+    slug: "shared-post",
+    bodyJson: VALID_BODY_JSON,
+    status: "draft",
+    expectedVersion: loaded.version,
+  });
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  assert.equal((first.body.post as { version: number }).version, loaded.version + 1);
+
+  // Operator B saves from the SAME, now-superseded basis. Before this wiring this PUT returned 200
+  // and erased A's document.
+  const second = await putPost(baseUrl, cookie, id, {
+    title: "Operator B's document",
+    slug: "shared-post",
+    bodyJson: VALID_BODY_JSON,
+    status: "draft",
+    expectedVersion: loaded.version,
+  });
+  assert.equal(second.status, 409, JSON.stringify(second.body));
+  assert.equal(second.body.code, "VERSION_CONFLICT");
+  assert.equal(
+    second.body.error,
+    `post '${id}' was modified by another save (expected version ${loaded.version}, current version ${loaded.version + 1})`
+  );
+  assert.deepEqual(second.body.details, { expectedVersion: loaded.version, currentVersion: loaded.version + 1 });
+
+  // The rejection is a rejection, not a report: A's document is still what is stored.
+  const after = await getPost(baseUrl, cookie, id);
+  assert.equal(after.title, "Operator A's document");
+  assert.equal(after.version, loaded.version + 1);
+});
+
+test("PUT posts/:postId 409 slug-uniqueness keeps its ORIGINAL code-less shape — a client can tell the two 409s apart", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  await createPost(baseUrl, cookie, { title: "Occupied", slug: "occupied-slug" });
+  const { id } = await createPost(baseUrl, cookie, { title: "Mover", slug: "mover-slug" });
+  const loaded = await getPost(baseUrl, cookie, id);
+
+  // A CURRENT expectedVersion, so the only thing wrong with this save is the slug — proof the two
+  // 409 branches are ordered correctly and that adding the version branch did not reshape this one.
+  const res = await putPost(baseUrl, cookie, id, {
+    title: "Mover",
+    slug: "occupied-slug",
+    bodyJson: VALID_BODY_JSON,
+    status: "draft",
+    expectedVersion: loaded.version,
+  });
+  assert.equal(res.status, 409, JSON.stringify(res.body));
+  assert.equal(res.body.error, "slug 'occupied-slug' already exists");
+  assert.equal(res.body.code, undefined, "a slug conflict must NOT carry VERSION_CONFLICT's code");
+  assert.equal(res.body.details, undefined);
+});
+
+test("PUT posts/:postId 200 when expectedVersion matches — the value is forwarded, not merely accepted and dropped", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const { id } = await createPost(baseUrl, cookie, { title: "Fresh Basis", slug: "fresh-basis" });
+  const loaded = await getPost(baseUrl, cookie, id);
+
+  const res = await putPost(baseUrl, cookie, id, {
+    title: "Fresh Basis Edited",
+    slug: "fresh-basis",
+    bodyJson: VALID_BODY_JSON,
+    status: "draft",
+    expectedVersion: loaded.version,
+  });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal((res.body.post as { title: string }).title, "Fresh Basis Edited");
+
+  // Re-sending the SAME expectedVersion now conflicts, which is what proves the 200 above went
+  // through the guard rather than around it.
+  const replay = await putPost(baseUrl, cookie, id, {
+    title: "Replay",
+    slug: "fresh-basis",
+    bodyJson: VALID_BODY_JSON,
+    status: "draft",
+    expectedVersion: loaded.version,
+  });
+  assert.equal(replay.status, 409);
+  assert.equal(replay.body.code, "VERSION_CONFLICT");
+});
+
+test("PUT posts/:postId omitting expectedVersion entirely is still last-write-wins — the guard stays opt-in at the route too", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const { id } = await createPost(baseUrl, cookie, { title: "Unguarded", slug: "unguarded" });
+
+  const first = await putPost(baseUrl, cookie, id, { title: "First", slug: "unguarded", bodyJson: VALID_BODY_JSON, status: "draft" });
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const second = await putPost(baseUrl, cookie, id, { title: "Second", slug: "unguarded", bodyJson: VALID_BODY_JSON, status: "draft" });
+  assert.equal(second.status, 200, JSON.stringify(second.body));
+  assert.equal((await getPost(baseUrl, cookie, id)).title, "Second");
+});
+
+for (const [label, value] of [
+  ["a numeric string", "1"],
+  ["a fractional number", 1.5],
+  ["a negative integer", -1],
+  ["an explicit null", null],
+  ["a boolean", true],
+] as const) {
+  test(`PUT posts/:postId 400 when expectedVersion is ${label} — never silently downgraded to an unguarded save`, async (t) => {
+    const { baseUrl, cookie } = await startServer(t);
+    const slug = `bad-version-${String(label).replace(/\s+/g, "-")}`;
+    const { id } = await createPost(baseUrl, cookie, { title: "Bad Version Basis", slug });
+
+    const res = await putPost(baseUrl, cookie, id, {
+      title: "Should Not Land",
+      slug,
+      bodyJson: VALID_BODY_JSON,
+      status: "draft",
+      expectedVersion: value,
+    });
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+    assert.equal(res.body.error, "'expectedVersion' must be a non-negative integer when present");
+
+    // The whole point of the 400: a malformed basis must not be quietly treated as "no basis sent"
+    // and written through anyway.
+    assert.equal((await getPost(baseUrl, cookie, id)).title, "Bad Version Basis");
+  });
+}

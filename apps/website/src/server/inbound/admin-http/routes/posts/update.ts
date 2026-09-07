@@ -5,6 +5,7 @@ import {
   PostConflictError,
   PostNotFoundError,
   PostValidationError,
+  PostVersionConflictError,
   updatePost,
   type PostRecord,
   type UpdatePostInput,
@@ -19,7 +20,33 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
-/** This route's six writable PUT fields, read off an untyped body in one place.
+/**
+ * The optimistic-concurrency basis off an untyped body (2026-09-06) — `undefined` (key absent)
+ * when the caller is not opting in, otherwise the exact `number` `updatePost` will compare.
+ *
+ * Throws rather than returning `undefined` for anything else, and that is the whole point of this
+ * function existing: `expectedVersion` is OPTIONAL in `UpdatePostInput`, so a value this route
+ * failed to recognize would coerce to "no basis sent" and be written through as an unguarded,
+ * last-write-wins save — silently re-opening the exact clobber the guard exists to close. A client
+ * that sends `"3"`, `3.5`, `-1`, `null` or `true` has a bug; it must hear about it as a 400, not
+ * have its edit land on top of somebody else's.
+ *
+ * `PostValidationError` (not a bespoke type) so this reaches {@link sendPostUpdateError}'s existing
+ * 400 branch, and so it stays the same error class every other malformed field on this route
+ * already throws. Deliberately NOT a `PostConflictError`: resending the identical request cannot
+ * fix a stale basis, but it CAN fix a mistyped one.
+ *
+ * @complexity O(1).
+ */
+function parseExpectedVersion(raw: unknown): number | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
+    throw new PostValidationError("'expectedVersion' must be a non-negative integer when present");
+  }
+  return raw;
+}
+
+/** This route's seven writable PUT fields, read off an untyped body in one place.
  *  Return type is pinned to `UpdatePostInput` itself (minus the id fields the
  *  route supplies separately) rather than left inferred, so a field this route
  *  stops forwarding — or a shape change in `UpdatePostInput` — fails to compile
@@ -27,7 +54,10 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *  @complexity O(1). */
 function parsePostUpdateBody(
   rawBody: unknown
-): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage"> {
+): Pick<
+  UpdatePostInput,
+  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion"
+> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
@@ -36,6 +66,10 @@ function parsePostUpdateBody(
     status: body.status as UpdatePostInput["status"],
     templateChoice: body.templateChoice as UpdatePostInput["templateChoice"],
     overridesThemePage: body.overridesThemePage as UpdatePostInput["overridesThemePage"],
+    // Validated, not cast — see {@link parseExpectedVersion}. Every other field above is either
+    // coerced (`title`/`slug`) or handed to `updatePost`'s own validation; this one has no
+    // downstream validator at all, because `undefined` is a legitimate value there.
+    expectedVersion: parseExpectedVersion(body.expectedVersion),
   };
 }
 
@@ -52,6 +86,25 @@ function sendPostUpdateError(res: Response, err: unknown): void {
   }
   if (err instanceof PostValidationError) {
     res.status(400).json({ error: err.message });
+    return;
+  }
+  // BEFORE the `PostConflictError` branch below, because `PostVersionConflictError` extends it and
+  // `instanceof` would otherwise be answered by the superclass first. Both are 409; the `code` is
+  // what makes them tellable apart, which is the whole reason this branch exists — a slug collision
+  // and "somebody else saved while you were editing" need opposite responses from the editor (fix
+  // the slug and resend vs. do NOT resend, you are about to erase someone's work).
+  //
+  // The slug branch below is left exactly as it was, code-less, on purpose: adding a code there too
+  // would be a second, unrequested wire-shape change, and "no code" is already a distinguishable
+  // answer for the only two 409s `updatePost` can produce.
+  if (err instanceof PostVersionConflictError) {
+    res.status(409).json({
+      error: err.message,
+      code: "VERSION_CONFLICT",
+      // Both versions, structured, so the client can say "yours was N, theirs is M" without
+      // parsing the prose — the reason `PostVersionConflictError` carries them as fields at all.
+      details: { expectedVersion: err.expectedVersion, currentVersion: err.currentVersion },
+    });
     return;
   }
   if (err instanceof PostConflictError) {
@@ -76,6 +129,12 @@ function sendPostUpdateError(res: Response, err: unknown): void {
  * for the real authenticated principal instead of the hardcoded `"user-local"`
  * actor, and runs that check before the idempotency lookup (INV-04) — see
  * `executeCommand`.
+ *
+ * Optimistic concurrency (2026-09-06) — this route now forwards an optional `expectedVersion` from
+ * the request body into `updatePost`. OBSERVABLE BEHAVIOR CHANGE, deliberately: a client that sends
+ * it and whose basis has been superseded now gets `409 VERSION_CONFLICT` where the identical request
+ * used to get `200` and silently erase the other operator's document. A client that does not send it
+ * is unaffected — same last-write-wins behavior as before, pinned by a test.
  *
  * `rejectOversizedJsonBody` (Security review SEC-snapshot-and-post-create-2026-07-28, Finding 1)
  * enforces api.spec.md §4's documented 1 MiB route-layer body cap ahead of the handler — the same
