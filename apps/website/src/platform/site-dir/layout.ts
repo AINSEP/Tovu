@@ -34,10 +34,14 @@
  * visible, recoverable bug; a duplicate carrying another client's chat history is a privacy
  * incident that cannot be taken back.
  *
- * This is the same inversion `duplicate-content-db.ts` already performs one level down, for the
- * TABLES inside `content.db` (an allowlist of what `schema.ts` declares, purging every other
- * table's rows). That module's guarantee stops at `content.db`'s own file boundary; this one
- * covers the directory around it.
+ * `duplicate-content-db.ts`, one level down, deliberately points the OTHER way for the TABLES
+ * inside `content.db`: it names the chat/session tables it deletes and keeps everything else. Both
+ * are the same rule — keep the unclassified thing on the side where being wrong is recoverable —
+ * applied to two different populations. Here the unclassified class is dominated by whole-database
+ * backups and restore points, so copying one is a privacy incident; there it is dominated by
+ * plugin business data (products, orders, subscribers), so purging one is silent client data loss.
+ * See that module's own header for the measurement behind it. Its guarantee stops at `content.db`'s
+ * own file boundary; this one covers the directory around it.
  *
  * Not (yet) the single source of truth for path DEFAULTS: `server/runtime/composition/deps.ts`
  * still spells `"chat.db"`, `"uploads"`, `"themes"` and friends inline at its own resolvers.

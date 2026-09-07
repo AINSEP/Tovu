@@ -30,8 +30,11 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  *
  * WHAT NEVER GETS COPIED VERBATIM, AND WHY:
  * - `content.db` — delegated to {@link duplicateContentDb}: a WAL-mode SQLite file's bytes are not
- *   the whole story (see that module's own header), and every table `schema.ts` does not declare is
- *   purged from the copy rather than named in a list. Note the boundary that purge does NOT cross:
+ *   the whole story (see that module's own header), and the chat/session tables an unmigrated
+ *   `content.db` may still be holding are emptied from the copy BY NAME, everything else — declared
+ *   content, plugin tables and their rows, the FTS5 index — carried across. Note that the direction
+ *   is deliberately opposite to this file's own directory allowlist, and see that module's header
+ *   for why. Note too the boundary that purge does NOT cross:
  *   since the chat/session split, conversation history lives in a SIBLING `chat.db` file, outside
  *   any table `duplicateContentDb` can see. Chat history stays out of a duplicate because `chat.db`
  *   is not on `layout.ts`'s portable allowlist — a directory-level fact, not a database-level one.
@@ -45,8 +48,8 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  *   is a live-traffic footgun this function refuses to create silently. A caller who genuinely wants
  *   either carried over sets it explicitly after duplicating, the same as after `createSite`.
  * - `.site-meta.json` — THE SCHEMA-STAMP TRAP. This function performs no migration of its own; the
- *   `content.db` it ships is a copy of the SOURCE's database — minus every table `schema.ts` does
- *   not declare — at whatever schema state that database was actually in. Stamping the RUNTIME's
+ *   `content.db` it ships is a copy of the SOURCE's database — minus the chat/session tables — at
+ *   whatever schema state that database was actually in. Stamping the RUNTIME's
  *   bundled migration identity here (the way `initSite` correctly does for a BRAND NEW, freshly-
  *   migrated db) would be a LIE about a database this function did not migrate — and
  *   `compareSchemaVersion` believing that lie on the duplicate's first `tovu serve` either skips a
@@ -134,8 +137,9 @@ export interface DuplicateSiteResult {
 
 /**
  * Create a full working copy of an existing site directory under a new identity (SPEC-003 sibling
- * operation to `initSite`) — the content database, with every table `schema.ts` does not declare
- * purged, plus exactly the top-level directories `layout.ts` calls portable (`uploads/`, `themes/`,
+ * operation to `initSite`) — the content database, with the chat/session tables emptied and
+ * everything else (including plugin tables and their rows) kept, plus exactly the top-level
+ * directories `layout.ts` calls portable (`uploads/`, `themes/`,
  * `plugins/`, `overrides/`, `skills/`, `agent-plugins/`). The source's chat database, database
  * backups, restore-point snapshots, operational journals and publish output are NOT carried over,
  * nor is any top-level entry `layout.ts` has not classified.
@@ -190,8 +194,8 @@ export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteRes
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
     writeJsonFileAtomic(path.join(target, "config.json"), config);
 
-    // content.db — WAL-safe physical copy, with every table schema.ts does not declare purged from
-    // it. Chat history's own file, `chat.db`, is left behind by the allowlist copy above, not here.
+    // content.db — WAL-safe physical copy, with the chat/session tables emptied from it by name.
+    // Chat history's own file, `chat.db`, is left behind by the allowlist copy above, not here.
     duplicateContentDb({
       sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
       targetDbPath: path.join(target, CONTENT_DB_FILENAME),

@@ -65,6 +65,19 @@ const CHAT_TABLES = [
   { table: "assistant_agent_sessions", key: "assistantAgentSessions" },
 ] as const;
 
+/**
+ * {@link CHAT_TABLES}' names alone — "the tables the `chat.db` split moved out of `content.db`, and
+ * which a `content.db` written before the split may therefore still physically hold".
+ *
+ * Exported so `site-dir/duplicate-content-db.ts` can purge exactly this set from a duplicated
+ * `content.db` rather than keeping a fourth copy of these three names (this repo already has three:
+ * here, `development/scripts/split-chat-data-into-chat-db.ts`'s own `CHAT_TABLES`, and the
+ * `RAW_SQL_MANAGED_TABLES` registry in `platform/db/__tests__/schema-migration-drift.test.ts`).
+ * Sharing it means the boot-time warning and the duplicate purge can never disagree about which
+ * tables are chat: adding a fourth chat table here updates both.
+ */
+export const CHAT_TABLE_NAMES: readonly string[] = CHAT_TABLES.map(({ table }) => table);
+
 /** Which of {@link CHAT_TABLES} actually exist in this database. A `content.db` that never carried
  *  them (or a future one that drops them) must count as zero rather than throwing "no such table"
  *  and taking down a boot over a diagnostic. */

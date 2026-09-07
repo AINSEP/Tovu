@@ -1,14 +1,14 @@
 import Database from "better-sqlite3";
-import { getTableConfig } from "drizzle-orm/sqlite-core";
 
-import { collectCoreTables, DERIVED_OBJECTS } from "../db/migration/manifest.js";
+import { CHAT_TABLE_NAMES } from "../db/sqlite/chat-orphan-check.js";
 import { openContentDbReadOnly } from "../db/sqlite/content-db.js";
 import { InternalError } from "./errors.js";
 
 /**
  * @file The `content.db` half of `duplicateSite` (SPEC-003 sibling operation, 2026-09-05) — a
- * physically consistent, WAL-safe copy of one site's content database with every table `schema.ts`
- * does not declare purged BY CONSTRUCTION rather than by a hand-maintained exclusion list.
+ * physically consistent, WAL-safe copy of one site's content database, with the chat/session
+ * tables the `chat.db` split left stranded in older databases emptied by NAME, and everything else
+ * carried across.
  *
  * READ THIS BEFORE TRUSTING IT WITH CHAT HISTORY. Everything below is scoped to the TABLES inside
  * one `content.db` file. It cannot see, and never could, the site directory around that file. Since
@@ -27,86 +27,101 @@ import { InternalError } from "./errors.js";
  * from a READ-ONLY open of the source (`openContentDbReadOnly`), so duplicating a site can never be
  * the thing that mutates it.
  *
- * WHY UNDECLARED TABLES ARE PURGED "BY CONSTRUCTION". The tables that hold conversation history
- * (`ai_chats`, `ai_chat_messages`, `assistant_agent_sessions`) are raw SQL — never declared in
- * `db/schema.ts` — precisely because `db/migration/manifest.ts`'s own `RAW_SQL_MANAGED_TABLES`
- * registry already documents this (see that file's own header). Rather than re-deriving a THIRD
- * hand-maintained "these are the chat tables" list here (this repo has already paid for that
- * mistake once — see `development/scripts/seed-site.mjs`'s `PRUNE_TABLES`, a hand-maintained
- * exclude-list this file deliberately does NOT imitate), this module inverts the direction: it
- * builds an ALLOWLIST of every table `schema.ts` actually declares (`collectCoreTables()` — the
- * exact same introspection `schema-migration-drift.test.ts` and the Postgres-migration manifest
- * already trust as the one source of truth for "what is real content"), plus the small set of
- * infrastructure `schema.ts` never declares on purpose (the migrator's own bookkeeping table,
- * SQLite's internal catalog, and the FTS5 search-index objects `DERIVED_OBJECTS` already documents
- * as rebuildable-not-authored), and purges every OTHER table's rows.
+ * ## Why the purge names what it DELETES rather than what it keeps
  *
- * No table is named anywhere in this file. That is what let the chat/session split land without a
- * change here: whatever those three tables still hold in a given `content.db` is purged because
- * `schema.ts` does not declare them, and in a post-split database written by the current runtime
- * they simply hold nothing. It is also why a FOURTH raw-SQL table added to `content.db` without a
- * `schema.ts` declaration is purged from every duplicate by default (the conservative failure mode
- * for a "make me a copy of this site" operation) until someone deliberately reviews it into either
- * `schema.ts` (making it real content) or this module's own `isKeptInfrastructureTable` (making it
- * recognized infrastructure) — never a duplicate that silently, structurally, keeps something like
- * it. What it does NOT do is follow chat history OUT of this file: see the header note above.
+ * This module previously inverted that: it built an allowlist of every table `db/schema.ts`
+ * declares (plus the migrator's bookkeeping table, SQLite's catalog and the FTS5 shadow objects)
+ * and `DELETE`d the rows of every OTHER table, on the stated premise that the only undeclared
+ * tables in a `content.db` were the three chat tables. That premise was false, and the file's own
+ * citation for it was false too — both are corrected here:
+ *
+ * - **The premise.** Measured read-only against `sites/tovu-com/content.db` on 2026-09-06: 104
+ *   physical tables, 81 declared by `schema.ts`, and the keep-list emptied FIFTEEN — the three chat
+ *   tables and TWELVE plugin tables. `_plugin_identity` (3 rows), `_plugin_migration_journal` (3),
+ *   `_plugin_migrations` (12), `p_comments__comments`, `p_comments__moderation_log`, five
+ *   `p_newsletter__*` (one holding a real list), `p_store__orders` and `p_store__products` (3 real
+ *   products). None is declared in `schema.ts` because none is created by a MIGRATION: they are
+ *   raw SQL written at plugin-install time by `features/plugins/data-module.ts` (`p_{pluginId}__`
+ *   tables plus `_plugin_migrations`), `plugin-identity.ts` and `migration-journal.ts`. Duplicating
+ *   a client site with a store and a newsletter therefore produced a copy with zero products, zero
+ *   orders and zero subscribers, a re-mintable plugin identity, and no DDL timeline —
+ *   `newsletter_campaigns` IS declared, so its rows survived pointing at a `list_id` that no longer
+ *   existed.
+ * - **The citation.** The old header sourced its "the chat tables are the raw-SQL ones" claim to a
+ *   `RAW_SQL_MANAGED_TABLES` registry "in `db/migration/manifest.ts`". No such constant has ever
+ *   existed in that file. It lives in `platform/db/__tests__/schema-migration-drift.test.ts`, it
+ *   names exactly the three chat tables, and its own doc says what it is: tables a MIGRATION
+ *   creates as raw SQL. Plugin tables are outside its subject matter by construction, so it could
+ *   never have been evidence about them.
+ *
+ * **Why not simply widen the keep-list to `p_*`/`_plugin_*`.** That is the shape `layout.ts` and
+ * `0d63cfd8` just finished removing one level up, kept pointing the other way: an artifact nobody
+ * classified still gets the wrong treatment, and the next plugin naming convention (or the next
+ * raw-SQL table added by anything) is silently emptied from every duplicate. The two directions are
+ * not in tension — they are the same rule applied to two different risk profiles. At the DIRECTORY
+ * level the unclassified class is dominated by whole-database backups and restore points, so an
+ * unclassified entry copied is a privacy incident; at the TABLE level inside one `content.db` the
+ * unclassified class is dominated by plugin business data, so an unclassified table purged is
+ * silent client data loss. Losing a client's store orders is worse than copying one extra table, so
+ * this direction keeps by default and the one privacy-bearing category is named explicitly.
+ *
+ * **What the purge set is, and why it can be named safely here when the keep-list could not.** It
+ * is `chat-orphan-check.ts`'s `CHAT_TABLE_NAMES` — the same list that drives the boot-time
+ * "unmigrated conversations" warning, imported rather than retyped, so the two can never disagree
+ * about which tables are chat and a fourth chat table updates both at once. Naming is safe here in
+ * a way it is not for the keep-list because this category is closed and owned: chat lives in
+ * `chat.db` now (`db/sqlite/chat-db.ts` owns its DDL), no new chat table can appear in `content.db`
+ * from the current runtime, and the set is exhaustively enumerated in three existing places.
+ *
+ * **Why not drop the purge entirely**, given `chat.db` and given that `0d63cfd8` made
+ * `duplicateSite` copy only an allowlist of directories, so the source's `chat.db` never reaches a
+ * duplicate at all: because the split was wiring-only. It never moved the rows an already-deployed
+ * `content.db` was holding — the owner's own site still had 157 `ai_chats` / 562
+ * `ai_chat_messages` / 19 `assistant_agent_sessions` in `content.db` on 2026-09-06 (`ef7fa9c8`,
+ * which added the boot warning). Duplicating an unmigrated source site with no purge would copy
+ * every one of those conversations into the new site. The purge stays until nothing can be
+ * stranded, and it is exactly the same three tables `ef7fa9c8` warns about.
+ *
+ * Reversal is this file's `purgeStrandedChatTables` and the one `CHAT_TABLE_NAMES` export it reads;
+ * nothing else in the module depends on either.
  *
  * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Depends on
- * `db/migration/manifest.ts` and `db/sqlite/content-db.ts` only, both already `site-dir`-reachable
- * (siblings under `platform/db/`, not `server`/`cli`).
+ * `db/sqlite/content-db.ts` and `db/sqlite/chat-orphan-check.ts` only, both already
+ * `site-dir`-reachable (siblings under `platform/db/`, not `server`/`cli`).
  */
-
-/** Created by `drizzle-orm`'s own migrator (`sqlite/content-db.ts`'s `migrate()` call), not by any
- *  migration file — real infrastructure the purge below must never touch, or the duplicate would
- *  look unmigrated on its first real `openContentDb()` and re-run every migration from scratch
- *  against tables that already exist. */
-const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
-
-/** Every table name Drizzle actually declares in `schema.ts` — the positive allowlist this module
- *  purges everything else against. Reuses `db/migration/manifest.ts`'s own `collectCoreTables()`
- *  (already the Postgres-migration manifest's single source of truth for "what schema.ts declares")
- *  rather than a second registry, for the same "one mirror, and it drifts" reason that file's own
- *  header gives for reusing it instead of retyping the filter.
- *  @complexity O(t) in schema.ts's own table count — fixed by the codebase, not caller input. */
-function declaredContentTableNames(): ReadonlySet<string> {
-  return new Set(collectCoreTables().map(({ table }) => getTableConfig(table).name));
-}
-
-/** True for a table/object the purge must leave alone even though `schema.ts` never declares it:
- *  the migrator's bookkeeping table, SQLite's own internal catalog objects, and the FTS5
- *  search-index objects `DERIVED_OBJECTS` documents (the virtual table itself, its ordinary
- *  content-table shadow, and FTS5's own internal `_data`/`_idx`/`_content`/`_docsize`/`_config`
- *  shadow tables, all named `<object>_<suffix>`) — every one of these is a rebuildable-but-still-
- *  physically-consistent mirror of content this function DOES keep (`posts`), so leaving their
- *  already-copied bytes alone is correct, not a gap; purging them would desync the FTS5 index from
- *  the `posts` rows the duplicate still has. */
-function isKeptInfrastructureTable(tableName: string): boolean {
-  if (tableName === MIGRATOR_BOOKKEEPING_TABLE) return true;
-  if (tableName.startsWith("sqlite_")) return true;
-  return DERIVED_OBJECTS.some((object) => tableName === object.name || tableName.startsWith(`${object.name}_`));
-}
 
 /**
- * Deletes every row of every table in `db` that is neither declared content nor recognized
- * infrastructure — see this file's own header for why that is "chat excluded by construction"
- * rather than a name list. Foreign-key order is a non-issue here: every FK among the raw-SQL tables
- * this purges points from one purged table to another (`ai_chat_messages`/`assistant_agent_sessions`
- * -> `ai_chats`, both `ON DELETE CASCADE`), and Drizzle cannot declare a FK to a table it has no
- * `sqliteTable` representation for — so no KEPT table's row can ever reference a row this function
- * removes.
+ * Empties the chat/session tables in `db` — and only those — leaving every other table's rows,
+ * including tables this repository has never heard of, exactly as `VACUUM INTO` copied them.
  *
- * @complexity O(k) SQL statements for k physical tables in the copy, each a full-table `DELETE` —
- *   bounded by this codebase's own table count, never by caller-controlled input.
+ * Tolerates their absence: a `content.db` that never carried them, or a future one that drops them,
+ * must produce a duplicate rather than a "no such table" failure (the same reason
+ * `chat-orphan-check.ts` filters through `sqlite_master` before counting).
+ *
+ * Foreign keys are a non-issue in both directions, verified against `sites/tovu-com/content.db`'s
+ * own `sqlite_master` on 2026-09-06: the only tables carrying a `REFERENCES ai_chats(id)` are
+ * `ai_chat_messages` and `assistant_agent_sessions`, both purged here themselves and both
+ * `ON DELETE CASCADE`. Nothing kept can reference a purged row — Drizzle cannot declare a foreign
+ * key to a table it has no `sqliteTable` representation for, and the plugin `dataModule` seam has
+ * no foreign-key grammar at all (`features/plugins/data-module.ts`'s `IndexDecl` doc: referential
+ * integrity there is "chokepoint-validated, not FK-enforced (v1)").
+ *
+ * @complexity O(k) SQL statements for k = {@link CHAT_TABLE_NAMES}'s length — a fixed three, never
+ *   bounded by caller-controlled input.
  */
-function purgeNonContentTables(db: Database.Database): void {
-  const physicalTables = (
-    db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>
-  ).map((row) => row.name);
-  const declared = declaredContentTableNames();
+function purgeStrandedChatTables(db: Database.Database): void {
+  const placeholders = CHAT_TABLE_NAMES.map(() => "?").join(", ");
+  const present = new Set(
+    (
+      db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
+        .all(...CHAT_TABLE_NAMES) as Array<{ name: string }>
+    ).map((row) => row.name)
+  );
 
   const purgeAll = db.transaction(() => {
-    for (const name of physicalTables) {
-      if (declared.has(name) || isKeptInfrastructureTable(name)) continue;
+    for (const name of CHAT_TABLE_NAMES) {
+      if (!present.has(name)) continue;
       db.prepare(`DELETE FROM "${name}"`).run();
     }
   });
@@ -122,17 +137,20 @@ export interface DuplicateContentDbRequired {
 }
 
 /**
- * Produces a physically consistent copy of `sourceDbPath` at `targetDbPath`, with every table that
- * is not declared real content purged — see this file's own header for the full design, and for
- * why this says nothing about the `chat.db` sibling next to `sourceDbPath`.
+ * Produces a physically consistent copy of `sourceDbPath` at `targetDbPath`, with the chat/session
+ * tables emptied and everything else — declared content, plugin tables and their rows, the
+ * migrator's bookkeeping, the FTS5 index — carried across. See this file's own header for why the
+ * purge names what it deletes, and for why this says nothing about the `chat.db` sibling next to
+ * `sourceDbPath`.
  *
  * @throws {InternalError} `VACUUM INTO` failing (e.g. `targetDbPath` already exists, or the parent
  *   directory is not writable), or the purged copy failing `integrity_check` — surfaced with the
  *   real driver message rather than a generic wrapper, so a caller can tell a full disk from a
  *   locked source.
- * @complexity O(1) plus {@link purgeNonContentTables}'s own table-count-bounded cost — the `VACUUM
- *   INTO`/final `VACUUM` calls are each one full pass over the source/copy's own byte size, fixed by
- *   how much content the site being duplicated actually holds, never by any caller-controlled input.
+ * @complexity O(1) plus {@link purgeStrandedChatTables}'s own fixed three-statement cost — the
+ *   `VACUUM INTO`/final `VACUUM` calls are each one full pass over the source/copy's own byte size,
+ *   fixed by how much content the site being duplicated actually holds, never by any
+ *   caller-controlled input.
  * @overallScore 100
  */
 export function duplicateContentDb(required: DuplicateContentDbRequired): void {
@@ -152,7 +170,7 @@ export function duplicateContentDb(required: DuplicateContentDbRequired): void {
   const target = new Database(targetDbPath);
   try {
     target.pragma("foreign_keys = ON");
-    purgeNonContentTables(target);
+    purgeStrandedChatTables(target);
     target.exec("VACUUM"); // reclaims the purged rows' pages before this copy is handed back.
 
     // Leaves the copy in the same WAL posture `openContentDb` establishes on every real open, and
