@@ -3,10 +3,10 @@ import path from "node:path";
 import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
-import { isAdminAssistantEnabled } from "./server/runtime/composition/admin-assistant-enabled.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
-import { runBootLifecycle, type BootResult } from "./server/runtime/lifecycle/boot-lifecycle.js";
-import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
+import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
+import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
+import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
@@ -200,16 +200,6 @@ function startOwnParentWatchdog(): void {
 // Same placement rationale as the daemon's own `startParentWatchdog()` call.
 startOwnParentWatchdog();
 
-/** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
- *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
-async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> } }): Promise<boolean> {
-  if (isAdminAssistantEnabled()) return true;
-  const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
-  if (configured.length > 0) return true;
-  console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
-  return false;
-}
-
 /**
  * Applies the same schema-version guard `tovu serve` gets for free from `boot-site-dir.ts` (see
  * `content-db-schema-guard.ts`'s own header for why the non-CLI boot path had no equivalent at
@@ -230,17 +220,6 @@ function guardContentDbSchemaOrExit(dbPath: string): void {
     `Refusing to boot against ${dbPath} — this is the same schema guard 'tovu serve' applies before opening a site's content.db.`
   );
   process.exit(1);
-}
-
-/** Logs one line per critical, not-ready module from a failed boot — extracted verbatim from
- *  `main()`'s own `!bootResult.ok` branch (no logic change) purely to bring that branch's
- *  cognitive complexity under the repo's ceiling of 9. Called only when `bootResult.ok` is false. */
-function logCriticalBootFailures(bootResult: BootResult): void {
-  for (const module of bootResult.modules) {
-    if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
-      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
-    }
-  }
 }
 
 async function main(): Promise<void> {

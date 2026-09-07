@@ -5,7 +5,8 @@ import { exportSite, type ExportReport } from "../../platform/export/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
-import { ExportIncompleteError } from "../errors.js";
+import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
+import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
 
 /**
  * @file `tovu export <dir>` — wires a commander action's parsed arguments to the exporter engine
@@ -34,6 +35,20 @@ import { ExportIncompleteError } from "../errors.js";
  * wires a real `installDir`, independent of whether this specific command happens to exercise it.
  * Fixed the same way as `serve.ts`: `registerPluginSdkResolver()` called first, before any other
  * boot step, with no `await` ahead of it.
+ *
+ * Crash-interrupted-migration scan (2026-09-06 composition-root fix): this command built the SAME
+ * `createSqliteRouteDeps()` composition root `serve.ts` does, and `exportSite()`'s own internal
+ * listener runs the real `createApp()`-equivalent (`routeDeps.createSiteApp()`) to crawl it — but
+ * unlike `serve.ts`, this command never ran `runBootLifecycle`/`buildBootModules` at all, so the
+ * `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts` — detects a
+ * crash-interrupted migration and flips `siteStatusRepo` to `BLOCKED_PENDING_RECOVERY`) never ran
+ * before an export. A site left mid-migration by a crash could be exported from possibly-inconsistent
+ * data with no warning at all. Fixed by calling that same scan directly (not the full
+ * `buildBootModules` bundle — that also seeds bundled agent plugins and other optional boot modules
+ * with no relationship to exporting, which this command has never done and should not start doing as
+ * a side effect of this fix) right after `createSqliteRouteDeps()`, refusing outright
+ * (`ExportBlockedPendingRecoveryError`, exit 7) rather than letting the crawl surface the same
+ * problem indirectly as N confusing per-route failures.
  */
 
 export interface RunExportCommandInput {
@@ -130,6 +145,21 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
 
   try {
+    // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
+    // before this command ever crawls a route — a site left mid-migration by a crash must never be
+    // exported from possibly-inconsistent data.
+    const reconciliation = await reconcileInterruptedMigrationOnBoot({
+      siteId: routeDeps.workspaceId,
+      migrationRuns: routeDeps.migrationRunsRepo,
+      ledger: routeDeps.databaseLedgerRepo,
+      siteStatus: routeDeps.siteStatusRepo,
+    });
+    if (reconciliation.blocked) {
+      throw new ExportBlockedPendingRecoveryError(
+        `refusing to export ${target} — a crash-interrupted migration was detected and this site is now BLOCKED_PENDING_RECOVERY; resolve it via Recovery before exporting.`
+      );
+    }
+
     const report = await exportSite({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });
     printExportReport(report);
     if (report.routes.failed.length > 0) {

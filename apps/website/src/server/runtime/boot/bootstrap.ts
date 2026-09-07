@@ -2,7 +2,7 @@ import { bootstrapStore } from "#src/features/plugins/store/store-plugin";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "#src/features/agent-plugins/seed-bundled";
-import type { BootModule } from "../lifecycle/boot-lifecycle.js";
+import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
@@ -12,6 +12,12 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
  * unit-testable (`index.ts` itself is deliberately never imported by a test — see that file's own
  * header note on why boot-only logic lives there). `index.ts` becomes a thin wrapper: build deps,
  * call `buildBootModules`, run the lifecycle, `listen()`.
+ *
+ * `logCriticalBootFailures` below (2026-09-06 composition-root fix) was, until this fix, hand-copied
+ * verbatim between `index.ts` and `cli/commands/serve.ts` — both files' own comments claimed this
+ * class of boot-only logic is "never shared via import," which this very file's existence already
+ * contradicted (it has been the shared, imported, `buildBootModules` composition for both boot paths
+ * since ADR-046 Phase 3). Both call sites now import this one copy instead.
  */
 
 const noop = async (): Promise<void> => {};
@@ -102,4 +108,14 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     });
   }
   return modules;
+}
+
+/** Logs one line per critical, not-ready module from a failed boot. Called only when
+ *  `bootResult.ok` is false — both `index.ts`'s and `cli/commands/serve.ts`'s own `!ok` branches. */
+export function logCriticalBootFailures(bootResult: BootResult): void {
+  for (const module of bootResult.modules) {
+    if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
+      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+    }
+  }
 }

@@ -49,6 +49,26 @@ export class ExportIncompleteError extends Error {
   }
 }
 
+/**
+ * `EXPORT_BLOCKED_PENDING_RECOVERY` (exit 7) — 2026-09-06 composition-root fix. `tovu export` ran
+ * `createSqliteRouteDeps()` and booted the real `createApp()`-equivalent (`exportSite()`'s own
+ * internal crawl listener) without ever running `runBootLifecycle`/`buildBootModules` first, unlike
+ * `tovu serve` — so the `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts`,
+ * the one that detects a crash-interrupted migration and flips `siteStatusRepo` to
+ * `BLOCKED_PENDING_RECOVERY`) never ran before an export, and a site left mid-migration by a crash
+ * could be exported from possibly-inconsistent data with no warning at all. `cli/commands/export.ts`
+ * now runs that same scan directly and refuses outright when it detects one, rather than either
+ * silently exporting or letting the crawl surface it indirectly as N confusing per-route failures.
+ * A genuinely distinct outcome from `EXPORT_INCOMPLETE` (that means "ran, but some routes failed to
+ * render"; this means "refused to run at all").
+ */
+export class ExportBlockedPendingRecoveryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExportBlockedPendingRecoveryError";
+  }
+}
+
 export interface CliOutcome {
   exitCode: number;
   /** The single `tovu: <CODE>: <message>` stderr line — omitted for a pure success outcome (`--help`). */
@@ -72,6 +92,7 @@ const EXIT_CODE_BY_ERROR_CODE: Record<string, number> = {
   // "ran, but not everything succeeded."
   EXPORT_OUTPUT_NOT_EMPTY: 3,
   EXPORT_INCOMPLETE: 6,
+  EXPORT_BLOCKED_PENDING_RECOVERY: 7,
 };
 
 /**
@@ -188,6 +209,12 @@ export function mapErrorToCliOutcome(err: unknown): CliOutcome {
   }
   if (err instanceof ExportIncompleteError) {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_INCOMPLETE, stderrLine: stderrLine("EXPORT_INCOMPLETE", err.message) };
+  }
+  if (err instanceof ExportBlockedPendingRecoveryError) {
+    return {
+      exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_BLOCKED_PENDING_RECOVERY,
+      stderrLine: stderrLine("EXPORT_BLOCKED_PENDING_RECOVERY", err.message),
+    };
   }
   if (err instanceof InternalError) {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine("INTERNAL", err.message) };

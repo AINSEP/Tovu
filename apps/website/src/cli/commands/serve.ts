@@ -10,13 +10,13 @@ import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
-import { isAdminAssistantEnabled } from "../../server/runtime/composition/admin-assistant-enabled.js";
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
-import { runBootLifecycle, type BootResult } from "../../server/runtime/lifecycle/boot-lifecycle.js";
-import { buildBootModules } from "../../server/runtime/boot/bootstrap.js";
+import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
+import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
+import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 
 /**
@@ -85,6 +85,11 @@ import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-s
  * and refuses to serve on a critical `settings`/`seo` failure, exactly like `index.ts`. Unlike
  * `index.ts`, a lifecycle failure here `throw`s rather than `process.exit()`s, per this file's own
  * "never map errors to exit codes" contract above.
+ *
+ * `agentDaemonWanted`/`logCriticalBootFailures` (2026-09-06 composition-root fix): both used to be
+ * defined again, verbatim, in this file — see `server/runtime/boot/agent-daemon-wanted.ts`'s and
+ * `bootstrap.ts`'s own headers for why that duplication (and the comment justifying it) was wrong.
+ * Both are imported now, same as every other shared boot-only function this file already used.
  */
 
 export interface RunServeCommandInput {
@@ -144,29 +149,6 @@ function warnIfLegacyEnvVarsIgnored(): void {
  *   the listener is bound (the process then stays alive on the open socket, not on this promise).
  * @overallScore 100
  */
-/** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
- *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
-async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> } }): Promise<boolean> {
-  if (isAdminAssistantEnabled()) return true;
-  const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
-  if (configured.length > 0) return true;
-  console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
-  return false;
-}
-
-/** Logs one line per critical, not-ready module from a failed boot — duplicated verbatim from
- *  `index.ts`'s own helper of the same name (that file's own header explains why its boot-only
- *  logic is never imported by, or shared via import with, a tested module; mirrors this file's
- *  existing duplication of `agentDaemonWanted` above for the identical reason). Called only when
- *  `lifecycleResult.ok` is false. */
-function logCriticalBootFailures(lifecycleResult: BootResult): void {
-  for (const module of lifecycleResult.modules) {
-    if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
-      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
-    }
-  }
-}
-
 export async function runServeCommand(input: RunServeCommandInput): Promise<void> {
   // Unhandled-rejection guard (2026-08-28 dispatch): `index.ts`'s `main()` installs this same guard
   // first, before any boot step (see `process-error-guards.ts`'s own header for the live crash that
