@@ -253,3 +253,35 @@ putting the kicker at **x=125, y=62** against **x=100, y=39** on every other scr
 
 | `89c8c380` | Settings pinned to light + full unconditional de-card; scoping defect from `9f13f0e3` fixed; `resolveDialogDataTheme` removed |
 | `ea8c660b` | Report addendum for the above |
+
+### 4 (addendum 2). Proof of the pin — six combinations, plus a test that fails on the old behaviour
+
+The coordinator asked for the pin to be proven under a dark `prefers-color-scheme`, for each stored theme, not
+just in light. Done live at 1440, by actually changing the stored `core.appearance.theme` through the Dialog
+appearance tab (each save confirmed by the `is-saved` status pill) and reloading `/admin/settings` under both an
+emulated dark and light OS scheme:
+
+| stored theme | OS scheme | `data-theme` | shell border / radius / fill | kicker | heading text |
+|---|---|---|---|---|---|
+| Dark | dark | `light` | 0 / 0 / transparent | x=100, y=37 | `rgb(13,12,10)` (dark on white) |
+| Dark | light | `light` | 0 / 0 / transparent | x=100, y=37 | same |
+| Light | dark | `light` | 0 / 0 / transparent | x=100, y=37 | same |
+| Light | light | `light` | 0 / 0 / transparent | x=100, y=37 | same |
+| System | dark | `light` | 0 / 0 / transparent | x=100, y=37 | same |
+| System | light | `light` | 0 / 0 / transparent | x=100, y=37 | same |
+
+Identical in all six. The owner's own case (stored **Dark** on a **dark** OS — the one the light-only `9f13f0e3`
+could not change) is `after-settings-pinned-stored-dark-dark-os-1440.png`.
+
+**Disclosure:** this wrote to the live install's `core.appearance.theme` three times (Dark → Light → System). It
+was `System` before the run and was restored to `System` at the end (verified: `System=pressed`, Light/Dark
+not). No other setting was touched.
+
+**Test that pins it** (`SettingsUi.unit.test.tsx`, "Settings page theme is pinned to light"): renders the page with
+the stored theme set to each of `light`, `dark`, `system` and asserts the wrapper carries `data-theme="light"`.
+What would it still pass under? Only a literal pin. Against the previous code (`resolveDialogDataTheme`:
+`dark` → `data-theme="dark"`, `system` → no attribute) the `dark` and `system` rows fail — that RED is by
+reasoning from the deleted resolver's two-line body, not by re-running the old tree (the old `SettingsUi.tsx`
+imports a function that no longer exists, so it cannot be executed in place without reverting `rules.ts` too).
+
+| `f1b13b38` | Test pinning `data-theme="light"` for stored light/dark/system |
