@@ -1471,6 +1471,10 @@ go peach. Note the tokens are `oklch`, so an `rgb()`-shaped grep will not find t
 **Closed as fixed for the live server and static-publish paths.** Do not reopen from the original
 symptom description; reopen only against a fresh measurement.
 
+**OUT OF SCOPE (Leona, 2026-09-06): only `basic` is in use. Do not spend time on the other
+themes.** The paragraph below is retained as an accurate record of why the degrade exists, not as
+work to schedule. It becomes live again only if a tailark theme is ever activated.
+
 **One live degrade stays, by design, and is the thing to watch.** The fix resolves only against a
 small closed vocabulary of Tovu-owned filenames. Of the five static themes installed under
 `sites/tovu-com/themes/static/`, only `basic` (as `pages-default.html`) and `basic-2` (still
