@@ -64,6 +64,29 @@ Projects grid empty (see the desktop-registry notes) — being fixed separately.
 
 ## Missing tool: import a remote image URL into the media library (found live, 2026-09-06)
 
+**SHIPPED 2026-09-06 — `media_import_from_url`.** `features/media-import/` (`agent-tools.ts`,
+`fetch-image.ts`, `tool-registrations.ts`), commits `b1ce2d0a` / `dd187ece` / `a346b3ec` / `24bdafc1`.
+Takes an https URL plus optional `filename`/`alt`/`caption`/`credit`, fetches server-side, and writes
+through the SAME `uploadMedia` a human upload uses — an imported asset is indistinguishable from an
+uploaded or generated one.
+
+Proven live, not just unit-tested: asked in operator language with no tool name, the assistant issued
+its own `search_tools` query, ranked `media_import_from_url` #1 (31.2, above `media_upload_asset`),
+and imported a real PNG. The stored blob is byte-identical to the source (224,566 bytes, sha
+`c4e870d3…`); the public rendition returns 200 and renders.
+
+The fetch routes through `platform/http`'s SSRF-guarded `HttpClientPort`, which required making
+`HttpResponse` byte-capable — `bodyText` is a lossy UTF-8 decode and would have corrupted every
+image. `bodyBytes`/`bodyTruncated` were added additively, and a truncated response is REFUSED rather
+than stored, because a clipped image is a corrupt file that would still hash and still write a row.
+Refusals verified live against link-local, loopback-via-DNS, private and IPv4-mapped targets, with
+nothing persisted. Content type comes from magic-byte sniffing, never the served header.
+
+**Still open from this entry:** `media_provider_credentials` is empty. Credentials resolve saved-row
+first, then env — and this machine has `GEMINI_API_KEY` but no `OPENAI_API_KEY`, so the default
+`gpt-image-2` fails while `gemini-3.1-flash-image-preview` may already work with no purchase. One
+prompt in the chat dock settles it; nobody has run that test.
+
 Higgsfield's `generate_image` produced a real 2048×1152 PNG on its CDN, and **nothing in the tool
 catalog could pull it into Media**. The assistant's own account: `media_upload_asset` needs base64
 bytes, `media_promote_chat_attachment` needs a chat attachment, and **there is no import-by-URL
@@ -80,6 +103,41 @@ image provider is configured at all, so that tool has nothing to call.
 ---
 
 ## Surface federated-MCP tool refusals in the UI, not only the daemon log (found live, 2026-09-06)
+
+**SHIPPED 2026-09-06 — both halves.** Model: `0d9e41d5`. Operator: `37ac1943`.
+
+**The stated cause was half wrong, and finding out changed the fix.** Refusals did not reach only the
+log. The chain already existed end to end — `bootstrap.ts` -> `GET /api/federation/admissions` ->
+the admin proxy -> `api.getExternalMcpAdmissions()` — and stopped ONE function call short of a
+screen: nothing in `apps/admin/src` ever called that client. This is Phase 4 of
+`ADS-memory/reports/pipeline/external-mcp-write-tools/implementation-outline.md`, specced and never
+built; Phase 2C had already translated its copy into 21 locales for a UI that did not exist. So the
+work was wiring, not plumbing.
+
+Operator half: `ExternalMcpAdmissionsBanner` in Settings -> External MCP, silent when live and saved
+agree, otherwise naming each tool, the exact fix, and saved-vs-live counts, with a "may write" tick
+that writes `writeAllowedToolNames` through the same `updateSource` port the edit form uses.
+
+Model half: prompt text through the existing `assemblePromptWithPluginPrefix` seam — deliberately not
+a tool, because a model that does not know it is missing something never calls the tool that would
+tell it. `not-in-operator-allowlist` is excluded on purpose (a real server advertises tens of tools
+against an allowlist of three, so reporting those teaches the model to ignore the block), and every
+remote name is re-checked against the gate's own pattern before it can reach the system prompt.
+
+`trust.ts` was deliberately NOT modified — filtering on the refusal reason gets the same answer
+without changing a security-critical module.
+
+**The restart round trip STAYS, and the reason is not the one assumed.** It is not R5. It is that
+`buildToolCatalogQuery` snapshots `registry.list()` into a one-shot FTS index at boot, so nothing can
+be unregistered — a hot-reloaded allowlist could only ever widen, never narrow, which is a worse
+security mechanism than a restart. The banner therefore offers the existing
+`POST .../system/assistant-daemon/restart` as a button, hidden with the already-translated
+explanation when the principal lacks `system.write`.
+
+**Related, still open:** a refused or blocked tool call surfaces to the model as a bare
+`INTERNAL_ERROR: an internal error occurred` on the delegated-tool path — observed live with an SSRF
+loopback refusal, where the real reason exists in the run detail and collapses to a generic 500. Same
+failure shape as the bug above, different code path, unowned.
 
 `mcp-federation/trust.ts` refuses a remote tool that declares `readOnlyHint: false` unless the
 operator has ALSO named it in `writeAllowedToolNames` — a second list beyond `allowedToolNames`.
