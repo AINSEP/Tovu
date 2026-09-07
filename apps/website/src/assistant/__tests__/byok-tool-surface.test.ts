@@ -288,7 +288,7 @@ test("READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal i
  * per-call identity to record), `executeMetaTool` already has the real `principal`/`run` for every
  * call — these tests assert that real identity, not a placeholder, lands in the row.
  */
-test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the exact query, limit, and ranked hit ids", async () => {
+test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" } });
 
@@ -301,7 +301,12 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
   assert.equal(event.workspaceId, "ws-meta-tool");
   assert.equal(event.runId, RUN.id);
   assert.equal(event.principalId, PRINCIPAL.id);
-  assert.deepEqual(JSON.parse(String(event.detail)), { query: "workspace", limit: 5, resultIds: hits.map((h) => h.id), resultCount: hits.length });
+  // `query` itself must never land in the durable detail (`tool-catalog-audit.ts`'s
+  // `searchToolsAuditDetail` redaction, 80145322) — `queryLength` is its value-free stand-in.
+  // `deepEqual` against this exact key set fails if a raw `query` field is ever reintroduced
+  // alongside `queryLength`, so no separate substring check is needed (and one would be unsound
+  // here anyway: several ranked hit ids, e.g. "workspace_get", legitimately contain "workspace").
+  assert.deepEqual(JSON.parse(String(event.detail)), { queryLength: "workspace".length, limit: 5, resultIds: hits.map((h) => h.id), resultCount: hits.length });
 });
 
 test("a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved", async () => {
