@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExecutionConfig } from "@jini-ai/ui";
+import type { ExecutionConfig, SourceFieldValues } from "@jini-ai/ui";
 
 import {
   areAnySlicesLoading,
@@ -16,6 +16,7 @@ import {
 import type { SaveState } from "@/hooks/use-settings-slice.hooks";
 import { firstLoadError } from "../rules";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@/lib/api";
 
 /**
  * @file Pure-logic coverage for `features/settings/rules.ts` — the "everything resolved" gate,
@@ -207,6 +208,112 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
     expect(spec).toBeDefined();
     expect(spec?.required).toBeFalsy();
     expect(spec?.kind).toBe("text");
+  });
+});
+
+describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's editable fields", () => {
+  /**
+   * The generalised regression for tonight's `writeAllowedToolNames` bug: `buildExternalMcpFieldSpecs`
+   * never pushed a spec for it, so the database column, the PUT route
+   * (`apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts`'s
+   * `parseExternalMcpPutBody`), and `use-external-mcp.hooks.ts` all handled the field correctly while
+   * the admin tab silently had no control for it (fixed in `ae13e739`). The tests above pin THAT
+   * field; this block instead enumerates every field the route accepts — via `AdminExternalMcpServerInput`/
+   * `AdminExternalMcpOAuthInput`, this admin's own mirror of the route's body, already used by
+   * `use-external-mcp.hooks.ts` to build the same PUT — and asserts each one is reachable from a real
+   * control, so the NEXT field added to that type without a matching spec fails here instead of
+   * shipping silently.
+   */
+
+  /**
+   * Every top-level field the PUT route accepts, keyed as `Record<keyof AdminExternalMcpServerInput,
+   * true>` rather than a plain string array: adding a field to that type without adding it here is a
+   * `tsc` error, not a maybe-caught runtime gap. This is what makes the enumeration exhaustive rather
+   * than a snapshot of today's fields.
+   */
+  const TOP_LEVEL_FIELDS: Record<keyof AdminExternalMcpServerInput, true> = {
+    label: true,
+    transport: true,
+    enabled: true,
+    command: true,
+    url: true,
+    args: true,
+    allowedToolNames: true,
+    writeAllowedToolNames: true,
+    env: true,
+    authMode: true,
+    oauth: true,
+  };
+
+  /** Same exhaustiveness contract as {@link TOP_LEVEL_FIELDS}, for the OAuth sub-object's own fields. */
+  const OAUTH_FIELDS: Record<keyof AdminExternalMcpOAuthInput, true> = {
+    providerId: true,
+    grant: true,
+    clientId: true,
+    clientSecret: true,
+    scopes: true,
+    tokenEnvName: true,
+    authorizationEndpoint: true,
+    tokenEndpoint: true,
+    deviceAuthorizationEndpoint: true,
+  };
+
+  /**
+   * Fields the route accepts that are deliberately NOT one of `buildExternalMcpFieldSpecs`'s own
+   * entries — an explicit allowlist, not a silent omission, so a reviewer can see the judgment call
+   * rather than infer it from a test that merely happens to pass:
+   *  - `label` — rendered by `@jini-ai/ui`'s `SourceConfigItemCard`/`SourceConfigAddForm` chrome
+   *    itself (a fixed "Label" input outside the per-item field-spec loop), not by this module.
+   *  - `enabled` — rendered by that same package's enable/disable checkbox in the card header, gated
+   *    on `source.enabled !== undefined` rather than a field spec.
+   *  - `oauth` — a wire-body CONTAINER, not a control an operator fills in directly; its own members
+   *    are `OAUTH_FIELDS` below, each checked against its own `oauth<Field>` spec key.
+   */
+  const RENDERED_OUTSIDE_FIELD_SPECS = new Set<keyof AdminExternalMcpServerInput>(["label", "enabled", "oauth"]);
+
+  /**
+   * The union of every spec key `buildExternalMcpFieldSpecs` can produce across the field set's two
+   * independent axes (transport x authMode). Deliberately a union over four combinations rather than
+   * one call: `command`/`url` never coexist, and the sibling "always includes writeAllowedToolNames"
+   * test above exists precisely because a real field WAS scoped to only one arm of a conditional by
+   * mistake. A union check catches a repeat of that mistake for any field, not only that one.
+   */
+  function everyPossibleSpecKey(): Set<string> {
+    const combos: SourceFieldValues[] = [
+      {},
+      { transport: "streamable_http" },
+      { authMode: "oauth" },
+      { transport: "streamable_http", authMode: "oauth" },
+    ];
+    const keys = new Set<string>();
+    for (const values of combos) {
+      for (const spec of buildExternalMcpFieldSpecs(values)) keys.add(spec.key);
+    }
+    return keys;
+  }
+
+  it("every route-accepted top-level field is either rendered outside the field specs (see the allowlist) or reachable from buildExternalMcpFieldSpecs for some transport/authMode combination", () => {
+    const specKeys = everyPossibleSpecKey();
+    for (const field of Object.keys(TOP_LEVEL_FIELDS) as (keyof AdminExternalMcpServerInput)[]) {
+      if (RENDERED_OUTSIDE_FIELD_SPECS.has(field)) continue;
+      expect(
+        specKeys.has(field),
+        `"${field}" is accepted by the PUT route (AdminExternalMcpServerInput) but has no field spec ` +
+          `and is not in RENDERED_OUTSIDE_FIELD_SPECS — an operator cannot edit it. This is the ` +
+          `writeAllowedToolNames bug (ae13e739), generalised.`,
+      ).toBe(true);
+    }
+  });
+
+  it("every OAuth sub-field is reachable from buildExternalMcpFieldSpecs as its oauth<Field> spec key", () => {
+    const specKeys = everyPossibleSpecKey();
+    for (const field of Object.keys(OAUTH_FIELDS) as (keyof AdminExternalMcpOAuthInput)[]) {
+      const specKey = `oauth${field[0]?.toUpperCase()}${field.slice(1)}`;
+      expect(
+        specKeys.has(specKey),
+        `oauth.${field} is accepted by the PUT route but no "${specKey}" field spec renders it.`,
+      ).toBe(true);
+    }
   });
 });
 
