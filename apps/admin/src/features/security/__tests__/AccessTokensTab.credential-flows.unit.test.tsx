@@ -170,6 +170,20 @@ describe("AccessTokensTab — category filter and Add custom provider", () => {
     fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
     expect(container.querySelector("dialog.access-tokens-add-custom-dialog")).toHaveAttribute("open");
   });
+
+  // Same aria-labelledby regression as the Remove confirm dialog above, for this page's other
+  // hand-rolled native `<dialog>`.
+  it("the add-custom-provider dialog's accessible name comes from aria-labelledby pointing at its own <h2>", () => {
+    const { container } = renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
+    const dialog = container.querySelector("dialog.access-tokens-add-custom-dialog")!;
+    const titleId = dialog.getAttribute("aria-labelledby");
+    expect(titleId).toBeTruthy();
+    const title = container.querySelector(`#${titleId}`);
+    expect(title).not.toBeNull();
+    expect(title!.tagName).toBe("H2");
+    expect(title!.textContent).toBe("Add custom provider");
+  });
 });
 
 describe("AccessTokensTab — search box", () => {
@@ -217,7 +231,10 @@ describe("AccessTokensTab — ProviderGroup: not-connected vs connected vs add-f
     const openAddForm = vi.fn();
     renderTab({ groups: [groupFor("publish", "netlify")], openAddForm });
     expect(screen.getByText("Not connected")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    // Accessible name includes the provider label ("Connect Netlify"), not a bare "Connect" — see
+    // `NotConnectedRow`'s own `aria-label` comment for why: with 2+ not-connected providers on
+    // screen, a bare "Connect" would be ambiguous.
+    fireEvent.click(screen.getByRole("button", { name: "Connect Netlify" }));
     expect(openAddForm).toHaveBeenCalledWith({ kind: "publish", providerId: "netlify" });
   });
 
@@ -260,7 +277,9 @@ describe("AccessTokensTab — TokenRow: default indicator and Make default", () 
     renderTab({ groups: [groupFor("publish", "netlify", rows)], makeDefault });
 
     expect(screen.getByText("Default")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Make default" }));
+    // Accessible name is "Make default — Staging", not a bare "Make default" — with 3+ saved rows
+    // for one provider, more than one non-default row would otherwise render identically.
+    fireEvent.click(screen.getByRole("button", { name: "Make default — Staging" }));
     expect(makeDefault).toHaveBeenCalledWith(rows[1]!.row);
   });
 });
@@ -268,7 +287,10 @@ describe("AccessTokensTab — TokenRow: default indicator and Make default", () 
 describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error rendering", () => {
   it("disables Save until the replace form is ready (unchanged name, blank token)", () => {
     renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    // Accessible name is "Save — Production" (the row's own name), not a bare "Save" — see
+    // `ExistingTokenFields`' own `aria-label` comment for why: more than one saved row can have its
+    // `<details>` open at once.
+    expect(screen.getByRole("button", { name: "Save — Production" })).toBeDisabled();
   });
 
   it("clicking Save calls replaceToken with this row once a token has been typed", () => {
@@ -276,7 +298,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     const target = rowState({ row: row(), token: "ghp_new" });
     renderTab({ groups: [groupFor("publish", "netlify", [target])], replaceToken });
 
-    const saveButton = screen.getByRole("button", { name: "Save" });
+    const saveButton = screen.getByRole("button", { name: "Save — Production" });
     expect(saveButton).not.toBeDisabled();
     fireEvent.click(saveButton);
 
@@ -286,7 +308,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
   it("shows 'Saving…' and disables Save while a save is in flight", () => {
     const target = rowState({ row: row(), token: "ghp_new", saving: true });
     renderTab({ groups: [groupFor("publish", "netlify", [target])] });
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Saving… — Production" })).toBeDisabled();
   });
 
   it("shows the row's own save-error alert when present", () => {
@@ -333,8 +355,47 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
 
   it("clicking Remove from Tovu opens the confirm dialog", () => {
     const { container } = renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    // Accessible name is "Remove from Tovu — Production" (the row's own name), not a bare "Remove
+    // from Tovu" — see `ExistingTokenFields`' own `aria-label` comment for why.
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     expect(container.querySelector("dialog.confirm-dialog")).toHaveAttribute("open");
+  });
+
+  // Regression: unlike a `RowMenu`'s dropdown items (only ever one open at a time), a provider
+  // group can have more than one saved token, each with its own independent `<details>` — so a
+  // provider with two saved tokens puts two Save AND two Remove-from-Tovu buttons in the DOM at
+  // once. Before `state.name` was appended, both pairs read identically ("Save"/"Remove from
+  // Tovu"), so nothing distinguished which row a click would act on.
+  it("gives each saved row's Save and Remove buttons DISTINCT accessible names when a provider has 2+ tokens", () => {
+    const rows = [
+      rowState({ row: row({ id: "row-1" }), name: "Production", token: "ghp_a" }),
+      rowState({ row: row({ id: "row-2", isDefault: false }), name: "Staging", token: "ghp_b" }),
+    ];
+    renderTab({ groups: [groupFor("publish", "netlify", rows)] });
+
+    expect(screen.getByRole("button", { name: "Save — Production" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save — Staging" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Save —/ })).toHaveLength(2);
+
+    expect(screen.getByRole("button", { name: "Remove from Tovu — Production" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove from Tovu — Staging" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Remove from Tovu —/ })).toHaveLength(2);
+  });
+
+  // Regression: this native `<dialog>` used to carry no `aria-labelledby` at all, so it had no
+  // accessible name (a bare, unnamed "dialog" role) despite showing a real, informative `<h2>` —
+  // the same relationship the shared `ConfirmDialog` (`@jini-ai/admin/react`) already draws via its
+  // own `titleId`. Asserted structurally (the `id`/`aria-labelledby` link), not just "an h2 exists
+  // somewhere" — the link is what actually makes the title reach the accessible name.
+  it("the confirm dialog's accessible name comes from aria-labelledby pointing at its own <h2>", () => {
+    const { container } = renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
+    const dialog = container.querySelector("dialog.confirm-dialog")!;
+    const titleId = dialog.getAttribute("aria-labelledby");
+    expect(titleId).toBeTruthy();
+    const title = container.querySelector(`#${titleId}`);
+    expect(title).not.toBeNull();
+    expect(title!.tagName).toBe("H2");
   });
 });
 
@@ -350,7 +411,10 @@ describe("AccessTokensTab — AddTokenForm: Save/Cancel", () => {
     const createToken = vi.fn().mockResolvedValue(undefined);
     renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true, name: "Prod", token: "tok" }))], createToken });
 
-    const saveButton = screen.getByRole("button", { name: "Save" });
+    // Accessible name is "Save — Netlify" (the provider label — this token has no name of its own
+    // yet), not a bare "Save" — see `AddTokenForm`'s own `aria-label` comment for why: more than
+    // one provider's add form can be open at once.
+    const saveButton = screen.getByRole("button", { name: "Save — Netlify" });
     expect(saveButton).not.toBeDisabled();
     fireEvent.click(saveButton);
 
@@ -359,13 +423,13 @@ describe("AccessTokensTab — AddTokenForm: Save/Cancel", () => {
 
   it("disables Save while the add form has nothing typed yet", () => {
     renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true }))] });
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save — Netlify" })).toBeDisabled();
   });
 
   it("clicking Cancel calls closeAddForm with this provider's ref", () => {
     const closeAddForm = vi.fn();
     renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true }))], closeAddForm });
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel adding this Netlify token" }));
     expect(closeAddForm).toHaveBeenCalledWith({ kind: "publish", providerId: "netlify" });
   });
 
@@ -376,7 +440,7 @@ describe("AccessTokensTab — AddTokenForm: Save/Cancel", () => {
 
   it("shows 'Saving…' and disables Save while a create is in flight", () => {
     renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true, name: "Prod", token: "tok", saving: true }))] });
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Saving… — Netlify" })).toBeDisabled();
   });
 });
 
@@ -430,7 +494,7 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
     const removeToken = vi.fn().mockResolvedValue(undefined);
     const { container } = renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])], removeToken });
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel", hidden: true }));
 
@@ -443,7 +507,7 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
     const target = rowState({ row: row() });
     const { container } = renderTab({ groups: [groupFor("publish", "netlify", [target])], removeToken });
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove from Tovu", hidden: true }));
 
@@ -452,7 +516,7 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
 
   it("shows the last-saved-row note only when this is the only saved row for the provider", () => {
     const { container } = renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
     expect(container.textContent).toMatch(/the only saved Netlify token/);
   });
 
@@ -461,7 +525,9 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
     const { container } = renderTab({ groups: [groupFor("publish", "netlify", rows)] });
 
     const row1 = container.querySelector('[data-agent-element="security-access-tokens-row-publish-netlify-row-1"]') as HTMLElement;
-    fireEvent.click(within(row1).getByRole("button", { name: "Remove from Tovu" }));
+    // row-1 keeps the `rowState` fixture's default name ("Production") — see `ExistingTokenFields`'
+    // own `aria-label` comment for why this control's accessible name now includes it.
+    fireEvent.click(within(row1).getByRole("button", { name: "Remove from Tovu — Production" }));
 
     expect(within(row1).queryByText(/the only saved Netlify token/)).not.toBeInTheDocument();
   });

@@ -191,6 +191,12 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
           type="button"
           className="btn-danger"
           onClick={() => void controller.remove(row)}
+          // `aria-label`: a store can hold more than one configured item (this file's own
+          // `handleSuffix` doc comment above names `media-provider` as an example), and every row
+          // renders unconditionally — no accordion, no menu — so two configured items under the
+          // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
+          // `row.name` is this row's own display name, already visible in its heading.
+          aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
           {...safeAgentHandle(`security-other-credentials-remove-${rowHandleBase(row)}`, { role: "button", label: `Remove ${row.name} from Tovu` })}
         >
           {translate("Remove from Tovu")}
@@ -251,6 +257,9 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
             type="button"
             className="btn-danger"
             onClick={() => dialogRef.current?.showModal()}
+            // Same multi-item-per-store ambiguity as `OtherCredentialStaticRow`'s identical button
+            // above.
+            aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
             {...safeAgentHandle(`security-other-credentials-remove-${rowHandleBase(row)}`, { role: "button", label: `Remove ${row.name} from Tovu` })}
           >
             {translate("Remove from Tovu")}
@@ -282,9 +291,16 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
   function OtherCredentialRemoveDialog({ row, controller, t: translate }, ref) {
     const locale = useAdminLocale();
     const { close, confirm } = useOtherCredentialRemoveDialog(ref, row, controller);
+    // `aria-labelledby`, not left implicit — same fix, same reasoning, as Tier 1's own
+    // `RemoveConfirmDialog` (`AccessTokensTab.tsx`): a native `<dialog>` gets no accessible name
+    // for free from an `<h2>` inside it, and this doc comment's own header already promises this
+    // dialog "mirrors Tier 1's `RemoveConfirmDialog` exactly" — this brings that true for the title
+    // link too. `rowHandleBase(row)` (already this row's DOM-id-safe base, used below by its own
+    // input/deep-link ids) keeps this id unique across every Tier-2 row's own dialog.
+    const titleId = `security-other-credentials-remove-title-${rowHandleBase(row)}`;
     return (
-      <dialog ref={ref} className="confirm-dialog">
-        <h2>{removeDialogTitle(locale, row.name)}</h2>
+      <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
+        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
         {/* `removeDialogBody` now takes a separate vendor-label param (Tier 1's fix for the
             "Revoke it on GitHub Pages" bug — see `rules.ts`'s `AccessTokenProviderInfo.vendorLabel`
             doc). Tier 2 stores have no vendor/destination split at all — they're deep links to

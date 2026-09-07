@@ -299,6 +299,14 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
           type="button"
           className="access-tokens-row-summary-expand"
           onClick={onConnect}
+          // `aria-label`, not just the visible "Connect" text: every not-yet-connected provider on
+          // this page renders this exact same bare word, so with two or more not-connected rows on
+          // screen at once (the common case — most installs have not connected every one of the
+          // seven providers), `getByRole("button", { name: "Connect" })` — or an agent resolving by
+          // accessible name — cannot tell GitHub's row from GitLab's. `label` here is already the
+          // provider's own display label (e.g. "GitHub Pages"), so this starts with the exact
+          // visible word (WCAG 2.5.3 Label in Name).
+          aria-label={`${translate("Connect")} ${label}`}
           // Handle built from `ref.kind`/`ref.providerId` (already lowercase, hyphen-safe — every
           // `AccessTokenProviderRef` in this app comes straight off `ACCESS_TOKEN_PROVIDERS`), never
           // from `label` — `agentHandle()` rejects any handle that isn't lowercase words joined by
@@ -358,6 +366,12 @@ function TokenRowDefaultIndicator({ state, showDefaultUi, controller, t: transla
       type="button"
       className="link-button"
       onClick={() => void controller.makeDefault(state.row)}
+      // `aria-label`, not just the visible "Make default" text: this button renders once per
+      // non-default row in a provider group that has 2+ saved tokens (the ONLY case it renders at
+      // all — this function's own guard above), so with 3+ saved tokens for one provider, multiple
+      // identically-labeled "Make default" buttons are on screen simultaneously. `state.name` is
+      // this row's own operator-chosen display name, already unique enough to pick one out.
+      aria-label={`${translate("Make default")} — ${state.name}`}
       {...agentHandle(`security-access-tokens-default-${state.row.id}`, { role: "button", label: `Make ${state.name} the default token` })}
     >
       {translate("Make default")}
@@ -544,6 +558,14 @@ function ExistingTokenFields({
           type="button"
           disabled={!readyToSave || state.saving}
           onClick={() => void controller.replaceToken(state.row)}
+          // `aria-label`, not just the visible "Save"/"Saving…" text: a provider group can hold
+          // several saved tokens (`AddAnotherButton` above), each opened via its own `<details>`
+          // (unlike `RowMenu`'s exclusive-open items, more than one can be expanded at once) — with
+          // two rows open, both show an identical bare "Save" button. `state.name` is this row's own
+          // display name, already visible in its `<summary>` heading, so it disambiguates the same
+          // way a sighted reader already can. Mirrors the visible text's own saving/idle split so the
+          // accessible name never says "Save" while the button reads "Saving…" (WCAG 2.5.3).
+          aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${state.name}`}
           {...agentHandle(`security-access-tokens-save-${state.row.id}`, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
@@ -552,6 +574,10 @@ function ExistingTokenFields({
           type="button"
           className="btn-danger"
           onClick={onRemoveClick}
+          // Same multi-row-open ambiguity as Save above, on this page's one destructive action —
+          // see `rules.ts`'s `restoreButtonAccessibleName` (`recovery/rules.ts`) for the identical
+          // reasoning applied to a different screen's own always-visible destructive control.
+          aria-label={`${translate("Remove from Tovu")} — ${state.name}`}
           {...agentHandle(`security-access-tokens-remove-${state.row.id}`, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
         >
           {translate("Remove from Tovu")}
@@ -591,6 +617,12 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           type="button"
           disabled={!readyToSave || state.saving}
           onClick={() => void controller.createToken(ref)}
+          // `aria-label`: more than one provider's "Add" form can be open at once (each provider
+          // group owns its own independent `addForm.visible`), and every one of them renders this
+          // same bare "Save"/"Saving…" text — `info.label` is the one thing that tells them apart
+          // here (there is no operator-chosen name yet to use, unlike `ExistingTokenFields`' own
+          // fix above, since this token has not been saved).
+          aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${info.label}`}
           {...agentHandle(`security-access-tokens-create-${info.kind}-${info.providerId}`, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
@@ -599,6 +631,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           type="button"
           className="link-button"
           onClick={() => controller.closeAddForm(ref)}
+          aria-label={`${translate("Cancel")} adding this ${info.label} token`}
           {...agentHandle(`security-access-tokens-cancel-${info.kind}-${info.providerId}`, { role: "button", label: "Close this add-token form without saving" })}
         >
           {translate("Cancel")}
@@ -630,9 +663,16 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
   function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate }, ref) {
     const locale = useAdminLocale();
     const { close, confirm } = useRemoveConfirmDialog(ref, row, controller);
+    // `aria-labelledby`, not left implicit: a native `<dialog>` has no accessible name of its own
+    // from an `<h2>` sitting inside it — that link has to be stated, the same way the shared
+    // `ConfirmDialog` (`@jini-ai/admin/react`) already does via its own `titleId`. Without it, every
+    // one of this page's per-row remove dialogs reads to an accessibility tree as an unnamed
+    // "dialog", indistinguishable from any other open dialog on the page. Scoped by `row.id` (not a
+    // static id) because one `RemoveConfirmDialog` is mounted per token row, all in the DOM at once.
+    const titleId = `security-access-tokens-remove-title-${row.id}`;
     return (
-      <dialog ref={ref} className="confirm-dialog">
-        <h2>{removeDialogTitle(locale, row.name)}</h2>
+      <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
+        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
         <p className="confirm-dialog-body">{removeDialogBody(locale, info.label, info.vendorLabel)}</p>
         <p>
           {/* `info.vendorLabel`, NOT `info.label` — this line says WHERE to revoke, and "GitHub
@@ -726,14 +766,18 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
   function AddCustomCredentialDialog({ controller, t: translate }, ref) {
     const { showToken, toggleShowToken, readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
     const form = controller.customAddForm;
+    // Same `aria-labelledby` fix as `RemoveConfirmDialog` above — one instance of this dialog per
+    // page, so a static id is fine (contrast the per-row `row.id`-scoped id there).
+    const titleId = "security-access-tokens-add-custom-title";
 
     return (
       <dialog
         ref={ref}
         className="confirm-dialog access-tokens-add-custom-dialog"
+        aria-labelledby={titleId}
         {...agentHandle("security-access-tokens-add-custom-dialog", { role: "region", label: "Add a custom provider not in the built-in list" })}
       >
-        <h2>{translate("Add custom provider")}</h2>
+        <h2 id={titleId}>{translate("Add custom provider")}</h2>
         <div className="field">
           <label className="field-label" htmlFor="security-add-custom-name">
             {translate("Name")}

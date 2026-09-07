@@ -110,6 +110,20 @@ describe("OtherCredentialsSection — OtherCredentialGroup: placeholder vs confi
     expect(screen.getByText("xAI Grok")).toBeInTheDocument();
     expect(screen.queryByText("Not configured")).not.toBeInTheDocument();
   });
+
+  // Regression: `OtherCredentialStaticRow`/`OtherCredentialReplaceableRow` render unconditionally
+  // (no accordion, no menu — unlike Tier 1's `TokenRow`), so a multi-item store's Remove buttons are
+  // ALWAYS simultaneously in the DOM, not just when a reader happens to open two rows at once.
+  // Before `row.name` was appended, both read identically ("Remove from Tovu").
+  it("gives each configured item's Remove button a DISTINCT accessible name for a multi-item store", () => {
+    const store = otherCredentialStoreInfo("media-provider");
+    const rows = [rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" }), rowFixture(store, { itemId: "grok", name: "xAI Grok" })];
+    render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("media-provider", rows)] })} query="" />);
+
+    expect(screen.getByRole("button", { name: "Remove from Tovu — Cloudinary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove from Tovu — xAI Grok" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Remove from Tovu —/ })).toHaveLength(2);
+  });
 });
 
 describe("OtherCredentialsSection — OtherCredentialEntryBody dispatch", () => {
@@ -137,7 +151,10 @@ describe("OtherCredentialsSection — OtherCredentialStaticRow", () => {
     const row = rowFixture(store, { itemId: "local-fs", name: "Local filesystem" });
     render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("external-mcp", [row])], remove })} query="" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    // Accessible name is "Remove from Tovu — Local filesystem" (the row's own name), not a bare
+    // "Remove from Tovu" — see `OtherCredentialStaticRow`'s own `aria-label` comment for why: a
+    // store like this one can hold more than one configured item at once.
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Local filesystem" }));
     expect(remove).toHaveBeenCalledWith(row);
   });
 
@@ -187,8 +204,10 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
 
     // Only the row's own trigger button is accessible before the dialog opens — the closed
     // `<dialog>`'s identically-labeled confirm button is accessibility-hidden (no `open` attribute),
-    // same as `access-tokens-revoke-copy.unit.test.tsx`'s own dialog tests document.
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    // same as `access-tokens-revoke-copy.unit.test.tsx`'s own dialog tests document. The trigger's
+    // accessible name includes the row's own name ("Remove from Tovu — Site assistant model key")
+    // — see `OtherCredentialReplaceableRow`'s own `aria-label` comment.
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Site assistant model key" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
     expect(dialog.textContent).toContain('Remove "Site assistant model key" from Tovu?');
 
@@ -202,14 +221,32 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     const row = rowFixture(store, { name: "Site assistant model key" });
     const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])], remove })} query="" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Site assistant model key" }));
     const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
-    // Two buttons read "Remove from Tovu" in this dialog's DOM (the row's own trigger button, and the
-    // dialog's own confirm button) — scope to the dialog itself, with `hidden: true` since the dialog
-    // has no `open` attribute in jsdom (its own `showModal()` is not implemented there).
+    // Scope to the dialog itself, with `hidden: true` since the dialog has no `open` attribute in
+    // jsdom (its own `showModal()` is not implemented there).
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove from Tovu", hidden: true }));
 
     expect(remove).toHaveBeenCalledWith(row);
+  });
+
+  // Regression, mirroring the identical fix on Tier 1's own `RemoveConfirmDialog`
+  // (`AccessTokensTab.credential-flows.unit.test.tsx`): this dialog's own header already claims it
+  // "mirrors Tier 1's RemoveConfirmDialog exactly" — it did not, for the accessible name. A native
+  // `<dialog>` gets no accessible name for free from an `<h2>` inside it; that link has to be
+  // stated via `aria-labelledby`.
+  it("the confirm dialog's accessible name comes from aria-labelledby pointing at its own <h2>", () => {
+    const store = otherCredentialStoreInfo("site-assistant");
+    const row = rowFixture(store, { name: "Site assistant model key" });
+    const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])] })} query="" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Site assistant model key" }));
+    const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
+    const titleId = dialog.getAttribute("aria-labelledby");
+    expect(titleId).toBeTruthy();
+    const title = container.querySelector(`#${titleId}`);
+    expect(title).not.toBeNull();
+    expect(title!.tagName).toBe("H2");
   });
 });
 
