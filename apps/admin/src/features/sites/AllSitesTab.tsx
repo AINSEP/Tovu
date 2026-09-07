@@ -81,16 +81,21 @@ function ActivateButton({
   onActivate: (name: string) => void;
   t: Translate;
 }) {
+  // "Serve after restart" reads identically on every non-serving card — a screen reader or a
+  // generic browser agent reading the accessibility tree (roles + accessible names, not this
+  // repo's own `agentHandle()`, whose `label` is a private `data-agent-label` attribute neither
+  // one can see) has no way to tell one card's button from another's without the site's own name
+  // in the accessible name. Same string already computed for `agentHandle`'s own `label`, reused
+  // here so the two channels never drift.
+  const ariaLabel = `Save ${site.name} as the site to serve after the next restart`;
   return (
     <button
       type="button"
       className="btn-secondary"
       disabled={resolveActivateDisabled({ switchingEnabled, activatingName, site, snapshot })}
       onClick={() => onActivate(site.name)}
-      {...agentHandle(handle, {
-        role: "button",
-        label: `Save ${site.name} as the site to serve after the next restart`,
-      })}
+      aria-label={ariaLabel}
+      {...agentHandle(handle, { role: "button", label: ariaLabel })}
     >
       {activatingName === site.name ? t("Saving…") : t("Serve after restart")}
     </button>

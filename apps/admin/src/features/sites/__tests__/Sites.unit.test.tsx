@@ -212,9 +212,12 @@ describe("Sites — the capability flag", () => {
     // The notice is page-level, so it is visible from BOTH views — the reason Create is inert has
     // to reach the operator who opened the create screen, not only the one looking at the grid.
     expect(screen.getByText(/Creating and activating sites is turned off on this deployment/)).toBeTruthy();
-    for (const button of screen.getAllByRole("button", { name: "Serve after restart" })) {
-      expect(button.hasAttribute("disabled")).toBe(true);
-    }
+    // Page-wide, per-site accessible names now (see `AllSitesTab.tsx`'s `ActivateButton`) — a
+    // generic browser agent reading the accessibility tree could not otherwise tell alpha's
+    // control from beta's, the same reason this suite names them below rather than indexing by
+    // DOM order (see the "leaves the served row's own Activate disabled" test further down).
+    expect(screen.getByRole("button", { name: "Save alpha as the site to serve after the next restart" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("disables Create on the create screen, and still says why there", () => {
@@ -226,10 +229,10 @@ describe("Sites — the capability flag", () => {
 
   it("leaves the served row's own Activate disabled even when switching is on", () => {
     renderSites();
-    const buttons = screen.getAllByRole("button", { name: "Serve after restart" });
-    // `alpha` is being served, `beta` is not.
-    expect(buttons[0].hasAttribute("disabled")).toBe(true);
-    expect(buttons[1].hasAttribute("disabled")).toBe(false);
+    // `alpha` is being served, `beta` is not — named directly rather than indexed by DOM order,
+    // now that each card's button carries its own site's name in its accessible name.
+    expect(screen.getByRole("button", { name: "Save alpha as the site to serve after the next restart" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" })).not.toBeDisabled();
   });
 });
 
