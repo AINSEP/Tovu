@@ -35,6 +35,20 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
  * prevents (a naive read-splice-write not only loses the first writer's edit, it can splice the
  * second writer's content into the WRONG byte offset if the first edit changed the document's length
  * anywhere before the second writer's target region).
+ *
+ * Relationship to `updatePost`'s `expectedVersion` (2026-09-07, fable arch audit §4.15): the audit
+ * read one `posts.version` column written under three different concurrency contracts and asked
+ * whether this store should take a client-stated `expectedVersion` too. It should not, and the
+ * difference is not an inconsistency. `updatePost`'s basis comes from a client that loaded the row
+ * in an earlier request and states what it believes it is editing, so the guard there is opt-in
+ * (a caller that sends nothing gets last-write-wins) and its rejection is a 409 the client must
+ * reconcile. Here there is no earlier request and no client to state anything: the basis is the
+ * version captured by the `read()` in THIS turn, which is what makes the guard mandatory rather
+ * than opt-in — `write()` without a prior `read()` throws rather than falling back to an
+ * unconditional overwrite. What the audit was actually pointing at — an arm writing this column
+ * with NO predicate at all — was `routes/pages/update.ts` (C02) and `features/seo`'s
+ * `setEntrySeoOverrides` (SEO-01); both now write under one, so every writer of `posts.version`
+ * is version-predicated. The two remaining mechanisms differ only in where the basis comes from.
  */
 
 export class PageNotFoundError extends Error {}
