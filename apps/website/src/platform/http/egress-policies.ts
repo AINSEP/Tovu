@@ -56,10 +56,12 @@ export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
  * feature's value to keep them so — `platform/**` is a Tier-2 library and may not depend on
  * `features/**` (`.dependency-cruiser.mjs`). Drift in either direction is harmless by construction:
  * the two caps only ever change WHICH of two rejections a caller gets, never whether an over-cap
- * response is accepted. A body clipped by this cap arrives flagged `bodyTruncated` (`client.ts`'s
- * `capResponse`), and the feature refuses a truncated response outright rather than persisting a
+ * response is accepted. A body whose BYTES this cap clips arrives flagged `bodyBytesTruncated`
+ * (`client.ts`'s `capResponse`), and the feature refuses that outright rather than persisting a
  * corrupt image — so neither an equal, larger, nor smaller value here can produce a silently
- * truncated asset.
+ * truncated asset. The byte half's own flag, not the shared `bodyTruncated`: that one is the OR of
+ * both body shapes, and this cap is crossed by the LOSSY text decode of any large image long before
+ * the bytes reach it (2026-09-06, MI-01).
  */
 const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
 
@@ -85,8 +87,8 @@ const MEDIA_IMPORT_MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
  *    here is `features/media-import`'s own {@link MEDIA_IMPORT_MAX_RESPONSE_BYTES} — slightly above
  *    what that feature will itself accept, so the feature's own cap is what a caller hits first and
  *    the policy cap only ever fires as a backstop. Either way the bytes are never silently
- *    truncated into a corrupt image: `client.ts` flags `bodyTruncated`, and the feature refuses a
- *    truncated response outright.
+ *    truncated into a corrupt image: `client.ts` flags `bodyBytesTruncated`, and the feature refuses
+ *    a byte-truncated response outright.
  * 3. **A file download is slower than an API call.** 10 s is a realistic timeout for a JSON endpoint
  *    and an unrealistic one for a multi-megabyte transfer from a cold CDN edge.
  *

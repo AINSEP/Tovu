@@ -288,15 +288,22 @@ function capBody(bodyText: string, maxBytes: number): string {
 }
 
 /**
- * Applies the effective policy cap to BOTH body shapes and reports whether either was actually
- * clipped (`types.ts`'s `bodyTruncated` doc for why that matters — a clipped binary body is a
- * corrupt file, not a smaller one).
+ * Applies the effective policy cap to BOTH body shapes and reports, PER SHAPE, whether that shape
+ * was actually clipped (`types.ts`'s `bodyTruncated`/`bodyBytesTruncated` docs for why that matters —
+ * a clipped binary body is a corrupt file, not a smaller one).
  *
  * `bodyText` and `bodyBytes` are capped independently, on purpose: they are capped in the units each
  * one is measured in (UTF-8 bytes of the decoded string vs. raw response bytes). For a text payload
  * those agree; for a binary payload `bodyText` is already lossy before any capping happens, so
- * making the two agree would mean picking one to be wrong. `truncated` is the OR of both, so a
- * consumer reading either shape learns the response was incomplete.
+ * making the two agree would mean picking one to be wrong.
+ *
+ * They are also REPORTED independently, and that is the load-bearing part (2026-09-06, MI-01). A
+ * lossy decode is strictly larger than the bytes it came from — each invalid byte becomes a 3-byte
+ * U+FFFD, so compressed image data expands about 1.8x — which means byte truncation implies text
+ * truncation but never the reverse. Reporting only the OR told a bytes-only consumer that a complete,
+ * well-under-cap image was truncated whenever its DECODE happened to cross the cap, a property of the
+ * image's byte distribution rather than its size. `bodyTruncated` stays the OR (no text consumer's
+ * behavior changes); `bodyBytesTruncated` is the byte half's own answer.
  *
  * @complexity O(n) in the response body length — one re-encode for the text half (already the
  *   pre-existing `capBody` cost), one O(1) `subarray` view for the byte half.
@@ -305,12 +312,18 @@ function capResponse(response: HttpResponse, maxBytes: number): HttpResponse {
   const bodyText = capBody(response.bodyText, maxBytes);
   const bytes = response.bodyBytes;
   const bytesOverCap = bytes !== undefined && bytes.byteLength > maxBytes;
-  const truncated = bodyText !== response.bodyText || bytesOverCap || response.bodyTruncated === true;
+  // A producer reporting only the coarse `bodyTruncated` names no shape, so it counts against BOTH
+  // halves: the alternative is answering "the bytes are fine" on the strength of a signal that never
+  // said so, which is precisely the silent corruption these flags exist to prevent.
+  const producerTruncated = response.bodyTruncated === true;
+  const bytesTruncated = bytesOverCap || (response.bodyBytesTruncated ?? producerTruncated);
   return {
     ...response,
     bodyText,
-    ...(bytes !== undefined ? { bodyBytes: bytesOverCap ? bytes.subarray(0, maxBytes) : bytes } : {}),
-    bodyTruncated: truncated,
+    ...(bytes !== undefined
+      ? { bodyBytes: bytesOverCap ? bytes.subarray(0, maxBytes) : bytes, bodyBytesTruncated: bytesTruncated }
+      : {}),
+    bodyTruncated: bodyText !== response.bodyText || bytesOverCap || producerTruncated,
   };
 }
 
@@ -333,7 +346,11 @@ async function sendWithPolicy(
   const response = await transport.requestPinned(boundedRequest, peer);
 
   const effectiveCap = Math.min(policy.maxResponseBytes, policy.maxDecompressedBytes);
-  const cappedResponse: HttpResponse = capResponse(response, effectiveCap);
+  // `url.href`, not `request.url`: the normalized form the guard actually resolved and pinned, so a
+  // consumer recording provenance records what was fetched rather than how it was spelled. This
+  // frame's own URL is the answer only when this frame is the one that returns — a followed redirect
+  // returns the deeper call's response untouched, which already carries the deeper hop's `finalUrl`.
+  const cappedResponse: HttpResponse = { ...capResponse(response, effectiveCap), finalUrl: url.href };
 
   if (!REDIRECT_STATUSES.has(cappedResponse.status) || redirectsFollowed >= policy.maxRedirects) {
     return cappedResponse;

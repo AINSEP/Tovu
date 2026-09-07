@@ -435,3 +435,73 @@ test("the default User-Agent survives a cross-origin redirect (not a sensitive h
   assert.ok(transport.calls[0].req.headers["User-Agent"]);
   assert.equal(transport.calls[1].req.headers["User-Agent"], transport.calls[0].req.headers["User-Agent"]);
 });
+
+// -------------------------------------------------------------------------------------------
+// MI-02 (2026-09-06): `HttpResponse` carried no URL, so a caller following a redirect had no way
+// to learn which hop actually served the bytes. `features/media-import` records that URL as an
+// imported asset's provenance and derives the stored filename from it, and was recording the URL
+// the assistant asked for instead. `finalUrl` is the hop that answered — every one of these hops
+// has already been through the full per-hop guard (scheme, DNS, address class, re-pinning).
+// -------------------------------------------------------------------------------------------
+
+test("finalUrl names the hop that actually served the bytes, not the URL the caller asked for", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://1.1.1.1/signed/final.png" }, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "the image" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/start.png" }));
+
+  assert.equal(response.status, 200);
+  assert.equal(response.bodyText, "the image", "sanity: this is the redirected response, not the 302");
+  assert.equal(response.finalUrl, "https://1.1.1.1/signed/final.png", "recording the requested URL here is the whole defect");
+  assert.equal(transport.calls.length, 2);
+});
+
+test("finalUrl survives more than one hop — it is the LAST URL, not the second one", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://1.1.1.1/hop2" }, bodyText: "" },
+    { status: 302, headers: { location: "https://8.8.4.4/hop3.png" }, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "the image" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/hop1" }));
+
+  assert.equal(transport.calls.length, 3, "sanity: all three hops were made, so 'last' is a meaningful claim");
+  assert.equal(response.finalUrl, "https://8.8.4.4/hop3.png");
+});
+
+test("finalUrl on a response with no redirect at all is the requested URL, so a consumer never has to special-case its absence", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/only.png" }));
+
+  assert.equal(response.finalUrl, "https://8.8.8.8/only.png");
+});
+
+test("a redirect that was NOT followed reports the hop that returned the 3xx, never the Location it pointed at", async () => {
+  const transport = new ScriptedTransport([{ status: 302, headers: { location: "https://1.1.1.1/never-fetched" }, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy({ maxRedirects: 0 }) });
+
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/start" }));
+
+  assert.equal(response.status, 302);
+  assert.equal(transport.calls.length, 1);
+  assert.equal(
+    response.finalUrl,
+    "https://8.8.8.8/start",
+    "the bytes in hand came from the URL that answered; naming an unfetched Location as their source would be a fabricated provenance"
+  );
+});
+
+test("a 3xx with no Location header reports its own URL rather than stalling on an absent hop", async () => {
+  const transport = new ScriptedTransport([{ status: 302, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/no-location" }));
+
+  assert.equal(response.finalUrl, "https://8.8.8.8/no-location");
+});

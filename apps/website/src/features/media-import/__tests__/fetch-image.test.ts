@@ -451,3 +451,87 @@ test("a URL with no usable last segment still produces a real name", () => {
 test("a percent-encoded human name decodes before sanitizing", () => {
   assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/red%20fox%20dawn.png"), "image/png"), "red-fox-dawn.png");
 });
+
+// ---------------------------------------------------------------------------
+// 9. MI-01 — a complete image must not be rejected because its TEXT half was clipped
+//
+// `fetchImage` reads `bodyBytes` and never `bodyText`, so text truncation says nothing about
+// whether the image it is about to store is whole. The response shapes below are exactly what
+// `platform/http`'s `capResponse` now emits (pinned on that side by
+// `platform/http/__tests__/body-bytes.test.ts`) — this file's job is that this consumer reads the
+// byte half's flag and only the byte half's flag.
+// ---------------------------------------------------------------------------
+
+test("an image whose BYTES are complete is imported even though the response's lossy text half was clipped — the false 'exceeds the import limit' rejection", async () => {
+  // A 7-10 MiB PNG against MEDIA_IMPORT_EGRESS_POLICY's 12 MiB cap, in miniature: compressed image
+  // data decodes ~1.8x larger through UTF-8, so the text half trips a cap the bytes never reach.
+  const client = new FakeHttpClient([imageResponse(REAL_PNG, { bodyTruncated: true, bodyBytesTruncated: false })]);
+
+  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+
+  assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG, "the whole image was there and must be imported whole");
+  assert.equal(sha256(fetched.bytes), sha256(REAL_PNG), "and byte-identical — not a text round trip that happened to succeed");
+  assert.equal(fetched.contentType, "image/png");
+});
+
+test("bodyBytesTruncated:true is still refused with the exact import-limit message, even when the text half reports itself whole", async () => {
+  const clipped = REAL_PNG.subarray(0, 200);
+  const client = new FakeHttpClient([imageResponse(clipped, { bodyTruncated: false, bodyBytesTruncated: true })]);
+
+  await assert.rejects(
+    () => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }),
+    (error: unknown) => {
+      assert.ok(error instanceof MediaImportValidationError, `expected MediaImportValidationError, got ${String(error)}`);
+      assert.equal(
+        (error as Error).message,
+        `the image at '${URL_UNDER_TEST}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved — a partially downloaded image would be a corrupt file, not a smaller one.`
+      );
+      return true;
+    }
+  );
+  assert.equal(client.calls.length, 1, "the rejection is about the response, so the request itself still happened exactly once");
+});
+
+test("validateImageBytes' third argument is the BYTE half's verdict — a whole PNG flagged there is still rejected", () => {
+  assert.throws(
+    () => validateImageBytes(new URL(URL_UNDER_TEST), REAL_PNG, true),
+    (error: unknown) => {
+      assert.ok(error instanceof MediaImportValidationError);
+      assert.match((error as Error).message, /corrupt file, not a smaller one/);
+      return true;
+    }
+  );
+  assert.equal(validateImageBytes(new URL(URL_UNDER_TEST), REAL_PNG, false), "image/png", "and a whole PNG NOT flagged there sniffs normally");
+});
+
+// ---------------------------------------------------------------------------
+// 10. MI-02 — the URL recorded is where the bytes came from, not where they were asked for
+// ---------------------------------------------------------------------------
+
+test("after a redirect the recorded URL is the hop that served the bytes, not the URL the assistant supplied", async () => {
+  const finalUrl = "https://files.example.net/signed/abc123.png";
+  const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl })]);
+
+  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+
+  assert.equal(fetched.url.href, finalUrl, "provenance is the point of this field");
+  assert.equal(client.calls[0]!.url, URL_UNDER_TEST, "the request still goes to what was asked for — only the RECORD changes");
+  assert.equal(buildImportFilename(fetched.url, fetched.contentType), "abc123.png", "and the default filename follows the bytes, not the request");
+});
+
+test("an absent finalUrl falls back to the requested URL — a client that does not report the final hop must not blank the provenance", async () => {
+  const noFinalUrl: HttpResponse = { status: 200, headers: {}, bodyText: "", bodyBytes: REAL_PNG };
+
+  const fetched = await fetchImage({ httpClient: new FakeHttpClient([noFinalUrl]) }, { url: URL_UNDER_TEST });
+
+  assert.equal(fetched.url.href, URL_UNDER_TEST);
+});
+
+test("a finalUrl that does not parse is ignored rather than crashing an otherwise-good import", async () => {
+  const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl: "not a url at all" })]);
+
+  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+
+  assert.equal(fetched.url.href, URL_UNDER_TEST, "falling back beats throwing: the bytes are fine, only the label was unusable");
+  assert.deepStrictEqual(Buffer.from(fetched.bytes), REAL_PNG);
+});

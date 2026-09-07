@@ -376,3 +376,28 @@ test("the ToolPolicy layer is a pass-through 'allow' — enforcement is this dom
   const registration = wired("media_import_from_url", deps);
   assert.equal(registration.policy.authorize({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, tool: registration.descriptor, input: {} }), "allow");
 });
+
+// ---------------------------------------------------------------------------
+// MI-02 — the declared contract for `sourceUrl` (this module's `ImportedMediaView` doc: "after
+// redirect resolution and normalization") reaching the actual emitted value.
+// ---------------------------------------------------------------------------
+
+test("sourceUrl records the hop that served the bytes after a redirect, which is what its contract has always claimed", async () => {
+  const redirectedTo = "https://files.example.net/signed/fox-final.png";
+  const { deps, transformDefinitionRepo } = fakeRouteDeps({ responses: [imageResponse(REAL_PNG, { finalUrl: redirectedTo })] });
+  await seedPublicTransform(transformDefinitionRepo);
+
+  const out = (await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL }))) as ImportResult;
+
+  assert.equal(out.media.sourceUrl, redirectedTo, "recording SOURCE_URL here would make the transcript name a URL that served nothing");
+  assert.notEqual(out.media.sourceUrl, SOURCE_URL, "and the two really are different, so this assertion is not passing by coincidence");
+});
+
+test("an import with no redirect still records the requested URL — splitting the field's meaning must not blank the ordinary case", async () => {
+  const { deps, transformDefinitionRepo } = fakeRouteDeps();
+  await seedPublicTransform(transformDefinitionRepo);
+
+  const out = (await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL }))) as ImportResult;
+
+  assert.equal(out.media.sourceUrl, SOURCE_URL);
+});

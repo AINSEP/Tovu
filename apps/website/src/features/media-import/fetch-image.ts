@@ -47,11 +47,14 @@ import { sniffContentType, DEFAULT_MAX_UPLOAD_BYTES, type SniffedContentType } f
  *   the actual payload, and only the still-image types in {@link IMPORTABLE_CONTENT_TYPES} are
  *   accepted. A server that answers `image/png` and returns HTML, a PDF, or an MP4 is rejected.
  * - **Bounded, with no silent truncation.** {@link MEDIA_IMPORT_MAX_BYTES} caps the payload, and a
- *   response the egress policy itself clipped (`HttpResponse.bodyTruncated`) is refused outright
- *   rather than stored. That distinction is the whole point: a truncated image is not a smaller
- *   image, it is a corrupt file that would still hash, still write a blob, still create a media row,
- *   and still render as nothing — this repo has already shipped one class of "row exists, bytes
- *   don't" bug and has no interest in a second.
+ *   response whose BYTES the egress policy clipped (`HttpResponse.bodyBytesTruncated`) is refused
+ *   outright rather than stored. That distinction is the whole point: a truncated image is not a
+ *   smaller image, it is a corrupt file that would still hash, still write a blob, still create a
+ *   media row, and still render as nothing — this repo has already shipped one class of "row exists,
+ *   bytes don't" bug and has no interest in a second. The BYTE half's flag specifically, not the
+ *   shared `bodyTruncated` (2026-09-06, MI-01): that one is the OR of both body shapes, and this
+ *   module never reads `bodyText`, so honoring it refused complete images whose lossy UTF-8 decode
+ *   crossed the policy cap the bytes themselves never reached.
  *
  * Architectural role: `features/media-import` domain logic. Depends on `features/media` (for
  * `sniffContentType` and the upload cap it must agree with) and on `platform/http`'s type-only
@@ -119,7 +122,15 @@ export interface FetchImageDeps {
 export interface FetchedImage {
   readonly bytes: Uint8Array;
   readonly contentType: string;
-  /** The URL as parsed and normalized — the value to record/report, rather than the raw input. */
+  /**
+   * The URL the bytes actually came from — the last hop after redirect resolution, parsed and
+   * normalized. The value to record/report, rather than the raw input.
+   *
+   * The requested URL only when nothing redirected, or when the client reports no final hop
+   * (2026-09-06, MI-02 — before that this was always the requested URL, so a CDN link that
+   * redirected recorded a URL that served nothing). Both `tool-registrations.ts`'s `sourceUrl` and
+   * {@link buildImportFilename}'s default name derive from it, which is why it follows the bytes.
+   */
   readonly url: URL;
 }
 
@@ -217,12 +228,16 @@ function buildStatusError(url: URL, status: number): MediaImportValidationError 
  * Order matters and is deliberate: truncation is checked BEFORE sniffing, because a clipped image
  * still carries valid magic bytes in its first few bytes and would sniff as a perfectly good PNG.
  *
- * @throws {MediaImportValidationError} truncated, empty, over {@link MEDIA_IMPORT_MAX_BYTES}, or not
- *   one of {@link IMPORTABLE_CONTENT_TYPES}.
+ * `bytesTruncated` is a verdict about THESE bytes and nothing else — `HttpResponse.bodyBytesTruncated`,
+ * never the OR-of-both-shapes `bodyTruncated` (2026-09-06, MI-01). Passing the latter refused whole
+ * images because a lossy UTF-8 decode this module never reads had crossed the policy cap.
+ *
+ * @throws {MediaImportValidationError} bytes truncated, empty, over {@link MEDIA_IMPORT_MAX_BYTES},
+ *   or not one of {@link IMPORTABLE_CONTENT_TYPES}.
  * @complexity O(1) beyond `sniffContentType`'s own fixed-window magic-byte scan.
  */
-export function validateImageBytes(url: URL, bytes: Uint8Array, truncated: boolean): string {
-  if (truncated || bytes.byteLength > MEDIA_IMPORT_MAX_BYTES) {
+export function validateImageBytes(url: URL, bytes: Uint8Array, bytesTruncated: boolean): string {
+  if (bytesTruncated || bytes.byteLength > MEDIA_IMPORT_MAX_BYTES) {
     throw new MediaImportValidationError(
       `the image at '${url.href}' exceeds the ${MEDIA_IMPORT_MAX_BYTES}-byte import limit. Nothing was saved — a partially downloaded image would be a corrupt file, not a smaller one.`
     );
@@ -247,6 +262,10 @@ export function validateImageBytes(url: URL, bytes: Uint8Array, truncated: boole
  * remote-controlled metadata about remote-controlled bytes, and trusting it is precisely the gap
  * `routes/admin/media/upload.ts` and `media_generate_asset` both already close by sniffing after the
  * fact. {@link validateImageBytes} decides the type from the payload itself.
+ *
+ * The returned `url` is the hop that SERVED the bytes, not the one that was asked for — see
+ * {@link FetchedImage.url} and {@link resolveSourceUrl}. Validation errors still name the requested
+ * URL, which is the one a caller can act on.
  *
  * @throws {MediaImportValidationError} for a bad URL, a non-200 status, or a body that fails
  *   {@link validateImageBytes}. A transport-level failure (DNS, timeout, or an `EgressPolicy`
@@ -281,6 +300,32 @@ export async function fetchImage(deps: FetchImageDeps, input: { url: string }): 
     );
   }
 
-  const contentType = validateImageBytes(url, bytes, response.bodyTruncated === true);
-  return { bytes, contentType, url };
+  // The BYTE half's own flag. The `??` fallback is for a client that reports only the coarse
+  // `bodyTruncated`: that names no shape, so it still has to count as "these bytes may be clipped".
+  // It cannot fire in production — `client.ts`'s `capResponse` always sets `bodyBytesTruncated`
+  // whenever it sets `bodyBytes`, and a response with no `bodyBytes` was already refused above.
+  const bytesTruncated = response.bodyBytesTruncated ?? response.bodyTruncated === true;
+
+  const contentType = validateImageBytes(url, bytes, bytesTruncated);
+  return { bytes, contentType, url: resolveSourceUrl(url, response.finalUrl) };
+}
+
+/**
+ * The URL to record as an import's source: the final hop the client reports, when it reports one that
+ * parses, and otherwise the URL that was requested.
+ *
+ * A client predating `HttpResponse.finalUrl` reports nothing, and a value that does not parse can
+ * only come from a hand-written double — in both cases the requested URL is a true, if less precise,
+ * answer. Neither blanking the field nor throwing is right: the bytes are good, and only their LABEL
+ * was unavailable.
+ *
+ * @complexity O(n) in `reported.length`, once.
+ */
+function resolveSourceUrl(requested: URL, reported: string | undefined): URL {
+  if (reported === undefined) return requested;
+  try {
+    return new URL(reported);
+  } catch {
+    return requested;
+  }
 }
