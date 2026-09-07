@@ -12,7 +12,7 @@ import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/fea
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import type { EgressPolicy } from "#src/platform/http/index";
+import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
@@ -786,17 +786,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `features/custom-credentials`'s two agent tools need a guarded `HttpClientPort` — see
     // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
     // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps
-    // this hermetic composition root's own tests exercising the real SSRF-guard/host-binding path,
-    // same identical policy shape `server/deps.ts` uses for its own instance.
-    customCredentialsHttpClient: createDefaultHttpClient({
-      allowedSchemes: ["https"],
-      denyPrivateAddresses: true,
-      devHostAllowlist: [],
-      maxRedirects: 0,
-      connectTimeoutMs: 10_000,
-      maxResponseBytes: 1_000_000,
-      maxDecompressedBytes: 1_000_000,
-    } satisfies EgressPolicy),
+    // this hermetic composition root's own tests exercising the real SSRF-guard/host-binding path.
+    // `SINGLE_HOP_HTTPS_EGRESS_POLICY`: the SAME shared policy `server/deps.ts` uses for its own
+    // instance — see that module's own export for why this used to be a third hand-copied literal.
+    customCredentialsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is
