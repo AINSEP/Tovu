@@ -68,8 +68,20 @@ export interface SettlementGeneration {
 
 export function useSettlementGeneration(): SettlementGeneration {
   const ref = useRef(0);
-  return {
-    next: () => (ref.current += 1),
-    isCurrent: (generation: number) => ref.current === generation,
-  };
+  // The returned object's IDENTITY must be stable across renders, not just the counter it closes
+  // over: several adopting call sites (`use-access-tokens.hooks.ts`'s `reloadAllStores`, `use-sites
+  // .hooks.ts`'s `activate`) are themselves wrapped in a `useCallback` that other code relies on
+  // keeping a stable identity (e.g. `triggerReload`, so `useContentRefreshSubscription` doesn't
+  // resubscribe on every render) — an object literal rebuilt every render would force either an
+  // ESLint exhaustive-deps addition that defeats that memoization, or an intentional lint
+  // suppression to omit it. Built once via a lazily-initialized ref, the same "stable handle over a
+  // mutable ref" shape `useState`'s own setter uses.
+  const apiRef = useRef<SettlementGeneration | undefined>(undefined);
+  if (!apiRef.current) {
+    apiRef.current = {
+      next: () => (ref.current += 1),
+      isCurrent: (generation: number) => ref.current === generation,
+    };
+  }
+  return apiRef.current;
 }

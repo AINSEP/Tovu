@@ -633,7 +633,7 @@ describe("useThemes — download (non-race paths)", () => {
     await waitFor(() => expect(marketplaceResolvers).toHaveLength(1));
 
     // A newer download starts while alpha is still awaiting its own loadMarketplace() — this bumps
-    // downloadGenerationRef past alpha's captured generation.
+    // downloadSettlement past alpha's captured generation.
     act(() => {
       void result.current.download!("beta");
     });

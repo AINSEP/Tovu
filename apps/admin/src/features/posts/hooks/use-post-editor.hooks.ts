@@ -19,6 +19,7 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { MediaImage } from "@/lib/media-image-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
@@ -507,14 +508,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Pending-content preview (2026-08-12, moved from `PostPreview` — see `PostEditorController
   // .previewFormRef`'s own doc). The hidden form's DOM node; `PostPreview` attaches it via `ref`.
   const previewFormRef = useRef<HTMLFormElement>(null);
-  // Stale-settlement guard for `save()` (2026-09-05 sweep) — neither Save nor Publish disables
-  // while a request is in flight (`PostEditorHeader`, `PostEditor.tsx`), so an operator can click
-  // Save then Publish (or double-click either) before the first request settles. A `useRef`, not
-  // `useState`: two `save()` calls issued in the same synchronous tick must both observe the
-  // INCREMENT the other one just made, which only a synchronous ref read/write guarantees — a
-  // `useState` counter would have both calls read the same pre-commit value, same reasoning
-  // `use-static-publish.hooks.ts`'s `publishingRef` documents for itself.
-  const saveGenerationRef = useRef(0);
+  // Stale-settlement guard for `save()` (2026-09-05 sweep, extracted into `useSettlementGeneration`
+  // 2026-09-06) — neither Save nor Publish disables while a request is in flight (`PostEditorHeader`,
+  // `PostEditor.tsx`), so an operator can click Save then Publish (or double-click either) before
+  // the first request settles.
+  const settlement = useSettlementGeneration();
 
   // Standing-draft autosave (2026-09-06) — see `use-standing-draft-autosave.hooks.ts`'s own header
   // for the ordering guarantee `clearStandingDraft` relies on. `postId` (the URL param) is very
@@ -817,11 +815,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   async function runSave(statusOverride: "draft" | "published" | undefined, expectedVersion: number | undefined) {
     if (!editor) return;
-    // Claim this call's generation BEFORE the first `await` — see `saveGenerationRef`'s own doc for
-    // why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a double-click,
-    // or Save then Publish before either disables) each see the other's claim.
-    saveGenerationRef.current += 1;
-    const generation = saveGenerationRef.current;
+    // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
+    // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
+    // double-click, or Save then Publish before either disables) each see the other's claim.
+    const generation = settlement.next();
     setMessage(null);
     setError(null);
     setSaveConflict(null);
@@ -838,7 +835,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
       // "last-to-settle wins" rather than "last-clicked wins").
-      if (saveGenerationRef.current !== generation) return;
+      if (!settlement.isCurrent(generation)) return;
       setPost(saved);
       setStatus(nextStatus);
       setMessage(formatSaveSuccessMessage(statusOverride, saved.version));
@@ -848,7 +845,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // of what "Save succeeded" means to the operator.
       void autosave.clearStandingDraft();
     } catch (e) {
-      if (saveGenerationRef.current !== generation) return;
+      if (!settlement.isCurrent(generation)) return;
       // The version conflict is NOT folded into the generic error line. The two need opposite
       // reactions from the operator (a slug collision or a network blip: fix it and press Save
       // again; this: pressing Save again erases somebody's document), and the whole point of the

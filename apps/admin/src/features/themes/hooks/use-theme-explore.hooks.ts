@@ -4,6 +4,7 @@ import { resolveThemeLayout } from "@tovu/theme-layout";
 
 import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type {
@@ -523,18 +524,15 @@ export function useThemeExplore(
   const [renameDraft, setRenameDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [pageRenameWarning, setPageRenameWarning] = useState<{ path: string; name: string } | null>(null);
-  // Monotonic per-call id (same shape as `use-themes.hooks.ts`'s `activateGenerationRef`/
-  // `downloadGenerationRef`, itself matching `use-sites.hooks.ts`'s `activateGenerationRef` and
-  // `use-access-tokens.hooks.ts`'s `reloadGenerationRef`): `commitRename`/`confirmPageRename` both
-  // funnel into `performRename` with no guard against a SECOND rename starting (on a different file)
-  // before the first settles, and network completion order does not have to match click order.
-  // Minted synchronously at the top of `performRename` so two renames started back to back always
-  // mint in the order they started even though both are async — a stale settlement (checked before
-  // every state write below, not just the success path, since an out-of-order FAILURE would
-  // otherwise resurrect a stale error over a newer rename's real outcome — `error` here is one shared
-  // field across every action in this hook, the same shape `use-themes.hooks.ts`'s fix documents) is
-  // dropped instead of overwriting whatever the latest rename already produced.
-  const renameGenerationRef = useRef(0);
+  // Monotonic per-call id (extracted into `useSettlementGeneration` 2026-09-06, same shape as
+  // `use-themes.hooks.ts`'s own `activateSettlement`/`downloadSettlement`): `commitRename`/
+  // `confirmPageRename` both funnel into `performRename` with no guard against a SECOND rename
+  // starting (on a different file) before the first settles, and network completion order does not
+  // have to match click order. A stale settlement (checked before every state write below, not just
+  // the success path, since an out-of-order FAILURE would otherwise resurrect a stale error over a
+  // newer rename's real outcome — `error` here is one shared field across every action in this hook)
+  // is dropped instead of overwriting whatever the latest rename already produced.
+  const renameSettlement = useSettlementGeneration();
   const [copyingPath, setCopyingPath] = useState<string | null>(null);
   // Check-then-set in-flight guard for `copyFile` (2026-09-05 fix, same shape and same reason
   // `use-static-publish.hooks.ts`'s `publishingRef`/`use-sites.hooks.ts`'s `creatingRef` document):
@@ -672,7 +670,7 @@ export function useThemeExplore(
    */
   const performRename = useCallback(
     async (sourcePath: string, name: string) => {
-      const generation = ++renameGenerationRef.current;
+      const generation = renameSettlement.next();
       setRenaming(true);
       setError(null);
       try {
@@ -682,15 +680,15 @@ export function useThemeExplore(
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
         // whichever rename happens to settle LAST win regardless of which file was actually
-        // renamed last. See `renameGenerationRef`'s doc comment above.
-        if (renameGenerationRef.current !== generation) return;
+        // renamed last. See `renameSettlement`'s doc comment above.
+        if (!renameSettlement.isCurrent(generation)) return;
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(nextSelected);
         setNotice(`Renamed to ${r.path}`);
         setPreviewNonce((n) => n + 1);
       } catch (e) {
-        if (renameGenerationRef.current !== generation) return;
+        if (!renameSettlement.isCurrent(generation)) return;
         setError(
           e instanceof ApiError && e.code === "NAME_TAKEN"
             ? `'${name}' already exists in this theme`
@@ -699,13 +697,13 @@ export function useThemeExplore(
               : "failed to rename file"
         );
       } finally {
-        if (renameGenerationRef.current !== generation) return;
+        if (!renameSettlement.isCurrent(generation)) return;
         setRenaming(false);
         setRenamingPath(null);
         setRenameDraft("");
       }
     },
-    [themeId, selected, port]
+    [themeId, selected, port, renameSettlement]
   );
 
   const startRename = useCallback(

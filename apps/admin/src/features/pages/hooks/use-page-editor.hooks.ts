@@ -4,6 +4,7 @@ import type { AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
@@ -211,7 +212,7 @@ function computeContentDirty(
  *  complexity-ceiling reason {@link computeContentDirty} above documents (2026-09-05
  *  stale-settlement sweep: adding the generation guard pushed `save` over the gate). Called only
  *  once `save` has confirmed this call's generation is still current — see `save`'s own
- *  `saveGenerationRef` doc — so every branch here runs unconditionally once reached. */
+ *  `settlement` doc — so every branch here runs unconditionally once reached. */
 function applySavedPage(
   updated: AdminPost,
   form: { templateChoice: string | null; html: string; nextStatus?: "draft" | "published" },
@@ -290,17 +291,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // Stale-settlement guard for `save()` (2026-09-05 sweep) — `saving` (state) already disables both
-  // the Save and Publish buttons, but that alone cannot stop an overlapping second call (a same-tick
-  // double-invocation, or any caller reaching `save()` directly rather than through those buttons)
-  // from applying a now-stale response after a more-recent call already settled: whichever
-  // `port.updatePost()` call settled last would win, regardless of which one was issued last. A
-  // `useRef`, not `useState`, because two calls issued in the same synchronous tick must each
-  // observe the increment the other one just made, which only a synchronous read/write guarantees —
-  // same reasoning `use-static-publish.hooks.ts`'s `publishingRef` documents for itself. Mirrors
-  // `use-post-editor.hooks.ts`'s `saveGenerationRef` (commit `42c6a534`), the reference this pattern
-  // was modelled on.
-  const saveGenerationRef = useRef(0);
+  // Stale-settlement guard for `save()` (2026-09-05 sweep, extracted into `useSettlementGeneration`
+  // 2026-09-06) — `saving` (state) already disables both the Save and Publish buttons, but that
+  // alone cannot stop an overlapping second call (a same-tick double-invocation, or any caller
+  // reaching `save()` directly rather than through those buttons) from applying a now-stale
+  // response after a more-recent call already settled: whichever `port.updatePost()` call settled
+  // last would win, regardless of which one was issued last. Mirrors `use-post-editor.hooks.ts`'s
+  // own `settlement` (commit `42c6a534`), the reference this pattern was modelled on.
+  const settlement = useSettlementGeneration();
 
   // Standing-draft autosave (2026-09-06) — see `use-standing-draft-autosave.hooks.ts`'s own header
   // for the ordering guarantee `clearStandingDraft` relies on. `entryId`/`enabled` both key off
@@ -424,11 +422,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // and renders no Save/Publish button until then — but the guard keeps `page.id` below sound
       // without a non-null assertion, and mirrors `usePostEditor`'s identical `remove` guard.
       if (!page) return;
-      // Claim this call's generation BEFORE the first `await` — see `saveGenerationRef`'s own doc
-      // for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each see
-      // the other's claim.
-      saveGenerationRef.current += 1;
-      const generation = saveGenerationRef.current;
+      // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
+      // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
+      // see the other's claim.
+      const generation = settlement.next();
       setSaving(true);
       setError(null);
       setMessage(null);
@@ -461,7 +458,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
-        if (saveGenerationRef.current !== generation) return;
+        if (!settlement.isCurrent(generation)) return;
         applySavedPage(
           updated,
           { templateChoice, html, nextStatus },
@@ -475,13 +472,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // not part of what "Save succeeded" means to the operator.
         void autosave.clearStandingDraft();
       } catch (e) {
-        if (saveGenerationRef.current !== generation) return;
+        if (!settlement.isCurrent(generation)) return;
         setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
       } finally {
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
         // briefly re-enable Save/Publish while a newer call is still in flight.
-        if (saveGenerationRef.current === generation) setSaving(false);
+        if (settlement.isCurrent(generation)) setSaving(false);
       }
     },
     [page, html, title, slug, status, templateChoice, locale, port, t, autosave.clearStandingDraft]

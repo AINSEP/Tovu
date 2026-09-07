@@ -12,6 +12,7 @@ import {
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import {
   t as defaultT,
@@ -372,15 +373,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   // happened at all" tells the difference between "no reload has run yet" and "the last reload
   // succeeded").
   const [hasReloadedOnce, setHasReloadedOnce] = useState(false);
-  // Monotonic per-attempt id (same shape as `use-widget-region-editor.hooks.ts`'s
-  // `loadRequestIdRef`/`use-static-publish.hooks.ts`'s `previewGenerationRef`): a content-refresh
-  // notification can fire again while a previous reload is still in flight (2026-09-05 Gemini audit,
-  // verified: `useContentRefreshSubscription` invokes `triggerReload` — a fresh, ungated
-  // `reloadAllStores()` call every time — with no de-dupe of overlapping reloads), and network
-  // completion order does not have to match start order. Minted synchronously at the top of each
-  // attempt, before the first `await`, so two reloads started back to back always mint in the order
-  // they started even though both are `async`.
-  const reloadGenerationRef = useRef(0);
+  // Monotonic per-attempt id (extracted into `useSettlementGeneration` 2026-09-06; see that hook's
+  // doc for why `use-static-publish.hooks.ts`'s own `previewGenerationRef` did NOT adopt it): a
+  // content-refresh notification can fire again while a previous reload is still in flight
+  // (2026-09-05 Gemini audit, verified: `useContentRefreshSubscription` invokes `triggerReload` — a
+  // fresh, ungated `reloadAllStores()` call every time — with no de-dupe of overlapping reloads),
+  // and network completion order does not have to match start order.
+  const settlement = useSettlementGeneration();
 
   /**
    * Re-reads all three stores directly, bypassing `useFetchQuery`'s cache — an out-of-band write
@@ -405,10 +404,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    * `reloadError` via {@link firstRejectionReason} — no store's failure is silently swallowed, it
    * just no longer holds the other two hostage.
    *
-   * Guarded by `reloadGenerationRef` (2026-09-05 Gemini audit, CONFIRMED): with no ordering guard, an
-   * older reload that happens to resolve AFTER a newer one already committed its results would
-   * overwrite the newer, correct data with its own now-stale snapshot. Every commit below (`if
-   * (reloadGenerationRef.current !== requestGeneration) return;`) is skipped whenever a newer
+   * Guarded by `settlement` (2026-09-05 Gemini audit, CONFIRMED): with no ordering guard, an older
+   * reload that happens to resolve AFTER a newer one already committed its results would overwrite
+   * the newer, correct data with its own now-stale snapshot. Every commit below (`if
+   * (!settlement.isCurrent(requestGeneration)) return;`) is skipped whenever a newer
    * `reloadAllStores()` call has started since this one began.
    *
    * No longer wrapped in `try`/`catch` (the per-store settlement above is what used to need it) —
@@ -417,9 +416,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    * can now throw: `Promise.allSettled` itself never rejects.
    */
   const reloadAllStores = useCallback(async () => {
-    const requestGeneration = ++reloadGenerationRef.current;
+    const requestGeneration = settlement.next();
     const results = await Promise.allSettled([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
-    if (reloadGenerationRef.current !== requestGeneration) return; // superseded by a newer reload
+    if (!settlement.isCurrent(requestGeneration)) return; // superseded by a newer reload
     const [publishResult, sourceControlResult, customResult] = results;
     if (publishResult.status === "fulfilled") setPublishCredentials(publishResult.value.credentials);
     if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);

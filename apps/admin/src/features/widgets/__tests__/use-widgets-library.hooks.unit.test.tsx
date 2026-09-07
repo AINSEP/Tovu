@@ -123,7 +123,7 @@ describe("useWidgetsLibrary — content refresh bus", () => {
  * widget's first (`force: false`) attempt, before any dialog is even showing, so two rapid deletes
  * race two independent `WIDGETS_REFERENCED` 409s. Not just cosmetic: confirming the dialog
  * force-purges whatever widget `pendingForcePurge` currently names, so the wrong widget could be
- * destroyed. See `purge`'s `purgeGenerationRef` doc comment.
+ * destroyed. See `purge`'s `purgeSettlement` doc comment.
  */
 describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
   const WIDGET_A: AdminWidget = { ...WIDGET, id: "wA", slug: "a", title: "A", status: "trash" };

@@ -719,7 +719,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
  * response after a faster, more-recent call already settled: whichever `port.updatePost()` resolved
  * LAST used to win, regardless of which one was issued last. Reproduced here by holding the first
  * `save()` call's write open past the second's completion — the exact "last-to-settle beats
- * last-clicked" shape `use-post-editor.hooks.ts`'s own `saveGenerationRef` fix (commit `42c6a534`)
+ * last-clicked" shape `use-post-editor.hooks.ts`'s own `settlement` fix (commit `42c6a534`)
  * regression-tests, mirrored onto this hook's own `save(nextStatus?)` signature.
  */
 describe("save() stale-settlement guard (2026-09-05 sweep)", () => {

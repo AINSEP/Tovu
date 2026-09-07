@@ -4,6 +4,7 @@ import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, ty
 import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../sites-i18n";
 import { KEYS, SITES_RESOURCE, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
@@ -123,11 +124,10 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // failure) is never refused.
   const creatingRef = useRef(false);
 
-  // Monotonic per-call id (same shape as `use-access-tokens.hooks.ts`'s `reloadGenerationRef`): two
-  // rapid Activate clicks on different rows race two independent requests, and network completion
-  // order does not have to match click order. Minted synchronously at the top of each call so two
-  // activates started back to back always mint in the order they started even though both are async.
-  const activateGenerationRef = useRef(0);
+  // Monotonic per-call id (extracted into `useSettlementGeneration` 2026-09-06, same shape as
+  // `use-access-tokens.hooks.ts`'s own `settlement`): two rapid Activate clicks on different rows
+  // race two independent requests, and network completion order does not have to match click order.
+  const activateSettlement = useSettlementGeneration();
 
   const nameErrorKey = siteNameErrorKey(createName);
 
@@ -170,7 +170,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
 
   const activate = useCallback(
     (name: string) => {
-      const generation = ++activateGenerationRef.current;
+      const generation = activateSettlement.next();
       // Clears a stale Create failure so it cannot mask THIS write's own outcome below — see
       // `createSite`'s identical reset of `activateMutation` above.
       createMutation.reset();
@@ -182,16 +182,16 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
           // Superseded by a newer activate call started after this one — that later call owns
           // `activation`/`activatingName` now, and applying this stale result would let whichever
           // request happens to settle LAST win regardless of which row was actually clicked last.
-          if (activateGenerationRef.current !== generation) return;
+          if (!activateSettlement.isCurrent(generation)) return;
           setActivation(result);
         })
         .catch(() => {})
         .finally(() => {
-          if (activateGenerationRef.current !== generation) return;
+          if (!activateSettlement.isCurrent(generation)) return;
           setActivatingName(null);
         });
     },
-    [activateMutation, createMutation],
+    [activateMutation, createMutation, activateSettlement],
   );
 
   const view = readSnapshot(list.data);

@@ -68,6 +68,15 @@ describe("useSettlementGeneration — isCurrent", () => {
   });
 });
 
+describe("useSettlementGeneration — referential stability", () => {
+  it("returns the SAME object across rerenders — adopting call sites wrap it in a useCallback whose own identity must stay stable", () => {
+    const { result, rerender } = renderHook(() => useSettlementGeneration());
+    const first = result.current;
+    rerender();
+    expect(result.current).toBe(first);
+  });
+});
+
 describe("useSettlementGeneration — two hook instances are independent", () => {
   it("never share generations across separate useSettlementGeneration() calls", () => {
     const a = renderHook(() => useSettlementGeneration());

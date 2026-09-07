@@ -605,7 +605,7 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
  * different file) starting before the first settles — network completion order does not have to
  * match click/start order. Same bug class `use-sites.hooks.ts`'s `activate` and
  * `use-themes.hooks.ts`'s `activate`/`download` were fixed for; see `performRename`'s
- * `renameGenerationRef` doc comment.
+ * `renameSettlement` doc comment.
  */
 describe("useThemeExplore — rename race safety", () => {
   const FILES = [
