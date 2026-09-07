@@ -114,6 +114,11 @@ test("REQ-8: a throwing glue handler is contained by the outbox's existing retry
 
   await assert.doesNotReject(() => processOutbox({ outbox, bus, clock }));
 
-  const pending = await outbox.claimPending(10, clock.nowIso());
+  // 2026-09-06 fix: a failed row is no longer immediately reclaimable at the same instant (that
+  // was the bug — see outbox-worker.ts's header doc) — it becomes eligible again once its
+  // computed backoff elapses (at most 30 minutes with the current constants). +1h is comfortably
+  // past that, so this still proves the row is retryable, not silently dropped or "delivered".
+  const oneHourLater = new Date(Date.parse(clock.nowIso()) + 60 * 60 * 1000).toISOString();
+  const pending = await outbox.claimPending(10, oneHourLater);
   assert.equal(pending.length, 1, "a failed delivery must remain pending for retry, per the outbox's existing dead-letter/retry semantics");
 });
