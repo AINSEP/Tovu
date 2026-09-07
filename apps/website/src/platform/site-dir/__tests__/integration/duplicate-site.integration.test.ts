@@ -360,3 +360,106 @@ test("a mid-copy failure leaves no half-populated directory behind, even in a pr
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
+
+/**
+ * C03 (2026-09-07). The test above asserts exactly the property this one does, and passed
+ * throughout the bug — because its source has portable entries, so `copyPortableEntries` fires its
+ * `onBeforeFirstWrite` callback and `wroteAnything` is true by the time anything fails. It is the
+ * shape of green test that tolerates a defect: right assertion, one arm.
+ *
+ * The arm it does not reach: `validateInitTarget` ACCEPTS a pre-existing empty directory, so
+ * `duplicateSite`'s `mkdirSync` (and the `wroteAnything = true` beside it) is skipped; a source with
+ * no portable entries never fires the copy callback either; and `config.json` and `content.db` are
+ * then both written without raising the flag at all. `cleanupAndRethrow` only removes the target
+ * `if (wroteAnything)`, so a failure after that point left `config.json` behind — and the operator's
+ * retry hit `InitDirNotEmptyError` about a directory they had created empty themselves.
+ *
+ * A valid source really can have zero portable entries: `readSiteDir` requires only `config.json`
+ * and `.site-meta.json`, and every name on `layout.ts`'s portable allowlist is a DIRECTORY, which
+ * archive/restore round-trips routinely drop when empty.
+ */
+function stripPortableEntries(siteDir: string): void {
+  for (const name of ["uploads", "themes", "plugins", "overrides", "skills", "agent-plugins"]) {
+    fs.rmSync(path.join(siteDir, name), { recursive: true, force: true });
+  }
+}
+
+test("a source with no portable entries: a content.db failure into a pre-existing empty target leaves nothing behind", () => {
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    stripPortableEntries(source.dir);
+    // Still a valid site by `readSiteDir`'s contract — both marker files are intact — so the write
+    // phase is entered and the failure lands where the finding says it does.
+    assert.doesNotThrow(() => readSiteDir({ dir: source.dir }));
+    // The failure itself: `duplicateContentDb` cannot read a database that is not there.
+    fs.rmSync(path.join(source.dir, "content.db"), { force: true });
+
+    const targetDir = path.join(parent, "operator-made-this");
+    fs.mkdirSync(targetDir);
+
+    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }));
+    assert.equal(
+      fs.existsSync(targetDir),
+      false,
+      `a failed duplicate must leave nothing behind — INV-02 admits no partial install dir. Survivors: ${
+        fs.existsSync(targetDir) ? fs.readdirSync(targetDir).join(", ") : "(none)"
+      }`
+    );
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("after such a failure the operator's retry is not refused as 'not an empty directory'", () => {
+  // The symptom the operator actually meets. Asserting the directory is clean is not the same claim
+  // as asserting the next attempt works: a leftover `config.json` turns a transient failure into a
+  // permanent one whose message blames the operator for a directory they created empty.
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    stripPortableEntries(source.dir);
+    const dbPath = path.join(source.dir, "content.db");
+    const savedDb = fs.readFileSync(dbPath);
+    fs.rmSync(dbPath, { force: true });
+
+    const targetDir = path.join(parent, "operator-made-this");
+    fs.mkdirSync(targetDir);
+    assert.throws(() => duplicateSite({ sourceDir: source.dir, targetDir }));
+
+    // The operator puts the database back and tries again.
+    fs.writeFileSync(dbPath, savedDb);
+    fs.mkdirSync(targetDir, { recursive: true });
+    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+
+    // Both sides realpath'd: on macOS `/var` is a symlink to `/private/var`, and the two spellings
+    // name the same directory. The claim is "the retry landed in the operator's target", not which
+    // spelling of it `resolveInstallDirTarget` happened to return.
+    assert.equal(fs.realpathSync(result.dir), fs.realpathSync(targetDir));
+    assert.equal(readSiteDir({ dir: targetDir }).config.name, "Copy");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("a successful duplicate into a pre-existing empty target still succeeds — the flag fix must not make cleanup fire on the happy path", () => {
+  // The negative control. Setting `wroteAnything` unconditionally at the top of the try would also
+  // make both tests above pass, and would be wrong: `cleanupAndRethrow` must still not run when
+  // nothing failed, and a pre-existing target must still be usable.
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Original" });
+    fs.writeFileSync(path.join(source.dir, "uploads", "hello.txt"), "known upload bytes");
+
+    const targetDir = path.join(parent, "operator-made-this");
+    fs.mkdirSync(targetDir);
+
+    const result = duplicateSite({ sourceDir: source.dir, targetDir, name: "Copy" });
+
+    assert.equal(readSiteDir({ dir: targetDir }).config.name, "Copy");
+    assert.notEqual(result.siteId, readSiteDir({ dir: source.dir }).meta.siteId);
+    assert.equal(fs.readFileSync(path.join(targetDir, "uploads", "hello.txt"), "utf8"), "known upload bytes");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});

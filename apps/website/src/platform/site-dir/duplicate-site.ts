@@ -190,6 +190,21 @@ export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteRes
       wroteAnything = true;
     });
 
+    // From here on `target` is written to unconditionally — `config.json`, `content.db`, and the
+    // marker — so the flag is raised here rather than by any of them individually. It was not, and
+    // that was C03 (2026-09-07): the two branches above are both CONDITIONAL (the `mkdirSync` is
+    // skipped for a pre-existing empty target, which `validateInitTarget` accepts; the copy
+    // callback never fires for a source with no portable entries, which `readSiteDir` also
+    // accepts), so a `duplicateContentDb` failure could rethrow with `wroteAnything` still false —
+    // `cleanupAndRethrow` then skipped the removal and left `config.json` behind, and the
+    // operator's retry was refused with `InitDirNotEmptyError` about a directory they had created
+    // empty themselves.
+    //
+    // Raised BEFORE the write, not after, for the same reason `copyPortableEntries` takes an
+    // `onBeforeFirstWrite` callback rather than returning a count: a write that throws part way
+    // through has still written, and that partial is exactly what cleanup exists to remove.
+    wroteAnything = true;
+
     // config.json — new display name, domain/port reset (see this file's own header).
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
     writeJsonFileAtomic(path.join(target, "config.json"), config);
