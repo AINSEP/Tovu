@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 02:05 — INV-05 shape sweep beyond the window (§3a), Runner launcher answer (§3b), seed DB (§3c), desktop session hygiene + SEC-08 (§3d), threat assessment, open questions. Audit complete pending owner questions.
 - 01:45 — assistant proxy header stamping, NUL-escape diffs (--text), admissions route, localStorage backup, secret sweep, window sink sweeps done; ledger for all 243 commits appended (§6).
 - 01:10 — escapeHtml copies closed, sites tool, dev proxy, orphan reaper, IPC stubs, pages permission grant verified. §1i.
 - 00:58 — media-import + http client, executor parity, sites route, adopt, duplicateSite, scripts, autosave read. §1f–1h; SEC-05/06.
@@ -115,6 +116,24 @@ _(in progress)_
 ## 3. Rest of window (priority 3)
 _(pending)_
 
+## 3. Rest of the window — covered by §1a–1j and the §6 ledger. Every code commit in `4b89cd09..efc6847e` is either read (reviewed/reviewed-light) or covered by the admin sink sweep; no code commit is unaccounted for.
+
+## 3a. INV-05-shape sweep beyond the window (authz against a stale/attacker-influenceable record)
+Swept every `rm`/`unlink` sink under `features/**` + admin routes and every count-based guard (`length <= 1`, `isLast*`, `LastRemaining`) in Tovu and `@jini-ai/cms`:
+- Count-based guard: exactly one exists — Jini `workspace/delete.ts:61` (INV-03), now shielded in Tovu by the INV-05 identity guard (§1c). No other "last row" guard is reachable from a route.
+- Path-keyed deletes reachable from HTTP/tools: `plugins/uninstall.ts` → `onPluginUninstalled` (`plugin-runtime.ts:266-272`: `SAFE_PLUGIN_ID_SEGMENT` + resolved-path containment, fails closed on either); `sites_duplicate_site` (§1i, name-pattern gated, creates only); theme file delete/rename (`themes/explore.ts` delegates to `theme-files.ts`'s containment — pre-window, delegation read, containment function not re-read here); `recovery/restore.ts` (plan/confirm/execute ceremony with `authorizeForHooks` before the lock, `backup.restore` instance-scoped); `api-keys/revoke.ts` → `revokeApiKey` (`assertCallerMayManageApiKeys` + workspace-scoped `findById`). None repeats the D-04/INV-05 shape: each decision is made on the live row/path at call time.
+- The only remaining instance of the shape in the window is **SEC-01 (D-04)** on the desktop.
+
+## 3b. The "orphaned Runner launchers with a baked bearer at 0700" question
+The generation path is **live, but in Tovu-Runner, not in this repo**: `/Users/la/Programming/Tovu-Runner/src/main/runner-mcp-bridge.ts:225-254` `writeSiteAssistantLauncher` writes `site-assistant-<projectId>.sh` (mode 0700) with `JINI_DAEMON_TOKEN='<token>'` inline. Its `tokens` map (`:257`) is per-Runner-process, so a launcher whose project no longer exists holds a credential that died with the Runner process that minted it; the file is only overwritten for a project id that still exists, never swept. Nothing in Tovu (`apps/desktop`, `apps/website`, `development/scripts`) writes a token to disk. Recommendation for Runner (out of scope here): sweep `site-assistant-*.sh` not matching a live project at boot.
+
+## 3c. Tracked seed database
+`git ls-files` shows one tracked `.db`: `sites/tovu-com/content.seed.db` (intentional build input per `layout.ts`). Read-only inspection (`?mode=ro`): `sessions`, `api_keys`, `member_sessions`, `member_magic_tokens`, `gated_mutation_tokens`, `site_assistant_credentials`, `external_mcp_servers`, `admin_execution_credentials`, newsletter confirmation tokens — all **0 rows**. `identity_users` = 4 rows (password hashes present). **Open question §5-Q1:** are all four hashes of the documented default password? Verifying needs an argon2 verify run, which this audit's no-execution rule forbids.
+
+## 3d. Desktop session hygiene (Info)
+- `handleDelete` (`project-ipc.cjs:151-167`) stops the child and untracks the row but never calls `endSiteSession` or clears the site's `persist:tovu-site-<sha256(path)>` partition; `openSiteWindow`'s `closed` listener does (`main.cjs:535-545`). After a fleet-mode delete, the partition directory under `userData` keeps the cookie jar (a 30-day session token for a DB that, for an `adopted` row, still exists and is still served on the next open). Same-user only.
+- **SEC-08 (Low, PLAUSIBLE, pre-window — present at `4b89cd09:apps/desktop/main.cjs:198-200`):** own-server/attach-mode `createWindow` answers any non-origin `window.open` with `shell.openExternal(target)` for ANY scheme (`file:`, custom handlers). The fleet-mode guest policy added in this window (`registerGuestNavigationPolicy`, `main.cjs:614-641`) correctly restricts external opens to supervised loopback URLs; the older path was not brought up to the same rule. Reachable by any script in the site window (theme JS on the public view, or an admin XSS). Not introduced in this window.
+
 ## 4. Findings (severity-ordered, filled as found)
 
 | ID | Sev | Status | Where | One line |
@@ -126,10 +145,19 @@ _(pending)_
 | SEC-05 | Low | CONFIRMED | `platform/http/client.ts:242` → `media-import/tool-registrations.ts:120` | SSRF/egress refusal surfaces as a generic internal error, not a refusal |
 | SEC-06 | Low | PLAUSIBLE | `platform/http/transport.fetch.ts:32,52,65-71` | Body buffered to 100 MiB before the 12 MiB policy cap; idle-timeout only — slow-drip hold on agent-supplied URLs |
 | SEC-07 | Info | CONFIRMED | `apps/admin/src/lib/standing-draft-local-backup.ts:38-46` | A server-refused draft is mirrored to `localStorage` and is not cleared on logout — post/page text survives in the browser profile on a shared machine until the next accepted write |
+| SEC-08 | Low | PLAUSIBLE (pre-window) | `apps/desktop/main.cjs:324-328` (present at `4b89cd09:198-200`) | Own-server/attach window hands any non-origin `window.open` target, any scheme, to `shell.openExternal`; the fleet guest policy in this window restricts it, the older arm does not |
 
+**Refuted / not reproduced from the codex set:** none of D-04/D-05 was refuted — both confirmed (D-05 downgraded from High to Medium: operator-timed race, no data loss beyond the rm the operator already confirmed). The codex-fixed items (J01, MI-01, MI-02, chat-run death path) were not re-reported.
+
+**Overall threat assessment for the window:** the window's security-bearing additions (boot token, attachment read-back, media import + guarded HTTP client, external-MCP write grants, INV-05 guard, executor parity, escapeHtml sweep) are each correctly gated and fail closed on read. The one High is a desktop data-loss guard that trusts a path-keyed row over the live directory (SEC-01); everything else is Low/Info hardening. No authorization bypass, no SSRF, no secret written to disk, and no secret in the diff was found.
+
+Human sign-off required before any patch: SEC-01 (High), SEC-02 (Medium). The rest can ship under ordinary review.
 
 ## 5. Open questions for the owner
-_(none yet)_
+- Q1: `sites/tovu-com/content.seed.db` carries 4 `identity_users` rows with password hashes. Are all four the documented default (`tovu-dev`)? If any is a real operator hash, the tracked seed leaks it (argon2 verify was not run — no execution).
+- Q2: SEC-03 — should the desktop-spawned `tovu serve` bind `127.0.0.1` instead of all interfaces? `serve.ts:259` is shared with headless deployments, so this is a product decision (a `--host` flag, or the shell passing one).
+- Q3: SEC-04 — accept env-borne `TOVU_AGENT_DAEMON_TOKEN` as same-user-only, or move it to the stdout-pipe pattern the boot token uses?
+- Q4: Tovu-Runner sweeps stale `site-assistant-*.sh` launchers? (§3b — external repo.)
 
 ## 6. Commit ledger (all 243)
 
