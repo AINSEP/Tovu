@@ -131,10 +131,12 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
           <p className="page-description">{t("Configure this widget's title and settings.")}</p>
         </div>
         <div className="page-actions">
-          <a href="/admin/widgets" {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}>
-            <button type="button" className="btn-secondary">
-              ← {t("Widgets")}
-            </button>
+          <a
+            className="btn-secondary"
+            href="/admin/widgets"
+            {...agentHandle("widget-instance-back", { role: "link", label: "Back to Widgets" })}
+          >
+            ← {t("Widgets")}
           </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (

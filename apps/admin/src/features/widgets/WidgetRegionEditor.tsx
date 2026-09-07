@@ -44,12 +44,11 @@ export function WidgetRegionEditorHeaderActions({
   return (
     <div className="page-actions">
       <a
+        className="btn-secondary"
         href="/admin/widgets/regions"
         {...agentHandle("widget-region-editor-back", { role: "link", label: "Back to Widget Regions" })}
       >
-        <button type="button" className="btn-secondary">
-          ← {t("Regions")}
-        </button>
+        ← {t("Regions")}
       </a>
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? (

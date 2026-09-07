@@ -96,10 +96,11 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
             key: "manage",
             cell: (region) => (
               <a
+                className="btn-primary"
                 href={`/admin/widgets/regions/${region.regionKey}`}
                 {...agentHandle(`${rowHandleByKey.get(region.regionKey)}-manage`, { role: "link", label: `Manage the "${region.regionKey}" region` })}
               >
-                <button>{t("Manage")}</button>
+                {t("Manage")}
               </a>
             ),
           },

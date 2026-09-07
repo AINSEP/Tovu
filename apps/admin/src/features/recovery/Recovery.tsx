@@ -92,10 +92,11 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
         <a
+          className="btn-secondary"
           href="/admin/database"
           {...agentHandle("recovery-banner-go-to-database", { role: "link", label: "Go to Database to resolve the pending migration" })}
         >
-          <button type="button" className="btn-secondary">{t(locale, "Go to Database")}</button>
+          {t(locale, "Go to Database")}
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (

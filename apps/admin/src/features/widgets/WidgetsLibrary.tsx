@@ -111,10 +111,11 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
             ))}
           </select>
           <a
+            className="btn-primary"
             href={`/admin/widgets/new?type=${createType}`}
             {...agentHandle("widgets-add-new", { role: "link", label: "Create a new widget of the selected type" })}
           >
-            <button>{t("Add New")}</button>
+            {t("Add New")}
           </a>
         </div>
       </div>

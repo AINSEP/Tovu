@@ -650,9 +650,10 @@ function PostEditorHeader({
             edits — confirmed live on this exact screen (edit the title, click this link, the
             edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
             document-level click interceptor from firing `navigate()`, since that listener's
-            first check is `event.defaultPrevented` — no change to `router.ts` needed. The nested
-            `<button>` is styling only (matches Forms/Posts' own "back"/"new" link idiom); the
-            real navigating element, its `href`, and its `onClick` guard all stay on the `<a>`.
+            first check is `event.defaultPrevented` — no change to `router.ts` needed. `btn-secondary`
+            sits directly on this `<a>` (matches Forms/Posts' own "back"/"new" link idiom); a nested
+            `<button>` used to carry that class instead, which is invalid HTML — `<a>` has no
+            interactive content model — so it moved onto the real navigating element itself.
 
             Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
             for its post-delete redirect just below — bug found during the page-header pass: this
@@ -660,15 +661,14 @@ function PostEditorHeader({
             it silently returned an operator to the wrong list. Deriving both from `kindLabel`
             (not two independent ternaries) is what stops them drifting apart again. */}
         <a
+          className="btn-secondary"
           href={`/admin/${kindLabel}s`}
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
           }}
           {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
         >
-          <button type="button" className="btn-secondary">
-            ← {kindLabel === "page" ? t("Pages") : t("Posts")}
-          </button>
+          ← {kindLabel === "page" ? t("Pages") : t("Posts")}
         </a>
       </div>
       <div className="page-header-text">

@@ -100,15 +100,14 @@ function PageEditorHeader({ confirmLeave }: { confirmLeave: () => boolean }) {
         {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
             own navigation gate is meant to apply, applied here to a human click. */}
         <a
+          className="btn-secondary"
           href="/admin/pages"
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
           }}
           {...agentHandle("page-back-to-list", { role: "link", label: "Back to the list of all pages" })}
         >
-          <button type="button" className="btn-secondary">
-            ← Pages
-          </button>
+          ← Pages
         </a>
       </div>
       <div className="page-header-text">

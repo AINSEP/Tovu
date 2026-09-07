@@ -61,7 +61,10 @@ describe("regions table", () => {
     const link = screen.getByRole("link", { name: "footer" });
     expect(link).toHaveAttribute("href", "/admin/widgets/regions/footer");
     expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    // "Manage" navigates via `href` — it is a link, not a button (fixed 2026-09-06: this used to
+    // be an invalid `<button>` nested inside an `<a>`; the button-shaped class now lives on the
+    // `<a>` itself instead).
+    expect(screen.getByRole("link", { name: "Manage" })).toBeInTheDocument();
   });
 });
 
