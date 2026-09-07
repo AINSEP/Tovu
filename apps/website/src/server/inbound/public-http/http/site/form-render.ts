@@ -377,10 +377,24 @@ function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: s
  *  SECOND, double-quoted `value=` appended below — regressing the exact stale-value-wins bug already
  *  fixed once for double quotes (browsers only honor the first same-named attribute). Requiring a
  *  literal preceding whitespace character (the actual attribute-name boundary in HTML) rather than
- *  `\b`, and matching either quote character via a backreference, fixes both without touching the
- *  "no existing attribute" branch below. */
+ *  `\b`, and matching either quote character via a backreference, fixed both without touching the
+ *  "no existing attribute" branch below.
+ *
+ *  BUG FIX (2026-09-06): that same-day fix's own value-body class, `[^"']*`, excluded BOTH quote
+ *  characters instead of just the one delimiting THIS attribute — so `value="Don't know"` (a
+ *  double-quoted value containing a legitimate apostrophe) could not be spanned by `[^"']*` at all: it
+ *  stops at the embedded `'`, backtracking never finds a `"` there, and the whole match fails. That
+ *  re-creates the exact append-a-second-`value=` bug this function's own doc already describes as
+ *  fixed, just gated on "value contains the OTHER quote character" instead of "value uses the OTHER
+ *  quote style." Fixed by matching each quote style as its own alternative — `"[^"]*"` or `'[^']*'` —
+ *  so the body only ever excludes the ONE character that would end that particular alternative, not
+ *  both, letting a double-quoted value safely contain an apostrophe (and a single-quoted value safely
+ *  contain a double quote). No backreference is needed anymore since each alternative already commits
+ *  to a specific delimiter pair. Unquoted `value=old` attributes are a separate, pre-existing gap (not
+ *  introduced or widened by this fix) — grepping every theme's HTML for an unquoted `value=` attribute
+ *  found zero occurrences, so it's left out of scope rather than folded into this change. */
 function setInputValueAttr(tag: string, escapedValue: string): string {
-  const existingValueAttr = /(\s)value=(["'])[^"']*\2/i;
+  const existingValueAttr = /(\s)value=("[^"]*"|'[^']*')/i;
   if (existingValueAttr.test(tag)) {
     return tag.replace(existingValueAttr, (_match, leadingSpace: string) => `${leadingSpace}value="${escapedValue}"`);
   }

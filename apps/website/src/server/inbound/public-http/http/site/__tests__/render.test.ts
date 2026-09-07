@@ -1896,6 +1896,20 @@ test("injectFormSubmissionResultIntoHtml: a single-quoted value='old' attribute 
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
 
+test("injectFormSubmissionResultIntoHtml: a double-quoted value=\"Don't know\" containing an apostrophe is REPLACED, not duplicated -- bug (e): the 2026-09-05 fix's own existing-attribute check, /(\\s)value=([\"'])[^\"']*\\2/i, excludes BOTH quote characters from the value body, so it cannot span an embedded apostrophe inside a double-quoted value and never matches at all here -- the code falls through to the append branch and adds a second value=, and the browser honors only the first (the stale \"Don't know\")", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value="Don't know">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
+  assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
+});
+
+test("injectFormSubmissionResultIntoHtml: a single-quoted value='say \"hi\"' containing a double quote is REPLACED, not duplicated -- bug (e), sibling case with quotes swapped", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value='say "hi"'>`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
+  assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
+});
+
 // ---------------------------------------------------------------------------
 // SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------
