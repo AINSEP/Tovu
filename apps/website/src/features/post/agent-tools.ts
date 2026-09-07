@@ -449,7 +449,11 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "button, which always sends the complete record). This is also how a post/page is published or unpublished: set status to " +
       "'published'/'draft'. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
       "content_post_get's identical disclosed asymmetry — not rejected the other way around), if slug is malformed/reserved/taken " +
-      "by another row, or if bodyJson is not a JSON object.",
+      "by another row, or if bodyJson is not a JSON object. " +
+      "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +
+      "human made in the admin editor between your read and your write. Pass the 'version' from the content_post_get / " +
+      "content_post_list row you based your edit on. If it no longer matches, the call is rejected with VERSION_CONFLICT and " +
+      "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
@@ -468,6 +472,18 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Required — the COMPLETE replacement body. ${TIPTAP_DOC_SCHEMA.description}` },
         status: { type: "string", enum: ["draft", "published"], description: "Required. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
+        // OPTIONAL, and it must stay optional: making it required would break every caller that
+        // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
+        // "no basis sent" and keeps its original last-write-wins behavior).
+        expectedVersion: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "OPTIONAL optimistic-concurrency basis — the 'version' of the row you read before making this edit. Omit it and " +
+            "this update simply overwrites whatever is currently stored, INCLUDING a human's unseen changes. Send it and the " +
+            "update is rejected with VERSION_CONFLICT (nothing written) if anyone saved in the meantime. Send it whenever you " +
+            "have a version to send.",
+        },
       },
     },
   },
