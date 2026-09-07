@@ -12,7 +12,7 @@ This file is committed roughly every five minutes. Findings below may be half-wr
 
 ## 0. Open questions log (for the owner, not blocking)
 
-(none yet)
+- Q1: `use-assistant-chats.hooks.ts` `switchSeqRef` — is it the self-minting settlement shape (a 9th adopter for `useSettlementGeneration`)? Not yet read.
 
 ## 1. Desktop lifecycle claims D-01, D-02, D-03, D-06, D-07 (priority 1)
 
@@ -91,15 +91,55 @@ Three on-disk JSON files in `userData` each hold a list of site dirs with differ
 
 ## 2. Commits codex left `pending` (priority 2)
 
-(not started)
+(in progress — findings are filed under §4 by seam, and the ledger in §5 records which commits each covers)
 
 ## 3. Rest of the window (priority 3)
 
 (not started)
 
+### D-02 addendum (read after the first commit)
+
+`useCreateWebsiteForm` (`App.hooks.ts:1162-1190`) computes `canCreate` from `supabaseReady`/`customReady` — so when Supabase or Custom is selected the form **refuses to submit until the URL and key are filled in**, then `buildCreateProjectInput` packs them, and `handleCreate` discards them. Worse than "silently discarded": the operator is forced to type a credential that is thrown away. Upgrades the cost line above; the recommended seam (drop `database` from the desktop contract) is unchanged.
+
 ## 4. Cross-cutting seams
 
-(not started)
+### 4.1 `useSettlementGeneration` at 8 of 11 — **real seam, correctly drawn; inventory incomplete** — CONFIRMED
+
+Files: `apps/admin/src/hooks/use-settlement-generation.hooks.ts` (`c171e62b`), adopters (`6df1f9a7`): `use-page-editor`, `use-post-editor`, `use-access-tokens`, `use-sites`, `use-theme-explore`, `use-themes` (×2), `use-widgets-library`. Left hand-rolled, each with a doc paragraph in the hook's own header: `use-static-publish.hooks.ts` `previewGenerationRef` (bumped by every field-edit setter via `invalidatePreview`, read by `checkPreview` — a version stamp, not a settlement id), `use-roles.hooks.ts` `permissionsGenerationRef` (minted by `loadPermissions`, peeked by `onWritePermission`), `use-users.hooks.ts` `toggleGenerationRef` (bumped by the synchronous `toggleExpanded`, threaded as a plain number into the top-level `runGrantMutation`).
+
+Verdict: the hook models "a call guards its **own** settlement" (`next()` then `isCurrent()` after each await, same actor). All three leftovers are "one actor stamps, a different actor peeks" — a version stamp. Folding them in would require a `current()`/`peek()` method, which dissolves the invariant that makes the hook's API small (nobody can check a generation they did not mint). Leaving them out is the right call, and the hook's header records exactly why. **Not an unfinished migration.**
+
+Gap: the sweep's inventory was by the `*GenerationRef` name. `apps/admin/src/hooks/use-assistant-chats.hooks.ts` carries four more counters under different names — `listSeqRef` (bumped externally by `markListMutated`, peeked in `refresh`: stamp shape, correctly excluded), `adoptionGenRef` (bumped by `resetAdoption`, peeked by the adoption promise: stamp shape), `paneNonceRef` (a key nonce, not a guard), and `switchSeqRef` — **PLAUSIBLE** that `switchSeqRef` in `select()` is the self-minting shape the hook was built for (not yet read; see open questions). Cost of the gap is small (one more adopter at most); the finding is that "8 of 11" was never the true denominator.
+
+### 4.2 `escapeHtml` — nine hand-rolled copies, and the "fix every copy" commit reached four — CONFIRMED
+
+Definitions at the frozen SHA (`git grep`, tests excluded):
+
+| # | File | Exported? | Touched by `1044e2d5`? |
+|---|---|---|---|
+| 1 | `apps/website/src/server/inbound/public-http/http/site/render.ts:201` | yes | yes |
+| 2 | `.../http/site/form-render.ts:164` | no | yes |
+| 3 | `.../http/site/page-head.ts:194` | no | **no** |
+| 4 | `apps/website/src/features/theme/static-render.ts:168` | no | yes |
+| 5 | `apps/website/src/platform/export/site-exporter.ts:313` (`escapeHtmlAttr`) | no | yes |
+| 6 | `apps/website/src/assistant/mcp-ui.ts:190` | yes | **no** |
+| 7 | `.../routes/site/newsletter-confirm.ts:40` (inline arrow, `& < >` only) | no | **no** |
+| 8 | `.../routes/site/newsletter-unsubscribe.ts:45` (inline arrow, `& < >` only) | no | **no** |
+| 9 | `.../routes/site/store.ts:16` (`& < >` only) | no | **no** |
+
+#1–#5 are the three render paths (live public render, static-render, site-exporter) each owning an escaper — the "three render paths diverge" hub already on record — and last night's fix (`1044e2d5`, "escape apostrophes in every escapeHtml/escapeHtmlAttr copy") **widened the gap rather than closing it**: it patched four copies in place and left five, so the codebase now has copies that differ on `'`. #7–#9 interpolate only into text nodes (`<title>`, `<h1>`, `<p>`), where `'` and `"` are harmless, so no security finding here — the cost is that the next escaper change (a ` ` fix, say) has nine places to land and the last commit that tried reached four. Correct seam: one `escapeHtml`/`escapeHtmlAttr` pair in `apps/website/src/platform/` (or `#src/shared/html-escape`) imported by all nine; `render.ts` already exports one, so eight imports replace eight definitions. (Whether #3/#6 escape `'` is checked in the next commit.)
+
+### 4.3 Standing-draft autosave, posts × pages — shared core, copied shell — CONFIRMED
+
+Shared and correctly so: `apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts` (370 lines, one controller; `56a0fc09`, `10efb899`, `a60e07e8`), `apps/admin/src/lib/standing-draft-local-backup.ts`, `apps/admin/src/lib/api.ts` (`putAutosave`/`getAutosave`/`clearAutosave`, kind-blind), and one server route `routes/posts/autosave.ts` mounted once and used by both editors (`eba275f4`). Both editor ports `extends StandingDraftAutosavePort`. This is the right seam and it is where the tricky state lives.
+
+Copied per feature, self-described as "identical": `PostAutosaveRecoveryBanner` / `PageAutosaveRecoveryBanner`, `PostAutosaveStaleBanner` / `PageAutosaveStaleBanner` (`PostEditor.tsx:690-790`, `PageEditor.tsx:228-310` — the posts doc comment says "Mirrors `features/pages/PageEditor.tsx`'s identical `PageAutosaveStaleBanner`"), and in `rules.ts` of each feature `postAutosaveBannerMessage`/`pageAutosaveBannerMessage`, `postAutosaveStaleBasisMessage`/`pageAutosaveStaleBasisMessage`, plus a `build*AutosaveInput`. The two agents (`34694309`+`f239866e` for posts; `a4b99c90`+`e5a434c3` for pages) each built the banner pair, and the second explicitly copied the first. Diff pending (next commit) — if the bodies differ only in `post`/`page` handle prefixes, the seam is one `<StandingDraftBanners kind=…>` component under `apps/admin/src/components/` with the message functions moved beside the shared hook.
+
+Also noted in the route file: three self-declared mirrors in 143 lines (`resolvePostId` "mirrors `posts/update.ts`", `allowedToWrite` "mirrors `pages/update-html.ts`", `parseAutosaveBody` "mirrors `parsePostUpdateBody`") and the `workspaceId` 404 check repeated three times inline. That is the admin-http route convention, not last night's invention — counted in the next commit.
+
+### 4.4 Layering — clean — CONFIRMED (negative finding)
+
+At the frozen SHA: no `@jini-ai/*/src|dist|lib` deep imports anywhere under `apps/` or `packages/`; no import from `apps/admin` or `apps/desktop` into `apps/website` source (`apps/desktop` shells out to the CLI and parses its stdout, as its header claims). The only cross-app references are two pre-window "Mirrors …" doc comments on duplicated constants (`apps/admin/src/features/sites/rules.ts:26` `SITE_NAME_PATTERN`, `apps/admin/src/features/seo/rules.ts:125` `isAbsoluteUrl`) — neither introduced in this window (`git log -S` over the window returns nothing).
 
 ## 5. Commit ledger (all 243)
 
