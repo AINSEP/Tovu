@@ -32,8 +32,8 @@ import { buildExecutionCredentialAad } from "../../../apps/website/src/assistant
  */
 
 const REAL_MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../../apps/website/src/platform/db/drizzle");
-const NEWEST_MIGRATION_TAG = "0057_concerned_hardball";
-const NEWEST_MIGRATION_ADDS = { table: "posts", column: "member_access_json" };
+const NEWEST_MIGRATION_TAG = "0058_keen_mauler";
+const NEWEST_MIGRATION_ADDS = { table: "posts", column: "autosave_json" };
 
 /** Copies the real migrations folder minus its newest entry — the runtime migrator only reads
  *  `meta/_journal.json` plus the `.sql` file each entry names. */
