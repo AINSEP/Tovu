@@ -276,3 +276,31 @@ The dispatch's six passes covered the file down to §25. The 13 `##` sections af
 
 ### One defect I introduced and fixed
 Pass 3's edit helper spanned an `###` block to the next `###` without stopping at an intervening `##`, deleting four out-of-scope `##` sections. Caught before pass 4, restored byte-identically from `5e593ab4` (`diff` rc=0) in commit `6528ed5a`, and the helper was rewritten to stop at any same-or-higher heading before pass 4 ran.
+---
+
+## Pass 8 — ADDITIONS (peer handoff from session `tovu-8f`)
+
+Separate commit by instruction, sequenced after every deletion pass, so the whole reconciliation stays revertible pass by pass. **This pass adds only; it deletes nothing.**
+
+New section inserted at `development/todos.md:117`, after the two `⚠️ OWED` entries and before the Admin Section Spec Sweep — high visibility, since it is live unowned work.
+
+**Provenance handled as instructed.** The block opens with a blockquote stating the source (2026-09-06 Fable review, relayed by `tovu-8f`), that a `file:line` is given for every claim, and that **none of it was independently verified by this pass**. I did not verify any of it — the pointers are the deliverable. Nothing is restated as established fact.
+
+Recorded, 18 items in six groups:
+- **Review-coverage gap** — 2026-09-01 → 09-03 (292 commits) never reviewed by anyone; plus the explicit skip list from the two windows that were reviewed. Both review windows' report SHAs recorded.
+- **Admin defects (4)** — the four `<button>`-in-`<a href>` sites and their unowned CSS blocker (with the note that `Collections.tsx`'s "in flight elsewhere" comment is stale and should be corrected); `AccessTokensTab`'s `<button>`-in-`<summary>` toggle bug plus the in-repo fix pattern; the 11 hand-rolled `*GenerationRef` guards across 10 hook files; the push-to-talk live-mic leak.
+- **Website/architecture defects (7)** — cwd-derived site binding; import-side-effect authz registry vs `backfill-reset-admin-password.ts:132`; untested boot-session singleton and its false header claim; `dev-auth.ts:297-312` re-implementing Jini's private session hashing; boot orchestration copied three times and `export.ts` skipping the crash-interrupted-migration scan; 713 never-revoked desktop sessions; `escapeHtml` not escaping `'`.
+- **Money — human decision** — the lipay partial-vs-full refund contract, called out in its own subsection with the terminal-`refunded` consequence and the explicit "do not guess, do not let an agent settle this".
+- **Rescued item** — the attachment preview modal never seen rendering a decoded image (item 2 of `2026-09-06-tovu-f6-outstanding-worklist.md`), recorded with the warning that the rest of that report is stale. **That report file was not edited** — only `development/todos.md` was touched.
+- **Unowned work** — WebMCP (recorded as tool registration via `document.modelContext`, explicitly NOT DOM tagging, with the Chrome 146/150 detail and Tovu's existing tool registry) and `apps/desktop/**`.
+
+**One check I did run, inside the single file I am allowed to touch:** `grep -i "webmcp|modelContext" development/todos.md` returns only a passing mention in the line-17 reference blurb and an unrelated `@modelcontextprotocol/sdk` line in §13. So **there is no DOM-tagging description of WebMCP in this file** — the incorrect text the handoff warns about lives elsewhere, most likely a memory file. Noted inline in the new entry; no other file was edited.
+
+Line count: 1377 -> 1476 (+99, additions only).
+
+### Machine-safety compliance for this session
+- **No `index_repository` and no codebase-memory MCP call of any kind** — every lookup was `command grep` / `find` / `ls` / `Read`.
+- **No tests run**, at any point.
+- `uptime` before this pass: load averages 47.56 / 27.20 / 25.98 — far below the ~721 crash point.
+- **Scope leak disclosed:** three commands reached outside the Tovu tree during passes 4-6 — `ls /Users/la/Programming/`, `find /Users/la/Programming -maxdepth 3 -type d -name wordpress_specs/other-repos-specs/other-repos`, and `ls -d /Users/la/Programming/OSS-Repos/AI-Capabilities` — all bounded-depth `find`/`ls`, never a recursive grep.
+- Only `development/todos.md` and this report were ever staged, always by exact path. `git diff --cached --name-only` was empty before this pass's `git add`. None of the four off-limits files (`MenuEditor.tsx`, `MenuEditor.hooks.tsx`, `builtin-role-grants.ts`, `split-chat-data-into-chat-db.ts`) was touched, staged, or read for modification.

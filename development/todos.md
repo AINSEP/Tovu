@@ -114,6 +114,105 @@ spec covering "how do embeds work across Posts + Pages" as a single subject rath
 
 ---
 
+## Handed off from peer session `tovu-8f` — 2026-09-06 Fable review
+
+> **Source: 2026-09-06 Fable code review, relayed by peer session `tovu-8f`. `file:line` given for
+> every claim so it can be checked. NOT independently verified** by the 2026-09-06 todos
+> reconciliation that filed it — treat each item as a lead with a pointer, not as established fact.
+> Verify before acting.
+
+### Review-coverage gap — the biggest item here
+
+Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: **2026-09-06** over
+~97 commits (reports `4e64e467`, `b81d57b1`, `ffc37e59`) and **2026-09-04 → 09-05** over 521 commits
+(`ee304d5e`, `ef79b352`, `552e806d`).
+
+- [ ] **2026-09-01 → 2026-09-03 — 292 commits — has never been reviewed by anyone.** Review that window.
+- [ ] Review what the reviewed windows deliberately skipped: ~200 `agentHandle` commits; ~100
+      docs/content/design/landing commits; test-and-refactor-only commits; ~15 admin
+      stale-settlement hook fixes; the desktop shell beyond three `.cjs` files; voice/speech; several
+      UI screens; theme CSS/WCAG; SSRF fixes; deployment trims; dead-path/coverage scripts; evals.
+
+### Confirmed defects, found and NOT fixed — admin
+
+- [ ] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
+      `collections/CollectionEntryEditor.tsx:361`, `forms/FormsList.tsx:72`, `forms/FormEditor.tsx:971`.
+      Blocked on a CSS fix (making the `.btn-*` classes work on a bare `<a>`). **That CSS fix is
+      unowned:** `Collections.tsx`'s comment says it is "in flight elsewhere", but two sessions have
+      jointly established it belongs to nobody — **the comment is stale and should be corrected when
+      someone picks this up.** Fix the CSS first, then the four call sites.
+- [ ] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
+      inside a `<summary>` with no `stopPropagation`, so clicking it also toggles the row open/closed.
+      In-repo fix pattern to copy: `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`.
+      **Awaiting Leona's call.**
+- [ ] **11 hand-rolled `*GenerationRef = useRef(0)` stale-settlement guards across 10 admin hook
+      files**, with no shared helper. Candidate: a `useSettlementGeneration()` helper adopted on next
+      touch rather than a sweep.
+- [ ] **Push-to-talk leaves the mic live** when the key is released during the browser permission
+      prompt — `use-push-to-talk.hooks.ts:150-151` no-ops unless already `recording`, and
+      `push-to-talk-state.hooks.ts:50-59` has no `requesting-mic:stop`. No test covers it.
+
+### Confirmed defects, found and NOT fixed — website / architecture
+
+- [ ] **The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()` /
+      `process.env`.** `npx tovu serve /some/site` from the repo root reports `<repo>/sites/tovu-com`
+      as the active site and writes Create/Activate/duplicate under `<cwd>/sites` and `<cwd>/.env`.
+      The desktop arm is masked only by `tovu-server.cjs` setting `TOVU_SITE_DIR`. Proposed fix: a
+      `RouteDeps.siteBinding` set once per composition root.
+- [ ] **Authz grants register into a module-scope `Map` by import side effect** —
+      `apps/website/src/features/identity/builtin-role-grants.ts:13-16`, populated by
+      `pages/permissions.ts:122-146` at module evaluation time.
+      `development/scripts/backfill-reset-admin-password.ts:132` builds identity deps without that
+      import and therefore runs against an **empty permissions registry**.
+- [ ] **The boot-session token is a module singleton on a security route with no server-side test** —
+      `POST /api/admin/v1/auth/boot-session` is covered only by a store unit test and a desktop client
+      test. Its header claims "no dependency path between them", which is false:
+      `cli/commands/serve.ts` builds the deps bag that route receives.
+- [ ] **`dev-auth.ts:297-312` re-implements `@jini-ai/cms/identity`'s private session hashing**
+      because the library exposes only `login()`. The seam belongs in Jini as
+      `createSessionForPrincipal`, not copied here.
+- [ ] **Boot orchestration is hand-copied three times** between `serve.ts` and `index.ts`
+      (`agentDaemonWanted`, `logCriticalBootFailures`, the 8-promise readiness list), under a comment
+      claiming boot logic is "never shared via import" — contradicted the same day by `4dfbfe80`.
+      `export.ts` has none of it yet still boots the real `createApp`, so **the
+      crash-interrupted-migration scan never runs before an export.**
+- [ ] **Every desktop launch mints a 30-day owner session that is never revoked — the live database
+      holds 713 sessions.** There is no logout anywhere in `main.cjs`.
+- [ ] **`form-render.ts`'s `escapeHtml` does not escape `'`.** Left deliberately: changing it moves
+      the output of every form, so it needs its own decision rather than a drive-by fix.
+
+### Needs a human decision, not an agent — this one is MONEY
+
+- [ ] **lipay webhook refunds may record every partial refund as a full one.** `lipay-plugin.ts:476-478`
+      and `:531-534` treat `data.amount` as the **refund** amount, but the only gateway documents that
+      field as the **charge** total. If the gateway is right, every webhook refund records as a full
+      refund and sets status `refunded` — which is **terminal**, so every later webhook for that
+      charge is silently ignored. The existing test feeds a normalized partial amount in directly, so
+      it passes either way and proves nothing. **Check the real payload contract with the gateway.
+      Do not guess, and do not let an agent settle this.**
+
+### Rescued from an otherwise-stale report
+
+- [ ] **The attachment preview modal has never been seen rendering a decoded image in a browser.**
+      This is item 2 of `ADS-memory/reports/2026-09-06-tovu-f6-outstanding-worklist.md` (`013ca04e`)
+      and the only item there still open — items 3, 4, 5, 7, 8, 9, 10, 11, 12, 13 and 14 are closed
+      and 15 is superseded, so do not work from the rest of that report.
+
+### Unowned work
+
+- [ ] **WebMCP — nobody owns this.** A W3C Community Group standard (Google + Microsoft), shipped in
+      Chrome 146. It is **tool registration, not DOM tagging**: `navigator.modelContext.registerTool(...)`
+      — and **the getter has moved to `document.modelContext`**, with Chrome 150 deprecating the old
+      name as an alias. Tovu already has the tools (`seo_set_entry_overrides`, `media_upload_asset`,
+      `media_promote_chat_attachment`, the whole registry); they are reachable today only through
+      Tovu's own assistant. Registering them via `document.modelContext` would expose them to any
+      browser agent — which is what the landing page promises. **Any todos or memory text describing
+      WebMCP as a DOM-tagging convention is wrong.** (Checked 2026-09-06: no such description exists
+      in this file, so the incorrect text is elsewhere — most likely a memory file.)
+- [ ] **`apps/desktop/**` has been unowned** since the `tovu-f6` session shut down.
+
+---
+
 ## Admin Section Spec Sweep — remaining work only (reconciled 2026-09-06)
 
 The 2026-08-10 sweep covered 17 sections. **Nothing outstanding** in: Collections (ADR-043),
