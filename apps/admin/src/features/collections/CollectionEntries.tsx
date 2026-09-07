@@ -68,14 +68,19 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           </p>
         </div>
         <div className="page-actions">
-          {/* Anchor-wrapping-a-button, unchanged — real navigation to the editor route, not a
-              handler. `.btn-*` on a bare `<a>` is broken today (fix in flight elsewhere), so this
-              stays exactly as it was rather than depending on that fix landing first. */}
+          {/* Real navigation to the editor route, not a handler — a plain `<a>`, not a `<button>`
+              nested inside one (invalid HTML with undefined activation behaviour: a `<button>` has
+              no `href` of its own, so which element the browser actually activates on click/Enter/
+              Space is unspecified). `.btn-primary` styles the anchor directly — the same
+              `a.btn-*` mechanism `styles.css` has shipped since 2026-08-01 (`a.btn-secondary` etc.,
+              verified live against Dashboard's "View site ↗" anchor) and already handles this
+              exact case; the "fix in flight elsewhere" this comment used to cite never existed. */}
           <a
+            className="btn-primary"
             href={`/admin/collections/${contentTypeKey}/new`}
             {...agentHandle("collection-entries-new", { role: "link", label: "Create a new entry in this content type" })}
           >
-            <button>{t("New entry")}</button>
+            {t("New entry")}
           </a>
         </div>
       </div>
