@@ -4,6 +4,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import type { TabBarTab } from "../../components/TabBar";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
+import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 
 /**
  * @file `Sites.tsx`'s own derived-value logic, split out per the `<Name>.tsx`/`<Name>.hooks.tsx`
@@ -173,6 +174,7 @@ export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[]
     {
       id: "all",
       label: t("All sites"),
+      icon: <AllSitesIcon />,
       count: listedCount,
       handle: "sites-tab-all",
       handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
@@ -180,6 +182,7 @@ export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[]
     {
       id: "new",
       label: t("New site"),
+      icon: <NewSiteIcon />,
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",
     },

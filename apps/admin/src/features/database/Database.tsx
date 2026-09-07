@@ -12,6 +12,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { MigrateForwardIcon, RestorePointsIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
@@ -546,10 +547,12 @@ export function Database(props: DatabaseProps) {
   const locale = useAdminLocale();
   const activeTabId = resolveDatabaseTabId(props.tabId);
 
+  // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
+  // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.
   const tabs: TabBarTab[] = [
-    { id: "timeline", label: t(locale, "Timeline") },
-    { id: "restore-points", label: t(locale, "Restore points") },
-    { id: "migrate-forward", label: t(locale, "Migrate forward") },
+    { id: "timeline", label: t(locale, "Timeline"), icon: <TimelineIcon /> },
+    { id: "restore-points", label: t(locale, "Restore points"), icon: <RestorePointsIcon /> },
+    { id: "migrate-forward", label: t(locale, "Migrate forward"), icon: <MigrateForwardIcon /> },
   ];
 
   function handleTabChange(nextTabId: string) {
