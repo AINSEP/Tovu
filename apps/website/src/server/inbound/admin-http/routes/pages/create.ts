@@ -1,4 +1,5 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
+import { processOutbox } from "#src/contracts/core/events/index";
 import { createPost, PostConflictError, PostValidationError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import {
@@ -90,7 +91,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
             captureInverse: async () => null,
             execute: () =>
               createPost({
-                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook },
+                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
                 input: {
                   workspaceId: deps.workspaceId,
                   id: pageId,
@@ -104,6 +105,11 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
             captureEntityVersion: (r) => r.post.version,
           },
         });
+
+        // A page created directly as `status: "published"` now enqueues `entry.published`
+        // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
+        // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
+        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {

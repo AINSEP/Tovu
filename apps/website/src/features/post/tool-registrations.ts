@@ -144,7 +144,8 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
   ["content_post_list", "none"],
   // -> getAdminPostById (post.ts): postRepo.findById() only, no write.
   ["content_post_get", "none"],
-  // -> executeCommand -> createPost (post.ts): postRepo.save() + change-set record.
+  // -> executeCommand -> createPost (post.ts): postRepo.save() + change-set record, plus an
+  //    outbox-drained entry.published event when created directly as `status: "published"`.
   ["content_post_create", "mutates-durable-state"],
   // -> executeCommand -> updatePost (post.ts): postRepo.save() + change-set record, plus an
   //    outbox-drained entry.published/entry.updated/entry.unpublished event on a status transition.
@@ -519,12 +520,19 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   repo: routeDeps.postRepo,
                   clock: routeDeps.clock,
                   beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                  outbox: routeDeps.outbox,
                 },
                 input: { workspaceId: routeDeps.workspaceId, id: postId, title, kind, slug, bodyJson, status },
               }),
             captureEntityVersion: (r) => r.post.version,
           },
         });
+
+        // Mirrors content_post_update's identical inline processOutbox call below — an agent
+        // creating directly as `status: "published"` (the tool's own documented usage) now
+        // enqueues `entry.published` (`createPost`'s `deps.outbox` doc); drained here so SEO's
+        // sitemap-cache invalidation subscriber actually sees it (no background outbox poller).
+        await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
       });

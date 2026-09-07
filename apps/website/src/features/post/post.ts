@@ -293,6 +293,21 @@ export interface CreatePostDeps {
    * before this feature (no `ext` is written, no extra call is made). See `runBeforeSaveHook`.
    */
   beforeSaveHook?: BeforeSaveHookPort;
+  /**
+   * OPTIONAL, same "absent ⇒ behaves exactly as before" convention as {@link beforeSaveHook} just
+   * above. When present, a post/page created directly as `status: "published"` now enqueues the
+   * same `entry.published` event `updatePost`/`deletePost` already emit on a status transition —
+   * closing a gap where creating published (a documented, first-class input on both the HTTP create
+   * routes and the `content_post_create`/`content_page_create` assistant tools, not an edge case)
+   * never invalidated SEO's sitemap cache (`features/seo/sitemap.ts`), leaving the new entry
+   * permanently absent from `sitemap.xml` until an unrelated post in the same workspace was later
+   * updated. Left optional rather than required (unlike `UpdatePostDeps.outbox`/
+   * `DeletePostDeps.outbox`) so every existing caller that has no reachable outbox — this repo's
+   * ~9 direct-unit-test call sites among them — keeps compiling and behaving exactly as before;
+   * every real production caller (`posts/create.ts`, `pages/create.ts`,
+   * `tool-registrations.ts`'s `content_post_create`) now supplies its own `deps.outbox`.
+   */
+  outbox?: OutboxPort;
 }
 
 export interface CreatePostRequired {
@@ -819,6 +834,13 @@ export async function createPost(
   };
 
   await deps.repo.save(post);
+  // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
+  // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
+  // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
+  // (no event) when the caller created a plain draft, same as it always has.
+  if (deps.outbox) {
+    await emitStatusTransitionEvent(deps.outbox, "draft", post.status, post);
+  }
   return { post };
 }
 
