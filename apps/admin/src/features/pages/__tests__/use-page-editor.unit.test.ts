@@ -920,3 +920,162 @@ describe("frameRef / paneWidth (preview-scale regression — frame mounts after 
     expect(result.current.paneWidth).toBe(1131);
   });
 });
+
+/**
+ * A page created by `New Page` (`use-pages.hooks.ts`'s `createPage` -> `POST .../pages` ->
+ * `createPost`) is born `bodyFormat: "doc"` with `DEFAULT_BODY_JSON` (`{type:"doc",content:[]}`) as
+ * its body — `createPost` forces `resolveBodyFields()`'s `("doc", null)` by construction and
+ * `CreatePostInput` has no `bodyFormat` field to override it (`features/post/post.ts`, ADR-056
+ * CIC-3). The Pages editor offers that page an HTML textarea and a GrapesJS canvas regardless of
+ * format (`PageEditor.tsx`'s main pane is gated on `view`, never on `bodyFormat`), so an operator
+ * can type real markup into a brand-new page — and until this suite landed, `buildPageSavePlan`'s
+ * `canSaveHtml = page.bodyFormat === "html"` silently threw all of it away on Save, which is why two
+ * agents had to bypass the editor and PUT `/pages/:id/html` by hand.
+ *
+ * The F01 guard the block at the top of this file pins is NOT relaxed by this: the danger there is
+ * `updatePageHtml`'s conversion dropping a REAL Tiptap `body_json`, and the new rule fires only for
+ * a doc-format page whose document is empty AND into which the operator actually authored non-empty
+ * HTML. `DOC_PAGE` above carries a real paragraph, so it stays on the old path.
+ */
+describe("HTML authoring into a newly created (doc-format, empty-document) Page", () => {
+  /** Exactly what `createPost` produces for `New Page` — `DEFAULT_BODY_JSON`, doc format, draft. */
+  const NEW_PAGE = {
+    id: "pg-new",
+    workspaceId: "workspace-local",
+    kind: "page" as const,
+    title: "Untitled",
+    slug: "untitled",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    status: "draft" as const,
+    updatedAt: "2026-09-06T00:00:00.000Z",
+    version: 1,
+  };
+
+  function depsFor(page: unknown) {
+    const port = createFakePageEditorPort({
+      page: page as Parameters<typeof createFakePageEditorPort>[0]["page"],
+    });
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+  }
+
+  async function mount(page: unknown) {
+    const deps = depsFor(page);
+    const view = renderHook(() => usePageEditor("untitled", deps));
+    await waitFor(() => expect(view.result.current.page).not.toBeNull());
+    return { deps, result: view.result };
+  }
+
+  it("sends the authored HTML to updatePageHtml on Save", async () => {
+    const { deps, result } = await mount(NEW_PAGE);
+    expect(result.current.html).toBe("");
+
+    act(() => {
+      result.current.setHtml("<h1>Hand-authored</h1>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<h1>Hand-authored</h1>"]);
+    // The body reached the row, not just the writer — the fake stores what it was handed.
+    expect(deps.port.current.bodyHtml).toBe("<h1>Hand-authored</h1>");
+    // `updatePageHtml` converts the row to html format before `updatePost` runs, so the server's
+    // `existing.bodyFormat !== "html" && !isJsonObject(input.bodyJson)` check no longer applies and
+    // the round-tripped placeholder must NOT be sent (see `buildPageSavePlan`'s own doc).
+    expect(deps.port.updatePostCalls).toHaveLength(1);
+    expect(deps.port.updatePostCalls[0]).not.toHaveProperty("bodyJson");
+    // Not the "this page's body uses the document editor and can't be edited here yet" apology.
+    expect(result.current.message).toBe("en:Saved");
+  });
+
+  it("sends the authored HTML on Publish too, and publishes in the same action", async () => {
+    const { deps, result } = await mount(NEW_PAGE);
+
+    act(() => {
+      result.current.setHtml("<section>Launch</section>");
+    });
+    await act(async () => {
+      await result.current.save("published");
+    });
+
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<section>Launch</section>"]);
+    expect(deps.port.updatePostCalls[0]).toMatchObject({ status: "published" });
+  });
+
+  it("marks the editor dirty as soon as HTML is typed, so the Save dot and the leave guard both see it", async () => {
+    const { result } = await mount(NEW_PAGE);
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.contentDirty).toBe(false);
+
+    act(() => {
+      result.current.setHtml("<p>typed</p>");
+    });
+
+    expect(result.current.contentDirty).toBe(true);
+    expect(result.current.dirty).toBe(true);
+  });
+
+  it("parks an html-format standing draft carrying the typed markup", async () => {
+    // Fake timers for the 3s autosave debounce, same harness the autosave block above uses.
+    vi.useFakeTimers();
+    try {
+      const deps = depsFor(NEW_PAGE);
+      const { result } = renderHook(() => usePageEditor("untitled", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      act(() => result.current.setHtml("<p>typed</p>"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      // A `doc`-format draft round-tripping the empty document would lose the typed markup outright,
+      // and `restoreRecoveredDraft` only reads `bodyHtml` off an `html`-format draft — so a
+      // navigate-away inside the debounce window would give back nothing the banner promised.
+      expect(deps.port.putAutosaveCalls).toEqual([
+        {
+          bodyFormat: "html",
+          bodyHtml: "<p>typed</p>",
+          title: NEW_PAGE.title,
+          slug: NEW_PAGE.slug,
+          baseVersion: NEW_PAGE.version,
+        },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still writes no HTML when the operator saves a new page without authoring any", async () => {
+    const { deps, result } = await mount(NEW_PAGE);
+
+    act(() => {
+      result.current.setTitle("Renamed, body untouched");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // Nothing authored -> no premature conversion, and nothing to blank.
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+    expect(deps.port.updatePostCalls[0]).toMatchObject({ bodyJson: NEW_PAGE.bodyJson });
+  });
+
+  it("refuses to convert a doc-format Page that carries a real Tiptap document (the F01 guard)", async () => {
+    const { deps, result } = await mount(DOC_PAGE);
+
+    act(() => {
+      result.current.setHtml("<p>typed over a real document</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+    expect(deps.port.updatePostCalls[0]).toMatchObject({ bodyJson: DOC_PAGE.bodyJson });
+    // And the operator is told, rather than watching the typed markup vanish silently.
+    expect(result.current.message).toBe(
+      "en:Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet."
+    );
+  });
+});

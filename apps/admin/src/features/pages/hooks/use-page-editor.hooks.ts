@@ -10,7 +10,7 @@ import {
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
-import { buildPageAutosaveDraft, buildPageSavePlan, pageSaveSuccessMessage } from "../rules";
+import { buildPageAutosaveDraft, buildPageSavePlan, pageAcceptsHtmlBody, pageSaveSuccessMessage } from "../rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
@@ -169,8 +169,14 @@ export interface PageEditorController {
 
 /** `contentDirty`'s own computation, named out of `usePageEditor`'s body purely to keep that
  *  hook's own cyclomatic complexity under the gate — every `&&`/`||` in a boolean expression is
- *  its own branch, and this one has five. Same title/slug/status/body comparison, same behavior.
- *  See `PageEditorController.contentDirty`'s own doc for what this decides. */
+ *  its own branch. Same title/slug/status/body comparison, same behavior.
+ *  See `PageEditorController.contentDirty`'s own doc for what this decides.
+ *
+ *  The body arm asks `pageAcceptsHtmlBody` rather than testing `bodyFormat` itself, so this agrees
+ *  with `save` by construction: HTML typed into a brand-new (`doc`-format, empty-document) Page IS
+ *  savable, and therefore has to count as dirty — otherwise the Save button never shows its pending
+ *  dot, `useDirtyGuard` lets a navigate-away discard the work without asking, and the standing-draft
+ *  autosave below never fires at all. */
 function computeContentDirty(
   page: AdminPost | null,
   draft: { title: string; slug: string; status: "draft" | "published"; html: string; savedHtml: string },
@@ -180,7 +186,7 @@ function computeContentDirty(
     draft.title !== page.title ||
     draft.slug !== page.slug ||
     draft.status !== page.status ||
-    (page.bodyFormat === "html" && draft.html !== draft.savedHtml)
+    (pageAcceptsHtmlBody(page, draft.html) && draft.html !== draft.savedHtml)
   );
 }
 
@@ -412,14 +418,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // `updatePageHtml` is the bespoke-HTML writer (`routes/admin/pages/update-html.ts`) and its
       // FIRST call on a still-`doc`-format Page converts it to `html` format and drops `body_json`
       // — see that route's own doc comment. This editor has no way to render a doc-format body (it
-      // always loads `html` as `""` for that format), so calling it here would silently replace the
-      // page's real, already-authored content with an empty string on every ordinary Save/Publish.
-      // Only call it for a Page already in `html` format; a doc-format Page saves title/slug/status
-      // only, until the separately-scoped dual-mode editor (task #30) can represent its real body.
+      // always loads `html` as `""` for that format), so calling it unconditionally would silently
+      // replace a real Tiptap page's content with an empty string on every ordinary Save/Publish.
       // What to send each route, and whether `updatePageHtml` fires at all, is `buildPageSavePlan`'s
-      // decision (`../rules.ts`) — see that function's own doc for the full reasoning, moved there
-      // verbatim under the 2026-08-12 complexity-ceiling pass.
-      const plan = buildPageSavePlan(page, { title, slug, status, templateChoice }, nextStatus);
+      // decision (`../rules.ts`) — see that function's own doc, and `pageAcceptsHtmlBody`'s, for the
+      // full reasoning (moved there verbatim under the 2026-08-12 complexity-ceiling pass, and
+      // widened 2026-09-06 so a brand-new Page's hand-authored HTML is savable at all).
+      const plan = buildPageSavePlan(page, { title, slug, status, templateChoice, html }, nextStatus);
       try {
         // Two writes, in this order, because they are two different server-side paths and only the
         // second one can create the html row. Body first: if the metadata write fails on a slug

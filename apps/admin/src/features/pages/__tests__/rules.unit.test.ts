@@ -4,11 +4,13 @@ import type { AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
   buildPageAutosaveDraft,
+  buildPageSavePlan,
   comparePagesByStatus,
   comparePagesBySlug,
   comparePagesByTitle,
   comparePagesByUpdated,
   isAutosaveDraftStale,
+  pageAcceptsHtmlBody,
   pageAdminPath,
   pageAutosaveBannerMessage,
   pageColumnSortLabel,
@@ -318,6 +320,79 @@ describe("pageColumnSortLabel", () => {
 
   it("all three states produce different labels", () => {
     expect(new Set([pageColumnSortLabel("Title", null), pageColumnSortLabel("Title", "asc"), pageColumnSortLabel("Title", "desc")]).size).toBe(3);
+  });
+});
+
+/**
+ * The predicate behind "the Pages editor cannot write HTML into a newly created page" (2026-09-06).
+ * `New Page` -> `createPost` -> `bodyFormat: "doc"` with `DEFAULT_BODY_JSON`, and the flat
+ * `bodyFormat === "html"` test this replaced made every keystroke of hand-authored markup on such a
+ * page unsavable. The two guards below are what keep the F01 data-loss fix intact — see the
+ * function's own doc.
+ */
+describe("pageAcceptsHtmlBody", () => {
+  const EMPTY_DOC = { type: "doc", content: [] };
+  const REAL_DOC = { type: "doc", content: [{ type: "paragraph" }] };
+
+  it("is true for an html-format page, authored or not", () => {
+    expect(pageAcceptsHtmlBody({ bodyFormat: "html", bodyJson: {} }, "<p>x</p>")).toBe(true);
+    expect(pageAcceptsHtmlBody({ bodyFormat: "html", bodyJson: {} }, "")).toBe(true);
+  });
+
+  it("is true for a brand-new doc-format page once HTML is actually authored into it", () => {
+    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: EMPTY_DOC }, "<h1>hi</h1>")).toBe(true);
+  });
+
+  it("is false for a doc-format page with nothing authored — no premature conversion on a metadata save", () => {
+    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: EMPTY_DOC }, "")).toBe(false);
+  });
+
+  it("is false for a doc-format page carrying a real Tiptap document, even with HTML typed (the F01 guard)", () => {
+    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: REAL_DOC }, "<p>typed over it</p>")).toBe(false);
+  });
+
+  it("treats an absent or non-array content field as nothing to lose", () => {
+    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: {} }, "<p>x</p>")).toBe(true);
+    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: { content: "not an array" } }, "<p>x</p>")).toBe(true);
+  });
+
+  it("treats an absent bodyFormat the same as doc — an older row that predates the column", () => {
+    expect(pageAcceptsHtmlBody({ bodyJson: REAL_DOC }, "<p>x</p>")).toBe(false);
+    expect(pageAcceptsHtmlBody({ bodyJson: EMPTY_DOC }, "<p>x</p>")).toBe(true);
+  });
+});
+
+describe("buildPageSavePlan", () => {
+  const FORM = { title: "About", slug: "about", status: "draft" as const, templateChoice: null, html: "<p>body</p>" };
+
+  it("omits bodyJson whenever the HTML route will fire — updatePageHtml converts the row first, so the server no longer demands one", () => {
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] } }, FORM);
+    expect(plan.canSaveHtml).toBe(true);
+    expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
+  });
+
+  it("round-trips bodyJson whenever the HTML route will not fire", () => {
+    const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
+    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson }, FORM);
+    expect(plan.canSaveHtml).toBe(false);
+    expect(plan.updatePostPayload.bodyJson).toEqual(bodyJson);
+  });
+
+  it("saves the HTML authored into a brand-new page — the 2026-09-06 fix", () => {
+    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson: { type: "doc", content: [] } }, FORM);
+    expect(plan.canSaveHtml).toBe(true);
+    expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
+  });
+
+  it("prefers nextStatus over the form's own status, and writes it to both fields", () => {
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {} }, FORM, "published");
+    expect(plan.statusToWrite).toBe("published");
+    expect(plan.updatePostPayload.status).toBe("published");
+  });
+
+  it("falls back to the form's status when no nextStatus is given", () => {
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {} }, { ...FORM, status: "published" });
+    expect(plan.statusToWrite).toBe("published");
   });
 });
 

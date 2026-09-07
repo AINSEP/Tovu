@@ -154,11 +154,10 @@ export function themePageRowMenuItems(row: ThemePageRow, handlers: ThemePageRowM
 }
 
 /** What `usePageEditor`'s `save` sends to the two write routes, and whether the HTML route applies
- *  at all — see `use-page-editor.hooks.ts`'s own `save` for the full "why two routes" reasoning
- *  (`updatePageHtml` is the bespoke-HTML writer and its first call on a still-`doc`-format Page
- *  converts it, so it must only fire for a Page already in `html` format; `updatePost` needs a
- *  round-tripped `bodyJson` for any Page NOT in `html` format, since that field is meaningless once
- *  an html row exists). */
+ *  at all — see `use-page-editor.hooks.ts`'s own `save` for the full "why two routes" reasoning, and
+ *  {@link pageAcceptsHtmlBody} for exactly when `updatePageHtml` is allowed to fire (`updatePost`
+ *  needs a round-tripped `bodyJson` for every Page it does NOT fire for, since that field is
+ *  meaningless once an html row exists). */
 export interface PageSavePlan {
   canSaveHtml: boolean;
   statusToWrite: "draft" | "published";
@@ -175,9 +174,54 @@ export interface PageSavePlan {
  *  rather than importing the full `AdminPost` type, so a test can pass a bare literal. Field types
  *  mirror `AdminPost`'s own exactly (`bodyFormat` optional, `bodyJson` a plain record) so a real
  *  `AdminPost` is always assignable here without a cast. */
-interface SavablePage {
+export interface SavablePage {
   bodyFormat?: "doc" | "html";
   bodyJson: Record<string, unknown>;
+}
+
+/** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
+ *  `DEFAULT_BODY_JSON` (`{ type: "doc", content: [] }`) every `createPost` row is born with
+ *  (`apps/website/src/features/post/post.ts`). Deliberately conservative: ANY non-empty `content`
+ *  array counts as real content, including a single empty paragraph, because the only thing this
+ *  answer gates is whether we are willing to DESTROY that document — and the cost of being wrong in
+ *  the cautious direction is a refusal the operator is told about, while the cost of being wrong in
+ *  the other direction is silent data loss. An absent/non-array `content` is treated as empty: it is
+ *  not a document this editor could lose anything from. */
+function hasAuthoredDocument(bodyJson: Record<string, unknown>): boolean {
+  const content = bodyJson.content;
+  return Array.isArray(content) && content.length > 0;
+}
+
+/**
+ * Whether this editor's HTML working copy is a body it may actually write — the single predicate
+ * behind `save`'s `updatePageHtml` call, `contentDirty`'s body comparison, and the standing-draft
+ * autosave's format, so those three cannot disagree about what the operator is editing.
+ *
+ * **An already-`html` Page: always.** That is the original, unchanged rule.
+ *
+ * **A `doc`-format Page: only when the operator authored non-empty HTML into a Page that has no
+ * Tiptap document to lose.** This is the 2026-09-06 fix for "the Pages editor cannot write HTML into
+ * a newly created page": `New Page` (`use-pages.hooks.ts`'s `createPage`) goes through `createPost`,
+ * which forces `bodyFormat: "doc"` by construction (ADR-056 CIC-3 — `CreatePostInput` has no
+ * `bodyFormat` field at all), while `PageEditor.tsx` offers that page an HTML textarea and a GrapesJS
+ * canvas regardless of format. A flat `bodyFormat === "html"` test therefore made every keystroke of
+ * hand-authored markup unsavable through the product, which is why operators had to bypass the
+ * editor and `PUT /pages/:id/html` by hand.
+ *
+ * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
+ * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`routes/admin/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
+ * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
+ * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
+ * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
+ * converted at all, even if markup IS typed over it; that operator gets
+ * {@link pageSaveSuccessMessage}'s "can't be edited here yet" refusal instead of a blanked page.
+ *
+ * @complexity Time O(1), space O(1) — one property read and one length check.
+ */
+export function pageAcceptsHtmlBody(page: SavablePage, html: string): boolean {
+  if (page.bodyFormat === "html") return true;
+  return html !== "" && !hasAuthoredDocument(page.bodyJson);
 }
 
 /**
@@ -186,14 +230,18 @@ interface SavablePage {
  * `save` itself keeps only the two `await`s, the `setState` calls, and the try/catch/finally — the
  * genuinely effectful part that has to stay.
  *
+ * `form.html` is the working copy, not the saved body: {@link pageAcceptsHtmlBody} needs it to tell
+ * "the operator authored markup into a brand-new page" apart from "an ordinary metadata save on a
+ * page whose body this editor cannot render" — see that function's own doc.
+ *
  * @complexity Time/space: O(1).
  */
 export function buildPageSavePlan(
   page: SavablePage,
-  form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null },
+  form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string },
   nextStatus?: "draft" | "published"
 ): PageSavePlan {
-  const canSaveHtml = page.bodyFormat === "html";
+  const canSaveHtml = pageAcceptsHtmlBody(page, form.html);
   const statusToWrite = nextStatus ?? form.status;
   return {
     canSaveHtml,
@@ -217,10 +265,10 @@ interface AutosavablePage extends SavablePage {
 }
 
 /**
- * What to send `putAutosave` for the CURRENT working copy — mirrors {@link buildPageSavePlan}'s own
- * doc-vs-html split. A doc-format Page has no editable body in this editor (see `usePageEditor`'s
- * load effect, and {@link buildPageSavePlan}'s identical reasoning), so its `bodyJson` round-trips
- * unchanged — the same inert-but-required placeholder a real Save already sends for that case.
+ * What to send `putAutosave` for the CURRENT working copy — same {@link pageAcceptsHtmlBody} split
+ * a real Save makes, so a parked draft can never be a format the Save that follows it would refuse.
+ * A Page whose body this editor cannot write round-trips `bodyJson` unchanged instead — the same
+ * inert-but-required placeholder that Save already sends for that case.
  *
  * @complexity Time/space: O(1).
  */
@@ -228,7 +276,7 @@ export function buildPageAutosaveDraft(
   page: AutosavablePage,
   form: { title: string; slug: string; html: string }
 ): StandingDraftAutosaveInput {
-  if (page.bodyFormat === "html") {
+  if (pageAcceptsHtmlBody(page, form.html)) {
     return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
   }
   return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };

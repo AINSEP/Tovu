@@ -103,10 +103,15 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       };
     },
 
+    // Mirrors the real route's `ensureHtmlFormat` + `write` pair (`routes/admin/pages/update-html.ts`):
+    // the FIRST call on a still-`doc`-format row converts it to `html` AND drops `body_json`. Modelled
+    // here rather than only storing `bodyHtml`, so a test that saves twice sees the same row shape the
+    // server would hand back on the second load — without it this fake would report a converted page
+    // as still `doc`-format forever, which is exactly the state `pageAcceptsHtmlBody` branches on.
     async updatePageHtml(id, html) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       updatePageHtmlCalls.push(html);
-      page = { ...page, bodyHtml: html };
+      page = { ...page, bodyFormat: "html", bodyJson: {}, bodyHtml: html };
       return { post: page };
     },
 
