@@ -45,3 +45,16 @@ test("the Projects header renders a Rescan control wired to that hook", () => {
   assert.match(appTsx, /onRescan/);
   assert.match(appTsx, /Rescan/);
 });
+
+test("a rescan failure is reported ALONGSIDE the grid, never in place of it", () => {
+  // Found by driving the real app, not by this file's first draft: `ProjectsBody` early-returns an
+  // empty state whenever `loadError` is set, so routing the rescan error through that prop blanked
+  // every project the operator already had — strictly worse than the failure being reported, and
+  // indistinguishable from "all my sites vanished". The projects already listed stay real and
+  // openable whatever a scan did.
+  assert.doesNotMatch(appTsx, /loadError=\{loadError \?\? rescanError\}/);
+  const body = appTsx.slice(appTsx.indexOf('function ProjectsBody('));
+  const ownBody = body.slice(0, body.indexOf('\nfunction '));
+  assert.ok(ownBody.includes('if (loadError)'), 'loadError still owns the replace-the-grid path');
+  assert.match(ownBody, /\{rescanError && [\s\S]{0,300}?\}\s*\n\s*<ProjectGrid/);
+});

@@ -798,9 +798,8 @@ function MainArea({
         isCreating={isCreating}
         lastCreated={lastCreated}
         projectsLoading={projectsLoading}
-        // A rescan failure must not replace the grid: the projects already listed are still real
-        // and still openable, so it is reported alongside them rather than instead of them.
-        loadError={loadError ?? rescanError}
+        loadError={loadError}
+        rescanError={rescanError}
         projects={projects}
         activeLabel={active?.label ?? ''}
         activeDescription={active?.agentDescription ?? ''}
@@ -851,6 +850,7 @@ function MainHeader({
 function ProjectsBody({
   projectsLoading,
   loadError,
+  rescanError,
   projects,
   onCreate,
   onOpen,
@@ -858,6 +858,14 @@ function ProjectsBody({
 }: {
   projectsLoading: boolean;
   loadError: string | null;
+  /**
+   * A failed RESCAN, deliberately not folded into `loadError`. That one means "there is no list to
+   * show" and short-circuits into the empty state below, which is right for it and catastrophic
+   * here: a scan that failed leaves every project already on screen real, openable, and unchanged,
+   * so replacing the grid with an error would hide working sites to report a failure to look for
+   * more of them.
+   */
+  rescanError: string | null;
   projects: readonly ProjectRecord[];
   onCreate: () => void;
   onOpen: (id: string) => void;
@@ -877,7 +885,12 @@ function ProjectsBody({
       </div>
     );
   }
-  return <ProjectGrid projects={projects} onCreate={onCreate} onOpen={onOpen} onDelete={onDelete} />;
+  return (
+    <>
+      {rescanError && <p className="empty__body">{rescanError}</p>}
+      <ProjectGrid projects={projects} onCreate={onCreate} onOpen={onOpen} onDelete={onDelete} />
+    </>
+  );
 }
 
 function MainContent({
@@ -886,6 +899,7 @@ function MainContent({
   lastCreated,
   projectsLoading,
   loadError,
+  rescanError,
   projects,
   activeLabel,
   activeDescription,
@@ -898,6 +912,7 @@ function MainContent({
   lastCreated: ProjectRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
+  rescanError: string | null;
   projects: readonly ProjectRecord[];
   activeLabel: string;
   activeDescription: string;
@@ -941,6 +956,7 @@ function MainContent({
       <ProjectsBody
         projectsLoading={projectsLoading}
         loadError={loadError}
+        rescanError={rescanError}
         projects={projects}
         onCreate={onCreateWebsite}
         onOpen={onOpenProject}

@@ -703,9 +703,13 @@ button { font: inherit; color: inherit; }
 
 .main__spacer { flex: 1; }
 
+/* A row since the Projects header gained a second control: as a single-column grid the two
+   buttons stacked, which read as one being subordinate to the other rather than as two peer
+   actions. Identical to the old rule for a single child -- still flush right. */
 .main__tools {
-  display: grid;
-  justify-items: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
