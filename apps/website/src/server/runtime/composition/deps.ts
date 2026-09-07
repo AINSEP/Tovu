@@ -17,7 +17,7 @@ import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -1146,6 +1146,12 @@ export function createSqliteRouteDeps(
   // fixed-method call to an operator-typed base URL either.
   const customCredentialsHttpClient = createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY);
 
+  // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
+  // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
+  // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
+  // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
+  const mediaImportHttpClient = createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY);
+
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
   // OAuth pending-state map, so a second instance would silently not share either.
@@ -1490,6 +1496,9 @@ export function createSqliteRouteDeps(
     // See `routes/types.ts`'s own doc — a genuinely separate `HttpClientPort` instance from
     // `resolvedMailer`'s, built above.
     customCredentialsHttpClient,
+    // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
+    // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
+    mediaImportHttpClient,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).

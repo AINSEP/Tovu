@@ -12,7 +12,7 @@ import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/fea
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
@@ -792,6 +792,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `SINGLE_HOP_HTTPS_EGRESS_POLICY`: the SAME shared policy `server/deps.ts` uses for its own
     // instance — see that module's own export for why this used to be a third hand-copied literal.
     customCredentialsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    // 2026-09-06 — `features/media-import`'s `media_import_from_url`. Same reasoning as the line
+    // above (a real guarded client, not a fake, so this hermetic composition root's own tests
+    // exercise the real SSRF guard), built from `MEDIA_IMPORT_EGRESS_POLICY` instead — see
+    // `routes/types.ts`'s `mediaImportHttpClient` doc for why the two policies cannot be shared.
+    mediaImportHttpClient: createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY),
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is

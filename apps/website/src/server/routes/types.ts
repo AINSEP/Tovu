@@ -399,6 +399,24 @@ export interface CredentialsDeps {
    * arbitrary, operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
    */
   customCredentialsHttpClient: HttpClientPort;
+  /**
+   * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
+   * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink
+   * and the reason this must never be a raw `fetch`.
+   *
+   * A THIRD instance rather than a reuse of `customCredentialsHttpClient` above, because it is built
+   * from a different `EgressPolicy`: `platform/http/egress-policies.ts`'s
+   * `MEDIA_IMPORT_EGRESS_POLICY`, which follows (and fully re-verifies) up to three redirects, allows
+   * a file-sized response, and waits a download's worth of time — none of which
+   * `SINGLE_HOP_HTTPS_EGRESS_POLICY` does or should. Sharing one client would mean one of the two
+   * call shapes gets the wrong policy; see that policy's own doc for the per-axis reasoning.
+   *
+   * Stored on this bag for the same reason `customCredentialsHttpClient` is: the registry-style
+   * tool-contribution seam (`contribute<Domain>Tools()`) hands the SAME shared `RouteDeps` object to
+   * every domain, so a domain's own `ToolDeps` interface can only pick up a field that genuinely
+   * lives here.
+   */
+  mediaImportHttpClient: HttpClientPort;
 }
 
 /**

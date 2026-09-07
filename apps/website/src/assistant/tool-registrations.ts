@@ -209,6 +209,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps } from "../features/media/tool-registrations.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
+import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
@@ -263,6 +264,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
   MediaGenerationToolDeps &
+  MediaImportToolDeps &
   MembersToolDeps &
   MenusToolDeps &
   NewsletterToolDeps &
