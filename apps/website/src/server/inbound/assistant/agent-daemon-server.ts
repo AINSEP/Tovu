@@ -1160,12 +1160,30 @@ async function start(): Promise<void> {
   // the start rather than adding it later. See `component-catalog-query.ts`.
   registerComponentCatalogRoutes(app, { catalog: buildComponentCatalogQuery() }, adapter);
 
-  // `createDiskAttachmentStore` is async (it empties `uploadDirectory` on construction — see its
-  // own doc), so it cannot be a module-scope `const` the way `agentExecutor`/`toolExecutor` are.
-  // Assigned into the module-scope `attachmentStore` binding `onStarted` reads, and awaited here
-  // — before `app.listen()` a few lines down — so no request can ever reach this process while
-  // `attachmentStore` is still unset (`onStarted`'s own doc explains why that matters).
-  attachmentStore = await createDiskAttachmentStore({ uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY });
+  // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
+  // process on construction — see its own doc), so it cannot be a module-scope `const` the way
+  // `agentExecutor`/`toolExecutor` are. Assigned into the module-scope `attachmentStore` binding
+  // `onStarted` reads, and awaited here — before `app.listen()` a few lines down — so no request
+  // can ever reach this process while `attachmentStore` is still unset (`onStarted`'s own doc
+  // explains why that matters).
+  //
+  // `retainAcrossRestarts` is NOT optional for this host, and the reason is specific to how this
+  // process is started. The daemon is a `spawn()` child of `src/index.ts`, which dev runs under
+  // `tsx watch` — so every save anywhere in `apps/website/src` kills and respawns it (see
+  // `agent-daemon-supervisor.ts`). Without this option the store empties `uploadDirectory` on each
+  // of those constructions, which means an unrelated source edit silently destroys every chat
+  // attachment a user has staged but not yet sent. That is not a hypothetical: an upload was
+  // observed erased by an API reload ~90 seconds later. The store's default is deliberately the
+  // conservative one for hosts whose process lifetime really does bound an upload's; this host is
+  // not one of them.
+  //
+  // Adoption is authenticated, not blind — a file that changed between processes is rejected by the
+  // same integrity gate `claim()` applies, and anything unaccounted for is swept. Reverting to the
+  // previous behavior is deleting this one option.
+  attachmentStore = await createDiskAttachmentStore({
+    uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
+    retainAcrossRestarts: true,
+  });
   // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
   // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
