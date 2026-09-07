@@ -161,7 +161,27 @@ Two classifiers of the same two files, different vocabularies (`partial`≈`inco
 
 ### 4.9 `agentHandle` sweep — one mechanism, consistently applied — CONFIRMED (negative finding)
 
-`agentHandle` is imported from `@jini-ai/agentic` (a package entrypoint, not an internal path) at 490 call sites in 70 files under `apps/admin/src`; no parallel `data-testid`/`data-agent-*` mechanism exists outside one CSS comment. The ~20 tagging commits are consistent with each other. Residual risk is only that 490 string-literal handle names have no registry (duplicate-name check in the next commit).
+`agentHandle` is imported from `@jini-ai/agentic` (a package entrypoint, not an internal path) at 490 call sites in 70 files under `apps/admin/src`; no parallel `data-testid`/`data-agent-*` mechanism exists outside one CSS comment. The ~20 tagging commits are consistent with each other. Residual risk: 490 string-literal handle names, 311 distinct, no registry. Three names are used twice **in the same file** — `deployment-dockerfile-load-error` (`DockerfileTab.tsx:371,386`), `page-template-choice` (`PageEditor.tsx:383,399`), `post-template-choice` (`PostEditor.tsx:1016,1053`). If both elements render at once an agent driving by handle has an ambiguous target; if they are exclusive branches it is fine. Read in the next commit.
+
+### 4.10 Site layout: `CONTENT_DB_FILENAME` and `CONTENT_DB_FILE_NAME`, same directory, same night — CONFIRMED
+
+`apps/website/src/platform/site-dir/layout.ts:61` exports `CONTENT_DB_FILENAME = "content.db"`; `apps/website/src/platform/site-dir/repair-site.ts:72` (`d131619d`, last night) exports `CONTENT_DB_FILE_NAME = "content.db"` — two constants for one filename, in sibling files, and `cli/commands/adopt.ts` imports the *second*. Beyond those, the literal `"content.db"` is still hand-joined at `cli/commands/export.ts:135`, `cli/commands/serve.ts:195`, `platform/site-dir/boot-site-dir.ts:73`, `platform/site-dir/init-site.ts:213`, and `runtime/composition/deps.ts:452`; `"chat.db"` and `"ops/database-journal.db"` are derived only in `composition/deps.ts:463,473` from `dirname(contentDbPath)`, while `layout.ts`'s `isPortableSiteEntry` (`0d63cfd8`, the "stop shipping private databases" fix) is the *other* place that knows which files in a site dir are private. Two modules own the site directory's layout: `layout.ts` (what is portable) and `composition/deps.ts` (where each DB lives), and they do not reference each other. Cost: the next private file added to a site dir (a second journal, a cache) has to be added in two places or `duplicateSite` ships it — which is exactly the bug `0d63cfd8` fixed for `chat.db`. Correct seam: `layout.ts` owns every filename (`CONTENT_DB`, `CHAT_DB`, `JOURNAL_DB`, `UPLOADS_DIR`, …) and the portability predicate; `composition/deps.ts` builds paths from those constants; `repair-site.ts` drops its private copy.
+
+### 4.11 Outbox retry: the terminal-state decision found its owner — CONFIRMED, no action
+
+`0ae3429d` added backoff + an attempt cap with the "failed" decision made inside each store (`memory-bus.ts` and `outbox-repo.sqlite.ts` — two copies); `8d041b52` moved it into `contracts/core/events/outbox-worker.ts`'s `processOutbox` (`row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending"`, passed to `markFailed(id, message, nextAttemptAt, nextStatus)`), leaving both stores as dumb writers. That is the correct owner (one policy, N stores). Whether `row.attempts` is pre- or post-increment at that comparison is a bugs-lens question, not filed here.
+
+### 4.12 Assistant tool executor: one stack, two consumers — CONFIRMED, no action
+
+`08ace3ea` made `assistant/tool-executor-stack.ts`'s `createAssistantToolExecutor` (read-only guard → optional audit → failure recovery) the single constructor, consumed by `byok-tool-surface.ts` and re-exported through `agent-daemon-port.ts` for the daemon. Before it, BYOK built its own un-gated executor — a divergent copy of the stack; this closed it.
+
+### 4.13 HTTPS egress policy — CONFIRMED, no action
+
+`7b2a2007`/`916eb8b0`: `platform/http/egress-policies.ts` now holds `SINGLE_HOP_HTTPS_EGRESS_POLICY` and `MEDIA_IMPORT_EGRESS_POLICY`; `composition/app.ts` and `composition/deps.ts` both import them (the two composition roots are the documented rule-of-two split). No inline policy object survives (checked in the next commit).
+
+### 4.14 Chat-attachment directory: one definition, but an inbound module importing the composition root — CONFIRMED
+
+`3b196ffb` gave the upload directory one definition: `server/inbound/assistant/chat-attachment-directory.ts` `resolveChatAttachmentUploadDirectory()`. It computes it by importing `defaultContentDbPath` from `../../runtime/composition/deps.js` — an `inbound/` adapter reaching *up* into the composition root for a path. The composition root is supposed to hand adapters what they need, not be imported by them; the same file's sibling fix (`6f32d027`, §4.8) removed `contentDbPath` from `RouteDeps` for precisely the reason that a filesystem path is not a port. Whether dependency-cruiser has a rule for `inbound → runtime/composition` is checked next; if it does not, this is the direction that rule should declare. Cost: the daemon server's attachment directory is bound to whatever `defaultContentDbPath()` reads from env/cwd at call time — the same "resolves site from cwd, not site dir" trap already on record for the daemon.
 
 ### 4.4 Layering — clean — CONFIRMED (negative finding)
 
