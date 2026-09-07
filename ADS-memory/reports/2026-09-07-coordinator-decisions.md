@@ -135,3 +135,39 @@ Supabase/Custom moves the failure away from the form the operator is looking at.
   lists, `useSettlementGeneration` at 8 of 11) — real debt, nothing breaks tomorrow, no owner.
 - `ADS-memory/reports/codex-audit/` is still uncommitted and stopped on a usage limit, not
   completion. The Fable lenses refuted none of its 15 findings.
+
+---
+
+## Addendum — Agent B's four user-visible changes, ruled 2026-09-07
+
+Leona's delegation stands; these were decided by the Coordinator on the same basis.
+
+1. **Pre-existing `created` project's delete no longer erases its folder** — KEEP. Already ruled
+   in §1 above. Fail-closed, and honest (`deleteErasesFiles: false`, so the overlay promises only
+   the card removal it actually performs). Self-corrects for new projects.
+2. **A crashed site shows as stopped with a reason; Start spawns fresh instead of returning the
+   corpse** — KEEP. The old behaviour handed back a dead handle and reported "running". There is
+   no reading under which that was better.
+3. **Supabase and Custom DB visibly disabled in the create form** — KEEP. The form previously
+   accepted a hosted-DB choice and silently discarded it, reporting sqlite success. Disabled and
+   visible beats accepted and dropped.
+4. **Own-server mode leaves a crashed site's window open** — KEEP. Closing it fires
+   `window-all-closed`, which quits the whole app when the only open site dies. A stale window the
+   user can close is strictly better than the app vanishing under them. Fleet mode unaffected.
+
+**D-02 product call — do NOT drop `database` from the desktop contract.** The audit prefers
+deleting it outright; B made the form honest instead and left the capability signposted. That is
+the right call: removing a roadmap affordance is a product decision, and it is not reversible by
+the person who next wants hosted DB support. Revisit only if the capability is formally dropped.
+
+**Method note worth keeping:** B did not restructure `main.cjs` into boot modules despite §4.5
+recommending it. Reasoning accepted — `tsc` cannot check `.cjs`, so a large blind move there has
+no guard, and that exact change gutted the file once already (`15548bef`). It extracted only the
+seam the findings needed (`src/site-supervisor.cjs`, 143 lines) and left the other ~1,000 alone.
+The 1,047-line composition root remains open structural debt with no owner.
+
+Two signals that the RED-first discipline is doing real work: B's first D-01 guard added a real
+`statSync` and six existing tests caught that it had violated `seedDevFallbackProject`'s injected-
+classifier contract; and the new `"unreadable"` verdict created an unwired call site
+(`describeRejectedDefault` would have thrown on `undefined.join` while building the dialog meant
+to explain the problem). Both found before landing.
