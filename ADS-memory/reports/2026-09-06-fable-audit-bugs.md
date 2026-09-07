@@ -26,3 +26,6 @@
 ## Ledger — all 243 commits
 
 (filled at end; every commit reviewed or skipped-with-reason)
+
+## Run log
+- Run 2 started 2026-09-07 00:01 (a prior run's header survived as a82f6135; this run appends). Post-HEAD commits at start: f682eff2, a82f6135, ce7a5f64, 103f7ae1, fd39c9b7.
