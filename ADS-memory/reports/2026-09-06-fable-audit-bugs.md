@@ -101,3 +101,40 @@
 - `15548bef`/`2aa317ab`/`4c6a0797` boot token: single-use sha256 + `timingSafeEqual`, loopback-only via `req.socket.remoteAddress`, token printed only with `emitBootToken`. Minor: a 500 after redeem burns the token (desktop cannot retry) — not a defect on its own.
 - `b37864c3` `content_post_update` forwards `expectedVersion` (`post/tool-registrations.ts:~555,597`). Kind-blind for `kind:"post"` like the HTTP route.
 - `a9a6e3a9` export redirect stub: `safeHref` then `escapeHtmlAttr` on all three sinks. `d1eea4b2` export now runs `reconcileInterruptedMigrationOnBoot` and refuses when blocked. `62634037` adopt: refuses partial marker sets. `2cd019cd`/`848ddd09` HTTP/2: `Connection` omitted when `httpVersionMajor >= 2`; proxy strips hop-by-hop. `00bc4bd6`, `4c65e392`: correct.
+
+### D-01 (codex) — CONFIRMED (Medium) — one unreadable candidate aborts desktop boot
+- `apps/desktop/src/project-registry.cjs:298-305` `discoverSiteDirs` filter: `fs.statSync(dir, { throwIfNoEntry: false })` still throws EACCES/ELOOP; `classifySiteDir` (`site-dir-store.cjs:127-133`) calls `missingSiteMarkers`/`fs.readdirSync(dir)` with no try. Only the ROOT `readdirSync` (`:290-294`) is guarded.
+- `apps/desktop/main.cjs:1001` `rescanProjects(projectDeps)` runs inside the `whenReady()` chain whose only handler is `.catch(reportBootFailure)` (`:924-1021`) — before `openFleetWindow()` (`:1006`). One unreadable directory under `<repo>/sites` (or a remembered dir replaced by a file, ENOTDIR) exits the app. The renderer-side rescan fix (`f02ac28e`) cannot help; the renderer never opens.
+
+### D-06 (codex) — CONFIRMED (Medium) — a crashed child stays "running"; Start reuses the dead handle
+- `apps/desktop/src/tovu-server.cjs:~500-517`: the only exit listener is `child.once("exit", ...)` -> `finish(...)`, a no-op once `settled` is true (boot line already seen). The resolved handle exposes no exit event; `main.cjs` registers no other `exit` listener (grep: only `:381` in `stopChild` and `:515`).
+- `main.cjs:569-576` `openSiteServer` returns `already.server` whenever `openSites` has the key -> after a crash, "Start site" returns the dead handle and spawns nothing; `buildProjectRecord` (`project-ipc.cjs:53-72`) keeps reporting `running`. The comment claiming the poll catches crashes is unsupported by any producer of that status.
+
+### D-03 (codex) — CONFIRMED (Medium) — webview failure listeners never attach after Start
+- `apps/desktop/src/renderer/App.hooks.ts:645-689` `useWebviewLoadFailure` effect deps are `[webviewRef, resetKey]`; it returns early when `webviewRef.current === null` (`:660-661`). `App.tsx:505,512` passes `resetKey = reloadNonce:view`; `running` (`:505`) is not part of the key. The stopped tab renders `ProjectStartPanel` (ref null); when the poll flips `status` to running the `<webview ref>` mounts (`:611`) but neither dep changed, so no `did-fail-load` listener or stall timer is ever installed for the first load. Same on retry from the failure panel.
+
+### D-07 (codex) — CONFIRMED shape (Low) — second desktop instance overwrites the first's crash-safety row
+- `apps/desktop/src/site-registry.cjs:86-89` `recordSiteOpened` replaces by `siteDir` only. `reconcileOrphans` (`:246-264`) correctly retains a live sibling's child (ppid != 1), but a second instance opening the same site rewrites the row with its own pid; a later hard-kill of the first leaves its child unrecorded.
+
+### DS-01 — PLAUSIBLE (Low) — `e332ec33` treats cookie presence as session validity
+- `apps/desktop/src/desktop-auth.cjs` `hasActiveSessionCookie` = `cookies.get({name:"tovu_session"}).length > 0`; `main.cjs` then sets `emitBootToken: !alreadyAuthenticated` and skips `authenticateSiteSession`. A cookie whose server row is gone (DB restore-point rollback, `cleanup-stale-owner-sessions --apply` after clock skew, any server-side revoke without the desktop's own logout) yields a 401 admin with no boot token minted and no password to fall back on. Recovery is quit+relaunch (`endSiteSession` on quit hits `/auth/logout`, which clears the cookie even for an unknown token). Not reproduced; inferred from the read.
+
+### PG-01 — PLAUSIBLE (Low) — `schema.postgres.ts` did not get `autosave_json`
+- `e94da8f8` added `autosaveJson` to `apps/website/src/platform/db/schema.ts:166` + `drizzle/0058_keen_mauler.sql`; `schema.postgres.ts` has no such column (grep empty). Its only production consumer is `platform/db/migration/manifest.ts`; Postgres-at-site-creation is CANCELLED, so dialect drift rather than a live defect.
+
+### Not findings (pending-list, read)
+- `e56965a6` tsc baseline: type-only (`includeIfNonEmptyString` widens to accept `null`; `AgentElementRole` typing; test typings). No runtime change found.
+- `a9f84cdc` PageEditor: pure `PageEditorPane` extraction; props threaded 1:1.
+- `0b7b6de1`: `pageAcceptsHtmlBody` guards the doc->html conversion on a real Tiptap doc (F01 guard) — correct. `05782b71`: page unsaved-work guard wired via `useDirtyGuard` (`use-page-editor.hooks.ts:152`).
+- `c171e62b`/`6df1f9a7` settlement: every adopting file pairs `next()` with `isCurrent()` (8 files checked; `use-roles.hooks.ts` references it only in a comment).
+- `c201d948`/`f02ac28e` rescan: `setProjects(await bridge.rescanProjects())`, error captured, `finally` clears the flag; the poll's cancel flag prevents post-unmount sets.
+- `a346b3ec` media-import: contributed via `tool-catalog-manifest.ts` -> `assistant/tool-registrations.ts` (BYOK and daemon arms share the manifest).
+- `ae13e739`: `writeAllowedToolNames` spec present (`settings/rules.ts:158-163`); server `routes/external-mcp/put.ts:86` parses it; store persists it.
+- `04806e6b` AVIF: server acceptance lives in Jini's `content-type-sniffer.ts` (already `image/avif`); admin arms (`Media.tsx:612`, `use-post-editor.hooks.ts:344`) now match. No one-arm gap.
+- `ea5f3a42`/`b3553dd9` NUL escapes: the backslash-u0000 escape inside a template literal is the same code unit as the raw byte (`builtin-role-grants.ts`). No semantic change.
+- `d131619d`/`8a14b56a`/`6998ef9c` repairSite: refuses partial markers, unmigrated/diverged db; unlinks `config.json` if the meta write fails.
+- `0b298d86` attachment read: owner check, containment, integrity (dev/ino/size). `f281d3a2` promote: Jini `resolveForRun` only matches KNOWN records by id or recorded path (`http-kit/src/attachments.ts:1213`) — no arbitrary-path read. `feb8a777` scoped by principal. `3b196ffb`: both processes use `resolveChatAttachmentUploadDirectory()`.
+- `7b2a2007`/`916eb8b0` egress policy: shared constant wired at `deps.ts:1137,1147`; media-import keeps its own 3-redirect policy.
+- `570e5822`: `--db` no longer defaults to the live db. `11aa4708`: `pages.edit_html` grant registered via side-effect import of `features/pages/permissions.ts`. `ed397627` cleanup script: dry-run opens read-only, `--apply` captures a restore point first.
+- `26985a2d`/`933c69e9` "design" commits carry hook files, but the hook changes are SVG icon components and tab metadata only.
+- Desktop window-vs-tab: three same-day commits (`868cfe72` windows, `204e01a7` tabs, `9e77a778` restore tabs) leave BOTH `openSiteWindow` (`main.cjs:515`, still called from the adopt flow `:653` and own-server mode `:914`) and `openSiteServer` (`:569`) live; both store a `{server}`-shaped entry in `openSites`, so the shared readers stay coherent.
