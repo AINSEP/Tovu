@@ -11,6 +11,17 @@ import test from "node:test";
  * Nothing outside `src/platform/http/` itself or the named composition-root files may import it directly
  * — doing so would let a consumer bypass `createHttpClient`'s policy enforcement entirely. This
  * test greps the whole source tree for the import and fails if it turns up anywhere else.
+ *
+ * 2026-09-06 — the scan matches an import SPECIFIER, not the bare string. It previously grepped for
+ * `transport.fetch` anywhere in a file, which is not what this file's own doc above describes and
+ * not what the boundary is: it fired on two files that merely NAME the module in JSDoc prose
+ * (`types.ts` explaining why `bodyBytes` exists, `features/media-import/fetch-image.ts` explaining
+ * that it deliberately does NOT reach past the port), neither of which imports anything. The same
+ * naive-scan-versus-prose failure this repo has hit before. Recall against a real bypass is
+ * unchanged, because every form of one — `import ... from "..."`, `export * from "..."`,
+ * `await import("...")`, `require("...")` — necessarily writes the module path inside quotes, which
+ * is exactly what {@link SPECIFIER_PATTERN} matches; only unquoted mentions (prose, and this file's
+ * own doc) stop counting.
  */
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..", "..");
@@ -22,10 +33,14 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..",
  */
 const ALLOWED_IMPORTERS = new Set(["apps/website/src/platform/http/client.ts"]);
 
+/** `transport.fetch` appearing inside a quoted module specifier — the only shape that can actually
+ *  bind the module. See this file's header for why the bare-string scan this replaced was wrong. */
+const SPECIFIER_PATTERN = "['\"][^'\"]*transport\\.fetch";
+
 test("transport.fetch is not imported outside src/platform/http or the composition root", () => {
   const grepOutput = execFileSync(
     "grep",
-    ["-rl", "--include=*.ts", "transport.fetch", join(repoRoot, "apps", "website", "src")],
+    ["-rlE", "--include=*.ts", SPECIFIER_PATTERN, join(repoRoot, "apps", "website", "src")],
     { encoding: "utf8" }
   ).trim();
 

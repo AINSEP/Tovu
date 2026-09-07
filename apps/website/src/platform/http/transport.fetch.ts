@@ -71,10 +71,17 @@ export class FetchHttpTransportAdapter implements HttpTransportAdapter {
           chunks.push(chunk);
         });
         decoded.on("end", () => {
+          // Concatenated ONCE and returned in both shapes. `bodyText` is the lossy UTF-8 decode
+          // every existing consumer already reads; `bodyBytes` is the same buffer undecoded, for a
+          // consumer whose payload is not text (see `types.ts`'s `bodyBytes` doc). `Buffer` IS a
+          // `Uint8Array`, and `Buffer.concat` allocates a fresh one here, so handing it over
+          // directly is a zero-copy alias of a buffer nothing else holds — not a shared view.
+          const body = Buffer.concat(chunks);
           resolve({
             status: res.statusCode ?? 0,
             headers: flattenHeaders(res.headers),
-            bodyText: Buffer.concat(chunks).toString("utf8"),
+            bodyText: body.toString("utf8"),
+            bodyBytes: body,
           });
         });
         decoded.on("error", reject);

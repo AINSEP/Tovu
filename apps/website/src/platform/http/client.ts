@@ -287,6 +287,33 @@ function capBody(bodyText: string, maxBytes: number): string {
   return buffer.subarray(0, maxBytes).toString("utf8");
 }
 
+/**
+ * Applies the effective policy cap to BOTH body shapes and reports whether either was actually
+ * clipped (`types.ts`'s `bodyTruncated` doc for why that matters — a clipped binary body is a
+ * corrupt file, not a smaller one).
+ *
+ * `bodyText` and `bodyBytes` are capped independently, on purpose: they are capped in the units each
+ * one is measured in (UTF-8 bytes of the decoded string vs. raw response bytes). For a text payload
+ * those agree; for a binary payload `bodyText` is already lossy before any capping happens, so
+ * making the two agree would mean picking one to be wrong. `truncated` is the OR of both, so a
+ * consumer reading either shape learns the response was incomplete.
+ *
+ * @complexity O(n) in the response body length — one re-encode for the text half (already the
+ *   pre-existing `capBody` cost), one O(1) `subarray` view for the byte half.
+ */
+function capResponse(response: HttpResponse, maxBytes: number): HttpResponse {
+  const bodyText = capBody(response.bodyText, maxBytes);
+  const bytes = response.bodyBytes;
+  const bytesOverCap = bytes !== undefined && bytes.byteLength > maxBytes;
+  const truncated = bodyText !== response.bodyText || bytesOverCap || response.bodyTruncated === true;
+  return {
+    ...response,
+    bodyText,
+    ...(bytes !== undefined ? { bodyBytes: bytesOverCap ? bytes.subarray(0, maxBytes) : bytes } : {}),
+    bodyTruncated: truncated,
+  };
+}
+
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 async function sendWithPolicy(
@@ -306,10 +333,7 @@ async function sendWithPolicy(
   const response = await transport.requestPinned(boundedRequest, peer);
 
   const effectiveCap = Math.min(policy.maxResponseBytes, policy.maxDecompressedBytes);
-  const cappedResponse: HttpResponse = {
-    ...response,
-    bodyText: capBody(response.bodyText, effectiveCap),
-  };
+  const cappedResponse: HttpResponse = capResponse(response, effectiveCap);
 
   if (!REDIRECT_STATUSES.has(cappedResponse.status) || redirectsFollowed >= policy.maxRedirects) {
     return cappedResponse;
