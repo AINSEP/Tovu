@@ -25,6 +25,8 @@ const {
   sitePartition,
   redeemBootSession,
   hasActiveSessionCookie,
+  hasValidSession,
+  ensureSiteSession,
   endSiteSession,
 } = require("./desktop-auth.cjs");
 
@@ -222,4 +224,91 @@ test("refuses to call logout for a non-loopback admin url", async () => {
     /desktop sign-in refused/,
   );
   assert.deepEqual(net.calls, [], "no request may be made at all");
+});
+
+// --------------------------------------------------------------------------
+// hasValidSession — DS-01: presence is not validity
+// --------------------------------------------------------------------------
+
+/** One session cookie, in the shape `session.cookies.get` returns — reuses this file's own
+ *  `fakeSession` rather than adding a second helper of the same name. */
+const ONE_COOKIE = [{ name: "tovu_session", value: "opaque" }];
+
+const PROBE_INPUT = { adminUrl: "http://127.0.0.1:3001/admin/" };
+
+test("hasValidSession is false for a cookie the server no longer honours — the whole of DS-01", async () => {
+  // `hasActiveSessionCookie` answered `cookies.length > 0`. `main.cjs` then set
+  // `emitBootToken: !alreadyAuthenticated` and skipped `authenticateSiteSession`, so a cookie whose
+  // server-side row is gone (a restore-point rollback, a stale-session cleanup, any server-side
+  // revoke the desktop did not perform itself) produced a 401 admin with NO boot token minted and
+  // no password to fall back on.
+  const net = fakeNet(401);
+  assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net }), false);
+  assert.equal(net.calls[0].url, "http://127.0.0.1:3001/api/admin/v1/auth/me");
+  assert.equal(net.calls[0].useSessionCookies, true, "without this the probe asks as an anonymous caller and ALWAYS reports 401");
+  assert.equal(net.calls[0].method, "GET");
+});
+
+test("hasValidSession is true only when the server itself confirms the session", async () => {
+  assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net: fakeNet(200) }), true);
+});
+
+test("hasValidSession asks the server nothing when there is no cookie to ask about", async () => {
+  // The cheap negative. A brand-new partition has no cookie, and a request that can only ever
+  // answer 401 is a round trip on the critical path of every first site open.
+  const net = fakeNet(200);
+  assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession([]), net }), false);
+  assert.deepEqual(net.calls, []);
+});
+
+test("hasValidSession treats an unreachable server as not-authenticated rather than throwing", async () => {
+  // Same fail-open contract as every other branch in this file: a transport error must mean "mint a
+  // token and try", never a rejected promise that takes the site open down with it.
+  const net = { request: () => { const r = new EventEmitter(); r.end = () => queueMicrotask(() => r.emit("error", new Error("ECONNREFUSED"))); return r; } };
+  assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net }), false);
+});
+
+test("hasValidSession refuses a non-loopback origin, exactly like the other two callers", async () => {
+  await assert.rejects(
+    () => hasValidSession({ adminUrl: "http://evil.example.com/admin/", session: fakeSession(ONE_COOKIE), net: fakeNet(200) }),
+    /desktop sign-in refused/,
+  );
+});
+
+// --------------------------------------------------------------------------
+// ensureSiteSession — the decision main.cjs used to make inline
+// --------------------------------------------------------------------------
+
+function recordingRedeem(answer = true) {
+  const calls = [];
+  return { calls, redeem: async () => { calls.push(1); return answer; } };
+}
+
+test("ensureSiteSession redeems NOTHING when the server confirms the existing session", async () => {
+  // The 713-live-rows property, preserved. Always EMITTING a boot token is cheap and inert; always
+  // REDEEMING one is what piled up a 30-day session per launch. Only this branch protects that.
+  const { calls, redeem } = recordingRedeem();
+  const result = await ensureSiteSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net: fakeNet(200), redeem });
+  assert.deepEqual(result, { authenticated: true, redeemed: false });
+  assert.deepEqual(calls, []);
+});
+
+test("ensureSiteSession redeems when the cookie is stale — the recovery DS-01 had none of", async () => {
+  const { calls, redeem } = recordingRedeem();
+  const result = await ensureSiteSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net: fakeNet(401), redeem });
+  assert.deepEqual(result, { authenticated: true, redeemed: true });
+  assert.deepEqual(calls, [1], "exactly one redeem, not a retry loop");
+});
+
+test("ensureSiteSession redeems for a brand-new partition with no cookie at all", async () => {
+  const { calls, redeem } = recordingRedeem();
+  await ensureSiteSession({ ...PROBE_INPUT, session: fakeSession([]), net: fakeNet(200), redeem });
+  assert.deepEqual(calls, [1]);
+});
+
+test("ensureSiteSession reports a failed redeem honestly rather than claiming a session", async () => {
+  // Fail-open to the login form is the contract; fail-open to a LIE about being signed in is not.
+  const { redeem } = recordingRedeem(false);
+  const result = await ensureSiteSession({ ...PROBE_INPUT, session: fakeSession([]), net: fakeNet(401), redeem });
+  assert.deepEqual(result, { authenticated: false, redeemed: true });
 });

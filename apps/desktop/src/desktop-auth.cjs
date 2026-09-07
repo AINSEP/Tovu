@@ -52,6 +52,13 @@ const BOOT_SESSION_PATH = "/api/admin/v1/auth/boot-session";
  *  handler, which clears the cookie unconditionally regardless of whether a token was present. */
 const LOGOUT_PATH = "/api/admin/v1/auth/logout";
 
+/** Tovu's own "who am I" route (`registerAuthRoutes`, `dev-auth.ts:429`) — `200` with the principal
+ *  when the caller's session cookie proves a live session, `401 UNAUTHENTICATED` when it does not.
+ *  The 401 is what makes it usable as a validity probe; a route that answered `200 {user: null}`
+ *  would be indistinguishable from success and the probe would be worthless. Duplicated as a
+ *  literal for the same reason {@link BOOT_SESSION_PATH} is. */
+const SESSION_PROBE_PATH = "/api/admin/v1/auth/me";
+
 /** The session cookie's name. Must match `dev-auth.ts`'s own `SESSION_COOKIE` — duplicated here
  *  rather than imported for the same reason {@link BOOT_SESSION_PATH} is a literal and not an
  *  import: this directory stays self-contained (see `main.cjs`'s header), so nothing under
@@ -169,8 +176,8 @@ async function redeemBootSession(deps) {
 /**
  * Whether `deps.session`'s cookie jar already carries a session cookie for this site.
  *
- * Checked BEFORE minting a fresh boot token so a site already authenticated from a previous launch
- * does not mint and redeem another one: {@link sitePartition} gives every site a `persist:`-prefixed
+ * A site already authenticated from a previous launch must not redeem another token:
+ * {@link sitePartition} gives every site a `persist:`-prefixed
  * partition, so its cookies survive an app restart, and a still-valid one sitting unused in the jar
  * is exactly what let 30-day sessions pile up one per launch (713 live rows found in one site's
  * database) with no reuse and no revocation. Matched by NAME only, never by URL/port: this shell
@@ -178,11 +185,16 @@ async function redeemBootSession(deps) {
  * (see this file's header, property 2) — a port-scoped lookup would never match the very cookie this
  * check exists to find.
  *
- * A cookie present here is not proof the session is still valid server-side (it could have been
- * revoked early by {@link endSiteSession} racing a crash, or the site's database could have been
- * reset out from under it) — only that trying it is worth skipping the mint for. A stale cookie fails
- * exactly like a missing one: the admin's own session check 401s and the ordinary login screen shows,
- * the same fail-open contract every other branch in this file already keeps.
+ * A cookie present here is not proof the session is still valid server-side, and **this function
+ * must never be used as if it were** — that was DS-01. The old doc here claimed a stale cookie
+ * "fails exactly like a missing one: the ordinary login screen shows". It does not. This shell
+ * passes no `desktopCredential`, so there is no password for that login screen to accept, and the
+ * only recovery (`endSiteSession` on quit) is wired solely to `openSiteWindow`'s `closed` event —
+ * which the fleet `<webview>` path never reaches. A stale cookie there therefore survives every
+ * relaunch and locks the operator out with no in-app exit.
+ *
+ * So this is now strictly the CHEAP NEGATIVE inside {@link hasValidSession}: "is there even a
+ * cookie worth asking the server about". Ask {@link hasValidSession} for the real answer.
  *
  * @param {object} deps
  * @param {{cookies: {get: Function}}} deps.session the Electron `Session` to inspect.
@@ -192,6 +204,106 @@ async function redeemBootSession(deps) {
 async function hasActiveSessionCookie(deps) {
   const cookies = await deps.session.cookies.get({ name: SESSION_COOKIE_NAME });
   return cookies.length > 0;
+}
+
+/**
+ * Whether this site's cookie jar carries a session the SERVER still honours — asked of the server,
+ * not inferred from the jar.
+ *
+ * **DS-01, and the distinction is the whole finding.** {@link hasActiveSessionCookie} answers
+ * "is there a cookie", which `main.cjs` used to treat as "is there a session": it set
+ * `emitBootToken: !alreadyAuthenticated` and skipped {@link redeemBootSession} entirely. A cookie
+ * whose server-side row is gone — a restore-point rollback, a stale-session cleanup, any
+ * server-side revoke this shell did not perform itself — then produced a 401 admin with **no boot
+ * token minted**, and this shell has no password to fall back on (`startSiteBackend` never passes
+ * `desktopCredential`). The in-file claim that the operator simply "meets the ordinary login
+ * screen" assumed a recovery that the fleet path cannot reach: `endSiteSession` is wired only to
+ * `openSiteWindow`'s `closed` event, so for a site opened from the Projects grid the stale cookie
+ * is never cleared and every later launch repeats the same skip. That is a lockout with no in-app
+ * exit, which is why presence is not good enough.
+ *
+ * The cookie check runs FIRST as a cheap negative: a brand-new partition has no cookie, and a
+ * request that could only ever answer 401 is a round trip on the critical path of every first site
+ * open.
+ *
+ * `useSessionCookies: true` is load-bearing exactly as it is in {@link redeemBootSession} — without
+ * it the probe is made as an anonymous caller and reports 401 for a perfectly healthy session,
+ * which would mint and redeem a fresh token on every single open and rebuild the 30-day-session
+ * pile-up this whole mechanism exists to prevent. A test is pinned to it.
+ *
+ * Fails to `false`, never rejects, for any transport outcome — same fail-open contract as every
+ * other branch in this file. "Cannot confirm" and "not authenticated" both mean "mint a token and
+ * try", which costs one unused single-use token and never costs the operator their way in.
+ *
+ * @param {object} deps
+ * @param {{request: Function}} deps.net Electron's `net` module (injectable test seam).
+ * @param {object} deps.session the Electron `Session` whose cookie jar is being asked about.
+ * @param {string} deps.adminUrl the site's own admin URL.
+ * @returns {Promise<boolean>}
+ * @throws {Error} (as a rejection) only when `adminUrl` is not a loopback origin — a wiring bug,
+ *   never an auth outcome. Checked before the cookie lookup so that bug surfaces even for a site
+ *   with an empty jar.
+ * @complexity O(1) — one cookie lookup plus at most one request.
+ */
+async function hasValidSession(deps) {
+  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  if (!(await hasActiveSessionCookie(deps))) return false;
+
+  return new Promise((resolve) => {
+    const request = deps.net.request({
+      method: "GET",
+      url: new URL(SESSION_PROBE_PATH, origin.origin).toString(),
+      session: deps.session,
+      useSessionCookies: true,
+    });
+
+    request.on("response", (response) => {
+      // Drained rather than parsed — see `redeemBootSession`'s identical comment. Only the STATUS
+      // is the answer here; the principal in the body is not this shell's business.
+      response.on("data", () => {});
+      response.on("end", () => resolve(response.statusCode === 200));
+    });
+    request.on("error", () => resolve(false));
+
+    request.end();
+  });
+}
+
+/**
+ * Make sure this site's cookie jar carries a session that works — reusing the existing one when the
+ * server still honours it, and redeeming a boot token when it does not.
+ *
+ * This is the decision `main.cjs` used to make inline, and making it inline is how DS-01 happened:
+ * `startSiteBackend` asked {@link hasActiveSessionCookie} BEFORE spawning the child, and passed
+ * `emitBootToken: !alreadyAuthenticated`. Two things follow from that ordering, and both are wrong.
+ * The check could only ever be about the JAR, because there is no server to ask yet. And the answer
+ * was baked into a spawn ARGUMENT, so a wrong guess could not be revised once the server was up —
+ * no token had been minted, and there was nothing left to fall back to.
+ *
+ * The fix is to stop deciding before there is anything to ask. `main.cjs` now always passes
+ * `--emit-boot-token`, and this function decides AFTER the server is answering. An emitted token
+ * that turns out to be unnecessary is inert: single-use, process-scoped, never written to disk, and
+ * simply dies with the child. What must stay conditional is the REDEEM — every redemption creates a
+ * fresh 30-day session, and redeeming unconditionally is precisely what left 713 live rows in one
+ * site's database.
+ *
+ * @param {object} deps
+ * @param {{request: Function}} deps.net Electron's `net` module.
+ * @param {object} deps.session the Electron `Session` for this site's partition.
+ * @param {string} deps.adminUrl the site's own admin URL.
+ * @param {() => Promise<boolean>} deps.redeem redeems the boot token and reports whether it worked
+ *   — `main.cjs`'s `authenticateSiteSession`, which owns the token and its own logging. Injected
+ *   rather than called directly so this decision is testable without a real child process.
+ * @returns `{authenticated, redeemed}` — `redeemed` says whether a token was actually spent, which
+ *   is the fact worth reporting; `authenticated: false` means the caller should expect the ordinary
+ *   login form, never that a session was fabricated.
+ * @complexity O(1) — at most one probe plus one redeem.
+ */
+async function ensureSiteSession(deps) {
+  if (await hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl })) {
+    return { authenticated: true, redeemed: false };
+  }
+  return { authenticated: await deps.redeem(), redeemed: true };
 }
 
 /**
@@ -248,5 +360,7 @@ module.exports = {
   sitePartition,
   redeemBootSession,
   hasActiveSessionCookie,
+  hasValidSession,
+  ensureSiteSession,
   endSiteSession,
 };

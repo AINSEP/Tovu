@@ -111,7 +111,7 @@ const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
-const { redeemBootSession, sitePartition, hasActiveSessionCookie, endSiteSession } = require("./src/desktop-auth.cjs");
+const { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } = require("./src/desktop-auth.cjs");
 const { projectsFilePath, seedDevFallbackProject, migrateLegacyDismissals } = require("./src/project-registry.cjs");
 const { registerProjectIpcHandlers, rescanProjects } = require("./src/project-ipc.cjs");
 
@@ -479,18 +479,22 @@ async function authenticateSiteSession(siteDir, server, partition) {
  */
 async function startSiteBackend(siteDir, ctx, options = {}) {
   const partition = sitePartition(siteDir);
-  const alreadyAuthenticated = await hasActiveSessionCookie({ session: session.fromPartition(partition) });
 
-  // `emitBootToken` is what makes `server.bootToken` non-null below — see `desktop-auth.cjs`'s
-  // header for why this replaced a shell-minted, shell-stored password entirely. Omitted when a
-  // session cookie already covers this site, so a reused session mints nothing that will just go
-  // unredeemed.
+  // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
+  // `desktop-auth.cjs`'s header for why this replaced a shell-minted, shell-stored password
+  // entirely. It used to be `!alreadyAuthenticated`, decided from the cookie jar BEFORE this spawn,
+  // and that ordering is the defect: it is a spawn argument, so there is no server to ask yet, and
+  // a wrong guess could never be revised — no token had been minted and this shell passes no
+  // `desktopCredential`, so a cookie the server no longer honoured left the operator at a login
+  // form with nothing to type. An unnecessary token is inert (single-use, process-scoped, never
+  // written to disk); an unnecessary REDEEM is the 30-day-session pile-up, and that is what
+  // `ensureSiteSession` still keeps conditional.
   const server = await startTovuServer({
     repoRoot: REPO_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
     port: options.port,
-    emitBootToken: !alreadyAuthenticated,
+    emitBootToken: true,
   });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
@@ -500,12 +504,16 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
     updatedAt: Date.now(),
   });
 
-  if (!alreadyAuthenticated) {
-    // Before the caller's window/guest exists, so the cookie is already in the jar when its first
-    // navigation fires and the admin's very first `/api/admin/v1/auth/me` call is authenticated — a
-    // session applied after the page had loaded would still show the login form until a reload.
-    await authenticateSiteSession(siteDir, server, partition);
-  }
+  // Awaited before returning, so the cookie is already in the jar when the caller's window/guest
+  // makes its first navigation — a session applied after the page had loaded would still show the
+  // login form until a reload. The decision itself lives in `desktop-auth.cjs` so it can be tested
+  // against fakes; this file only supplies the per-site inputs and the redeem it owns.
+  await ensureSiteSession({
+    net,
+    session: session.fromPartition(partition),
+    adminUrl: server.adminUrl,
+    redeem: () => authenticateSiteSession(siteDir, server, partition),
+  });
 
   return { server, partition };
 }
