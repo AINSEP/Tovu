@@ -63,6 +63,12 @@ function AgentPluginCard(props: {
         type="button"
         className="btn-secondary agent-plugin-inspect-btn"
         onClick={onInspect}
+        // "Inspect package files" reads identically on every bundled-plugin card — only one ships
+        // today, but the accessible name must not depend on that: a screen reader or a generic
+        // browser agent reading the accessibility tree (not this repo's own `agentHandle()`, whose
+        // `label` is a private `data-agent-label` attribute neither one can see) needs the
+        // plugin's own name to tell one card's button from another's the moment a second one ships.
+        aria-label={`${t("Inspect package files")} — ${plugin.displayName}`}
         {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${plugin.displayName}" package files` })}
       >
         {t("Inspect package files")}

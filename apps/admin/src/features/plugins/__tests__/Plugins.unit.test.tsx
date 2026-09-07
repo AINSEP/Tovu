@@ -87,6 +87,20 @@ describe("REQ-12/AC-18: renders every PLUGINS_LIST record in API response order"
   });
 });
 
+describe("toggle button accessible names", () => {
+  it("gives each row's Enable/Disable button a page-wide-unique accessible name naming its own plugin — a generic browser agent reads the accessibility tree, not this repo's own agentHandle() data-agent-label", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins />);
+    await screen.findByRole("table");
+
+    // Page-wide `screen.getByRole` (no `within()` scoping) — this is exactly what a generic
+    // accessibility-tree-driven agent would query, and it fails with an ambiguous-match error if
+    // two rows' toggle buttons ever share one accessible name again.
+    expect(screen.getByRole("button", { name: "Disable Word Count" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enable Valid Site Plugin" })).toBeInTheDocument();
+  });
+});
+
 describe("REQ-15/AC-23: loading and error states", () => {
   it("shows a loading notice while the initial fetch is in flight", async () => {
     fetchMock.mockImplementation(() => new Promise(() => {})); // never resolves

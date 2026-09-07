@@ -2,7 +2,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
-import { pluginToggleControl } from "./rules";
+import { pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins } from "./hooks/use-plugins.hooks";
 
 /**
@@ -115,6 +115,7 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
                   type="button"
                   disabled={control.disabled}
                   onClick={() => onToggleEnabled(plugin)}
+                  aria-label={pluginToggleAriaLabel(plugin, locale)}
                   {...agentHandle(`${rowHandleById.get(plugin.id)}-toggle-enabled`, {
                     role: "button",
                     label: `Enable or disable the "${plugin.name}" plugin`,

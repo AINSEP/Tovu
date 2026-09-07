@@ -53,7 +53,7 @@ describe("AgentPlugins", () => {
 
   it("opens an accessible read-only package inspector and selects source-backed files", async () => {
     renderAgentPlugins();
-    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files — UI/UX Design" }));
 
     const dialog = screen.getByRole("dialog", { name: /UI\/UX Design package files preview/i });
     expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -76,7 +76,7 @@ describe("AgentPlugins", () => {
 
   it("closes the package inspector with Escape", async () => {
     renderAgentPlugins();
-    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files — UI/UX Design" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -84,7 +84,7 @@ describe("AgentPlugins", () => {
 
   it("closes on the true backdrop while interior clicks keep the package inspector open", async () => {
     renderAgentPlugins();
-    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Inspect package files — UI/UX Design" }));
     const dialog = screen.getByRole("dialog");
     const modalSurface = dialog.querySelector("[data-preview-modal]");
     expect(modalSurface).not.toBeNull();

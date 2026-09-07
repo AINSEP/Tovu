@@ -54,3 +54,21 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
     label: savingThisRow ? "…" : plugin.enabled ? t(locale, "Disable") : t(locale, "Enable"),
   };
 }
+
+/**
+ * The toggle button's `aria-label` — every row's button reads "Enable"/"Disable"/"…" on its own,
+ * identical across every plugin, so a screen reader or a generic browser agent reading the
+ * accessibility tree (roles + accessible names — not this repo's own `agentHandle()`, whose
+ * `label` option is a private `data-agent-label` attribute neither one can see) has no way to tell
+ * one row's control from another's without the plugin's own name in the accessible name.
+ *
+ * Names the target action (Enable/Disable), not the transient "…" busy word — the visible "…" plus
+ * `disabled` already signal in-flight to a sighted operator, and an accessible name that kept
+ * switching between "…" and a real verb mid-interaction would be a worse read than one that stays
+ * "Enable {name}"/"Disable {name}" throughout.
+ *
+ * @complexity O(1).
+ */
+export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): string {
+  return `${plugin.enabled ? t(locale, "Disable") : t(locale, "Enable")} ${plugin.name}`;
+}
