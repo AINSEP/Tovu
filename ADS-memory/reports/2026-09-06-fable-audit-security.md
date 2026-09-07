@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 00:58 — media-import + http client, executor parity, sites route, adopt, duplicateSite, scripts, autosave read. §1f–1h; SEC-05/06.
 - 00:44 — chat attachment trio + refusal-notice read; §1e. Next: BYOK executor stack, sites binding, adopt, duplicateSite, export href, escapeHtml copies, scripts, autosave route, media-import + http egress at HEAD.
 - 00:33 — daemon-auth, INV-05 route, external-mcp guard/put/trust read. §1b–1d.
 - 00:22 — boot token (`15548bef`) read end to end: `boot-session-token.ts`, `dev-auth.ts:391-427`, `serve.ts:259-283`, `desktop-auth.cjs`, `tovu-server.cjs`. Verdict below (§3a). INV-05 fix commit read; route file next.
@@ -81,6 +82,19 @@ Read `apps/website/src/assistant/daemon-auth.ts` (whole), `agent-daemon-server.t
 - `promote-chat-attachment.ts:38-52`: promotion is scoped by RUN claim (`resolveForRun(ref, ctx.run.id)`), not by owner; the file states the first-claimer-wins model for an unclaimed attachment. Cross-principal promotion therefore needs the victim's ref (`attachment:<uuid>`, 122-bit) or its absolute path (`<root>/<batchId 8-80 random>/<name>`), neither of which the discovery tool leaks (`list-pending-chat-attachments.ts:91` is owner-scoped). Read side is owner-scoped, promote side is run-scoped — an asymmetry, documented in-file as accepted. Not a finding; recorded so the next auditor does not re-derive it.
 - Daemon principal: `agent-daemon-server.ts:670` `principal = { id: decoded.principalId }` straight from the proxy-supplied `contextRef`. Only the bearer gate stands between a local process and "run tools as any principal id" — this is the real impact statement for SEC-04 (still same-user, still Low).
 
+## 1f. Media import + `platform/http` byte path (`dd187ece`, `b1ce2d0a`, `7b2a2007`, `916eb8b0`; post-freeze fix `103f7ae1` read at HEAD)
+Read `features/media-import/{fetch-image,agent-tools,tool-registrations}.ts`, `platform/http/{client,egress-policies,transport.fetch}.ts` in full.
+- SSRF guard holds: scheme allowlist + embedded-credential refusal (`client.ts:209-216`); DNS resolved then EVERY address classified, any non-public rejects (`:238-245`); connection pinned to the vetted IP with original Host/SNI (`transport.fetch.ts:46-57`); redirect target re-runs the whole guard and strips `authorization`/`cookie` cross-origin (`client.ts:355-372`); IPv4-mapped IPv6 in every spelling normalised (`:117-154`). Numeric-host spellings (`2130706433`, `0x7f000001`, `0177.0.0.1`) are not IP literals to `isIP`, go through `lookup`, and come back as dotted-decimal → classified → refused. `MEDIA_IMPORT_EGRESS_POLICY`: https-only, empty dev allowlist, 3 hops, 12 MiB. **No new SSRF finding.** MI-01/MI-02 fixed, not re-reported.
+- Bytes: served `Content-Type` never read; sniffed type must be in a 5-type still-image allowlist (`fetch-image.ts:84-90, 248-254`); truncation checked before sniff (`:240`). Filename sanitised to `[A-Za-z0-9 -]`, extension from sniffed type (`:182-193`).
+- **SEC-05 (Low, CONFIRMED — the refusal-collapse shape the brief asked about):** an egress refusal is a plain `Error` thrown from `client.ts:242` (`egress to '<host>' (<ip>) rejected: resolved address is <class>`); `fetch-image.ts:270-274` deliberately lets it propagate; `tool-registrations.ts:120` classifies only `MediaImportValidationError` as a caller-visible shape rejection. Everything else falls to the executor's generic failure. Attack-path-wise this hides nothing dangerous, but the operator/model sees "internal error" for a security refusal, and the audit row records a crash, not a block. Fix shape: a typed `EgressRefusedError` in `client.ts` that `withSchemaOnRejection`/the executor surface as a refusal.
+- **SEC-06 (Low, PLAUSIBLE):** the policy caps are enforced AFTER the transport has buffered the whole body: `transport.fetch.ts:32,65-71` buffers up to `ABSOLUTE_MAX_BYTES` = 100 MiB before `client.ts:348-353` clips to the 12 MiB policy cap. `timeout` (`:52`) is a socket-idle timeout, not a wall clock, so a hostile CDN can hold one `media_import_from_url` call open for as long as it drips bytes and make the process hold ~100 MiB per concurrent import. Disclosed in the transport's own header as a v0 limitation; noting it because the media-import tool is the first agent-supplied-URL consumer of this transport.
+
+## 1g. Executor parity (`08ace3ea`) — verified
+`tool-executor-stack.ts:79-85` is the single composition (read-only gate innermost, audit, recovery); `byok-tool-surface.ts:450-454` calls it. Daemon call site to be confirmed by grep (below).
+
+## 1h. `1044e2d5` escapeHtml apostrophes — the fix landed in 4 of 10 copies
+Touched: `static-render.ts`, `site-exporter.ts`, `form-render.ts`, `render.ts`. Untouched copies in `apps/website/src`: `assistant/mcp-ui.ts:190`, `public-http/routes/site/store.ts:16`, `public-http/http/site/page-head.ts:194`, `newsletter-confirm.ts:40`, `newsletter-unsubscribe.ts:45`. The two newsletter copies escape only `& < >` but are used only in text-node contexts (`<title>`, `<h1>`, `<p>`) — safe as used. The other three are checked next for a single-quoted attribute sink.
+
 ## 2. Codex `pending` commits (priority 2)
 _(in progress)_
 
@@ -95,6 +109,8 @@ _(pending)_
 | SEC-02 (=D-05) | Medium | CONFIRMED | `apps/desktop/src/project-ipc.cjs:151-167` vs `:205-211`; `main.cjs:569-576` | Delete bypasses the per-site serializer Start uses; rm under a booting child |
 | SEC-03 | Low | PLAUSIBLE | `apps/website/src/cli/commands/serve.ts:259` | Desktop-spawned `tovu serve` binds all interfaces; admin + daemon proxy reachable from LAN |
 | SEC-04 | Low | CONFIRMED | `apps/desktop/src/tovu-server.cjs:299-301` | Daemon bearer token passed via child env, contradicting the boot-token rationale in `desktop-auth.cjs:22-24` |
+| SEC-05 | Low | CONFIRMED | `platform/http/client.ts:242` → `media-import/tool-registrations.ts:120` | SSRF/egress refusal surfaces as a generic internal error, not a refusal |
+| SEC-06 | Low | PLAUSIBLE | `platform/http/transport.fetch.ts:32,52,65-71` | Body buffered to 100 MiB before the 12 MiB policy cap; idle-timeout only — slow-drip hold on agent-supplied URLs |
 
 
 ## 5. Open questions for the owner
