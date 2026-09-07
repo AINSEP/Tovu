@@ -52,7 +52,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
 /** Seeds one media row directly through the repo so PATCH has something to update. */
 async function seedMedia(
   deps: MediaRouteDeps,
-  overrides: { title?: string; slug?: string; alt?: string; caption?: string; credit?: string } = {}
+  overrides: { title?: string; slug?: string; alt?: string; caption?: string; credit?: string; htmlAttributes?: string | null } = {}
 ): Promise<string> {
   const id = deps.idGen.newId();
   const nowIso = deps.clock.nowIso();
@@ -72,6 +72,7 @@ async function seedMedia(
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: overrides.htmlAttributes ?? null,
   });
   return id;
 }
@@ -367,4 +368,87 @@ test("update: renaming the title alone leaves the slug untouched, end to end thr
   assert.equal(status, 200);
   assert.equal(json.media.title, "Brand New Title");
   assert.equal(json.media.slug, "old-title", "slug is a separate field — a title-only PATCH must never recompute it");
+});
+
+// ---------------------------------------------------------------------------
+// htmlAttributes (2026-09-07) — server-side enforcement of the html-attributes.ts allowlist,
+// end to end through this route. Every assertion reads the PERSISTED value back through the repo,
+// same trap-closing discipline the slug tests above use, since `parseMediaMetadataPatch` silently
+// dropping an unrecognized key is a confirmed prior defect in this exact function.
+// ---------------------------------------------------------------------------
+
+function buildMediaApp(base: ReturnType<typeof createRouteDeps>): express.Express {
+  return buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+}
+
+test("update: a valid htmlAttributes value is persisted — asserted by re-reading the repo, not just the response", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base);
+  const { status, json } = await patch(t, app, id, { htmlAttributes: 'data-motion="fade-in" loading="lazy"' });
+  assert.equal(status, 200);
+  assert.equal(json.media.htmlAttributes, 'data-motion="fade-in" loading="lazy"');
+
+  const persisted = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(persisted?.htmlAttributes, 'data-motion="fade-in" loading="lazy"');
+});
+
+test("update: an on* handler in htmlAttributes is rejected with 400 naming it, and NOTHING in the same request persists", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base, { title: "Keep Me" });
+  const { status, json } = await patch(t, app, id, { title: "Should Not Save", htmlAttributes: 'onerror="alert(1)"' });
+  assert.equal(status, 400);
+  assert.match(json.error, /onerror/);
+
+  const persisted = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(persisted?.title, "Keep Me", "a rejected htmlAttributes value must not let another field in the same PATCH persist");
+  assert.equal(persisted?.htmlAttributes, null);
+});
+
+test("update: a javascript: value on an otherwise-allowed name is rejected with 400", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base);
+  const { status, json } = await patch(t, app, id, { htmlAttributes: 'poster="javascript:alert(1)"' });
+  assert.equal(status, 400);
+  assert.match(json.error, /javascript:/);
+});
+
+test("update: a disallowed attribute name is rejected with 400, naming it", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base);
+  const { status, json } = await patch(t, app, id, { htmlAttributes: 'style="color:red"' });
+  assert.equal(status, 400);
+  assert.match(json.error, /style/);
+});
+
+test("update: htmlAttributes: null clears a previously-set value back to null", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base, { htmlAttributes: "muted" });
+  const { status, json } = await patch(t, app, id, { htmlAttributes: null });
+  assert.equal(status, 200);
+  assert.equal(json.media.htmlAttributes, null);
+});
+
+test("update: omitting htmlAttributes leaves a previously-set value unchanged", async (t) => {
+  const base = createRouteDeps();
+  const app = buildMediaApp(base);
+  const id = await seedMedia(base, { htmlAttributes: "muted" });
+  const { status, json } = await patch(t, app, id, { alt: "unrelated change" });
+  assert.equal(status, 200);
+  assert.equal(json.media.htmlAttributes, "muted");
+  assert.equal(json.media.alt, "unrelated change");
 });

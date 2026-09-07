@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
+import { parseMediaHtmlAttributes } from "@jini-ai/cms/media";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import {
@@ -183,6 +184,9 @@ export interface MediaAssetRenderMeta {
   width: number | null;
   height: number | null;
   cssClass: string | null;
+  /** Same "not set, not empty" contract as `cssClass` — see `MediaRecord.htmlAttributes`'s own doc
+   *  (`@jini-ai/cms/media`) for the full identity/security model. */
+  htmlAttributes: string | null;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -602,6 +606,42 @@ function isPlausibleMediaRefId(value: string): boolean {
  * @complexity O(1).
  * @overallScore 100
  */
+/**
+ * Re-validates and formats `MediaRecord.htmlAttributes`' raw stored text into escaped
+ * ` name="value"` fragments — the render-path half of the allowlist's defense-in-depth (owner
+ * requirement: enforced at the write path AND the render path, since a client-only check is not a
+ * control). `updateMediaMetadata` (`@jini-ai/cms/media`) already validates before writing, so a
+ * re-parse failure here should be unreachable through the normal write path — but this function
+ * fails CLOSED (emits nothing) rather than trusting a stored value was never written by an older
+ * code path, a direct DB edit, or a future bug in the write-side check, matching this file's own
+ * "escape/validate at the one place a tag is templated" discipline for every other attribute here.
+ *
+ * @param raw - `MediaRecord.htmlAttributes` — `null`/empty means no extra attributes.
+ * @complexity O(n) in `raw`'s length (one parse pass), O(k) space for k attributes.
+ */
+function resolveMediaHtmlAttributes(raw: string | null): Record<string, string> {
+  if (!raw) return {};
+  const parsed = parseMediaHtmlAttributes(raw);
+  return parsed.error ? {} : parsed.attributes;
+}
+
+/** A shallow copy of `attributes` with `key` removed — used when a call site already emits its own
+ *  value for one allowlisted name (e.g. `renderImageTag`'s hardcoded `loading` default) and needs
+ *  the rest formatted without emitting that name twice. @complexity O(k). */
+function omitKey(attributes: Record<string, string>, key: string): Record<string, string> {
+  const { [key]: _omitted, ...rest } = attributes;
+  return rest;
+}
+
+/** Formats an already-resolved attribute map into escaped ` name="value"` fragments, one per
+ *  entry — the shared tail every one of {@link renderImageTag}/{@link renderVideoTag}'s emitted
+ *  attributes eventually goes through. @complexity O(k) in the number of attributes. */
+function formatHtmlAttributes(attributes: Record<string, string>): string {
+  return Object.entries(attributes)
+    .map(([name, value]) => ` ${name}="${escapeHtml(value)}"`)
+    .join("");
+}
+
 function renderImageTag(props: {
   readonly assetId: string;
   readonly transformName: string;
@@ -610,13 +650,20 @@ function renderImageTag(props: {
   readonly width: number | null;
   readonly height: number | null;
   readonly cssClass: string | null;
+  readonly htmlAttributes: string | null;
 }): string {
   const src = `/m/${encodeURIComponent(props.assetId)}/${encodeURIComponent(props.transformName)}.v${props.version}/image.jpg`;
   const altAttr = escapeHtml(props.alt);
   const widthAttr = props.width != null ? ` width="${props.width}"` : "";
   const heightAttr = props.height != null ? ` height="${props.height}"` : "";
   const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
-  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr} loading="lazy">`;
+  // `loading` is on the allowlist (an operator may legitimately want `loading="eager"`) but this
+  // tag already hardcodes a `loading="lazy"` default below — the operator's own value, when
+  // present, wins instead of being silently dropped or duplicated as a second `loading` attribute.
+  const allExtra = resolveMediaHtmlAttributes(props.htmlAttributes);
+  const loadingValue = allExtra.loading ?? "lazy";
+  const extraAttrs = formatHtmlAttributes(omitKey(allExtra, "loading"));
+  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${escapeHtml(loadingValue)}">`;
 }
 
 /**
@@ -637,13 +684,20 @@ function renderVideoTag(props: {
   readonly width: number | null;
   readonly height: number | null;
   readonly cssClass: string | null;
+  readonly htmlAttributes: string | null;
 }): string {
   const src = `/m/${encodeURIComponent(props.assetId)}/original`;
   const widthAttr = props.width != null ? ` width="${props.width}"` : "";
   const heightAttr = props.height != null ? ` height="${props.height}"` : "";
   const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
+  // No hardcoded default here to collide with (unlike `renderImageTag`'s `loading`) — every
+  // allowlisted attribute the operator set is emitted as-is, including boolean ones (`muted`,
+  // `loop`, `autoplay`, `playsinline`), which the parser records as an empty-string value; HTML
+  // treats ANY value (including `""`) on a boolean attribute as "true", so `muted=""` and bare
+  // `muted` are equivalent — no separate boolean-vs-valued branch is needed here.
+  const extraAttrs = formatHtmlAttributes(resolveMediaHtmlAttributes(props.htmlAttributes));
   const fallback = props.alt ? escapeHtml(props.alt) : "Your browser does not support the video tag.";
-  return `<video src="${escapeHtml(src)}" controls${widthAttr}${heightAttr}${classAttr}>${fallback}</video>`;
+  return `<video src="${escapeHtml(src)}" controls${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</video>`;
 }
 
 /**
@@ -976,12 +1030,13 @@ function resolveRefImageIds(attrs: JsonObject): { assetId: string; transformName
  *  count as separate branches under this repo's complexity gate) from being counted against it. */
 function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pick<
   Parameters<typeof renderImageTag>[0],
-  "width" | "height" | "cssClass"
+  "width" | "height" | "cssClass" | "htmlAttributes"
 > {
   return {
     width: meta?.width ?? null,
     height: meta?.height ?? null,
     cssClass: meta?.cssClass ?? null,
+    htmlAttributes: meta?.htmlAttributes ?? null,
   };
 }
 
@@ -1844,11 +1899,17 @@ function renderWidgetPlaceholder(): string {
  *  three-field narrowing step stops being three of `renderWidgetMediaImage`'s own branches (complexity-
  *  debt sweep, 2026-09-03; that function was at cyclomatic 11 against this repo's 9 ceiling). No
  *  behavior change: same "wrong-typed value degrades to null, never a lie" rule as before. */
-function normalizeMediaDimensions(props: JsonObject): { width: number | null; height: number | null; cssClass: string | null } {
+function normalizeMediaDimensions(props: JsonObject): {
+  width: number | null;
+  height: number | null;
+  cssClass: string | null;
+  htmlAttributes: string | null;
+} {
   return {
     width: typeof props.width === "number" ? props.width : null,
     height: typeof props.height === "number" ? props.height : null,
     cssClass: typeof props.cssClass === "string" ? props.cssClass : null,
+    htmlAttributes: typeof props.htmlAttributes === "string" ? props.htmlAttributes : null,
   };
 }
 
@@ -1857,11 +1918,11 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof assetId !== "string" || !isPlausibleMediaRefId(assetId)) {
     return renderWidgetPlaceholder();
   }
-  const { width, height, cssClass } = normalizeMediaDimensions(props);
+  const { width, height, cssClass, htmlAttributes } = normalizeMediaDimensions(props);
   const alt = str(props.alt);
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ assetId, alt, width, height, cssClass });
+    return renderVideoTag({ assetId, alt, width, height, cssClass, htmlAttributes });
   }
 
   const transformName = props.transformName;
@@ -1869,7 +1930,7 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass });
+  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass, htmlAttributes });
 }
 
 /**
@@ -1943,13 +2004,14 @@ function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
     width: typeof raw.width === "number" ? raw.width : null,
     height: typeof raw.height === "number" ? raw.height : null,
     cssClass: typeof raw.cssClass === "string" ? raw.cssClass : null,
+    htmlAttributes: typeof raw.htmlAttributes === "string" ? raw.htmlAttributes : null,
   };
 }
 
 /** Same reconstruction as {@link readMediaTransformVersions}, for `mediaAssetMetadata` — see that
  *  function's own doc for why this crosses the `widgets/`-to-`render.ts` boundary as plain JSON
  *  rather than a real `Map`. A malformed per-asset entry (not an object) is skipped, not thrown;
- *  missing `width`/`height`/`cssClass` fields degrade to `null` ("not set"), matching
+ *  missing `width`/`height`/`cssClass`/`htmlAttributes` fields degrade to `null` ("not set"), matching
  *  {@link MediaAssetRenderMeta}'s own "`null` means not set, not zero" contract. */
 function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<string, MediaAssetRenderMeta> {
   if (!isObject(value)) return EMPTY_MEDIA_ASSET_METADATA;

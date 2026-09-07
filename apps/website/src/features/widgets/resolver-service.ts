@@ -585,6 +585,7 @@ async function buildMediaImageIr(
       width: record.width,
       height: record.height,
       cssClass: record.cssClass,
+      htmlAttributes: record.htmlAttributes,
     },
   };
 }
@@ -641,6 +642,7 @@ async function resolveOneMediaEmbed(
           width: record.width,
           height: record.height,
           cssClass: record.cssClass,
+          htmlAttributes: record.htmlAttributes,
         },
       },
     };
@@ -765,7 +767,10 @@ async function resolvePostContentMediaContext(
       Array.from(assetIds).map(async (assetId): Promise<readonly [string, JsonObject] | undefined> => {
         const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
         if (!record) return undefined;
-        return [assetId, { width: record.width, height: record.height, cssClass: record.cssClass }] as const;
+        return [
+          assetId,
+          { width: record.width, height: record.height, cssClass: record.cssClass, htmlAttributes: record.htmlAttributes },
+        ] as const;
       })
     ),
   ]);

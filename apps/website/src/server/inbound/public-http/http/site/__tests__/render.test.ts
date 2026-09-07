@@ -1088,6 +1088,70 @@ test("renderDocNode: a hostile stored cssClass is HTML-escaped, same as alt — 
   assert.match(html, /class="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
 });
 
+// ---------------------------------------------------------------------------
+// htmlAttributes (2026-09-07) — render-path enforcement (defense-in-depth) of the same allowlist
+// updateMediaMetadata already applies at the write path. See MediaRecord.htmlAttributes's own doc.
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: a resolved htmlAttributes value emits the extra allowlisted attributes on the <img>", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'data-motion="fade-in"' }]])
+  );
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" data-motion="fade-in" loading="lazy">/);
+});
+
+test("renderDocNode: an operator's own htmlAttributes loading value OVERRIDES the hardcoded 'lazy' default instead of emitting loading twice", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'loading="eager"' }]])
+  );
+  assert.match(html, /loading="eager"/);
+  const loadingCount = (html.match(/loading=/g) ?? []).length;
+  assert.equal(loadingCount, 1, "loading must appear exactly once, never duplicated");
+});
+
+test("renderDocNode: a stored htmlAttributes value that would now fail validation (e.g. an on* handler smuggled in some other way) fails CLOSED — no extra attributes emitted, no crash", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'onerror="alert(1)"' }]])
+  );
+  assert.doesNotMatch(html, /onerror/, "an invalid stored value must never reach the emitted tag, defense-in-depth");
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" loading="lazy">/);
+});
+
+test("renderDocNode: an asset with no htmlAttributes set renders exactly as before this feature — no regression", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null }]])
+  );
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
 test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
   const resolved = new Map([["public", 1], ["", 1]]);
   const cases: Array<{ assetId: string; transformName: string }> = [
@@ -2154,6 +2218,41 @@ test('renderSite (video/embed): a resolved media-image IR carrying contentType "
 
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /<video src="\/m\/asset-1\/original" controls width="1920" height="1080" class="hero-video">A hero clip<\/video>/);
+});
+
+test("renderSite (video/embed): htmlAttributes' boolean attributes (muted/loop/autoplay/playsinline) render on the <video> tag", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          {
+            componentId: "media-image",
+            props: {
+              assetId: "asset-1",
+              contentType: "video/mp4",
+              alt: "A hero clip",
+              width: null,
+              height: null,
+              cssClass: null,
+              htmlAttributes: "muted loop autoplay playsinline",
+            },
+          },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<video src="\/m\/asset-1\/original" controls muted="" loop="" autoplay="" playsinline="">A hero clip<\/video>/);
 });
 
 test("renderSite (video/embed): width/height/class are each omitted independently when null, and an empty alt falls back to the no-support message, same conventions <img> already follows", async () => {

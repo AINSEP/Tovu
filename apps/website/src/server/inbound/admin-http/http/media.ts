@@ -29,6 +29,10 @@ export interface AdminMediaResponse {
   width: number | null;
   height: number | null;
   cssClass: string | null;
+  /** Free-text HTML attributes threaded onto this asset's public tag (2026-09-07) — see
+   *  `MediaRecord.htmlAttributes`'s own doc (`@jini-ai/cms/media`) for the full identity/security
+   *  model. Already validated by the time it reaches here; this DTO does not re-validate. */
+  htmlAttributes: string | null;
   /**
    * The asset's real media type — always `sniffContentType(bytes)` from the stored bytes, never
    * the client's declared upload string (see `media/content-type-store.ts` for why). Drives the
@@ -78,6 +82,7 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
     width: media.width,
     height: media.height,
     cssClass: media.cssClass,
+    htmlAttributes: media.htmlAttributes,
     contentType,
   };
 }

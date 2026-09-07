@@ -928,7 +928,10 @@ export async function resolveMediaAssetMetadataForRender(
     Array.from(assetIds).map(async (assetId): Promise<readonly [string, MediaAssetRenderMeta] | undefined> => {
       const record = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: assetId });
       if (!record) return undefined;
-      return [assetId, { width: record.width, height: record.height, cssClass: record.cssClass }] as const;
+      return [
+        assetId,
+        { width: record.width, height: record.height, cssClass: record.cssClass, htmlAttributes: record.htmlAttributes },
+      ] as const;
     })
   );
   return new Map(entries.filter((entry): entry is readonly [string, MediaAssetRenderMeta] => entry !== undefined));

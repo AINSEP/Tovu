@@ -33,7 +33,7 @@ function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) =
  * this line was added (see `ADS-memory/reports/2026-09-07-media-admin-ui.md`'s "the trap" for the
  * confirmed mechanism: a 200 response with every OTHER field's change applied and no error at all).
  *
- * @complexity O(1) — reads eight fixed properties.
+ * @complexity O(1) — reads nine fixed properties.
  */
 function parseMediaMetadataPatch(rawBody: unknown) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
@@ -46,6 +46,10 @@ function parseMediaMetadataPatch(rawBody: unknown) {
     width: parseOptionalNullableField(body.width, Number),
     height: parseOptionalNullableField(body.height, Number),
     cssClass: parseOptionalNullableField(body.cssClass, String),
+    // Format/allowlist validation happens entirely in `updateMediaMetadata`
+    // (`@jini-ai/cms/media`'s `resolveHtmlAttributesForUpdate`) — this parser's only job is the same
+    // undefined-vs-provided/wrong-JSON-type boundary every other field parser in this file owns.
+    htmlAttributes: parseOptionalNullableField(body.htmlAttributes, String),
   };
 }
 

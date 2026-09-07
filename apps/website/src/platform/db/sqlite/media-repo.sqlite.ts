@@ -60,6 +60,7 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
     width: row.width,
     height: row.height,
     cssClass: row.cssClass,
+    htmlAttributes: row.htmlAttributes,
   };
 }
 
@@ -98,6 +99,7 @@ export class SqliteMediaRepo implements MediaRepoPort {
       width: record.width,
       height: record.height,
       cssClass: record.cssClass,
+      htmlAttributes: record.htmlAttributes,
     };
     // `updateMediaMetadata`'s own `findBySlug` check (see `@jini-ai/cms/media`'s `media-service.ts`)
     // is a friendly-error courtesy, not the enforcement — `idx_media_workspace_slug` is. A caller
