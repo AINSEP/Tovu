@@ -407,7 +407,12 @@ const COMPOSITION_ROOTS = [
   "^apps/website/src/index\\.ts$",
   "^apps/website/src/server/runtime/composition/deps\\.ts$",
   "^apps/website/src/server/runtime/composition/app\\.ts$",
-  "^apps/website/src/cli/commands/(serve|init|introspect|export)\\.ts$",
+  // `adopt.ts` joined 2026-09-06 for the identical reason `export.ts` did: it is one more CLI
+  // composition root of the same shape, reaching `site-dir/repair-site.ts`'s
+  // `repairSite`/`planRepairSite`/`classifySiteMarkers` and `site-dir/resolve-install-dir-target.ts`
+  // directly — the same boot-only files `init.ts`/`serve.ts` already reach past the barrel, which
+  // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
+  "^apps/website/src/cli/commands/(serve|init|introspect|export|adopt)\\.ts$",
 ];
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
