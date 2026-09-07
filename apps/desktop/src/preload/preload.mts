@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld(
     rescanAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.rescan),
     daemonOnline: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.daemonOnline),
     listProjects: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.list),
+    rescanProjects: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.rescan),
     createProject: (input: CreateProjectInput) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.create, input),
     startProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.start, id),
     stopProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.stop, id),

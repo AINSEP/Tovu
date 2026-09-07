@@ -14,6 +14,7 @@ import {
   useProjectMutations,
   useProjectStart,
   useProjectTabs,
+  useProjectRescan,
   useProjectsPolling,
   useRunnerChatTransport,
   useRunnerConversations,
@@ -66,6 +67,7 @@ export function App({
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
+  const { rescanning, rescanError, rescan } = useProjectRescan(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the fleet tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveFleetView`.
@@ -135,6 +137,9 @@ export function App({
           onCreateWebsite={openCreateWebsite}
           onOpenProject={openProjectTab}
           onDeleteProject={handleDelete}
+          onRescan={rescan}
+          rescanning={rescanning}
+          rescanError={rescanError}
         />
 
         <CreateWebsiteHost
@@ -753,6 +758,9 @@ function MainArea({
   onCreateWebsite,
   onOpenProject,
   onDeleteProject,
+  onRescan,
+  rescanning,
+  rescanError,
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
@@ -767,6 +775,9 @@ function MainArea({
   onCreateWebsite: () => void;
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
+  onRescan: () => Promise<void>;
+  rescanning: boolean;
+  rescanError: string | null;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -779,13 +790,17 @@ function MainArea({
         isCreating={isCreating}
         activeLabel={active?.label ?? 'Runner'}
         onCreateWebsite={onCreateWebsite}
+        onRescan={onRescan}
+        rescanning={rescanning}
       />
       <MainContent
         activeId={activeId}
         isCreating={isCreating}
         lastCreated={lastCreated}
         projectsLoading={projectsLoading}
-        loadError={loadError}
+        // A rescan failure must not replace the grid: the projects already listed are still real
+        // and still openable, so it is reported alongside them rather than instead of them.
+        loadError={loadError ?? rescanError}
         projects={projects}
         activeLabel={active?.label ?? ''}
         activeDescription={active?.agentDescription ?? ''}
@@ -802,11 +817,15 @@ function MainHeader({
   isCreating,
   activeLabel,
   onCreateWebsite,
+  onRescan,
+  rescanning,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
   activeLabel: string;
   onCreateWebsite: () => void;
+  onRescan: () => Promise<void>;
+  rescanning: boolean;
 }) {
   return (
     <header className="main__head">
@@ -814,6 +833,11 @@ function MainHeader({
       <div className="main__spacer" />
       {activeId === 'projects' && !isCreating && (
         <div className="main__tools">
+          {/* Ahead of "Create website" and styled quiet: this one only ever ADDS cards for sites
+              that already exist, so it must not compete with the primary action. */}
+          <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
+            {rescanning ? 'Scanning…' : 'Rescan'}
+          </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
             <span aria-hidden="true">+</span>
             Create website

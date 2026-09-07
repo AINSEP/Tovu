@@ -100,6 +100,47 @@ export function useProjectsPolling(): {
 }
 
 /**
+ * The operator-triggered discovery pass behind the Projects header's "Rescan" control.
+ *
+ * A button and not only the boot pass, because the reasons a site appears on disk mid-session are
+ * ordinary: `tovu init` in a terminal, a folder restored from a backup, a checkout pulled down
+ * next to this one. Without it the answer to "my site is right there and Tovu cannot see it" is
+ * "quit and relaunch".
+ *
+ * Takes `setProjects` — `useProjectsPolling`'s own setter — and applies main's returned list
+ * immediately rather than leaving the grid to the next 4s poll. To the operator those are not the
+ * same thing: a rescan that has already found their site but shows nothing for four seconds reads
+ * as a button that does not work.
+ *
+ * `rescanning` is deliberately not derived from the polling hook's `projectsLoading`: that one is
+ * true only until the first list arrives, so it would report nothing at all here.
+ */
+export function useProjectRescan(setProjects: Dispatch<SetStateAction<readonly ProjectRecord[]>>): {
+  rescanning: boolean;
+  rescanError: string | null;
+  rescan: () => Promise<void>;
+} {
+  const [rescanning, setRescanning] = useState(false);
+  const [rescanError, setRescanError] = useState<string | null>(null);
+
+  const rescan = useCallback(async () => {
+    const bridge = runnerInventoryBridge();
+    if (bridge === undefined) return;
+    setRescanning(true);
+    setRescanError(null);
+    try {
+      setProjects(await bridge.rescanProjects());
+    } catch {
+      setRescanError("Couldn't scan for sites.");
+    } finally {
+      setRescanning(false);
+    }
+  }, [setProjects]);
+
+  return { rescanning, rescanError, rescan };
+}
+
+/**
  * `runner.navigate` is a tool the fleet chat can actually call, so the nav is agent-movable and
  * not only user-movable. Nothing else in main pushes on this channel. It also pulls focus back
  * to the fleet tab — navigating to a Runner section while a site's admin fills the screen would

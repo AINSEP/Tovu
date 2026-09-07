@@ -21,6 +21,9 @@ export interface RunnerInventoryBridge {
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;
   listProjects: () => Promise<readonly ProjectRecord[]>;
+  /** Adopts any untracked Tovu site found on disk and returns the refreshed list. Never resurrects
+   *  a project the operator removed — see `RUNNER_PROJECT_CHANNELS.rescan`. */
+  rescanProjects: () => Promise<readonly ProjectRecord[]>;
   createProject: (input: CreateProjectInput) => Promise<ProjectRecord>;
   startProject: (id: string) => Promise<ProjectRecord>;
   stopProject: (id: string) => Promise<ProjectRecord>;

@@ -38,6 +38,7 @@ const RUNNER_PROJECT_CHANNELS = Object.freeze({
   delete: "runner:projects:delete",
   openExternal: "runner:projects:open-external",
   start: "runner:projects:start",
+  rescan: "runner:projects:rescan",
 });
 
 /**
@@ -245,7 +246,7 @@ function rescanProjects(deps) {
 }
 
 /**
- * Registers the five real `runner:projects:*` handlers above.
+ * Registers the six real `runner:projects:*` handlers above.
  *
  * @param {object} deps
  * @param {{handle: Function}} deps.ipcMain
@@ -270,7 +271,7 @@ function rescanProjects(deps) {
  *   (no `BrowserWindow` — see that function's own doc).
  * @param {Function} deps.recordSiteClosed `site-registry.cjs`'s crash-safety row remover.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — five registrations.
+ * @complexity O(1) — six registrations.
  */
 function registerProjectIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.list, () => handleList(deps));
@@ -278,6 +279,7 @@ function registerProjectIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.start, (_event, id) => handleStart(id, deps));
+  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.rescan, () => rescanProjects(deps));
 }
 
 module.exports = {

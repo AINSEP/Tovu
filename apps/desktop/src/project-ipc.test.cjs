@@ -396,3 +396,12 @@ test("rescanProjects ignores a folder under the scan root that is not a site", (
   fs.writeFileSync(path.join(deps.scanRoot, "loose.txt"), "hi");
   assert.deepEqual(rescanProjects(deps), []);
 });
+
+test("registerProjectIpcHandlers registers the rescan channel and it returns the fresh list", async () => {
+  const deps = scanDeps();
+  const alpha = siteFolder(deps.scanRoot, "alpha");
+  const registered = new Map();
+  registerProjectIpcHandlers({ ...deps, ipcMain: { handle: (c, h) => registered.set(c, h) }, dialog: {}, shell: {} });
+  const records = await registered.get(RUNNER_PROJECT_CHANNELS.rescan)({});
+  assert.deepEqual(records.map((r) => r.id), [alpha]);
+});

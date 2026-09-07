@@ -90,6 +90,16 @@ export const RUNNER_PROJECT_CHANNELS = {
    * of the embedded-tab model; nothing here creates a `BrowserWindow`.
    */
   start: 'runner:projects:start',
+  /**
+   * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
+   * no stored answer about, and return the refreshed list. Real (`project-ipc.cjs`'s
+   * `rescanProjects`); `main.cjs` runs the same pass once at boot.
+   *
+   * A project the operator REMOVED is never brought back by this, however many times it is
+   * pressed — see `adoptDiscoveredProjects` in `project-registry.cjs`. Their way back is the
+   * folder dialog, which is them asking explicitly.
+   */
+  rescan: 'runner:projects:rescan',
   /** Not implemented yet — no control in the per-project bar calls it. Closing the app
    *  (`before-quit`) or deleting the project are the two ways a fleet-opened site stops today. */
   stop: 'runner:projects:stop',

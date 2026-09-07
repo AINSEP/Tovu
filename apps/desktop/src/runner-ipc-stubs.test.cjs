@@ -62,6 +62,7 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:projects:delete",
   "runner:projects:open-external",
   "runner:projects:start",
+  "runner:projects:rescan",
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {
