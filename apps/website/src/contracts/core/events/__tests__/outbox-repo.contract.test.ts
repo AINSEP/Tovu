@@ -4,6 +4,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
+import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 /**
@@ -93,6 +94,25 @@ function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
     const retried = await outbox.claimPending(10, "2026-07-16T01:00:01.000Z");
     assert.equal(retried.length, 1);
     assert.equal(retried[0].attempts, 2);
+  });
+
+  test(`[${label}] markFailed permanently excludes a row once attempts reach MAX_OUTBOX_ATTEMPTS (2026-09-06 fix)`, async () => {
+    const outbox = makeOutbox();
+    await outbox.enqueue(makeEvent());
+
+    let nowIso = "2026-07-16T00:00:01.000Z";
+    for (let attempt = 1; attempt <= MAX_OUTBOX_ATTEMPTS; attempt++) {
+      const [claimed] = await outbox.claimPending(10, nowIso);
+      assert.equal(claimed.attempts, attempt);
+
+      nowIso = new Date(Date.parse(nowIso) + 60 * 60 * 1000).toISOString();
+      await outbox.markFailed(claimed.id, `boom #${attempt}`, nowIso);
+    }
+
+    // The row's own persisted attempts count has reached the cap: the next claim attempt, at any
+    // future time, must find nothing -- proving the row is sealed, not merely waiting out a delay.
+    const final = await outbox.claimPending(10, "2099-01-01T00:00:00.000Z");
+    assert.equal(final.length, 0);
   });
 }
 

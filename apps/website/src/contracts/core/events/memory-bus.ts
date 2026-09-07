@@ -1,5 +1,7 @@
 import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
+import { MAX_OUTBOX_ATTEMPTS } from "./outbox-worker.js";
+
 /**
  * @file In-memory implementations of the event bus and outbox contracts.
  *
@@ -113,11 +115,16 @@ export class InMemoryOutbox implements OutboxPort {
     if (row) row.status = "delivered";
   }
 
-  /** Mark a claimed row as failed and schedule retry. */
+  /**
+   * Mark a claimed row as failed and schedule retry, unless its own already-persisted `attempts`
+   * has reached `MAX_OUTBOX_ATTEMPTS` — then it is sealed as permanently `"failed"` instead of
+   * re-entering `"pending"` (see `outbox-worker.ts`'s header doc for why this decision lives in
+   * the adapter rather than being passed in by the caller).
+   */
   async markFailed(id: string, error: string, nextAttemptAt: string): Promise<void> {
     const row = this.records.find((r) => r.id === id);
     if (!row) return;
-    row.status = "pending";
+    row.status = row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
     row.lastError = error;
     row.nextAttemptAt = nextAttemptAt;
   }
