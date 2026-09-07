@@ -215,3 +215,41 @@ scope) but the dispatch decision is the Coordinator's, so it was re-authorized e
 `"a transport-level SSRF refusal propagates"` asserted at the handler boundary while the collapse
 was two layers out; `"a mid-copy failure leaves no half-populated directory behind"` had the right
 assertion but only on the arm where the flag was already set.
+
+---
+
+## Addendum 3 — DS-01 closed; DS-01b DEFERRED (Coordinator call, 2026-09-07)
+
+**DS-01 fixed** (`5e3651f1`, report `19fe8619`, 307/307). Root cause was ordering: `emitBootToken` is
+a spawn argument decided before any server exists to probe, and it was being decided from the cookie
+jar — so a wrong guess could never be revised, because no token had been minted and
+`startSiteBackend` passes no `desktopCredential` for the login form to accept. Inverted: always emit,
+decide after the server answers. The redeem stays conditional, which is what creates a 30-day session.
+
+Sink audit, which is the part the original audit missed: of five paths that open or should clear a
+session, exactly one clears (`openSiteWindow`'s `closed` listener). **In fleet mode — the default —
+none do.**
+
+**DS-01b — fleet sessions are never revoked, so 30-day rows accumulate. DEFERRED.**
+
+The lockout is fully closed regardless of this leak; what remains is hygiene. The natural fix
+(`endSiteSession` from `before-quit`) adds an HTTP round trip per site to the quit path, and
+`net.request` here has **no timeout** — it resolves on error, but a hung connection never errors, so
+an unresponsive child would hang the quit indefinitely. Trading row accumulation for an app that
+sometimes will not quit is a bad trade, and getting the bounded race right is a shutdown-path design
+decision, not a defect fix.
+
+B was right to decline it unilaterally. The recommended shape and the narrower `deleteProject` case
+(which is NOT on the quit path and therefore carries no hang risk) are in its report — that narrower
+subset is the safe first move if this is ever picked up.
+
+**On evidence quality:** B reduced its own source-text exposure rather than accepting it, extracting
+the load-bearing decision into `desktop-auth.cjs` as `ensureSiteSession` with four real behavioural
+tests. What stays text-only is the call *order* in `main.cjs` — a change preserving the call shape
+but breaking the ordering would still pass. No `.tsx` touched, so this does not add weight to the
+React-runner decision.
+
+Two comment corrections landed with it: `hasActiveSessionCookie`'s doc claimed a stale cookie "fails
+exactly like a missing one: the ordinary login screen shows." False, for the reason above. B verified
+rather than assumed that `/auth/me` really 401s unauthenticated (`dev-auth.ts:429-433`) — a route
+answering `200 {user:null}` would have made the whole probe worthless.
