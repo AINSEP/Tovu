@@ -47,6 +47,17 @@ const DESKTOP_OWNER_USERNAME = "admin";
 /** Tovu's boot-token redemption route (`registerAuthRoutes`, `dev-auth.ts`). */
 const BOOT_SESSION_PATH = "/api/admin/v1/auth/boot-session";
 
+/** Tovu's session-logout route (`registerAuthRoutes`, `dev-auth.ts`). Revokes whatever session the
+ *  caller's cookie proves, and is a no-op (still `200`) when there is none — see `dev-auth.ts`'s own
+ *  handler, which clears the cookie unconditionally regardless of whether a token was present. */
+const LOGOUT_PATH = "/api/admin/v1/auth/logout";
+
+/** The session cookie's name. Must match `dev-auth.ts`'s own `SESSION_COOKIE` — duplicated here
+ *  rather than imported for the same reason {@link BOOT_SESSION_PATH} is a literal and not an
+ *  import: this directory stays self-contained (see `main.cjs`'s header), so nothing under
+ *  `apps/website/` has to change, or even be resolvable, for this shell to build. */
+const SESSION_COOKIE_NAME = "tovu_session";
+
 /** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
  *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
  *  always knows the literal address its own child bound. */
@@ -155,9 +166,87 @@ async function redeemBootSession(deps) {
   });
 }
 
+/**
+ * Whether `deps.session`'s cookie jar already carries a session cookie for this site.
+ *
+ * Checked BEFORE minting a fresh boot token so a site already authenticated from a previous launch
+ * does not mint and redeem another one: {@link sitePartition} gives every site a `persist:`-prefixed
+ * partition, so its cookies survive an app restart, and a still-valid one sitting unused in the jar
+ * is exactly what let 30-day sessions pile up one per launch (713 live rows found in one site's
+ * database) with no reuse and no revocation. Matched by NAME only, never by URL/port: this shell
+ * allocates a fresh port for the child on every launch, and Chromium keys a cookie by host, not port
+ * (see this file's header, property 2) — a port-scoped lookup would never match the very cookie this
+ * check exists to find.
+ *
+ * A cookie present here is not proof the session is still valid server-side (it could have been
+ * revoked early by {@link endSiteSession} racing a crash, or the site's database could have been
+ * reset out from under it) — only that trying it is worth skipping the mint for. A stale cookie fails
+ * exactly like a missing one: the admin's own session check 401s and the ordinary login screen shows,
+ * the same fail-open contract every other branch in this file already keeps.
+ *
+ * @param {object} deps
+ * @param {{cookies: {get: Function}}} deps.session the Electron `Session` to inspect.
+ * @returns {Promise<boolean>}
+ * @complexity O(1) — one cookie-store lookup.
+ */
+async function hasActiveSessionCookie(deps) {
+  const cookies = await deps.session.cookies.get({ name: SESSION_COOKIE_NAME });
+  return cookies.length > 0;
+}
+
+/**
+ * End whatever session `deps.session`'s cookie jar is currently carrying for this site, so a closed
+ * window's session does not outlive the window by up to 30 days.
+ *
+ * Mirrors {@link redeemBootSession}'s shape and its "never throws for an auth outcome" contract: a
+ * session that was already gone, already expired, or never existed answers exactly like one that was
+ * just revoked (the route always answers `200`), so the caller never has to branch on which case this
+ * is. Only a genuinely non-loopback `adminUrl` rejects, which should never happen since callers only
+ * ever pass a site's own spawned-child `adminUrl`.
+ *
+ * @param {object} deps
+ * @param {{request: Function}} deps.net Electron's `net` module (injectable test seam).
+ * @param {object} deps.session the Electron `Session` whose cookie the logout call reads and clears.
+ * @param {string} deps.adminUrl the site's own admin URL, same shape {@link redeemBootSession} takes.
+ * @returns {Promise<{ok: boolean, status?: number, reason?: string}>}
+ * @throws {Error} (as a rejection) only when `adminUrl` is not a loopback origin — a wiring bug,
+ *   never an auth outcome.
+ * @complexity O(1) — one request.
+ */
+async function endSiteSession(deps) {
+  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+
+  return new Promise((resolve) => {
+    const request = deps.net.request({
+      method: "POST",
+      url: new URL(LOGOUT_PATH, origin.origin).toString(),
+      session: deps.session,
+      useSessionCookies: true,
+    });
+
+    request.on("response", (response) => {
+      // Drained rather than parsed — see `redeemBootSession`'s identical comment.
+      response.on("data", () => {});
+      response.on("end", () =>
+        resolve(
+          response.statusCode === 200
+            ? { ok: true, status: 200 }
+            : { ok: false, status: response.statusCode, reason: `logout responded ${response.statusCode}` },
+        ),
+      );
+    });
+    request.on("error", (error) => resolve({ ok: false, reason: error.message }));
+
+    request.end();
+  });
+}
+
 module.exports = {
   BOOT_SESSION_PATH,
+  LOGOUT_PATH,
   assertLoopbackAdminUrl,
   sitePartition,
   redeemBootSession,
+  hasActiveSessionCookie,
+  endSiteSession,
 };

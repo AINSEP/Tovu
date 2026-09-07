@@ -104,7 +104,7 @@ const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
-const { redeemBootSession, sitePartition } = require("./src/desktop-auth.cjs");
+const { redeemBootSession, sitePartition, hasActiveSessionCookie, endSiteSession } = require("./src/desktop-auth.cjs");
 const { projectsFilePath, seedDevFallbackProject } = require("./src/project-registry.cjs");
 const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
 
@@ -410,14 +410,27 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
     return already.window;
   }
 
+  const partition = sitePartition(siteDir);
+
+  // A site already authenticated from a previous launch keeps its session cookie in this
+  // `persist:`-prefixed partition (see `desktop-auth.cjs`'s header, property 2) across app restarts.
+  // Minting and redeeming a fresh boot token here TOO was the defect: a brand-new 30-day session on
+  // every open, one per launch, none of them ever revoked — 713 live rows found in one site's own
+  // database. Skipping the mint when a session cookie is already present is what stops that
+  // accumulation at its source; `window.on("closed", ...)` below is the other half — giving a
+  // session a real end instead of leaving it to expire on its own.
+  const alreadyAuthenticated = await hasActiveSessionCookie({ session: session.fromPartition(partition) });
+
   // `emitBootToken` is what makes `server.bootToken` non-null below — see `desktop-auth.cjs`'s
-  // header for why this replaced a shell-minted, shell-stored password entirely.
+  // header for why this replaced a shell-minted, shell-stored password entirely. Omitted when a
+  // session cookie already covers this site, so a reused session mints nothing that will just go
+  // unredeemed.
   const server = await startTovuServer({
     repoRoot: REPO_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
     port: options.port,
-    emitBootToken: true,
+    emitBootToken: !alreadyAuthenticated,
   });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
@@ -427,11 +440,12 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
     updatedAt: Date.now(),
   });
 
-  // Before the window exists, so the cookie is already in the jar when `loadURL` fires and the
-  // admin's very first `/api/admin/v1/auth/me` call is authenticated — a session applied after the
-  // page had loaded would still show the login form until a reload.
-  const partition = sitePartition(siteDir);
-  await authenticateSiteSession(siteDir, server, partition);
+  if (!alreadyAuthenticated) {
+    // Before the window exists, so the cookie is already in the jar when `loadURL` fires and the
+    // admin's very first `/api/admin/v1/auth/me` call is authenticated — a session applied after the
+    // page had loaded would still show the login form until a reload.
+    await authenticateSiteSession(siteDir, server, partition);
+  }
 
   let window;
   try {
@@ -446,7 +460,13 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
   window.on("closed", () => {
     openSites.delete(siteDir);
     recordSiteClosed(ctx.registryPath, siteDir);
-    void server.stop();
+    // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
+    // later — the other half of the accumulation fix above. Best-effort and awaited before
+    // `server.stop()` so the request actually reaches the child before BR-07's graceful SIGTERM
+    // drain tears it down; a failed or no-op logout (nothing left to revoke) never blocks the close.
+    void endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
+      .catch(() => {})
+      .finally(() => void server.stop());
   });
   return window;
 }

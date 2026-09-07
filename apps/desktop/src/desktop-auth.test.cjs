@@ -20,7 +20,13 @@ const os = require("node:os");
 const path = require("node:path");
 const { EventEmitter } = require("node:events");
 
-const { assertLoopbackAdminUrl, sitePartition, redeemBootSession } = require("./desktop-auth.cjs");
+const {
+  assertLoopbackAdminUrl,
+  sitePartition,
+  redeemBootSession,
+  hasActiveSessionCookie,
+  endSiteSession,
+} = require("./desktop-auth.cjs");
 
 // --------------------------------------------------------------------------
 // assertLoopbackAdminUrl — the network guard
@@ -142,6 +148,77 @@ test("refuses to put the token on the wire for a non-loopback admin url", async 
   const net = fakeNet(200);
   await assert.rejects(
     () => redeemBootSession({ ...REDEEM_INPUT, adminUrl: "http://evil.example.com/admin/", net }),
+    /desktop sign-in refused/,
+  );
+  assert.deepEqual(net.calls, [], "no request may be made at all");
+});
+
+// --------------------------------------------------------------------------
+// hasActiveSessionCookie — the reuse-on-launch check
+// --------------------------------------------------------------------------
+
+/** Minimal Electron `Session` stand-in exposing only what `hasActiveSessionCookie` reads. */
+function fakeSession(cookies) {
+  const calls = [];
+  return {
+    calls,
+    cookies: {
+      get(filter) {
+        calls.push(filter);
+        return Promise.resolve(cookies);
+      },
+    },
+  };
+}
+
+test("reports no active session when the partition's cookie jar is empty", async () => {
+  const fake = fakeSession([]);
+  assert.equal(await hasActiveSessionCookie({ session: fake }), false);
+});
+
+test("reports an active session when the partition already carries a tovu_session cookie", async () => {
+  const fake = fakeSession([{ name: "tovu_session", value: "opaque" }]);
+  assert.equal(await hasActiveSessionCookie({ session: fake }), true);
+});
+
+test("looks the cookie up by NAME only — a port-scoped filter would never match a reused partition", async () => {
+  const fake = fakeSession([]);
+  await hasActiveSessionCookie({ session: fake });
+  assert.deepEqual(fake.calls, [{ name: "tovu_session" }]);
+});
+
+// --------------------------------------------------------------------------
+// endSiteSession
+// --------------------------------------------------------------------------
+
+const LOGOUT_INPUT = {
+  session: { id: "fake" },
+  adminUrl: "http://127.0.0.1:3001/admin/",
+};
+
+test("a 200 logout reports success", async () => {
+  assert.deepEqual(await endSiteSession({ ...LOGOUT_INPUT, net: fakeNet(200) }), { ok: true, status: 200 });
+});
+
+test("a non-200 logout RESOLVES as not-ok rather than throwing", async () => {
+  const result = await endSiteSession({ ...LOGOUT_INPUT, net: fakeNet(500) });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 500);
+});
+
+test("posts to the logout route, with useSessionCookies, so the revoke reaches THIS site's cookie", async () => {
+  const net = fakeNet(200);
+  await endSiteSession({ ...LOGOUT_INPUT, net });
+  assert.equal(net.calls[0].useSessionCookies, true);
+  assert.equal(net.calls[0].session, LOGOUT_INPUT.session);
+  assert.equal(net.calls[0].url, "http://127.0.0.1:3001/api/admin/v1/auth/logout");
+  assert.equal(net.calls[0].method, "POST");
+});
+
+test("refuses to call logout for a non-loopback admin url", async () => {
+  const net = fakeNet(200);
+  await assert.rejects(
+    () => endSiteSession({ ...LOGOUT_INPUT, adminUrl: "http://evil.example.com/admin/", net }),
     /desktop sign-in refused/,
   );
   assert.deepEqual(net.calls, [], "no request may be made at all");
