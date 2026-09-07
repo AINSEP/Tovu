@@ -33,6 +33,14 @@ export {
   InternalError,
 } from "./errors.js";
 export type { ConfigJson } from "./types.js";
+/**
+ * `repair-site.ts` itself stays off this barrel for the same reason `init-site.ts`/`boot-site-dir.ts`
+ * do — its one caller is `cli/commands/adopt.ts`'s own composition. Its ERROR class is the
+ * exception, and belongs here for the identical reason every other error class above does:
+ * `cli/errors.ts` maps it to an exit code, and `cli/errors.ts` is not a composition root, so the
+ * door is the only way it can reach the type (`no-deep-imports:site-dir`).
+ */
+export { SiteRepairRefusedError, type SiteRepairRefusalReason } from "./repair-site.js";
 export {
   listSites,
   createSite,

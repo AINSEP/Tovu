@@ -66,7 +66,10 @@ const UNKNOWN_TEMPLATE_VERSION = "0.0.0";
 
 const CONFIG_FILE_NAME = "config.json";
 const SITE_META_FILE_NAME = ".site-meta.json";
-const CONTENT_DB_FILE_NAME = "content.db";
+/** Exported (2026-09-06) so `cli/commands/adopt.ts` can name the file it excludes when listing the
+ *  OTHER `*.db` files it found in a directory that has no `content.db` — one source of truth for
+ *  the filename, rather than a second string literal in the `cli` layer. */
+export const CONTENT_DB_FILE_NAME = "content.db";
 
 /** The four ways {@link planRepairSite}/{@link repairSite} refuse rather than guess — see this
  *  file's own header for why each one is a refusal, not a best-effort fallback. */
@@ -127,10 +130,53 @@ function isExistingDirectory(target: string): boolean {
   }
 }
 
+/**
+ * How much of the `{config.json, .site-meta.json}` marker pair a directory already carries.
+ * `"complete"` is the shape `listSites`/`tovu serve` accept; `"none"` is the only shape
+ * {@link planRepairSite} will write into; `"partial"` is neither — see {@link classifySiteMarkers}.
+ */
+export type SiteMarkerState = "none" | "partial" | "complete";
+
+export interface SiteMarkerClassification {
+  state: SiteMarkerState;
+  /** Marker file names present at the target, in `[config.json, .site-meta.json]` order. */
+  present: string[];
+  /** Marker file names absent at the target, same order. */
+  missing: string[];
+}
+
+/**
+ * Classify `target`'s marker pair. Exported (2026-09-06) because `tovu adopt`
+ * (`cli/commands/adopt.ts`) has to tell the three states APART before calling
+ * {@link planRepairSite}, which deliberately collapses `"partial"` and `"complete"` into one
+ * `"MARKER_ALREADY_EXISTS"` refusal: a re-run against an already-adopted directory is an idempotent
+ * no-op, while a half-adopted directory is a genuine refusal, and a command that treated both as
+ * errors would not be idempotent. Sharing this function rather than re-deriving the two file names
+ * in the `cli` layer keeps one source of truth for what a marker pair even is.
+ *
+ * @param target - a resolved directory path; a non-existent path classifies as `"none"` (nothing is
+ *   present), which is correct — its refusal is `NOT_A_DIRECTORY`, checked separately.
+ * @complexity O(1) — two `existsSync` calls.
+ */
+export function classifySiteMarkers(target: string): SiteMarkerClassification {
+  const names = [CONFIG_FILE_NAME, SITE_META_FILE_NAME];
+  const present = names.filter((name) => fs.existsSync(path.join(target, name)));
+  const missing = names.filter((name) => !present.includes(name));
+  return { state: markerState(present.length, names.length), present, missing };
+}
+
+/** `classifySiteMarkers`'s three-way state, split out so the classification reads as one expression
+ *  rather than a nested ternary. */
+function markerState(presentCount: number, totalCount: number): SiteMarkerState {
+  if (presentCount === 0) return "none";
+  if (presentCount === totalCount) return "complete";
+  return "partial";
+}
+
 /** The subset of `["config.json", ".site-meta.json"]` already present at `target` — empty when
  *  neither exists, which is the only case {@link planRepairSite} allows past this check. */
 function existingMarkerFiles(target: string): string[] {
-  return [CONFIG_FILE_NAME, SITE_META_FILE_NAME].filter((name) => fs.existsSync(path.join(target, name)));
+  return classifySiteMarkers(target).present;
 }
 
 /**
