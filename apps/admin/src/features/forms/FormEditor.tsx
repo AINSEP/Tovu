@@ -968,13 +968,15 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
       >
         <FormEditorHeaderText isNew={isNew} name={name} t={t} />
         <div className="page-actions">
+          {/* Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>`
+              (invalid HTML, undefined activation behaviour) — same `a.btn-*` mechanism
+              `Dashboard.tsx`'s "View site ↗" already uses. */}
           <a
+            className="btn-secondary"
             href="/admin/forms"
             {...agentHandle("form-editor-back", { role: "link", label: "Back to the list of all forms" })}
           >
-            <button type="button" className="btn-secondary">
-              {t("Back to forms")}
-            </button>
+            {t("Back to forms")}
           </a>
         </div>
       </div>

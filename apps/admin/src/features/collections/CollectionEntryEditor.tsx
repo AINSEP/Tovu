@@ -358,13 +358,15 @@ function EntryPageActions(props: {
 
   return (
     <div className="page-actions">
+      {/* Plain `<a className="btn-secondary">`, not a `<button>` nested inside an `<a>` (invalid
+          HTML, undefined activation behaviour) — same `a.btn-*` mechanism `Dashboard.tsx`'s
+          "View site ↗" already uses. */}
       <a
+        className="btn-secondary"
         href={`/admin/collections/${contentTypeKey}`}
         {...agentHandle("entry-back", { role: "link", label: "Back to this content type's list of entries" })}
       >
-        <button type="button" className="btn-secondary">
-          ← {contentTypeLabel}
-        </button>
+        ← {contentTypeLabel}
       </a>
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? <span className="save-error">{error}</span> : null}

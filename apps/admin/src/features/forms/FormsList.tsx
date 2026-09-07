@@ -69,8 +69,15 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           <p className="page-description">{t("Manage the forms embedded across the site and their submissions.")}</p>
         </div>
         <div className="page-actions">
-          <a href="/admin/forms/new" {...agentHandle("forms-new", { role: "link", label: "Create a new form" })}>
-            <button>{t("New form")}</button>
+          {/* Plain `<a className="btn-primary">`, not a `<button>` nested inside an `<a>` (invalid
+              HTML, undefined activation behaviour) — same `a.btn-*` mechanism `Dashboard.tsx`'s
+              "View site ↗" already uses. */}
+          <a
+            className="btn-primary"
+            href="/admin/forms/new"
+            {...agentHandle("forms-new", { role: "link", label: "Create a new form" })}
+          >
+            {t("New form")}
           </a>
         </div>
       </div>
