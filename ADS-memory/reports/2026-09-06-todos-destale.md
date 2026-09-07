@@ -204,3 +204,34 @@ Conservative pass, as instructed: **38 `[x]` items deleted**, every `[ ]` item k
 ### Deliberately untouched
 - §21, §22 (AEO/GEO/AI surfaces, ~120 lines), §23 (Platform Gaps), §25 (Reference Codebases) — aspirational lists with no falsifiable claims about current source beyond the paths already fixed. Kept whole, as instructed.
 
+---
+
+## Pass 7 — the tail sections (not assigned to a pass in the dispatch)
+
+The dispatch's six passes covered the file down to §25. The 13 `##` sections after it (~400 lines) carried the same defects, so they were reconciled too.
+
+### Deleted (rule 1 — verified done)
+- **`## ✅ RESOLVED (2026-08-24) — template shells were their own reachable URL`** (67 lines). Verified: `isStandaloneThemePage` is exported at `apps/website/src/features/theme/theme.ts:706` and referenced from `theme.ts:233/251/652` and `server/__tests__/routes/post-template-site-serving.test.ts:58`. Its "two resolvers for one string will drift" lesson is **not lost** — the JSON-column tripwire section directly above already records the same lesson from the `isGeneratedThemePath` case.
+
+### Rewritten
+| Section | What changed |
+|---|---|
+| **HTML-format Pages render in the fallback shell** | **Its stated cause is now false.** It claimed "there is no per-page template selection anywhere in the system". There is: `templateChoice` is a real column (`platform/db/schema.ts:107`, `schema.postgres.ts:871`), threaded through `features/post/{post,repo.sqlite}.ts`, exposed at `contracts/headless/contracts.ts:53`, resolved by `features/theme/static-render.ts` (`resolveTemplate`, `isEligibleForTemplateBranch`, `resolveStaticTierPageShellFallback`), and surfaced in the Pages editor (`apps/admin/src/features/pages/rules.ts`). ADR-065 (Accepted 2026-09-03) landed in the same area. Whether the five pages still render in the fallback shell needs a live site, so the entry is **kept and marked `[UNVERIFIED 2026-09-06]`**, not closed. |
+| **`content/themes/` vs `sites/` drift** | Re-ran the entry's own `diff -rq`. The drift is **wider** now and its shape changed: tracked ships `blog-post.html` / `blog-sidebar-template.html` / `page-shell.html` / `blog.html`; live has `listing-default.html` / `pages-default.html` / `posts-default.html` / `posts-sidebar.html` — ADR-065's naming convention was applied to `sites/` and never back to `content/themes/`. `theme.json` also disagrees: tracked has nine `pages` and **no `publishedPages` key**; live has eight `pages` (no `blog`) and `publishedPages: []`. Rewritten around the current measurement; the `nav.html` `variant:"tree"` case (the genuinely load-bearing one) kept. |
+| **Footer dead links** | Marked **`[UNVERIFIED 2026-09-06]`**. The 2026-08-30 table came from curling a running `:3000`; the live `theme.json` now has an **empty** `publishedPages: []` and no longer lists `blog`, so the per-link statuses have certainly changed and could not be re-checked without a running site. The structural bug — the footer links unconditionally regardless of `publishedPages`, and an unlisted page 404s outright — is unaffected and kept as the actionable part. |
+
+### Counts and paths corrected
+| Claim | Measured 2026-09-06 |
+|---|---|
+| Admin skins: "`styles.css` defines 77 design tokens" | **94** custom-property declarations |
+| Admin skins: "retrofit across 76 components" | **126** `.tsx` files (excluding tests) |
+| Tailwind: "`apps/admin` has 27 deps" | **37** dependencies + **11** devDependencies; still zero `tailwind`/`radix`/`shadcn` |
+| Tailwind: "the existing 4,687 lines / 541 selectors" | `apps/admin/src/styles.css` is **4,444** lines |
+| `src/platform/db/__tests__/migration-manifest.test.ts` | `apps/website/src/platform/db/__tests__/…` (exists) |
+| `src/platform/site-dir/resolve-workspace.ts:15-21` (2 occurrences) | `apps/website/src/platform/site-dir/resolve-workspace.ts` (line ref dropped — line numbers drift) |
+| Security page: 7 credential-repo rows at `src/platform/db/sqlite/…` | all 7 verified present under `apps/website/src/platform/db/sqlite/…`; table repointed |
+| File preamble: "cross-references to `src/…`" | now names `apps/website/src/…` / `apps/admin/src/…` and tells the reader to read a bare `src/…` in an older entry as `apps/website/src/…` |
+
+### Kept verbatim
+- **Theme marketplace (local fixture only)**, **Tailwind/shadcn rationale**, **JSON-column tripwire's three items** (all three explicitly latent and non-blocking; the regex, the trailing-comment blind spot and the `build.sourceDir` rule are unchanged in source), **First-run onboarding wizard**, **Security page**, **Deployment** (its own text already says the end-to-end deploy was not verified — that caveat is correct and stays), and the **assistant-dock form-corruption bug** (needs a live browser repro, explicitly out of scope here).
+

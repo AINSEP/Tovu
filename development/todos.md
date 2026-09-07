@@ -3,8 +3,9 @@
 > **Scope.** This is the **Tovu website-product** backlog (CMS runtime: kernel,
 > data layer, content model, theme/plugin systems, admin UI, SEO/AEO/GEO plugins,
 > WordPress/Payload/Directus/Ghost parity). It moved here in the 2026-07-06 repo
-> split. Cross-references to `src/…` and `apps/…` now refer to code in **this
-> repository**; they are no longer merely Tovu-Runner port candidates.
+> split. Cross-references to `apps/website/src/…` and `apps/admin/src/…` refer to code in **this
+> repository**; they are no longer merely Tovu-Runner port candidates. (Bare `src/…` paths in older
+> entries predate the apps/website restructure — read them as `apps/website/src/…`.)
 > Operator-shell / media-generation / agent-detection / the operator chat profile
 > remain tracked in **Tovu-Runner**.
 >
@@ -1017,13 +1018,13 @@ Curated lists to mine:
 Goal: switch the ADMIN's own look — `basic` (today's), `glassmorphic`, `ultramodern` — from a
 Studio → Appearance tab. Same mechanism the public themes use, aimed at the admin instead.
 
-This is already half-true: `apps/admin/src/styles.css` defines 77 design tokens and every
+This is already half-true: `apps/admin/src/styles.css` declares **94** custom properties and every
 component references them (`var(--link)`, `var(--surface)`), with dark mode implemented as
 `:root[data-theme="dark"]` overriding the same token names. A skin is the identical trick one
 axis over — `:root[data-skin="glassmorphic"]` re-declaring those tokens.
 
 **Two things must hold or skins are unreachable, and both are cheaper to honor now than to
-retrofit across 76 components:**
+retrofit across 126 `.tsx` components:**
 
 1. **No literal visual values in components.** This is the binding constraint on the Tailwind
    adoption below. Tailwind's theme must map utilities onto the CSS variables
@@ -1053,10 +1054,12 @@ Owner: *"Remind us to download shadcn and Tailwind later because I wanna be able
 components from it."* Wanted specifically for shadcn's component library, not just utilities.
 
 Order matters: shadcn generates components built on Radix primitives **and Tailwind classes**, so
-Tailwind lands first. Neither is installed today — `apps/admin` has 27 deps, no Tailwind, no Radix,
-no shadcn; all UI comes from `@jini-ai/ui`.
+Tailwind lands first. Neither is installed today — `apps/admin/package.json` has 37 dependencies + 11 devDependencies
+and **zero** matching `tailwind`/`radix`/`shadcn` (re-checked 2026-09-06); all UI comes from
+`@jini-ai/ui`.
 
-**Do not migrate the existing 4,687 lines / 541 selectors.** Add Tailwind with `preflight` DISABLED
+**Do not migrate the existing stylesheet** (`apps/admin/src/styles.css`, 4,444 lines as of
+2026-09-06). Add Tailwind with `preflight` DISABLED
 (preflight's reset would clobber the current stylesheet) and use it for NEW surfaces only.
 
 **The binding constraint**, from the admin-skins section above: Tailwind's theme must map onto the
@@ -1078,7 +1081,8 @@ commits `3cd312d`, `57d5d65`, `697d97e`, `f763bb9`, `3fead5a`, `169b74a`. These 
 deliberately deferred.
 
 **1. The JSON-mention regex fires on phrasing that means "not JSON."**
-`/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in `src/platform/db/__tests__/migration-manifest.test.ts`
+`/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in
+`apps/website/src/platform/db/__tests__/migration-manifest.test.ts`
 matches `"non-JSON"`, `"JSON Web Token (JWT)"`, `"JSON:API"`, `"GeoJSON-style … NOT parsed JSON"`.
 No such phrasing exists in `schema.ts` today (grep-confirmed). It fails **loud** — the suite breaks
 and someone rewords a comment or adds a `REVIEWED_JSON_COLUMNS` entry — so it cannot pass bad data
@@ -1133,75 +1137,7 @@ all.
 
 Related open blocker: onboarding a *customer* (as opposed to a developer) is gated on multi-workspace
 hosting, which does not exist yet — one running app resolves exactly one workspace at boot
-(`src/platform/site-dir/resolve-workspace.ts:15-21`). See constraints doc §4.1.
-
-## ✅ RESOLVED (2026-08-24) — template shells were their own reachable URL (found 2026-08-15)
-
-**Fixed, with one addition the original entry did not catch: `/404` had the same defect.**
-`isMarketingPageSlug` (`pages.ts`) excluded only `index`, so a static theme's own `pages/404.html`
-was ALSO served at `/404` with a **200 OK** — a soft 404, indexed by search engines as real content.
-`route-manifest.ts` already excluded it; the live route did not. Same root cause, same one-line fix,
-so it was closed in the same pass rather than left as a second entry.
-
-**What landed:** a single shared predicate, `isStandaloneThemePage(theme, pageId)`, in
-`src/features/theme/theme.ts` (next to `validateTemplateDeclarations`, which already owns `templates`
-semantics), exported via the theme barrel. It answers "is `GET /<pageId>` a real standalone page"
-once — excluding `index` (served at `/`), `404` (the error document), and every
-`manifest.templates` stem. Both call sites now import it instead of spelling their own answer:
-`server/routes/site/pages.ts`'s `isMarketingPageSlug` and `export/route-manifest.ts`'s
-`buildThemePageRoutes`.
-
-**Verified:** 2 regression tests in `src/server/routes/site/__tests__/pages.route.test.ts`, both
-confirmed RED first (200 where 404 was required) — one covering the template shells with a passing
-`/about` control proving the fixture was genuinely reachable, one covering `/404`. Scoped runs green
-afterwards: `src/features/theme/**` 464 pass, `src/platform/export/**` + `src/server/routes/site/__tests__/**`
-102 pass, `npx tsc -p tsconfig.json --noEmit` clean.
-
-**Real-world blast radius closed:** 6 themes on disk declare `templates` — `basic`, `portfolite`,
-`gracious-timing`, and all three `tailark-*`. On each, `/blog-post`, `/page-shell` (and, on any theme
-shipping one, `/404`) were publicly reachable 200s.
-
-**The lesson, same family as the `isGeneratedThemePath` one recorded above:** two resolvers answering
-one question will drift, and the drift is invisible because each is internally consistent. The
-exporter was right and the live server was wrong for nine days, and nothing failed loudly — the
-export output simply disagreed with the running site.
-
-**Original entry, kept for context below.**
-
-**Not being fixed now — recorded so it is not lost, per the deployment-work session's own tracking
-convention.** Found while building `src/platform/export/route-manifest.ts` (the static-site exporter's route
-enumeration).
-
-A static theme's `pages/*.html` folder (`DiscoveredTheme.pages`, `src/features/theme/theme.ts:290-297`)
-holds two different kinds of file in the SAME `Record<string, string>`, keyed identically by filename
-minus `.html`: real standalone pages (`about.html`, `pricing.html`, …) AND content-embedding template
-shells a Post/Page picks via `templateChoice` (`page-shell.html`, `blog-post.html`,
-`blog-sidebar-template.html` for the `basic` theme — declared in `theme.manifest.templates`, the
-`ThemeManifest.templates?: string[]` field, `theme.ts:161-176`). Nothing in the loaded theme shape
-distinguishes the two by TYPE, only by which OTHER list names a given key.
-
-`src/server/routes/site/pages.ts`'s `GET /:slug` handler (the `theme.pages[slug] !== undefined` check
-around line 762) has no exclusion for `theme.manifest.templates` entries. The result: `/page-shell`,
-`/blog-post`, and `/blog-sidebar-template` are live, publicly reachable URLs on the `basic` theme
-today, each returning the shell's raw HTML directly via `renderStaticPage` — a document that expects a
-Post's content to be substituted into its `{"type":"content"}` marker, served instead with no
-substitution ever having run. A broken/incomplete page, reachable by anyone who guesses or is handed
-the URL.
-
-**Why the exporter doesn't just fix it inline:** the fix belongs in `pages.ts`, a file two other
-agents were actively working in during this same session — touching it beyond the one already-landed
-`export` keyword addition risked exactly the kind of conflict this session's dispatch briefs were
-written to avoid. `route-manifest.ts` instead excludes `theme.manifest.templates` stems from the
-theme-page route candidate set (see that file's own header comment), so the STATIC EXPORT never ships
-this broken output as if it were a real page — but the underlying live-site reachability is unrelated
-to export and remains open on the running server.
-
-**The narrow fix, when someone picks this up:** exclude `theme.manifest.templates` stems in the SAME
-`theme.pages[slug] !== undefined` check `pages.ts`'s `GET /:slug` handler already runs, mirroring what
-`route-manifest.ts` already does for export purposes — one shared exclusion list (or a small named
-helper) rather than two independently-maintained copies of "which page ids are template shells."
-
----
+(`apps/website/src/platform/site-dir/resolve-workspace.ts`). See constraints doc §4.1.
 
 ## Security page (credential inventory) under Operations — owner wants this, deliberately deferred (2026-08-15)
 
@@ -1214,13 +1150,13 @@ built now.
 
 | Store | Repo file |
 |---|---|
-| Site / BYOK credentials | `src/platform/db/sqlite/site-credential-repo.sqlite.ts` |
-| Publish targets | `src/platform/db/sqlite/publish-credential-repo.sqlite.ts` |
-| Composio connector credentials | `src/platform/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
-| Composio config | `src/platform/db/sqlite/composio-config-repo.sqlite.ts` |
-| Admin execution credentials | `src/platform/db/sqlite/execution-credential-repo.sqlite.ts` |
-| External MCP servers | `src/platform/db/sqlite/external-mcp-repo.sqlite.ts` |
-| Media provider credentials | `src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts` |
+| Site / BYOK credentials | `apps/website/src/platform/db/sqlite/site-credential-repo.sqlite.ts` |
+| Publish targets | `apps/website/src/platform/db/sqlite/publish-credential-repo.sqlite.ts` |
+| Composio connector credentials | `apps/website/src/platform/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
+| Composio config | `apps/website/src/platform/db/sqlite/composio-config-repo.sqlite.ts` |
+| Admin execution credentials | `apps/website/src/platform/db/sqlite/execution-credential-repo.sqlite.ts` |
+| External MCP servers | `apps/website/src/platform/db/sqlite/external-mcp-repo.sqlite.ts` |
+| Media provider credentials | `apps/website/src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts` |
 | Source control (in flight this session) | `source_control_credential_sets` |
 
 **Table is stale as a current count (CORRECTED 2026-09-02):** two more sealed-credential stores
@@ -1267,51 +1203,44 @@ on screen, rather than silently listing a subset as if it were everything.
 
 ---
 
-## HTML-format Pages render in the fallback shell, not the theme — and nothing can change that
+## HTML-format Pages render in the fallback shell, not the theme
 
-Filed 2026-08-30, from a live admin-assistant session auditing tovu-com. Diagnosis independently
-verified against source before filing; the assistant's line references were all correct.
+Filed 2026-08-30 from a live admin-assistant session auditing tovu-com.
 
 **Symptom the owner sees:** five authored pages (`/quickstart`, `/documentation`, `/faq`,
 `/how-tovu-works`, `/about`) come back cream-and-peach while Posts render correctly in the full Basic
-theme. The peach is NOT a theme bug. Those pages are served by Tovu's built-in fallback shell
-(`SITE_TITLE = "Tovu Demo Site"`, `server/inbound/public-http/routes/site/pages.ts:137`) — no theme
-CSS is requested at all and no theme toggle appears. With the theme's tokens never emitted, the
-author's own CSS fallbacks win, and `pages_write_html`'s contract specifies those as
-`var(--accent, #8a4b2a)` (burnt orange) over `var(--surface-2, #f6f2ef)` (cream). That is the peach.
+theme. The peach is NOT a theme bug — those pages are served by Tovu's built-in fallback shell
+(`SITE_TITLE = "Tovu Demo Site"`, `server/inbound/public-http/routes/site/pages.ts`), so no theme CSS
+is requested, the author's own CSS fallbacks win, and `pages_write_html`'s contract specifies
+`var(--accent, #8a4b2a)` over `var(--surface-2, #f6f2ef)`. That is the peach.
 
-**The actual gap.** An `"html"`-format Page should be able to render through the active theme's
-`page-shell` template. It cannot, because **there is no per-page template selection anywhere in the
-system** — verified: every `templateId` in the codebase is site-level provenance (`"starter"`,
-`platform/site-dir/*`), never a page's shell choice. `contracts.ts:126` documents a theme's
-`templates` array (`["blog-post.html", "page-shell.html"]`) but nothing selects one for a Page.
-This also means **no catalog tool can exist for it yet** — the assistant correctly reported it cannot
-fix this from chat. It is a Tovu code change first, a tool second.
-
-Related, already known: this is the same family as the three-diverging-render-paths problem. Confirm
-which of the three the fix belongs in before writing code.
+**[UNVERIFIED 2026-09-06] — this entry's stated cause is now false; the symptom was not re-checked.**
+It claimed "there is no per-page template selection anywhere in the system". There is: a
+`templateChoice` column (`apps/website/src/platform/db/schema.ts:107`, mirrored in
+`schema.postgres.ts:871`), threaded through `features/post/post.ts` and `repo.sqlite.ts`, exposed on
+the headless contract (`contracts/headless/contracts.ts:53`), resolved by
+`features/theme/static-render.ts`'s `resolveTemplate` / `isEligibleForTemplateBranch` /
+`resolveStaticTierPageShellFallback`, and surfaced in the Pages editor
+(`apps/admin/src/features/pages/rules.ts`). ADR-065 (content-template naming convention, Accepted
+2026-09-03) landed in the same area. **Whether these five pages still render in the fallback shell
+needs a live check against a running site** — that could not be settled from source, so the entry is
+kept rather than closed.
 
 **Second finding — theme pages have no "don't publish" switch.** Public routing for a static theme is
-driven purely by file presence: any `.html` under the theme's `render/pages/` that is not declared as
-a template shell becomes a public URL automatically (`isStandaloneThemePage`,
-`features/theme/theme.ts:650`). There is no draft/unpublished state for a theme page. The assistant
-worked around this for `/pricing` by moving `pricing.html` into `_unpublished/` inside the theme and
-dropping it from `theme.json` — reversible, bytes intact, but a convention it invented, not a feature.
-**Decide whether that convention becomes real** (an ignore rule or a declared `unpublished` list) or
-whether theme pages get a genuine publish flag. Until then `_unpublished/` is undocumented and the
-next person to touch that theme will not know it means anything.
+driven purely by file presence: any `.html` under the theme's `render/pages/` not declared as a
+template shell becomes a public URL automatically (`isStandaloneThemePage`,
+`apps/website/src/features/theme/theme.ts`). There is no draft/unpublished state for a theme page.
+The assistant worked around this for `/pricing` by moving `pricing.html` into `_unpublished/` and
+dropping it from `theme.json` — reversible, bytes intact, but a convention it invented, not a
+feature. **Decide whether that convention becomes real** (an ignore rule or a declared `unpublished`
+list) or whether theme pages get a genuine publish flag. Until then `_unpublished/` is undocumented
+and the next person to touch that theme will not know it means anything.
 
 **Smaller, independent:**
-- Footer menu still links `/team`, which is a draft page — a live dead link. Fix or drop the link.
-- Open question the assistant raised and the owner has not answered: re-skin those five pages to a
-  neutral white/grey fallback palette (~15 min) as a stopgap. That hides the peach where it is
-  visible but does not fix the shell problem. Do it only if the real fix is not being picked up now.
-
-**Already landed in that session** (theme edits, live, uncommitted): `/pricing` unpublished as above;
-header nav rewritten to How It Works / Quickstart / Docs / FAQ / About with all five verified
-resolving; the header's Legal dropdown dropped (Terms/Privacy remain in the footer); the theme's demo
-Pricing/Changelog/Download/Blog links removed; and a light-mode fix,
-`:root[data-theme="light"] .site-header { background: #ffffff; }`, replacing an 82%-blended tinted strip.
+- Footer menu still links `/team`, a draft page — a live dead link. Fix or drop the link.
+- Open question the owner has not answered: re-skin those five pages to a neutral white/grey fallback
+  palette as a stopgap. That hides the peach where it is visible but does not fix the shell problem.
+  Do it only if the real fix is not being picked up now.
 
 ---
 
@@ -1346,7 +1275,7 @@ against current source** — real, substantial, committed code exists on both si
 its §3 table row "Static exporter: Does not exist… `grep` for `StaticExporter`/`exportSite` returns
 nothing" is **false** as of current source; re-verify the rest of that table before trusting it):
 - **§4.1 — multi-workspace hosting does not exist.** One running process resolves exactly one
-  workspace at boot (`src/platform/site-dir/resolve-workspace.ts:15-21`). This is the doc's own
+  workspace at boot (`apps/website/src/platform/site-dir/resolve-workspace.ts`). This is the doc's own
   stated gate for any *hosted-SaaS* deployment product (§9) — self-host/export/publish-to-a-bucket
   paths (what the code above actually builds) don't need it, but "click Deploy, get a URL" for a
   non-technical user does.
@@ -1362,67 +1291,57 @@ nothing" is **false** as of current source; re-verify the rest of that table bef
 
 ---
 
-## `content/themes/` vs `sites/` have drifted in load-bearing ways — an upgrade would silently break the live site (verified 2026-08-30)
+## `content/themes/` vs `sites/` have drifted in load-bearing ways — an upgrade would silently break the live site
 
-**This is the gap the project memory `[[project_tovu_upgrade_destroys_themes]]` describes from the
-other direction** (upgrading Tovu destroys live theme edits because `sites/` is gitignored and themes
-live inside the install dir) — this entry documents the CURRENT, concrete drift on `tovu-com`'s
-`basic` theme, verified with `diff -rq content/themes/static/basic sites/tovu-com/themes/static/basic`:
-`css/theme.css`, `render/pages/404.html`, `render/pages/index.html`, `render/pages/pricing.html`,
-`render/partials/footer.html`, `render/partials/nav.html`, `theme.json`, `tokens.light.json` all
-differ.
+**This is the gap `[[project_tovu_upgrade_destroys_themes]]` describes from the other direction**
+(upgrading Tovu destroys live theme edits because `sites/` is gitignored and themes live inside the
+install dir). This entry documents the concrete drift on `tovu-com`'s `basic` theme.
 
-Two of those differences are functionally load-bearing, not cosmetic:
+**Re-measured 2026-09-06** with `diff -rq content/themes/static/basic sites/tovu-com/themes/static/basic`
+— the drift is now **wider than when this was filed**, and its shape changed:
 
-- **`render/partials/nav.html`** — live carries `data-embed-config='{"type":"menu",
-  "id":"menu-header-nav","variant":"tree"}'` on the header menu; tracked has the same marker
-  **without** `"variant":"tree"`. This is not stylistic: `static-render.ts:267` picks
-  `renderMenuTree` only when `marker.config.variant === "tree"`, else the flat `renderMenuLinks`
-  (`static-render.ts:168`), and `renderMenuLinks`'s own doc comment (`static-render.ts:188`) says it
-  drops every nested-menu hook "on the floor." Confirmed live: `nav.html` already carries an inline
-  comment recording this exact reasoning (added this session). **An upgrade that copies the tracked
-  theme over the live one would silently delete the Docs dropdown** (or whatever menu currently
-  relies on the tree variant) with no error — the flat renderer degrades gracefully, so nothing
-  breaks loudly.
-- **`render/partials/footer.html`** — live footer's "Product" column drops the Pricing link tracked
-  still ships, and its "Resources" column points Docs at `/documentation` (absolute path, bypassing
-  the `<name>.html`→`/<name>` rewrite) where tracked still links `docs.html`. Live already carries
-  inline comments (added this session) recording that the "Pricing removed because pricing.html was
-  unpublished" note is **no longer true** — `pricing.html` is back in `render/pages/`, listed in
-  `publishedPages`, and `/pricing` returns 200 — and that `docs.html` 404s because `docs` was never
-  added to `publishedPages`, while `/documentation` is the real, separately-published page. An
-  upgrade would restore the dead `docs.html`/absent-Pricing-caveat link shape.
+- **The template files have been renamed on the live side only.** Tracked still ships
+  `blog-post.html`, `blog-sidebar-template.html`, `page-shell.html` and `blog.html`; live instead has
+  `listing-default.html`, `pages-default.html`, `posts-default.html` and `posts-sidebar.html` — i.e.
+  **ADR-065's content-template naming convention (Accepted 2026-09-03) was applied to `sites/` and
+  never back to `content/themes/`.** An upgrade would restore the old names under a resolver that
+  now expects the new ones.
+- **`theme.json` disagrees on both keys**: tracked lists nine `pages` and has **no `publishedPages`
+  key at all**; live lists eight `pages` (no `blog`) and an **empty** `publishedPages: []`.
+- Also differing: `css/theme.css`, `render/pages/{404,index,pricing}.html`,
+  `render/partials/{footer,footer-minimal,nav}.html`.
 
-`sites/` is gitignored (confirmed: `git status` shows no `sites/` changes despite the diffs above), so
-**the tracked copy under `content/themes/` is what any future `tovu init`/theme-reinstall/upgrade
-path would deploy** — reverting these live fixes with no warning. No fix attempted here (out of
-scope for a todos audit); flagging so the next theme-sync or upgrade-safety pass knows this drift
-exists and isn't cosmetic.
+The originally-recorded load-bearing case still stands and is worth keeping: `render/partials/nav.html`
+live carries `data-embed-config='{"type":"menu","id":"menu-header-nav","variant":"tree"}'` while
+tracked omits `"variant":"tree"`. `static-render.ts` picks `renderMenuTree` only when
+`marker.config.variant === "tree"`, else the flat `renderMenuLinks`, whose own doc says it drops every
+nested-menu hook "on the floor". **An upgrade copying tracked over live would silently delete the
+nested menu** — the flat renderer degrades gracefully, so nothing breaks loudly.
+
+`sites/` is gitignored, so **the tracked copy under `content/themes/` is what any future
+`tovu init` / theme-reinstall / upgrade path would deploy**, reverting these live fixes with no
+warning. No fix attempted here; flagging so the next theme-sync or upgrade-safety pass knows this
+drift exists, is growing, and is not cosmetic.
 
 ---
 
-## Footer dead links on the live site — re-verified 2026-08-30 against a running `:3000`
+## Footer dead links on the live site
 
-**Corrects/narrows the version of this claim carried into this audit's dispatch brief.** Curled every
-link the rendered homepage footer actually emits (`curl :3000/`, extracted via regex, then checked
-each individually — not inferred from `theme.json` alone):
+**[UNVERIFIED 2026-09-06] — the underlying `theme.json` has changed since this was measured, so the
+status table below is no longer trustworthy.** When filed (2026-08-30, by curling a running `:3000`)
+`/download`, `/changelog`, `/signup` and `/team` returned 404 while `/blog`, `/documentation`,
+`/about`, `/signin`, `/contact`, `/faq`, `/terms-of-service` and `/privacy-policy` returned 200.
+Today the live theme's `theme.json` (`sites/tovu-com/themes/static/basic/theme.json`) has
+`publishedPages: []` — **empty** — and no longer lists `blog` under `pages` at all, so which links
+404 has certainly changed. Re-curl a running site before acting on any specific link.
 
-| Link | Status | Why |
-|---|---|---|
-| `/download` | **404** | `download` is in `basic`'s `theme.json` `pages` list but not in `publishedPages` (`["about","blog","pricing","signin"]`) |
-| `/changelog` | **404** | same — in `pages`, not in `publishedPages` |
-| `/signup` | **404** | same — in `pages`, not in `publishedPages` |
-| `/team` | **404** | **different root cause** — not a theme page at all; it comes from the `menu-footer-nav` embedded menu, and `/team` is a **draft Page entity** in the DB (see the "HTML-format Pages render in the fallback shell" entry above, which independently found this same link). Fixing `publishedPages` will not fix this one. |
-| `/blog` | 200 | now live — `blog` **is** in `publishedPages` today (this has changed since the brief was drafted; do not assume it's still dead) |
-| `/documentation`, `/about`, `/signin`, `/contact`, `/faq`, `/terms-of-service`, `/privacy-policy` | 200 | all fine |
-
-**Root cause for the theme-allowlist ones (`download`/`changelog`/`signup`):** `basic`'s
-`theme.json.publishedPages` is an explicit allowlist separate from `pages` (the full set of `.html`
-files the theme ships) — a page can exist, render fine if hit directly... actually does not: confirmed
-by curl, an unlisted page 404s outright, it is not merely "unlinked." The footer partial links to all
-of them unconditionally regardless of `publishedPages`, so the footer is generating guaranteed 404s by
-construction. Either add `download`/`changelog`/`signup` to `publishedPages`, or stop linking pages
-that aren't published — the current combination is the bug.
+**The structural bug is what matters and is unaffected by the drift:** `publishedPages` is an explicit
+allowlist separate from `pages` (the full set of `.html` files the theme ships), an unlisted page
+404s outright rather than merely being unlinked, and the footer partial links to pages
+**unconditionally, regardless of `publishedPages`** — so the footer generates guaranteed 404s by
+construction. Either publish the pages it links, or stop linking pages that are not published. `/team`
+has a different root cause again: it is not a theme page at all, it comes from the `menu-footer-nav`
+embedded menu.
 
 ---
 
