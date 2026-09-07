@@ -215,3 +215,38 @@ untouched lines (`Database.tsx:64`, `Users.tsx:674`).
 
 Not pushed; no PR opened. Nothing was left unverified in the browser except the dark-mode Settings variant,
 which was deliberately not changed (and was verified unchanged under a dark color-scheme emulation).
+
+## 4 (addendum). Settings — owner's decision: pinned to light, fully de-carded
+
+Commit: (see the commit list below). Files: `SettingsUi.tsx`, `rules.ts`, `__tests__/rules.unit.test.ts`,
+`styles/settings.css`.
+
+The coordinator relayed the owner's call: **take dark mode off the Settings page entirely** — neither (a) nor (b)
+from §4. So `data-theme` on the wrapper is a literal `"light"` again (it had been pinned before, then made to
+follow the setting once `reconcileDefinitionDefault` fixed the stuck default; this is the third, deliberate flip and
+the comment block now records all three). The de-card is one unconditional treatment; the `prefers-color-scheme`
+branch and its token re-point from `9f13f0e3` are gone. `resolveDialogDataTheme` and its two tests are deleted —
+nothing calls it, and a resolver documented as driving the panel's theme would be a false comment.
+
+Verified live at 1440 under BOTH a light and a dark OS color scheme: identical result — `data-theme=light`, shell
+`border 0 / radius 0 / bg transparent / overflow visible`, kicker at x=100, y=37. Screenshots:
+`after-settings-pinned-1440.png`, `after-settings-pinned-dark-os-1440.png`.
+
+**Consequence the owner must decide on (not implemented here):** the "Dialog appearance" tab's **Dark** and
+**System** options now save but change nothing — on this page or in the "Open as dialog" overlay. They are a dead
+control. Recommendation: **remove the two options from that tab** (keep the accent-color control, which still
+works), rather than disabling them — a disabled option implies a coming state, and an admin-wide dark mode is
+explicitly out of scope; if one is planned, leave them and add a one-line note under the control. Either way the
+tab's own copy ("Theme and accent color for this settings surface") is now half true and is an i18n key, so it
+should change with the decision, not before it.
+
+**Scoping defect in my own `9f13f0e3`, found on re-read and fixed here:** its selector keyed on
+`.settings-ui-section[data-theme="light"]`, and five screens share that wrapper + attribute (Settings, Agent
+Plugins, Authentication, `PlaceholderTabs`, AI Assistant). It had de-carded all five. The rules now key on a
+Settings-only class (`settings-page`, added to the wrapper in `SettingsUi.tsx`). Verified live: Agent Plugins and
+Authentication are back to Jini's own card (`border 1px`, `radius 8px`, kicker x=125); AI Assistant is on its own
+`--page-flow` flat variant as before. Screenshots: `scope-check-{agent-plugins,authentication,ai-assistant}-1440.png`.
+
+The measurements the coordinator asked to keep verbatim: `.jini-tabbed-dialog--inline` — `border: 1px`,
+`border-radius: 8px`, `overflow: hidden`, `--jini-bg-elevated` fill; 24px (`--jini-modal-padding`) content inset
+putting the kicker at **x=125, y=62** against **x=100, y=39** on every other screen. After: x=100, y=37.
