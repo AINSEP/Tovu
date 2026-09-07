@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuTarget } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
+import { useMenuItemRemove } from "./MenuEditor.hooks";
 
 type AdminMenuTargetKind = AdminMenuTarget["kind"];
 
@@ -14,10 +15,11 @@ type AdminMenuTargetKind = AdminMenuTarget["kind"];
  * No drag-and-drop.
  *
  * Every piece of state and every API call lives in `hooks/use-menu-editor.hooks.ts`; see that
- * file's header for why. What stays here is `ItemRow` and its pure helpers
- * (`countDescendants`, `targetForKind`) plus `MenuItemTargetFields`/`MenuItemAttrsFields` —
- * presentation concerns invoked directly from `ItemRow`'s own markup, not part of the hook's state
- * transitions.
+ * file's header for why. What stays here is `ItemRow` and its pure helper (`targetForKind`) plus
+ * `MenuItemTargetFields`/`MenuItemAttrsFields` — presentation concerns invoked directly from
+ * `ItemRow`'s own markup, not part of the hook's state transitions. `ItemRow`'s Remove-button
+ * confirmation logic (`countDescendants` included) lives in the colocated `MenuEditor.hooks.tsx`
+ * instead — see that file's header for why.
  *
  * `MenuItemAttrsFields` exposes `NavItemAttrs`'s five presentational fields (Jini
  * `packages/cms/src/navigation/types.ts:104-115` — `cssClass`/`description`/`icon`/`openInNewTab`/
@@ -29,17 +31,6 @@ type AdminMenuTargetKind = AdminMenuTarget["kind"];
  * static-tier tree-variant renderer (`features/theme/static-render.ts`) and the widget-IR menu
  * renderer (`server/inbound/public-http/http/site/render.ts`) now honor all five fields.
  */
-
-/** Total nested descendant count (children, grandchildren, …) — used to name exactly how many
- *  items a Remove click would take with it (audit finding, Major: Remove previously deleted a
- *  clicked item's entire subtree in one click with no confirmation and no indication children
- *  existed). Recursive, not just `.children.length`, so a deep removal is described accurately
- *  rather than undercounted — the tree is depth/size-bounded (menu-service.ts caps depth at 5,
- *  item count at 500), so a plain recursive walk is cheap at this scale. */
-function countDescendants(item: AdminMenuItem): number {
-  const children = item.children ?? [];
-  return children.length + children.reduce((sum, child) => sum + countDescendants(child), 0);
-}
 
 /**
  * `?? ""` as a named function rather than inline. ESLint's cyclomatic-complexity rule counts each
@@ -248,6 +239,7 @@ function ItemRow(props: {
   t: Translate;
 }) {
   const { item, path, onChange, onRemove, onAddChild, onMove, t } = props;
+  const { handleRemoveClick } = useMenuItemRemove(item, path, onRemove);
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
@@ -296,24 +288,14 @@ function ItemRow(props: {
         </button>
         <button
           className="tb-btn"
-          onClick={() => {
-            // Audit Major finding: Remove previously deleted the clicked item's entire subtree in
-            // one click, no confirmation, no indication children existed — hits hardest for a
-            // screen-reader user, since the same indentation a sighted operator reads "this has
-            // children" from (`marginLeft: path.length * 20` below) carries no structural signal
-            // for them either. A leaf item (no children) stays a bare click, matching this
-            // screen's own `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals.
-            const descendantCount = countDescendants(item);
-            if (
-              descendantCount > 0 &&
-              !window.confirm(
-                `Remove "${item.label || "this item"}"? This will also remove ${descendantCount} nested item${descendantCount === 1 ? "" : "s"}.`
-              )
-            ) {
-              return;
-            }
-            onRemove(path);
-          }}
+          // Audit Major finding: Remove previously deleted the clicked item's entire subtree in
+          // one click, no confirmation, no indication children existed — hits hardest for a
+          // screen-reader user, since the same indentation a sighted operator reads "this has
+          // children" from (`marginLeft: path.length * 20` below) carries no structural signal
+          // for them either. A leaf item (no children) stays a bare click, matching this screen's
+          // own `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals — see
+          // `MenuEditor.hooks.tsx`'s `useMenuItemRemove` for the confirmation logic itself.
+          onClick={handleRemoveClick}
           title="Remove item"
           // `✕` is this button's only text content, so — unlike Move up/down above, whose glyphs
           // are at least paired with a real word via `title` alone being insufficient too — its
