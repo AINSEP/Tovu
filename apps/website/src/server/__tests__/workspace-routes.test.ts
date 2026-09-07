@@ -5,6 +5,9 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import { WorkspaceLastRemainingError, WorkspaceNotFoundError } from "../../features/workspace/index.js";
+import { sendDeleteWorkspaceError } from "../inbound/admin-http/routes/workspace/delete.js";
+import { createCapturingResponse } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level proof of SPEC-044 (Workspace Administration) — AC-01..AC-08.
@@ -177,7 +180,7 @@ test("AC-05: PATCH renames name/slug, rejects a colliding slug, and rejects an i
   assert.equal(invalid.status, 400);
 });
 
-test("AC-06: DELETE always refuses in v1 (LAST_WORKSPACE) for the caller's own workspace, checked after auth", async (t) => {
+test("AC-06/INV-05: DELETE always refuses in v1 (BOUND_WORKSPACE) for the caller's own workspace, checked after auth", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -190,12 +193,15 @@ test("AC-06: DELETE always refuses in v1 (LAST_WORKSPACE) for the caller's own w
   });
   assert.equal(deleted.status, 409);
   const body = (await deleted.json()) as { code?: string };
-  assert.equal(body.code, "LAST_WORKSPACE");
+  // Was LAST_WORKSPACE (INV-03, count-based). The refusal is now INV-05's identity check, which
+  // reaches the same verdict for the same request but for a reason the caller cannot engineer away
+  // by creating a second row — see AC-06c.
+  assert.equal(body.code, "BOUND_WORKSPACE");
 
   const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { headers: { cookie } });
   assert.equal(stillThere.status, 200, "the workspace was not deleted");
 
-  // EC-04: a mismatched :workspaceId 404s before the LAST_WORKSPACE guard is ever reached.
+  // EC-04: a mismatched :workspaceId 404s before the BOUND_WORKSPACE guard is ever reached.
   const mismatched = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-mine`, {
     method: "DELETE",
     headers: { cookie },
@@ -242,62 +248,70 @@ test("AC-06b: unauthenticated DELETE is 401, and a caller without workspace.mana
   assert.equal(denied.status, 403);
 });
 
-test("AC-06c: DELETE succeeds (204) once a second workspace row exists, so the caller's own is no longer the last remaining", async (t) => {
+test("AC-06c/INV-05: minting a second workspace row does NOT unlock deleting the server's own bound workspace, and the row survives", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
-  await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
+
+  // This test previously asserted 204 here and documented the resulting gap in a comment instead
+  // of closing it. The two calls below ARE the exploit: `workspace.manage` alone was enough to
+  // satisfy INV-03's row-count precondition with a throwaway row and then delete the workspace
+  // this process is actually serving, leaving every other route resolving against a dead id.
+  const decoy = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ name: "Decoy", slug: "decoy" }),
   });
+  assert.equal(decoy.status, 201, "the decoy row must really be created — otherwise this test proves nothing");
+  assert.equal((await deps.workspaceRepo.list()).length, 2, "INV-03's count precondition is now satisfied");
 
-  // NOTE (reported to the coordinator, not fixed here — out of this dispatch's route-file scope):
-  // every other route in this composition trusts `deps.workspaceId` as a fixed, always-valid
-  // constant (it is never re-validated per request). This guard only refuses deleting the LAST
-  // workspace row, not specifically the process's OWN configured workspace, so an authorized admin
-  // can delete the site's real, currently-in-use workspace as long as a second (even unrelated,
-  // empty) workspace row exists to satisfy INV-03 -- leaving every other route pointed at a
-  // workspace id that no longer resolves. This test documents the route's mechanical behavior
-  // (204 on a real non-last delete), not an endorsement of that broader design gap.
   const deleted = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
     method: "DELETE",
     headers: { cookie },
   });
-  assert.equal(deleted.status, 204);
+
+  assert.equal(deleted.status, 409);
+  assert.equal(((await deleted.json()) as { code?: string }).code, "BOUND_WORKSPACE");
+
+  // The status code alone would still pass if the guard ran AFTER the delete, or if some later
+  // handler removed the row anyway — so assert the durable outcome, not just the envelope.
+  assert.ok(
+    await deps.workspaceRepo.findById(deps.workspaceId),
+    "the bound workspace row must still exist after a refused delete"
+  );
 });
 
-test("AC-06d: DELETE surfaces WorkspaceNotFoundError as 404 RESOURCE_NOT_FOUND when the repo has no row for the id", async (t) => {
-  const deps = createRouteDeps();
-  deps.workspaceRepo.findById = async () => null;
-  const { server, baseUrl } = await bootServer(deps);
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+/**
+ * AC-06d/AC-06e now exercise `sendDeleteWorkspaceError` directly rather than over HTTP.
+ *
+ * INV-05 refuses before `deleteWorkspace` is ever called, so no fetch against this route can reach
+ * the typed-error mapping any more (that is the point of the guard). The mapping is retained for
+ * the multi-workspace future, so it is covered by direct invocation instead of deleted — the same
+ * choice `admin-menus-routes.test.ts` makes for its own unreachable-by-fetch 500 branch.
+ */
+test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOURCE_NOT_FOUND", () => {
+  const { res, capture } = createCapturingResponse();
 
-  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
-    method: "DELETE",
-    headers: { cookie },
+  sendDeleteWorkspaceError(res, new WorkspaceNotFoundError("workspace 'nope' was not found"));
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, {
+    error: "workspace 'nope' was not found",
+    code: "RESOURCE_NOT_FOUND",
   });
-  assert.equal(res.status, 404);
-  const body = (await res.json()) as { code?: string };
-  assert.equal(body.code, "RESOURCE_NOT_FOUND");
 });
 
-test("AC-06e: DELETE 500s (generic) when the repo throws something other than the two typed workspace errors", async (t) => {
-  const deps = createRouteDeps();
-  deps.workspaceRepo.list = async () => {
-    throw new Error("db exploded");
-  };
-  const { server, baseUrl } = await bootServer(deps);
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 LAST_WORKSPACE, and anything else to a generic 500 that leaks no message", () => {
+  const last = createCapturingResponse();
+  sendDeleteWorkspaceError(last.res, new WorkspaceLastRemainingError("the install's last remaining workspace cannot be deleted (INV-03)"));
+  assert.equal(last.capture.statusCode, 409);
+  assert.equal((last.capture.jsonBody as { code?: string }).code, "LAST_WORKSPACE");
 
-  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
-    method: "DELETE",
-    headers: { cookie },
-  });
-  assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  const generic = createCapturingResponse();
+  sendDeleteWorkspaceError(generic.res, new Error("db exploded: connection string postgres://user:pw@host"));
+  assert.equal(generic.capture.statusCode, 500);
+  // The untyped branch must stay opaque — a repo error can carry connection strings.
+  assert.deepEqual(generic.capture.jsonBody, { error: "internal error" });
 });
