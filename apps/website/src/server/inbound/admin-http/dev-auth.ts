@@ -1,14 +1,12 @@
-import { createHash, randomBytes } from "node:crypto";
-
 import type { Express, NextFunction, Request, Response } from "express";
 
 import {
   AuthInvalidCredentialsError,
+  createSessionForPrincipal,
   getEffectivePermissions,
   login,
   logout,
   validateSession,
-  SESSION_TTL_MS,
   type IdentityRepos,
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
@@ -282,33 +280,24 @@ function isLoopbackPeer(req: Request): boolean {
 /**
  * Mint a session row for an already-identified principal and return its raw token.
  *
- * The identity library exposes no password-free session constructor — `login()` is its only minter
- * and it verifies a password by design — so the row is written here through the same
- * `sessionRepo`/`clock`/`idGen` that library would have used, with `SESSION_TTL_MS` imported from it
- * rather than restated.
+ * Thin wrapper over `@jini-ai/cms/identity`'s `createSessionForPrincipal` (2026-09-06) — the
+ * library's own password-free session minter, factored out of `login()` so this route no longer
+ * has to hand-roll session construction. This used to duplicate `auth-service.ts`'s private
+ * `hashToken`/token-generation inline (with its own base64url encoding, diverging from the
+ * library's hex) because `login()` was the only minter and hard-requires a password; that
+ * duplication, and the encoding drift it carried, is gone now that both paths share one minter.
+ * The caller still VERIFIES the result through the library's own `validateSession` before handing
+ * the cookie out — that check is what would have caught the old drift, and stays as defense in
+ * depth even though the shared minter removes the drift's actual cause.
  *
- * The token hash is a plain SHA-256 hex digest, matching `auth-service.ts`'s own private
- * `hashToken`. That duplication is the one real fork risk in this route, so the caller VERIFIES the
- * result through the library's own `validateSession` before handing the cookie out: if the two ever
- * drift, this fails loudly at runtime instead of minting cookies that silently never authenticate.
- *
- * @complexity O(1) — one session write.
+ * @complexity O(1) — one session write (inside the shared minter).
  */
 async function mintSessionForPrincipal(deps: RouteDeps, principalId: string): Promise<{ rawToken: string; expiresAt: string }> {
-  const rawToken = randomBytes(32).toString("base64url");
-  const nowMs = new Date(deps.clock.nowIso()).getTime();
-  const expiresAt = new Date(nowMs + SESSION_TTL_MS).toISOString();
-
-  await deps.sessionRepo.save({
-    id: deps.idGen.newId(),
-    workspaceId: deps.workspaceId,
-    principalId,
-    tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-    createdAt: deps.clock.nowIso(),
-    expiresAt,
+  const { session, rawToken } = await createSessionForPrincipal({
+    deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+    input: { workspaceId: deps.workspaceId, principalId },
   });
-
-  return { rawToken, expiresAt };
+  return { rawToken, expiresAt: session.expiresAt };
 }
 
 /** Registers login/logout/me routes. Login is the only ungated admin route. */

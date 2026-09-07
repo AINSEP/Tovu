@@ -66,6 +66,13 @@ test("boot-session: a freshly minted token mints a real, authenticating session"
   const cookie = res.headers.get("set-cookie")?.split(";")[0];
   assert.match(cookie ?? "", /^tovu_session=\S+$/, "expected a real tovu_session cookie");
 
+  // 2026-09-06: `mintSessionForPrincipal` now delegates to `@jini-ai/cms/identity`'s shared
+  // `createSessionForPrincipal` minter instead of hand-rolling its own base64url token here --
+  // closing the hash-drift/encoding-drift risk this route's own doc used to flag. The raw token
+  // is now hex-encoded, the same shape `newRawToken()` produces for a password login.
+  const rawToken = decodeURIComponent((cookie ?? "").split("=")[1] ?? "");
+  assert.match(rawToken, /^[0-9a-f]{64}$/, "expected a 64-char lowercase hex raw token (shared minter's shape)");
+
   // The proof this is an ORDINARY session, not a bypass (see `dev-auth.ts`'s own doc): the cookie
   // this route set must authenticate exactly like a password login's would, through the same
   // `requireAdminSession` gate every other admin route sits behind.
