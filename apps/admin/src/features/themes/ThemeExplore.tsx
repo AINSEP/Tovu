@@ -1210,17 +1210,18 @@ export function ThemeExplore({
         </div>
         <div className="theme-explore-header-actions">
           <div className="page-actions">
-            <a
-              href="/admin/themes"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate("/themes");
-              }}
-            >
-              <button type="button" className="btn-secondary">
-                {t("← All themes")}
-              </button>
-            </a>
+            {/* A plain `<button>`, not a `<button>` nested inside an `<a href>` — that nesting
+                (interactive content inside interactive content) is invalid HTML, and a browser
+                agent's accessibility-tree read (or a screen reader) sees either a link wrapping a
+                button or an ambiguous merge of the two roles, depending on the engine. The 2026-08-11
+                toolbar restructure (`ThemeExplore.unit.test.tsx`'s "toolbar restructure" describe
+                block) deliberately settled this control as a BUTTON — grouped with Save/Reset in the
+                same row, not a bare link — so the fix here is to drop the redundant wrapping anchor
+                rather than the button; `navigate()` is a real client-side route change, same as
+                `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above this file. */}
+            <button type="button" className="btn-secondary" onClick={() => navigate("/themes")}>
+              {t("← All themes")}
+            </button>
             <ThemeExploreToolbarButtons
               selectedFile={selectedFile}
               resetting={resetting}
