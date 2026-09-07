@@ -12,6 +12,11 @@
  *
  * `protocol`/`providerId`/`baseUrl`/`model`/`maxTokens`/`masked` are left untouched.
  *
+ * The dry-run/`--apply` split, restore-point capture, and per-row seal-verify-write loop live in
+ * `aad-backfill-runner.ts`, shared with the other five `backfill-*-aad.ts` scripts — this file keeps
+ * only what's genuinely specific to `admin_execution_credentials`: its identity shape, its AAD
+ * builder, and its own column write.
+ *
  * ## Usage
  *
  *   npx tsx development/scripts/backfill-execution-credential-aad.ts                (dry run)
@@ -26,32 +31,23 @@
  */
 import path from "node:path";
 
-import { resolveExistingDbPath } from "./backfill-db-path.js";
-
 import { and, eq } from "drizzle-orm";
 
-import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { adminExecutionCredentials } from "../../apps/website/src/platform/db/schema.js";
-import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/index.js";
+import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildExecutionCredentialAad } from "../../apps/website/src/assistant/execution-credential-aad.js";
 
+import {
+  runAadBackfill,
+  runAadBackfillMain,
+  type AadBackfillDeps,
+  type AadBackfillMainMessages,
+  type AadBackfillResult,
+  type AadBackfillUnit,
+} from "./aad-backfill-runner.js";
+
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-
-interface Args {
-  readonly dbPath: string;
-  readonly apply: boolean;
-}
-
-function parseArgs(argv: readonly string[]): Args {
-  const dbFlag = argv.indexOf("--db");
-  return {
-    dbPath: dbFlag === -1 ? path.join(REPO_ROOT, "infra", "content.db") : path.resolve(argv[dbFlag + 1]),
-    apply: argv.includes("--apply"),
-  };
-}
+const DEFAULT_DB_PATH = path.join(REPO_ROOT, "infra", "content.db");
 
 interface PendingRow {
   readonly workspaceId: string;
@@ -72,17 +68,41 @@ function loadPendingRows(db: ContentDb): PendingRow[] {
     }));
 }
 
-export interface ExecutionCredentialAadBackfillDeps {
-  readonly db: ContentDb;
-  readonly sealer: SecretSealerPort;
-  readonly keyring: KeyringPort;
-  readonly log?: (message: string) => void;
+/** @complexity O(n) in the pending row count. */
+function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
+  return loadPendingRows(db).map((row) => ({
+    label: `workspace=${row.workspaceId} principal=${row.principalId}`,
+    sealed: row.sealed,
+    buildAad: () => buildExecutionCredentialAad({ workspaceId: row.workspaceId, principalId: row.principalId }),
+    write: (sealed) =>
+      db
+        .update(adminExecutionCredentials)
+        .set({
+          sealedKeyId: sealed.keyId,
+          sealedCiphertext: sealed.ciphertext,
+          sealedNonce: sealed.nonce,
+          sealedAlg: sealed.alg,
+          aadVersion: 1,
+        })
+        .where(and(eq(adminExecutionCredentials.workspaceId, row.workspaceId), eq(adminExecutionCredentials.principalId, row.principalId)))
+        .run(),
+  }));
 }
 
-export interface ExecutionCredentialAadBackfillResult {
-  readonly migrated: number;
-  readonly total: number;
-}
+const messages: AadBackfillMainMessages = {
+  found: (count) => `Found ${count} row(s) at aad_version=0 with a key to migrate.`,
+  dryRunUnit: (label) => `DRY RUN: would migrate ${label} -> aad_version=1`,
+  migratedUnit: (label) => `MIGRATED: ${label} -> aad_version=1`,
+  mismatch: (label) =>
+    `execution-credential AAD backfill: post-seal verification mismatch for ${label} — refusing to write a row that cannot be proven to re-open correctly`,
+  dryRunSummary: (result) =>
+    `DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`,
+  nothingToMigrate: () => "Nothing to migrate — every admin_execution_credentials row with a key already carries aad_version=1.",
+  done: (result) => `Done: ${result.migrated} row(s) migrated, ${result.total} total pending.`,
+};
+
+export interface ExecutionCredentialAadBackfillDeps extends AadBackfillDeps {}
+export interface ExecutionCredentialAadBackfillResult extends AadBackfillResult {}
 
 /**
  * The core per-row upgrade — see this file's header. `opts.apply === false` never touches the
@@ -97,82 +117,16 @@ export async function runExecutionCredentialAadBackfill(
   deps: ExecutionCredentialAadBackfillDeps,
   opts: { apply: boolean }
 ): Promise<ExecutionCredentialAadBackfillResult> {
-  const log = deps.log ?? ((message: string) => console.log(message));
-  const pending = loadPendingRows(deps.db);
-  log(`Found ${pending.length} row(s) at aad_version=0 with a key to migrate.`);
-
-  let migrated = 0;
-  for (const row of pending) {
-    if (!opts.apply) {
-      migrated += 1;
-      log(`DRY RUN: would migrate workspace=${row.workspaceId} principal=${row.principalId} -> aad_version=1`);
-      continue;
-    }
-
-    const plaintext = await deps.sealer.open({ sealed: row.sealed });
-    const aad = buildExecutionCredentialAad({ workspaceId: row.workspaceId, principalId: row.principalId });
-    const activeKey = await deps.keyring.activeKey();
-    const sealed = await deps.sealer.seal({ plaintext, key: activeKey, aad });
-
-    const verifyPlaintext = await deps.sealer.open({ sealed, aad });
-    if (verifyPlaintext !== plaintext) {
-      throw new Error(
-        `execution-credential AAD backfill: post-seal verification mismatch for workspace=${row.workspaceId} principal=${row.principalId} — refusing to write a row that cannot be proven to re-open correctly`
-      );
-    }
-
-    deps.db
-      .update(adminExecutionCredentials)
-      .set({
-        sealedKeyId: sealed.keyId,
-        sealedCiphertext: sealed.ciphertext,
-        sealedNonce: sealed.nonce,
-        sealedAlg: sealed.alg,
-        aadVersion: 1,
-      })
-      .where(and(eq(adminExecutionCredentials.workspaceId, row.workspaceId), eq(adminExecutionCredentials.principalId, row.principalId)))
-      .run();
-
-    migrated += 1;
-    log(`MIGRATED: workspace=${row.workspaceId} principal=${row.principalId} -> aad_version=1`);
-  }
-
-  return { migrated, total: pending.length };
+  return runAadBackfill(deps, opts, { loadPending: loadPendingUnits, messages });
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  // Prove the database is really there BEFORE opening it: `openContentDb` creates and
-  // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
-  const dbPath = resolveExistingDbPath(args.dbPath);
-
-  if (!args.apply) {
-    // Read-only open: a dry run must never migrate or write the bootstrap watermark row (this
-    // file's own header, "Safety" — deferred to `backfill-media-provider-credential-aad.ts`).
-    const db = openContentDbReadOnly(dbPath);
-    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-    const sealer = new AesGcmSecretSealer(keyring);
-    const result = await runExecutionCredentialAadBackfill({ db, sealer, keyring }, { apply: false });
-    console.log(`DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`);
-    return;
-  }
-
-  const db = openContentDb(dbPath);
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
-
-  const pendingCount = loadPendingRows(db).length;
-  if (pendingCount === 0) {
-    console.log("Nothing to migrate — every admin_execution_credentials row with a key already carries aad_version=1.");
-    return;
-  }
-
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
-  const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-execution-credential-aad" });
-  console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
-
-  const result = await runExecutionCredentialAadBackfill({ db, sealer, keyring }, { apply: true });
-  console.log(`Done: ${result.migrated} row(s) migrated, ${result.total} total pending.`);
+  await runAadBackfillMain(process.argv.slice(2), {
+    defaultDbPath: DEFAULT_DB_PATH,
+    restorePointScopeId: "backfill-execution-credential-aad",
+    loadPending: loadPendingUnits,
+    messages,
+  });
 }
 
 main().catch((err) => {
