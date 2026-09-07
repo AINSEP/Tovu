@@ -72,11 +72,19 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
 /**
  * PUT `/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave` — parks a standing draft.
  *
- * Response is `{ applied: boolean }`, never a 409: `applied: false` (the row's `version` moved
- * since this snapshot's `baseVersion` was captured — see `PostRepoPort.writeAutosave`) is an
- * ordinary, expected outcome for a background tick, not an error the operator needs to see. The
- * client hook uses it to stop treating its own in-memory edit as current and to skip scheduling
- * another autosave until the editor reloads the row.
+ * Response is `{ applied: boolean }`, never a 409: `applied: false` (the row's `version` no longer
+ * equals this snapshot's `baseVersion`, or the row is gone — see `PostRepoPort.writeAutosave`,
+ * whose guard is a single conditional UPDATE) is an ordinary, expected outcome for a background
+ * tick, not an error the operator needs to see. Nothing was written, and nothing on this side
+ * changes as a result: a client that keeps PUTting the same `baseVersion` will keep being refused,
+ * which is deterministic rather than transient.
+ *
+ * Acting on the flag is therefore entirely the client's job. From 2026-09-06,
+ * `apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts` stops scheduling further autosaves
+ * for that basis and surfaces a `staleBasis` state; it deliberately does NOT drop the operator's
+ * in-memory text. (An earlier version of this comment claimed the hook made the client "stop
+ * treating its own in-memory edit as current" — the hook never did that, and by design still does
+ * not; that would discard the very work the refusal is protecting.)
  *
  * GET on the same path reads the parked snapshot (`{ autosave: PostAutosaveSnapshot | null }`) —
  * the recovery-banner check on editor mount. DELETE clears it unconditionally (`{ ok: true }`) —
