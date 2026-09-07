@@ -181,12 +181,18 @@ describe("useSeoEntryPanel — clearing an override", () => {
     expect(puts).toEqual([{ title: "New title", noindex: false }]);
   });
 
-  it("fieldValue renders a cleared field as empty, so the box the operator emptied stays empty", async () => {
+  it("fieldValue reads a pending clear back as null, which Seo.tsx's own `?? \"\"` renders as an empty box rather than snapping back to the resolved value", async () => {
     const { port } = recordingPort();
     const { result } = renderHook(() => useSeoEntryPanel({ entryId: "entry-1" }, port, "en"));
     await waitFor(() => expect(result.current.resolved).not.toBeNull());
 
     act(() => result.current.setField("title", ""));
-    expect(result.current.fieldValue("title", result.current.resolved!.title)).toBeNull();
+
+    const pending = result.current.fieldValue("title", result.current.resolved!.title);
+    expect(pending).toBeNull();
+    // The second half of what the operator sees. Every text input in `Seo.tsx` binds
+    // `value={fieldValue(...) ?? ""}`, so this is the exact expression the box renders — without
+    // it, `null` would be an uncontrolled-input value and the box would not stay empty.
+    expect(pending ?? "").toBe("");
   });
 });
