@@ -188,13 +188,16 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
     // mode, so unlike oauthClientId/oauthTokenEnvName above, no combination here may omit it. This
     // is what would fail if the field spec were accidentally gated onto only one arm (e.g. stdio-only,
     // matching the `env` field's own gate a few lines below it in rules.ts).
-    for (const values of [
+    // Declared rather than inferred: without the annotation each literal widens to its own shape and
+    // the union is not assignable to `keysOf`'s `Record<string, string>` parameter.
+    const combinations: Record<string, string>[] = [
       {},
       { transport: "streamable_http" },
       { authMode: "oauth" },
       { authMode: "none" },
       { transport: "streamable_http", authMode: "oauth" },
-    ]) {
+    ];
+    for (const values of combinations) {
       const keys = keysOf(values);
       const allowedIndex = keys.indexOf("allowedToolNames");
       const writeIndex = keys.indexOf("writeAllowedToolNames");
