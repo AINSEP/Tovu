@@ -21,282 +21,95 @@ before building the eventual agent tool catalog. See
 
 ---
 
-## ⚠️ RECURRING, 2026-09-03 — Admin SSE connection-pool exhaustion is back (fix already built, sitting disabled)
+## Admin SSE connection-pool exhaustion — C1 is ON; one anomaly still unexplained
 
-Owner hit the 2026-08-18-diagnosed `:5173` 6-connection exhaustion again live today. The verified
-fix (dev HTTP/2 via mkcert, ADR C1) was built and paused the same evening it shipped and was never
-re-enabled — `apps/admin/.certs.disabled/` still has the working cert. See
-`ADS-memory/reports/2026-09-03-admin-sse-connection-exhaustion.md` for current state + recommended
-next step (re-enable C1, then chase the ADR's still-open "14 connections vs 3 tabs" anomaly).
-
----
-
-## 🎯 DIRECTION, owner call 2026-08-29 — Tovu-Runner becomes an EXTERNAL MCP SERVER to Tovu
-
-**The problem this solves.** Today an operator embedded in Tovu-Runner sees **two separate assistant
-chats**: Runner's own fleet chat (owns projects — list/create/start/stop/delete) and Tovu's admin
-assistant (owns one site's content). They cannot see each other. Tonight's `TOVU_ADMIN_ASSISTANT=off`
-work addressed that by *killing* one of the two chats. **The owner's decision is to merge them
-instead**: expose Runner's fleet capabilities to Tovu's assistant over MCP, so there is ONE chat that
-reasons about both the fleet and the site.
-
-**Why this is tractable — the pieces already exist, verified 2026-08-29:**
-- **Runner already ships an MCP server.** `Tovu-Runner/src/main/runner-mcp-server.ts` is a standalone
-  **stdio** MCP process; `runner-mcp-bridge.ts` exposes `runner.*` tools (`fleet.status`,
-  `project.list`, `create_site`, `project.start/stop/restart/open/delete`, `navigate`) over a
-  loopback HTTP bridge, bearer-token scoped per run. It already has a win32 `.cmd` launcher branch
-  (`runner-mcp-bridge.ts:118`).
-- **Tovu already federates external MCP servers.** `agent-daemon-server.ts`'s `start()` calls
-  `attachFederatedMcpTools` unconditionally, with OAuth device flow
-  (`createExternalMcpOAuthService`) and admission reporting (`routes/external-mcp/admissions.ts`).
-  A stdio adapter exists: `assistant/mcp-federation/adapter.stdio.ts`.
-- So this is plausibly **configuration + trust plumbing**, not new protocol work. Confirm before
-  estimating — see the caution below.
-
-**Open questions to settle before building:**
-1. **Scoping/authority — the crux.** Runner's tools are deliberately fleet-wide under a single
-   `RUNNER_OPERATOR_PRINCIPAL` ("one operator, not N users"); its agent prompt says "You own the
-   FLEET, not the contents of any site." Tovu's assistant is **site-scoped** (`workspaceId` fixed at
-   boot). Handing fleet-wide destructive tools (`project.delete`) to a site-scoped assistant needs an
-   explicit authorization decision, not just a connection.
-2. **Direction of trust.** Runner spawns Tovu. Making Tovu a *client* of Runner inverts the usual
-   direction — work out how the child authenticates to the parent, and what stops one site's
-   assistant acting on another site.
-3. **What happens to Runner's own chat?** Removed entirely, or kept as an operator surface? If
-   removed, `runner-daemon.ts`/`runner-agent-prompt.ts` and the fleet-chat UI become deletable.
-4. **Does this obsolete `TOVU_ADMIN_ASSISTANT=off`?** That flag was built 2026-08-29 to solve the
-   two-chats problem by disabling one. If merging succeeds its original motivation is gone — though
-   it may still be wanted as a plain security/posture switch. Decide rather than keeping both by
-   default.
-5. **Per-site vs per-fleet daemon.** Each site's daemon would separately federate Runner's MCP
-   server — N daemons, N connections to one Runner. Check the bridge tolerates that.
-
-**Caution carried from tonight:** size this from the **call sites**, not from file sizes — an
-inflated estimate on this repo already manufactured an unnecessary redesign once.
+Dev HTTP/2 (ADR C1) is **enabled**: `.certs/localhost.pem` + `localhost-key.pem` exist at the repo
+root and `.certs.disabled/` does not, so `apps/admin/vite.config.ts:67-73` serves admin dev over
+HTTPS/2 (the API's `server/runtime/boot/dev-tls.ts` reads the same pair). **Still open:** the
+2026-08-18 ADR's own unresolved anomaly — 14 established `:5173` connections against a claimed 3
+tabs. See `ADS-memory/reports/2026-09-03-admin-sse-connection-exhaustion.md`.
 
 ---
 
-## ✅ DONE, 2026-08-29 — SonarQube set up in `development/sonarqube/`
+## 🎯 DIRECTION, owner call 2026-08-29 — one operator chat spanning fleet + site
 
-The parked evaluation question is answered and built: `development/sonarqube/README.md` covers the
-decisions (self-hosted Community over SonarCloud — this repo is private; reporting not blocking —
-same reasoning as `check:architecture`'s red status; what it adds over `code-metrics.py` honestly,
-which is less than a generic pitch would claim) plus a `docker-compose.yml` + `scan.sh` local-run
-path. Nothing was started (Docker stays off until asked). One correction made along the way: the
-real hard-enforced complexity ceiling verified in `eslint.config.mjs` is **9**, not 10 as stated
-above — the "10" here was stale.
+Merge Runner's fleet chat and Tovu's admin assistant into one chat instead of disabling one of them.
+The open questions this entry used to carry (scoping/authority, direction of trust, the fate of
+Runner's own chat, per-site vs per-fleet daemon) are now settled in two ADRs:
+- **ADR-060** (`runner-unified-operator-chat`) — Runner-side unified chat; every verb stays
+  `runner.*`, Tovu tool definitions are never registered into Runner's allowlist.
+  **PROPOSED — owner sign-off required before any implementation.**
+- **ADR-061** (`runner-tools-for-tovu-site-assistant`) — the narrow `runner.*` surface Tovu's
+  admin-context assistant may invoke. **ACCEPTED 2026-08-29**; supersedes ADR-014 §3's capability
+  clause only.
 
----
-
-## ✅ FIXED 2026-08-30 (was: 🐛 BUG, filed 2026-08-29) — `tovu serve` never starts an agent daemon
-**Verified fixed.** `apps/website/src/cli/commands/serve.ts:178` now calls `startAssistantDaemon(...)`
-with `registerProcessSignalHandlers: false`, and per-instance port resolution lives in
-`server/runtime/lifecycle/agent-daemon-port.ts` (whose doc names the exact fixed-4319 collision
-described below). Shipped in commit `6da030b1`. Original report follows.
-
-**Found while running Tovu-Runner against a real instance**, verified directly (not just reported):
-`startAssistantDaemon` only runs from `apps/website/src/index.ts`'s `main()` — the same `main()` that
-mints the daemon's auth token. `tovu serve` (the packaged CLI path, what Runner actually spawns) runs
-neither. Confirmed on a live Runner process (PID 41725): zero child processes.
-
-The website proxies `/api/agents` to `AGENT_DAEMON_URL`, which defaults to a **fixed**
-`http://127.0.0.1:4319` — there is no per-instance port. A running Runner instance was found silently
-proxying its assistant traffic to a *different*, unrelated Tovu dev instance's daemon (`npm run dev` on
-:3000, daemon on the same fixed :4319). It 401'd only because that other daemon minted its own token and
-rejected Runner's — **had the tokens happened to match, Runner's admin assistant would have silently
-executed tools against the wrong site's data**, not errored.
-
-**Why an env var alone can't fix it**: the daemon port is hardcoded to 4319 on both ends (the daemon
-that binds it, and the website that proxies to it). Runner's whole model is one-project-per-process,
-but daemons are a shared, unscoped singleton port — three concurrent Runner projects would all collide
-on the same daemon. This needs a **Tovu-side fix**: `tovu serve` must start its own daemon, on a
-per-instance port (derived from the site dir or an assigned port, not a fixed default).
-
-**Priority note from the owner (2026-08-29): logged here first, comes after the architecture-debate
-fixes already in flight** (see `ADS-memory/reports/swarm-consensus/runs/2026-08-28T2358-apps-website-architecture-debate-consensus-report.md`).
-Related memory: `reference_tovu_serve_thinner_than_npm_start` (this bug directly answers that memory's
-open question — "whether this divergence is deliberate or a gap, nobody has checked" — it is a real gap).
+**Caution:** size this from the **call sites**, not from file sizes — an inflated estimate on this
+repo already manufactured an unnecessary redesign once.
 
 ---
 
-## ✅ RESOLVED (2026-08-18) — Retrofit the assistant transport onto AG-UI + CopilotKit
+## Open remainder — SPEC-005 (plugins) + SPEC-006 (identity/authorization) gates
 
-**Superseding ADR written**: `ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`.
-Scope narrowed from this entry's original sketch: this slice stays fully hand-rolled (no
-`@ag-ui/core`/`client`/`encoder`, no `@copilotkit/*`, no parallel rendering component —
-`AssistantDock`'s existing rendering is reused). The CopilotKit headless-mode rendering swap
-(step 4 below) is explicitly deferred pending a real licensing conversation — `useCopilotChatHeadless_c`
-turned out to be a paid Early Access Premium feature. See the ADR for the full decision and consequences.
-
-**Original entry, kept for context below.**
-
-**Owner call, overriding ADR-049's conclusion.** ADR-049 (Accepted, 2026-07-28) explicitly rejected
-CopilotKit + AG-UI (ADR-013's original 2026-07-05 choice) in favor of building on `@jini-ai/chat-react`
-+ `@jini-ai/daemon`'s own hand-rolled event vocabulary, reasoning that AG-UI would be "duplicate work
-against a real, tested, versioned kit already one `npm install` away." **Owner has now decided the
-opposite, explicitly**: AG-UI is a rock-solid, stable **public** protocol with a real ecosystem
-(CopilotKit's React client, framework integrations, a growing tool list) — worth having over a
-hand-rolled one, even at the cost of some duplicate plumbing. This entry supersedes ADR-049's
-transport conclusion; ADR-013's original choice was directionally right, just too early.
-
-**What exists today that this retrofits:**
-- `apps/admin/src/lib/assistant-transport.ts` — Tovu's current hand-rolled SSE transport. Implements
-  `ChatTransport` (from `@jini-ai/chat-react`) over two paths (Local CLI via `@jini-ai/protocol`'s
-  `RunProtocolEvent`; BYOK via a raw held-open POST), translating both into `chat-core`'s `AgentEvent`
-  vocabulary (`text_delta`, `tool_use`, `tool_result`, `usage`, plus two custom generative-UI channels,
-  `mcp-ui` and `a2ui`).
-- **Correction already confirmed (2026-08-17)**: Tovu's `a2ui` channel is **not** AG-UI-related despite
-  the similar name — it's Jini's own unrelated generative-UI protocol (`@jini-ai/agentic`'s
-  `agentic/src/a2ui`). No accidental overlap to reconcile; `mcp-ui`/`a2ui` are a separate concern from
-  this retrofit and need their own explicit decision about whether they ride alongside AG-UI or stay
-  Jini-native.
-
-**Approach (owner's own framing, 2026-08-17): port-and-adapter, not a hard cutover.**
-1. Define a transport-neutral port (if `ChatTransport` from `@jini-ai/chat-react` isn't already narrow
-   enough, wrap it) so the wire protocol is swappable without touching `ChatPane`/UI code.
-2. Build an AG-UI adapter behind that port: translate Tovu's existing backend events
-   (`RunProtocolEvent`/`AgentEvent`) into `@ag-ui/core`'s event vocabulary (`RUN_STARTED`,
-   `TEXT_MESSAGE_CONTENT`, `TOOL_CALL_START`/`ARGS`/`END`, etc.), OR have the backend emit AG-UI
-   natively if that's cleaner once scoped.
-3. Stand it up as a **canary path** — selectable/flagged, running alongside the existing transport, not
-   replacing it outright.
-4. Once proven, the frontend can drop the hand-rolled `AssistantDock` rendering in favor of CopilotKit's
-   **headless mode** (`useCopilotChatHeadless_c` — full behavior reuse: streaming, generative UI,
-   tool-call rendering, human-in-the-loop interrupts; zero UI opinions, so Tovu keeps its own look).
-5. Keep the old transport intact until the canary is trusted — explicit fallback, not a one-way door.
-
-**Before real implementation work starts:** this reverses an Accepted ADR, which per this repo's own
-governance convention (see the "Canonical Architecture Decisions" section below) should get its own
-ADR superseding ADR-049's transport decision, not just a todo checkbox — even ADR-049 itself flagged
-that it skipped `/debate`/`/audit-work` and recommended running that before implementation proceeds
-past a first slice. That bar applies at least as much here.
-
-**Ecosystem reference** (found 2026-08-17): `@ag-ui/core` (protocol package), **CopilotKit**
-(flagship React client, built AG-UI), **AG-UI Dojo** (reference demo app), **create-ag-ui-app** (CLI
-scaffold). Framework-side integrations (LangGraph, CrewAI, Mastra, etc.) aren't relevant here — Tovu
-launches CLI agents directly, not one of those frameworks.
-
-**DONE 2026-09-02**: the new ADR landed (**ADR-059, Accepted 2026-08-18** —
-`ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`, canary proved out live
-with 10 real Tovu tool calls through a real browser) but the Master Build Inventory §12 cross-reference
-below was never updated to match, sitting stale for two weeks. Fixed now — see that item's own
-correction. Original note follows for history: "Stale cross-reference to fix when this lands: Master
-Build Inventory §12 (below, line ~642) still says 'ADR-013 names AG-UI as the protocol; no
-implementation yet' without noting ADR-049 superseded that choice, and without noting THIS entry now
-supersedes ADR-049 back toward AG-UI. Update both when the new ADR is written."
+Both went through the full formal pipeline; what is left is gates and later phases, not the original
+2026-07-16 overnight-run ask (there is no informal output left to audit).
+- **SPEC-005 plugin system**: Phase 1 (loader/SDK/hook core + HTTP routes + `Plugins.tsx`) is built
+  and test-verified. Phase 2 (sample plugin), Phase 3 (wiring into the real post-save flow — carries
+  a proven security finding that needs deliberate handling, not a drive-by fix), and Phase 4 (polish)
+  have not started. `ADS-memory/reports/pipeline/005-plugin-system/pipeline-state.md`.
+- **SPEC-006 identity/authorization**: spec sits at 0.7.0 with status reverted to DRAFT — an owner
+  DRAFT→APPROVED checkpoint is owed, plus a Red-Team pass over the 0.6.0+0.7.0 material.
+  ADR-PIPE-006 / ADR-048 (API-key issuance) is still **PROPOSED**, so the real `api_keys` plumbing is
+  not cleared to build. `ADS-memory/reports/pipeline/006-identity-and-authorization/pipeline-state.md`.
 
 ---
 
-## ✅ RESOLVED — Users/Roles/Policies + Plugins admin surface (was the 2026-07-17 overnight-run item)
+## 🔧 SPEC-003 (CLI surface) — implementation-complete, Code Inspection still owed
 
-**Superseded 2026-07-28.** The original 2026-07-16 overnight-run ask (unaudited spec+build+test for
-these two items) was overtaken by far more rigorous work: both went through the full formal pipeline
-(Red-Team → Software Architect ADR → TDD certification → Programmer → TestRunner) as **SPEC-005**
-(plugin system) and **SPEC-006** (identity/authorization, API-key issuance).
-- **Plugins admin surface**: Phase 1 (loader/SDK/hook core + HTTP routes + admin UI screen) is built
-  and test-verified — `Plugins.tsx` implemented, nav wired, 16/16 admin tests green.
-  `ADS-memory/reports/pipeline/005-plugin-system/pipeline-state.md`. **Not fully done**:
-  Phase 2 (sample plugin), Phase 3 (wiring into the real post-save flow — has a real, proven security
-  finding that needs deliberate handling, not a drive-by fix), Phase 4 (polish) haven't started.
-- **Users/Roles/Policies backend gaps**: closed via SPEC-006's 0.6.0 amendment
-  (`ENABLE_PRINCIPAL`/`UPDATE_USER`/`UPDATE_ROLE`/`UPDATE_POLICY`/`DELETE_ROLE`/`DELETE_POLICY` etc.)
-  plus the 0.7.0 amendment resolving the `CREATE_PRINCIPAL` HTTP-surface gap for API-key issuance.
-  `ADS-memory/reports/pipeline/006-identity-and-authorization/pipeline-state.md`.
-  **Not fully done**: still needs a Red-Team pass over the 0.6.0+0.7.0 material, an owner DRAFT→APPROVED
-  spec checkpoint, and separate architecture sign-off on the API-key issuance ADR (ADR-PIPE-006) before
-  TDD/Programmer can build the actual `api_keys` plumbing.
-- The original `/audit-work` instruction no longer applies in its original form — there's no informal
-  overnight-run output left to audit; sign-off now runs through the normal pipeline gates above instead.
+`tovu init` / `tovu serve` / `tovu --help` is built and has been through a full TDD recertification
+round. The coverage-gate question was **decided by the owner 2026-07-28**: TDD's real-arms evidence
+was accepted, since the residual uncovered branches are esbuild/tsx CJS-interop scaffolding injected
+into every transpiled module, not Tovu source. Two things remain:
+- `/code-inspection` (Code Inspection + Security) has never run — the stage ledger in
+  `ADS-memory/reports/pipeline/003-site-install-dir/pipeline-state.md` stops at Architecture
+  Sign-Off, with no TestRunner, Programmer, or Code Inspection row.
+- Non-blocking follow-up: evaluate a source-map-accurate coverage tool (c8/istanbul) so measured
+  numbers match real numbers, instead of re-litigating the real-arms argument once per feature.
 
 ---
 
-## 🔧 IN PROGRESS 2026-07-28 — finish SPEC-003 recertification + Code Inspection (resume here)
+## ⚠️ OWED — `/code-inspection` + `/audit-work` for SPEC-003 / 005 / 006
 
-**SPEC-003** (`tovu init`/`tovu serve`/`tovu --help` CLI surface) is implementation-complete and has
-been through one full TDD recertification round this session, but is not yet through Code Inspection:
-- TestRunner found 3 blockers; TDD fixed 2 for real (both independently re-verified by direct test
-  runs, not just trusted): the `EC-05` locked-db test's broken lock-priming fixture, and the
-  `serve-command` port-boundary test's indefinite hang (no timeout on a synchronous CLI spawn).
-- **One decision still owed from the owner, not yet made**: branch-coverage gates read below the
-  98%/90% bar as measured (83.72% unit / 81.68% integration), but TDD mechanically proved 100%/90.64%
-  of *real, reachable* source branches are covered — the residual is esbuild/tsx's auto-generated
-  CommonJS interop scaffolding, which the coverage tool counts but no test can ever reach. Three
-  concrete remedies on the table (switch to a source-map-accurate coverage tool; mechanically exclude
-  the transpiler-prelude ranges from the count; or a profile-override waiver as a last resort) — see
-  `ADS-memory/reports/pipeline/003-site-install-dir/test-certification.md`'s "Coverage
-  Gates" section for the full mechanical breakdown.
-- **Coverage-gate decision (made 2026-07-28, owner):** accepted TDD's real-arms evidence as
-  satisfying the gate — the residual is esbuild/tsx CJS-interop scaffolding injected into every
-  transpiled module (not Tovu source, nothing to refactor). Logged as a real follow-up, not blocking:
-  evaluate swapping to a source-map-accurate coverage tool (c8/istanbul) so measured numbers match
-  real numbers going forward, instead of needing this same real-arms argument re-litigated per feature.
-- **Next steps**: clean TestRunner re-verification pass (in progress), then Code Inspection + Security
-  dispatch (`/code-inspection`), then this feature is genuinely commit-ready.
-
----
-
-## ⚠️ OWED — `/audit-work` + `/code-inspection` across this session AND the previous (uncommitted) session
-
-**Added 2026-07-28.** Nothing from either session has gone through a real review pass yet — this
-session's SPEC-003/005/006 work AND the prior long session's work (repo-wide signature refactor,
-snapshot-leak fix, posts/pages create-time validation fix, the 002/004/007 drift-fix sweep) are all
-still uncommitted and unreviewed beyond in-house TestRunner/TDD verification. Run both before treating
-any of it as mergeable:
-- `/code-inspection` — internal pipeline gate (Code Inspection + Security agents) per feature.
-- `/audit-work` — external multi-LLM audit (needs peer CLIs with pinned exact model versions; check
-  availability before assuming it can run).
-Do not skip either just because TestRunner/TDD reported green — those are necessary, not sufficient
-(see this repo's own Code Inspection Agent charter: "Green tests are necessary but not sufficient").
+**Corrected 2026-09-06.** The original entry's premise ("all still uncommitted") is false — 318
+commits landed between 2026-07-28 and 2026-08-05 — and a broad code+security review did run
+(`ADS-memory/reports/audit/2026-08-02-03-sunday-monday-code-security-review.md`). What is still
+genuinely missing is the **per-feature gate record**: none of the three `pipeline-state.md` ledgers
+carries a Code Inspection or Security row. Green TestRunner/TDD is necessary, not sufficient.
 
 ---
 
 ## ⚠️ OWED — specs/ADRs/tests for the 2026-08-05 embeds work (built quick-and-dirty, deliberately)
 
-**Added 2026-08-05.** Owner explicitly asked to skip spec/ADR-first process for this batch ("get
-something quick and dirty, make sure it works, and we can go back, fix the architecture, get the
-spec, and lock it down") — this entry is that promised follow-up, not a surprise gap. Four pieces
-landed this session with no spec, no ADR, and only ad hoc/mechanical test coverage (no red-team,
-no architecture sign-off):
+Owner explicitly asked to skip spec/ADR-first process for this batch, so this is the promised
+follow-up, not a surprise gap. Four pieces landed with no spec, no ADR, and only ad hoc coverage:
+- **Posts can render widgets/menus/forms** (`571b11a`) — fixed `resolvePageWidgets` resolving its
+  host page via the generic `entries` table when Posts live in a separate `posts` table. The product
+  question was answered by building it, never formally decided: **should widget/menu/form embedding
+  be in Posts at all**, or should "Pages compose, Posts stay prose" have been the answer?
+- **Media per-asset width/height/cssClass** (same commit + Jini `72f3a110`) — new columns, migration
+  `0027_bumpy_blockbuster.sql`, threaded into `render.ts`'s public `<img>` output. No ADR on where
+  per-asset display-size metadata belongs (per-asset default vs. per-insertion override was punted).
+- **Unified "Embed" control in the Post editor toolbar** (`8011bff`) — pure UI, no spec.
+- **Taxonomy watermark stamping fix** (`b4c76b4`) — same session, same "just fix it" instruction,
+  also never spec'd.
 
-- **Posts can now render widgets/menus/forms** (`fix(embeds)` commit `571b11a`) — fixed
-  `resolvePageWidgets` resolving its host page via the generic `entries` table when Posts live in
-  a separate `posts` table, so an inline `widgetEmbed` node always fell back to a placeholder.
-  Real product question still open, now practically answered by building it but never formally
-  decided: **should widget/menu/form embedding be in Posts at all**, or should "Pages compose,
-  Posts stay prose" have been the answer? See `[[project_pages_vibecoding]]`/
-  `[[project_tovu_media_pipeline_gaps]]` memory for the prior open-question framing.
-- **Media gets per-asset width/height/cssClass** (same commit, plus paired Jini commit
-  `72f3a110`) — new DB columns, new migration `0027_bumpy_blockbuster.sql`, threaded into
-  `render.ts`'s public `<img>` output. No ADR on where per-asset display-size metadata *should*
-  live (per-asset default vs. per-insertion override was explicitly punted, not decided).
-- **Unified "Embed" control in the Post editor toolbar** (`feat(admin)` commit `8011bff`) — Media
-  / Form / Menu / Widget… in one menu. Pure UI, no spec.
-- **Taxonomy watermark stamping fixed** (`fix(taxonomy)` commit `b4c76b4`) — unrelated to embeds
-  but landed in the same session under the same "just fix it" instruction; also never spec'd.
+The generic `data-embed-type`/`data-embed-id` contract for Pages' `body_html` **is** implemented
+(ADR-047 + SPEC-043 → `apps/website/src/features/widgets/` with `html-embeds.ts`; `data-widget-embed`
+and `data-form-embed` return zero hits under `apps/website/src/features/post`) — do not re-derive it
+as open. **But ADR-047 itself still reads "Debate cleared 2026-07-21 … owes `/audit-work` before
+ACCEPTED"** (`ADR-INDEX.md:54`), so live code is running ahead of its ADR's acceptance gate.
 
-**CORRECTION (re-verified 2026-08-30): the "still separately unimplemented" claim below is now
-FALSE — do not re-derive it.** The generic `data-embed-type`/`data-embed-id` contract for Pages'
-`body_html` IS implemented: `apps/website/src/contracts/core/embeds/marker.ts`'s own header names
-`widgets/html-embeds.ts` as the module handling `data-embed-type`/`data-embed-id` in a Page's
-`body_html`, and `rg` for `data-widget-embed`/`data-form-embed` across `apps/website/src/features/post`
-returns **zero hits**. This landed via **ADR-047 (widgets region + embed placement, debate-cleared
-2026-07-21)** and its implementation, **SPEC-043** (`apps/website/src/features/widgets/`,
-`resolvers/`, `resolver-service.ts`, `write-service.ts`, `html-embeds.ts`) — commits `03a87816`
-(build), `285bbfc1` (external audit: FAIL, 3 blocker/high), `cf41bf14` (fix + implement the
-routes/UI/AI-tools slice). Per `ADR-INDEX.md` line 54, ADR-047 itself still shows "Debate cleared…
-owes `/audit-work` before ACCEPTED" — so the ADR's formal acceptance may still be open even though
-the code is live; verify that gate before treating ADR-047 as fully closed. Historical text follows.
-The generic `data-embed-type`/`data-embed-id` contract for Pages' `body_html`
-(`[[project_tovu_generic_embed_contract]]` memory, decided 2026-08-05, rules settled) — today Pages
-still uses the older bespoke `data-widget-embed`/`data-form-embed` attributes. Fold this into
-whichever spec covers the Posts-embed work above, since both are "how do embeds work across
-Posts+Pages" and splitting them would re-litigate the same scanner/resolver architecture twice.
-
-**Next session should:** run the CodeBase Analyzer → System Design → Spec → Red-Team → Software
-Architect pipeline over what's now live (not from a blank slate — the working code + this todo
-entry + the two linked memory files are the input), and write real tests (unit + integration) for
-the render-path fix and the media sizing, since what exists today is whatever the implementing
-subagents added ad hoc, not designed-in coverage.
+**Still owed:** real unit + integration tests for the render-path fix and the media sizing, and one
+spec covering "how do embeds work across Posts + Pages" as a single subject rather than two.
 
 ---
 
