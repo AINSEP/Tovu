@@ -131,3 +131,39 @@ test("serializeHeadElements: never string-concatenates jsonld — the payload ro
   assert.equal(parsed["@type"], "Article");
   assert.equal(parsed.headline, "Hi");
 });
+
+/**
+ * ESC-01 (2026-09-07). `1044e2d5`'s message claimed it added the apostrophe escape to "every
+ * `escapeHtml` copy". It reached four of the eleven hand-rolled escapers in `apps/website/src`, and
+ * this file's was not one of them — the commit message is not evidence, and neither is the absence
+ * of a test.
+ *
+ * Not exploitable at HEAD: every sink in `page-head.ts` is a double-quoted attribute or a text node
+ * (`<title>`, `content="…"`, `href="…"`, `rel="…"`, `hreflang="…"`), and a grep for `='` in that
+ * module is empty. This test therefore pins the DEFENCE, not a live hole: `serializeHeadElements`
+ * is a template-literal serializer, so the day someone writes a single-quoted attribute into it the
+ * escaping either already covers them or silently does not — and the four sibling copies that do
+ * escape `'` are what makes "it wasn't needed here" an assumption rather than a rule.
+ */
+test("serializeHeadElements: an apostrophe is escaped, so a single-quoted attribute added later cannot be broken out of", () => {
+  const html = serializeHeadElements([
+    { kind: "title", text: "Ada's page", priority: 100 },
+    { kind: "meta", name: "description", content: "it's a description' onload='alert(1)", priority: 110 },
+    { kind: "link", rel: "canonical", href: "https://example.com/ada's", priority: 120 },
+  ]);
+
+  assert.match(html, /<title>Ada&#39;s page<\/title>/);
+  assert.match(html, /content="it&#39;s a description&#39; onload=&#39;alert\(1\)"/);
+  assert.match(html, /href="https:\/\/example\.com\/ada&#39;s"/);
+  assert.ok(!html.includes("'"), `no raw apostrophe may survive serialization:\n${html}`);
+});
+
+test("serializeHeadElements: escaping this module's five entities agrees with its four sibling copies, character for character", () => {
+  // The equivalence the ESC-01 fix restores, asserted rather than commented. `render.ts`,
+  // `static-render.ts`, `form-render.ts` and `site-exporter.ts` all map exactly these five, `&`
+  // first (it is the escape character for every entity below it, so escaping it later would
+  // double-escape what the others introduce).
+  const html = serializeHeadElements([{ kind: "title", text: `&<>"'`, priority: 100 }]);
+
+  assert.match(html, /<title>&amp;&lt;&gt;&quot;&#39;<\/title>/);
+});

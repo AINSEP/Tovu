@@ -191,12 +191,24 @@ export async function foldPageHead(ctx: PageHeadContext): Promise<HeadElement[]>
 // Serialization — the one place IR becomes a string (INV-03)
 // ---------------------------------------------------------------------------
 
+/** The same five entities `render.ts`, `static-render.ts`, `form-render.ts` and `site-exporter.ts`
+ *  each map, in the same order. `&` stays first: it is the escape character for every entity below
+ *  it, so escaping anything else first would double-escape the `&` those replacements introduce.
+ *  `&#39;` (numeric) rather than `&apos;`, which HTML4/XHTML1 parsers do not recognize.
+ *
+ *  The apostrophe joined the set on 2026-09-07 (ESC-01). `1044e2d5` had claimed to add it to "every
+ *  `escapeHtml` copy" and reached four of eleven; this one was missed, and the false claim is why it
+ *  stayed missed. Nothing here was exploitable at the time — every sink in this module is a
+ *  double-quoted attribute or a text node, and there is no `='` interpolation anywhere in it — so
+ *  this is defence-in-depth for the next single-quoted attribute someone adds to the serializer
+ *  below, not a closed hole. */
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 /**

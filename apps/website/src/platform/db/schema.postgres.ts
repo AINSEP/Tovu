@@ -871,6 +871,7 @@ export const posts = pgTable("posts", {
   templateChoice: text("template_choice"),
   overridesThemePage: boolean("overrides_theme_page"),
   memberAccessJson: text("member_access_json"),
+  autosaveJson: text("autosave_json"),
 }, (t) => [
     check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),
