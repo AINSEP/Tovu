@@ -11,12 +11,14 @@ Agent F. Branch `restructure/apps-website-phased`. Scope: `apps/admin/src/featur
 | 2 | Eye icon on the card opens the edit form as a modal | DONE |
 | 3 | Check/fix mobile sizing after doubling | DONE |
 | 4 | Add "HTML attributes" field under "CSS class (optional)" | **FIELD NOT SHIPPED — dropped by coordinator decision** (2026-09-07). The allowlist VALIDATOR is kept, unwired, as a tested pure function for the follow-up to reuse. See "Item 4: built, reverted, validator restored" below. |
+| 5 (found mid-task, Agent H) | Upload picker's `accept` list still image-only, blocking video uploads | DONE — see "Fixed — the upload picker's stale image-only accept list" below. |
 
 Commits, in order: `bf41e81c` (items 1-3 + a first pass at item 4), `7664a7aa` (report v1),
 `a7cce060` (full revert of item 4 — field AND validator), `6bf4aece` (report v2), `046d1a47`
-(**restored the validator only** — `parseMediaHtmlAttributes` + its 24 tests, still with no UI
-field). The tree as it stands now has items 1-3 shipped in the UI, plus an unwired, tested
-validator in `rules.ts`.
+(restored the validator only — `parseMediaHtmlAttributes` + its 24 tests, still with no UI field),
+`eef3a67d` (report v3), `c55da3e1` (**item 5 fix** — accept list widened + `MediaTypeEmptyState`
+copy corrected). The tree as it stands now has items 1-3 and 5 shipped in the UI, plus an unwired,
+tested validator in `rules.ts` for item 4.
 
 ## 1 & 3 — Card size + mobile
 
@@ -197,34 +199,53 @@ rather than redesign it — the design decisions it already encodes:
   variation, an allowed name (`poster`) carrying a dangerous `javascript:` value, quote-style
   variation, boolean attributes, malformed fragments.
 
-## Found but NOT fixed — flagged for a coordinator decision
+## Fixed — the upload picker's stale image-only accept list (Agent H's finding)
 
-Agent H (working in `apps/admin/src/features/posts/**`, fixing a stale image-only MIME accept list
-there) audited for the same defect shape elsewhere and found a 4th instance live in this file, not
-touched by any of my commits:
+Agent H (working in `apps/admin/src/features/posts/**`, fixing the same stale-MIME-list defect
+shape there) audited for it elsewhere and found a 4th instance live in this file. The coordinator
+assigned it back to me directly, since it blocks the actual thing Leona is trying to do right now
+(get motion graphics into her site) and it sits in this feature's own code:
 
-`Media.tsx:819` — the upload `<input>`'s `accept="image/jpeg,image/png,image/webp,image/gif,image/
-avif"` (label text at `:823` says the same five types) is missing `video/mp4`/`video/webm`, even
-though the server ceiling (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s `media-service.ts`) has
-accepted both since 2026-08-24 — this file's own `MediaTypeEmptyState` comment already documents
-that exact gap for the Videos tab. Agent H deliberately did not fix it (collision-avoidance with my
-in-progress work) and I did not fix it either, since it's outside the scope the coordinator gave me
-for this session and I was told to stand down after the item-4 correction — surfacing it here rather
-than silently expanding scope. Same fix shape as what Agent H just did for the post editor's
-`FILE_HANDLER_ALLOWED_MIME_TYPES`: widen the literal `accept` string (and the adjacent label) to
-include both video types. See Agent H's own `ADS-memory/reports/2026-09-07-media-animation-fix.md`.
+- **`Media.tsx`'s upload `<input accept="…">`** was still the 5 original image-only types
+  (`image/jpeg,image/png,image/webp,image/gif,image/avif`), missing `video/mp4`/`video/webm` even
+  though the server ceiling (`DEFAULT_ALLOWED_MIME_TYPES`, `@jini-ai/cms`'s `media-service.ts`) has
+  accepted both since 2026-08-24 — this file's own `MediaTypeEmptyState` comment already documented
+  that exact gap for the Videos tab, calling it "a pending owner decision, not an oversight". The
+  owner decision landed: widened to all 7 types, comment updated to explain the hand-synced-list
+  pattern (same shape as `FILE_HANDLER_ALLOWED_MIME_TYPES`/`IMPORTABLE_CONTENT_TYPES`, per Agent H's
+  own audit), and the adjacent `agentHandle` label text updated to list all 7 types instead of 5.
+  RED-first: a regression test pinning the exact 7-type set (added alongside the fix) failed against
+  the old 5-type list before the change.
+- **Companion fix, found during my own "anything else assume image-only" check** (as instructed):
+  `MediaTypeEmptyState`'s Videos-tab copy still read "Only image uploads are supported right now." —
+  true when written, false the moment the accept list above widens. Its own doc comment already
+  tracked this exact staleness risk across two prior corrections (2026-08-24, 2026-09-06) without
+  ever fixing the underlying cause; now that the accept list is fixed, the copy is too — the Videos
+  tab reads the same "appears here once you add them" phrasing the Images tab already uses. New key
+  (`"Uploaded videos appear here once you add them."`), English-first per this file's own established
+  precedent for new copy (not yet translated into the other ~19 locales — same disclosed gap several
+  other strings in this feature already carry). Checked the rest of this file and its hooks for any
+  other image-only assumption (a `startsWith("image/")` guard, a validation message, a thumbnail
+  branch) — found none: `filterMediaByTab`'s `image/`/`video/` prefix matching is post-upload tab
+  filtering, already generic, not an upload gate; `use-media.hooks.ts`'s `upload()` and `rules.ts`'s
+  `readFileAsBase64` read any file with no content-type check of their own.
+- Landed in commit `c55da3e1` (captured by the shared working tree alongside Agent H's own
+  in-progress edit to the same lines — see that commit's message for the full joint attribution).
 
 ## Verification
 
 - `apps/admin`: `npx tsc --noEmit` — 0 errors (repo baseline is 0; introduced none) at every stage:
-  item 4 present, after the full revert, and after restoring the validator.
-- `apps/admin`: `npx eslint` on every changed file — 0 errors throughout. 2 pre-existing
-  `sonarjs/no-nested-conditional` warnings remain in `MediaPreview` (same shape as the file's
-  pre-existing `expandButton` pattern; not introduced by this change, not blocking).
+  item 4 present, after the full revert, after restoring the validator, and after the accept-list
+  fix.
+- `apps/admin`: `npx eslint` on every changed file — 0 errors throughout. Only pre-existing
+  `sonarjs/no-nested-conditional` warnings remain (in `MediaPreview`, and in two test files' ternary
+  assertions) — none introduced by any of my changes, none blocking.
 - Tests: `env -u TOVU_ADMIN_PASSWORD npx vitest run` on the full `apps/admin/src/features/media/`
-  directory plus `request-volume.measurement.test.tsx` — 105/105 after the full revert, **129/129**
-  in the final state (105 + the 24 restored validator tests), 0 failed at either point (includes the
-  pre-existing 2026-08-12 stale-draft regression pin, unaffected by the modal wrapper).
+  directory plus `request-volume.measurement.test.tsx` — 105/105 after the full revert, 129/129 after
+  restoring the validator, **130/130** in the final state (the new accept-list regression test).
+  One unrelated flake surfaced in a combined run (`redirects > initial load`, a 15s timeout under
+  concurrent-suite load) — re-ran in isolation and it passed cleanly; not a regression, not in this
+  feature's code.
 - Visual: live in the running dev admin (`https://localhost:5173`, already up, not restarted) via
   Playwright MCP — desktop 1280px, mobile 375px, the modal at both widths, the video tab, and
   confirmation the HTML-attributes field is gone from the form. Screenshots under
