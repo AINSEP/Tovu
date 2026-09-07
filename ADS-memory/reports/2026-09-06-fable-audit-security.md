@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 01:10 — escapeHtml copies closed, sites tool, dev proxy, orphan reaper, IPC stubs, pages permission grant verified. §1i.
 - 00:58 — media-import + http client, executor parity, sites route, adopt, duplicateSite, scripts, autosave read. §1f–1h; SEC-05/06.
 - 00:44 — chat attachment trio + refusal-notice read; §1e. Next: BYOK executor stack, sites binding, adopt, duplicateSite, export href, escapeHtml copies, scripts, autosave route, media-import + http egress at HEAD.
 - 00:33 — daemon-auth, INV-05 route, external-mcp guard/put/trust read. §1b–1d.
@@ -93,7 +94,16 @@ Read `features/media-import/{fetch-image,agent-tools,tool-registrations}.ts`, `p
 `tool-executor-stack.ts:79-85` is the single composition (read-only gate innermost, audit, recovery); `byok-tool-surface.ts:450-454` calls it. Daemon call site to be confirmed by grep (below).
 
 ## 1h. `1044e2d5` escapeHtml apostrophes — the fix landed in 4 of 10 copies
-Touched: `static-render.ts`, `site-exporter.ts`, `form-render.ts`, `render.ts`. Untouched copies in `apps/website/src`: `assistant/mcp-ui.ts:190`, `public-http/routes/site/store.ts:16`, `public-http/http/site/page-head.ts:194`, `newsletter-confirm.ts:40`, `newsletter-unsubscribe.ts:45`. The two newsletter copies escape only `& < >` but are used only in text-node contexts (`<title>`, `<h1>`, `<p>`) — safe as used. The other three are checked next for a single-quoted attribute sink.
+Touched: `static-render.ts`, `site-exporter.ts`, `form-render.ts`, `render.ts`. Untouched copies in `apps/website/src`: `assistant/mcp-ui.ts:190`, `public-http/routes/site/store.ts:16`, `public-http/http/site/page-head.ts:194`, `newsletter-confirm.ts:40`, `newsletter-unsubscribe.ts:45`. The two newsletter copies escape only `& < >` but are used only in text-node contexts (`<title>`, `<h1>`, `<p>`) — safe as used. Checked: `mcp-ui.ts:190` and `store.ts:16` already escape `'`; `page-head.ts:194` escapes `& < > "` only, and every sink in that file is double-quoted (no `='${` interpolation exists). **No exposed copy — verified, not a finding.**
+
+## 1i. Misc verified in this pass (no finding)
+- `sites_duplicate_site` (`features/sites/tool-registrations.ts:131-178`): both names validated against `SITE_NAME_PATTERN` before any path join; flag + `switcherCompatible` + `system.write` in that order; target is `path.join(cwd,"sites",targetName)`. `duplicate-site.ts` copies only `layout.ts`'s allowlist (`uploads/themes/plugins/overrides/skills/agent-plugins`), regenerates `config.json` (domain/port reset) and `.site-meta.json` (fresh `siteId`); `content.db` goes through `duplicateContentDb`. `chat.db`, `*.bak`, `restore-point-*.db`, `ops/`, `out/` are excluded by not being on the list. Sound.
+- Executor parity: `agent-daemon-server.ts:485` also calls `createAssistantToolExecutor`. Both surfaces share one stack.
+- `admin-dev-proxy.ts` (`848ddd09`): `rejectUnauthorized:false` is scoped to a dedicated agent for the Vite upstream only; active only when `TOVU_ADMIN_DEV_PROXY_URL` is set and not SEA. Dev-only surface.
+- `site-registry.cjs:140-268` orphan reaper: kills only a pid whose argv contains the row's `siteDir` AND `--port <n>` AND whose ppid is 1; re-identifies before SIGKILL. Fail-closed direction.
+- `runner-ipc-stubs.cjs`: every unported `runner:*` verb (working-directory pick/exists/normalize, chat-attachments save, conversations) throws — the preload exposes them but nothing in main acts on renderer-supplied paths.
+- `features/pages/permissions.ts`: `pages.edit_html` reaches `admin` (built-in role grant) and any custom policy holding `theme.edit`; `editor`/`viewer` structurally excluded. `wiring.ts` `reconcileGrantsOnBoot:false` only skips grants (fail-closed direction).
+- `backfill-reset-admin-password.ts`: password from env or `--password=` (shell-history exposure acknowledged in-file), never echoed; dry run opens read-only. `cleanup-stale-owner-sessions.ts`: deletes only revoked/expired rows; restore point before delete.
 
 ## 2. Codex `pending` commits (priority 2)
 _(in progress)_
