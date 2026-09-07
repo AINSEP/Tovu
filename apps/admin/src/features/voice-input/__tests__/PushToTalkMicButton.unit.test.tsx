@@ -41,8 +41,6 @@ describe("PushToTalkMicButton", () => {
     });
     expect(button).toBeDisabled();
     expect(button.className).toContain("tovu-push-to-talk--unavailable");
-    // The reason must be readable on hover too, not only to a screen reader.
-    expect(button).toHaveAttribute("title", "Voice input needs macOS — on-device transcription is not available here.");
   });
 
   it("renders the same disabled button in a plain browser tab, saying the desktop app is needed", async () => {
@@ -114,5 +112,41 @@ describe("PushToTalkMicButton", () => {
     });
     await waitFor(() => expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false"));
     expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+  });
+
+  // Owner-directed (2026-09-06): a "Disabled for now" tooltip, independent of whether the button is
+  // actually functional — see PushToTalkMicButton.tsx's own header for why `disabled`/`aria-label`
+  // are deliberately untouched here.
+  describe('"Disabled for now" notice', () => {
+    it("shows the notice on hover/keyboard-focus via title, without touching the real accessible name or disabled state", async () => {
+      render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: fakePort() }} />);
+      const button = await screen.findByRole("button", { name: "Hold to talk" });
+
+      expect(button).toHaveAttribute("title", "Disabled for now");
+      // The button is still genuinely enabled and clickable — this is copy, not a behavior change.
+      expect(button).not.toBeDisabled();
+    });
+
+    it("is announced to a screen reader via aria-describedby, not only via the (hover-only) title", async () => {
+      render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: fakePort() }} />);
+      const button = await screen.findByRole("button", { name: "Hold to talk" });
+
+      const describedBy = button.getAttribute("aria-describedby");
+      expect(describedBy).toBeTruthy();
+      const description = document.getElementById(describedBy!);
+      expect(description).not.toBeNull();
+      expect(description).toHaveTextContent("Disabled for now");
+    });
+
+    it("still shows the notice on the unavailable-state button, alongside its own real reason as the accessible name", async () => {
+      const port = fakePort({ isAvailable: vi.fn().mockResolvedValue({ available: false, reason: "unsupported-platform:win32" }) });
+      render(<PushToTalkMicButton onTranscript={vi.fn()} overrides={{ voicePort: port }} />);
+
+      const button = await screen.findByRole("button", {
+        name: "Voice input needs macOS — on-device transcription is not available here.",
+      });
+      expect(button).toHaveAttribute("title", "Disabled for now");
+      expect(button).toBeDisabled(); // unchanged — this button was already disabled for its own reason
+    });
   });
 });

@@ -20,7 +20,20 @@ import "./push-to-talk-mic-button.css";
  *
  * Rendering states are resolved in `mic-button-view.hooks.ts`, including why an unavailable runtime
  * now renders a disabled button with a reason rather than nothing at all.
+ *
+ * **"Disabled for now" tooltip (2026-09-06, owner-directed).** Leona asked for a tooltip on this
+ * button reading exactly "Disabled for now" — a copy request, not a request to change whether the
+ * button is actually disabled. `view.disabled` (from `mic-button-view.hooks.ts`) is untouched: on a
+ * machine where voice input is available, this button is still enabled and functional; the notice
+ * is shown regardless of that real state. `title`/`aria-describedby` follow this surface's existing
+ * tooltip convention (a plain `title`, as the sibling "Tovu assistant" button in `AssistantDock.tsx`
+ * already uses) plus a `.visually-hidden` span so the text is announced on keyboard focus too, not
+ * only on mouse hover.
  */
+const DISABLED_NOTICE_ID = "tovu-push-to-talk-disabled-notice";
+/** English copy, doubling as its own i18n key per this app's convention. */
+const DISABLED_NOTICE_TEXT = "Disabled for now";
+
 export interface PushToTalkMicButtonProps {
   /** Receives the transcript once a recording finishes with non-empty content. Wire this to
    *  `ChatPane`'s `composerHandle.insertText` — see `use-composer-voice-input.hooks.ts`. */
@@ -52,7 +65,8 @@ export function PushToTalkMicButton({ onTranscript, overrides }: PushToTalkMicBu
       disabled={view.disabled}
       aria-pressed={view.isRecording}
       aria-label={t(view.label)}
-      title={t(view.label)}
+      aria-describedby={DISABLED_NOTICE_ID}
+      title={t(DISABLED_NOTICE_TEXT)}
       onPointerDown={startHold}
       onPointerUp={endHold}
       onPointerLeave={endHold}
@@ -67,6 +81,15 @@ export function PushToTalkMicButton({ onTranscript, overrides }: PushToTalkMicBu
       {view.isRecording ? <span className="tovu-push-to-talk__dot" aria-hidden="true" /> : null}
       <span className="tovu-push-to-talk__sr-status" role="status" aria-live={view.ariaLive}>
         {t(view.label)}
+      </span>
+      {/* Reachable by keyboard focus (native title, shown once the button is tabbed to) and by
+       *  screen reader (aria-describedby, announced regardless of hover) — not hover-only. Kept
+       *  separate from `aria-label`/the live-status span above, which still carry the button's real
+       *  recording/availability state; this is Leona's requested notice text, not a replacement for
+       *  that state reporting. See this file's header for why the button's own disabled/enabled
+       *  state is unchanged here. */}
+      <span id={DISABLED_NOTICE_ID} className="visually-hidden">
+        {t(DISABLED_NOTICE_TEXT)}
       </span>
     </button>
   );
