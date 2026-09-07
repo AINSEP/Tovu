@@ -8,10 +8,34 @@
 - Status legend: **CONFIRMED** = imports and call sites read and named; **PLAUSIBLE** = inferred, not fully traced.
 - Already fixed, not re-reported: J01, MI-01, MI-02, chat-run death path (`f682eff2`).
 
-This file is committed roughly every five minutes. Findings below may be half-written at any commit; a later commit finishes them.
+This file was committed roughly every five minutes during the run (commits 1–8). Run completed 2026-09-07 ~00:25 local.
 
-## 0. Open questions log (for the owner, not blocking)
+## 0. Summary — read this first
 
+**The architectural question asked: does the desktop project lifecycle have one owner?** No — seven holders of "which sites exist / which are running" (table in §1), none of which observes a child's exit. D-01, D-02, D-03, D-06, D-07 are all **CONFIRMED** at the frozen SHA and unfixed after it; D-06/D-07 are one defect (no owner for `running → exited`), D-01 is two list-filters over one throwing classifier, D-03 is a hook bound to the wrong lifetime. One `SiteSupervisor` in `main.cjs` (§1, last paragraph) collapses all five.
+
+Ranked by what they will cost next:
+
+1. **§4.14 — chat attachments read from the wrong site under `tovu serve <dir>`.** API and daemon call one function with two environments; the API never receives the served dir. CONFIRMED by tracing `serve.ts`, `deps.ts:452`, `daemon-supervisor.ts:398`, `modules/assistant.ts:497`.
+2. **§1 — desktop lifecycle has no owner** (five codex claims confirmed; state-machine defect; no `requestSingleInstanceLock`; `openSites` means "started", not "alive").
+3. **§4.15 — `expectedVersion` guards Posts but not Pages** on the same `posts` row; the "last unwired arm" commit miscounted the arms. Three concurrency contracts on one column.
+4. **§4.5 — `main.cjs` (1 047 lines) was gutted by a protective commit and restored by another** the same day; the default boot path was dead in between. The file is the collision point for every desktop agent.
+5. **§4.7 — two site-dir marker classifiers with two vocabularies**, and the desktop never calls the `tovu adopt` verb built that night for exactly the case it refuses.
+6. **§4.2 — the three render paths widened**: `escapeHtml` fixed in 4 of 9 copies (`1044e2d5`); `safeHref` now copied verbatim into a third path (`a9a6e3a9`); `form-render` fixed alone (`6442b34f`).
+7. **§4.3 — standing-draft autosave**: shared core is right; banners/rules/editor-chrome copied Posts↔Pages by hand, with an i18n divergence already present.
+8. **§4.6 — two server boot paths** still hand-mirror the orchestration after `d1eea4b2` deduped two helpers; one path runs the site-dir guard, the other does not.
+9. **§4.16 — `inbound → composition` has no dependency-cruiser rule**; seven edges, three of them new last night.
+10. Smaller divergent copies: §4.10 (`CONTENT_DB_FILENAME` × 2 + six literals), §4.17 (SSE head × 4), §4.18 (image accept lists × 3).
+
+**Verdicts on the named questions.** `useSettlementGeneration` 8/11 is a **real seam, correctly drawn** (§4.1) — the inventory missed a ninth candidate, not a defect. `agentHandle` is **one mechanism, consistently applied** (§4.9). Layering across `apps/*` and into `@jini-ai/*` is **clean** (§4.4). Last night added **no logic to admin `.tsx`** (§3.2); the desktop renderer did (`ProjectWorkspace`), and that is where D-03 lives. Five functions over the complexity ceiling, three **CONFIRMED** by reading (§3.1). Post-freeze commits `103f7ae1` (media-import) and `f682eff2` (assistant) touch none of the files above.
+
+Coverage: 243 commits — **160 reviewed, 83 skipped with reason, 0 not reached** (§5).
+
+## 0a. Open questions log (for the owner, not blocking)
+
+- Q2: `agent-daemon-server.ts` `start()` (§3.1) — only the first ~90 lines were counted (5 branch points); codex's 10 not independently confirmed.
+- Q3: §4.14's class is wider than chat attachments — `mediaUploadsDir()` and every other `siteDir()`-derived default in the API process under `tovu serve <dir>` has the same shape (`deployment-overview.ts` has imported `defaultContentDbPath` since the 2026-08-28 rename). Not traced this run; the on-record "daemon resolves site from cwd" trap is the same family.
+- Q4: `outbox-worker.ts` `row.attempts >= MAX_OUTBOX_ATTEMPTS` — whether `claimPending` increments before this compare (off-by-one on the cap) is for the bugs lens.
 - Q1 (answered): `use-assistant-chats.hooks.ts` `switchSeqRef` IS the self-minting shape (`const seq = ++switchSeqRef.current; … if (switchSeqRef.current !== seq) return;` at lines 532-535 and 568-573) plus one external bump at line 616 (`remove`'s empty branch), which the hook expresses as a discarded `next()`. A viable ninth adopter the sweep's name-based inventory missed. Optional, not a defect.
 
 ## 1. Desktop lifecycle claims D-01, D-02, D-03, D-06, D-07 (priority 1)
@@ -91,11 +115,23 @@ Three on-disk JSON files in `userData` each hold a list of site dirs with differ
 
 ## 2. Commits codex left `pending` (priority 2)
 
-(in progress — findings are filed under §4 by seam, and the ledger in §5 records which commits each covers)
+All `pending` rows from `codex-audit/00-progress.md` were read at the frozen SHA. Findings are filed by seam in §4 and §3 rather than per commit; the ledger in §5 maps every commit to its section.
 
 ### D-02 addendum (read after the first commit)
 
 `useCreateWebsiteForm` (`App.hooks.ts:1162-1190`) computes `canCreate` from `supabaseReady`/`customReady` — so when Supabase or Custom is selected the form **refuses to submit until the URL and key are filled in**, then `buildCreateProjectInput` packs them, and `handleCreate` discards them. Worse than "silently discarded": the operator is forced to type a credential that is thrown away. Upgrades the cost line above; the recommended seam (drop `database` from the desktop contract) is unchanged.
+
+### 3.3 AAD backfill scripts — six copies became one runner — CONFIRMED, positive
+
+`5182994a` added `development/scripts/aad-backfill-runner.ts` (`parseAadBackfillArgs`, `runAadBackfill`, `runAadBackfillMain`); `a68526dd`, `7b138c50`, `0af0748e`, `3f0c9915`, `d3161f2e`, `947c0fa1` migrated six scripts onto it (each roughly −130/+85 lines); `570e5822` removed the one script's live-DB `--db` default. This is the inverse of the night's dominant pattern and the right shape for it. Codex skipped these as "outside apps"; they are production operator tooling and belong in the ledger as reviewed.
+
+### 3.4 Admin design commits — shared primitives used — CONFIRMED, positive
+
+`645f3221`/`bc22ff14` introduce one `.form-measure` class in `styles.css` and apply it in six screens (no per-form widths); `26985a2d`, `72a8dcb6`, `56e87ae0` draw their tab strips with the shared `TabBar` (`TabBarTab[]`) rather than local markup; the Settings light pin (`89c8c380`, `9f13f0e3`, `0a1fb89e`) is the product decision already on record. `30e68c54` is CSS only. The editor-chrome commits are the exception and are filed under §4.3.
+
+### 3.5 Accessibility names and nested-button fixes — consistent patterns — CONFIRMED, positive
+
+The eight per-row accessible-name commits use either a feature `rules.ts` helper (`viewInRecoveryAccessibleName`, `restoreButtonAccessibleName`) or an inline template with the row's own label; the four button-in-anchor commits apply one fix (`className="btn-*"` moved onto the `<a>`, the nested `<button>` removed) with the same comment idiom each time. No competing mechanism, no logic added to `.tsx`.
 
 ## 4. Cross-cutting seams
 
@@ -122,6 +158,8 @@ Definitions at the frozen SHA (`git grep`, tests excluded):
 | 7 | `.../routes/site/newsletter-confirm.ts:40` (inline arrow, `& < >` only) | no | **no** |
 | 8 | `.../routes/site/newsletter-unsubscribe.ts:45` (inline arrow, `& < >` only) | no | **no** |
 | 9 | `.../routes/site/store.ts:16` (`& < >` only) | no | **no** |
+
+`safeHref` is the same story one function over: `http/site/render.ts:261` (live), `features/theme/static-render.ts:219` (copied 2026-09-03 — `render.ts`'s own doc says "alongside the identical fix for the static-tier menu"), and now `platform/export/site-exporter.ts:341` (`a9a6e3a9`, last night) — three verbatim copies of `safeHref` + `SAFE_HREF_RESOLUTION_BASE`/`_ORIGIN`. **So the answer to "did last night widen the three-render-path gap" is yes, twice**: one escaper fix that reached four of nine copies, and one scheme check that became a third copy instead of a shared import.
 
 #1–#5 are the three render paths (live public render, static-render, site-exporter) each owning an escaper — the "three render paths diverge" hub already on record — and last night's fix (`1044e2d5`, "escape apostrophes in every escapeHtml/escapeHtmlAttr copy") **widened the gap rather than closing it**: it patched four copies in place and left five, so the codebase now has copies that differ on `'`. #7–#9 interpolate only into text nodes (`<title>`, `<h1>`, `<p>`), where `'` and `"` are harmless, so no security finding here — the cost is that the next escaper change (a ` ` fix, say) has nine places to land and the last commit that tried reached four. Correct seam: one `escapeHtml`/`escapeHtmlAttr` pair in `apps/website/src/platform/` (or `#src/shared/html-escape`) imported by all nine; `render.ts` already exports one, so eight imports replace eight definitions. Checked: #6 (`mcp-ui.ts`) already escaped `'` before the fix; #3 (`page-head.ts`) does **not** — it stops at `&quot;`. `page-head.ts` serialises IR into double-quoted attributes and text, so an unescaped `'` is harmless there today; the finding stands as divergence, not exposure.
 
@@ -213,7 +251,7 @@ Pattern worth naming: the `useSettlementGeneration` adoption adds three guard br
 
 ### 4.17 SSE response head — four copies, one local helper — CONFIRMED
 
-`2cd019cd` ("drop the Connection header on HTTP/2 SSE streams") touched four files: `admin-http/routes/settings/events.ts`, `composition/modules/assistant-ag-ui.ts`, `composition/modules/assistant-byok.ts`, `composition/modules/site-assistant.ts`. At the frozen SHA the SSE head (`text/event-stream`, `no-cache, no-transform`, conditional `Connection: keep-alive`, `X-Accel-Buffering`) exists as a function only in `settings/events.ts:113` (`sseWriteHeadHeaders(req)`, private to that file) and as inline object literals in `assistant-byok.ts:111` and `site-assistant.ts:142` (the ag-ui module is read next). The fix reached every arm — but by editing four copies, and the helper it introduced is local to one. Correct seam: `server/inbound/shared/sse-head.ts` exporting that one function, imported by all four.
+`2cd019cd` ("drop the Connection header on HTTP/2 SSE streams") touched four files: `admin-http/routes/settings/events.ts`, `composition/modules/assistant-ag-ui.ts`, `composition/modules/assistant-byok.ts`, `composition/modules/site-assistant.ts`. At the frozen SHA the SSE head (`text/event-stream`, `no-cache, no-transform`, conditional `Connection: keep-alive`, `X-Accel-Buffering`) exists as a function only in `settings/events.ts:113` (`sseWriteHeadHeaders(req)`, private to that file) and as inline object literals in `assistant-byok.ts:111` and `site-assistant.ts:142` and `assistant-ag-ui.ts:412` (inline). `assistant-byok.ts` and `site-assistant.ts` each carry an identical private `sse(res, event, data)` + `beginStream(req, res)` pair. The fix reached every arm — by editing four copies — and the helper it introduced is local to one. Correct seam: `server/inbound/shared/sse-head.ts` exporting that one function, imported by all four.
 
 ### 4.18 Accepted image types — three lists — CONFIRMED
 
@@ -225,7 +263,7 @@ At the frozen SHA: no `@jini-ai/*/src|dist|lib` deep imports anywhere under `app
 
 ## 5. Commit ledger (all 243)
 
-Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` = docs/tests/out-of-app (no production code in scope); `not reached` = production code not yet read — regenerated on every commit, see the final count at the end of the run.
+Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` = docs/tests/out-of-app (no production code in scope); `not reached` = production code not yet read. Final count: 160 reviewed, 83 skipped, 0 not reached.
 
 | Commit | Status | Subject | Note |
 |---|---|---|---|
@@ -257,7 +295,7 @@ Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` =
 | `c2e206db` | skipped | docs(ads-memory): map Tovu Runner and its connection to Tovu | docs/tests/out-of-app — no production code in scope |
 | `3bc9a415` | reviewed | fix(desktop/e2e): stop the e2e suite writing into the real Electron userData dir | §1 — e2e userData override; no arch finding |
 | `fc3bff7c` | skipped | docs(todos): file the single-window desktop shell and two gaps found live | docs/tests/out-of-app — no production code in scope |
-| `2b69b327` | not reached | fix(admin/settings): restore the tsc baseline in the field-spec test | (pending) |
+| `2b69b327` | skipped | fix(admin/settings): restore the tsc baseline in the field-spec test | test-only change |
 | `f50b8463` | skipped | test(admin/settings): add exhaustive route-vs-field-spec coverage for External MCP | docs/tests/out-of-app — no production code in scope |
 | `6df1f9a7` | reviewed | refactor(admin/hooks): adopt useSettlementGeneration at 8 call sites | §4.1 — 8 adopters; §3.1 performRename >9 |
 | `cc01bce7` | skipped | docs(todos): settle the footer menu content-ref-vs-raw-URL question | docs/tests/out-of-app — no production code in scope |
