@@ -18,9 +18,42 @@ const path = require("node:path");
 
 const PROJECTS_FILE_NAME = "desktop-projects.json";
 
+/**
+ * A tracked row's PROVENANCE — who made the directory it points at. Recorded because project delete
+ * ends in a recursive `fs.rm` (`project-ipc.cjs`'s `handleDelete`), and that is only ever a correct
+ * thing to do to a directory this app itself created.
+ *
+ * Two values, and the split is exactly `classifySiteDir`'s: `handleCreate` classifies the picked
+ * folder BEFORE `adoptSiteDir` runs, so `"empty"` (which `tovu init` is about to fill) is the one
+ * case that becomes `created`, and a folder that was already a site becomes `adopted` — the same
+ * value `seedDevFallbackProject` writes. `adoptSiteDir` alone cannot tell the two apart: it returns
+ * the same path either way.
+ *
+ * Not a boolean, because a boolean would have to be named for the CONSEQUENCE ("removable") and
+ * would then have to change meaning if the deletion policy ever gains another rule. This records the
+ * FACT; `project-delete-guard.cjs` owns the policy over it.
+ */
+const PROJECT_ORIGIN = Object.freeze({
+  /** This app ran `tovu init` into an empty folder — every byte under it is ours. */
+  created: "created",
+  /** The directory already existed as a site when this app started tracking it. Never erased. */
+  adopted: "adopted",
+});
+
 /** @returns the tracked-projects file's path inside Electron's per-user `userData` directory. */
 function projectsFilePath(userDataDir) {
   return path.join(userDataDir, PROJECTS_FILE_NAME);
+}
+
+/**
+ * Coerce a row's stored `origin` to a known {@link PROJECT_ORIGIN} value, FAIL-CLOSED: anything that
+ * is not literally `"created"` — absent (a row written before provenance existed), misspelled, or a
+ * non-string a hand-edited file put there — reads as `adopted`, the value that never erases files.
+ *
+ * @complexity O(1).
+ */
+function normalizeOrigin(origin) {
+  return origin === PROJECT_ORIGIN.created ? PROJECT_ORIGIN.created : PROJECT_ORIGIN.adopted;
 }
 
 /**
@@ -30,14 +63,21 @@ function projectsFilePath(userDataDir) {
  * is a convenience list over sites that still exist for real on disk, not the sites themselves, so a
  * truncated or corrupt copy should read as empty rather than crash the Projects screen.
  *
- * @returns rows shaped `{siteDir, createdAt}`, oldest first.
+ * Every row comes back with a definite {@link PROJECT_ORIGIN} value: a row written before
+ * provenance existed, or one carrying an unrecognized value, reads as `adopted`. That is the single
+ * place the fail-closed rule lives, so no consumer has to remember to default it — see
+ * {@link normalizeOrigin}.
+ *
+ * @returns rows shaped `{siteDir, createdAt, origin}`, oldest first.
  * @complexity O(n) in file size.
  */
 function readTrackedProjects(projectsPath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(projectsPath, "utf8"));
     const rows = Array.isArray(parsed?.projects) ? parsed.projects : [];
-    return rows.filter((row) => typeof row?.siteDir === "string" && typeof row?.createdAt === "string");
+    return rows
+      .filter((row) => typeof row?.siteDir === "string" && typeof row?.createdAt === "string")
+      .map((row) => ({ ...row, origin: normalizeOrigin(row.origin) }));
   } catch {
     return [];
   }
@@ -51,15 +91,20 @@ function writeTrackedProjects(projectsPath, rows) {
 
 /**
  * Track `siteDir`, if it is not already tracked. Idempotent — re-tracking an existing dir returns
- * the list unchanged rather than duplicating or bumping its row.
+ * the list unchanged rather than duplicating or bumping its row (and therefore never upgrades an
+ * `adopted` row to `created` behind the operator's back).
  *
+ * @param origin see {@link PROJECT_ORIGIN}. Defaults to `adopted` — the value that forbids erasing
+ *   the directory — so a call site that forgets to state provenance fails CLOSED rather than
+ *   handing a stranger's folder to `fs.rm`. Only a caller that positively knows this app created
+ *   the directory may pass `created`.
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function trackProject(projectsPath, siteDir) {
+function trackProject(projectsPath, siteDir, origin = PROJECT_ORIGIN.adopted) {
   const rows = readTrackedProjects(projectsPath);
   if (rows.some((row) => row.siteDir === siteDir)) return rows;
-  const next = [...rows, { siteDir, createdAt: new Date().toISOString() }];
+  const next = [...rows, { siteDir, createdAt: new Date().toISOString(), origin: normalizeOrigin(origin) }];
   writeTrackedProjects(projectsPath, next);
   return next;
 }
@@ -95,12 +140,17 @@ function untrackProject(projectsPath, siteDir) {
 function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
   if (fs.existsSync(projectsPath)) return false;
   if (classifySiteDir(devFallbackDir) !== "site") return false;
-  trackProject(projectsPath, devFallbackDir);
+  // ALWAYS `adopted`, and stated rather than left to the default: this row points at a folder that
+  // already held a site before this app ever ran — `<repo>/sites/tovu-com` in a checkout, someone's
+  // real content. Deleting its card must never delete it.
+  trackProject(projectsPath, devFallbackDir, PROJECT_ORIGIN.adopted);
   return true;
 }
 
 module.exports = {
   PROJECTS_FILE_NAME,
+  PROJECT_ORIGIN,
+  normalizeOrigin,
   projectsFilePath,
   readTrackedProjects,
   writeTrackedProjects,

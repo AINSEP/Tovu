@@ -748,6 +748,10 @@ app
         cliMode: fleetCtx.cliMode,
         readSiteName,
         adoptSiteDir,
+        // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
+        // whether this app CREATED the directory or merely adopted one that already existed — the
+        // fact `project-delete-guard.cjs` needs before any delete may erase anything.
+        classifySiteDir,
         openSiteWindow,
         recordSiteClosed,
         ctx: fleetCtx,

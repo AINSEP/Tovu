@@ -36,6 +36,15 @@ export interface ProjectRecord {
   status: ProjectLifecycleStatus;
   /** Human-readable detail for the current status (e.g. a failure reason). Never a secret. */
   statusDetail: string | null;
+  /**
+   * What `RUNNER_PROJECT_CHANNELS.delete` will actually DO to this project's folder: `true` erases
+   * the install directory, `false` only drops the row and leaves every byte where it is.
+   *
+   * Main decides it (`project-delete-guard.cjs`) and sends the ANSWER, never the inputs, so the
+   * renderer cannot re-derive the rule and drift from the one main enforces. The renderer's only job
+   * is to say which of the two a click will do — see `ProjectGrid.hooks.ts`'s `deleteActionCopy`.
+   */
+  deleteErasesFiles: boolean;
   createdAt: string;
   updatedAt: string;
 }

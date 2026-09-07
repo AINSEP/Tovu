@@ -9,6 +9,8 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  PROJECT_ORIGIN,
+  normalizeOrigin,
   projectsFilePath,
   readTrackedProjects,
   writeTrackedProjects,
@@ -44,7 +46,9 @@ test("readTrackedProjects drops rows missing a siteDir or createdAt string", () 
     file,
     JSON.stringify({ projects: [{ siteDir: "/a" }, { createdAt: "x" }, { siteDir: "/b", createdAt: "2026-01-01" }, "garbage"] }),
   );
-  assert.deepEqual(readTrackedProjects(file), [{ siteDir: "/b", createdAt: "2026-01-01" }]);
+  // `origin` is added by the read itself: a row written before provenance existed reads as
+  // `adopted`, the value that forbids erasing its directory. See `normalizeOrigin`.
+  assert.deepEqual(readTrackedProjects(file), [{ siteDir: "/b", createdAt: "2026-01-01", origin: "adopted" }]);
 });
 
 test("trackProject adds a new row and persists it", () => {
@@ -89,7 +93,7 @@ test("writeTrackedProjects creates the parent directory if it does not exist", (
   const nested = path.join(dir, "nested", "deeper");
   const file = projectsFilePath(nested);
   writeTrackedProjects(file, [{ siteDir: "/x", createdAt: "2026-01-01" }]);
-  assert.deepEqual(readTrackedProjects(file), [{ siteDir: "/x", createdAt: "2026-01-01" }]);
+  assert.deepEqual(readTrackedProjects(file), [{ siteDir: "/x", createdAt: "2026-01-01", origin: "adopted" }]);
 });
 
 test("seedDevFallbackProject tracks the fallback dir on a truly fresh install", () => {
@@ -132,4 +136,43 @@ test("seedDevFallbackProject does not run a second time once something is alread
     readTrackedProjects(file).map((r) => r.siteDir),
     ["/sites/other"],
   );
+});
+
+// --- provenance (2026-09-06) ---------------------------------------------------------------
+//
+// A row's `origin` is what `project-delete-guard.cjs` consults before `handleDelete` is allowed to
+// recursively erase a directory. Every rule below therefore fails toward NOT deleting.
+
+test("normalizeOrigin only ever accepts the literal 'created' — everything else reads as adopted", () => {
+  assert.equal(normalizeOrigin("created"), PROJECT_ORIGIN.created);
+  for (const rejected of [undefined, null, "", "Created", "adopted", "seeded", 1, true, {}, ["created"]]) {
+    assert.equal(normalizeOrigin(rejected), PROJECT_ORIGIN.adopted, `${JSON.stringify(rejected)} must not read as created`);
+  }
+});
+
+test("trackProject defaults to adopted when no provenance is stated", () => {
+  const file = projectsFilePath(tempDir());
+  const rows = trackProject(file, "/sites/a");
+  assert.equal(rows[0].origin, PROJECT_ORIGIN.adopted);
+});
+
+test("trackProject records 'created' only when the caller says so", () => {
+  const file = projectsFilePath(tempDir());
+  trackProject(file, "/sites/a", PROJECT_ORIGIN.created);
+  assert.equal(readTrackedProjects(file)[0].origin, PROJECT_ORIGIN.created);
+});
+
+test("trackProject never upgrades an existing adopted row to created", () => {
+  const file = projectsFilePath(tempDir());
+  trackProject(file, "/sites/a", PROJECT_ORIGIN.adopted);
+  trackProject(file, "/sites/a", PROJECT_ORIGIN.created);
+  assert.deepEqual(readTrackedProjects(file).map((r) => r.origin), [PROJECT_ORIGIN.adopted]);
+});
+
+test("seedDevFallbackProject marks its seeded row adopted — it never created that folder", () => {
+  const file = projectsFilePath(tempDir());
+  seedDevFallbackProject(file, "/repo/sites/tovu-com", () => "site");
+  assert.deepEqual(readTrackedProjects(file), [
+    { siteDir: "/repo/sites/tovu-com", createdAt: readTrackedProjects(file)[0].createdAt, origin: PROJECT_ORIGIN.adopted },
+  ]);
 });

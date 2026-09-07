@@ -21,7 +21,7 @@ const {
   handleOpenWindow,
   registerProjectIpcHandlers,
 } = require("./project-ipc.cjs");
-const { projectsFilePath, trackProject, readTrackedProjects } = require("./project-registry.cjs");
+const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } = require("./project-registry.cjs");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
@@ -38,6 +38,7 @@ function baseDeps(overrides = {}) {
     cliMode: "source",
     openSites: new Map(),
     readSiteName: (siteDir) => path.basename(siteDir),
+    classifySiteDir: () => "empty",
     recordSiteClosed: () => {},
     serializer: { run: (_key, fn) => fn() },
     ctx: {},
@@ -115,7 +116,7 @@ test("handleDelete on an untracked id is a no-op — no stop, no fs.rm, no throw
   await assert.doesNotReject(() => handleDelete("/sites/never-tracked", deps));
 });
 
-test("handleDelete on a running project stops the server before removing the directory", async () => {
+test("handleDelete on a running project the app CREATED stops the server before removing the directory", async () => {
   const dir = tempDir();
   const siteDir = path.join(dir, "site-to-delete");
   fs.mkdirSync(siteDir);
@@ -123,7 +124,9 @@ test("handleDelete on a running project stops the server before removing the dir
 
   const order = [];
   const deps = baseDeps();
-  trackProject(deps.projectsPath, siteDir);
+  // `created`, and outside `deps.repoRoot` — the only combination the guard lets through, which is
+  // what makes this the proof that the guard did not simply disable delete for everything.
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created);
   deps.openSites.set(siteDir, {
     server: {
       stop: async () => {
@@ -183,4 +186,94 @@ test("registerProjectIpcHandlers registers exactly the five real channels", () =
   registerProjectIpcHandlers(deps);
 
   assert.deepEqual([...registered.keys()].sort(), Object.values(RUNNER_PROJECT_CHANNELS).sort());
+});
+
+// --- delete guard (2026-09-06) -------------------------------------------------------------
+//
+// `handleDelete` ends in `fs.rm(id, {recursive: true, force: true})`. Every test below exists to
+// prove that call is reached ONLY for a directory this app itself created. The hazard these were
+// written against: `seedDevFallbackProject` tracks `<repo>/sites/tovu-com` — a git-tracked folder
+// holding a real 44 MB production database — and the Projects screen gives every card a two-click
+// delete. Nothing about that row said "the app did not make this".
+
+test("handleDelete does NOT erase the directory of a project the app only adopted", async () => {
+  const dir = tempDir();
+  const siteDir = path.join(dir, "adopted-site");
+  fs.mkdirSync(siteDir);
+  fs.writeFileSync(path.join(siteDir, "content.db"), "a real site's real database");
+
+  const deps = baseDeps();
+  // No origin argument: the legacy/unknown-provenance row shape, which must fail CLOSED.
+  trackProject(deps.projectsPath, siteDir);
+
+  await handleDelete(siteDir, deps);
+
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "an adopted project's files must survive delete");
+  assert.deepEqual(readTrackedProjects(deps.projectsPath), [], "the card must still go away");
+});
+
+test("handleDelete refuses to erase anything under the repo root, even a row claiming the app created it", async () => {
+  const repoRoot = tempDir();
+  const siteDir = path.join(repoRoot, "sites", "tovu-com");
+  fs.mkdirSync(siteDir, { recursive: true });
+  fs.writeFileSync(path.join(siteDir, "content.db"), "leona's 44 MB production database");
+
+  const deps = baseDeps({ repoRoot });
+  writeTrackedProjects(deps.projectsPath, [{ siteDir, createdAt: "2026-01-01T00:00:00.000Z", origin: "created" }]);
+
+  await handleDelete(siteDir, deps);
+
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "a repo-root directory must survive delete regardless of what the row claims");
+});
+
+test("handleCreate records 'created' when it initialized an empty folder, 'adopted' when the folder was already a site", async () => {
+  for (const [kind, expected] of [["empty", PROJECT_ORIGIN.created], ["site", PROJECT_ORIGIN.adopted]]) {
+    const picked = `/sites/${kind}-one`;
+    const deps = baseDeps({
+      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
+      // Classified BEFORE `adoptSiteDir` runs, because afterwards both cases look identical: it
+      // returns the same path whether it ran `tovu init` or recognized an existing site.
+      classifySiteDir: () => kind,
+      adoptSiteDir: async () => picked,
+    });
+
+    const record = await handleCreate({ displayName: "New Site" }, deps);
+
+    assert.equal(readTrackedProjects(deps.projectsPath)[0].origin, expected, `a "${kind}" folder must be tracked as ${expected}`);
+    assert.equal(record.deleteErasesFiles, expected === PROJECT_ORIGIN.created);
+  }
+});
+
+test("buildProjectRecord tells the renderer whether delete will erase files, from the guard main obeys", () => {
+  const repoRoot = tempDir();
+  const insideRepo = path.join(repoRoot, "sites", "tovu-com");
+  const outsideRepo = path.join(tempDir(), "my-site");
+  const deps = baseDeps({ repoRoot });
+
+  const created = buildProjectRecord({ siteDir: outsideRepo, createdAt: "2026-01-01", origin: PROJECT_ORIGIN.created }, deps);
+  const adopted = buildProjectRecord({ siteDir: outsideRepo, createdAt: "2026-01-01", origin: PROJECT_ORIGIN.adopted }, deps);
+  const inRepo = buildProjectRecord({ siteDir: insideRepo, createdAt: "2026-01-01", origin: PROJECT_ORIGIN.created }, deps);
+
+  assert.equal(created.deleteErasesFiles, true);
+  assert.equal(adopted.deleteErasesFiles, false);
+  assert.equal(inRepo.deleteErasesFiles, false);
+});
+
+test("handleDelete still stops and closes a running project it may not erase", async () => {
+  const siteDir = path.join(tempDir(), "adopted-but-open");
+  fs.mkdirSync(siteDir);
+  fs.writeFileSync(path.join(siteDir, "content.db"), "keep me");
+
+  const order = [];
+  const deps = baseDeps();
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+  deps.openSites.set(siteDir, {
+    server: { stop: async () => order.push("stopped") },
+    window: { isDestroyed: () => false, destroy: () => order.push("destroyed") },
+  });
+
+  await handleDelete(siteDir, deps);
+
+  assert.deepEqual(order, ["stopped", "destroyed"], "removing the card still closes the site it was showing");
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true);
 });

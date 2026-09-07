@@ -6,7 +6,7 @@
  * just a line-count split.
  */
 import { useDeleteConfirmation } from './App.hooks.js';
-import { databaseLabel, isCardOpenable } from './ProjectGrid.hooks.js';
+import { databaseLabel, deleteActionCopy, isCardOpenable, type DeleteActionCopy } from './ProjectGrid.hooks.js';
 import { STATUS_LABEL } from './project-status.js';
 import type { ProjectRecord } from '../contracts/project.js';
 
@@ -90,6 +90,10 @@ function ProjectCard({
   onConfirmDelete: (id: string) => Promise<void>;
 }) {
   const openable = isCardOpenable(project, confirming);
+  // What this card's destructive control means for THIS project — a delete that erases the folder,
+  // or a removal that only drops the card. See `deleteActionCopy`'s own doc on why one word for
+  // both would be a lie in whichever direction the operator happened to read it.
+  const copy = deleteActionCopy(project);
 
   return (
     <article
@@ -116,8 +120,8 @@ function ProjectCard({
         <button
           type="button"
           className="card__delete"
-          title={`Delete ${project.displayName}`}
-          aria-label={`Delete ${project.displayName}`}
+          title={copy.cardButtonLabel}
+          aria-label={copy.cardButtonLabel}
           onClick={(event) => {
             // The card itself is the open target, so without this every delete click
             // would also open the project it is about to remove.
@@ -153,6 +157,7 @@ function ProjectCard({
       {confirming && (
         <CardConfirmOverlay
           project={project}
+          copy={copy}
           deleting={deleting}
           deleteError={deleteError}
           onCancel={onCancelDelete}
@@ -174,12 +179,14 @@ function ProjectCard({
  */
 function CardConfirmOverlay({
   project,
+  copy,
   deleting,
   deleteError,
   onCancel,
   onConfirm,
 }: {
   project: ProjectRecord;
+  copy: DeleteActionCopy;
   deleting: boolean;
   deleteError: string | null;
   onCancel: () => void;
@@ -189,15 +196,12 @@ function CardConfirmOverlay({
     <div
       className="card__confirm"
       role="group"
-      aria-label={`Confirm delete ${project.displayName}`}
+      aria-label={copy.confirmTitle}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <p className="card__confirmtitle">Delete {project.displayName}?</p>
-      <p className="card__confirmbody">
-        Stops its process and erases its install directory and all of its content. This
-        cannot be undone.
-      </p>
+      <p className="card__confirmtitle">{copy.confirmTitle}</p>
+      <p className="card__confirmbody">{copy.confirmBody}</p>
       {deleteError && <p className="card__confirmerror">{deleteError}</p>}
       <div className="card__confirmacts">
         <button type="button" className="button button--quiet" onClick={onCancel} disabled={deleting}>
@@ -205,11 +209,11 @@ function CardConfirmOverlay({
         </button>
         <button
           type="button"
-          className="button button--danger"
+          className={copy.confirmButtonClass}
           onClick={() => void onConfirm(project.id)}
           disabled={deleting}
         >
-          {deleting ? 'Deleting…' : 'Delete'}
+          {deleting ? copy.confirmButtonBusyLabel : copy.confirmButtonLabel}
         </button>
       </div>
     </div>

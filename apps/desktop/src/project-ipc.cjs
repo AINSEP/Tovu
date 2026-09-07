@@ -22,7 +22,8 @@
 const path = require("node:path");
 const fsp = require("node:fs/promises");
 
-const { readTrackedProjects, trackProject, untrackProject } = require("./project-registry.cjs");
+const { PROJECT_ORIGIN, readTrackedProjects, trackProject, untrackProject } = require("./project-registry.cjs");
+const { mayEraseProjectDirectory } = require("./project-delete-guard.cjs");
 
 const RUNNER_PROJECT_CHANNELS = Object.freeze({
   list: "runner:projects:list",
@@ -58,6 +59,10 @@ function buildProjectRecord(row, deps) {
     statusDetail: null,
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
+    // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
+    // renderer — a UI that decided this for itself could drift from the rule main actually enforces
+    // and label a button with a consequence that will not happen. See `project-delete-guard.cjs`.
+    deleteErasesFiles: mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot }),
   };
 }
 
@@ -86,6 +91,12 @@ async function handleCreate(input, deps) {
   if (picked.canceled || picked.filePaths.length === 0) {
     throw new Error("No folder was chosen.");
   }
+  // BEFORE `adoptSiteDir`, because afterwards the answer is gone: it returns the same path whether
+  // it ran `tovu init` into an empty folder or simply recognized a site that was already there. Only
+  // the first of those is a directory this app made, and only that one may ever be erased again —
+  // see `project-delete-guard.cjs`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
+  // only two classifications that reach `trackProject` are the two this maps.
+  const wasEmpty = deps.classifySiteDir(picked.filePaths[0]) === "empty";
   const siteDir = await deps.adoptSiteDir({
     dir: picked.filePaths[0],
     repoRoot: deps.repoRoot,
@@ -93,13 +104,24 @@ async function handleCreate(input, deps) {
     name: input.displayName,
     cliMode: deps.cliMode,
   });
-  trackProject(deps.projectsPath, siteDir);
-  return buildProjectRecord({ siteDir, createdAt: new Date().toISOString() }, deps);
+  const origin = wasEmpty ? PROJECT_ORIGIN.created : PROJECT_ORIGIN.adopted;
+  trackProject(deps.projectsPath, siteDir, origin);
+  return buildProjectRecord({ siteDir, createdAt: new Date().toISOString(), origin }, deps);
 }
 
 /**
- * Irreversible: stops the project if it is running, untracks it, then erases its install
- * directory. Idempotent on an id that is not tracked (already gone) rather than throwing — the
+ * Stops the project if it is running, untracks it, and — ONLY for a directory this app itself
+ * created — erases its install directory.
+ *
+ * That last word is load-bearing and is the whole reason this function consults
+ * `project-delete-guard.cjs` rather than calling `fs.rm` on whatever id arrives. A tracked row can
+ * point at a folder the app merely adopted (`seedDevFallbackProject` seeds exactly one such row,
+ * `<repo>/sites/tovu-com`, someone's real 44 MB site), and for those the delete means "take this
+ * card off my Projects screen" — the row goes, every byte stays. The renderer says which of the two
+ * a given card will do, from the same guard's answer carried on `ProjectRecord.deleteErasesFiles`,
+ * so the confirm overlay never promises a consequence this function will not deliver.
+ *
+ * Idempotent on an id that is not tracked (already gone) rather than throwing — the
  * operator's confirm dialog already happened in the renderer, so a second delete of the same
  * project (a slow poll racing a fast double-click) should not surface a scary error for something
  * that already succeeded.
@@ -114,8 +136,8 @@ async function handleCreate(input, deps) {
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents.
  */
 async function handleDelete(id, deps) {
-  const tracked = readTrackedProjects(deps.projectsPath);
-  if (!tracked.some((row) => row.siteDir === id)) return;
+  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
+  if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
   if (openEntry !== undefined) {
@@ -126,7 +148,9 @@ async function handleDelete(id, deps) {
   }
 
   untrackProject(deps.projectsPath, id);
-  await fsp.rm(id, { recursive: true, force: true });
+  if (mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot })) {
+    await fsp.rm(id, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -184,6 +208,9 @@ async function handleOpenWindow(id, deps) {
  * @param {string} deps.cliMode `"source"` or `"compiled"` — see `tovu-server.cjs`.
  * @param {Function} deps.readSiteName `main.cjs`'s site-display-name reader.
  * @param {Function} deps.adoptSiteDir `site-dir-store.cjs`'s folder-to-site-dir classifier/initializer.
+ * @param {Function} deps.classifySiteDir `site-dir-store.cjs`'s classifier, called by `handleCreate`
+ *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
+ *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.cjs`.
  * @param {Function} deps.openSiteWindow `main.cjs`'s spawn-or-focus-a-site's-window function.
  * @param {Function} deps.recordSiteClosed `site-registry.cjs`'s crash-safety row remover.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteWindow`'s own second argument.

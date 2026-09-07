@@ -34,3 +34,55 @@ export function databaseLabel(project: ProjectRecord): string {
   if (project.database.kind === 'custom') return project.database.label ?? 'Custom DB provider';
   return 'SQLite';
 }
+
+/** The words one project card's destructive control uses, and the class its confirm button wears. */
+export interface DeleteActionCopy {
+  cardButtonLabel: string;
+  confirmTitle: string;
+  confirmBody: string;
+  confirmButtonLabel: string;
+  confirmButtonBusyLabel: string;
+  confirmButtonClass: string;
+}
+
+/**
+ * What this card's destructive control should SAY, given what main will actually do to the folder.
+ *
+ * Two different consequences must not hide behind one word. A project this app provisioned is
+ * genuinely deleted — the folder, the database, the uploads, unrecoverably — and "Delete" in red is
+ * the honest label. A project the app only adopted (the seeded `sites/tovu-com` card, or any folder
+ * that already held a site when it was picked) loses nothing but its card, so the control says
+ * "Remove", explains that the files stay, and is not styled as a destructive action, because it
+ * is not one. Calling both of them "Delete" would train the operator to read the scarier meaning
+ * onto a harmless button — or, far worse, the harmless meaning onto the irreversible one.
+ *
+ * Driven by `project.deleteErasesFiles`, which is main's own guard answer rather than anything
+ * derived here, so the overlay can never promise a consequence `handleDelete` will not deliver.
+ *
+ * @complexity O(1) time, O(1) space.
+ */
+export function deleteActionCopy(project: ProjectRecord): DeleteActionCopy {
+  if (project.deleteErasesFiles) {
+    return {
+      cardButtonLabel: `Delete ${project.displayName}`,
+      confirmTitle: `Delete ${project.displayName}?`,
+      confirmBody:
+        'Stops its process and erases its install directory and all of its content. This cannot be undone.',
+      confirmButtonLabel: 'Delete',
+      confirmButtonBusyLabel: 'Deleting…',
+      confirmButtonClass: 'button button--danger',
+    };
+  }
+  return {
+    cardButtonLabel: `Remove ${project.displayName} from Projects`,
+    confirmTitle: `Remove ${project.displayName} from Projects?`,
+    confirmBody:
+      'Takes this card off the Projects screen and stops its process. Tovu did not create this folder, so nothing on disk is touched — its content stays exactly where it is.',
+    confirmButtonLabel: 'Remove',
+    confirmButtonBusyLabel: 'Removing…',
+    // Primary, not danger and not quiet: it is still this dialog's affirmative action, so it must
+    // read differently from Cancel (which is `button--quiet`), but red would restate exactly the
+    // destructive meaning this whole branch exists to deny.
+    confirmButtonClass: 'button button--primary',
+  };
+}
