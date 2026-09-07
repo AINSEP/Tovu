@@ -40,9 +40,21 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
  *
  * Architectural role:
  * A factory plus one process-scoped instance. The factory is what the tests drive, so no test has
- * to reach into module state or reset a singleton between cases; the instance exists because the
- * minting site (the CLI) and the redeeming site (a route) are in the same process but have no
- * dependency path between them.
+ * to reach into module state or reset a singleton between cases. The instance exists to keep this
+ * state OUT of `RouteDeps`/the composition root: `cli/commands/serve.ts` (the minting call site) and
+ * `admin-http/dev-auth.ts`'s route (the redeeming call site) both call this module's own exported
+ * functions directly, never through `deps`.
+ *
+ * An earlier version of this comment claimed the two call sites "have no dependency path between
+ * them" — that is false at the module level and is corrected here (2026-09-06, while adding this
+ * route's first server-side test, `admin-boot-session-route.test.ts`): `serve.ts` builds the very
+ * `RouteDeps` bag it hands to `createApp(deps)`, which is what wires `registerAuthRoutes(app, deps)` —
+ * i.e. `serve.ts` already depends on `dev-auth.ts`, transitively through `createApp`, in the very same
+ * function that calls {@link mintBootSessionToken}. What is actually true, and is the real reason for
+ * this singleton, is narrower: NEITHER call site reads or writes the token through `deps`, so this
+ * module (mint and redeem sites included) can be deleted outright without `RouteDeps`'s shape ever
+ * having to change — unlike a hypothetical `deps.bootToken` field, which every other `RouteDeps`
+ * consumer and test fixture would have had to account for.
  */
 
 /** Bytes of entropy per token. 32 bytes = 256 bits, the same size the identity library uses for a
@@ -99,9 +111,9 @@ export function createBootSessionTokenStore(): BootSessionTokenStore {
   };
 }
 
-/** The one store this process uses. See this file's header for why a module-scoped instance rather
- *  than something threaded through the composition root: the minting site is the CLI and the
- *  redeeming site is a route, in the same process with no dependency path between them. */
+/** The one store this process uses. See this file's header ("Architectural role") for why a
+ *  module-scoped instance, not a `RouteDeps`-threaded field, is the right shape: neither the CLI's
+ *  mint call nor the route's redeem call ever needs to read this through `deps`. */
 const processStore = createBootSessionTokenStore();
 
 /** Mint this launch's boot token. Called at most once, by `cli/commands/serve.ts`. */
