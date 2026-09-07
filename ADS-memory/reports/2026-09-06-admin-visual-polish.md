@@ -250,3 +250,6 @@ Authentication are back to Jini's own card (`border 1px`, `radius 8px`, kicker x
 The measurements the coordinator asked to keep verbatim: `.jini-tabbed-dialog--inline` — `border: 1px`,
 `border-radius: 8px`, `overflow: hidden`, `--jini-bg-elevated` fill; 24px (`--jini-modal-padding`) content inset
 putting the kicker at **x=125, y=62** against **x=100, y=39** on every other screen. After: x=100, y=37.
+
+| `89c8c380` | Settings pinned to light + full unconditional de-card; scoping defect from `9f13f0e3` fixed; `resolveDialogDataTheme` removed |
+| `ea8c660b` | Report addendum for the above |
