@@ -60,6 +60,22 @@ sites/*/content.db-shm
 sites/*/content.db.bak-*
 sites/*/restore-point-*.db
 sites/*/out/
+# 2026-09-06: commit 0fb84ae0 split chat history out of content.db into its own per-site
+# chat.db, but added no ignore rule for the new file -- the rule above protects content.db's
+# "real chat transcripts" (see comment at the top of this block), and those transcripts moved out
+# from under it. Closing that gap here, plus the undated .bak forms the dated
+# `content.db.bak-*` rule above doesn't reach (content.db.bak, content.db.predelete.bak, and
+# chat.db's own .bak) and the restore-point WAL/shm sidecars (the bare rule above only matches the
+# .db file itself, the same sidecar gap content.db already gets explicit rules for).
+sites/*/chat.db
+sites/*/chat.db-wal
+sites/*/chat.db-shm
+# Covers content.db.bak, content.db.predelete.bak, and chat.db.bak in one durable rule instead of
+# naming each snapshot variant -- any future undated .bak dropped directly in a site dir is a
+# point-in-time DB copy, same class as the dated content.db.bak-* rule above.
+sites/*/*.bak
+sites/*/restore-point-*.db-wal
+sites/*/restore-point-*.db-shm
 # `content.seed.db` itself IS tracked (see above), but its own WAL/shm sidecars are the same
 # open-connection artifact as content.db's own -- e.g. merely opening it read-only with
 # better-sqlite3 creates them -- and committing one against a mismatched content.seed.db would
