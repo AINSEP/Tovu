@@ -46,6 +46,7 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: null,
     contentType: "image/png",
     ...overrides,
   };

@@ -50,6 +50,7 @@ export interface MediaPort {
       width?: number | null;
       height?: number | null;
       cssClass?: string | null;
+      htmlAttributes?: string | null;
     }
   ): Promise<{ media: AdminMedia }>;
   trashMedia(id: string): Promise<{ media: AdminMedia }>;

@@ -36,6 +36,7 @@ const ITEM: AdminMedia = {
   width: null,
   height: null,
   cssClass: null,
+  htmlAttributes: null,
   contentType: "image/png",
 };
 
@@ -105,6 +106,73 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+describe("htmlAttributes — live hint must never gate save() (regression pin for a7cce060)", () => {
+  it("htmlAttributesError reflects the live draft (null when empty/valid, a specific message when rejected)", () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const { result } = renderHook(
+      () => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }),
+      { wrapper }
+    );
+
+    expect(result.current.htmlAttributesError).toBeNull();
+    act(() => result.current.setHtmlAttributes('onerror="alert(1)"'));
+    expect(result.current.htmlAttributesError).toMatch(/onerror/i);
+    act(() => result.current.setHtmlAttributes(""));
+    expect(result.current.htmlAttributesError).toBeNull();
+  });
+
+  /**
+   * The exact shape of the reverted bug (`a7cce060`): `save()` used to check
+   * `if (htmlAttributesError) return;` BEFORE `diffMediaMetadata` ever ran, so a changed title never
+   * reached the port while the attributes draft was invalid. This calls `save()` directly (not
+   * through `Media.tsx`'s Save button — that DOM-level path is covered in `Media.unit.test.tsx`) to
+   * pin the hook's own contract independently of how any future UI wires the button.
+   */
+  it("save() still calls the port and completes while htmlAttributes is invalid — proves save() has no early-return gate on it (the exact shape of a7cce060: `if (htmlAttributesError) return;` BEFORE anything was ever sent)", async () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const onSaved = vi.fn();
+    const { result } = renderHook(
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      { wrapper }
+    );
+
+    act(() => result.current.setHtmlAttributes('onerror="alert(1)"'));
+    expect(result.current.htmlAttributesError).toBeTruthy();
+    act(() => result.current.setTitle("New title"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // `diffMediaMetadata` is a diff, not a validator — it has no opinion on whether a changed value
+    // is ALLOWED, only on whether it changed (see `rules.ts`'s own doc). So a genuinely dirty,
+    // genuinely invalid `htmlAttributes` legitimately rides along in the same atomic patch as the
+    // title change; a REAL server would then reject the whole call (see Jini's `updateMediaMetadata`
+    // write-nothing-on-rejection test). What this proves is narrower and load-bearing on its own:
+    // `save()` actually reached the port at all — the old bug never got this far.
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(port.items[0]?.title).toBe("New title");
+    expect(port.items[0]?.htmlAttributes).toBe('onerror="alert(1)"');
+  });
+
+  it("a valid htmlAttributes change reaches the port, matching cssClass's identical trim-to-null convention", async () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const onSaved = vi.fn();
+    const { result } = renderHook(
+      () => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }),
+      { wrapper }
+    );
+
+    act(() => result.current.setHtmlAttributes('data-motion="fade-in"'));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(port.items[0]?.htmlAttributes).toBe('data-motion="fade-in"');
   });
 });
 

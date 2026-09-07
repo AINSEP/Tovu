@@ -1204,6 +1204,15 @@ export interface AdminMedia {
   height: number | null;
   cssClass: string | null;
   /**
+   * Free-text HTML attributes (2026-09-07, owner-directed) threaded onto this asset's public
+   * `<img>`/`<video>` tag — same "one string column, `null` means not set" shape as `cssClass`.
+   * Raw, ALREADY-VALIDATED source text (e.g. `data-motion="fade-in" loading="lazy"`). This is a
+   * stored-XSS boundary: the server re-validates against the same allowlist
+   * (`features/media/rules.ts`'s `parseMediaHtmlAttributes`) on both write and render, so a
+   * client-side check here is a UX convenience, never the enforcement itself.
+   */
+  htmlAttributes: string | null;
+  /**
    * The asset's real media type, sniffed server-side from the stored bytes — never the content
    * type the browser reported at upload time. Drives the Media screen's "Images"/"Videos" tabs.
    *
@@ -2554,6 +2563,7 @@ export const api = {
       width?: number | null;
       height?: number | null;
       cssClass?: string | null;
+      htmlAttributes?: string | null;
     } = {}
   ) =>
     request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`, {

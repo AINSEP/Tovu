@@ -56,6 +56,9 @@ export type MediaMetadataPatch = {
   width?: number | null;
   height?: number | null;
   cssClass?: string | null;
+  /** Same undefined/null/value contract as `cssClass` above (2026-09-07) — see `AdminMedia
+   *  .htmlAttributes`'s own doc. */
+  htmlAttributes?: string | null;
 };
 
 /** Builds a partial patch containing only the fields whose draft value differs from `item`'s
@@ -82,6 +85,7 @@ export function diffMediaMetadata(required: {
   if (draft.width !== item.width) patch.width = draft.width;
   if (draft.height !== item.height) patch.height = draft.height;
   if (draft.cssClass !== item.cssClass) patch.cssClass = draft.cssClass;
+  if (draft.htmlAttributes !== item.htmlAttributes) patch.htmlAttributes = draft.htmlAttributes;
   return patch;
 }
 
@@ -95,22 +99,23 @@ export function parseOptionalPixelSize(value: string): number | null {
 }
 
 /**
- * NOT WIRED TO A FORM (2026-09-07, coordinator decision). This allowlist was built for an
- * `HTML attributes` field the edit form briefly carried and then had removed: `AdminMedia`/
- * `MediaRecord` has no field to persist it in, and a control that renders, validates, and names
- * specific rejected attributes reads as working even with an honest "not saved yet" hint under it —
- * on Leona's own live admin, that is a worse outcome than the field simply not existing. See
- * `ADS-memory/reports/2026-09-07-media-admin-ui.md` for the full history and the exact cross-package
- * touchpoints (`@jini-ai/cms`'s `types.ts`/`media-service.ts`, `apps/website`'s
- * `parseMediaMetadataPatch`, and the render emission point) a follow-up agent needs to cross to
- * finish the pipe — that work is already assigned, batched with a media-slug feature needing the
- * identical three-layer crossing.
+ * WIRED TO `EditMediaPanel`'s "HTML attributes" field (2026-09-07). Originally built ahead of the
+ * field it now backs (see the removed/re-added history in `ADS-memory/reports/
+ * 2026-09-07-media-admin-ui.md` and `2026-09-07-media-slug-and-attributes.md`): `AdminMedia`/
+ * `MediaRecord` gained `htmlAttributes: string | null` (same "one string column, `null` means not
+ * set" shape as `cssClass`), the server now persists and re-validates it (write path:
+ * `updateMediaMetadata`'s `resolveHtmlAttributesForUpdate`; render path: `render.ts`'s
+ * `renderImageTag`/`renderVideoTag`, both re-parsing with `@jini-ai/cms/media`'s own copy of this
+ * allowlist), and this file's `isAllowedMediaHtmlAttributeName`/`parseMediaHtmlAttributes`/
+ * `describeMediaHtmlAttributeError` now back the admin form's live, as-you-type hint.
  *
- * Kept here anyway, deliberately: this is a pure function with no React/DOM dependency and its own
- * direct-invoke tests (`__tests__/media-html-attributes.unit.test.tsx`) — this repo's own standing
- * rule for an unreachable branch is "delete it, or give it a direct-invoke test", and this already
- * has the latter. The follow-up agent should import and reuse this allowlist (at both the write path
- * and the render path — a client-side-only check is not a control) rather than redesign it.
+ * That hint is a UX convenience, not the security boundary: the server re-validates independently
+ * (its own ported copy of this same allowlist, `@jini-ai/cms/media`'s `html-attributes.ts` — see
+ * that file's doc for why it is a separate copy, not a shared import across the browser/Node
+ * boundary) and fails closed, so a client bypassed or out of date cannot smuggle a rejected value
+ * onto the public render. This form-side copy exists purely so an operator sees WHY a value would be
+ * rejected before ever clicking save, and it must never gate `save()` itself — see
+ * `use-edit-media-panel.hooks.ts`'s `save()` doc for the incident (`a7cce060`) this rule prevents.
  *
  * Exact-match attribute names the allowlist accepts beyond the open-ended `data-`/`aria-` prefix
  * families (checked separately in {@link isAllowedMediaHtmlAttributeName}) — see

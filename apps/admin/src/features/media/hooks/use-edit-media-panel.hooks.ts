@@ -2,7 +2,15 @@ import { useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
-import { KEYS, describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
+import {
+  KEYS,
+  describeApiError,
+  describeMediaHtmlAttributeError,
+  diffMediaMetadata,
+  parseMediaHtmlAttributes,
+  parseOptionalPixelSize,
+  type MediaMetadataPatch,
+} from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
@@ -42,6 +50,18 @@ import type { MediaPort } from "./media-port.hooks";
  * had since changed would show up as "changed" (draft's stale original vs the new live value) and
  * get wrongly included in the patch, silently reverting the other operator's committed change. See
  * `rules.ts`'s `diffMediaMetadata` doc for the other half of this fix.
+ *
+ * `htmlAttributesError` (2026-09-07): a LIVE, as-you-type hint only — computed from `draft
+ * .htmlAttributes` via `rules.ts`'s `parseMediaHtmlAttributes`/`describeMediaHtmlAttributeError`,
+ * shown so an operator sees why a value would be rejected before clicking Save. It must NEVER gate
+ * `save()` (and `Media.tsx` must never disable the Save button on it either) — an earlier version of
+ * this field did exactly that (`if (htmlAttributesError) return;` before `diffMediaMetadata` ever
+ * ran, reverted as `a7cce060`), which meant an invalid attributes draft silently blocked saving
+ * title/alt/caption/credit/cssClass too, fields with nothing to do with it. `save()` below always
+ * runs `diffMediaMetadata` and submits unconditionally; if `htmlAttributes` itself is invalid, the
+ * SERVER's `MediaValidationError` -> 400 (already wired, `updateMediaMetadata`'s
+ * `resolveHtmlAttributesForUpdate`) surfaces through the same `error` save-error banner every other
+ * save failure already uses — exactly how a malformed `slug` already works end to end.
  */
 
 export interface EditMediaPanelHookProps {
@@ -69,6 +89,13 @@ export interface EditMediaPanelController {
   setWidth: (value: string) => void;
   setHeight: (value: string) => void;
   setCssClass: (value: string) => void;
+  /** Same undefined/null/value-trims-to-null contract as `setCssClass` — see `AdminMedia
+   *  .htmlAttributes`'s own doc. */
+  setHtmlAttributes: (value: string) => void;
+  /** The specific, visible allowlist-rejection message for `draft.htmlAttributes`'s CURRENT value,
+   *  or `null` when it parses clean (including empty/unset) — a live hint only, see this file's own
+   *  header for why it must never gate `save()`. */
+  htmlAttributesError: string | null;
   saving: boolean;
   error: string | null;
   /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
@@ -97,6 +124,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     width: item.width,
     height: item.height,
     cssClass: item.cssClass,
+    htmlAttributes: item.htmlAttributes,
   });
   // Frozen at mount, exactly like `draft`'s own `useState` initializer above — `useRef(item)` only
   // reads its argument on the FIRST render, so this stays the value `draft` was seeded from even as
@@ -146,6 +174,14 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   function setCssClass(value: string) {
     setDraft((d) => ({ ...d, cssClass: value.trim() === "" ? null : value }));
   }
+  function setHtmlAttributes(value: string) {
+    setDraft((d) => ({ ...d, htmlAttributes: value.trim() === "" ? null : value }));
+  }
+
+  const htmlAttributesParsed = parseMediaHtmlAttributes(draft.htmlAttributes ?? "");
+  const htmlAttributesError = htmlAttributesParsed.error
+    ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
+    : null;
 
   async function copyHash() {
     try {
@@ -196,6 +232,8 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setWidth,
     setHeight,
     setCssClass,
+    setHtmlAttributes,
+    htmlAttributesError,
     saving: saveMutation.status === "pending",
     error,
     hashCopied,

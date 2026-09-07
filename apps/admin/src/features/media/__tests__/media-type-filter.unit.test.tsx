@@ -37,6 +37,7 @@ function makeItem(overrides: Partial<AdminMedia> & { id: string }): AdminMedia {
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: null,
     contentType: null,
     ...overrides,
   };

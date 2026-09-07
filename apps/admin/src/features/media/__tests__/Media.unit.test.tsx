@@ -45,6 +45,7 @@ const ACTIVE_ITEM = {
   width: null,
   height: null,
   cssClass: null,
+  htmlAttributes: null,
 };
 const TRASHED_ITEM = {
   id: "media-2",
@@ -63,6 +64,7 @@ const TRASHED_ITEM = {
   width: null,
   height: null,
   cssClass: null,
+  htmlAttributes: null,
 };
 const MEDIA_RESPONSE = { media: [ACTIVE_ITEM, TRASHED_ITEM] };
 
@@ -812,6 +814,113 @@ describe("EditMediaPanel — slug field", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(/taken-slug/);
+  });
+});
+
+/**
+ * `EditMediaPanel` — HTML attributes field (2026-09-07). The load-bearing regression this pins:
+ * an earlier version of this field gated `save()` on the client-side allowlist check, so an
+ * invalid HTML-attributes draft silently blocked saving every OTHER field too (title, alt,
+ * caption, credit, cssClass — none of which have anything to do with this field). Reverted as
+ * `a7cce060`; see `use-edit-media-panel.hooks.ts`'s own header for the full incident. These tests
+ * prove that regression cannot recur: a live, visible hint is fine, a save-blocking gate is not.
+ */
+describe("EditMediaPanel — HTML attributes field", () => {
+  async function openEditPanel() {
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await screen.findByRole("heading", { name: /editing "sunset photo"/i });
+    return user;
+  }
+
+  it("a valid value PATCHes htmlAttributes verbatim — proves the client actually sends the field, not just that the server would accept it", async () => {
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: { ...ACTIVE_ITEM, htmlAttributes: 'data-motion="fade-in"' } }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    await user.type(screen.getByLabelText("HTML attributes (optional)"), 'data-motion="fade-in"');
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchBody).toEqual({ htmlAttributes: 'data-motion="fade-in"' });
+  });
+
+  it("an on* handler shows a live, specific error naming it, but does NOT disable Save (regression pin for a7cce060)", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = await openEditPanel();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).not.toBeDisabled();
+
+    await user.type(screen.getByLabelText("HTML attributes (optional)"), 'onerror="alert(1)"');
+
+    expect(await screen.findByText(/onerror/i)).toBeInTheDocument();
+    expect(saveButton).not.toBeDisabled();
+  });
+
+  it("clicking Save while HTML-attributes is invalid still sends the patch — the exact a7cce060 regression, corrected: the OLD code returned from save() before this request was ever attempted", async () => {
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: { ...ACTIVE_ITEM, title: "A Whole New Title" } }, 400));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    // Leave the HTML-attributes field invalid (an on* handler) while ALSO changing title. Under the
+    // reverted bug, `save()` returned before `diffMediaMetadata` ever ran, so NO request would ever
+    // reach `fetch` at all and `patchBody` would stay `null` forever, regardless of the mocked
+    // response below — this is a real fetch, not a stub the test drives directly.
+    await user.type(screen.getByLabelText("HTML attributes (optional)"), 'onerror="alert(1)"');
+    await screen.findByText(/onerror/i);
+    const titleInput = screen.getByLabelText("Title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "A Whole New Title");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // `diffMediaMetadata` is a diff, not a validator (see `rules.ts`'s own doc) — a genuinely dirty,
+    // genuinely invalid `htmlAttributes` legitimately rides along in the same atomic patch as the
+    // title change; the mocked 400 above stands in for the real server then rejecting the whole call
+    // (Jini's `updateMediaMetadata` writes nothing on a rejection, title included). What matters here
+    // is narrower and load-bearing on its own: the request was actually SENT.
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchBody).toEqual({ title: "A Whole New Title", htmlAttributes: 'onerror="alert(1)"' });
+  });
+
+  it("a 400 rejection from the server surfaces through the same save-error banner other failures use, even for a value THIS form's own client-side check passed (proves the server enforces independently, not just this form's live hint)", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        return Promise.resolve(jsonResponse({ error: "media.htmlAttributes: 'data-motion' is not an allowed HTML attribute." }, 400));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    // A value THIS form's own allowlist accepts cleanly (no live hint appears) — the mocked 400
+    // below stands in for the server's INDEPENDENT copy of the allowlist rejecting it anyway
+    // (@jini-ai/cms/media's own `html-attributes.ts`, not this file's `rules.ts`), which is exactly
+    // the scenario a client-only check could never catch on its own.
+    await user.type(screen.getByLabelText("HTML attributes (optional)"), 'data-motion="fade-in"');
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/data-motion/);
   });
 });
 

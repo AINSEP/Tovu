@@ -303,7 +303,7 @@ interface EditMediaPanelProps {
 }
 
 /** The metadata edit form for one media item's title/alt/caption/credit (REQ-01) plus the
- *  quick-and-dirty sizing/class overrides. Presented inside `EditMediaModal`'s `<dialog>` (owner
+ *  quick-and-dirty sizing/class/HTML-attributes overrides. Presented inside `EditMediaModal`'s `<dialog>` (owner
  *  ask, 2026-09-07 — see this file's header for why this moved off the grid) rather than rendering
  *  its own card chrome: the dialog itself supplies the surface/border/shadow (`media.css`'s
  *  `.media-edit-dialog`), so this component's own root is a plain content wrapper. */
@@ -319,6 +319,8 @@ function EditMediaPanel(props: EditMediaPanelProps) {
     setWidth,
     setHeight,
     setCssClass,
+    setHtmlAttributes,
+    htmlAttributesError,
     saving,
     error,
     hashCopied,
@@ -334,7 +336,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
       className="media-edit-modal-body"
       {...agentHandle("media-edit-panel", {
         role: "region",
-        label: "Edit media metadata — title, alt text, caption, credit, size and CSS class",
+        label: "Edit media metadata — title, alt text, caption, credit, size, CSS class and HTML attributes",
       })}
     >
       <div className="editor-header">
@@ -465,6 +467,28 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             onChange={(e) => setCssClass(e.target.value)}
             {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
           />
+        </div>
+        {/* HTML attributes (2026-09-07, owner-directed — animations, custom WebMCP hooks on the
+            emitted tag). `htmlAttributesError` below is a LIVE, as-you-type hint only — it must
+            never disable Save (see `use-edit-media-panel.hooks.ts`'s own header for the regression
+            this rule prevents, `a7cce060`): an invalid value here still lets every other field save,
+            and the server's own 400 (already enforced independently, not just by this hint) surfaces
+            through the `error` banner below exactly like a malformed slug already does. */}
+        <div className="field">
+          <label className="field-label" htmlFor={`media-edit-html-attributes-${item.id}`}>
+            {t("HTML attributes (optional)")}
+          </label>
+          <input
+            id={`media-edit-html-attributes-${item.id}`}
+            value={draft.htmlAttributes ?? ""}
+            onChange={(e) => setHtmlAttributes(e.target.value)}
+            aria-invalid={htmlAttributesError ? true : undefined}
+            {...agentHandle("media-edit-html-attributes", {
+              role: "field",
+              label: "Optional HTML attributes applied to this asset's rendered tag on the public site",
+            })}
+          />
+          {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
         </div>
         {/* User report: "where is the location of the asset? I dont see the location data" — there
             was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
