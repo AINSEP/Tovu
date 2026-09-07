@@ -1,5 +1,7 @@
-import type { AdminSchemaState } from "../../lib/api";
+import type { AdminLedgerRow, AdminSchemaState } from "../../lib/api";
 import type { QueryKey } from "../../lib/fetch-query";
+import { formatTimestamp } from "../../lib/format-timestamp";
+import { t } from "./database-i18n";
 
 /**
  * @file Pure logic for the `database` feature — everything that computes a value rather than
@@ -136,4 +138,25 @@ export function resolveSchemaStateWarning(
         body: "This site reported a status this version of the admin does not recognise, so we cannot tell whether your database is up to date.",
       };
   }
+}
+
+/**
+ * Distinct accessible name for one Timeline row's "View in Recovery →" button.
+ *
+ * Every row with a `restorePointId` renders the identical visible text (`t(locale, "View in
+ * Recovery →")`) — fine for a sighted operator reading the row it sits in, but every one of these
+ * buttons is on screen SIMULTANEOUSLY (unlike a per-row menu item, which only ever has one open
+ * instance at a time), so `getByRole("button", { name: "View in Recovery →" })` — or any
+ * accessibility-tree-driven agent resolving by role+name rather than table position — cannot tell
+ * one ledger row's link from another's. Same defect class as `recovery/rules.ts`'s
+ * `restoreButtonAccessibleName`, on this screen's own analogous always-visible per-row link.
+ *
+ * Appends the row's own kind and timestamp — both already visible in that row's other columns —
+ * AFTER the visible label rather than replacing it, so the accessible name still starts with the
+ * exact visible text (WCAG 2.5.3 Label in Name).
+ *
+ * @complexity O(1).
+ */
+export function viewInRecoveryAccessibleName(locale: string, row: Pick<AdminLedgerRow, "kind" | "createdAt">): string {
+  return `${t(locale, "View in Recovery →")} — ${row.kind}, ${formatTimestamp(row.createdAt)}`;
 }

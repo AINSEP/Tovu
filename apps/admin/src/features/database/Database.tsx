@@ -13,6 +13,7 @@ import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t, planReadyMessage } from "./database-i18n";
+import { viewInRecoveryAccessibleName } from "./rules";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
@@ -196,6 +197,11 @@ function timelineColumns(
             type="button"
             className="database-restore-point-link"
             onClick={() => navigateToRecoveryWithDeepLink(row)}
+            // Every row's visible text is the identical "View in Recovery →", and every row's
+            // button is on screen at once (not a per-row menu item) — see `rules.ts`'s
+            // `viewInRecoveryAccessibleName` doc comment for why that is ambiguous to anything
+            // resolving elements by accessible name rather than table position.
+            aria-label={viewInRecoveryAccessibleName(locale, row)}
             {...agentHandle(handleForRestorePointCell(row.id), {
               role: "button",
               label: "Open this ledger entry's restore point in Recovery",

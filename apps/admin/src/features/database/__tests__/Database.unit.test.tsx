@@ -255,12 +255,27 @@ describe("TimelineSection — loading/error/loaded", () => {
     expect(table).toHaveTextContent("core.migration");
     expect(table).toHaveTextContent("success");
     expect(table).toHaveTextContent("2026-08-01 12:34");
-    expect(screen.getByRole("button", { name: "View in Recovery →" })).toBeInTheDocument();
+    // Accessible name, not just visible text: `viewInRecoveryAccessibleName` (rules.ts) appends
+    // this row's own kind/timestamp after the visible "View in Recovery →" label so this control's
+    // accessible name is distinct per row — see the multi-row test below.
+    expect(screen.getByRole("button", { name: "View in Recovery → — core.migration, 2026-08-01 12:34" })).toBeInTheDocument();
+  });
+
+  it("gives each row's 'View in Recovery →' link a DISTINCT accessible name, not a repeated bare one", () => {
+    // Two ledger rows differing only by kind/timestamp — every row's button is on screen at once
+    // (unlike a per-row menu item), so identical accessible names would make
+    // `getByRole("button", { name: "View in Recovery →" })` — or any accessibility-tree-driven
+    // agent — unable to tell which row's restore point it would open.
+    const otherRow: AdminLedgerRow = { ...ROW, id: "row3", kind: "index.provision", createdAt: "2026-08-02T09:00:00.000Z" };
+    renderDatabase({ timeline: { rows: [ROW, otherRow] } });
+    expect(screen.getByRole("button", { name: "View in Recovery → — core.migration, 2026-08-01 12:34" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View in Recovery → — index.provision, 2026-08-02 09:00" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^View in Recovery →/ })).toHaveLength(2);
   });
 
   it("renders '—' instead of a link when the row has no restorePointId", () => {
     renderDatabase({ timeline: { rows: [ROW_NO_RESTORE_POINT] } });
-    expect(screen.queryByRole("button", { name: "View in Recovery →" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^View in Recovery →/ })).not.toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
@@ -274,7 +289,7 @@ describe("TimelineSection — loading/error/loaded", () => {
     const user = userEvent.setup();
     sessionStorage.removeItem("recovery-deep-link-envelope");
     renderDatabase({ timeline: { rows: [ROW] } });
-    await user.click(screen.getByRole("button", { name: "View in Recovery →" }));
+    await user.click(screen.getByRole("button", { name: "View in Recovery → — core.migration, 2026-08-01 12:34" }));
     const stashed = sessionStorage.getItem("recovery-deep-link-envelope");
     expect(stashed).not.toBeNull();
     expect(JSON.parse(stashed!)).toMatchObject({ restorePointId: "rp1", ledgerEventId: "row1" });
