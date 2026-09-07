@@ -1495,6 +1495,29 @@ Checked against `apps/website/src/features/theme/theme.ts`,
   renders About / Contact / FAQ / Terms of Service / Privacy Policy, with no Team item. `/team`
   itself still 404s; nothing links to it.
 
+### Measured 2026-09-06: every footer menu item is a raw URL, so none of them is protected
+
+The open question above — whether the stored footer items are content refs (which get
+`renderMenuLinks`' `item.available` filter) or raw URLs (which do not) — is settled. Read read-only
+from `sites/tovu-com/content.db`, table `menus`, column `doc_json`: **all eight items in both footer
+menus are `"target": {"kind": "url", "href": "…"}`.** Not one is a content ref.
+
+Note the slug is `footer-nav`, not `menu-footer-nav` (the embed id in the partial differs from the
+stored menu's slug — worth confirming which one the resolver keys on).
+
+```
+footer-nav       About /about · Contact /contact · FAQ /faq ·
+                 Terms of Service /terms-of-service · Privacy Policy /privacy-policy
+footer-resources Docs /docs · Articles /articles · About /about
+```
+
+**Consequence:** the availability filter protects nothing in the footer today. All eight links are
+emitted unconditionally. They return 200 only because a content row currently owns each slug —
+delete or unpublish any one of them and the footer emits a silent 404 with nothing to catch it. So
+option 2 below is **not** already safe as live state; it is one unpublish away from the filed bug,
+and adopting it means actually re-authoring these eight items as content refs, not just declaring
+the current arrangement canonical.
+
 ### Drift: the tracked copy would reinstate the original bug
 
 `sites/` is gitignored, so `content/themes/static/basic/` is what a reinstall or upgrade deploys —
