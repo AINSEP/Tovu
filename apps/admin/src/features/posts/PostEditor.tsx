@@ -10,7 +10,10 @@ import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedIns
 import type { AdminPost, ThemeTier } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
-import type { StandingDraftAutosaveSnapshot } from "../../hooks/use-standing-draft-autosave.hooks";
+import type {
+  StandingDraftAutosaveSnapshot,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
 import {
@@ -24,6 +27,7 @@ import {
   isAutosaveDraftStale,
   overridesThemePageFromSelectValue,
   postAutosaveBannerMessage,
+  postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
   type PostSaveConflict,
 } from "./rules";
@@ -735,6 +739,51 @@ function PostAutosaveRecoveryBanner({
 }
 
 /**
+ * Standing-draft autosave — the STALE-BASIS notice (2026-09-06). Mirrors
+ * `features/pages/PageEditor.tsx`'s identical `PageAutosaveStaleBanner`; both editors share
+ * `useStandingDraftAutosave`, so a notice in only one of them leaves the other silent.
+ *
+ * Three neighbouring banners on this screen, three genuinely different facts:
+ * - `PostAutosaveRecoveryBanner` — work found parked from a PREVIOUS session, offered back.
+ * - `PostVersionConflictBanner` — an EXPLICIT Save the server rejected, with a way past it.
+ * - this one — BACKGROUND autosaving has stopped for the session happening right now, because
+ *   another operator's save moved this post's version out from under this tab. Until it existed the
+ *   operator had no way to know: the editor looked completely normal while every write it made was
+ *   being thrown away. `postAutosaveStaleBasisMessage` (`rules.ts`) owns the wording so this
+ *   component stays markup only.
+ *
+ * NO buttons, deliberately, and this is the one design decision here worth defending:
+ * - A "Dismiss" would let the operator silence a warning that is still true, putting them straight
+ *   back into the silent data loss this whole path exists to end. The notice clears by itself when
+ *   autosaving actually resumes (`usePostEditor`'s `autosaveStaleBasis` goes null once a write is
+ *   accepted on a fresh basis) and at no other time, so it can never be lying while it is on screen.
+ *   `PostVersionConflictBanner`'s own Dismiss is not a precedent for one here: that banner reports a
+ *   single finished request, while this reports a condition that is still true as it is read.
+ * - A "Reload" would wipe the operator's typed text out of the editor on their behalf. Their only
+ *   remaining copy would then be the shared hook's best-effort browser-storage mirror, which is not
+ *   a guarantee this component can make on their behalf (`localStorage` throws outright in some
+ *   privacy modes). The message tells them to copy their work first and leaves the choice with them.
+ *
+ * No `t` prop, matching `postAutosaveStaleBasisMessage`'s own interpolated-copy convention — there
+ * is no button label here for `t` to resolve.
+ */
+function PostAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStaleBasis }) {
+  return (
+    <div
+      className="notice warning"
+      {...agentHandle("post-autosave-stale", {
+        role: "region",
+        label:
+          "Another operator saved this while you were editing — autosaving has stopped, and your " +
+          "unsaved changes are still here in the editor",
+      })}
+    >
+      <p>{postAutosaveStaleBasisMessage(staleBasis)}</p>
+    </div>
+  );
+}
+
+/**
  * Optimistic concurrency (2026-09-06) — the "someone else saved while you were editing" banner.
  * Rendered only after a save was actually rejected with `409 VERSION_CONFLICT`; never on load, and
  * never for the slug-uniqueness 409 the same route can also return (see `rules.ts`'s
@@ -1221,6 +1270,67 @@ export interface PostEditorProps {
   usePostEditorHook?: typeof useWiredPostEditor;
 }
 
+/**
+ * The three "something happened to your work" notices, grouped into one component so their three
+ * independent render decisions are scored in this scope instead of accumulating onto `PostEditor`'s
+ * — the same extraction `PostEditorHeader`/`PostEditorActions` above already document, and the
+ * reason this exists at all: adding the stale-basis notice put `PostEditor` at a complexity of 10
+ * against this repo's ceiling of 9.
+ *
+ * Deliberately NOT merged into a single "pick the most important one" banner. All three can be true
+ * at once and each reports a different fact with a different remedy — see `PostAutosaveStaleBanner`'s
+ * own doc for the distinction. Suppressing one because another is showing would put the operator
+ * back to guessing which of their edits actually survived.
+ *
+ * Order is deliberate: recovery (work from a previous session, an explicit choice to make) first,
+ * then the stale-basis notice (a condition still true right now), then the rejected save (the most
+ * recent thing the operator personally did). Nothing here can touch the working copy.
+ */
+function PostEditorNotices({
+  recoverableDraft,
+  currentVersion,
+  restoreRecoveredDraft,
+  discardRecoveredDraft,
+  autosaveStaleBasis,
+  saveConflict,
+  saveOverwritingConflict,
+  dismissSaveConflict,
+  t,
+}: {
+  recoverableDraft: StandingDraftAutosaveSnapshot | null;
+  currentVersion: number;
+  restoreRecoveredDraft: () => void;
+  discardRecoveredDraft: () => Promise<void>;
+  autosaveStaleBasis: StandingDraftStaleBasis | null;
+  saveConflict: PostSaveConflict | null;
+  saveOverwritingConflict: () => Promise<void>;
+  dismissSaveConflict: () => void;
+  t: Translate;
+}) {
+  return (
+    <>
+      {recoverableDraft ? (
+        <PostAutosaveRecoveryBanner
+          recoverableDraft={recoverableDraft}
+          currentVersion={currentVersion}
+          onRestore={restoreRecoveredDraft}
+          onDiscard={discardRecoveredDraft}
+          t={t}
+        />
+      ) : null}
+      {autosaveStaleBasis ? <PostAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {saveConflict ? (
+        <PostVersionConflictBanner
+          saveConflict={saveConflict}
+          onSaveAnyway={() => void saveOverwritingConflict()}
+          onDismiss={dismissSaveConflict}
+          t={t}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: PostEditorProps) {
   const {
     post,
@@ -1269,6 +1379,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     saveConflict,
     saveOverwritingConflict,
     dismissSaveConflict,
+    autosaveStaleBasis,
   } = usePostEditorHook(postId);
 
   if (error && !post) return <div className="notice error">{error}</div>;
@@ -1280,23 +1391,17 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     <div className="page">
       <PostEditorHeader kindLabel={kindLabel} confirmLeave={confirmLeave} t={t} />
 
-      {recoverableDraft ? (
-        <PostAutosaveRecoveryBanner
-          recoverableDraft={recoverableDraft}
-          currentVersion={post.version}
-          onRestore={restoreRecoveredDraft}
-          onDiscard={discardRecoveredDraft}
-          t={t}
-        />
-      ) : null}
-      {saveConflict ? (
-        <PostVersionConflictBanner
-          saveConflict={saveConflict}
-          onSaveAnyway={() => void saveOverwritingConflict()}
-          onDismiss={dismissSaveConflict}
-          t={t}
-        />
-      ) : null}
+      <PostEditorNotices
+        recoverableDraft={recoverableDraft}
+        currentVersion={post.version}
+        restoreRecoveredDraft={restoreRecoveredDraft}
+        discardRecoveredDraft={discardRecoveredDraft}
+        autosaveStaleBasis={autosaveStaleBasis}
+        saveConflict={saveConflict}
+        saveOverwritingConflict={saveOverwritingConflict}
+        dismissSaveConflict={dismissSaveConflict}
+        t={t}
+      />
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
           the bare `type="text"` announcement (slug, which had no placeholder either). The
           wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without

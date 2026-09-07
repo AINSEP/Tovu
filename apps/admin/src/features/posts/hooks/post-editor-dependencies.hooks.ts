@@ -204,9 +204,17 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
 
+    // Models the real guard, not just the happy path: `writeAutosave`
+    // (`apps/website/src/features/post/repo.sqlite.ts`) is one `UPDATE ... WHERE version =
+    // baseVersion`, so a draft built on a superseded basis is REFUSED — `{ applied: false }`, and
+    // nothing is parked. Reproducing that here is what lets a test reach a genuine stale basis via
+    // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
+    // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
+    // server threw away" is exactly the observation a stale-basis test needs.
     async putAutosave(id, draft) {
       if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
       putAutosaveCalls.push(draft);
+      if (draft.baseVersion !== state.post.version) return { applied: false };
       autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
       return { applied: true };
     },

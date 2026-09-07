@@ -6,6 +6,7 @@ import {
   buildPostRowMenuHandleMap,
   isAutosaveDraftStale,
   postAutosaveBannerMessage,
+  postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
   readPostVersionConflict,
   comparePostsByStatus,
@@ -794,5 +795,49 @@ describe("readPostVersionConflict / postVersionConflictMessage", () => {
       "Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. " +
         "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
     );
+  });
+});
+
+/**
+ * The stale-basis notice's copy, pinned literally. `toBe` on the whole sentence, not a substring
+ * match: this is the only thing an operator ever learns about a running editor that has silently
+ * stopped persisting their work, so each clause is load-bearing and a reworded one should have to be
+ * a deliberate edit here. In particular it must never grow a promise that the text is recoverable
+ * after a reload — see the function's own doc for why that promise cannot be kept.
+ */
+describe("postAutosaveStaleBasisMessage", () => {
+  const EXPECTED =
+    "Someone else saved this while you were editing — you were working from version 4, so autosaving " +
+    "has paused and nothing you type now is being stored. Your changes were NOT saved, and are still " +
+    "here in the editor. Reload to pick up their version and resume autosaving; copy anything you " +
+    "want to keep first.";
+
+  it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
+    const message = postAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+      bodyFormat: "doc",
+      bodyJson: { type: "doc", content: [] },
+      title: "Hello world",
+      slug: "hello-world",
+      baseVersion: 4,
+    } });
+
+    expect(message).toBe(EXPECTED);
+    // Spelled out so a reword that drops one of them fails here rather than silently shipping.
+    expect(message).toContain("version 4");
+    expect(message).toContain("autosaving has paused");
+    expect(message).toContain("were NOT saved");
+    expect(message).toContain("still here in the editor");
+  });
+
+  it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
+    const message = postAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+      bodyFormat: "doc",
+      bodyJson: { type: "doc", content: [] },
+      title: "Hello world",
+      slug: "hello-world",
+      baseVersion: 4,
+    } });
+
+    expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
   });
 });

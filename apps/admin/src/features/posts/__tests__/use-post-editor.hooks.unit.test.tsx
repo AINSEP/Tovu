@@ -73,6 +73,12 @@ const fakeT = (key: string): string => key;
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  // A REFUSED autosave mirrors the operator's text into `localStorage`
+  // (`lib/standing-draft-local-backup.ts`), and jsdom keeps one storage for the whole file — so
+  // without this, one test's refused draft becomes the NEXT test's mount-time `recoverableDraft`
+  // for the same post id. Refusals are reachable from any test here now that
+  // `createFakePostEditorPort` models the server's real version guard.
+  localStorage.clear();
 });
 
 describe("usePostEditor — load", () => {
@@ -817,6 +823,86 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
 
       expect(port.putAutosaveCalls).toHaveLength(1);
       expect(port.putAutosaveCalls[0]).toMatchObject({ title: "Half-typed, then left the screen" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /**
+   * STALE BASIS (2026-09-06) — the two-tab case, at the composed level. `simulateConcurrentSave`
+   * moves the stored row under this editor exactly as another operator's save would, so the next
+   * autosave tick is refused by the fake's own version guard rather than by a stubbed answer.
+   *
+   * Asserts the two things that together ARE the fix: the editor's controller now carries something
+   * an operator can be told (`autosaveStaleBasis` — what `PostEditor.tsx` renders its notice from),
+   * and the operator's typed text is still exactly where they left it. Asserting only that
+   * `putAutosave` was called would pass under the silent bug this closes, and asserting only the
+   * notice without the text would pass under a "fix" that reported the conflict by throwing the
+   * work away — which would be worse than the original defect.
+   */
+  it("a refused autosave surfaces autosaveStaleBasis carrying the refused text, and leaves the working copy untouched", async () => {
+    vi.useFakeTimers();
+    try {
+      const port = createFakePostEditorPort({ post: POST });
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.editor).not.toBeNull();
+      expect(result.current.autosaveStaleBasis).toBeNull();
+
+      // Another operator saves. This editor is not told, and still believes it is on POST.version.
+      port.simulateConcurrentSave();
+
+      act(() => result.current.setTitle("Typed while the other tab was saving"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(port.putAutosaveCalls).toHaveLength(1);
+      expect(result.current.autosaveStaleBasis).toEqual({
+        baseVersion: POST.version,
+        draft: expect.objectContaining({ title: "Typed while the other tab was saving", baseVersion: POST.version }),
+      });
+      // The single most important property of this whole path.
+      expect(result.current.title).toBe("Typed while the other tab was saving");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /**
+   * The notice must not linger once autosaving actually works again — an operator staring at a
+   * false "autosaving has paused" would stop trusting the true one.
+   *
+   * Walks the whole two-tab recovery the product actually offers: the refused tick, the operator's
+   * own Save rejected by the same superseded basis (`409 VERSION_CONFLICT`), their explicit "Save
+   * anyway", and then a tick on the fresh basis that the server accepts. Their text survives every
+   * step of it.
+   */
+  it("autosaveStaleBasis clears once a write is accepted again, rather than sticking for the session", async () => {
+    vi.useFakeTimers();
+    try {
+      const port = createFakePostEditorPort({ post: POST });
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.editor).not.toBeNull();
+
+      port.simulateConcurrentSave();
+      act(() => result.current.setTitle("Typed while the other tab was saving"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+      expect(result.current.autosaveStaleBasis).not.toBeNull();
+
+      // The operator's own Save hits the same superseded basis, then they choose to overwrite.
+      await act(async () => {
+        await result.current.save();
+      });
+      expect(result.current.saveConflict).not.toBeNull();
+      await act(async () => {
+        await result.current.saveOverwritingConflict();
+      });
+
+      act(() => result.current.setTitle("Typed again, now on the current version"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(result.current.autosaveStaleBasis).toBeNull();
+      expect(result.current.title).toBe("Typed again, now on the current version");
     } finally {
       vi.useRealTimers();
     }

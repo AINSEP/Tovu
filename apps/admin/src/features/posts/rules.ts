@@ -4,7 +4,10 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { ApiError, type AdminPost } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
+import type {
+  StandingDraftAutosaveInput,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
 import { POSTS_DICT } from "./posts-i18n";
 
@@ -180,6 +183,34 @@ export function postVersionConflictMessage(conflict: PostSaveConflict): string {
   return (
     `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
     "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+  );
+}
+
+/**
+ * The stale-basis notice's own message — the BACKGROUND-autosave sibling of
+ * {@link postVersionConflictMessage} just above, and the reason `staleBasis` exists on the shared
+ * autosave hook at all. NOT run through `t()`, for the same reason neither of the two messages above
+ * is: it interpolates.
+ *
+ * Says the four things an operator cannot infer from a screen that otherwise looks completely
+ * normal: that someone else saved, that autosaving has consequently STOPPED (a running editor that
+ * silently persists nothing is the entire defect), that their work is unsaved but still in front of
+ * them, and what actually resumes autosaving.
+ *
+ * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
+ * refused draft into browser storage (`lib/standing-draft-local-backup.ts`), but that mirror is
+ * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
+ * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
+ * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function postAutosaveStaleBasisMessage(staleBasis: StandingDraftStaleBasis): string {
+  return (
+    `Someone else saved this while you were editing — you were working from version ${staleBasis.baseVersion}, ` +
+    "so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are " +
+    "still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want " +
+    "to keep first."
   );
 }
 

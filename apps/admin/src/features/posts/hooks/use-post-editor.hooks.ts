@@ -28,6 +28,7 @@ import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
+  type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import {
   buildPostAutosaveDraft,
@@ -240,6 +241,26 @@ export interface PostEditorController extends PostEditorUiController {
   restoreRecoveredDraft: () => void;
   /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
   discardRecoveredDraft: () => Promise<void>;
+  /**
+   * Standing-draft autosave — non-null once the server has REFUSED a background write for this post
+   * because another operator's save moved the row's `version` out from under this editor. Mirrors
+   * `features/pages/hooks/use-page-editor.hooks.ts`'s identical field; both editors share
+   * `useStandingDraftAutosave`, so a notice in only one of them leaves the other silent.
+   *
+   * Three states that look alike on screen and are not: {@link recoverableDraft} is work found
+   * parked from a PREVIOUS session, {@link saveConflict} is an EXPLICIT Save the server rejected,
+   * and this is BACKGROUND autosaving having stopped for the session happening right now — while it
+   * is set, nothing the operator types is being persisted anywhere the server can see.
+   *
+   * Surfaced so `PostEditor.tsx` can say so on screen. That is the whole point of passing it
+   * through: `useStandingDraftAutosave` has recorded this since commit `a60e07e8`, and with no
+   * editor consuming it the operator could type for an hour into a screen that looked completely
+   * normal and be told nothing until they reloaded.
+   *
+   * Reporting it never costs the operator their text — the working copy (`title`/`slug`/`bodyJson`
+   * and the mounted editor) is not touched on this path, by this hook or by the shared one.
+   */
+  autosaveStaleBasis: StandingDraftStaleBasis | null;
 }
 
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
@@ -1005,6 +1026,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     recoverableDraft: autosave.recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,
+    autosaveStaleBasis: autosave.staleBasis,
   };
 }
 

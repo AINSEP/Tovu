@@ -848,6 +848,9 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     recoverableDraft: null,
     restoreRecoveredDraft: vi.fn(),
     discardRecoveredDraft: vi.fn(),
+    // Stale basis (2026-09-06). `null` is "autosave is healthy", so the notice never renders in the
+    // pre-existing tests here — its own suite below overrides it.
+    autosaveStaleBasis: null,
     // Optimistic concurrency (2026-09-06) — same reasoning as the autosave three just above:
     // `saveConflict: null` is "no conflict", so `PostVersionConflictBanner` never renders here.
     saveConflict: null,
@@ -1137,5 +1140,54 @@ describe("Template picker — theme with zero templates", () => {
     const select = templateSelect();
     expect(select).toBeDisabled();
     expect(select).toHaveTextContent(/no templates for this theme/i);
+  });
+});
+
+/**
+ * Standing-draft autosave — the STALE-BASIS notice (2026-09-06). Distinct from the recovery banner
+ * (`recoverableDraft`, work found parked from a PREVIOUS session) and from `PostVersionConflictBanner`
+ * (an explicit Save the server rejected): this one reports that BACKGROUND autosaving has stopped
+ * for the session happening right now. `usePostEditor` decides when (`autosaveStaleBasis`) and
+ * `rules.ts` decides what it says; this proves the component renders it at all, which is precisely
+ * the gap that existed — the shared hook recorded the refusal and no editor consumed it, so the
+ * operator was told nothing until they reloaded.
+ *
+ * Mirrors `features/pages/__tests__/PageEditor.unit.test.tsx`'s identical suite: both editors share
+ * the hook, so a notice in only one of them leaves the other silently dropping work.
+ */
+describe("standing-draft autosave stale-basis notice", () => {
+  const STALE = {
+    baseVersion: 3,
+    draft: {
+      bodyFormat: "doc" as const,
+      bodyJson: { type: "doc", content: [] },
+      title: "Still being typed",
+      slug: "hello-world",
+      baseVersion: 3,
+    },
+  };
+
+  it("renders nothing while autosave is healthy", () => {
+    renderPostEditor({ autosaveStaleBasis: null });
+    expect(screen.queryByText(/someone else saved this/i)).not.toBeInTheDocument();
+  });
+
+  it("tells the operator autosaving has paused, their work is unsaved, and it is still in the editor", () => {
+    renderPostEditor({ autosaveStaleBasis: STALE });
+    const notice = screen.getByText(/someone else saved this while you were editing/i);
+    expect(notice).toHaveTextContent(/version 3/);
+    expect(notice).toHaveTextContent(/autosaving has paused/i);
+    expect(notice).toHaveTextContent(/were NOT saved/);
+    expect(notice).toHaveTextContent(/still here in the editor/i);
+  });
+
+  /** Deliberately no Dismiss, and deliberately no Reload button — see `PostAutosaveStaleBanner`'s
+   *  own doc. This asserts the absence, because "add a Dismiss" is the obvious next change and it
+   *  would put the operator back in the silent state this whole fix exists to end. */
+  it("offers no button that could silence it or discard the operator's text", () => {
+    renderPostEditor({ autosaveStaleBasis: STALE });
+    const region = document.querySelector('[data-agent-element="post-autosave-stale"]');
+    expect(region).not.toBeNull();
+    expect(region!.querySelectorAll("button")).toHaveLength(0);
   });
 });
