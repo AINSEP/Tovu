@@ -37,6 +37,21 @@ const THEME_BLURBS: Record<string, string> = {
  *  value, since it has no themes to bucket and never becomes the active/default tab. */
 const MARKETPLACE_TAB_ID = "marketplace";
 
+/**
+ * An `aria-label` naming which card a repeated action button acts on.
+ *
+ * "Activate"/"Download" read identically on every card in their own grid — a screen reader or a
+ * generic browser agent reading the accessibility tree (roles + accessible names, not this repo's
+ * own `data-agent-label` — `agentHandle()`'s `label` option is a private `data-agent-*` attribute,
+ * invisible to both) has no way to tell one card's button from another's without this. Busy and
+ * idle share this one derivation so the accessible name never drifts from the visible verb.
+ *
+ * @complexity O(1).
+ */
+function actionButtonAriaLabel(idleVerb: string, busyVerb: string, busy: boolean, itemName: string): string {
+  return `${busy ? busyVerb : idleVerb} ${itemName}`;
+}
+
 /** `group` capitalized for a tab label — honest rather than inventing marketing names for tiers
  *  (`code`) that have no shipped theme and no established product name yet. Routed through `t()`
  *  (same pattern as the "Marketplace (soon)" label right next to it) so these translate instead of
@@ -321,6 +336,7 @@ function MarketplaceGrid({
               className="btn-primary"
               disabled={downloading !== null}
               onClick={() => void download?.(item.id)}
+              aria-label={actionButtonAriaLabel(t("Download"), t("Downloading…"), downloading === item.id, item.name)}
               {...agentHandle(`${cardHandles[index]}-download`, { role: "button", label: `Download the "${item.name}" theme` })}
             >
               {downloading === item.id ? t("Downloading…") : t("Download")}
@@ -387,6 +403,7 @@ function ThemeGrid({
                   className="btn-primary"
                   disabled={busyTheme !== null}
                   onClick={() => activate(themeId)}
+                  aria-label={actionButtonAriaLabel(t("Activate"), t("Activating…"), busyTheme === themeId, themeId)}
                   {...agentHandle(`${handleBase}-activate`, { role: "button", label: `Activate the "${themeId}" theme` })}
                 >
                   {busyTheme === themeId ? t("Activating…") : t("Activate")}
@@ -396,6 +413,7 @@ function ThemeGrid({
                 type="button"
                 className="btn-explore"
                 onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                aria-label={`${t("Explore")} ${themeId}`}
                 {...agentHandle(`${handleBase}-explore`, { role: "button", label: `Explore the "${themeId}" theme's files` })}
               >
                 {t("Explore")}

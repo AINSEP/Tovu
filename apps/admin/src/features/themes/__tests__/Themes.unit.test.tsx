@@ -127,18 +127,30 @@ describe("theme grid", () => {
     render(<Themes useThemesHook={() => baseController({ activate })} />);
 
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
-    await user.click(within(columnCard).getByRole("button", { name: "Activate" }));
+    await user.click(within(columnCard).getByRole("button", { name: "Activate column" }));
     expect(activate).toHaveBeenCalledWith("column");
   });
 
   it("disables every Activate button while any one theme is busy, and shows Activating… on that one", () => {
     render(<Themes useThemesHook={() => baseController({ busyTheme: "column" })} />);
-    const columnButton = screen.getByRole("button", { name: "Activating…" });
+    const columnButton = screen.getByRole("button", { name: "Activating… column" });
     const officialCard = screen.getByText("tovu-official").closest(".theme-card") as HTMLElement;
-    const officialButton = within(officialCard).getByRole("button", { name: "Activate" });
+    const officialButton = within(officialCard).getByRole("button", { name: "Activate tovu-official" });
     expect(columnButton).toBeDisabled();
     expect(officialButton).toBeDisabled();
     expect(officialButton).toHaveTextContent("Activate");
+  });
+
+  it("gives every Activate/Explore button a page-wide-unique accessible name naming its own theme — a generic browser agent reads the accessibility tree, not this repo's own agentHandle() data-agent-label", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    // Page-wide `screen.getByRole` (no `within()` scoping) — this is exactly what a generic
+    // accessibility-tree-driven agent would query, and it fails with an ambiguous-match error if
+    // two cards' buttons ever share one accessible name again.
+    expect(screen.getByRole("button", { name: "Activate tovu-official" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activate column" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explore tovu-official" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explore column" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explore signal" })).toBeInTheDocument();
   });
 
   it("renders a card for every theme, using known blurb copy where available and blank otherwise", () => {
@@ -151,7 +163,7 @@ describe("theme grid", () => {
   it("styles Activate with the admin's primary-action class, not the muted theme-card default (owner feedback: match PostEditor's Save button)", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
-    expect(within(columnCard).getByRole("button", { name: "Activate" })).toHaveClass("btn-primary");
+    expect(within(columnCard).getByRole("button", { name: "Activate column" })).toHaveClass("btn-primary");
   });
 });
 
@@ -308,7 +320,7 @@ describe("Marketplace tab", () => {
     // operator asked for `basic` reads as something having gone wrong.
     expect(screen.getByText(/already have a theme called/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("button", { name: "Download Basic" }));
     // Called with the MARKETPLACE id — the server assigns the suffixed local id, not this caller.
     expect(download).toHaveBeenCalledWith("basic");
   });
@@ -325,7 +337,7 @@ describe("Marketplace tab", () => {
         }
       />,
     );
-    const button = screen.getByRole("button", { name: "Downloading…" });
+    const button = screen.getByRole("button", { name: "Downloading… Basic" });
     expect(button).toBeDisabled();
   });
 
@@ -464,7 +476,7 @@ describe("Explore button", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
 
-    await user.click(within(columnCard).getByRole("button", { name: "Explore" }));
+    await user.click(within(columnCard).getByRole("button", { name: "Explore column" }));
 
     expect(window.location.pathname).toBe("/admin/themes/explore");
     expect(window.location.search).toBe("?theme=column");
