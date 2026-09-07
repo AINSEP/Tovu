@@ -31,7 +31,8 @@
  * latter unconditionally runs pending migrations and writes the bootstrap watermark row before a
  * caller's own `--dry-run` check ever runs, so it is not actually read-only. `openContentDbReadOnly`
  * opens the file in SQLite's own `readonly` connection mode — a write from anywhere in this process
- * fails at the driver level, not just by this script's own discipline.
+ * fails at the driver level, not just by this script's own discipline. (Owned by the shared
+ * `runAadBackfillMain` in `aad-backfill-runner.ts` now — see that module's own header.)
  *
  * Idempotent and resumable, per row: each row is updated the instant it is verified (not batched),
  * so a crash or `Ctrl-C` mid-run leaves every already-updated row at `aad_version = 1` (done) and
@@ -50,6 +51,11 @@
  * re-seal and is left at `aad_version = 0` (harmless — nothing ever reads that column when
  * `sealed_ciphertext` is `NULL`).
  *
+ * The dry-run/`--apply` split, restore-point capture, and per-row seal-verify-write loop live in
+ * `aad-backfill-runner.ts`, shared with the other five `backfill-*-aad.ts` scripts — this file keeps
+ * only what's genuinely specific to `media_provider_credentials`: its identity shape, its AAD
+ * builder, and its own column write.
+ *
  * ## Usage
  *
  *   npx tsx development/scripts/backfill-media-provider-credential-aad.ts                (dry run)
@@ -67,32 +73,23 @@
  */
 import path from "node:path";
 
-import { resolveExistingDbPath } from "./backfill-db-path.js";
-
 import { and, eq } from "drizzle-orm";
 
-import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { mediaProviderCredentials } from "../../apps/website/src/platform/db/schema.js";
-import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/index.js";
+import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { buildMediaProviderCredentialAad } from "../../apps/website/src/features/media/aad.js";
 
+import {
+  runAadBackfill,
+  runAadBackfillMain,
+  type AadBackfillDeps,
+  type AadBackfillMainMessages,
+  type AadBackfillResult,
+  type AadBackfillUnit,
+} from "./aad-backfill-runner.js";
+
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-
-interface Args {
-  readonly dbPath: string;
-  readonly apply: boolean;
-}
-
-function parseArgs(argv: readonly string[]): Args {
-  const dbFlag = argv.indexOf("--db");
-  return {
-    dbPath: dbFlag === -1 ? path.join(REPO_ROOT, "infra", "content.db") : path.resolve(argv[dbFlag + 1]),
-    apply: argv.includes("--apply"),
-  };
-}
+const DEFAULT_DB_PATH = path.join(REPO_ROOT, "infra", "content.db");
 
 interface PendingRow {
   readonly workspaceId: string;
@@ -117,19 +114,41 @@ function loadPendingRows(db: ContentDb): PendingRow[] {
     }));
 }
 
-export interface MediaProviderCredentialAadBackfillDeps {
-  readonly db: ContentDb;
-  readonly sealer: SecretSealerPort;
-  readonly keyring: KeyringPort;
-  /** Defaults to `console.log`. Injected so callers (tests, `main()`) can capture or silence
-   *  progress output without this function knowing anything about where it goes. */
-  readonly log?: (message: string) => void;
+/** @complexity O(n) in the pending row count. */
+function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
+  return loadPendingRows(db).map((row) => ({
+    label: `workspace=${row.workspaceId} provider=${row.providerId}`,
+    sealed: row.sealed,
+    buildAad: () => buildMediaProviderCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId }),
+    write: (sealed) =>
+      db
+        .update(mediaProviderCredentials)
+        .set({
+          sealedKeyId: sealed.keyId,
+          sealedCiphertext: sealed.ciphertext,
+          sealedNonce: sealed.nonce,
+          sealedAlg: sealed.alg,
+          aadVersion: 1,
+        })
+        .where(and(eq(mediaProviderCredentials.workspaceId, row.workspaceId), eq(mediaProviderCredentials.providerId, row.providerId)))
+        .run(),
+  }));
 }
 
-export interface MediaProviderCredentialAadBackfillResult {
-  readonly migrated: number;
-  readonly total: number;
-}
+const messages: AadBackfillMainMessages = {
+  found: (count) => `Found ${count} row(s) at aad_version=0 with a key to migrate.`,
+  dryRunUnit: (label) => `DRY RUN: would migrate ${label} -> aad_version=1`,
+  migratedUnit: (label) => `MIGRATED: ${label} -> aad_version=1`,
+  mismatch: (label) =>
+    `media-provider-credential AAD backfill: post-seal verification mismatch for ${label} — refusing to write a row that cannot be proven to re-open correctly`,
+  dryRunSummary: (result) =>
+    `DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`,
+  nothingToMigrate: () => "Nothing to migrate — every media_provider_credentials row with a key already carries aad_version=1.",
+  done: (result) => `Done: ${result.migrated} row(s) migrated, ${result.total} total pending.`,
+};
+
+export interface MediaProviderCredentialAadBackfillDeps extends AadBackfillDeps {}
+export interface MediaProviderCredentialAadBackfillResult extends AadBackfillResult {}
 
 /**
  * The core per-row upgrade — see this file's header for the full design. `opts.apply === false`
@@ -147,86 +166,16 @@ export async function runMediaProviderCredentialAadBackfill(
   deps: MediaProviderCredentialAadBackfillDeps,
   opts: { apply: boolean }
 ): Promise<MediaProviderCredentialAadBackfillResult> {
-  const log = deps.log ?? ((message: string) => console.log(message));
-  const pending = loadPendingRows(deps.db);
-  log(`Found ${pending.length} row(s) at aad_version=0 with a key to migrate.`);
-
-  let migrated = 0;
-  for (const row of pending) {
-    if (!opts.apply) {
-      migrated += 1;
-      log(`DRY RUN: would migrate workspace=${row.workspaceId} provider=${row.providerId} -> aad_version=1`);
-      continue;
-    }
-
-    const plaintext = await deps.sealer.open({ sealed: row.sealed });
-    const aad = buildMediaProviderCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId });
-    const activeKey = await deps.keyring.activeKey();
-    const sealed = await deps.sealer.seal({ plaintext, key: activeKey, aad });
-
-    // Post-seal self-check (this file's own header) — never write a row this process cannot itself
-    // prove re-opens to the exact plaintext it just sealed.
-    const verifyPlaintext = await deps.sealer.open({ sealed, aad });
-    if (verifyPlaintext !== plaintext) {
-      throw new Error(
-        `media-provider-credential AAD backfill: post-seal verification mismatch for workspace=${row.workspaceId} provider=${row.providerId} — refusing to write a row that cannot be proven to re-open correctly`
-      );
-    }
-
-    deps.db
-      .update(mediaProviderCredentials)
-      .set({
-        sealedKeyId: sealed.keyId,
-        sealedCiphertext: sealed.ciphertext,
-        sealedNonce: sealed.nonce,
-        sealedAlg: sealed.alg,
-        aadVersion: 1,
-      })
-      .where(and(eq(mediaProviderCredentials.workspaceId, row.workspaceId), eq(mediaProviderCredentials.providerId, row.providerId)))
-      .run();
-
-    migrated += 1;
-    log(`MIGRATED: workspace=${row.workspaceId} provider=${row.providerId} -> aad_version=1`);
-  }
-
-  return { migrated, total: pending.length };
+  return runAadBackfill(deps, opts, { loadPending: loadPendingUnits, messages });
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  // Prove the database is really there BEFORE opening it: `openContentDb` creates and
-  // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
-  const dbPath = resolveExistingDbPath(args.dbPath);
-
-  if (!args.apply) {
-    // Read-only open: a dry run must never migrate or write the bootstrap watermark row (see
-    // `openContentDbReadOnly`'s own doc, and this file's "Safety" section above). Constructed
-    // unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually called —
-    // a dry run below never calls either, so it needs no `TOVU_INTEGRATIONS_ROOT_KEY`.
-    const db = openContentDbReadOnly(dbPath);
-    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-    const sealer = new AesGcmSecretSealer(keyring);
-    const result = await runMediaProviderCredentialAadBackfill({ db, sealer, keyring }, { apply: false });
-    console.log(`DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`);
-    return;
-  }
-
-  const db = openContentDb(dbPath);
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
-
-  const pendingCount = loadPendingRows(db).length;
-  if (pendingCount === 0) {
-    console.log("Nothing to migrate — every media_provider_credentials row with a key already carries aad_version=1.");
-    return;
-  }
-
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
-  const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-media-provider-credential-aad" });
-  console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
-
-  const result = await runMediaProviderCredentialAadBackfill({ db, sealer, keyring }, { apply: true });
-  console.log(`Done: ${result.migrated} row(s) migrated, ${result.total} total pending.`);
+  await runAadBackfillMain(process.argv.slice(2), {
+    defaultDbPath: DEFAULT_DB_PATH,
+    restorePointScopeId: "backfill-media-provider-credential-aad",
+    loadPending: loadPendingUnits,
+    messages,
+  });
 }
 
 main().catch((err) => {
