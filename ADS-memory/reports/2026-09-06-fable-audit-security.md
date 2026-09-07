@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 00:44 — chat attachment trio + refusal-notice read; §1e. Next: BYOK executor stack, sites binding, adopt, duplicateSite, export href, escapeHtml copies, scripts, autosave route, media-import + http egress at HEAD.
 - 00:33 — daemon-auth, INV-05 route, external-mcp guard/put/trust read. §1b–1d.
 - 00:22 — boot token (`15548bef`) read end to end: `boot-session-token.ts`, `dev-auth.ts:391-427`, `serve.ts:259-283`, `desktop-auth.cjs`, `tovu-server.cjs`. Verdict below (§3a). INV-05 fix commit read; route file next.
 - 00:12 — desktop read at frozen SHA: `project-delete-guard.cjs`, `project-ipc.cjs`, `main.cjs`, `desktop-auth.cjs`, `tovu-server.cjs`, `keyed-serializer.cjs`, `preload.mts`, `site-registry.cjs` (partial). D-04/D-05 verdicts below.
@@ -72,6 +73,13 @@ Read `apps/website/src/assistant/daemon-auth.ts` (whole), `agent-daemon-server.t
 - `routes/external-mcp/put.ts:86`: `writeAllowedToolNames` is `asStringField` — a non-string collapses to `""` → clears every write grant (fail-closed; noted in-file as known).
 - `mcp-federation/trust.ts:403-450`: both lists consulted; `writeAllowedButNotAllowlisted` is surfaced, never admitted. Admission is computed once at connect (R5) — config read at daemon start, confirmed by `put.ts:105-108` `restartRequired: true`.
 - `refusal-notice.ts` (what the MODEL is told) — pending read for secret leakage.
+
+- `refusal-notice.ts` (whole): every remote name re-checked against `SAFE_REMOTE_NAME` before it reaches the prompt (`:92-111`); explanations are fixed literals; connection id is operator-authored + pattern-validated upstream; list capped at 10 (`:100`). No command/env/URL of the connection is rendered. **No leak.**
+
+## 1e. Chat attachments (`0b298d86`, `f281d3a2`, `feb8a777`, `72e1e529`, `3b196ffb`) — verified, one accepted widening
+- `features/media/read-chat-attachment.ts` (whole): ref allowlisted (`:106`), sidecar dir parent-equality (`:282`), batch dir re-derived from canonical root not from the sidecar (`:193-201`), owner compared BEFORE the file is touched and an ownerless record matches nobody (`:296-303`), `isUnchangedAttachment` dev/ino/size + realpath (`:305-307`). HTTP shell (`routes/assistant/get-chat-attachment.ts`) collapses every refusal to one 404 body and sniffs content type from bytes, forcing download for html/svg/xhtml. **Sound.**
+- `promote-chat-attachment.ts:38-52`: promotion is scoped by RUN claim (`resolveForRun(ref, ctx.run.id)`), not by owner; the file states the first-claimer-wins model for an unclaimed attachment. Cross-principal promotion therefore needs the victim's ref (`attachment:<uuid>`, 122-bit) or its absolute path (`<root>/<batchId 8-80 random>/<name>`), neither of which the discovery tool leaks (`list-pending-chat-attachments.ts:91` is owner-scoped). Read side is owner-scoped, promote side is run-scoped — an asymmetry, documented in-file as accepted. Not a finding; recorded so the next auditor does not re-derive it.
+- Daemon principal: `agent-daemon-server.ts:670` `principal = { id: decoded.principalId }` straight from the proxy-supplied `contextRef`. Only the bearer gate stands between a local process and "run tools as any principal id" — this is the real impact statement for SEC-04 (still same-user, still Low).
 
 ## 2. Codex `pending` commits (priority 2)
 _(in progress)_
