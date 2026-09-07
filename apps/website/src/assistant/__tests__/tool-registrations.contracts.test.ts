@@ -39,6 +39,7 @@ import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
+import { mediaImportAgentToolCatalog } from "../../features/media-import/agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -194,6 +195,10 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
   // header. The entry this dispatch was sent to add; see this const's own doc above.
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
+  // `media-import` (2026-09-06): `media_import_from_url`, wired via `contributeMediaImportTools()` —
+  // see `features/media-import/tool-registrations.ts`'s own header. Added at the same time the
+  // contributor was, rather than after the completeness test above caught it.
+  "media-import": mediaImportAgentToolCatalog as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],

@@ -438,6 +438,13 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Draw me an illustration of a mountain landscape.",
     "Can you make an AI image and add it to the media library?",
   ],
+  media_import_from_url: [
+    "Can you save the image at this link into our media library?",
+    "I have a URL for a picture — how do I get it into the CMS?",
+    "Download this image from the web and add it to our media files.",
+    "Another tool gave me a link to an image it made. Can you import it?",
+    "How do I add a photo that lives on someone else's site or CDN?",
+  ],
   members_list: [
     "Who are our site members right now?",
     "Can you show me pending, active, and disabled members?",

@@ -59,6 +59,15 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   media_update_metadata: "image alt text caption description rename file photo metadata",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
   media_promote_chat_attachment: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
+  // 2026-09-06 — the incident this tool exists for was a DISCOVERY failure as much as a capability
+  // one: the assistant was holding a CloudFront URL for an image it had just generated and reported
+  // there was "no import-by-URL tool". Whatever an operator (or a model) calls the act of pointing at
+  // a link and saying "keep that": url/link/address/href, import/download/fetch/grab/pull/save/store,
+  // plus the words for WHERE it came from (remote, external, cdn, s3, cloudfront, web, internet,
+  // online, elsewhere) — none of which the tool's own description happens to use in every form.
+  // Singulars AND plurals spelled out: the FTS5 `unicode61` tokenizer does not stem (see this file's
+  // header), so "url" and "urls" are unrelated tokens.
+  media_import_from_url: "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
 
   // --- webhooks (formerly integrations) -----------------------------------------------------
   webhooks_list_subscriptions: "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
