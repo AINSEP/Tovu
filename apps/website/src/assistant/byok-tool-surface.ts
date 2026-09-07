@@ -8,11 +8,15 @@
  * enforces. Two independent compositions of the same pure functions, not two different tool surfaces
  * (traced and confirmed in the 2026-08-04 milestone report to the Coordinator before this was written).
  *
- * `createToolRegistry`/`createToolExecutor` are `@jini-ai/core`/`@jini-ai/daemon`'s own public,
- * side-effect-only-at-call exports — nothing here reaches into either package's internals, and
- * nothing here talks MCP or spawns a process. `agent-daemon-server.ts:196-201,272` builds its own
- * registry/executor pair the exact same way; this module is a second, independent caller of the same
- * public API, not a fork of it.
+ * `createToolRegistry` is `@jini-ai/core`'s own public, side-effect-only-at-call export — nothing
+ * here reaches into its internals, and nothing here talks MCP or spawns a process.
+ * `agent-daemon-server.ts:196-201,272` builds its own registry the exact same way; this module is a
+ * second, independent caller of the same public API, not a fork of it. The EXECUTOR half is no
+ * longer a second independent call, as of the 2026-09-06 parity fix: both this module and the daemon
+ * now build theirs through `tool-executor-stack.ts`'s shared `createAssistantToolExecutor`, so the
+ * read-only gate, the attempt audit, and the failure-recovery loop are the identical composition for
+ * both surfaces rather than two hand-assembled copies that could (and once did) drift — see that
+ * file's own header.
  *
  * `surfaceExchanges` (exposed on {@link ByokToolSurface}) is a FRESH store, not shared with the
  * daemon's — it never could be; see `surface-exchanges.ts`'s own module doc for why an open exchange
@@ -37,7 +41,7 @@ import {
   type ToolDescriptor,
   type ToolRegistry,
 } from "@jini-ai/core";
-import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
+import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -46,8 +50,7 @@ import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
-import { withToolAttemptAudit } from "./tool-executor-audit.js";
-import { withToolFailureRecovery } from "./tool-failure-recovery.js";
+import { createAssistantToolExecutor } from "./tool-executor-stack.js";
 
 /** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
  *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight
@@ -432,27 +435,23 @@ export function createByokToolSurface(
     registry.register(registration);
   }
 
-  // `execute_delegated_tool` is what actually reaches this — every real tool a BYOK-mode model
-  // calls, `custom_credential_verify` included — so it gets the same durable audit trail the Local
-  // CLI path's own executor construction (`agent-daemon-server.ts`) already wraps its executor
-  // with. Bare (unwrapped) only when the caller supplied no `toolAttemptAudit` sink, matching that
-  // option's own documented "neither half is logged" contract.
-  const rawExecutor = createToolExecutor({ registry });
-  const auditedExecutor = options.toolAttemptAudit
-    ? withToolAttemptAudit(rawExecutor, options.toolAttemptAudit.sink, { workspaceId: options.toolAttemptAudit.workspaceId })
-    : rawExecutor;
-  // `withToolFailureRecovery` (the generic ask -> apply -> retry-once loop over a `{hint,
-  // remedyToolId}` diagnostic — see that file's own header) wraps the AUDITED executor, not the bare
-  // one, matching `agent-daemon-server.ts:448-450`'s identical ordering: the remedy call and the
-  // retry are each their own audited attempt, not lost inside one outer "completed" row. Unlike the
-  // audit wrap above, this one is NOT conditional on anything the caller supplies — `surfaceExchanges`
-  // and `registry` are both unconditional local consts already built by this function (immediately
-  // above), never options a caller could omit, so there is no "bare executor" degradation case for
-  // this half the way there is for audit. Before 2026-09-02 this executor was built without this
-  // wrap at all, so a BYOK-mode diagnostic (e.g. from `custom_credential_verify`) reached the model
-  // as a dead-end failure instead of the same self-healing loop the Local CLI path already had — see
-  // `byok-tool-surface.test.ts`'s matching WIRING tests.
-  const executor = withToolFailureRecovery(auditedExecutor, { surfaceExchanges, registry });
+  // Routed through `tool-executor-stack.ts`'s SHARED `createAssistantToolExecutor` — the exact same
+  // decorator stack (read-only gate, then attempt audit, then failure recovery) the agent daemon's
+  // own delegated-tool route composes, not a second, independently hand-assembled copy of it. Before
+  // 2026-09-06 this function built its own inline stack that never wrapped
+  // `withReadOnlyToolConstraint` at all, so a read-only-constrained principal (nothing sets that flag
+  // for BYOK today, but `createByokToolSurface`'s only real caller — `assistant-byok.ts` — has no
+  // structural guarantee that stays true) could dispatch a write tool through
+  // `execute_delegated_tool` with no gate to refuse it; see `tool-executor-stack.ts`'s own header for
+  // why one shared composition is what keeps that from silently reopening. `toolAttemptAudit` is
+  // forwarded verbatim — omitted, the shared factory skips its own audit wrap the identical way this
+  // function's inline one used to, matching this option's documented "neither half is logged"
+  // contract.
+  const executor = createAssistantToolExecutor({
+    registry,
+    surfaceExchanges,
+    ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
+  });
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.

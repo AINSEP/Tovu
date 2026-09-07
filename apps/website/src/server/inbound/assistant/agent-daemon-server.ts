@@ -481,7 +481,11 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // The decorator order — and in particular why the read-only gate is innermost — lives in
 // `tool-executor-stack.ts` alongside the composition itself, so it is exercisable by a test that does
 // not have to boot this whole module.
-const toolExecutor = createAssistantToolExecutor({ registry, auditSink, surfaceExchanges, workspaceId: routeDeps.workspaceId });
+const toolExecutor = createAssistantToolExecutor({
+  registry,
+  surfaceExchanges,
+  toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
+});
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see

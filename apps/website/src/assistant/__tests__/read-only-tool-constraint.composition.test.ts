@@ -110,9 +110,8 @@ async function buildHarness(): Promise<Harness> {
 
   const executor = createAssistantToolExecutor({
     registry,
-    auditSink: createInMemoryToolAttemptAuditSink(),
     surfaceExchanges,
-    workspaceId: WORKSPACE_ID,
+    toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
   });
 
   return { registry, repo, surfaceExchanges, executor, credentialId: created.id };
@@ -288,9 +287,8 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
   const surfaceExchanges = createSurfaceExchangeStore();
   const executor = createAssistantToolExecutor({
     registry,
-    auditSink: createInMemoryToolAttemptAuditSink(),
     surfaceExchanges,
-    workspaceId: WORKSPACE_ID,
+    toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
   });
 
   const emitted: unknown[] = [];

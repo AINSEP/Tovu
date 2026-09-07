@@ -24,6 +24,7 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
+import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
@@ -221,6 +222,62 @@ test("a model that calls a REAL tool id as the tool NAME is told how to reach it
   const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("workspace_get", {}));
   assert.equal(result.isError, true);
   assert.match(result.content, /execute_delegated_tool with toolId: "workspace_get"/);
+});
+
+// ---------------------------------------------------------------------------
+// READ-ONLY PARITY (2026-09-06): `read-only-tool-constraint.composition.test.ts` proves the daemon's
+// `createAssistantToolExecutor` stack refuses a read-only-constrained principal's write dispatch —
+// but that stack is composed ONCE, in `tool-executor-stack.ts`, and this file's own `surface()` used
+// to hand-assemble a SECOND, independent composition that never wrapped `withReadOnlyToolConstraint`
+// at all. Nothing sets the wire-level `requireReadOnly` flag for BYOK today (see
+// `assistant-byok.ts`'s `resolveTurnInputsOrRespond`, which always builds a plain, unconstrained
+// `{id: authed.id}` principal) — so this was not a live exploit, but the very gap the daemon's own
+// `1bb6fa67` fix was written to close as a CLASS, not an instance, of defect. The two tests below
+// assert the missing half of that parity directly against `executeMetaTool`, the real BYOK dispatch
+// path, using a locally-registered fake tool rather than a real domain's classification so the
+// assertion does not depend on any other domain's own risk wiring.
+// ---------------------------------------------------------------------------
+
+test("READ-ONLY PARITY: a read-only-constrained principal cannot dispatch a write tool via execute_delegated_tool — the handler must never run", async () => {
+  const s = surface();
+  let writeCalls = 0;
+  s.registry.register({
+    descriptor: { id: "fake_write_tool_readonly_probe", readOnly: false, inputSchema: { type: "object" } },
+    policy: { authorize: () => "allow" },
+    handler: async () => {
+      writeCalls += 1;
+      return { wrote: true };
+    },
+  });
+
+  const readOnlyPrincipal = constrainPrincipalToReadOnlyTools(PRINCIPAL);
+  const result = await s.executeMetaTool(readOnlyPrincipal, RUN, call("execute_delegated_tool", { toolId: "fake_write_tool_readonly_probe", input: {} }));
+
+  // `mapToolExecutionResult`'s `case "denied"` collapses every denial reason (ToolPolicy or this
+  // gate) into one generic client-facing string rather than echoing `ToolExecutionResult.error` — a
+  // pre-existing, deliberate choice unrelated to this fix, so this asserts the status this dispatch
+  // maps to `isError` from (`denied`), not the daemon path's own literal refusal text.
+  assert.equal(result.isError, true, "BYOK's dispatch must refuse a write tool for a read-only-constrained principal, same as the daemon stack");
+  assert.match(result.content, /was denied for this caller/);
+  assert.equal(writeCalls, 0, "the gate must refuse BEFORE the handler runs, not merely report failure after a real write");
+});
+
+test("READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed", async () => {
+  const s = surface();
+  let writeCalls = 0;
+  s.registry.register({
+    descriptor: { id: "fake_write_tool_unconstrained_probe", readOnly: false, inputSchema: { type: "object" } },
+    policy: { authorize: () => "allow" },
+    handler: async () => {
+      writeCalls += 1;
+      return { wrote: true };
+    },
+  });
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "fake_write_tool_unconstrained_probe", input: {} }));
+
+  assert.notEqual(result.isError, true, "an ordinary, unconstrained BYOK call must be completely untouched by the new gate");
+  assert.equal(writeCalls, 1);
 });
 
 /**

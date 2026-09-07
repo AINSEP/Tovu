@@ -16,11 +16,18 @@
  *    Anything further out would be bypassed by whatever sits beneath it.
  * 2. `withToolAttemptAudit` — appends `requested` BEFORE delegating, which is the only ordering that
  *    records an unknown tool id or a throwing authorization (see that file's own doc). Sitting above
- *    the constraint gate means a read-only refusal is itself audited as a denial.
+ *    the constraint gate means a read-only refusal is itself audited as a denial. Skipped entirely
+ *    when the caller supplies no `toolAttemptAudit` — see {@link AssistantToolExecutorDeps}'s own doc.
  * 3. `withToolFailureRecovery` — outermost, so the remedy call and the retry it can make each land as
  *    their own audited attempt row. The opposite order would collapse all three into the one outer
  *    "completed" row the audit records for the call the transport actually made, losing the remedy
  *    tool's own attempt from the trail entirely.
+ *
+ * Composed the SAME way for both of Tovu's tool-dispatch surfaces: the agent daemon's delegated-tool
+ * route and BYOK's `byok-tool-surface.ts` (as of 2026-09-06 — previously BYOK hand-assembled its own
+ * second copy of this stack that never wrapped `withReadOnlyToolConstraint`, so a decorator known to
+ * apply to "every read-only gateway" in fact applied to only one of the two; see that file's own
+ * `executor` construction for the call site).
  *
  * Architectural role: `src/assistant` composition-layer adapter. Takes its collaborators as
  * arguments and constructs no policy, sink, or registry of its own.
@@ -39,29 +46,40 @@ export interface AssistantToolExecutorDeps {
    *  gate and the recovery loop read descriptors out of it. One instance, deliberately: a second
    *  registry would let the gate check a descriptor other than the one that actually runs. */
   readonly registry: ToolRegistry;
-  /** Where every attempt phase is appended. */
-  readonly auditSink: ToolAttemptAuditSink;
   /** The SAME store `registerMcpUiToolCallsRoute` is mounted with, or the recovery loop's surface is
    *  unreachable — see `tool-surface-exchanges.ts`'s own `AssistantSurfaceDeps` doc. */
   readonly surfaceExchanges: SurfaceExchangeStore;
-  /** The workspace every audited attempt is attributed to — the daemon serves exactly one. */
-  readonly workspaceId: string;
+  /**
+   * Where every attempt phase is appended, and the workspace it is attributed to. Optional so a
+   * caller with no durable audit sink gets an executor that skips `withToolAttemptAudit` entirely
+   * rather than being forced to supply one — the daemon (`agent-daemon-server.ts`) always has one and
+   * always passes it; BYOK's own tests composing a bare surface, and this factory's callers in
+   * general, need the "no sink" case to remain a real, first-class option rather than requiring a
+   * stand-in no-op sink. Named and shaped to match `createByokToolSurface`'s identical
+   * `toolAttemptAudit` option exactly, so a caller already holding that shape passes it straight
+   * through with no reshaping.
+   */
+  readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
 }
 
 /**
- * Builds the fully decorated `ToolExecutor` the agent daemon mounts its delegated-tool route with.
+ * Builds the fully decorated `ToolExecutor` shared by every caller that dispatches Tovu's tool
+ * catalog — the agent daemon's own delegated-tool route (`agent-daemon-server.ts`) and BYOK's
+ * `byok-tool-surface.ts`, as of the 2026-09-06 parity fix. Both get the identical three-decorator
+ * stack, so a hardening landed here (or a future decorator added here) cannot silently reach one
+ * caller and not the other — see this file's own header for why that was previously true only in
+ * theory: BYOK hand-composed a second, independent stack that never wrapped
+ * `withReadOnlyToolConstraint` at all.
  *
  * @returns A `ToolExecutor` behaving exactly like `createToolExecutor({registry})` for any
- *   unconstrained principal, plus a durable attempt trail and the failure-recovery loop.
+ *   unconstrained principal, plus (when `toolAttemptAudit` is supplied) a durable attempt trail, and
+ *   the failure-recovery loop.
  * @complexity Composition only — O(1); each decorator's own cost is documented on it.
  */
 export function createAssistantToolExecutor(deps: AssistantToolExecutorDeps): ToolExecutor {
-  return withToolFailureRecovery(
-    withToolAttemptAudit(
-      withReadOnlyToolConstraint(createToolExecutor({ registry: deps.registry }), { registry: deps.registry }),
-      deps.auditSink,
-      { workspaceId: deps.workspaceId },
-    ),
-    { surfaceExchanges: deps.surfaceExchanges, registry: deps.registry },
-  );
+  const readOnlyGuarded = withReadOnlyToolConstraint(createToolExecutor({ registry: deps.registry }), { registry: deps.registry });
+  const audited = deps.toolAttemptAudit
+    ? withToolAttemptAudit(readOnlyGuarded, deps.toolAttemptAudit.sink, { workspaceId: deps.toolAttemptAudit.workspaceId })
+    : readOnlyGuarded;
+  return withToolFailureRecovery(audited, { surfaceExchanges: deps.surfaceExchanges, registry: deps.registry });
 }
