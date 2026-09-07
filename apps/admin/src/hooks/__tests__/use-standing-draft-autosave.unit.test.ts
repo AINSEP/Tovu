@@ -7,6 +7,7 @@ import {
   type StandingDraftAutosavePort,
   type StandingDraftAutosaveSnapshot,
 } from "../use-standing-draft-autosave.hooks";
+import { readStandingDraftLocalBackup } from "../../lib/standing-draft-local-backup";
 
 /**
  * @file Standing-draft autosave hook — the load-bearing property under test is the ORDERING
@@ -67,6 +68,9 @@ function createFakePort(overrides: Partial<StandingDraftAutosavePort> = {}): Sta
 describe("useStandingDraftAutosave", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // The stale-basis local backup below is real `localStorage` under jsdom — shared across every
+    // test in this file, so it is wiped here rather than leaking a previous test's parked text.
+    localStorage.clear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -342,6 +346,182 @@ describe("useStandingDraftAutosave", () => {
     act(() => result.current.scheduleAutosave(DOC_DRAFT));
     await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
     expect(port.putAutosave).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Stale basis — the server answered `applied: false` (another save moved the row's `version`, so
+   * this tab's whole in-memory edit is built on a superseded basis). Before 2026-09-06 the hook
+   * threw that flag away: every later tick was refused too, nothing was ever parked, and the
+   * operator was told nothing — an hour of typing could evaporate with no banner on reload. Each
+   * test below asserts on a request that provably did NOT happen, or on the operator's text still
+   * being reachable afterwards; asserting only "putAutosave was called" would pass under the bug.
+   */
+  it("stops scheduling further autosaves once the server reports applied:false", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(port.putAutosave).toHaveBeenCalledTimes(1); // the one tick that discovered the stale basis
+
+    // An hour of further typing against that same superseded basis. Every one of these would be
+    // refused by the server's version guard, so none of them may be sent at all.
+    for (let i = 0; i < 5; i += 1) {
+      act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, title: `Kept typing ${i}` }));
+      await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    }
+
+    expect(port.putAutosave).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces staleBasis carrying the refused draft, so the editor can say something true", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    expect(result.current.staleBasis).toBeNull();
+
+    const typed = { ...DOC_DRAFT, title: "An hour of work" };
+    act(() => result.current.scheduleAutosave(typed));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+
+    // The refused text itself is carried, not merely a boolean — losing the operator's work while
+    // telling them about a conflict would be worse than the silent drop this fixes.
+    expect(result.current.staleBasis).toEqual({ baseVersion: 1, draft: typed });
+  });
+
+  it("resumes autosaving on its own once the caller supplies a fresh basis — a reload needs no manual reset", async () => {
+    const port = createFakePort({
+      putAutosave: vi.fn(async (_id: string, draft: StandingDraftAutosaveInput) => ({ applied: draft.baseVersion !== 1 })),
+    });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    // Exact, not `.not.toBeNull()` — an absent property is `undefined`, which passes that check
+    // while proving nothing about the state this test is here to pin.
+    expect(result.current.staleBasis).toEqual({ baseVersion: 1, draft: DOC_DRAFT });
+
+    // The editor reloaded the row and now edits version 2 — the gate must lift by itself.
+    const fresh = { ...DOC_DRAFT, baseVersion: 2, title: "After the reload" };
+    act(() => result.current.scheduleAutosave(fresh));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+
+    expect(result.current.staleBasis).toBeNull();
+    // Read off the mock, not `putAutosaveCalls` — this test supplies its OWN `putAutosave`, which
+    // does not feed the fake's recorder.
+    expect(port.putAutosave).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([, draft]) => draft)).toEqual([DOC_DRAFT, fresh]);
+  });
+
+  it("keeps the refused text in a per-tab local backup, and offers it as a recoverable draft after a reload the server has nothing parked for", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const typed = { ...DOC_DRAFT, title: "An hour of work" };
+    const first = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => first.result.current.scheduleAutosave(typed));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    first.unmount();
+
+    // The reload. The other tab's real save already cleared the server-side draft, so the mount
+    // check finds nothing there — without the local backup this operator gets no banner at all.
+    const second = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    expect(second.result.current.recoverableDraft).toMatchObject({ title: "An hour of work", baseVersion: 1 });
+  });
+
+  it("clearStandingDraft drops the stale-basis state and the local backup — a real save must not leave a ghost banner behind", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const first = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => first.result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(first.result.current.staleBasis).toEqual({ baseVersion: 1, draft: DOC_DRAFT });
+
+    await act(async () => first.result.current.clearStandingDraft());
+    expect(first.result.current.staleBasis).toBeNull();
+    first.unmount();
+
+    const second = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(second.result.current.recoverableDraft).toBeNull();
+  });
+
+  it("clears a local backup the operator discarded on a LATER mount — the gate that wrote it is long gone by then", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const first = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    act(() => first.result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    first.unmount();
+
+    // The reload the operator actually performs. The banner offers the mirrored text; they discard.
+    const second = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(second.result.current.recoverableDraft).not.toBeNull();
+    await act(async () => second.result.current.clearStandingDraft());
+    second.unmount();
+
+    // A discarded draft must stay discarded. Asserting on a THIRD mount, not on `localStorage`
+    // directly, because the ghost the operator would actually see is the banner, not the key.
+    const third = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(third.result.current.recoverableDraft).toBeNull();
+  });
+
+  it("keeps the local backup while the gate lifts — editing on a fresh basis has persisted nothing yet", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => ({ applied: false })) });
+    const { result, unmount } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, title: "An hour of work" }));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    // The editor reloads the row: the gate lifts and a retry is merely SCHEDULED (timers are not
+    // advanced). At this exact instant nothing has been written anywhere — so a version that
+    // dropped the mirror alongside the gate has just thrown the operator's only durable copy away,
+    // and this asserts on the mirror itself rather than on a later mount, which a refused retry
+    // would silently repopulate.
+    act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, baseVersion: 2, title: "After the reload" }));
+
+    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "An hour of work", baseVersion: 1 });
+    unmount();
+  });
+
+  it("does not carry a stale basis across an entryId change — a gate for one entry must not silence another", async () => {
+    const port = createFakePort({
+      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput) => ({ applied: _id === "post-1" ? false : true })),
+    });
+    const { result, rerender } = renderHook(
+      ({ entryId }: { entryId: string }) => useStandingDraftAutosave({ port, entryId, enabled: true }),
+      { initialProps: { entryId: "post-1" } }
+    );
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(result.current.staleBasis).toEqual({ baseVersion: 1, draft: DOC_DRAFT });
+
+    // A different entry that happens to be on version 1 too — the overwhelmingly common case.
+    rerender({ entryId: "post-2" });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(result.current.staleBasis).toBeNull();
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([id]) => id)).toEqual(["post-1", "post-2"]);
+  });
+
+  it("prefers the server's parked draft over a local backup when both exist", async () => {
+    const port = createFakePort({
+      putAutosave: vi.fn(async () => ({ applied: false })),
+      getAutosave: vi.fn(async () => ({ autosave: fakeSnapshot({ title: "From the server" }) })),
+    });
+    const first = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => first.result.current.scheduleAutosave({ ...DOC_DRAFT, title: "From this tab" }));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    first.unmount();
+
+    const second = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    expect(second.result.current.recoverableDraft).toMatchObject({ title: "From the server" });
   });
 });
 

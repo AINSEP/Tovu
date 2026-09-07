@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  clearStandingDraftLocalBackup,
+  readStandingDraftLocalBackup,
+  writeStandingDraftLocalBackup,
+} from "../lib/standing-draft-local-backup";
+
 /**
  * @file Standing-draft autosave (2026-09-06 dispatch, owner's own words: "even if they haven't
  * saved it, temp save it whenever they make a draft... it's just saving to... the database. It
@@ -20,6 +26,28 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * - Never compares `recoverableDraft.baseVersion` against the entry's current version itself — the
  *   caller (which already has the freshly-loaded record) decides whether to label a recovered draft
  *   "outdated" because a real save happened since it was captured.
+ *
+ * STALE BASIS (added 2026-09-06, fixing silent data loss). `putAutosave` answers `{ applied }`, and
+ * `applied: false` means the row's `version` moved under this tab — another tab or operator saved,
+ * so every further write against this basis will be refused too (the guard is
+ * `apps/website/src/features/post/repo.sqlite.ts`'s `writeAutosave`). That flag used to be thrown
+ * away: the hook kept firing refused ticks forever, nothing was ever parked, and a reload produced
+ * no recovery banner because there was nothing to recover — an hour of typing could vanish with the
+ * operator never told anything. Now a refusal:
+ * 1. records {@link StandingDraftStaleBasis} (exposed so the editor can say something true),
+ * 2. stops scheduling further writes until the caller supplies a draft on a DIFFERENT `baseVersion`
+ *    — i.e. until the editor reloads the row; no manual reset call is needed,
+ * 3. mirrors the refused text into `lib/standing-draft-local-backup.ts`, the only place it can
+ *    survive a tab close while the server refuses it, and offers it back through the existing
+ *    `recoverableDraft` banner on the next mount when the server has nothing parked.
+ * The operator's in-memory text is never touched by any of this.
+ *
+ * The gate and the mirror have DIFFERENT lifetimes on purpose. The gate lifts the instant the
+ * caller edits on a fresh basis; the mirror survives until the server has actually accepted a write
+ * (or a real Save/discard superseded it), because between those two moments nothing has been
+ * persisted anywhere and the mirror is still the only copy of the refused text that outlives the
+ * tab. Collapsing the two back into one "clear it all" step reintroduces a window in which a failed
+ * request loses the work.
  */
 
 /** The fields a standing draft carries — see `PostAutosaveSnapshot`'s own server-side doc for why
@@ -47,12 +75,30 @@ export interface StandingDraftAutosavePort {
   discardAutosave(id: string): Promise<{ ok: boolean }>;
 }
 
+/** A write the server refused because the row moved on — see this file's header. Carries the
+ *  operator's refused text itself, not just a flag: it is the copy nothing else on the client has
+ *  a claim to, and a conflict notice that drops the work would be worse than the silent drop. */
+export interface StandingDraftStaleBasis {
+  /** The `baseVersion` the refused draft was built on. The gate lifts when a later
+   *  `scheduleAutosave` arrives on a different one. */
+  baseVersion: number;
+  /** Exactly what was refused. */
+  draft: StandingDraftAutosaveInput;
+}
+
 export interface StandingDraftAutosaveController {
   /** Non-null once the mount-time recovery check resolves and finds a parked draft. Stays exactly
    *  as read until {@link dismissRecoverable}/{@link clearStandingDraft} clears it — never
    *  overwritten by a later `scheduleAutosave` tick from THIS session, since a session that is
    *  actively autosaving has, by definition, already accounted for whatever it found on mount. */
   recoverableDraft: StandingDraftAutosaveSnapshot | null;
+  /** Non-null once the server has refused a write for this entry, and until the caller edits on a
+   *  fresh basis (or a real Save/discard runs). While it is set, `scheduleAutosave` deliberately
+   *  sends nothing — every such write would be refused. The editor should tell the operator that
+   *  another save happened, that reloading is what resumes autosaving, and that their text is kept.
+   *  Purely additive: a caller that ignores it behaves exactly as before EXCEPT that refused writes
+   *  are no longer retried forever. */
+  staleBasis: StandingDraftStaleBasis | null;
   /** Clears `recoverableDraft` locally only (no server call) — the "Discard" affordance calls
    *  {@link clearStandingDraft} instead, which also tells the server; this is for a caller that
    *  wants to stop showing the banner without discarding anything (e.g. "Restore" applied it into
@@ -91,6 +137,16 @@ export function useStandingDraftAutosave(deps: {
 }): StandingDraftAutosaveController {
   const { port, entryId, enabled } = deps;
   const [recoverableDraft, setRecoverableDraft] = useState<StandingDraftAutosaveSnapshot | null>(null);
+  const [staleBasis, setStaleBasis] = useState<StandingDraftStaleBasis | null>(null);
+  // Mirrors `staleBasis` for the SYNCHRONOUS gate in `scheduleAutosave`: the refusal is discovered
+  // inside the request chain, and a React state read there would be a render behind — the window in
+  // which the very ticks this gate exists to stop would still be scheduled.
+  const staleBasisRef = useRef<StandingDraftStaleBasis | null>(null);
+  // Which entry's refused text is currently mirrored in browser storage, or `null`. Deliberately
+  // NOT the same lifetime as the gate above (see this file's header), and deliberately an entry id
+  // rather than a boolean: it is the proof that a mirror this hook may drop belongs to the entry
+  // being edited right now, so switching entries can never delete another entry's surviving copy.
+  const backupEntryIdRef = useRef<string | null>(null);
   // Every network op (each autosave PUT, and the eventual discard) is appended here, never fired
   // standalone — this IS the ordering guarantee `clearStandingDraft`'s own doc describes. Caught
   // internally (see `enqueue`) so one failed request can never permanently wedge the chain.
@@ -110,16 +166,65 @@ export function useStandingDraftAutosave(deps: {
     pendingDraftRef.current = null;
   }, []);
 
+  /** The server refused this draft. Records the basis, and mirrors the text locally — the ONLY
+   *  place it can survive a tab close while the server keeps refusing it. @complexity O(1). */
+  const markStaleBasis = useCallback((id: string, draft: StandingDraftAutosaveInput) => {
+    const next: StandingDraftStaleBasis = { baseVersion: draft.baseVersion, draft };
+    staleBasisRef.current = next;
+    setStaleBasis(next);
+    writeStandingDraftLocalBackup(id, draft, new Date().toISOString());
+    backupEntryIdRef.current = id;
+  }, []);
+
+  /** Lifts the gate so scheduling resumes. Does NOT touch the mirror — see this file's header for
+   *  why those two are separate. No-op when nothing is stale, so the common path never re-renders.
+   *  @complexity O(1). */
+  const liftStaleGate = useCallback(() => {
+    if (staleBasisRef.current === null) return;
+    staleBasisRef.current = null;
+    setStaleBasis(null);
+  }, []);
+
+  /** Drops the browser-storage mirror for the entry being edited, if it has one. Called only where
+   *  the operator's text provably survives somewhere else — the server just accepted a write (so it
+   *  is parked server-side), or a real Save/discard superseded it. @complexity O(1). */
+  const dropLocalBackup = useCallback(() => {
+    const id = backupEntryIdRef.current;
+    if (id === null) return;
+    backupEntryIdRef.current = null;
+    clearStandingDraftLocalBackup(id);
+  }, []);
+
   // Mount-time (and entry-change) recovery check — one read, never repeated while this entryId
   // stays mounted. A stale in-flight response from a PREVIOUS entryId is dropped via `cancelled`.
   useEffect(() => {
     setRecoverableDraft(null);
+    // A different entry is a different basis. A gate recorded for the PREVIOUS entryId must never
+    // silence autosave for this one — their `version` numbers are very often both 1, so leaving it
+    // set would silently stop autosaving an entry nobody has a conflict on. In-memory only: the
+    // previous entry's local mirror is keyed under ITS id and stays recoverable there.
+    staleBasisRef.current = null;
+    setStaleBasis(null);
+    // Same reasoning for the mirror pointer, one step further: the previous entry's mirror stays in
+    // storage under ITS OWN key and stays recoverable there — only this hook's permission to drop a
+    // mirror is reset, so a later accepted write for THIS entry cannot delete that other copy.
+    backupEntryIdRef.current = null;
     if (!enabled || !entryId) return;
     let cancelled = false;
     port
       .getAutosave(entryId)
       .then((result) => {
-        if (!cancelled) setRecoverableDraft(result.autosave);
+        if (cancelled) return;
+        const localBackup = readStandingDraftLocalBackup(entryId);
+        // Recorded whether or not it is the copy shown below: it exists, so a real Save or an
+        // explicit discard on this entry has to be able to drop it. Without this the mirror written
+        // before a reload would outlive every discard and re-offer itself on every later mount.
+        if (localBackup !== null) backupEntryIdRef.current = entryId;
+        // Server first, always — a parked draft is authoritative and shared across tabs. The local
+        // mirror is the fallback for exactly the case that produced it: the other tab's real save
+        // cleared the server-side draft, so this tab reloads into "nothing to recover" while its
+        // own refused text is the thing the operator actually wants back.
+        setRecoverableDraft(result.autosave ?? localBackup);
       })
       .catch(() => {
         // Best-effort: a failed recovery check just means no banner shows this session, not a
@@ -143,9 +248,35 @@ export function useStandingDraftAutosave(deps: {
     []
   );
 
+  /** The one place `putAutosave` is called. Its `{ applied }` answer is acted on here rather than
+   *  discarded — see this file's STALE BASIS note. @complexity Time/space: O(1) plus the request. */
+  const writeAutosave = useCallback(
+    (id: string, draft: StandingDraftAutosaveInput) =>
+      enqueue(async () => {
+        const result = await port.putAutosave(id, draft);
+        if (!result.applied) {
+          markStaleBasis(id, draft);
+          return;
+        }
+        // Accepted — the text is parked server-side now, which is the ONLY point at which the
+        // mirror is redundant and may go.
+        liftStaleGate();
+        dropLocalBackup();
+      }),
+    [dropLocalBackup, enqueue, liftStaleGate, markStaleBasis, port]
+  );
+
   const scheduleAutosave = useCallback(
     (draft: StandingDraftAutosaveInput) => {
       if (!enabled || !entryId) return;
+      // The gate. Same basis as the one the server already refused => this write would be refused
+      // too, so it is not scheduled at all; a DIFFERENT basis means the editor reloaded the row, so
+      // the gate lifts by itself and no caller has to remember to reset anything.
+      const stale = staleBasisRef.current;
+      if (stale !== null && stale.baseVersion === draft.baseVersion) return;
+      // The mirror is deliberately left in place here: nothing has been written yet, so until the
+      // server accepts, that mirror is still the only copy of the refused text that outlives the tab.
+      liftStaleGate();
       const now = Date.now();
       if (firstPendingAtRef.current === null) firstPendingAtRef.current = now;
       const waitedSoFar = now - firstPendingAtRef.current;
@@ -161,12 +292,10 @@ export function useStandingDraftAutosave(deps: {
         idleTimerRef.current = null;
         firstPendingAtRef.current = null;
         pendingDraftRef.current = null;
-        enqueue(async () => {
-          await port.putAutosave(entryId, draft);
-        });
+        writeAutosave(entryId, draft);
       }, delay);
     },
-    [enabled, entryId, enqueue, port]
+    [enabled, entryId, liftStaleGate, writeAutosave]
   );
 
   /**
@@ -186,10 +315,8 @@ export function useStandingDraftAutosave(deps: {
     const draft = pendingDraftRef.current;
     if (draft === null || !entryId) return;
     clearPendingTimer();
-    enqueue(async () => {
-      await port.putAutosave(entryId, draft);
-    });
-  }, [clearPendingTimer, enqueue, entryId, port]);
+    writeAutosave(entryId, draft);
+  }, [clearPendingTimer, entryId, writeAutosave]);
 
   // Flush, do not cancel, when this editor goes away. An in-app navigation (the "Posts"/"Pages"
   // back link, or any router move) unmounts the hook while a debounced tick is still pending, and
@@ -225,13 +352,19 @@ export function useStandingDraftAutosave(deps: {
   const clearStandingDraft = useCallback(async () => {
     clearPendingTimer();
     setRecoverableDraft(null);
+    // A real Save landed (or the operator discarded): whatever was refused is superseded, so the
+    // gate lifts and the mirror goes with it — otherwise the next mount would offer a ghost. This
+    // is also the ONLY thing that clears a mirror the operator has already been shown and chose to
+    // discard, since by then the gate that wrote it belongs to a previous mount.
+    liftStaleGate();
+    dropLocalBackup();
     if (!entryId) return;
     await enqueue(async () => {
       await port.discardAutosave(entryId);
     });
-  }, [clearPendingTimer, enqueue, entryId, port]);
+  }, [clearPendingTimer, dropLocalBackup, enqueue, entryId, liftStaleGate, port]);
 
   const dismissRecoverable = useCallback(() => setRecoverableDraft(null), []);
 
-  return { recoverableDraft, dismissRecoverable, scheduleAutosave, clearStandingDraft };
+  return { recoverableDraft, staleBasis, dismissRecoverable, scheduleAutosave, clearStandingDraft };
 }
