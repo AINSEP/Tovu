@@ -1,10 +1,13 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
+  parseExpectedVersion,
   PostConflictError,
   PostNotFoundError,
   PostValidationError,
+  PostVersionConflictError,
   updatePost,
+  versionConflictEnvelope,
   type PostRecord,
   type UpdatePostInput,
 } from "#src/features/post/index";
@@ -17,17 +20,22 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
-/** This route's four writable PUT fields, read off an untyped body in one place.
+/** This route's five writable PUT fields, read off an untyped body in one place.
  *  @complexity O(1). */
 function parsePageUpdateBody(
   rawBody: unknown
-): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status"> {
+): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion"> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
     slug: String(body.slug ?? ""),
     bodyJson: body.bodyJson as UpdatePostInput["bodyJson"],
     status: body.status as UpdatePostInput["status"],
+    // Validated, not cast — `features/post/expected-version.ts` owns this rule for every arm that
+    // accepts a basis, so a mistyped `"3"` is a 400 here exactly as it is on `posts/update.ts`
+    // rather than coercing to "no basis sent" and becoming an unguarded save by a client that
+    // believes it is protected.
+    expectedVersion: parseExpectedVersion(body.expectedVersion),
   };
 }
 
@@ -43,6 +51,15 @@ function sendPageUpdateError(res: Response, err: unknown): void {
   }
   if (err instanceof PostValidationError) {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  // BEFORE the `PostConflictError` branch below, because `PostVersionConflictError` extends it and
+  // `instanceof` would otherwise be answered by the superclass first — a version conflict reported
+  // as `SLUG_CONFLICT` tells the editor to fix a slug that is not the problem. Same ordering, and
+  // the same shared envelope, as `posts/update.ts`: one definition of the `code` a client branches
+  // on, across every arm that can produce this conflict.
+  if (err instanceof PostVersionConflictError) {
+    res.status(409).json(versionConflictEnvelope(err));
     return;
   }
   if (err instanceof PostConflictError) {
@@ -77,6 +94,23 @@ function sendPageUpdateError(res: Response, err: unknown): void {
  * endpoint — errors.spec.md §1 lets those keep `{error}` only). `PAGE_UPDATE`
  * is a *new* endpoint, so this route adds the required `code` on those same
  * three branches: `VALIDATION_ERROR`, `SLUG_CONFLICT`, `ENTRY_NOT_FOUND`.
+ *
+ * Optimistic concurrency (2026-09-07, fable bugs audit C02) — this route forwards an optional
+ * `expectedVersion` into `updatePost`, and maps the resulting conflict, exactly as
+ * `posts/update.ts` has since `9c7d16bf`. It did not before: a Page and a Post are the same `posts`
+ * row (this route's own "kind-blind update contract" note above), so the arm that shipped the guard
+ * and the arm that did not were writing the same column under two different concurrency contracts,
+ * and the Pages surface was the one silently applying stale writes. OBSERVABLE BEHAVIOR CHANGE,
+ * deliberately, and identical in shape to the one the posts arm already made: a client that sends
+ * `expectedVersion` and whose basis has been superseded now gets `409 VERSION_CONFLICT` where it
+ * used to get `200` and erase the other operator's document; a client that sends a MALFORMED one
+ * now gets `400 VALIDATION_ERROR` instead of having it silently ignored. A client that sends none
+ * is unaffected — same last-write-wins behavior as before, pinned by a test.
+ *
+ * Still deliberately not forwarded: `templateChoice`/`overridesThemePage`. Pages have their own
+ * theme-page flow (`update-html.ts`, `pages.ts`'s resolver); this note exists because the
+ * "same `updatePost` feature call" claim above did not disclose those omissions and one of them
+ * turned out to be a defect.
  *
  * `rejectOversizedJsonBody` (Security review SEC-snapshot-and-post-create-2026-07-28, Finding 1)
  * enforces api.spec.md §4's documented 1 MiB route-layer body cap ahead of the handler — the same
