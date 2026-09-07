@@ -436,3 +436,107 @@ cd /Users/la/Programming/Tovu/apps/desktop && node --test \
 
 No delete test ever pointed at a real site directory; every one uses a fresh `mkdtemp` scratch dir.
 `sites/tovu-com/` was read only (`cat` of its two marker files) and never opened as a database.
+
+
+---
+
+# DS-01 — desktop session validity (added after the original seven, authorized separately)
+
+Routed by Agent C, dispatched by the lead. **VERIFIED-AND-FIXED (lockout half). One half reported
+and deliberately NOT fixed — see DS-01b.**
+
+## Verified, not inherited
+
+- `desktop-auth.cjs` `hasActiveSessionCookie` is `cookies.length > 0` — presence, not validity.
+- `startSiteBackend` passed `emitBootToken: !alreadyAuthenticated` and skipped the redeem entirely.
+- **C's addition is correct and is the part the original audit missed**: `endSiteSession` has exactly
+  ONE production call site (`main.cjs`, `openSiteWindow`'s `closed` listener). `openSiteServer` — the
+  `<webview>` path, which is the *default* UI — never calls it, and its own comment says "Nothing
+  here ever closes what it opens." So a fleet site's stale cookie survives every relaunch.
+- I verified `/api/admin/v1/auth/me` really answers **401** unauthenticated
+  (`apps/website/src/server/inbound/admin-http/dev-auth.ts:429-433`) before building a probe on it. A
+  route answering `200 {user: null}` would have made the probe worthless — a check that tolerates the
+  bug it is meant to catch.
+
+**A false comment, now corrected.** `hasActiveSessionCookie`'s doc claimed a stale cookie "fails
+exactly like a missing one: the ordinary login screen shows". It does not: this shell passes no
+`desktopCredential` (`startSiteBackend` never sets it), so there is no password that login form will
+accept, and the only recovery is wired to a path fleet mode never reaches.
+
+## Sink audit — as asked
+
+| Path | Opens a session? | Clears it? |
+|---|---|---|
+| `openSiteWindow` → `startSiteBackend` (own-server) | yes | **yes** — `window.on("closed")` |
+| `openSiteServer` → `startSiteBackend` (fleet, default) | yes | **no** — by design, nothing stops a tab |
+| operator logs in inside the admin | yes (not shell-minted) | no |
+| `deleteProject` (`project-ipc.cjs`) | — | **no** |
+| `before-quit` | — | **no** |
+| `openSiteWindow`'s `createWindow`-threw catch | — | **no** |
+| supervisor unexpected-exit | — | n/a (child already dead) |
+
+**One of five deliberate paths clears a session. In fleet mode, none do.**
+
+## The root cause is an ORDERING problem, which is why the obvious fix does not work
+
+C proposed probing `/auth/me` before deciding `emitBootToken`. That cannot work: `emitBootToken` is a
+**spawn argument**, decided before any server exists to probe. And because it was decided from the
+jar, a wrong guess could never be revised — no token had been minted and there is no password.
+
+Inverted it instead: **always emit, decide after the server answers.** An unnecessary token is inert
+(single-use, process-scoped, never written to disk, dies with the child). What stays conditional is
+the **redeem**, which is what creates a 30-day session and what left 713 live rows.
+
+- `hasValidSession` — cheap cookie negative first (a new partition should not pay a round trip that
+  could only answer 401), then `GET /auth/me` with `useSessionCookies: true`. Without that flag the
+  probe asks anonymously, always reports 401, and would redeem on every open — rebuilding the exact
+  pile-up this mechanism exists to prevent. Pinned by a test.
+- `ensureSiteSession` — the decision `main.cjs` made inline, **extracted** so it is covered
+  behaviourally (4 tests) instead of by grep. This matters for the evidence-quality question below.
+
+## RED
+
+```
+hasValidSession is not a function          (5 tests)
+ensureSiteSession is not a function        (4 tests)
+5 main.cjs wiring assertions
+```
+
+One self-inflicted RED worth recording: my first `fakeSession` helper collided by name with an
+existing one in the same file, and **function hoisting made the later declaration win**, breaking two
+previously-passing tests. Reused the existing helper rather than adding a second.
+
+GREEN: **307/307**, full suite, 22 explicit test files. Zero complexity errors at 9 on both changed
+files. Commit `5e3651f1`.
+
+## Evidence quality — flagged as the lead asked
+
+The `main.cjs` half is pinned by **source-text wiring guards only** (`src/main-auth-wiring.test.cjs`),
+because `main.cjs` imports `electron` at module scope and cannot be `require`d under `node --test`.
+I reduced that exposure rather than accepting it: the load-bearing decision was extracted into
+`desktop-auth.cjs`, where it has real behavioural tests against fakes. What the wiring guard still
+covers by text alone is the *call order* — that `ensureSiteSession` runs after `startTovuServer` and
+is handed this site's own partition and admin URL.
+
+That is the residual gap, stated plainly for the React-runner decision: a change that keeps the call
+shape but breaks the ordering would pass. No `.tsx` was touched by this fix.
+
+## DS-01b — REPORTED, NOT FIXED (deliberate)
+
+The lockout is fully closed by the probe: a stale cookie is now detected and a fresh token redeemed,
+whether or not the cookie was ever cleared. What remains is **session hygiene** — fleet-mode sessions
+are never revoked, so 30-day rows accumulate one per site open, which is the original 713-row problem
+resurfacing on the default path.
+
+I did not fix it, and the reason is a real risk rather than scope timidity. The natural fix is calling
+`endSiteSession` from `before-quit`, but that adds an HTTP round trip per open site to the quit path,
+and `net.request` here has **no timeout** — `endSiteSession` resolves on error but a hung connection
+never errors, so an unresponsive child would hang the quit indefinitely. `before-quit` already
+`preventDefault()`s and waits. Making that safe needs a bounded race, which is a design decision about
+the shutdown path that I should not take unilaterally at the end of a task.
+
+Recommended shape, if you want it: give `endSiteSession` an explicit timeout and call it from
+`before-quit` and from `deleteProject` (the latter needs `net`/`session` threaded through
+`projectDeps`, consistent with that module's deps-injection convention). Note `deleteProject`'s leak
+is narrower than it looks — for a `created` project the whole `content.db` is erased, taking the
+session row with it; only an `adopted` project leaks.
