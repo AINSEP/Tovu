@@ -30,11 +30,21 @@ New shared module `development/scripts/aad-backfill-runner.ts`:
 - **No message text is templated in the shared module.** Every operator-facing string (found/dry-run/migrated/mismatch/summary/nothing-to-migrate/done) is supplied by the calling script via an `AadBackfillMessages`/`AadBackfillMainMessages` config object, copied verbatim from that script's current source — this is what makes the wording differences above (item 1 in the flagged list) survive the refactor unchanged rather than getting silently unified.
 - Each per-store script keeps its own: table import, `loadPending()` (identity shape, filter, composite key), AAD builder import(s) and `buildAad` closure, and `write()` closure (its own `WHERE`/`SET`). None of that moved into the shared module.
 
-### Status
+### Status — COMPLETE
 
-- [x] Shared module `development/scripts/aad-backfill-runner.ts` written and unit-tested in isolation (fakes only, no DB) — `development/scripts/__tests__/aad-backfill-runner.unit.test.ts`, 4/4 passing. Proves: dry run never touches sealer/keyring, apply calls open→activeKey→seal→verify→write in order, a post-seal mismatch throws BEFORE writing, a mid-run failure leaves prior writes intact (no batching/rollback).
-- [ ] Migrate each of the six scripts to use the shared helper (one commit per script, run that script's own existing black-box CLI test after each migration).
-- [ ] Write a characterization test for `backfill-external-mcp-aad.ts` BEFORE migrating it — no such test exists today (the other five each have one).
+- [x] Shared module `development/scripts/aad-backfill-runner.ts` written and unit-tested in isolation (fakes only, no DB) — `development/scripts/__tests__/aad-backfill-runner.unit.test.ts`, 4/4 passing. Proves: dry run never touches sealer/keyring, apply calls open→activeKey→seal→verify→write in order, a post-seal mismatch throws BEFORE writing, a mid-run failure leaves prior writes intact (no batching/rollback). Commit `5182994a`.
+- [x] Wrote a characterization test for `backfill-external-mcp-aad.ts` BEFORE migrating it (none existed) — confirmed GREEN against the original, unmigrated script first, then again after the migration. Commit `a19708d3`.
+- [x] Migrated all six scripts onto the shared helper, one commit each, running that script's own existing (or, for external-mcp, newly-added) black-box CLI test after each migration — all green:
+  - `947c0fa1` backfill-composio-config-aad.ts
+  - `d3161f2e` backfill-connector-credential-aad.ts
+  - `3f0c9915` backfill-execution-credential-aad.ts
+  - `0af0748e` backfill-media-provider-credential-aad.ts
+  - `7b138c50` backfill-site-assistant-credential-aad.ts
+  - `a68526dd` backfill-external-mcp-aad.ts
+- [x] Scoped `eslint` run (complexity ceiling 9) across every touched file: clean, 0 errors.
+- [ ] Not run: a full-repo `tsc --noEmit`/`npm run typecheck`. Six other agents are concurrently editing this shared tree; a repo-wide typecheck would mix in their in-flight state and isn't a clean signal for this change alone (`feedback_repo_wide_check_measures_the_tree`). Confidence instead comes from: every migrated script's real CLI, run as a real subprocess through `tsx` (which does execute the actual TypeScript, just without a separate type-checking pass), against real fixture SQLite databases, all green — including the corrupted-row-abort and post-seal-mismatch paths.
+
+**Pre-existing, unrelated finding surfaced while testing (not caused by this refactor):** `backfill-execution-credential-aad.test.ts`'s second test (`--dry-run never applies a pending migration`) fails on a stale fixture constant (`NEWEST_MIGRATION_TAG = "0057_concerned_hardball"` vs. this repo's actual newest migration `0058_keen_mauler`, added by other concurrent work in this shared tree). The assertion fires inside `buildMigrationsDirMissingNewest`, before the script under test is ever invoked — confirmed this fires identically regardless of my change. Left untouched: that test file is not in my assigned file set, and updating a shared fixture constant while six other agents are landing migrations concurrently is out of scope for this dispatch.
 
 ## Item 2 — `@complexity` annotation audit, `apps/website/src/features/members/access-resolver.ts`
 
