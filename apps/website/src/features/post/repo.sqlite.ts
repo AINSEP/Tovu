@@ -82,6 +82,81 @@ function toRecord(row: PostRow): PostRecord {
   };
 }
 
+/**
+ * `toRecord`'s inverse: the exact column values one whole-row write persists.
+ *
+ * Extracted from `save()` (2026-09-07) because `saveIfVersion` writes the identical columns from the
+ * identical record and a second hand-maintained copy of these rules is how one write path silently
+ * stops honouring the body-format CHECK constraint or the `overridesThemePage` tri-state while its
+ * sibling keeps doing it right.
+ *
+ * @complexity O(size of the record's JSON fields) — two `JSON.stringify` calls.
+ */
+function toRow(record: PostRecord) {
+  return {
+    ...record,
+    // The exact inverse of `toRecord`'s `row.bodyJson === null ? DEFAULT_BODY_JSON : parse(...)`
+    // substitution, and it has to be, or the pair is not a round trip. `toRecord` hands an
+    // `"html"` row a placeholder `bodyJson` (the domain type keeps `bodyJson` a required
+    // `JsonObject` — see this file's header for why it stays unwidened), so writing that
+    // placeholder back down would populate both body columns at once and the table's CHECK
+    // constraint would reject the write outright.
+    bodyJson: record.bodyFormat === "html" ? null : JSON.stringify(record.bodyJson),
+    // Same guard from the other side: a `"doc"` record must not carry stray html, whatever a
+    // caller assembled. The CHECK constraint enforces exactly one populated body column per
+    // format; these two lines are what keep every write on the legal side of it.
+    bodyHtml: record.bodyFormat === "html" ? record.bodyHtml : null,
+    seoExtJson: record.seoExtJson ?? null,
+    // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
+    // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
+    // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
+    deletedAt: record.deletedAt ?? null,
+    templateChoice: record.templateChoice ?? null,
+    // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
+    // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
+    // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
+    // this migration exists to enable: `false` would silently re-encode "never decided" as
+    // "explicitly kept the theme page", exactly the ambiguity `pages.ts`'s resolver can no longer
+    // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
+    // resolver, which is the one place the current default policy is allowed to live.
+    overridesThemePage: record.overridesThemePage ?? null,
+    memberAccessJson: record.memberAccessJson ?? null,
+    ext: JSON.stringify(record.ext ?? {}),
+  };
+}
+
+/**
+ * The columns a write to an EXISTING row sets — `toRow` minus `id`, and minus every column this
+ * repo is not the writer of.
+ *
+ * `autosaveJson` is the one that matters and the reason this is a named list rather than a spread:
+ * a standing-draft snapshot is written only by `writeAutosave`/`clearAutosave`, so a whole-row save
+ * (which carries no such field on `PostRecord` at all) must leave that column exactly where it is.
+ * `id` is excluded because it is the match key on both write paths.
+ *
+ * @complexity O(1).
+ */
+function updatableColumns(row: ReturnType<typeof toRow>) {
+  return {
+    workspaceId: row.workspaceId,
+    title: row.title,
+    slug: row.slug,
+    bodyJson: row.bodyJson,
+    bodyFormat: row.bodyFormat,
+    bodyHtml: row.bodyHtml,
+    status: row.status,
+    kind: row.kind,
+    updatedAt: row.updatedAt,
+    version: row.version,
+    seoExtJson: row.seoExtJson,
+    deletedAt: row.deletedAt,
+    templateChoice: row.templateChoice,
+    overridesThemePage: row.overridesThemePage,
+    memberAccessJson: row.memberAccessJson,
+    ext: row.ext,
+  };
+}
+
 export class SqlitePostRepo implements PostRepoPort {
   constructor(private readonly db: ContentDb) {}
 
@@ -130,59 +205,13 @@ export class SqlitePostRepo implements PostRepoPort {
   }
 
   async save(record: PostRecord): Promise<void> {
-    const row = {
-      ...record,
-      // The exact inverse of `toRecord`'s `row.bodyJson === null ? DEFAULT_BODY_JSON : parse(...)`
-      // substitution, and it has to be, or the pair is not a round trip. `toRecord` hands an
-      // `"html"` row a placeholder `bodyJson` (the domain type keeps `bodyJson` a required
-      // `JsonObject` — see this file's header for why it stays unwidened), so writing that
-      // placeholder back down would populate both body columns at once and the table's CHECK
-      // constraint would reject the write outright.
-      bodyJson: record.bodyFormat === "html" ? null : JSON.stringify(record.bodyJson),
-      // Same guard from the other side: a `"doc"` record must not carry stray html, whatever a
-      // caller assembled. The CHECK constraint enforces exactly one populated body column per
-      // format; these two lines are what keep every `save()` on the legal side of it.
-      bodyHtml: record.bodyFormat === "html" ? record.bodyHtml : null,
-      seoExtJson: record.seoExtJson ?? null,
-      // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
-      // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
-      // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
-      deletedAt: record.deletedAt ?? null,
-      templateChoice: record.templateChoice ?? null,
-      // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
-      // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
-      // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
-      // this migration exists to enable: `false` would silently re-encode "never decided" as
-      // "explicitly kept the theme page", exactly the ambiguity `pages.ts`'s resolver can no longer
-      // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
-      // resolver, which is the one place the current default policy is allowed to live.
-      overridesThemePage: record.overridesThemePage ?? null,
-      memberAccessJson: record.memberAccessJson ?? null,
-      ext: JSON.stringify(record.ext ?? {}),
-    };
+    const row = toRow(record);
     this.db
       .insert(posts)
       .values(row)
       .onConflictDoUpdate({
         target: posts.id,
-        set: {
-          workspaceId: row.workspaceId,
-          title: row.title,
-          slug: row.slug,
-          bodyJson: row.bodyJson,
-          bodyFormat: row.bodyFormat,
-          bodyHtml: row.bodyHtml,
-          status: row.status,
-          kind: row.kind,
-          updatedAt: row.updatedAt,
-          version: row.version,
-          seoExtJson: row.seoExtJson,
-          deletedAt: row.deletedAt,
-          templateChoice: row.templateChoice,
-          overridesThemePage: row.overridesThemePage,
-          memberAccessJson: row.memberAccessJson,
-          ext: row.ext,
-        },
+        set: updatableColumns(row),
       })
       .run();
 
@@ -191,6 +220,42 @@ export class SqlitePostRepo implements PostRepoPort {
     // is the only writer of the three indexed columns, so this is the only place the obligation
     // exists (see this file's header).
     indexPostSearchDocument(this.db.$client, toPostSearchDocument(record));
+  }
+
+  /**
+   * See `PostRepoPort.saveIfVersion`'s own doc for the contract. An `UPDATE … WHERE id = ? AND
+   * workspace_id = ? AND version = ?` — never the upsert `save()` above uses, because an absent row
+   * must report `applied: false` rather than be inserted.
+   *
+   * The predicate and the write are ONE statement, which is the entire point: a compare done in
+   * JavaScript and a write issued afterwards is exactly the gap `updatePost` had (fable bugs audit
+   * C01). Same mechanism `writeAutosave` below already uses for its own column.
+   *
+   * The search index is refreshed only on a write that actually landed — a rejected call must leave
+   * the index describing the row that is really there.
+   *
+   * @complexity O(1) — one statement against the `posts` primary key.
+   */
+  async saveIfVersion(required: {
+    record: PostRecord;
+    ifVersion: number;
+  }): Promise<{ applied: boolean }> {
+    const row = toRow(required.record);
+    const result = this.db
+      .update(posts)
+      .set(updatableColumns(row))
+      .where(
+        and(
+          eq(posts.id, row.id),
+          eq(posts.workspaceId, row.workspaceId),
+          eq(posts.version, required.ifVersion)
+        )
+      )
+      .run();
+    if (result.changes === 0) return { applied: false };
+
+    indexPostSearchDocument(this.db.$client, toPostSearchDocument(required.record));
+    return { applied: true };
   }
 
   /**

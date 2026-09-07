@@ -68,6 +68,26 @@ export class InMemoryPostRepo implements PostRepoPort {
     this.rows[index] = record;
   }
 
+  /** See `PostRepoPort.saveIfVersion`'s own doc for the contract this mirrors from
+   *  `repo.sqlite.ts`'s conditional `UPDATE`. Deliberately NOT a fall-through to `save()`: a row
+   *  that is absent or has moved past `ifVersion` reports `applied: false` and writes nothing at
+   *  all — no insert, no partial update, no version bump. The workspace is part of the match here
+   *  (unlike `save()` above, which keys on `id` alone) because the SQLite predicate includes it,
+   *  and an adapter pair that disagrees on what "the same row" means is how a guard passes its
+   *  in-memory tests and fails in production. */
+  async saveIfVersion(required: {
+    record: PostRecord;
+    ifVersion: number;
+  }): Promise<{ applied: boolean }> {
+    const index = this.rows.findIndex(
+      (row) => row.workspaceId === required.record.workspaceId && row.id === required.record.id
+    );
+    if (index === -1 || this.rows[index].version !== required.ifVersion) return { applied: false };
+
+    this.rows[index] = required.record;
+    return { applied: true };
+  }
+
   /**
    * Stamps the trash marker (see `post.ts`'s `PostRecord.deletedAt`). The row is KEPT — that is the
    * whole point of a soft delete — so this is a field update on the existing record, never a splice

@@ -195,7 +195,37 @@ export interface PostRepoPort {
    * needs a bounded query, not a widening of the existing unbounded ones.
    */
   listPublishedPreviews(required: { workspaceId: UUID; limit: number }): Promise<PostRecord[]>;
+  /**
+   * Unconditional upsert of one whole row — last write wins, by design.
+   *
+   * This is the right method for a writer that IS the authority on the row's next state: a create,
+   * a change-set revert restoring a captured pre-image (which must land even though its `version`
+   * is older than the row's current one), a backfill. It is the WRONG method for a
+   * read-modify-write that has to survive a concurrent writer — see {@link saveIfVersion}.
+   */
   save(record: PostRecord): Promise<void>;
+  /**
+   * The conditional half of an optimistic-concurrency compare-and-set: writes `record` over the
+   * existing row ONLY while that row is still at `ifVersion`, and reports which happened.
+   *
+   * Why this exists as a separate method rather than a `version` predicate on {@link save} (2026-09-07,
+   * fable bugs audit C01): `updatePost` compares the caller's `expectedVersion` against a row it read
+   * two awaits earlier — a repo read and a plugin `beforeSave` hook of arbitrary, third-party latency
+   * sit between the compare and the write. An unconditional `save()` therefore lands whatever happened
+   * during those awaits, so two operators who both open a post at version 7 both get a 200 and one
+   * document is silently erased. The compare has to travel INTO the write for the guard to mean
+   * anything. {@link writeAutosave} has always done exactly this for the `autosave_json` column
+   * (`eq(posts.version, baseVersion)` + `changes === 0`); this is the same predicate for the row.
+   *
+   * NEVER an upsert: a row that is not there cannot be at `ifVersion`, so a missing row is
+   * `applied: false`, not a silent insert of a record some other writer just deleted.
+   *
+   * @returns `{ applied: true }` when the row was at `ifVersion` and now holds `record`;
+   * `{ applied: false }` when the basis was superseded (or the row is gone) and NOTHING was written
+   * — no partial write, no version bump. The caller decides what a rejection means; `updatePost`
+   * turns it into `PostVersionConflictError`.
+   */
+  saveIfVersion(required: { record: PostRecord; ifVersion: number }): Promise<{ applied: boolean }>;
   /**
    * Stamps the trash marker onto one existing row (see {@link PostRecord.deletedAt}).
    *
@@ -920,9 +950,61 @@ function assertExpectedVersion(existing: PostRecord, expectedVersion: number | u
   if (expectedVersion === undefined) return;
   if (expectedVersion === existing.version) return;
   throw new PostVersionConflictError(
-    `post '${existing.id}' was modified by another save (expected version ${expectedVersion}, current version ${existing.version})`,
+    versionConflictMessage(existing.id, expectedVersion, existing.version),
     expectedVersion,
     existing.version
+  );
+}
+
+/** One definition of the conflict wording, because the guard now reports from two places — the
+ *  cheap up-front compare above and the authoritative post-write rejection in
+ *  {@link persistUpdatedPost} — and a client that has to tell them apart has a worse bug than the
+ *  one this guard closes. @complexity O(1). */
+function versionConflictMessage(id: UUID, expectedVersion: number, currentVersion: number): string {
+  return `post '${id}' was modified by another save (expected version ${expectedVersion}, current version ${currentVersion})`;
+}
+
+/**
+ * The "set" half of `updatePost`'s compare-and-set — the write itself, predicated on the same
+ * version the caller's basis claimed.
+ *
+ * `assertExpectedVersion` above is now only a fast, well-worded rejection for a basis that was
+ * ALREADY stale when the request arrived; it cannot speak for the state of the row two awaits later
+ * (fable bugs audit C01). This is where the guarantee actually lives: the version predicate travels
+ * into the UPDATE, so a row another writer won during the slug check or the plugin hook rejects
+ * this write outright instead of absorbing it.
+ *
+ * Unversioned callers keep the pre-existing unconditional `save()` — `expectedVersion` is opt-in by
+ * construction (see {@link UpdatePostInput.expectedVersion}) and this change does not move that
+ * line. What it fixes is callers who DID opt in and were being told they were protected.
+ *
+ * The re-read on the rejection path is what lets the error name the real current version rather
+ * than "some other version"; it runs only on the conflict path, never on the happy one. A row that
+ * has vanished (or been trashed) since the compare reports as not-found — the same answer the
+ * caller would have received had it arrived a moment later — rather than a conflict against a
+ * version that no longer exists.
+ *
+ * @complexity O(1) queries: one conditional UPDATE, plus one read only when it is rejected.
+ */
+async function persistUpdatedPost(
+  repo: PostRepoPort,
+  post: PostRecord,
+  expectedVersion: number | undefined
+): Promise<void> {
+  if (expectedVersion === undefined) {
+    await repo.save(post);
+    return;
+  }
+
+  const { applied } = await repo.saveIfVersion({ record: post, ifVersion: expectedVersion });
+  if (applied) return;
+
+  const current = await repo.findById({ workspaceId: post.workspaceId, id: post.id });
+  if (!current || isTrashed(current)) throw new PostNotFoundError(`post '${post.id}' was not found`);
+  throw new PostVersionConflictError(
+    versionConflictMessage(post.id, expectedVersion, current.version),
+    expectedVersion,
+    current.version
   );
 }
 
@@ -995,7 +1077,7 @@ export async function updatePost(
 
   const post = buildUpdatedPost(existing, input, { title, slug }, ext, deps.clock.nowIso());
 
-  await deps.repo.save(post);
+  await persistUpdatedPost(deps.repo, post, input.expectedVersion);
   await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
 
   return { post };
