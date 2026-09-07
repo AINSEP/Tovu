@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminMedia, type AdminPost } from "@/lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
+import {
+  FILE_HANDLER_ALLOWED_MIME_TYPES,
+  handleFileDrop,
+  handleFilePaste,
+  uploadDroppedFile,
+  usePostEditor,
+  useWiredPostEditor,
+} from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 import type { PostEditorPort } from "../hooks/post-editor-port.hooks";
 
@@ -540,6 +547,16 @@ describe("usePostEditor — injected t is genuinely returned, not built internal
 });
 
 describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler drag & paste upload (2026-08-12, B1)", () => {
+  it("FILE_HANDLER_ALLOWED_MIME_TYPES is exactly the server's DEFAULT_ALLOWED_MIME_TYPES ceiling (2026-09-07) — its own doc comment claims this, so drift here is a false comment, not just a stale list", () => {
+    // Hardcoded, not imported from `@jini-ai/cms` — mirrors this constant's own doc comment on why
+    // (that subpath is the full server-side upload/DB implementation, no place in a browser bundle).
+    // Keep in sync BY HAND with `@jini-ai/cms/media`'s `media-service.ts` `DEFAULT_ALLOWED_MIME_TYPES`,
+    // same as `fetch-image.test.ts`'s equivalent pin for `IMPORTABLE_CONTENT_TYPES` in apps/website.
+    expect(new Set(FILE_HANDLER_ALLOWED_MIME_TYPES)).toEqual(
+      new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "video/mp4", "video/webm"])
+    );
+  });
+
   it("uploadDroppedFile uploads through port.uploadMedia and returns {assetId, alt: file.name}", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
     const file = new File(["bytes"], "photo.png", { type: "image/png" });

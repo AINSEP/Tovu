@@ -331,7 +331,11 @@ function schedulePendingContentPreviewSubmit(input: {
  * `@jini-ai/cms/media`'s `media-service.ts`) rather than importing it: that subpath is the full
  * server-side upload/DB implementation, which has no place in a browser bundle — unlike
  * `@jini-ai/cms/settings`'s plain i18n dictionaries, which `SettingsUi.tsx` already imports safely
- * elsewhere in this app. SVG is deliberately excluded here for the same reason it's excluded there:
+ * elsewhere in this app. Hand-copied, not derived — kept in sync manually with the server list (see
+ * the regression test pinning this exactly against a literal copy of `DEFAULT_ALLOWED_MIME_TYPES`);
+ * a future addition to the server ceiling needs a matching edit here too, or this comment goes false
+ * again (as `video/mp4`/`video/webm` did, added server-side 2026-08-24 but never mirrored here until
+ * 2026-09-07). SVG is deliberately excluded here for the same reason it's excluded there:
  * unsanitized SVG upload is a stored-XSS vector, not merely an unsupported format. Advisory only —
  * `FileHandler` filters what reaches `onDrop`/`onPaste` client-side, but `port.uploadMedia` still
  * goes through the server's own authoritative allowlist regardless of what gets past this filter.
@@ -342,6 +346,8 @@ export const FILE_HANDLER_ALLOWED_MIME_TYPES = [
   "image/webp",
   "image/gif",
   "image/avif",
+  "video/mp4",
+  "video/webm",
 ];
 
 /**
