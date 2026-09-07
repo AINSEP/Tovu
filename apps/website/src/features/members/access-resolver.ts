@@ -123,7 +123,8 @@ export class DefaultMemberAccessResolver implements MemberAccessResolver {
    * function stays pure sequencing — each branch's logic, including its own
    * `@complexity`, lives with its own decision).
    *
-   * @complexity O(t), t = `access.tierIds?.length` (small, editorial data).
+   * @complexity O(t·a), t = `access.tierIds?.length`, a = `context.activeTierIds.length`
+   *   (both small, editorial/entitlement data).
    */
   decide(required: { access: MemberContentAccess; context: MemberContext }): MemberAccessDecision {
     const { access, context } = required;
@@ -173,7 +174,9 @@ function decidePaidAccess(context: MemberContext): MemberAccessDecision {
 }
 
 /** `visibility: "tiers"` allows an authenticated member holding at least one of `access.tierIds`.
- *  @complexity O(t), t = `access.tierIds?.length` (small, editorial data). */
+ *  @complexity O(t·a) — `requiredTierIds.some(...)` nests `context.activeTierIds.includes(...)`,
+ *  t = `access.tierIds?.length`, a = `context.activeTierIds.length` (both small, editorial/
+ *  entitlement data, so real-world impact is negligible — but the bound itself is O(t·a), not O(t)). */
 function decideTiersAccess(access: MemberContentAccess, context: MemberContext): MemberAccessDecision {
   const requiredTierIds = access.tierIds ?? [];
   const isEntitled = requiredTierIds.some((tierId) => context.activeTierIds.includes(tierId));
