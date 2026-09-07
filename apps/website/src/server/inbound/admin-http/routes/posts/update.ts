@@ -2,11 +2,13 @@ import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
   getAdminPostByIdOrSlug,
+  parseExpectedVersion,
   PostConflictError,
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
   updatePost,
+  versionConflictEnvelope,
   type PostRecord,
   type UpdatePostInput,
 } from "#src/features/post/index";
@@ -19,32 +21,6 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
-
-/**
- * The optimistic-concurrency basis off an untyped body (2026-09-06) — `undefined` (key absent)
- * when the caller is not opting in, otherwise the exact `number` `updatePost` will compare.
- *
- * Throws rather than returning `undefined` for anything else, and that is the whole point of this
- * function existing: `expectedVersion` is OPTIONAL in `UpdatePostInput`, so a value this route
- * failed to recognize would coerce to "no basis sent" and be written through as an unguarded,
- * last-write-wins save — silently re-opening the exact clobber the guard exists to close. A client
- * that sends `"3"`, `3.5`, `-1`, `null` or `true` has a bug; it must hear about it as a 400, not
- * have its edit land on top of somebody else's.
- *
- * `PostValidationError` (not a bespoke type) so this reaches {@link sendPostUpdateError}'s existing
- * 400 branch, and so it stays the same error class every other malformed field on this route
- * already throws. Deliberately NOT a `PostConflictError`: resending the identical request cannot
- * fix a stale basis, but it CAN fix a mistyped one.
- *
- * @complexity O(1).
- */
-function parseExpectedVersion(raw: unknown): number | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
-    throw new PostValidationError("'expectedVersion' must be a non-negative integer when present");
-  }
-  return raw;
-}
 
 /** This route's seven writable PUT fields, read off an untyped body in one place.
  *  Return type is pinned to `UpdatePostInput` itself (minus the id fields the
@@ -66,9 +42,10 @@ function parsePostUpdateBody(
     status: body.status as UpdatePostInput["status"],
     templateChoice: body.templateChoice as UpdatePostInput["templateChoice"],
     overridesThemePage: body.overridesThemePage as UpdatePostInput["overridesThemePage"],
-    // Validated, not cast — see {@link parseExpectedVersion}. Every other field above is either
-    // coerced (`title`/`slug`) or handed to `updatePost`'s own validation; this one has no
-    // downstream validator at all, because `undefined` is a legitimate value there.
+    // Validated, not cast — see `features/post/expected-version.ts`, which owns this rule for BOTH
+    // arms that accept a basis (this route and the `content_post_update` agent tool). Every other
+    // field above is either coerced (`title`/`slug`) or handed to `updatePost`'s own validation;
+    // this one has no downstream validator at all, because `undefined` is a legitimate value there.
     expectedVersion: parseExpectedVersion(body.expectedVersion),
   };
 }
@@ -98,13 +75,9 @@ function sendPostUpdateError(res: Response, err: unknown): void {
   // would be a second, unrequested wire-shape change, and "no code" is already a distinguishable
   // answer for the only two 409s `updatePost` can produce.
   if (err instanceof PostVersionConflictError) {
-    res.status(409).json({
-      error: err.message,
-      code: "VERSION_CONFLICT",
-      // Both versions, structured, so the client can say "yours was N, theirs is M" without
-      // parsing the prose — the reason `PostVersionConflictError` carries them as fields at all.
-      details: { expectedVersion: err.expectedVersion, currentVersion: err.currentVersion },
-    });
+    // Body built by the shared boundary module, not spelled out here, so the `code` a client
+    // branches on has exactly one definition across every arm that can produce this conflict.
+    res.status(409).json(versionConflictEnvelope(err));
     return;
   }
   if (err instanceof PostConflictError) {

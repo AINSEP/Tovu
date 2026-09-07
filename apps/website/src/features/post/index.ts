@@ -30,6 +30,15 @@ export {
   type UpdatePostInput,
   type PostAutosaveSnapshot,
 } from "./post.js";
+// The optimistic-concurrency boundary, shared by the admin HTTP route and the `content_post_update`
+// agent tool — see `expected-version.ts` for why it is a module of its own rather than a copy in
+// each arm.
+export {
+  parseExpectedVersion,
+  versionConflictEnvelope,
+  EXPECTED_VERSION_REJECTION,
+  VERSION_CONFLICT_CODE,
+} from "./expected-version.js";
 // Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
 // Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific
 // should be re-exported from this barrel.
