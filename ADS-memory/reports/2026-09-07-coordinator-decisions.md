@@ -171,3 +171,47 @@ Two signals that the RED-first discipline is doing real work: B's first D-01 gua
 classifier contract; and the new `"unreadable"` verdict created an unwired call site
 (`describeRejectedDefault` would have thrown on `undefined.join` while building the dialog meant
 to explain the problem). Both found before landing.
+
+---
+
+## Addendum 2 — Agent C's items, ruled 2026-09-07
+
+**SEC-05 refusal reason — KEEP the change.** A blocked `media_import_from_url` now answers `400`
+with the refusal reason instead of a redacted `500`. The reason names the resolved *address class*,
+which is a coarse internal-DNS oracle for an authenticated principal who already holds
+`media.upload`.
+
+Ruling: keep it. The principal is already authenticated and already holds upload rights, and can
+infer the same fact today from timing and behavioural differences — the change makes existing
+signal legible rather than creating new signal. Against that, the generic `500` is the exact
+failure that cost real debugging time and is the thing being fixed. It already emits the coarse
+form (class, not address), which is the right granularity.
+
+**Revisit if** Tovu ever has untrusted multi-tenant principals holding `media.upload`. At that
+point the oracle is worth narrowing further. Not the situation today.
+
+**ADM-001** — three new row types in the External MCP banner, English copy until translated. Fine.
+**ADM-002** — "Restarting…" now clears after the 20s watch window instead of standing forever. Fine.
+
+**DS-01 — authorized to Agent B, severity accepted as raised.** C verified it and found it worse
+than the audit stated: `endSiteSession`, the recovery the in-file comment relies on, is wired only
+to `openSiteWindow`'s `closed` event, so the fleet `<webview>` path never clears a stale cookie —
+a lockout with no in-app exit. C routed it to B directly; the technical routing was right (desktop
+scope) but the dispatch decision is the Coordinator's, so it was re-authorized explicitly.
+
+**Corrections to premises this session was operating on:**
+- **`apps/admin` tsc baseline is 0, not 31.** The "baseline 31" figure was carried in handoffs and
+  in my own dispatch briefs. C reported it stale; independently confirmed — a full run over 332
+  test files emits zero output. Telling an agent there are 31 acceptable errors is how a real new
+  error gets waved through. Recorded to memory.
+- **ESC-01 is eleven `escapeHtml`-family copies, not nine.** The architecture lens missed
+  `sitemap.ts` (`escapeXml`) and counted `static-render.ts` once where it has two. The other ten
+  are correct as used. Not consolidated — unapproved structural work.
+- **PG-01's guard was already RED at HEAD** and had been since `e94da8f8`. The guard worked;
+  nothing runs it. This is the same shape as the nine-of-nineteen check gates that are invoked
+  nowhere — a working detector with no caller.
+
+**Two more green-tests-that-tolerated-the-bug**, both found by C:
+`"a transport-level SSRF refusal propagates"` asserted at the handler boundary while the collapse
+was two layers out; `"a mid-copy failure leaves no half-populated directory behind"` had the right
+assertion but only on the arm where the flag was already set.
