@@ -357,7 +357,14 @@ function TokenRow({ state, controller, groupRowCount, t: translate }: { state: A
 
 /** The `isDefault` indicator + `Make default` link — only shown once a provider has 2+ saved
  *  tokens (`rules.ts`'s own doc on why a lone row has nothing to choose between). Split out purely
- *  for the complexity gate. */
+ *  for the complexity gate.
+ *
+ * This button lives inside `TokenRow`'s own `<summary>`, a descendant of the native disclosure
+ * toggle, so its click would otherwise ALSO open/close the enclosing `<details>` (the browser runs
+ * `<summary>`'s toggle as the click event's default action regardless of which descendant was
+ * actually clicked, unless that default action is cancelled) — `preventDefault`/`stopPropagation`
+ * in the handler below is what keeps a "Make default" click from also expanding the row, same
+ * pattern as `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`. */
 function TokenRowDefaultIndicator({ state, showDefaultUi, controller, t: translate }: { state: AccessTokenExistingRowState; showDefaultUi: boolean; controller: AccessTokensController; t: Translate }) {
   if (!showDefaultUi) return null;
   if (state.row.isDefault) return <span className="status status-neutral">{translate("Default")}</span>;
@@ -365,7 +372,11 @@ function TokenRowDefaultIndicator({ state, showDefaultUi, controller, t: transla
     <button
       type="button"
       className="link-button"
-      onClick={() => void controller.makeDefault(state.row)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void controller.makeDefault(state.row);
+      }}
       // `aria-label`, not just the visible "Make default" text: this button renders once per
       // non-default row in a provider group that has 2+ saved tokens (the ONLY case it renders at
       // all — this function's own guard above), so with 3+ saved tokens for one provider, multiple

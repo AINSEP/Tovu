@@ -282,6 +282,41 @@ describe("AccessTokensTab — TokenRow: default indicator and Make default", () 
     fireEvent.click(screen.getByRole("button", { name: "Make default — Staging" }));
     expect(makeDefault).toHaveBeenCalledWith(rows[1]!.row);
   });
+
+  // REGRESSION (2026-09-06, section C item 2 of the tovu-8f handoff): "Make default" is a <button>
+  // nested inside this row's own <summary> (TokenRow's <details>), so a click's default action is
+  // ALSO the enclosing <details> toggling open, the same defect StaticSiteTab.tsx's
+  // CredentialVerifyAction already fixed with preventDefault/stopPropagation — see that component's
+  // own doc.
+  it("REGRESSION: clicking 'Make default' calls makeDefault AND marks the click event defaultPrevented, the exact flag a real browser's <summary> checks before running its native toggle", () => {
+    // jsdom does not implement the native <details>/<summary> toggle-on-click behavior at all
+    // (verified directly: dispatching a click at a button nested in <summary> never sets `open`
+    // either with or without `preventDefault`), so asserting on `details.hasAttribute("open")`
+    // would pass whether or not this bug is fixed — a green test that tolerates the bug.
+    //
+    // A native listener attached directly on <summary> is ALSO the wrong proxy here (tried and
+    // reverted): since React 17+ delegates events to the app's root container rather than to each
+    // element, `e.stopPropagation()` inside this button's onClick only runs once the event has
+    // already bubbled past a plain `summary.addEventListener` sitting between the button and that
+    // root — so a real fix would still show the click "reaching" such a listener, a false RED.
+    // What a real browser's <summary> activation behavior actually checks, AFTER the full
+    // dispatch finishes, is `event.defaultPrevented` — untouched by where in the tree the
+    // preventing handler lives. A capturing document-level listener captures the same native
+    // event object React's handler mutates, so this reads that exact flag.
+    const makeDefault = vi.fn().mockResolvedValue(undefined);
+    const rows = [rowState({ row: row({ id: "row-1", isDefault: true, name: "Production" }), name: "Production" }), rowState({ row: row({ id: "row-2", isDefault: false, name: "Staging" }), name: "Staging" })];
+    renderTab({ groups: [groupFor("publish", "netlify", rows)], makeDefault });
+
+    const button = screen.getByRole("button", { name: "Make default — Staging" });
+    let capturedEvent: Event | null = null;
+    document.addEventListener("click", (e) => (capturedEvent = e), { capture: true });
+
+    fireEvent.click(button);
+
+    expect(makeDefault).toHaveBeenCalledWith(rows[1]!.row);
+    expect(capturedEvent).not.toBeNull();
+    expect(capturedEvent!.defaultPrevented).toBe(true);
+  });
 });
 
 describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error rendering", () => {
