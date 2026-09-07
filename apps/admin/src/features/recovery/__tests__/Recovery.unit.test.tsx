@@ -157,19 +157,37 @@ describe("restore points list", () => {
 
   it("renders a 'Restore…' button for a restorable point", () => {
     renderRecovery({ points: [POINT] });
-    expect(screen.getByRole("button", { name: "Restore…" })).toBeInTheDocument();
+    // Accessible name, not just visible text: `restoreButtonAccessibleName` (rules.ts) appends the
+    // row's own timestamp after the visible "Restore…" label so this control's accessible name is
+    // distinct per row — see the multi-row test below for why a bare "Restore…" match would not
+    // have caught the regression this label fixes.
+    expect(screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" })).toBeInTheDocument();
+  });
+
+  it("gives each row's Restore button a DISTINCT accessible name, not a repeated bare 'Restore…'", () => {
+    // Two restore points differing only by id/timestamp — the shape that exposed the bug: every
+    // row rendered the identical visible text "Restore…", so `getByRole("button", { name:
+    // "Restore…" })` (or any accessibility-tree-driven agent resolving by role+name) could not
+    // tell one row's destructive, unrecoverable action from another's.
+    const secondPoint: AdminRestorePoint = { ...POINT, id: "rp3", createdAt: "2026-08-02T09:00:00.000Z" };
+    renderRecovery({ points: [POINT, secondPoint] });
+    expect(screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore… 2026-08-02 09:00" })).toBeInTheDocument();
+    // A query still scoped to the shared, ambiguous visible prefix must resolve to exactly these
+    // two — never collapse to one indistinguishable control.
+    expect(screen.getAllByRole("button", { name: /^Restore…/ })).toHaveLength(2);
   });
 
   it("renders 'No restore-point mechanism available' instead of a button when costClass is unavailable", () => {
     renderRecovery({ points: [UNAVAILABLE_POINT] });
-    expect(screen.queryByRole("button", { name: "Restore…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Restore…/ })).not.toBeInTheDocument();
     expect(screen.getByText("No restore-point mechanism available — see the runbook.")).toBeInTheDocument();
   });
 
   it("clicking 'Restore…' calls setSelected with that point", async () => {
     const user = userEvent.setup();
     const c = renderRecovery({ points: [POINT] });
-    await user.click(screen.getByRole("button", { name: "Restore…" }));
+    await user.click(screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" }));
     expect(c.setSelected).toHaveBeenCalledWith(POINT);
   });
 });

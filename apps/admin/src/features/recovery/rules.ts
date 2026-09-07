@@ -1,6 +1,7 @@
-import type { AdminDegradedBanner, DatabaseContextEnvelope } from "../../lib/api";
+import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "../../lib/api";
 import { t } from "./recovery-i18n";
 import { interpolate } from "../../lib/template-i18n";
+import { formatTimestamp } from "../../lib/format-timestamp";
 
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
@@ -155,4 +156,26 @@ export function parseDeepLinkEnvelope(raw: string): DeepLinkEnvelopeParseResult 
   } catch {
     return { ok: false };
   }
+}
+
+/**
+ * Distinct accessible name for one restore point's "Restore…" button.
+ *
+ * Every row's button carries the identical visible text (`t(locale, "Restore…")`), which is fine
+ * for a sighted operator reading the row it sits in but reads as one ambiguous "Restore…" control
+ * to anything that resolves elements by role+name rather than DOM position — an
+ * accessibility-tree-driven agent (`getByRole("button", { name: "Restore…" })` matches every row at
+ * once), or a screen-reader user who jumps button-to-button outside table-navigation mode. Restore
+ * is also this screen's single most consequential action (SPEC-019 C-303: "this cannot be undone"),
+ * so picking the wrong row's button is the worst possible place for that ambiguity to live.
+ *
+ * Appends the row's own timestamp — already the column's own visible, effectively-unique
+ * identifier — AFTER the visible label rather than replacing it, so the accessible name still
+ * starts with the exact visible text (WCAG 2.5.3 Label in Name: a speech-control user saying
+ * "click Restore" should still land on it).
+ *
+ * @complexity O(1).
+ */
+export function restoreButtonAccessibleName(locale: string, point: Pick<AdminRestorePoint, "createdAt">): string {
+  return `${t(locale, "Restore…")} ${formatTimestamp(point.createdAt)}`;
 }

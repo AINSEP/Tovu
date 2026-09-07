@@ -5,7 +5,14 @@ import { InfoTip } from "../../components/InfoTip";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
-import { categoryLabel, costClassExplanation, costClassLabel, isAssertiveRecoveryBanner, recoveryBannerTone } from "./rules";
+import {
+  categoryLabel,
+  costClassExplanation,
+  costClassLabel,
+  isAssertiveRecoveryBanner,
+  recoveryBannerTone,
+  restoreButtonAccessibleName,
+} from "./rules";
 import { useWiredRecovery } from "./hooks/use-recovery.hooks";
 import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
@@ -147,6 +154,11 @@ function RestorePointsList(props: {
               <button
                 type="button"
                 onClick={() => props.onSelect(p)}
+                // Every row's visible text is the identical "Restore…" — see
+                // `rules.ts`'s `restoreButtonAccessibleName` doc comment for why that is ambiguous
+                // to anything resolving elements by accessible name rather than table position, and
+                // why this is the one screen where that ambiguity matters most.
+                aria-label={restoreButtonAccessibleName(locale, p)}
                 {...agentHandle(`${rowHandleById.get(p.id)}-restore`, { role: "button", label: "Begin the restore ceremony for this restore point" })}
               >
                 {t(locale, "Restore…")}

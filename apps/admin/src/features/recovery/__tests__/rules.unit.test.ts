@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope } from "../rules";
+import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName } from "../rules";
 import type { AdminDegradedBanner } from "@/lib/api";
 
 /**
@@ -103,5 +103,22 @@ describe("parseDeepLinkEnvelope", () => {
   it("LANDMINE: 'false' is valid JSON — returns ok:true with envelope:false, not ok:false", () => {
     const result = parseDeepLinkEnvelope("false");
     expect(result).toEqual({ ok: true, envelope: false });
+  });
+});
+
+describe("restoreButtonAccessibleName", () => {
+  it("appends the row's timestamp AFTER the visible 'Restore…' label", () => {
+    expect(restoreButtonAccessibleName("en", { createdAt: "2026-08-01T12:34:00.000Z" })).toBe("Restore… 2026-08-01 12:34");
+  });
+
+  it("starts with the exact visible text, per-locale (WCAG 2.5.3 Label in Name)", () => {
+    const name = restoreButtonAccessibleName("es", { createdAt: "2026-08-01T12:34:00.000Z" });
+    expect(name.startsWith("Restaurar…")).toBe(true);
+  });
+
+  it("gives two restore points captured at different times two DIFFERENT accessible names", () => {
+    const a = restoreButtonAccessibleName("en", { createdAt: "2026-08-01T12:34:00.000Z" });
+    const b = restoreButtonAccessibleName("en", { createdAt: "2026-08-02T09:00:00.000Z" });
+    expect(a).not.toBe(b);
   });
 });
