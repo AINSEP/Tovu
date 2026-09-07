@@ -51,8 +51,10 @@ Fix: `buildIdentityRouteDeps` takes `builtinRoleGrants: readonly BuiltinRoleGran
 - `development/scripts/split-chat-data-into-chat-db.ts:111` — `.join("<NUL>")`; born binary in `ac171e6d`.
 - No `.gitattributes` exists to force textual diffs. `command grep -c` on either file returns nothing without `-a` (memory: "grep SKIPS NUL-byte files").
 - Four older files have the identical shape (`execution-credential-store.memory.ts:15`, `provider-credential-store.memory.ts:14` — inside a **comment**, `same-origin.unit.test.ts:64` — beside `"\n"`/`"\t"` siblings, `backfill-vendor-credentials.ts:214`), which shows the authoring path is turning the `\0` escape into a raw byte repeatedly, not a one-off.
+- Reproduced by this review itself: the first write of this report through the agent Write tool landed a raw NUL byte at the very line describing the fix (the escape text was emitted, a raw byte was stored); it was scrubbed with `perl` before the second commit. The authoring path, not the authors, is the source.
+- `git diff --stat` still counted the first commit as text (95 insertions) because git only sniffs the first 8000 bytes for binary — so a NUL deep in a file passes review as text while `grep` still skips the whole file.
 
-Fix: replace each with the `\0`/` ` escape; add a `check:*` gate that rejects NUL bytes in tracked `.ts/.tsx/.mjs/.cjs`; add `.gitattributes` with `*.ts diff` so a regression at least diffs.
+Fix: replace each with the `\0`/`\u0000` escape; add a `check:*` gate that rejects NUL bytes in tracked `.ts/.tsx/.mjs/.cjs`; add `.gitattributes` with `*.ts diff` so a regression at least diffs.
 
 ### F5 — CONFIRMED · MEDIUM (duplicated seam → serial one-arm fixes) · Boot orchestration is hand-copied between `index.ts` and `cli/commands/serve.ts`; four Sep 5 commits each ported one step, and `cli/commands/export.ts` still has none of them
 
