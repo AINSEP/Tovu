@@ -201,6 +201,47 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
   };
 }
 
+/** A daemon `end` frame's non-successful terminal classification, as the daemon itself recorded it
+ *  in `@jini-ai/protocol`'s `RunEndPayload`. */
+interface TerminalOutcome {
+  readonly status: "failed" | "canceled";
+  readonly code: string;
+  readonly signal: string;
+  readonly resumable: string;
+}
+
+/**
+ * Reads that classification off a raw `end` frame, or `null` when the run succeeded, sent nothing,
+ * or sent something unparseable.
+ *
+ * `code`/`signal`/`resumable` come back pre-rendered as display strings rather than as their wire
+ * types, because both callers ({@link terminalOutcomeNotice} and {@link terminalFailureError}) want
+ * the same human-facing rendering of an absent value (`"none"`/`"no"`) and neither does arithmetic
+ * on them. Rendering once, here, is what stops the operator-facing notice and the persisted error
+ * from describing the same dead run in two different ways.
+ *
+ * Every field is `typeof`-checked before use, and a malformed body returns `null` rather than
+ * throwing: this runs inside an `EventSource` listener whose other job is to END the run, and a
+ * throw there would strand the pane mid-turn over a cosmetic detail.
+ */
+function readTerminalOutcome(raw: string | undefined): TerminalOutcome | null {
+  if (!raw) return null;
+  let payload: Record<string, unknown>;
+  try {
+    payload = ((JSON.parse(raw) as Record<string, unknown>).payload ?? {}) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const status = payload.status;
+  if (status !== "failed" && status !== "canceled") return null;
+  return {
+    status,
+    code: typeof payload.code === "number" ? String(payload.code) : "none",
+    signal: typeof payload.signal === "string" ? payload.signal : "none",
+    resumable: payload.resumable === true ? "yes" : "no",
+  };
+}
+
 /**
  * Turns a daemon `end` frame's terminal outcome into a visible `status` event when — and only when —
  * the run did NOT succeed.
@@ -215,31 +256,69 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
  * rows exist in `sites/tovu-com/chat.db` — one `codex`, one `claude`, 578 ms and 552 ms — and they
  * are what "the chat just craps out with no error" actually looks like on disk.
  *
- * Emitted as a `status` event, NOT via `handlers.onError`, deliberately: routing this to `onError`
- * would flip the persisted `run_status` to `failed`, which is a behavior change to what the product
- * writes down and is out of scope until the owner signs off. This is the additive half — the
- * operator SEES the failure and its exit code; what gets stored is unchanged.
+ * This is the SEEN half of that fix; {@link terminalFailureError} below is the WRITTEN-DOWN half
+ * (2026-09-07, owner-approved). An earlier version of this comment said the persistence change was
+ * deliberately NOT made and was out of scope until the owner signed off — that is no longer true,
+ * and the two halves stayed separate functions only because they disagree on exactly one input:
+ * `canceled` earns a notice but is not a failure.
  *
  * Returns `null` for a successful or absent status so a normal turn gains no extra event.
  */
 export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | null {
-  if (!raw) return null;
-  let payload: Record<string, unknown>;
-  try {
-    payload = ((JSON.parse(raw) as Record<string, unknown>).payload ?? {}) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-  const status = payload.status;
-  if (status !== "failed" && status !== "canceled") return null;
-  const code = typeof payload.code === "number" ? String(payload.code) : "none";
-  const signal = typeof payload.signal === "string" ? payload.signal : "none";
-  const resumable = payload.resumable === true ? "yes" : "no";
+  const outcome = readTerminalOutcome(raw);
+  if (!outcome) return null;
+  const { status, code, signal, resumable } = outcome;
   return {
     kind: "status",
     label: status === "canceled" ? "Run canceled" : "Run failed \u2014 the agent process exited without answering",
     detail: `exit code ${code}, signal ${signal}, resumable ${resumable}. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for \`[agent-daemon] run <id> ended\`.`,
   };
+}
+
+/**
+ * The reportable `Error` for a daemon `end` frame the daemon itself classified as `failed`, or
+ * `null` for every other terminal outcome.
+ *
+ * WHY THIS EXISTS (2026-09-07, owner-approved): it is what makes a dead run RECOVERABLE FROM THE
+ * DATABASE ALONE. Until now a failed run was reported only through `onDone`, so the durable record
+ * said `run_status='succeeded'` with empty content: the live transcript was the ONLY place the
+ * failure was visible, and once it was gone the row was indistinguishable from a successful turn
+ * that happened to answer with nothing. That lie is why diagnosing chat deaths burned multiple
+ * sessions and carried a wrong premise through two handoffs. `f682eff2` deliberately left it in
+ * place ("a behavior change to what the product writes down... out of scope until the owner signs
+ * off"); the owner has now signed off, and this is that change.
+ *
+ * NOTHING IN THIS FILE COMPUTES `runStatus`. Three pieces of `@jini-ai/chat` do, and the whole
+ * effect of this function rests on all three:
+ *   1. `useRunStream`'s `onError` sets the run's status to `'error'` — and its `onDone` is written
+ *      as `prev.status === 'error' ? prev.status : 'done'`, so an `onDone` arriving AFTER this
+ *      preserves the failure instead of overwriting it. That is what lets {@link subscribeToRun}
+ *      report the failure and STILL settle the run through `finish()` with its collected events
+ *      intact, rather than having to choose between the two. The call order in that listener is
+ *      load-bearing, not incidental.
+ *   2. `useConversation` maps run status `'error'` to `ChatMessage.runStatus: 'failed'`.
+ *   3. `isTerminalRunStatus` already counts `'failed'` as terminal, so `assistant-chats.ts`'s
+ *      `persistableMessages` KEEPS the message (it discards only still-streaming turns) and
+ *      `AssistantDock/hooks/AssistantDock.hooks.tsx`'s `shouldPublishOnMessagesChange` still
+ *      settles the dock. A failed run therefore cannot hang the pane waiting for a terminal state
+ *      that never arrives — which is the failure this change would otherwise have traded the wrong
+ *      record for.
+ *
+ * `canceled` is excluded on purpose: a run the operator stopped is not a failure, and
+ * `useRunStream.cancel()` already stamps its own `'canceled'` status. Marking it `failed` would
+ * swap one wrong record for another.
+ *
+ * Historical rows are NOT retrofitted. `sites/tovu-com/chat.db` held 2 such rows on 2026-09-07 and
+ * the pre-split `sites/tovu-com/content.db` copy held 6; nothing distinguishes a genuinely empty
+ * successful answer from a death after the fact, so a migration could only guess. Going-forward
+ * correctness is the goal.
+ */
+export function terminalFailureError(raw: string | undefined): Error | null {
+  const outcome = readTerminalOutcome(raw);
+  if (!outcome || outcome.status !== "failed") return null;
+  return new Error(
+    `The agent process exited without answering (exit code ${outcome.code}, signal ${outcome.signal}, resumable ${outcome.resumable}).`,
+  );
 }
 
 /** Reads a terminal frame's `reason` from either stream shape without letting a malformed or absent
@@ -380,6 +459,21 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     if (outcome) {
       collected.push(outcome);
       handlers.onEvent(outcome);
+    }
+    // The durable half (2026-09-07). `finish()` alone reports the run through `onDone`, which is
+    // what persisted a dead run as `run_status='succeeded'` with empty content. Reporting the
+    // daemon's own `failed` classification through `onError` FIRST is what makes the stored row
+    // say `failed` instead — see {@link terminalFailureError} for the three `@jini-ai/chat` steps
+    // that turn this call into that column value.
+    //
+    // ORDER IS LOAD-BEARING: `useRunStream`'s `onDone` keeps an existing `'error'` status
+    // (`prev.status === 'error' ? prev.status : 'done'`), so error-then-finish marks the run failed
+    // AND hands `onDone` the collected events — including the `terminalOutcomeNotice` above, so the
+    // persisted row carries its own exit code and stops being a mystery. Swapping the two lines
+    // would silently restore the old `succeeded`.
+    const failure = terminalFailureError(raw);
+    if (failure) {
+      handlers.onError(failure);
     }
     finish();
   });
