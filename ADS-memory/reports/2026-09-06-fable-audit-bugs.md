@@ -74,3 +74,30 @@
 - `7caa2b71` create-published event: `post.ts:842` emits; all three create sinks drain (`routes/posts/create.ts:119`, `routes/pages/create.ts:112`, `post/tool-registrations.ts:535`). Other `createPost` callers checked below.
 - `6442b34f` `form-render.ts:405-413` `setInputValueAttr`: `("[^"]*"|'[^']*')` alternation is correct; no finding.
 - `1044e2d5`: `static-render.ts:107-108,:168-174`, `site-exporter.ts:313-314`, `form-render.ts:164-165` all escape `'`. FIVE more `escapeHtml` copies exist outside the commit (`assistant/mcp-ui.ts`, `public-http/http/site/page-head.ts`, `routes/site/newsletter-unsubscribe.ts`, `newsletter-confirm.ts`, `store.ts`) — checked below.
+
+## Section 2 — Findings from commits codex left pending
+
+### D-05 (codex) — CONFIRMED (High) — desktop Delete races an in-flight Start on the same site
+- `apps/desktop/main.cjs:569-576` `openSiteServer`: `openSites.set(siteDir, …)` happens only AFTER `await startSiteBackend(...)` — the child is spawning/booting with no entry in the map.
+- `apps/desktop/src/project-ipc.cjs:205-211` `handleStart` runs inside `deps.serializer.run(id, …)`; `:151-168` `handleDelete` does NOT — it reads `deps.openSites.get(id)` (undefined during the boot window), skips the stop, `untrackProject`, then `fsp.rm(id, { recursive: true, force: true })` (`:166-167`) when `mayEraseProjectDirectory` says yes (created-origin, outside repo).
+- Scenario: Start site → immediately back to All → Delete → confirm. Directory removed under a booting `tovu serve`; the start then resolves and `openSites.set` publishes a running entry for a project that no longer exists. Fix shape: route delete through the same per-id serializer.
+
+### D-02 (codex) — CONFIRMED (Medium) — hosted-DB choice accepted then silently dropped
+- `apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx:66-70` renders Supabase/Custom as selectable options with real inputs. `apps/desktop/src/project-ipc.cjs:97-123` `handleCreate` reads only `input.displayName`; `adoptSiteDir` (`site-dir-store.cjs:236-240`) runs `tovu init`; `buildProjectRecord:69` hard-codes `database: { kind: "sqlite" }`. Only the Supabase key field carries a "prototype does not retain the key" hint; the Custom arm and the URL/connection fields carry none. Operator picks Supabase → gets a local SQLite site reported as success.
+
+### D-04 (codex) — CONFIRMED as code shape (Low) — delete authorisation is path+origin only
+- `apps/desktop/src/project-delete-guard.cjs:mayEraseProjectDirectory` checks `row.origin === "created"` and "not inside repoRoot"; nothing checks that the directory at that path still is a site (markers) or is the one the app created. `readTrackedProjects` never prunes. Requires the operator to have moved the site and reused its path — low likelihood, high blast radius (recursive rm).
+
+### SEO-01 — CONFIRMED shape (Low) — `setEntrySeoOverrides` is another compare-less version bump (C01 sibling)
+- `apps/website/src/features/seo/write-service.ts:~225-235`: `findById` → `postRepo.save({ ...existing, seoExtJson, version: existing.version + 1 })` — full-row upsert (`repo.sqlite.ts:167-190`), no version predicate, bumps `version`. Consequences: (1) any open editor's standing-draft autosave starts returning `applied:false` (`repo.sqlite.ts writeAutosave` predicate) → "Someone else saved this while you were editing" banner (`posts/rules.ts:210`) for an SEO-only change; (2) an editor Save with `expectedVersion` gets 409 VERSION_CONFLICT for content nobody changed; (3) the microtask window between `findById` and `save` can re-write a concurrent content save with `existing`'s body. Pre-existing shape, but the window's new `expectedVersion`/autosave features made it user-visible. Same for the `seo_set_entry_overrides` agent tool (same chokepoint).
+
+### ESC-01 — CONFIRMED (Low) — `1044e2d5` "every escapeHtml copy" left `page-head.ts`
+- `apps/website/src/server/inbound/public-http/http/site/page-head.ts:194-200` `escapeHtml` still lacks the `'` → `&#39;` replacement the commit added to four sibling copies. No single-quoted attribute sink found in that file at HEAD (grep for `='${escapeHtml` empty), so not exploitable today; a one-arm-left inconsistency with a false commit message.
+
+### Not findings (pending-list commits read, no defect)
+- `0ae3429d`/`8d041b52` outbox: HEAD is consistent — worker decides `nextStatus` (`outbox-worker.ts`), both adapters take the 4th param, Jini `OutboxPort.markFailed` (`Jini/packages/cms/src/core/ports.ts:144-149`) declares it. `claimPending` leaves `processing` rows unrecoverable after a crash (no reaper) — PRE-EXISTING, outside window.
+- `eb10f5de`/`d033ffb8` SEO null-clear: `applyOverridesPatch` deletes on `null`; validators skip `null`; agent schema widened to `["string","null"]`; collapses to `NULL` when empty. Consistent end to end.
+- `a60e07e8`/`10efb899`/`eba275f4` autosave: `writeAutosave` is the correct conditional UPDATE; hook gates further autosaves on stale basis; recovery banner distinguishes "from before a newer save" (`posts/rules.ts:103`, `pages/rules.ts:292`). Flush-on-exit cleanup closes over the OLD `entryId` (correct).
+- `15548bef`/`2aa317ab`/`4c6a0797` boot token: single-use sha256 + `timingSafeEqual`, loopback-only via `req.socket.remoteAddress`, token printed only with `emitBootToken`. Minor: a 500 after redeem burns the token (desktop cannot retry) — not a defect on its own.
+- `b37864c3` `content_post_update` forwards `expectedVersion` (`post/tool-registrations.ts:~555,597`). Kind-blind for `kind:"post"` like the HTTP route.
+- `a9a6e3a9` export redirect stub: `safeHref` then `escapeHtmlAttr` on all three sinks. `d1eea4b2` export now runs `reconcileInterruptedMigrationOnBoot` and refuses when blocked. `62634037` adopt: refuses partial marker sets. `2cd019cd`/`848ddd09` HTTP/2: `Connection` omitted when `httpVersionMajor >= 2`; proxy strips hop-by-hop. `00bc4bd6`, `4c65e392`: correct.
