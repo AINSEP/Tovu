@@ -140,17 +140,25 @@ npx eslint src/features/posts/hooks/use-post-editor.hooks.ts src/features/posts/
 # 3 pre-existing warnings (lines 297, 391, 738 — none touched by this change), 0 errors
 ```
 
-## Two things found beyond the literal ask — flagging, not fixing (out of scope)
+## Two things found beyond the literal ask
 
-1. **A FOURTH stale accept-list E's census missed, live in Agent F's territory.**
-   `apps/admin/src/features/media/Media.tsx:819` has a raw HTML `accept="image/jpeg,image/png,image/webp,image/gif,image/avif"`
+1. **A FOURTH stale accept-list E's census missed, found in Agent F's territory — fixed (UPDATE).**
+   `apps/admin/src/features/media/Media.tsx` had a raw HTML `accept="image/jpeg,image/png,image/webp,image/gif,image/avif"`
    attribute on the upload `<input>` — still 5 image-only types, no video, same drift shape as Task 2
-   but in the Media Library's own upload form rather than the post-editor drag/paste path. Confirmed
-   via `git log` this survived F's own most recent commit on that file (`bf41e81c`) and is not part of
-   F's currently in-progress uncommitted work (which is unrelated — an HTML-attributes editor feature
-   being reverted). **Not fixed by me** — `apps/admin/src/features/media/**` is explicitly Agent F's
-   live territory per this dispatch's collision-avoidance rule. Sent F a direct message with the exact
-   line and the fix shape (same pattern as Task 2) so it doesn't get missed a second time.
+   but in the Media Library's own upload form rather than the post-editor drag/paste path. Messaged F
+   with the exact line and fix shape. F replied they'd stood down after an unrelated correction and
+   handed it back ("it's yours if you want it"), so I fixed it myself: widened the `accept` string and
+   its `agentHandle` label to the 7-type ceiling, with a RED-first regression test
+   (`Media.unit.test.tsx`) pinning the exact set.
+
+   **Race note:** while I was editing, F independently picked the same file back up and landed a
+   compatible companion fix — `MediaTypeEmptyState`'s "Videos" empty-state copy (which used to
+   explicitly say video wasn't supported, first because the server rejected it, then because this same
+   `accept` list did) plus its own test in `media-type-filter.unit.test.tsx`. Both edits landed in
+   non-overlapping hunks of the same file. Diffed the merged file by hand, reran the full suite fresh
+   against the merged state (`Media.unit.test.tsx` 30/30, `media-type-filter.unit.test.tsx` 13/13, tsc
+   0 errors), confirmed clean, gave F a heads-up before committing, then committed all three files
+   together crediting both contributions (`c55da3e1`).
 
 2. **Widening `FILE_HANDLER_ALLOWED_MIME_TYPES` opens a second on-ramp to a pre-existing "no video
    node" editor gap — not a new bug class.** Traced `handleFileDrop`/`handleFilePaste` and the Media
@@ -247,8 +255,6 @@ introduced.
 
 ## Suggested next routing
 
-- Agent F (or whoever next touches `apps/admin/src/features/media/**`): fix `Media.tsx:819`'s stale
-  `accept` attribute the same way as Task 2 here.
 - Leona: rule on whether video-in-post-body is a wanted near-term feature (needs a real video node
   type + `render.ts` case) or whether both insertion paths (Media Picker, drag/paste) should instead
   be temporarily restricted back to image-only until that exists.
