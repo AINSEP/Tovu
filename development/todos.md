@@ -1426,21 +1426,103 @@ drift exists, is growing, and is not cosmetic.
 
 ## Footer dead links on the live site
 
-**[UNVERIFIED 2026-09-06] — the underlying `theme.json` has changed since this was measured, so the
-status table below is no longer trustworthy.** When filed (2026-08-30, by curling a running `:3000`)
-`/download`, `/changelog`, `/signup` and `/team` returned 404 while `/blog`, `/documentation`,
-`/about`, `/signin`, `/contact`, `/faq`, `/terms-of-service` and `/privacy-policy` returned 200.
-Today the live theme's `theme.json` (`sites/tovu-com/themes/static/basic/theme.json`) has
-`publishedPages: []` — **empty** — and no longer lists `blog` under `pages` at all, so which links
-404 has certainly changed. Re-curl a running site before acting on any specific link.
+**Re-measured 2026-09-06 against the running dev site**, with
+`curl -sk -o /dev/null -w "%{http_code}\n" https://localhost:3000/<path>` (HTTPS, self-signed cert).
+**Every link the footer actually emits today returns 200** — the dead links this was filed for are
+gone, and the footer no longer hardcodes page links at all. What survives is the *mechanism* (still
+able to produce a guaranteed 404, but only through one narrower route than originally described)
+plus a tracked-vs-live drift that would reinstate the original bug on any reinstall.
 
-**The structural bug is what matters and is unaffected by the drift:** `publishedPages` is an explicit
-allowlist separate from `pages` (the full set of `.html` files the theme ships), an unlisted page
-404s outright rather than merely being unlinked, and the footer partial links to pages
-**unconditionally, regardless of `publishedPages`** — so the footer generates guaranteed 404s by
-construction. Either publish the pages it links, or stop linking pages that are not published. `/team`
-has a different root cause again: it is not a theme page at all, it comes from the `menu-footer-nav`
-embedded menu.
+**The footer's links are menu-driven now, not hardcoded.** The live
+`render/partials/footer.html` ships two menu embeds — `{"type":"menu","id":"footer-resources"}`
+(Resources) and `{"type":"menu","id":"menu-footer-nav"}` (Legal) — each wrapping authored fallback
+markup. Both resolve against real stored menus, not the fallback: the rendered `/about` footer
+carries `aria-current="page"` on both About links, an attribute only `renderMenuLinks`
+(`static-render.ts`) emits and which the authored fallback markup cannot produce. The `Account`
+column (`/signin`) is still commented out, so it emits nothing.
+
+### Status, measured 2026-09-06
+
+| Path | Code | Emitted by the footer? | Served by |
+| --- | --- | --- | --- |
+| `/docs` | 200 | yes — `footer-resources` | content row |
+| `/articles` | 200 | yes — `footer-resources` | content row |
+| `/about` | 200 | yes — both menus | content row |
+| `/contact` | 200 | yes — `menu-footer-nav` | content row |
+| `/faq` | 200 | yes — `menu-footer-nav` | content row |
+| `/terms-of-service` | 200 | yes — `menu-footer-nav` | content row |
+| `/privacy-policy` | 200 | yes — `menu-footer-nav` | content row |
+| `/signin` | 404 | no — column commented out | — |
+| `/team` | 404 | no — no longer in `menu-footer-nav` | — |
+| `/blog` | 404 | no | — |
+| `/changelog` | 404 | no | — |
+| `/signup` | 404 | no | — |
+| `/pricing` | 404 | no | — |
+| `/download` | 200 | no | content row |
+| `/documentation` | 301 | no | `Location: /docs` |
+
+"Served by content row" is load-bearing, not incidental: the live `theme.json` has
+`publishedPages: []`, so **no theme page is routable at all** right now. `/about` returns 200
+because a Post/Page row owns that slug, not because `about.html` is being served — live `/about` is
+15,555 bytes titled `What Is Tovu?`, while the theme's own `about.html` is 4,324 bytes titled
+`About — Tovu`. Same story for `/docs` and `/download`.
+
+### Structural analysis — confirmed vs. refuted
+
+Checked against `apps/website/src/features/theme/theme.ts`,
+`apps/website/src/features/theme/static-render.ts` and
+`apps/website/src/server/inbound/public-http/routes/site/pages.ts`.
+
+- **CONFIRMED — `publishedPages` is an explicit allowlist, separate from `pages`.**
+  `isStandaloneThemePage` (`theme.ts:706`): an absent array means nothing is published, a present
+  array means only its entries are. `theme.json`'s `pages` is the candidate set, nothing more.
+- **CONFIRMED — an unlisted page 404s outright rather than merely being unlinked.** The live route
+  gates on it: `isMarketingPageSlug` (`pages.ts:981`) is
+  `tier === "static" && isStandaloneThemePage(...)`. Measured proof: `changelog`, `signin` and
+  `signup` are all listed under `pages` in the live `theme.json`, and all three 404.
+- **REFUTED as written — "the footer partial links to pages unconditionally."** It no longer links
+  to pages at all; it embeds menus. And `renderMenuLinks` (`static-render.ts:244`) filters on
+  `item.available`, so a menu item whose *content target* has been deleted or unpublished is dropped
+  entirely rather than rendered as a dead link.
+- **CONFIRMED but narrowed — the "guaranteed 404 by construction" hazard is real, and scoped.**
+  Nothing in the menu path consults `publishedPages`: `resolveStaticMenusForRender`'s
+  `resolveTargetHref` (`pages.ts:410`) resolves through `urlFor` against the post repo only. So the
+  availability filter protects content-ref items and nothing else — a menu item authored as a **raw
+  URL**, and any hardcoded `<a href="…">` left in a partial, is still emitted unconditionally and can
+  still be a guaranteed 404. That is exactly the shape `/team` had.
+- **`/team`, restated.** The original diagnosis (a `menu-footer-nav` item, not a theme page) is
+  consistent with the mechanism above, but it is no longer a live defect: `menu-footer-nav` now
+  renders About / Contact / FAQ / Terms of Service / Privacy Policy, with no Team item. `/team`
+  itself still 404s; nothing links to it.
+
+### Drift: the tracked copy would reinstate the original bug
+
+`sites/` is gitignored, so `content/themes/static/basic/` is what a reinstall or upgrade deploys —
+and it is still the **pre-fix** footer. Tracked `render/partials/footer.html` hardcodes
+`pricing.html`, `blog.html`, `docs.html`, `about.html` and `signin.html`, and carries only the
+`menu-footer-nav` embed (no `footer-resources`). Tracked `theme.json` has **no `publishedPages` key
+at all** — which, per the contract above, means nothing published. Deploy that pair and the footer
+is five hardcoded links against zero published theme pages: `/pricing`, `/blog` and `/signin` are
+outright 404s today, and `/docs` and `/about` would survive only by accident, because content rows
+happen to own those slugs. This is another instance of the `content/themes/` vs `sites/` drift entry
+above.
+
+### Fix options — owner's product decision, not implemented here
+
+1. **Publish what is linked.** Add the linked ids to `publishedPages` (admin publish toggle →
+   `registerAdminThemePagePublishRoute`). Makes theme pages the source of truth again, but collides
+   with the content rows now serving `/about`, `/docs` and `/download`; the slug-collision default is
+   post-wins (2026-08-15), so those theme pages would stay shadowed anyway.
+2. **Stop linking what is not published.** Keep the menu-driven footer, treat the content rows as
+   canonical, leave `publishedPages` empty and let the theme's `.html` files be inert templates.
+   This is effectively the current live state; making it a rule means requiring menu items to be
+   authored as content refs (which get the availability filter) rather than raw URLs (which do not).
+3. **Independent of 1 and 2:** back-port the live footer and whichever `publishedPages` decision is
+   taken to `content/themes/static/basic/`, or the next reinstall silently reverts to the filed bug.
+
+`/team`'s menu-driven root cause may want a different answer from the rest: the general fix for a
+raw-URL menu item pointing at nothing is either an availability check for raw URLs or a rule that
+menu items must be content refs — neither of which is a `publishedPages` change.
 
 ---
 
