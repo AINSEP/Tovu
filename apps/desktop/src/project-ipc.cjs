@@ -29,7 +29,7 @@ const {
   discoverSiteDirs,
   adoptDiscoveredProjects,
 } = require("./project-registry.cjs");
-const { mayEraseProjectDirectory } = require("./project-delete-guard.cjs");
+const { mayEraseProjectDirectory, readSiteIdentity } = require("./project-delete-guard.cjs");
 const { sitePartition } = require("./desktop-auth.cjs");
 
 const RUNNER_PROJECT_CHANNELS = Object.freeze({
@@ -118,8 +118,13 @@ async function handleCreate(input, deps) {
     cliMode: deps.cliMode,
   });
   const origin = wasEmpty ? PROJECT_ORIGIN.created : PROJECT_ORIGIN.adopted;
-  trackProject(deps.projectsPath, siteDir, origin);
-  return buildProjectRecord({ siteDir, createdAt: new Date().toISOString(), origin }, deps);
+  // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
+  // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
+  // this app can honestly say "the site at this path is one I made" — every later reader is looking
+  // at a path, and a path is not an identity. See `project-delete-guard.cjs`'s test 3.
+  const siteId = readSiteIdentity(siteDir);
+  trackProject(deps.projectsPath, siteDir, origin, { siteId });
+  return buildProjectRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
 }
 
 /**

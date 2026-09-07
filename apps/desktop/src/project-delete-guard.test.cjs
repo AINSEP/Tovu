@@ -13,7 +13,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { resolveRealPath, isInsideDirectory, mayEraseProjectDirectory } = require("./project-delete-guard.cjs");
+const { resolveRealPath, isInsideDirectory, mayEraseProjectDirectory, readSiteIdentity } = require("./project-delete-guard.cjs");
 const { PROJECT_ORIGIN } = require("./project-registry.cjs");
 
 function tempDir() {
@@ -26,6 +26,20 @@ function tempDir() {
 /** A row in `readTrackedProjects`'s shape. */
 function row(siteDir, origin) {
   return { siteDir, createdAt: "2026-01-01T00:00:00.000Z", origin };
+}
+
+/** Write `.site-meta.json` into `dir` (creating it), carrying `siteId` — the identity `tovu init`
+ *  stamps and the one the guard proves a `created` row still names. */
+function writeSiteMeta(dir, siteId) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId, schemaVersion: 58 }));
+  return dir;
+}
+
+/** A `created` row for a site that really is on disk, stamped with that site's own identity — the
+ *  shape `trackProject` writes for a directory this app created. */
+function createdRow(siteDir, siteId) {
+  return { ...row(siteDir, PROJECT_ORIGIN.created), siteId };
 }
 
 test("resolveRealPath follows a symlink to its target", () => {
@@ -96,8 +110,67 @@ test("mayEraseProjectDirectory allows only a created row that lives outside the 
   const repoRoot = path.join(base, "repo");
   const outside = path.join(base, "my-site");
   fs.mkdirSync(repoRoot);
-  fs.mkdirSync(outside);
-  assert.equal(mayEraseProjectDirectory(row(outside, PROJECT_ORIGIN.created), { repoRoot }), true);
+  writeSiteMeta(outside, "site-a");
+  assert.equal(mayEraseProjectDirectory(createdRow(outside, "site-a"), { repoRoot }), true);
+});
+
+test("mayEraseProjectDirectory refuses a created row whose path now holds a DIFFERENT site", () => {
+  // SEC-01/D-04, the whole finding: the operator moved their site elsewhere and something else took
+  // its path. The row still says `created` and still points outside the repo, so provenance and
+  // containment both pass — and the directory about to be erased was never made by this app.
+  const base = tempDir();
+  const repoRoot = path.join(base, "repo");
+  const sitePath = path.join(base, "my-site");
+  fs.mkdirSync(repoRoot);
+  writeSiteMeta(sitePath, "site-a");
+  const stale = createdRow(sitePath, "site-a");
+  assert.equal(mayEraseProjectDirectory(stale, { repoRoot }), true, "baseline: the site it names is still there");
+
+  writeSiteMeta(sitePath, "site-b-someone-elses");
+  assert.equal(mayEraseProjectDirectory(stale, { repoRoot }), false);
+});
+
+test("mayEraseProjectDirectory refuses a created row that recorded no site identity", () => {
+  // A row written before identity was stamped. Nothing proves the directory at that path is still
+  // the one this app created, so it is refused — the module's own fail-closed rule.
+  const base = tempDir();
+  const repoRoot = path.join(base, "repo");
+  const outside = path.join(base, "legacy-created-site");
+  fs.mkdirSync(repoRoot);
+  writeSiteMeta(outside, "site-a");
+  assert.equal(mayEraseProjectDirectory(row(outside, PROJECT_ORIGIN.created), { repoRoot }), false);
+  for (const siteId of ["", null, 42, {}]) {
+    assert.equal(mayEraseProjectDirectory({ ...row(outside, PROJECT_ORIGIN.created), siteId }, { repoRoot }), false, `siteId ${JSON.stringify(siteId)} must refuse`);
+  }
+});
+
+test("mayEraseProjectDirectory refuses a created row whose directory can no longer prove its identity", () => {
+  const base = tempDir();
+  const repoRoot = path.join(base, "repo");
+  fs.mkdirSync(repoRoot);
+
+  const gone = path.join(base, "deleted-by-hand");
+  assert.equal(mayEraseProjectDirectory(createdRow(gone, "site-a"), { repoRoot }), false, "absent directory");
+
+  const markerless = path.join(base, "markers-removed");
+  fs.mkdirSync(markerless);
+  assert.equal(mayEraseProjectDirectory(createdRow(markerless, "site-a"), { repoRoot }), false, "no .site-meta.json");
+
+  const corrupt = path.join(base, "corrupt-meta");
+  fs.mkdirSync(corrupt);
+  fs.writeFileSync(path.join(corrupt, ".site-meta.json"), "{ this is not json");
+  assert.equal(mayEraseProjectDirectory(createdRow(corrupt, "site-a"), { repoRoot }), false, "unparseable .site-meta.json");
+});
+
+test("readSiteIdentity returns a site's own stamped id, and null for anything it cannot read", () => {
+  const base = tempDir();
+  assert.equal(readSiteIdentity(writeSiteMeta(path.join(base, "real"), "site-a")), "site-a");
+  assert.equal(readSiteIdentity(path.join(base, "absent")), null);
+
+  const noId = path.join(base, "no-id");
+  fs.mkdirSync(noId);
+  fs.writeFileSync(path.join(noId, ".site-meta.json"), JSON.stringify({ schemaVersion: 58 }));
+  assert.equal(readSiteIdentity(noId), null);
 });
 
 test("mayEraseProjectDirectory refuses an adopted row even when it lives outside the repo root", () => {

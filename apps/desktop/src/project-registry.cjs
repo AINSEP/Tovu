@@ -139,10 +139,17 @@ function writeTrackedProjects(projectsPath, rows, dismissed = readDismissedProje
  *   the directory — so a call site that forgets to state provenance fails CLOSED rather than
  *   handing a stranger's folder to `fs.rm`. Only a caller that positively knows this app created
  *   the directory may pass `created`.
+ * @param options.siteId the identity of the site this app just created here — `.site-meta.json`'s
+ *   own `siteId`, read by `project-delete-guard.cjs`'s `readSiteIdentity`. Recorded ONLY alongside
+ *   `created`, because it exists for exactly one reader: the guard, proving before an `fs.rm` that
+ *   the site at this path is still the one whose creation wrote this row (SEC-01/D-04). An
+ *   `adopted` row can never erase anything, so stamping one would record a fact nothing reads and
+ *   that a future rule could misread as permission. Omitted or unusable leaves the row without it,
+ *   and the guard then refuses the erase — the fail-closed direction.
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function trackProject(projectsPath, siteDir, origin = PROJECT_ORIGIN.adopted) {
+function trackProject(projectsPath, siteDir, origin = PROJECT_ORIGIN.adopted, options = {}) {
   const rows = readTrackedProjects(projectsPath);
   // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
   // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
@@ -154,9 +161,21 @@ function trackProject(projectsPath, siteDir, origin = PROJECT_ORIGIN.adopted) {
     if (dismissed.length !== readDismissedProjects(projectsPath).length) writeTrackedProjects(projectsPath, rows, dismissed);
     return rows;
   }
-  const next = [...rows, { siteDir, createdAt: new Date().toISOString(), origin: normalizeOrigin(origin) }];
+  const next = [...rows, buildTrackedRow(siteDir, normalizeOrigin(origin), options.siteId)];
   writeTrackedProjects(projectsPath, next, dismissed);
   return next;
+}
+
+/**
+ * One row in the shape {@link readTrackedProjects} returns, with `siteId` present only when this
+ * row is `created` AND a usable id was supplied — see {@link trackProject}'s own param doc.
+ *
+ * @complexity O(1).
+ */
+function buildTrackedRow(siteDir, origin, siteId) {
+  const row = { siteDir, createdAt: new Date().toISOString(), origin };
+  const stampable = origin === PROJECT_ORIGIN.created && typeof siteId === "string" && siteId !== "";
+  return stampable ? { ...row, siteId } : row;
 }
 
 /**
