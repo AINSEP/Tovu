@@ -87,6 +87,7 @@ function mediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: null,
     ...overrides,
   };
 }
@@ -481,6 +482,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CO
       width: 640,
       height: 480,
       cssClass: "rounded",
+      htmlAttributes: null,
     },
   });
 });
@@ -502,7 +504,15 @@ test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO res
 
   assert.deepEqual(resolved.get("media")?.get("asset-1"), {
     componentId: "media-image",
-    props: { assetId: "asset-1", contentType: "video/mp4", alt: "A hero clip", width: 1920, height: 1080, cssClass: "hero-video" },
+    props: {
+      assetId: "asset-1",
+      contentType: "video/mp4",
+      alt: "A hero clip",
+      width: 1920,
+      height: 1080,
+      cssClass: "hero-video",
+      htmlAttributes: null,
+    },
   });
 });
 
@@ -527,6 +537,7 @@ test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied
       width: 640,
       height: 480,
       cssClass: "rounded",
+      htmlAttributes: null,
     },
   });
 });
@@ -840,7 +851,9 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
   const ir = resolved.get("content")?.get("entity-1");
   assert.ok(ir);
   assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 3 });
-  assert.deepEqual(ir?.props.mediaAssetMetadata, { "asset-1": { width: 900, height: 600, cssClass: "hero" } });
+  assert.deepEqual(ir?.props.mediaAssetMetadata, {
+    "asset-1": { width: 900, height: 600, cssClass: "hero", htmlAttributes: null },
+  });
 });
 
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson\'s ref-based images (both "post-content" IR builders shared the same gap, not just "content")', async () => {

@@ -56,6 +56,7 @@ function makeMedia(overrides: Partial<MediaRecord> = {}): MediaRecord {
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: null,
     ...overrides,
   };
 }
