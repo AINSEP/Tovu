@@ -290,7 +290,7 @@ test.describe("allowlist bypass attempts on the MCP-UI redemption endpoint", () 
     { name: "all-caps", toolName: "CONTENT_POST_DELETE" },
     { name: "trailing whitespace", toolName: "content_post_delete " },
     { name: "leading whitespace", toolName: " content_post_delete" },
-    { name: "trailing null byte", toolName: "content_post_delete " },
+    { name: "trailing null byte", toolName: "content_post_delete\u0000" },
     { name: "trailing newline", toolName: "content_post_delete\n" },
     { name: "not on the allowlist at all: content_post_create", toolName: "content_post_create" },
     { name: "not on the allowlist at all: content_post_update", toolName: "content_post_update" },

@@ -211,7 +211,7 @@ function loadSourceRows(db: ContentDb): SourceRow[] {
 }
 
 function groupKey(workspaceId: string, vendorId: VendorId): string {
-  return `${workspaceId} ${vendorId}`;
+  return `${workspaceId}\u0000${vendorId}`;
 }
 
 interface TargetState {
@@ -229,7 +229,7 @@ function loadTargetState(db: ContentDb): TargetState {
   const migratedIds = new Set<string>();
   const groups = new Map<string, GroupState>();
   for (const row of rows) {
-    migratedIds.add(`${row.workspaceId} ${row.id}`);
+    migratedIds.add(`${row.workspaceId}\u0000${row.id}`);
     const key = groupKey(row.workspaceId, row.vendorId as VendorId);
     const state = groups.get(key) ?? { takenLabels: new Set<string>(), hasDefault: false };
     state.takenLabels.add(row.label);
@@ -299,7 +299,7 @@ export async function runVendorCredentialBackfill(deps: VendorCredentialBackfill
   let skipped = 0;
 
   for (const row of sourceRows) {
-    const targetKey = `${row.workspaceId} ${row.id}`;
+    const targetKey = `${row.workspaceId}\u0000${row.id}`;
     if (migratedIds.has(targetKey)) {
       skipped += 1;
       log(`SKIPPED (already migrated): origin=${row.origin} workspace=${row.workspaceId} id=${row.id} vendor=${row.vendorId}`);
@@ -370,7 +370,7 @@ export async function runVendorCredentialBackfill(deps: VendorCredentialBackfill
 function countPending(db: ContentDb): number {
   const sourceRows = loadSourceRows(db);
   const { migratedIds } = loadTargetState(db);
-  return sourceRows.filter((row) => !migratedIds.has(`${row.workspaceId} ${row.id}`)).length;
+  return sourceRows.filter((row) => !migratedIds.has(`${row.workspaceId}\u0000${row.id}`)).length;
 }
 
 async function main(): Promise<void> {
