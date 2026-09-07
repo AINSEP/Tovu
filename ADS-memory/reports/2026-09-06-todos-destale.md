@@ -235,3 +235,44 @@ The dispatch's six passes covered the file down to §25. The 13 `##` sections af
 ### Kept verbatim
 - **Theme marketplace (local fixture only)**, **Tailwind/shadcn rationale**, **JSON-column tripwire's three items** (all three explicitly latent and non-blocking; the regex, the trailing-comment blind spot and the `build.sourceDir` rule are unchanged in source), **First-run onboarding wizard**, **Security page**, **Deployment** (its own text already says the end-to-end deploy was not verified — that caveat is correct and stays), and the **assistant-dock form-corruption bug** (needs a live browser repro, explicitly out of scope here).
 
+---
+
+## Summary
+
+**`development/todos.md`: 1720 -> 1377 lines (-343, -20%).** Zero `[x]` items remain (was 76); 291 open items; 4 entries carry `[UNVERIFIED 2026-09-06]`.
+
+### Commits (all on `restructure/apps-website-phased`, each independently revertible)
+| SHA | Pass |
+|---|---|
+| `df07b37c` | Pass 1 — top-of-file dated entries |
+| `5e593ab4` | Pass 2 — Admin Section Spec Sweep + 2026-08-10 slice |
+| `30288302` | Pass 3 — Active Working Items AW-1..AW-7 |
+| `6528ed5a` | Fix — restore four sections pass 3 deleted by mistake |
+| `af8d083a` | Pass 4 — Accomplish, ADR map, research backlogs |
+| `210b3751` | Pass 5 — Master Build Inventory §1-§18 |
+| `c71c5923` | Pass 6 — Master Build Inventory §19-§25 |
+| `e99249e2` | Pass 7 — the tail sections |
+
+### Everything left `[UNVERIFIED 2026-09-06]`
+1. **Commerce Platform Crosswalk backlog** — its `other-repos/TODO.md` pointer resolves nowhere in the repo.
+2. **§24 Architecture Tooling Evaluation** — the three competitor-findings files it rests on are absent.
+3. **HTML-format Pages in the fallback shell** — its stated cause is disproved, but the symptom needs a running site to re-check.
+4. **Footer dead links** — the live `theme.json` changed materially since the statuses were curled.
+
+### Could NOT be verified from source (and were therefore left alone, not guessed at)
+- Anything requiring a **running site or browser**: the four stale VRT baselines, the assistant-dock form-corruption bug, the deployment pipeline end-to-end, and both `[UNVERIFIED]` live-site entries above. Test suites were deliberately not run, per the dispatch.
+- **The 13-item Agent capability surface backlog** — its `file:line` citations are to Directus/Strapi/Payload/WordPress, and settling the items would mean reading Jini's `ai-control-plane.md`. Only its evidence roots were confirmed to exist.
+- **§21, §22 (AEO/GEO), §23, §25** — aspirational lists with no falsifiable claims about current source.
+- **Whether `/code-inspection` or `/audit-work` ever actually ran** on SPEC-003/005/006 beyond what the pipeline ledgers record.
+- Several §19/§20 parity items phrased as "not confirmed built" (scheduled publishing, private visibility, per-entry trash, term archives) — each would need a behavioral check rather than a source read.
+
+### New gaps found while verifying (reported, NOT fixed)
+1. **7 ADRs are absent from `ADR-INDEX.md`** — 053, 055, 056, 057, **059**, 063, 064. The index is the stated source of truth. (This became a new todo item in §18.)
+2. **ADR-047 is live in production code but never reached ACCEPTED** — the widgets/embeds implementation shipped while `ADR-INDEX.md:54` still records "owes `/audit-work` before ACCEPTED".
+3. **The core outbox has no backoff and no attempt cap.** `contracts/core/events/outbox-worker.ts:34` passes `now` as `nextAttemptAt`, so a failed event is immediately re-claimable, and nothing reads the `attempts` column it increments. A permanently-failing handler spins at 20 events/tick forever.
+4. **A false code comment.** `server/runtime/composition/deps.ts:439-441` says "outbox + event bus remain in-memory for now … a durable outbox is a later …" while line 934 of the same file constructs `new SqliteOutboxAdapter(db)`.
+5. **`apps/website/src/server/error-mapping/` is an empty promise** — one `INFO.md` declaring itself the home of "the canonical error envelope, status mapping helpers, and route-safe translation", with no code.
+6. **ADR-065's template renaming was applied to `sites/` only.** Live `tovu-com` has `listing-default.html` / `pages-default.html` / `posts-default.html` / `posts-sidebar.html`; tracked `content/themes/static/basic/` still has `blog-post.html` / `blog-sidebar-template.html` / `page-shell.html`. Since `sites/` is gitignored, a reinstall or upgrade would restore the old names under a resolver that expects the new ones.
+
+### One defect I introduced and fixed
+Pass 3's edit helper spanned an `###` block to the next `###` without stopping at an intervening `##`, deleting four out-of-scope `##` sections. Caught before pass 4, restored byte-identically from `5e593ab4` (`diff` rc=0) in commit `6528ed5a`, and the helper was rewritten to stop at any same-or-higher heading before pass 4 ran.
