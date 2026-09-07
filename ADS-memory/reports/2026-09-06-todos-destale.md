@@ -132,3 +132,48 @@ Restored byte-identically from `5e593ab4:development/todos.md` lines 332-388 (`d
 - **The outbox has no backoff and no attempt cap.** `apps/website/src/contracts/core/events/outbox-worker.ts:34` calls `outbox.markFailed(row.id, message, now)` — `now` is the `nextAttemptAt`, so a failed event becomes immediately claimable again. `outbox-repo.sqlite.ts:87-90` faithfully writes whatever it is handed. `attempts` is incremented but nothing reads it: `maxAttempts` and `dead-letter` have **zero** hits under `contracts/core/events/` and `platform/db`. A permanently-failing handler spins at full batch rate (20/tick) forever. This was already an open todo item; what is new is that the schema supports the fix and the worker simply does not use it.
 - **`apps/website/src/server/error-mapping/` is an empty promise** — one `INFO.md` declaring itself "the intended home for the canonical error envelope, status mapping helpers, and route-safe translation", with no implementation file beside it.
 
+---
+
+## Pass 5 — Master Build Inventory §1-§18
+
+Deleted every `[x]` item (rule 1; git history keeps them) and rewrote the reconciliation header. `[ ]` items were re-checked rather than carried forward.
+
+### Header paragraph (rule 2 collapse)
+The 2026-07-15 snapshot plus its 2026-09-02 §12 correction became one short block. Its stale halves: "`apps/admin/src/sections/` has 26 real screens" (that path does not exist; `apps/admin/src/features/` has **31** directories) and "no CopilotKit/AG-UI/MCP code exists anywhere in `src/`" (already corrected in-place, now stated once).
+
+**Counts re-measured — every one in the old text was wrong:**
+| Claim | Measured 2026-09-06 |
+|---|---|
+| "46 ADRs" | **64** ADR files; only **57** have an index row |
+| "34 `__tests__` directories" | **156** |
+| "only 10 modules have `__specs__/`" | **7** |
+| "8 rule-of-two ports have `*.contract.test.ts`" | **15** |
+| "26 `INFO.md` files" | 26 — correct |
+
+### Sections collapsed to a pointer (all items were `[x]`)
+§3 Data Layer, §4 Auth/Identity/Permissions, §5 Storage/Media — replaced by one paragraph naming the owning ADRs (006/007/015/022/023/026/041/045; 021/008/022/041; 027) so the architecture map survives the deletion.
+
+### `[ ]` items corrected because source contradicts them
+- **§2 "Implement persistent outbox adapter (DB-backed) — only an in-memory outbox exists today"** — **false**. `apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts` implements it, `server/runtime/composition/deps.ts:934` wires `new SqliteOutboxAdapter(db)` under a comment citing "ADR-046 Phase 1 … durable SQLite outbox", `platform/db/schema.ts:1176` declares `outboxEvents`, and both `outbox-repo.contract.test.ts` and `outbox-restart.integration.test.ts` exercise it. Item deleted.
+- **§1 "Add core observability hooks — no metrics/tracing port exists"** — **false**. `apps/website/src/platform/observability/` ships `ports.ts` + `noop.ts` + `otel.ts` + `config.ts` + `index.ts`, wired via `server/inbound/shared/observability-middleware.ts`. Rewritten to the real residual, taken from the port's own header: `trackDbQuery` / `trackOutboundCall` / `trackAgentRun` are unbuilt. Same correction applied to §16's "Add metrics and tracing".
+- **§7 "Workspace module full CRUD — create-only today (`features/workspace/create.ts`)"** — **false**. `features/workspace/` no longer has a `create.ts`; the routes `server/inbound/admin-http/routes/workspace/{get,create,list,update,delete}.ts` all exist and register real handlers. Narrowed to the part that is missing: lifecycle events.
+- **§15 "no lint script"** — **false**: `package.json:67` is `"lint": "biome lint ."`.
+- **§15 "Add formatter — no prettier config in the repo"** — **moot**: `biome.json` exists at the root with `@biomejs/biome ^2.5.5`, and Biome supplies formatting.
+- **§15 "no `.github/workflows/`"** — **false**: `.github/workflows/ci.yml` is **508 lines** and runs `npm run typecheck`, `test:ci`, `check:boundaries`, `check:architecture`, `check:inventory`; `fly-deploy.yml` sits beside it.
+- **§8 slots/regions "C6 hardening still open"** — stale; C6 landed 2026-07-15 (see AW-5a). Narrowed to the slots/regions model itself.
+- **§13 MCP item** — the 2026-09-02 narrowing was correct and is now stated once, without the "was too broad" scaffolding.
+- Path fixes throughout: `src/server/error-mapping/` -> `apps/website/src/server/error-mapping/`; `server/http/site/render.ts` -> `apps/website/src/server/inbound/public-http/http/site/render.ts`; `apps/admin/src/sections/` -> `apps/admin/src/features/`.
+
+### `[ ]` items confirmed still open
+- **§6 Search** — nothing built: no directory matching `*search*` anywhere under `apps/website/src`. Kept all six items, with a one-line note that ADR-022's expression indexes do not satisfy the first.
+- §1 error model, config system, feature flags, module loader contract; §2 naming conventions, retry/backoff, handler idempotency, core dead-letter, replay; §9 all six; §10 all six; §17 all seven — kept and tightened.
+
+### Added
+- **§18: "Index the 7 unindexed ADRs (053, 055, 056, 057, 059, 063, 064) in `ADR-INDEX.md`"** — a new, real work item derived from the gap found in pass 1. This is the one line added rather than removed; the index is the file's own stated source of truth and is incomplete.
+
+### Correction to my own pass-4 text
+Pass 4's Accomplish item said "no logger module exists". True for logging, but it read as if no observability existed at all. Amended in this pass to name `platform/observability/` explicitly and state the distinction: an `ObservabilityPort` exists, it carries no correlation id and does no structured logging.
+
+### New gap discovered (NOT fixed)
+- **A false code comment.** `apps/website/src/server/runtime/composition/deps.ts:439-441` still reads "outbox + event bus remain in-memory for now (events are fire-on-write side effects, not yet durable across restarts) — a durable outbox is a later …", while line 934 of the same file constructs `new SqliteOutboxAdapter(db)`. The comment contradicts the code 495 lines below it.
+
