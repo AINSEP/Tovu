@@ -54,6 +54,7 @@ import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite"
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
@@ -1006,7 +1007,17 @@ export function createSqliteRouteDeps(
   // erase) chat history" reason `databaseJournalDb` above is already separate. No `mkdirSync`
   // needed: unlike `ops/`, `chat.db`'s directory is `dirname(dbPath)`, which `openContentDb`
   // already required to exist.
-  const chatDb = openChatDb(defaultChatDbPath(dbPath));
+  const chatDbPath = defaultChatDbPath(dbPath);
+  const chatDb = openChatDb(chatDbPath);
+  // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved the
+  // rows an already-deployed `content.db` was holding, and nothing anywhere reported that. Every
+  // such conversation is intact but unread, because the stores no longer look in that file. This
+  // counts them and prints one warning naming the counts and the migration script — read-only, and
+  // completely silent (one bounded `count(*)` per table) on the already-migrated boot. It
+  // deliberately does NOT migrate: `applyChatSplit` deletes from content.db after copying, and its
+  // own header requires a backup first — see `chat-orphan-check.ts`'s header for the rejected
+  // alternatives.
+  warnOnOrphanedChatRows({ contentDb: db.$client, contentDbPath: dbPath, chatDbPath });
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
