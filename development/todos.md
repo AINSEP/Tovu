@@ -24,6 +24,28 @@ before building the eventual agent tool catalog. See
 
 ## Desktop shell: one window, project tabs — match Tovu Runner (owner directive, 2026-09-06)
 
+**DONE 2026-09-06** — `204e01a7` (backend/IPC: `openSiteServer` and `openWindow` removed, `start` is
+a real handler) and `9e77a778` (renderer: `TabStrip`, `ProjectWorkspace` with an embedded
+`<webview>`, `useExpandedMode`). Projects open as a tab in one window, not a new `BrowserWindow`.
+
+**READ THIS BEFORE "FIXING" IT BACK.** This deliberately REVERSES `868cfe72`, a same-day ruling from
+13:43 on 2026-09-06 that had switched to a `BrowserWindow` per project. The port manifest and
+surrounding notes from that earlier ruling still describe the per-window design, so a reader who
+finds them without this paragraph will conclude the tab work was a regression and revert it. It was
+not: the owner's directive quoted above is later and supersedes it.
+
+Related follow-on work landed the same night, also on the projects surface: `b2a46c7e` (removals are
+recorded, so the seed guard can ask about the DIRECTORY rather than about the file's existence),
+`65b8fd74` (boot scan, so a site made outside the shell appears), `c201d948` (a Rescan control),
+`f02ac28e` (a failed rescan no longer blanks the grid). Note the boot scan does NOT follow Tovu
+Runner: Runner has no scan at all — `instancesRoot` is only ever created into and bounded for
+deletion, and `reconcile()` repairs the status of rows it already has. There was no scheme to port,
+so the scan uses the two conventions this shell actually has (`<repoRoot>/sites` and the
+recently-opened list).
+
+**Still open from this entry:** L118's 🎯 DIRECTION item — one operator chat spanning fleet + site —
+is directly adjacent and worth re-reading now that the shell has tabs again.
+
 **Owner's words:** "when we start a site or a project, we create a new tab, but we don't pop the site
 out into a new window. It just stays in the window… This is the same setup I want for Tovu… let's
 just have it all in one window first."
