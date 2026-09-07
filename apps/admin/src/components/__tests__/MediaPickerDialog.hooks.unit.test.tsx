@@ -19,6 +19,7 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
     id: "m1",
     workspaceId: "w1",
     title: "Photo",
+    slug: "photo",
     alt: "",
     caption: "",
     credit: "",

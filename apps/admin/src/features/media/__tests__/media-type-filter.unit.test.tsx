@@ -25,6 +25,7 @@ function makeItem(overrides: Partial<AdminMedia> & { id: string }): AdminMedia {
   return {
     workspaceId: "workspace-local",
     title: overrides.id,
+    slug: overrides.id,
     alt: "",
     caption: "",
     credit: "",

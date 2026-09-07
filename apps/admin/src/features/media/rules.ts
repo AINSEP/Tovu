@@ -47,6 +47,9 @@ export function describeApiError(e: unknown, fallback: string): string {
  * both size fields are optional, blank-means-render-at-native-size, never defaulted/computed. */
 export type MediaMetadataPatch = {
   title?: string;
+  /** Independent of `title` (2026-09-07) — see `AdminMedia.slug`'s own doc. Never `null`: unlike
+   *  `cssClass`, a media asset's slug has no "cleared" representation to fall back to. */
+  slug?: string;
   alt?: string;
   caption?: string;
   credit?: string;
@@ -72,6 +75,7 @@ export function diffMediaMetadata(required: {
   const { item, draft } = required;
   const patch: MediaMetadataPatch = {};
   if (draft.title !== item.title) patch.title = draft.title;
+  if (draft.slug !== item.slug) patch.slug = draft.slug;
   if (draft.alt !== item.alt) patch.alt = draft.alt;
   if (draft.caption !== item.caption) patch.caption = draft.caption;
   if (draft.credit !== item.credit) patch.credit = draft.credit;

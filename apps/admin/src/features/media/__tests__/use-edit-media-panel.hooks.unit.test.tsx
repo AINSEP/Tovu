@@ -24,6 +24,7 @@ const ITEM: AdminMedia = {
   id: "m1",
   workspaceId: "ws1",
   title: "Old title",
+  slug: "old-title",
   alt: "",
   caption: "",
   credit: "",

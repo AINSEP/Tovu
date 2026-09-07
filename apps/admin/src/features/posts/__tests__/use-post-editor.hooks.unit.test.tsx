@@ -54,6 +54,7 @@ const UPLOADED_MEDIA: AdminMedia = {
   id: "asset-99",
   workspaceId: "ws1",
   title: "photo.png",
+  slug: "photo-png",
   alt: "",
   caption: "",
   credit: "",

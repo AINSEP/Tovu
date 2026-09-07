@@ -43,6 +43,11 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       status: "active",
       sha256: `fake-sha-${items.length + 1}`,
       title: input.filename,
+      // Rough approximation of the real server's `slugifyMediaTitle` (`@jini-ai/cms/media`) — good
+      // enough for a fake store's own uniqueness-free happy path; a test needing a REAL collision or
+      // conflict must seed `options.media` directly with an explicit `slug`, same as `contentType`'s
+      // own disclosed limit above.
+      slug: input.filename.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled",
       alt: opts.alt ?? "",
       caption: opts.caption ?? "",
       credit: opts.credit ?? "",

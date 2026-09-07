@@ -1185,6 +1185,10 @@ export interface AdminMedia {
   id: string;
   workspaceId: string;
   title: string;
+  /** Human-memorable, unique-per-workspace lookup key (2026-09-07) — auto-derived from `title` at
+   *  upload, then independently editable here. Renaming `title` never changes this field; see
+   *  `EditMediaPanel`'s slug field for the operator-facing edit surface. */
+  slug: string;
   alt: string;
   caption: string;
   credit: string;
@@ -2543,6 +2547,7 @@ export const api = {
     { id }: { id: string },
     options: {
       title?: string;
+      slug?: string;
       alt?: string;
       caption?: string;
       credit?: string;

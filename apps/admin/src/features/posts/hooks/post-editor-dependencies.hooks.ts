@@ -74,6 +74,7 @@ const DEFAULT_MEDIA: AdminMedia = {
   id: "fake-media-1",
   workspaceId: "fake-ws",
   title: "fake-upload.png",
+  slug: "fake-upload-png",
   alt: "",
   caption: "",
   credit: "",

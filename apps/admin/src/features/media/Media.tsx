@@ -312,6 +312,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
   const {
     draft,
     setTitle,
+    setSlug,
     setAlt,
     setCaption,
     setCredit,
@@ -368,6 +369,25 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               {...agentHandle("media-edit-alt", { role: "field", label: "This asset's alt text, for screen readers" })}
             />
           </div>
+        </div>
+        {/* Slug (2026-09-07, owner-directed): a SEPARATE field from Title, own row — auto-derived
+            from Title at upload, then edited deliberately here. Renaming Title above never changes
+            this value (see `AdminMedia.slug`'s own doc); a duplicate slug is rejected server-side
+            (409) and surfaces through the same `error` banner every other save failure uses, rather
+            than a client-side pre-check duplicating the server's own uniqueness rule. */}
+        <div className="field">
+          <label className="field-label" htmlFor={`media-edit-slug-${item.id}`}>
+            {t("Slug")}
+          </label>
+          <input
+            id={`media-edit-slug-${item.id}`}
+            value={draft.slug}
+            onChange={(e) => setSlug(e.target.value)}
+            {...agentHandle("media-edit-slug", {
+              role: "field",
+              label: "This asset's unique lookup slug — separate from Title, must be unique in this workspace",
+            })}
+          />
         </div>
         <div className="field-row">
           <div className="field">

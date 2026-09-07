@@ -54,6 +54,7 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
     id: "asset-1",
     workspaceId: "w1",
     title: "Dune",
+    slug: "dune",
     alt: "Sand dunes at dusk",
     caption: "",
     credit: "",

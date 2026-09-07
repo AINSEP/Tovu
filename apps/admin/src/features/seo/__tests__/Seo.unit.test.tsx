@@ -133,6 +133,7 @@ function mediaItem(overrides: Partial<AdminMedia> = {}): AdminMedia {
     id: "asset-1",
     workspaceId: "w1",
     title: "Sunset",
+    slug: "sunset",
     alt: "A sunset over water",
     caption: "",
     credit: "",

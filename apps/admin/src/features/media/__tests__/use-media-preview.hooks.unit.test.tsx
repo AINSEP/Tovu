@@ -22,6 +22,7 @@ const ITEM: AdminMedia = {
   id: "m1",
   workspaceId: "ws1",
   title: "Sunset",
+  slug: "sunset",
   alt: "A sunset over water",
   caption: "",
   credit: "",

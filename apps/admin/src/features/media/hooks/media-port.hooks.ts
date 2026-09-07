@@ -43,6 +43,7 @@ export interface MediaPort {
     target: { id: string },
     options?: {
       title?: string;
+      slug?: string;
       alt?: string;
       caption?: string;
       credit?: string;

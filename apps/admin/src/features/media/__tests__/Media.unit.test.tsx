@@ -32,6 +32,7 @@ const ACTIVE_ITEM = {
   id: "media-1",
   workspaceId: "workspace-local",
   title: "Sunset Photo",
+  slug: "sunset-photo",
   alt: "A sunset over the ocean",
   caption: "",
   credit: "",
@@ -49,6 +50,7 @@ const TRASHED_ITEM = {
   id: "media-2",
   workspaceId: "workspace-local",
   title: "Trashed Clip",
+  slug: "trashed-clip",
   alt: "",
   caption: "",
   credit: "",
@@ -631,6 +633,7 @@ describe("switching edit target between items (regression: stale draft overwrite
     id: "media-alpha",
     workspaceId: "workspace-local",
     title: "Alpha Original Title",
+    slug: "alpha-original-title",
     alt: "Alpha Alt",
     caption: "Alpha Caption",
     credit: "Alpha Credit",
@@ -647,6 +650,7 @@ describe("switching edit target between items (regression: stale draft overwrite
     id: "media-beta",
     workspaceId: "workspace-local",
     title: "Beta Original Title",
+    slug: "beta-original-title",
     alt: "Beta Alt",
     caption: "Beta Caption",
     credit: "Beta Credit",
@@ -717,6 +721,97 @@ describe("switching edit target between items (regression: stale draft overwrite
     // since the whole draft object stayed bound to A) into this same payload.
     expect(patchBody).toEqual({ credit: "Changed Beta Credit" });
     expect(JSON.stringify(patchBody)).not.toContain("Alpha");
+  });
+});
+
+/**
+ * `EditMediaPanel` — slug field (owner-directed, 2026-09-07). Leona's design: `slug` is a SEPARATE
+ * field from `title` — auto-derived at upload, then edited deliberately, and never recomputed by a
+ * title-only rename. Uniqueness is enforced server-side (409); this suite proves the field renders
+ * pre-filled, saves independently of title, and surfaces a 409 conflict through the same error
+ * banner every other save failure uses.
+ */
+describe("EditMediaPanel — slug field", () => {
+  async function openEditPanel() {
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await screen.findByRole("heading", { name: /editing "sunset photo"/i });
+    return user;
+  }
+
+  it("renders pre-filled with the item's current slug, as its own field distinct from Title", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    await openEditPanel();
+
+    expect(screen.getByLabelText("Title")).toHaveValue("Sunset Photo");
+    expect(screen.getByLabelText("Slug")).toHaveValue("sunset-photo");
+  });
+
+  it("editing the slug alone PATCHes only slug, leaving title untouched in the payload", async () => {
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: { ...ACTIVE_ITEM, slug: "renamed-slug" } }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    const slugInput = screen.getByLabelText("Slug");
+    await user.clear(slugInput);
+    await user.type(slugInput, "renamed-slug");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchBody).toEqual({ slug: "renamed-slug" });
+  });
+
+  it("renaming ONLY the title leaves slug out of the patch entirely — slug is not recomputed from title", async () => {
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: { ...ACTIVE_ITEM, title: "A Whole New Title" } }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    const titleInput = screen.getByLabelText("Title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "A Whole New Title");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchBody).toEqual({ title: "A Whole New Title" });
+  });
+
+  it("a 409 slug conflict from the server surfaces through the same save-error banner other failures use, naming the conflict", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        return Promise.resolve(jsonResponse({ error: "slug 'taken-slug' is already used by another media asset in this workspace" }, 409));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    const slugInput = screen.getByLabelText("Slug");
+    await user.clear(slugInput);
+    await user.type(slugInput, "taken-slug");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/taken-slug/);
   });
 });
 

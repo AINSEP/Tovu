@@ -58,6 +58,9 @@ export interface EditMediaPanelDependencies {
 export interface EditMediaPanelController {
   draft: Required<MediaMetadataPatch>;
   setTitle: (value: string) => void;
+  /** `slug` is a SEPARATE field from `title` (2026-09-07) — see `AdminMedia.slug`'s own doc. Setting
+   *  it here never touches `draft.title`, and vice versa. */
+  setSlug: (value: string) => void;
   setAlt: (value: string) => void;
   setCaption: (value: string) => void;
   setCredit: (value: string) => void;
@@ -87,6 +90,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   const { item, onSaved, onCancel } = props;
   const [draft, setDraft] = useState<Required<MediaMetadataPatch>>({
     title: item.title,
+    slug: item.slug,
     alt: item.alt,
     caption: item.caption,
     credit: item.credit,
@@ -120,6 +124,9 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
 
   function setTitle(value: string) {
     setDraft((d) => ({ ...d, title: value }));
+  }
+  function setSlug(value: string) {
+    setDraft((d) => ({ ...d, slug: value }));
   }
   function setAlt(value: string) {
     setDraft((d) => ({ ...d, alt: value }));
@@ -182,6 +189,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   return {
     draft,
     setTitle,
+    setSlug,
     setAlt,
     setCaption,
     setCredit,
