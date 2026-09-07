@@ -129,7 +129,7 @@ Definitions at the frozen SHA (`git grep`, tests excluded):
 
 Shared and correctly so: `apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts` (370 lines, one controller; `56a0fc09`, `10efb899`, `a60e07e8`), `apps/admin/src/lib/standing-draft-local-backup.ts`, `apps/admin/src/lib/api.ts` (`putAutosave`/`getAutosave`/`clearAutosave`, kind-blind), and one server route `routes/posts/autosave.ts` mounted once and used by both editors (`eba275f4`). Both editor ports `extends StandingDraftAutosavePort`. This is the right seam and it is where the tricky state lives.
 
-Copied per feature, self-described as "identical": `PostAutosaveRecoveryBanner` / `PageAutosaveRecoveryBanner`, `PostAutosaveStaleBanner` / `PageAutosaveStaleBanner` (`PostEditor.tsx:690-790`, `PageEditor.tsx:228-310` — the posts doc comment says "Mirrors `features/pages/PageEditor.tsx`'s identical `PageAutosaveStaleBanner`"), and in `rules.ts` of each feature `postAutosaveBannerMessage`/`pageAutosaveBannerMessage`, `postAutosaveStaleBasisMessage`/`pageAutosaveStaleBasisMessage`, plus a `build*AutosaveInput`. The two agents (`34694309`+`f239866e` for posts; `a4b99c90`+`e5a434c3` for pages) each built the banner pair, and the second explicitly copied the first. Diffed. The two `*AutosaveRecoveryBanner`s are the same JSX apart from the `post-`/`page-` handle prefix and one divergence that is already a defect: the posts copy takes `t` and renders `{t("Restore")}`/`{t("Discard")}`; the pages copy has no `t` prop and renders bare `Restore`/`Discard` — so the Pages banner is untranslated under the admin's "copy string is its i18n key" convention. The two `*AutosaveStaleBanner`s differ only in the aria label ("this" vs "this page"). In `rules.ts`, `isAutosaveDraftStale` is defined twice (one line each), and `postAutosaveStaleBasisMessage`/`pageAutosaveStaleBasisMessage` are character-identical — `pages/rules.ts` says so itself: "Kept feature-local and character-identical to `features/posts/rules.ts`'s … the same 'no cross-feature import' boundary". That boundary is the right rule; the wrong part is that the *shared* home this feature already has (`apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts`, `apps/admin/src/lib/`) was not used for the pieces that are kind-blind. Correct seam: move `isAutosaveDraftStale`, `autosaveBannerMessage`, `autosaveStaleBasisMessage` next to the hook (they depend only on the hook's types and `lib/format-timestamp.ts`), and one `<StandingDraftBanners handlePrefix=… t=…>` under `apps/admin/src/components/` — the two `rules.ts` keep only `build{Post,Page}AutosaveDraft`, which genuinely differ. Cost today: the i18n gap above; cost tomorrow: every wording or a11y change lands twice or drifts.
+Copied per feature, self-described as "identical": `PostAutosaveRecoveryBanner` / `PageAutosaveRecoveryBanner`, `PostAutosaveStaleBanner` / `PageAutosaveStaleBanner` (`PostEditor.tsx:690-790`, `PageEditor.tsx:228-310` — the posts doc comment says "Mirrors `features/pages/PageEditor.tsx`'s identical `PageAutosaveStaleBanner`"), and in `rules.ts` of each feature `postAutosaveBannerMessage`/`pageAutosaveBannerMessage`, `postAutosaveStaleBasisMessage`/`pageAutosaveStaleBasisMessage`, plus a `build*AutosaveInput`. The two agents (`34694309`+`f239866e` for posts; `a4b99c90`+`e5a434c3` for pages) each built the banner pair, and the second explicitly copied the first. Diffed. The two `*AutosaveRecoveryBanner`s are the same JSX apart from the `post-`/`page-` handle prefix and one divergence that is already a defect: the posts copy takes `t` and renders `{t("Restore")}`/`{t("Discard")}`; the pages copy has no `t` prop and renders bare `Restore`/`Discard` — so the Pages banner is untranslated under the admin's "copy string is its i18n key" convention. The two `*AutosaveStaleBanner`s differ only in the aria label ("this" vs "this page"). In `rules.ts`, `isAutosaveDraftStale` is defined twice (one line each), and `postAutosaveStaleBasisMessage`/`pageAutosaveStaleBasisMessage` are character-identical — `pages/rules.ts` says so itself: "Kept feature-local and character-identical to `features/posts/rules.ts`'s … the same 'no cross-feature import' boundary". That boundary is the right rule; the wrong part is that the *shared* home this feature already has (`apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts`, `apps/admin/src/lib/`) was not used for the pieces that are kind-blind. Correct seam: move `isAutosaveDraftStale`, `autosaveBannerMessage`, `autosaveStaleBasisMessage` next to the hook (they depend only on the hook's types and `lib/format-timestamp.ts`), and one `<StandingDraftBanners handlePrefix=… t=…>` under `apps/admin/src/components/` — the two `rules.ts` keep only `build{Post,Page}AutosaveDraft`, which genuinely differ. Cost today: the i18n gap above; cost tomorrow: every wording or a11y change lands twice or drifts — and it already does: the editor-chrome commits `29a7f036`, `8e5a9d74` (both touch `PageEditor.tsx` **and** `PostEditor.tsx` with the same markup move) and `2c6e0b07` ("mirroring Pages") show every editor layout change landing twice by hand. An `EditorChrome` (title, back link, action row) shared component is the same missing seam.
 
 Also noted in the route file: three self-declared mirrors in 143 lines (`resolvePostId` "mirrors `posts/update.ts`", `allowedToWrite` "mirrors `pages/update-html.ts`", `parseAutosaveBody` "mirrors `parsePostUpdateBody`") and the `workspaceId` 404 check repeated three times inline. That is the admin-http route convention, not last night's invention — counted in the next commit.
 
@@ -177,7 +177,7 @@ Two classifiers of the same two files, different vocabularies (`partial`≈`inco
 
 ### 4.14 Chat-attachment directory: one definition, but an inbound module importing the composition root — CONFIRMED
 
-`3b196ffb` gave the upload directory one definition: `server/inbound/assistant/chat-attachment-directory.ts` `resolveChatAttachmentUploadDirectory()`. It computes it by importing `defaultContentDbPath` from `../../runtime/composition/deps.js` — an `inbound/` adapter reaching *up* into the composition root for a path. The composition root is supposed to hand adapters what they need, not be imported by them; the same file's sibling fix (`6f32d027`, §4.8) removed `contentDbPath` from `RouteDeps` for precisely the reason that a filesystem path is not a port. Whether dependency-cruiser has a rule for `inbound → runtime/composition` is checked next; if it does not, this is the direction that rule should declare. Cost: the daemon server's attachment directory is bound to whatever `defaultContentDbPath()` reads from env/cwd at call time — the same "resolves site from cwd, not site dir" trap already on record for the daemon.
+`3b196ffb` gave the upload directory one definition: `server/inbound/assistant/chat-attachment-directory.ts` `resolveChatAttachmentUploadDirectory()`. It computes it by importing `defaultContentDbPath` from `../../runtime/composition/deps.js` — an `inbound/` adapter reaching *up* into the composition root for a path. The composition root is supposed to hand adapters what they need, not be imported by them; the same file's sibling fix (`6f32d027`, §4.8) removed `contentDbPath` from `RouteDeps` for precisely the reason that a filesystem path is not a port. Dependency-cruiser (`.dependency-cruiser.mjs`) has no rule for `inbound → runtime/composition` (§4.16). Cost, **CONFIRMED by tracing `tovu serve <dir>`**: `cli/commands/serve.ts` resolves `dbPath = join(target, "content.db")` explicitly, never `chdir`s, never exports `TOVU_SITE_DIR`/`TOVU_CONTENT_DB` (it *warns* that `TOVU_CONTENT_DB` is ignored when a dir is given); only the daemon child receives `TOVU_SITE_DIR=<dir>` (`runtime/lifecycle/daemon-supervisor.ts:398`). So `defaultContentDbPath()` (`composition/deps.ts:452`, `TOVU_CONTENT_DB ?? join(siteDir(), "content.db")` → `resolveSiteRoot()` from cwd) evaluates to `<dir>/content.db` in the daemon and to the cwd-default site in the API process. `resolveChatAttachmentUploadDirectory()` is called from both: `agent-daemon-server.ts:273` (daemon — writes uploads under `<dir>/uploads/chat-attachments`) and `composition/modules/assistant.ts:497` (API — `registerAdminChatAttachmentReadRoute` reads from the cwd-default site's directory). Whenever `<dir>` is not the cwd's default site root, the "serve a staged attachment back to its uploader" route (`0b298d86`) reads a different directory than the one the daemon wrote. "One definition" (`3b196ffb`) unified the code but not its inputs: two processes, two environments, one env-reading function. The desktop is unaffected only because `tovu-server.cjs`'s `buildServeEnv` sets `TOVU_SITE_DIR` for the whole child. Correct seam: `serve.ts` hands the resolved site dir to the composition root (it already does for `defaultContentDbPath` in `buildBootModules`) and the composition root passes `uploadDirectory` into both the route and the daemon spawn (env or argv), so the adapter never calls `defaultContentDbPath()` itself.
 
 ### 4.15 `expectedVersion` — three arms of one `posts.version` column, three behaviours — CONFIRMED
 
@@ -211,6 +211,14 @@ Pattern worth naming: the `useSettlementGeneration` adoption adds three guard br
 
 `apps/desktop` (landed in the window): `App.tsx` `ProjectWorkspace` holds `useState(view)`, `useState(reloadNonce)`, `useRef(webviewRef)`, the derived `url`/`running`, and the `openInBrowser` handler inline in the component (`App.tsx:487-520`) — a **CONFIRMED** violation, and not a cosmetic one: D-03 is the consequence of the mount condition living in the `.tsx` while the listener binding lives in the hook. Moving the ref + hook + mount condition into one `useProjectGuest(project)` hook (or the child-component seam named in §1) fixes both.
 
+### 4.17 SSE response head — four copies, one local helper — CONFIRMED
+
+`2cd019cd` ("drop the Connection header on HTTP/2 SSE streams") touched four files: `admin-http/routes/settings/events.ts`, `composition/modules/assistant-ag-ui.ts`, `composition/modules/assistant-byok.ts`, `composition/modules/site-assistant.ts`. At the frozen SHA the SSE head (`text/event-stream`, `no-cache, no-transform`, conditional `Connection: keep-alive`, `X-Accel-Buffering`) exists as a function only in `settings/events.ts:113` (`sseWriteHeadHeaders(req)`, private to that file) and as inline object literals in `assistant-byok.ts:111` and `site-assistant.ts:142` (the ag-ui module is read next). The fix reached every arm — but by editing four copies, and the helper it introduced is local to one. Correct seam: `server/inbound/shared/sse-head.ts` exporting that one function, imported by all four.
+
+### 4.18 Accepted image types — three lists — CONFIRMED
+
+`04806e6b` ("accept AVIF in the admin upload surfaces") edited two admin lists: `features/media/Media.tsx:612` (`accept="image/jpeg,image/png,image/webp,image/gif,image/avif"`, a string attribute) and `features/posts/hooks/use-post-editor.hooks.ts:344` (an array). The server's own allow-list is a third: `features/media-import/fetch-image.ts:86,109` (types + extension map). Nothing ties the admin's two to the server's one, so a type the server refuses can be offered in the picker and vice-versa. Correct seam: one exported `SUPPORTED_UPLOAD_IMAGE_TYPES` (server, in the media feature's public types, already consumed by `apps/admin/src/lib/api.ts`'s type imports) and the two admin sites derive their `accept` from it.
+
 ### 4.4 Layering — clean — CONFIRMED (negative finding)
 
 At the frozen SHA: no `@jini-ai/*/src|dist|lib` deep imports anywhere under `apps/` or `packages/`; no import from `apps/admin` or `apps/desktop` into `apps/website` source (`apps/desktop` shells out to the CLI and parses its stdout, as its header claims). The only cross-app references are two pre-window "Mirrors …" doc comments on duplicated constants (`apps/admin/src/features/sites/rules.ts:26` `SITE_NAME_PATTERN`, `apps/admin/src/features/seo/rules.ts:125` `isAbsoluteUrl`) — neither introduced in this window (`git log -S` over the window returns nothing).
@@ -228,117 +236,117 @@ Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` =
 | `f02ac28e` | reviewed | fix(desktop/projects): stop a failed rescan blanking the grid, and unstack the header | §1 D-01 — renderer rescan error; boot path unaffected |
 | `c201d948` | reviewed | feat(desktop/projects): add a Rescan control so discovery is not only a boot step | §1 D-01 — Rescan button; cannot help a boot-time throw |
 | `65b8fd74` | reviewed | feat(desktop/projects): scan for sites on disk at boot, so one made outside the shell appears | §1 D-01 — discovery scan; unguarded classifier |
-| `4ede4562` | not reached | fix(e2e/types): type the desktop-shell application-menu walk instead of leaving it implicitly any | (pending — reason recorded at end of run) |
-| `0d9e41d5` | reviewed | feat(mcp-federation): tell the MODEL which external tools were refused, and why | §4 — refusal prefix; second sink of one report, by design |
-| `e56965a6` | not reached | fix(admin/types): clear the 31-error tsc baseline in apps/admin | (pending — reason recorded at end of run) |
-| `8e973578` | not reached | fix(admin/workspace): refuse deleting the server's own bound workspace (INV-05) | (pending — reason recorded at end of run) |
-| `8a4e405d` | not reached | fix(admin/menus): log the update-tree catch-all 500 instead of discarding it | (pending — reason recorded at end of run) |
+| `4ede4562` | skipped | fix(e2e/types): type the desktop-shell application-menu walk instead of leaving it implicitly any | e2e types only |
+| `0d9e41d5` | reviewed | feat(mcp-federation): tell the MODEL which external tools were refused, and why | §4 — refusal prefix; second sink of one report, by design; §3.1 start() plausible >9 |
+| `e56965a6` | reviewed | fix(admin/types): clear the 31-error tsc baseline in apps/admin | type fixes across 16 files; no structure change |
+| `8e973578` | reviewed | fix(admin/workspace): refuse deleting the server's own bound workspace (INV-05) | INV-05 uses RouteDeps.workspaceId (bound); good |
+| `8a4e405d` | reviewed | fix(admin/menus): log the update-tree catch-all 500 instead of discarding it | route logging; fine |
 | `b2a46c7e` | reviewed | feat(desktop/projects): record removals, so the seed guard can ask about the directory | §1 — dismissal tombstones; 4th list of site dirs |
 | `24bdafc1` | skipped | test(media-import): prove the bytes, not that a row exists | docs/tests/out-of-app — no production code in scope |
 | `a346b3ec` | reviewed | feat(assistant): make media_import_from_url findable, and close the catalog gap | search keywords only |
-| `dd187ece` | not reached | feat(media-import): add media_import_from_url, the missing import-by-URL tool | (pending — reason recorded at end of run) |
-| `b1ce2d0a` | not reached | feat(platform/http): make the guarded HttpResponse byte-capable | (pending — reason recorded at end of run) |
+| `dd187ece` | reviewed | feat(media-import): add media_import_from_url, the missing import-by-URL tool | media_import_from_url; MI-01/02 fixed post-freeze (103f7ae1) |
+| `b1ce2d0a` | reviewed | feat(platform/http): make the guarded HttpResponse byte-capable | extends the one guarded client (bodyBytes); no 2nd client — good |
 | `fb5ad748` | skipped | docs(todos): mark the non-basic theme shells out of scope | docs/tests/out-of-app — no production code in scope |
 | `0ea4f887` | skipped | docs(ads-memory): record three commits carrying another commit's message | docs/tests/out-of-app — no production code in scope |
 | `fa70c175` | skipped | docs(ads-memory): record that the media-seed fix DID deploy, and the regression since | docs/tests/out-of-app — no production code in scope |
 | `68ce4909` | skipped | docs(todos): close the HTML-Page fallback-shell entry against a live measurement | docs/tests/out-of-app — no production code in scope |
-| `570e5822` | not reached | fix(scripts): stop backfill-external-mcp-aad defaulting --db to the live site database | (pending — reason recorded at end of run) |
-| `b27cdba4` | not reached | refactor(admin/menus): move ItemRow's Remove-confirmation logic into MenuEditor.hooks.tsx | (pending — reason recorded at end of run) |
+| `570e5822` | reviewed | fix(scripts): stop backfill-external-mcp-aad defaulting --db to the live site database | §3.3 — live-db default removed |
+| `b27cdba4` | skipped | refactor(admin/menus): move ItemRow's Remove-confirmation logic into MenuEditor.hooks.tsx | `MenuEditor.*` is off limits for this audit |
 | `9e77a778` | reviewed | feat(desktop): restore the tab strip and embedded project workspace | §1 D-03/D-06 — ProjectWorkspace + poll |
 | `204e01a7` | reviewed | feat(desktop): embed a project as a tab, not a new BrowserWindow | §1 — embedded tab model; openSiteServer |
 | `c2e206db` | skipped | docs(ads-memory): map Tovu Runner and its connection to Tovu | docs/tests/out-of-app — no production code in scope |
 | `3bc9a415` | reviewed | fix(desktop/e2e): stop the e2e suite writing into the real Electron userData dir | §1 — e2e userData override; no arch finding |
 | `fc3bff7c` | skipped | docs(todos): file the single-window desktop shell and two gaps found live | docs/tests/out-of-app — no production code in scope |
-| `2b69b327` | not reached | fix(admin/settings): restore the tsc baseline in the field-spec test | (pending — reason recorded at end of run) |
+| `2b69b327` | not reached | fix(admin/settings): restore the tsc baseline in the field-spec test | (pending) |
 | `f50b8463` | skipped | test(admin/settings): add exhaustive route-vs-field-spec coverage for External MCP | docs/tests/out-of-app — no production code in scope |
-| `6df1f9a7` | reviewed | refactor(admin/hooks): adopt useSettlementGeneration at 8 call sites | §4.1 — 8 adopters |
+| `6df1f9a7` | reviewed | refactor(admin/hooks): adopt useSettlementGeneration at 8 call sites | §4.1 — 8 adopters; §3.1 performRename >9 |
 | `cc01bce7` | skipped | docs(todos): settle the footer menu content-ref-vs-raw-URL question | docs/tests/out-of-app — no production code in scope |
 | `6bf0fc86` | skipped | docs(todos): re-measure the footer dead-links entry against the running site | docs/tests/out-of-app — no production code in scope |
-| `ae13e739` | not reached | fix(admin): add the missing writeAllowedToolNames field spec | (pending — reason recorded at end of run) |
+| `ae13e739` | reviewed | fix(admin): add the missing writeAllowedToolNames field spec | field spec; fine |
 | `c171e62b` | reviewed | feat(admin/hooks): extract shared useSettlementGeneration guard | §4.1 — useSettlementGeneration |
 | `13acf9d3` | skipped | docs(ads-memory): explain the AAD backfill scripts and the --db asymmetry | docs/tests/out-of-app — no production code in scope |
-| `01146403` | not reached | fix(admin): drop invalid button-in-anchor nesting on 8 more screens | (pending — reason recorded at end of run) |
+| `01146403` | reviewed | fix(admin): drop invalid button-in-anchor nesting on 8 more screens | §3.5 — one fix pattern (class onto <a>) |
 | `ab022bae` | skipped | docs(ads-memory): record boot-orchestration dedup fix report | docs/tests/out-of-app — no production code in scope |
 | `d1eea4b2` | reviewed | refactor(boot): dedupe agentDaemonWanted/logCriticalBootFailures; close export's migration-scan gap | §4.6 — boot dedupe |
 | `ed397627` | skipped | chore(scripts): add operator-invoked cleanup for stale owner sessions | docs/tests/out-of-app — no production code in scope |
 | `8d041b52` | reviewed | refactor(outbox): move the retry-cap terminal-state decision into the worker | §4.11 — decision moved to worker |
 | `874ee54d` | skipped | docs(ads-memory): correct C1 -- the .btn-* fix was never missing | docs/tests/out-of-app — no production code in scope |
-| `530d6122` | not reached | fix(admin): drop invalid button-in-anchor nesting on 3 more back/create links | (pending — reason recorded at end of run) |
-| `a44148a1` | not reached | fix(admin/collections): drop invalid button-in-anchor nesting; correct stale CSS comment | (pending — reason recorded at end of run) |
+| `530d6122` | reviewed | fix(admin): drop invalid button-in-anchor nesting on 3 more back/create links | §3.5 |
+| `a44148a1` | reviewed | fix(admin/collections): drop invalid button-in-anchor nesting; correct stale CSS comment | §3.5 |
 | `4c6a0797` | reviewed | refactor(auth): delegate mintSessionForPrincipal to Jini's shared minter | dev-auth delegates to Jini minter; read |
 | `1044e2d5` | reviewed | fix(render): escape apostrophes in every escapeHtml/escapeHtmlAttr copy | §4.2 — 4 of 9 escapeHtml copies |
-| `4c65e392` | not reached | fix(admin-voice-input): release the mic if held released mid-permission-prompt | (pending — reason recorded at end of run) |
+| `4c65e392` | reviewed | fix(admin-voice-input): release the mic if held released mid-permission-prompt | voice-input logic in hooks; fine |
 | `f31e6ded` | reviewed | fix(sites): thread the real boot-resolved site binding through RouteDeps instead of re-deriving it per request | §4.8 — siteBinding through RouteDeps |
-| `00bc4bd6` | not reached | fix(admin-security): stop "Make default" from also toggling its own row | (pending — reason recorded at end of run) |
+| `00bc4bd6` | reviewed | fix(admin-security): stop "Make default" from also toggling its own row | AccessTokensTab markup; fine |
 | `ee14d334` | skipped | test(backfill-execution-aad): refresh fixture tripwire for migration 0058 | docs/tests/out-of-app — no production code in scope |
 | `527077b6` | skipped | test(assistant): fix stale audit-detail assertion in byok-tool-surface INCIDENT FIX test | docs/tests/out-of-app — no production code in scope |
 | `80e69410` | skipped | docs(reports): mark the AAD backfill dedupe report complete | docs/tests/out-of-app — no production code in scope |
-| `a68526dd` | not reached | refactor(scripts): migrate backfill-external-mcp-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
+| `a68526dd` | reviewed | refactor(scripts): migrate backfill-external-mcp-aad.ts onto the shared runner | §3.3 |
 | `a19708d3` | skipped | test(scripts): add a characterization test for backfill-external-mcp-aad.ts | docs/tests/out-of-app — no production code in scope |
 | `916eb8b0` | reviewed | refactor(deps): wire deps.ts onto the shared single-hop HTTPS egress policy | §4.13 |
 | `7b2a2007` | reviewed | refactor(platform/http): extract the shared single-hop HTTPS egress policy | §4.13 |
 | `384790fa` | skipped | docs(reports): admin visual polish — six-combination proof of the Settings light pin | docs/tests/out-of-app — no production code in scope |
 | `f1b13b38` | skipped | test(admin/settings): pin that the Settings page cannot render dark | docs/tests/out-of-app — no production code in scope |
 | `7caa2b71` | reviewed | fix(post): enqueue entry.published when a post/page is created already published | read; both create routes + tool patched |
-| `7b138c50` | not reached | refactor(scripts): migrate backfill-site-assistant-credential-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
-| `0af0748e` | not reached | refactor(scripts): migrate backfill-media-provider-credential-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
-| `3f0c9915` | not reached | refactor(scripts): migrate backfill-execution-credential-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
+| `7b138c50` | reviewed | refactor(scripts): migrate backfill-site-assistant-credential-aad.ts onto the shared runner | §3.3 |
+| `0af0748e` | reviewed | refactor(scripts): migrate backfill-media-provider-credential-aad.ts onto the shared runner | §3.3 |
+| `3f0c9915` | reviewed | refactor(scripts): migrate backfill-execution-credential-aad.ts onto the shared runner | §3.3 |
 | `08ace3ea` | reviewed | fix(assistant): route BYOK's tool executor through the shared read-only-gated stack | §4.12 |
-| `11aa4708` | not reached | fix(identity): register this repo's pages.edit_html grant in the backfill script, without crashing its dry run | (pending — reason recorded at end of run) |
+| `11aa4708` | reviewed | fix(identity): register this repo's pages.edit_html grant in the backfill script, without crashing its dry run | §3.3 — grant registration; read |
 | `6be26ddb` | skipped | test(site-glue): fix REQ-8 assertion that relied on the pre-fix immediate-reclaim bug | docs/tests/out-of-app — no production code in scope |
-| `d3161f2e` | not reached | refactor(scripts): migrate backfill-connector-credential-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
-| `947c0fa1` | not reached | refactor(scripts): migrate backfill-composio-config-aad.ts onto the shared runner | (pending — reason recorded at end of run) |
+| `d3161f2e` | reviewed | refactor(scripts): migrate backfill-connector-credential-aad.ts onto the shared runner | §3.3 |
+| `947c0fa1` | reviewed | refactor(scripts): migrate backfill-composio-config-aad.ts onto the shared runner | §3.3 |
 | `5ae37c8b` | skipped | docs(reports): admin visual polish — add the two Settings-pin commits to the commit list | docs/tests/out-of-app — no production code in scope |
 | `ea8c660b` | skipped | docs(reports): admin visual polish — Settings pinned to light, inert-control consequence | docs/tests/out-of-app — no production code in scope |
-| `89c8c380` | not reached | design(admin/settings): pin the page to light and take it fully out of the card | (pending — reason recorded at end of run) |
-| `5182994a` | not reached | refactor(scripts): add shared AAD backfill scaffold, not yet wired to any script | (pending — reason recorded at end of run) |
-| `7d7ae169` | not reached | fix(members): correct decideTiersAccess's @complexity from O(t) to O(t·a) | (pending — reason recorded at end of run) |
+| `89c8c380` | reviewed | design(admin/settings): pin the page to light and take it fully out of the card | §3.4 — Settings light pin (product decision on record) |
+| `5182994a` | reviewed | refactor(scripts): add shared AAD backfill scaffold, not yet wired to any script | §3.3 — shared AAD backfill runner (6 copies → 1) |
+| `7d7ae169` | reviewed | fix(members): correct decideTiersAccess's @complexity from O(t) to O(t·a) | comment-only complexity note |
 | `0ae3429d` | reviewed | fix(outbox): stop immediate re-queue, add exponential backoff and an attempt cap | §4.11 — outbox backoff |
-| `a9a6e3a9` | not reached | fix(export): scheme-check the redirect stub's href sinks | (pending — reason recorded at end of run) |
+| `a9a6e3a9` | reviewed | fix(export): scheme-check the redirect stub's href sinks | site-exporter href scheme check (export path only — see §4.2 render-path note) |
 | `d10f6708` | skipped | docs(reports): record theme content-template naming drift investigation | docs/tests/out-of-app — no production code in scope |
 | `2b039738` | skipped | test(auth): add the boot-session route's first server-side test; fix a false comment | docs/tests/out-of-app — no production code in scope |
 | `563e58af` | skipped | docs(reports): admin visual polish pass, 2026-09-06 | docs/tests/out-of-app — no production code in scope |
-| `933c69e9` | not reached | design(admin): give the Database and Sites tab rows the icons every other tab row has | (pending — reason recorded at end of run) |
-| `bc22ff14` | not reached | design(admin): apply the form measure to the Users and Integrations create forms | (pending — reason recorded at end of run) |
+| `933c69e9` | reviewed | design(admin): give the Database and Sites tab rows the icons every other tab row has | §3.4 — icons; markup |
+| `bc22ff14` | reviewed | design(admin): apply the form measure to the Users and Integrations create forms | §3.4 |
 | `b8c321ef` | skipped | docs(reports): excess/dead-code review of the 2026-09-01 to 09-03 commits | docs/tests/out-of-app — no production code in scope |
 | `ad20fc76` | skipped | docs(review): add architecture/DI review for 2026-09-01 to 2026-09-03 | docs/tests/out-of-app — no production code in scope |
-| `9f13f0e3` | not reached | design(admin/settings): take the Settings surface out of its card when it renders light | (pending — reason recorded at end of run) |
+| `9f13f0e3` | reviewed | design(admin/settings): take the Settings surface out of its card when it renders light | §3.4 |
 | `262a596b` | skipped | docs(reports): bug-hunt review of 2026-09-01 to 09-03 commits (292, unreviewed window) | docs/tests/out-of-app — no production code in scope |
 | `e332ec33` | reviewed | fix(desktop): stop minting a fresh 30-day session on every launch | §4.5 — startSiteBackend session reuse; read |
 | `b357e70c` | skipped | docs(architecture): reconcile ADR-INDEX with three missing ADRs and the ADR-047 audit-gap | docs/tests/out-of-app — no production code in scope |
-| `26985a2d` | not reached | design(admin/media): draw the tab strip with the shared TabBar, with icons | (pending — reason recorded at end of run) |
-| `fe0046dd` | not reached | design(admin/sites): make the card's head its status strip; demote the second pill to a footnote | (pending — reason recorded at end of run) |
+| `26985a2d` | reviewed | design(admin/media): draw the tab strip with the shared TabBar, with icons | §3.4 — shared TabBar adopted; good |
+| `fe0046dd` | reviewed | design(admin/sites): make the card's head its status strip; demote the second pill to a footnote | §3.4 — markup |
 | `ff5513fa` | skipped | docs(ads-memory): consolidated handoff from session tovu-8f | docs/tests/out-of-app — no production code in scope |
-| `645f3221` | not reached | design(admin): give single-column forms one shared measure instead of the full column | (pending — reason recorded at end of run) |
+| `645f3221` | reviewed | design(admin): give single-column forms one shared measure instead of the full column | §3.4 — one .form-measure class; good seam |
 | `9051e2b5` | reviewed | fix(site-dir): stop duplicateContentDb wiping every plugin's data from the copy | §4.10 — portable allow-list |
 | `96f656cd` | skipped | docs(todos): pass 8 additions — record the tovu-8f peer handoff | docs/tests/out-of-app — no production code in scope |
-| `b3553dd9` | not reached | fix(media): escape the last three literal NUL bytes in tracked source | (pending — reason recorded at end of run) |
+| `b3553dd9` | reviewed | fix(media): escape the last three literal NUL bytes in tracked source | NUL escape; no structure |
 | `5152128e` | skipped | docs(ads-memory): close out the todos de-stale report | docs/tests/out-of-app — no production code in scope |
 | `e99249e2` | skipped | docs(todos): de-stale pass 7 — the tail sections | docs/tests/out-of-app — no production code in scope |
 | `c71c5923` | skipped | docs(todos): de-stale pass 6 — Master Build Inventory sections 19-25 | docs/tests/out-of-app — no production code in scope |
 | `210b3751` | skipped | docs(todos): de-stale pass 5 — Master Build Inventory sections 1-18 | docs/tests/out-of-app — no production code in scope |
-| `ea5f3a42` | not reached | fix(repo): escape literal NUL bytes in source so git and grep can read them | (pending — reason recorded at end of run) |
-| `27ccb328` | not reached | fix(admin-security): name every access-token dialog and give ambiguous per-row buttons distinct names | (pending — reason recorded at end of run) |
-| `00718e89` | not reached | fix(admin-database): give every timeline row's Recovery link a distinct accessible name | (pending — reason recorded at end of run) |
-| `ec725ad8` | not reached | fix(admin-recovery): give every row's Restore button a distinct accessible name | (pending — reason recorded at end of run) |
+| `ea5f3a42` | reviewed | fix(repo): escape literal NUL bytes in source so git and grep can read them | NUL escape; no structure |
+| `27ccb328` | reviewed | fix(admin-security): name every access-token dialog and give ambiguous per-row buttons distinct names | §3.5 — a11y names; rules helpers or inline; consistent |
+| `00718e89` | reviewed | fix(admin-database): give every timeline row's Recovery link a distinct accessible name | §3.5 |
+| `ec725ad8` | reviewed | fix(admin-recovery): give every row's Restore button a distinct accessible name | §3.5 |
 | `af8d083a` | skipped | docs(todos): de-stale pass 4 — Accomplish, ADR map, research backlogs | docs/tests/out-of-app — no production code in scope |
 | `0d63cfd8` | reviewed | fix(site-dir): stop duplicateSite shipping the source site's private databases | §4.10 — private DBs excluded |
 | `6528ed5a` | skipped | docs(todos): restore four sections pass 3 deleted by mistake | docs/tests/out-of-app — no production code in scope |
 | `ef7fa9c8` | reviewed | feat(chat-db): detect conversations stranded in content.db by the chat.db split | §4.10 — chat-orphan check; read |
-| `abfc98fe` | not reached | fix(admin-taxonomy): term rows get a real role, valid selected-state, and a clean name | (pending — reason recorded at end of run) |
-| `e2aafba6` | not reached | fix(admin-sites): give every site card's Activate button a per-site accessible name | (pending — reason recorded at end of run) |
-| `3d702539` | not reached | fix(admin-plugins): give repeated Enable/Disable/Inspect buttons a per-row accessible name | (pending — reason recorded at end of run) |
+| `abfc98fe` | reviewed | fix(admin-taxonomy): term rows get a real role, valid selected-state, and a clean name | §3.5 |
+| `e2aafba6` | reviewed | fix(admin-sites): give every site card's Activate button a per-site accessible name | §3.5 |
+| `3d702539` | reviewed | fix(admin-plugins): give repeated Enable/Disable/Inspect buttons a per-row accessible name | §3.5 |
 | `30288302` | skipped | docs(todos): de-stale pass 3 — Active Working Items AW-1..AW-7 | docs/tests/out-of-app — no production code in scope |
-| `d10486d5` | not reached | fix(admin-themes): give repeated Activate/Explore/Download buttons a per-card accessible name | (pending — reason recorded at end of run) |
-| `6442b34f` | not reached | fix(form-render): setInputValueAttr can't span an embedded opposite quote char | (pending — reason recorded at end of run) |
+| `d10486d5` | reviewed | fix(admin-themes): give repeated Activate/Explore/Download buttons a per-card accessible name | §3.5 |
+| `6442b34f` | reviewed | fix(form-render): setInputValueAttr can't span an embedded opposite quote char | form-render fix (live path only) |
 | `5e593ab4` | skipped | docs(todos): de-stale pass 2 — Admin Section Spec Sweep + 2026-08-10 slice | docs/tests/out-of-app — no production code in scope |
-| `cb3789a9` | not reached | fix(gitignore): close chat.db + db-snapshot leak opened by the content.db split | (pending — reason recorded at end of run) |
+| `cb3789a9` | skipped | fix(gitignore): close chat.db + db-snapshot leak opened by the content.db split | .gitignore only |
 | `df07b37c` | skipped | docs(todos): de-stale pass 1 — top-of-file dated entries | docs/tests/out-of-app — no production code in scope |
-| `fe76057d` | not reached | fix(admin-media): give the upload toolbar's file/alt inputs a real accessible name | (pending — reason recorded at end of run) |
+| `fe76057d` | reviewed | fix(admin-media): give the upload toolbar's file/alt inputs a real accessible name | §3.5 |
 | `552e806d` | skipped | docs(reports): code-inspection bug hunt for the 2026-09-04/05 commits | docs/tests/out-of-app — no production code in scope |
-| `0b298d86` | reviewed | feat(assistant): serve a staged chat attachment's bytes back to its uploader | §4.14 — read route |
-| `3b196ffb` | reviewed | refactor(assistant): give the chat-attachment upload directory one definition | §4.14 — attachment dir |
-| `efeeb67a` | not reached | fix(admin-themes): remove invalid button-in-anchor nesting on ThemeExplore's back control | (pending — reason recorded at end of run) |
+| `0b298d86` | reviewed | feat(assistant): serve a staged chat attachment's bytes back to its uploader | §4.14 — read route reads the wrong site under tovu serve <dir> |
+| `3b196ffb` | reviewed | refactor(assistant): give the chat-attachment upload directory one definition | §4.14 — attachment dir; API/daemon resolve differently under tovu serve |
+| `efeeb67a` | reviewed | fix(admin-themes): remove invalid button-in-anchor nesting on ThemeExplore's back control | §3.5 |
 | `f239866e` | reviewed | feat(admin-posts): tell the operator when autosave has stopped, instead of nothing | §4.3 — posts stale banner |
 | `e5a434c3` | reviewed | feat(admin-pages): tell the operator when autosave has stopped, instead of nothing | §4.3 — pages stale banner copy |
 | `52caa8cc` | skipped | docs(reports): scrub a NUL byte the report tool itself introduced; note it as F4 evidence | docs/tests/out-of-app — no production code in scope |
@@ -346,108 +354,108 @@ Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` =
 | `ee304d5e` | skipped | docs(reports): architecture & DI review of the 2026-09-04/05 commits | docs/tests/out-of-app — no production code in scope |
 | `ef79b352` | skipped | docs(reports): excess/dead-code review of the 2026-09-04..05 commits | docs/tests/out-of-app — no production code in scope |
 | `6f32d027` | reviewed | refactor(website): inject the tool-attempt audit sink; drop RouteDeps.contentDbPath | §4.8 — audit sink injected; contentDbPath dropped |
-| `0c1a1324` | not reached | chore(architecture): register cli/commands/adopt.ts as a composition root | (pending — reason recorded at end of run) |
+| `0c1a1324` | reviewed | chore(architecture): register cli/commands/adopt.ts as a composition root | §4.16 — adopt.ts registered as a CLI composition root in dependency-cruiser |
 | `b37864c3` | reviewed | feat(post-tools): wire expectedVersion through content_post_update, the guard's last unwired arm | §4.15 — "last arm" claim false: pages route |
 | `2756ac26` | reviewed | refactor(posts): lift expectedVersion's boundary out of the route so a second arm can share it | §4.15 |
 | `2bb817f6` | skipped | test(admin-seo): make the cleared-field test assert what its name claims | docs/tests/out-of-app — no production code in scope |
-| `62634037` | reviewed | feat(cli): add `tovu adopt <dir>` -- the missing route from an existing site dir to serve | §4.7 — tovu adopt; desktop never calls it |
+| `62634037` | reviewed | feat(cli): add `tovu adopt <dir>` -- the missing route from an existing site dir to serve | §4.7 — tovu adopt; desktop never calls it; §3.1 errors.ts >9 |
 | `6998ef9c` | reviewed | refactor(site-dir): expose the marker-pair classification repairSite already computed | §4.7 — classifySiteMarkers exposed |
 | `a50458bf` | reviewed | fix(desktop): reap orphaned tovu serve on every boot mode, never a live sibling's | §1 D-07 — reconcileOrphans parentage guard; record path left |
-| `d033ffb8` | not reached | fix(admin-seo): let an operator clear an SEO override, not just blank it | (pending — reason recorded at end of run) |
+| `d033ffb8` | reviewed | fix(admin-seo): let an operator clear an SEO override, not just blank it | SEO null-clear, admin half; hooks/rules split respected |
 | `90e68e8f` | reviewed | docs(posts-autosave): correct a route comment that described client logic which never existed | §4.3 — comment fix |
 | `a60e07e8` | reviewed | fix(admin-autosave): act on putAutosave's `applied` instead of discarding it | §4.3 |
 | `ed5fae17` | reviewed | fix(desktop): refuse to rm a project directory the app did not create | §1 — delete guard + origin; read |
 | `72e1e529` | reviewed | fix(assistant): stop every source edit from destroying staged chat attachments | §4.14 — read |
 | `f3bdd3af` | reviewed | feat(admin-posts): send the loaded version and surface the 409 without losing the operator's work | §4.15 — posts editor only |
-| `fb473613` | not reached | feat(admin-settings): pass agentHandle to the 11 @jini-ai/ui-mounted Settings tabs | (pending — reason recorded at end of run) |
+| `fb473613` | reviewed | feat(admin-settings): pass agentHandle to the 11 @jini-ai/ui-mounted Settings tabs | §4.9 — agentHandle string prop to Jini tabs; consistent |
 | `b359e613` | reviewed | fix(website): add RouteDeps.contentDbPath and make the BYOK tool-audit sink lazy | §4.8 — superseded by 6f32d027 |
 | `e595312f` | reviewed | types(admin-api): let api.updatePost carry an optional expectedVersion | §4.15 |
 | `76d7c739` | reviewed | fix(desktop): one adoption chokepoint for every site-dir entry point | §4.7 — desktop adoptSiteDir chokepoint; 2nd classifier |
 | `ffc37e59` | skipped | docs(ads-memory): refactor review of the 2026-09-06 commits - excess and dead code | docs/tests/out-of-app — no production code in scope |
 | `b81d57b1` | skipped | docs(ads-memory): code-inspection bug hunt over the 2026-09-06 commits | docs/tests/out-of-app — no production code in scope |
 | `4e64e467` | skipped | docs(ads-memory): architecture and DI review of the 2026-09-06 commits | docs/tests/out-of-app — no production code in scope |
-| `eb678ed3` | not reached | feat(voice-input): add a "Disabled for now" tooltip to the mic button | (pending — reason recorded at end of run) |
+| `eb678ed3` | reviewed | feat(voice-input): add a "Disabled for now" tooltip to the mic button | tooltip markup; fine |
 | `9c7d16bf` | reviewed | feat(posts-route): forward expectedVersion and give the version 409 its own code | §4.15 |
-| `a9f84cdc` | not reached | refactor(admin-pages): bring PageEditor under the 9/9 complexity ceiling | (pending — reason recorded at end of run) |
-| `0b7b6de1` | not reached | fix(admin-pages): let a newly created page accept hand-authored HTML | (pending — reason recorded at end of run) |
+| `a9f84cdc` | reviewed | refactor(admin-pages): bring PageEditor under the 9/9 complexity ceiling | PageEditor → rules.ts extraction; house rule respected |
+| `0b7b6de1` | reviewed | fix(admin-pages): let a newly created page accept hand-authored HTML | pages hooks/rules; fine |
 | `be45461e` | reviewed | feat(post): add opt-in optimistic-concurrency check to updatePost | §4.15 — expectedVersion in updatePost |
 | `f92e835f` | skipped | docs(ads-memory): record the f3579456 authorship misattribution | docs/tests/out-of-app — no production code in scope |
 | `bbd297d8` | reviewed | fix(desktop): make Projects-screen seeding survive an emptied registry | §1 — seed guard per-directory; read |
 | `013ca04e` | skipped | docs(ads): record the outstanding worklist from session tovu-f6 | docs/tests/out-of-app — no production code in scope |
 | `7afe17a7` | skipped | docs(admin): correct pages/posts as done, not permanently excluded | docs/tests/out-of-app — no production code in scope |
-| `48bf42c8` | not reached | fix(admin-posts): tag PostEditor's delete ConfirmDialog with agentHandle | (pending — reason recorded at end of run) |
-| `f3579456` | not reached | feat(admin-pages): tag PageEditor's remaining view/device controls | (pending — reason recorded at end of run) |
-| `3ad87f39` | not reached | feat(admin-pages): tag ThemePagesTab and ThemePageDetailsModal controls | (pending — reason recorded at end of run) |
-| `2202253d` | not reached | feat(admin-pages): tag Pages.tsx's list and tab controls | (pending — reason recorded at end of run) |
-| `56f6b46b` | not reached | feat(admin-posts): tag Posts.tsx's list controls | (pending — reason recorded at end of run) |
+| `48bf42c8` | reviewed | fix(admin-posts): tag PostEditor's delete ConfirmDialog with agentHandle | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `f3579456` | reviewed | feat(admin-pages): tag PageEditor's remaining view/device controls | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `3ad87f39` | reviewed | feat(admin-pages): tag ThemePagesTab and ThemePageDetailsModal controls | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `2202253d` | reviewed | feat(admin-pages): tag Pages.tsx's list and tab controls | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `56f6b46b` | reviewed | feat(admin-posts): tag Posts.tsx's list controls | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `6462865e` | skipped | docs(admin): correct the Access Tokens live-verification handle names | docs/tests/out-of-app — no production code in scope |
 | `fe5c8974` | skipped | docs(admin): record Phase 4 - ai-assistant, media, and the 8 spot-check screens | docs/tests/out-of-app — no production code in scope |
-| `c84559e8` | not reached | fix(admin-security): tag credential fields and Cancel/trigger buttons | (pending — reason recorded at end of run) |
-| `34a69401` | not reached | fix(admin-deployment): tag the two remaining external links on Static Site | (pending — reason recorded at end of run) |
-| `273b43cb` | not reached | fix(admin): tag remaining agent-driveable gaps in sites and collections | (pending — reason recorded at end of run) |
-| `935762a5` | not reached | fix(admin-media): pass agentHandle to the purge ConfirmDialog | (pending — reason recorded at end of run) |
-| `978a7ca3` | not reached | feat(admin-ai-assistant): tag AiAssistant screen's Tovu-owned controls | (pending — reason recorded at end of run) |
+| `c84559e8` | reviewed | fix(admin-security): tag credential fields and Cancel/trigger buttons | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `34a69401` | reviewed | fix(admin-deployment): tag the two remaining external links on Static Site | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `273b43cb` | reviewed | fix(admin): tag remaining agent-driveable gaps in sites and collections | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `935762a5` | reviewed | fix(admin-media): pass agentHandle to the purge ConfirmDialog | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `978a7ca3` | reviewed | feat(admin-ai-assistant): tag AiAssistant screen's Tovu-owned controls | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `125b8dcc` | skipped | docs(admin): record pages/posts as permanently excluded from the agent-tag sweep | docs/tests/out-of-app — no production code in scope |
 | `8383d732` | skipped | docs(admin): record Phase 3 live verification and handoff for the agent-tag sweep | docs/tests/out-of-app — no production code in scope |
 | `ffc6ce5e` | skipped | docs(admin): update agent-tag coverage report through the settings pass | docs/tests/out-of-app — no production code in scope |
-| `7637876d` | not reached | feat(admin-settings): tag the Tovu-owned controls on /admin/settings | (pending — reason recorded at end of run) |
+| `7637876d` | reviewed | feat(admin-settings): tag the Tovu-owned controls on /admin/settings | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `feb8a777` | reviewed | feat(assistant): add chat_list_pending_attachments so the model can find unclaimed uploads | §4.14 — read |
-| `fb5a1909` | not reached | feat(admin-themes): tag the remaining controls on the main Themes screen | (pending — reason recorded at end of run) |
-| `98e3021c` | not reached | feat(admin-payments): tag the three cross-links on /admin/payments | (pending — reason recorded at end of run) |
-| `d52258af` | not reached | feat(admin-plugins): tag Plugins, AgentPlugins, and the plugin details modal | (pending — reason recorded at end of run) |
+| `fb5a1909` | reviewed | feat(admin-themes): tag the remaining controls on the main Themes screen | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `98e3021c` | reviewed | feat(admin-payments): tag the three cross-links on /admin/payments | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `d52258af` | reviewed | feat(admin-plugins): tag Plugins, AgentPlugins, and the plugin details modal | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `10efb899` | reviewed | fix(autosave): flush the pending standing draft on exit instead of cancelling it | §4.3 |
-| `eb10f5de` | not reached | fix(seo): allow clearing a per-entry SEO override via null | (pending — reason recorded at end of run) |
-| `c08155f2` | not reached | feat(admin-redirects): tag every control on /admin/redirects | (pending — reason recorded at end of run) |
-| `be0f582a` | not reached | feat(admin-integrations): tag the remaining controls on /admin/integrations | (pending — reason recorded at end of run) |
-| `b5439d94` | not reached | feat(admin-workspace): tag the rename form and delete button | (pending — reason recorded at end of run) |
-| `a5dd5e09` | not reached | feat(admin-recovery): tag every control on /admin/recovery | (pending — reason recorded at end of run) |
-| `c629c0e6` | not reached | feat(admin-widgets): tag every control across all four widgets screens | (pending — reason recorded at end of run) |
-| `cdb205a5` | not reached | feat(admin-dashboard): tag every link on the Overview screen | (pending — reason recorded at end of run) |
+| `eb10f5de` | reviewed | fix(seo): allow clearing a per-entry SEO override via null | SEO null-clear, server half; coherent pair |
+| `c08155f2` | reviewed | feat(admin-redirects): tag every control on /admin/redirects | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `be0f582a` | reviewed | feat(admin-integrations): tag the remaining controls on /admin/integrations | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `b5439d94` | reviewed | feat(admin-workspace): tag the rename form and delete button | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `a5dd5e09` | reviewed | feat(admin-recovery): tag every control on /admin/recovery | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `c629c0e6` | reviewed | feat(admin-widgets): tag every control across all four widgets screens | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `cdb205a5` | reviewed | feat(admin-dashboard): tag every link on the Overview screen | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `f7b8af1c` | skipped | test(assistant): prove media_promote_chat_attachment is generic, not AVIF-specific | docs/tests/out-of-app — no production code in scope |
-| `6e71742c` | not reached | feat(admin): wire agentHandle onto every remaining untagged ConfirmDialog | (pending — reason recorded at end of run) |
+| `6e71742c` | reviewed | feat(admin): wire agentHandle onto every remaining untagged ConfirmDialog | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `1d5c0376` | skipped | docs(desktop-e2e): correct a comment that promised isolation the suite does not have | docs/tests/out-of-app — no production code in scope |
 | `f281d3a2` | reviewed | feat(assistant): add media_promote_chat_attachment, bridging chat uploads into the media library | §4.14 — read |
-| `e804d16d` | not reached | feat(admin-comments): tag every control on /admin/comments | (pending — reason recorded at end of run) |
-| `cbbda021` | not reached | feat(admin): tag Members' remaining controls and wire ConfirmDialog handles | (pending — reason recorded at end of run) |
+| `e804d16d` | reviewed | feat(admin-comments): tag every control on /admin/comments | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `cbbda021` | reviewed | feat(admin): tag Members' remaining controls and wire ConfirmDialog handles | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `54051fe3` | reviewed | fix(desktop): rename the fleet window title from Tovu Runner to Tovu | trivial title rename |
-| `7198436e` | not reached | feat(admin-seo): tag the per-entry override editor and picker for agent driving | (pending — reason recorded at end of run) |
+| `7198436e` | reviewed | feat(admin-seo): tag the per-entry override editor and picker for agent driving | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `a53c80df` | reviewed | feat(desktop): make the Projects screen the default front page | §1 — fleet UI default; boot branch |
-| `a4efd9c2` | not reached | feat(admin-roles): tag the remaining untagged controls on /admin/roles | (pending — reason recorded at end of run) |
-| `4f2052f6` | not reached | fix(admin-assistant): move the composer mic button next to the "+" | (pending — reason recorded at end of run) |
-| `79ade955` | not reached | feat(admin-database): tag every interactive control on /admin/database | (pending — reason recorded at end of run) |
-| `ab5f4b0f` | not reached | feat(admin): wire agentHandle through every Placeholder-backed nav page | (pending — reason recorded at end of run) |
+| `a4efd9c2` | reviewed | feat(admin-roles): tag the remaining untagged controls on /admin/roles | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `4f2052f6` | reviewed | fix(admin-assistant): move the composer mic button next to the "+" | AssistantDock markup move; fine |
+| `79ade955` | reviewed | feat(admin-database): tag every interactive control on /admin/database | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
+| `ab5f4b0f` | reviewed | feat(admin): wire agentHandle through every Placeholder-backed nav page | §4.9 — agentHandle sweep; mechanism verified repo-wide at HEAD (imports, 311 names, 3 exclusive-branch dups) |
 | `8cfb8eb9` | skipped | docs(admin): audit agentHandle coverage across every nav-listed admin page | docs/tests/out-of-app — no production code in scope |
 | `27a05955` | skipped | docs: handoff for the rotated-out autosave-drafts agent | docs/tests/out-of-app — no production code in scope |
 | `34694309` | reviewed | wip(posts): autosave recovery banner in PostEditor, state unverified | §4.3 — posts banner (wip commit on branch) |
 | `a4b99c90` | reviewed | feat(pages): render the standing-draft recovery banner in PageEditor | §4.3 — pages banner copy |
 | `559655cb` | reviewed | feat(posts): wire standing-draft autosave into usePostEditor; fix slug URLs | §4.3 — posts wiring |
 | `0911b45d` | skipped | docs: record that both handoff tasks belong to the peer session | docs/tests/out-of-app — no production code in scope |
-| `3f6097dc` | not reached | design(admin/seo): drop the Entry caption and take Pages & posts full width | (pending — reason recorded at end of run) |
+| `3f6097dc` | reviewed | design(admin/seo): drop the Entry caption and take Pages & posts full width | §3.4 |
 | `24386850` | skipped | docs: handoff for a second session - mic button, and the AVIF upload bridge | docs/tests/out-of-app — no production code in scope |
 | `05782b71` | reviewed | feat(pages): wire standing-draft autosave + add the missing unsaved-work guard | §4.3 — pages wiring |
 | `3a3dea2b` | skipped | docs(admin/seo): correct the file header the de-carding made stale | docs/tests/out-of-app — no production code in scope |
-| `613ea7e2` | not reached | design(admin/seo): take the per-entry panels out of their boxes too | (pending — reason recorded at end of run) |
+| `613ea7e2` | reviewed | design(admin/seo): take the per-entry panels out of their boxes too | §3.4 |
 | `9ac963e0` | reviewed | fix(posts): standing-draft autosave carries title explicitly | §4.3 |
-| `f8fc6b8e` | not reached | design(admin/seo): take the defaults form and sitemap panel out of their cards | (pending — reason recorded at end of run) |
+| `f8fc6b8e` | reviewed | design(admin/seo): take the defaults form and sitemap panel out of their cards | §3.4 |
 | `56a0fc09` | reviewed | feat(admin): shared standing-draft autosave hook + api client functions | §4.3 — shared hook |
 | `eba275f4` | reviewed | feat(posts): standing-draft autosave persistence + HTTP surface (posts+pages) | §4.3 — autosave persistence + route |
 | `868cfe72` | reviewed | feat(desktop): route project cards to their own window, strip the webview model | §4.5 — windowing churn; superseded by 204e01a7 same night |
-| `04806e6b` | not reached | feat(media): accept AVIF in the admin upload surfaces, with regression tests | (pending — reason recorded at end of run) |
-| `72a8dcb6` | not reached | feat(admin-roles): convert /admin/roles to a two-tab screen | (pending — reason recorded at end of run) |
+| `04806e6b` | reviewed | feat(media): accept AVIF in the admin upload surfaces, with regression tests | §4.18 — two admin accept lists |
+| `72a8dcb6` | reviewed | feat(admin-roles): convert /admin/roles to a two-tab screen | §3.4 — uses shared TabBar; good |
 | `e94da8f8` | reviewed | feat(posts): add nullable posts.autosave_json column for standing-draft autosave | §4.3 — migration 0058 |
 | `20be2646` | skipped | docs(tasks): refresh - 23 commits landed, four agents in flight, five new findings | docs/tests/out-of-app — no production code in scope |
 | `cbb727db` | reviewed | fix(desktop): restore own-server boot mode gutted by the boot-token commit | §4.5 — restored own-server mode |
-| `56e87ae0` | not reached | feat(admin-seo): convert /admin/seo to a three-tab screen | (pending — reason recorded at end of run) |
-| `2c6e0b07` | not reached | fix(post-editor): move preview-fallback notice above the frame, mirroring Pages | (pending — reason recorded at end of run) |
+| `56e87ae0` | reviewed | feat(admin-seo): convert /admin/seo to a three-tab screen | §3.4 — uses shared TabBar; good |
+| `2c6e0b07` | reviewed | fix(post-editor): move preview-fallback notice above the frame, mirroring Pages | §4.3 — "mirroring Pages" by hand |
 | `cf05115c` | skipped | docs(desktop): handoff for the rotated-out runner-ui-port agent | docs/tests/out-of-app — no production code in scope |
 | `15548bef` | reviewed | feat(auth): loopback boot token — the desktop admin comes up with no password | §4.5/§4.6 — boot token; gutted main.cjs |
-| `0a1fb89e` | not reached | fix(admin-settings): remove the peach background from /admin/settings | (pending — reason recorded at end of run) |
-| `30e68c54` | not reached | fix(admin-editors): compress the action row's band and give it a left anchor | (pending — reason recorded at end of run) |
+| `0a1fb89e` | reviewed | fix(admin-settings): remove the peach background from /admin/settings | §3.4 |
+| `30e68c54` | reviewed | fix(admin-editors): compress the action row's band and give it a left anchor | CSS only |
 | `de1e1e2e` | skipped | test(desktop-e2e): assert the admin comes up authenticated | docs/tests/out-of-app — no production code in scope |
 | `2aa317ab` | reviewed | feat(desktop): the admin comes up authenticated — no login screen | §4.5 — desktop auth (superseded by 15548bef) |
 | `fb996e8f` | reviewed | feat(desktop): use the Tovu logo as the app and nav mark | asset only |
-| `29a7f036` | not reached | feat(admin-editors): move Published/Save/Delete to their own row under the toolbar | (pending — reason recorded at end of run) |
-| `8e5a9d74` | not reached | feat(admin-editors): centre the editor title, move the back link to the far left | (pending — reason recorded at end of run) |
+| `29a7f036` | reviewed | feat(admin-editors): move Published/Save/Delete to their own row under the toolbar | §4.3 — editor chrome landed twice (Post+Page) |
+| `8e5a9d74` | reviewed | feat(admin-editors): centre the editor title, move the back link to the far left | §4.3 — editor chrome landed twice |
 | `5178eea5` | skipped | design(landing): gold, black and white — the filled pill goes gold in dark mode | docs/tests/out-of-app — no production code in scope |
 | `717273e8` | skipped | docs(tasks): no SITE password at all, and the default-owner-password finding | docs/tests/out-of-app — no production code in scope |
 | `b3f613a6` | skipped | design(landing): cycle the hero verb with kUInetic's word-cycler, as x.ai does | docs/tests/out-of-app — no production code in scope |
@@ -460,7 +468,7 @@ Status: `reviewed` = read at the frozen SHA and traced to a section; `skipped` =
 | `098e3466` | skipped | docs(desktop): record the Tovu-Runner UI port manifest before any code lands | docs/tests/out-of-app — no production code in scope |
 | `46513d83` | skipped | docs(ads-memory): hand off tovu-c0 — three owner-only commands, and apps/desktop never launched | docs/tests/out-of-app — no production code in scope |
 | `32af5802` | skipped | docs(index): record the reverted HTTP/2 attempt (Node-core crash, reproduced 3x) | docs/tests/out-of-app — no production code in scope |
-| `2cd019cd` | not reached | fix(assistant,settings): drop the Connection header on HTTP/2 SSE streams | (pending — reason recorded at end of run) |
-| `848ddd09` | not reached | fix(admin-dev-proxy): strip hop-by-hop headers before relaying Vite's response | (pending — reason recorded at end of run) |
+| `2cd019cd` | reviewed | fix(assistant,settings): drop the Connection header on HTTP/2 SSE streams | §4.17 — SSE head fixed in 4 copies |
+| `848ddd09` | reviewed | fix(admin-dev-proxy): strip hop-by-hop headers before relaying Vite's response | dev proxy hop-by-hop strip; single site; read |
 | `d131619d` | reviewed | feat(site-dir): add repairSite — write marker files into a pre-marker-convention site | §4.7/§4.10 — repairSite; 2nd CONTENT_DB constant |
 | `8a14b56a` | reviewed | refactor(site-dir): extract readAppliedSchemaIdentity, shared by the boot guard and repair-site | §4.7 — readAppliedSchemaIdentity shared; good |
