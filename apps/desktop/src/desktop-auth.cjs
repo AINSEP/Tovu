@@ -187,11 +187,16 @@ async function redeemBootSession(deps) {
  *
  * A cookie present here is not proof the session is still valid server-side, and **this function
  * must never be used as if it were** — that was DS-01. The old doc here claimed a stale cookie
- * "fails exactly like a missing one: the ordinary login screen shows". It does not. This shell
- * passes no `desktopCredential`, so there is no password for that login screen to accept, and the
- * only recovery (`endSiteSession` on quit) is wired solely to `openSiteWindow`'s `closed` event —
- * which the fleet `<webview>` path never reaches. A stale cookie there therefore survives every
- * relaunch and locks the operator out with no in-app exit.
+ * "fails exactly like a missing one: the ordinary login screen shows". It shows, but it is not an
+ * equivalent outcome, and the difference is the finding. A login form is exactly what the boot
+ * token exists to spare this operator: they were never given a password, because this shell does
+ * not mint one (it passes no `desktopCredential`, so the SITE's own seeding decides — see
+ * `features/identity/wiring.ts`, whose `ownerPassword` falls back to `DEFAULT_OWNER_PASSWORD` when
+ * `TOVU_ADMIN_PASSWORD` is unset, and whose seed does not rotate an owner that already exists). A
+ * credential that works therefore EXISTS; it is a build-time default this app has never shown them.
+ * And the only automatic recovery (`endSiteSession` on quit) is wired solely to `openSiteWindow`'s `closed` event —
+ * which the fleet `<webview>` path never reaches. A stale cookie there survives every relaunch and
+ * re-forces that same manual login on a site the app itself just opened.
  *
  * So this is now strictly the CHEAP NEGATIVE inside {@link hasValidSession}: "is there even a
  * cookie worth asking the server about". Ask {@link hasValidSession} for the real answer.
@@ -215,12 +220,14 @@ async function hasActiveSessionCookie(deps) {
  * `emitBootToken: !alreadyAuthenticated` and skipped {@link redeemBootSession} entirely. A cookie
  * whose server-side row is gone — a restore-point rollback, a stale-session cleanup, any
  * server-side revoke this shell did not perform itself — then produced a 401 admin with **no boot
- * token minted**, and this shell has no password to fall back on (`startSiteBackend` never passes
- * `desktopCredential`). The in-file claim that the operator simply "meets the ordinary login
+ * token minted**, and therefore a login form for a password this operator was never told (see
+ * {@link hasActiveSessionCookie} for where the working credential actually comes from: the site's
+ * own seeding default, not this shell). The in-file claim that the operator simply "meets the ordinary login
  * screen" assumed a recovery that the fleet path cannot reach: `endSiteSession` is wired only to
  * `openSiteWindow`'s `closed` event, so for a site opened from the Projects grid the stale cookie
- * is never cleared and every later launch repeats the same skip. That is a lockout with no in-app
- * exit, which is why presence is not good enough.
+ * is never cleared and every later launch repeats the same skip. Not a hard lockout — the seeding
+ * default does work — but a dead end for anyone who has only ever used this app. That is why
+ * presence is not good enough.
  *
  * The cookie check runs FIRST as a cheap negative: a brand-new partition has no cookie, and a
  * request that could only ever answer 401 is a round trip on the critical path of every first site
@@ -278,7 +285,8 @@ async function hasValidSession(deps) {
  * `emitBootToken: !alreadyAuthenticated`. Two things follow from that ordering, and both are wrong.
  * The check could only ever be about the JAR, because there is no server to ask yet. And the answer
  * was baked into a spawn ARGUMENT, so a wrong guess could not be revised once the server was up —
- * no token had been minted, and there was nothing left to fall back to.
+ * no token had been minted, and the only thing left was a login form for a password this shell
+ * never issued.
  *
  * The fix is to stop deciding before there is anything to ask. `main.cjs` now always passes
  * `--emit-boot-token`, and this function decides AFTER the server is answering. An emitted token

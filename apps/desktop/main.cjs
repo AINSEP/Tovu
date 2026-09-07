@@ -484,9 +484,10 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
   // `desktop-auth.cjs`'s header for why this replaced a shell-minted, shell-stored password
   // entirely. It used to be `!alreadyAuthenticated`, decided from the cookie jar BEFORE this spawn,
   // and that ordering is the defect: it is a spawn argument, so there is no server to ask yet, and
-  // a wrong guess could never be revised — no token had been minted and this shell passes no
-  // `desktopCredential`, so a cookie the server no longer honoured left the operator at a login
-  // form with nothing to type. An unnecessary token is inert (single-use, process-scoped, never
+  // a wrong guess could never be revised: no token had been minted, so a cookie the server no
+  // longer honoured dropped the operator onto a login form for a password this shell never issued
+  // (it passes no `desktopCredential` — the SITE's own identity seeding decides, and its default is
+  // what actually works, but nothing in this app has ever shown it to them). An unnecessary token is inert (single-use, process-scoped, never
   // written to disk); an unnecessary REDEEM is the 30-day-session pile-up, and that is what
   // `ensureSiteSession` still keeps conditional.
   const server = await startTovuServer({

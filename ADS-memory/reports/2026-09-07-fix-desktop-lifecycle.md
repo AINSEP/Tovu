@@ -442,7 +442,7 @@ No delete test ever pointed at a real site directory; every one uses a fresh `mk
 
 # DS-01 — desktop session validity (added after the original seven, authorized separately)
 
-Routed by Agent C, dispatched by the lead. **VERIFIED-AND-FIXED (lockout half). One half reported
+Routed by Agent C, dispatched by the lead. **VERIFIED-AND-FIXED (validity half). One half reported
 and deliberately NOT fixed — see DS-01b.**
 
 ## Verified, not inherited
@@ -460,8 +460,22 @@ and deliberately NOT fixed — see DS-01b.**
 
 **A false comment, now corrected.** `hasActiveSessionCookie`'s doc claimed a stale cookie "fails
 exactly like a missing one: the ordinary login screen shows". It does not: this shell passes no
-`desktopCredential` (`startSiteBackend` never sets it), so there is no password that login form will
-accept, and the only recovery is wired to a path fleet mode never reaches.
+`desktopCredential` (`startSiteBackend` never sets it), and the only recovery is wired to a path
+fleet mode never reaches.
+
+**SEVERITY CORRECTED — I overstated this, and the correction is on the record.** My first write-up
+called it "a lockout with no in-app exit". That is wrong, and I had inferred it rather than traced
+it. The shell passing no `desktopCredential` does not mean no credential exists: the SITE's own
+seeding decides, and `apps/website/src/features/identity/wiring.ts:126` falls back to
+`DEFAULT_OWNER_PASSWORD` (`wiring.ts:62`) when `TOVU_ADMIN_PASSWORD` is unset — verified directly,
+not taken from the two agents who reported it. `@jini-ai/cms`'s identity seed early-returns for an
+existing owner, so it is never rotated. A working credential therefore exists.
+
+The accurate claim: **not a hard lockout, still a real bug.** A stale cookie blocks the boot-token
+path and forces a manual login the operator should never have needed, using a build-time default
+this app has never shown them — on a site the app itself just opened. I had also written the
+overstated version into four source comments (`desktop-auth.cjs` x3, `main.cjs` x1); all four are
+corrected, since a false comment in the fix for a false comment is the worst possible outcome.
 
 ## Sink audit — as asked
 
@@ -481,7 +495,8 @@ accept, and the only recovery is wired to a path fleet mode never reaches.
 
 C proposed probing `/auth/me` before deciding `emitBootToken`. That cannot work: `emitBootToken` is a
 **spawn argument**, decided before any server exists to probe. And because it was decided from the
-jar, a wrong guess could never be revised — no token had been minted and there is no password.
+jar, a wrong guess could never be revised — no token had been minted, leaving only a login form
+for a password this shell never issued.
 
 Inverted it instead: **always emit, decide after the server answers.** An unnecessary token is inert
 (single-use, process-scoped, never written to disk, dies with the child). What stays conditional is
@@ -523,7 +538,8 @@ shape but breaks the ordering would pass. No `.tsx` was touched by this fix.
 
 ## DS-01b — REPORTED, NOT FIXED (deliberate)
 
-The lockout is fully closed by the probe: a stale cookie is now detected and a fresh token redeemed,
+The forced-login defect is fully closed by the probe: a stale cookie is now detected and a fresh
+token redeemed,
 whether or not the cookie was ever cleared. What remains is **session hygiene** — fleet-mode sessions
 are never revoked, so 30-day rows accumulate one per site open, which is the original 713-row problem
 resurfacing on the default path.
