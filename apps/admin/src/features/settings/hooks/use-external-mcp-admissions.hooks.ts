@@ -111,16 +111,62 @@ function useRestartWatch(refetch: () => void): { watching: boolean; begin: () =>
   });
 
   useEffect(() => {
-    if (attemptsLeft <= 0) return;
-    const handle = setTimeout(() => {
-      refetchRef.current();
-      setAttemptsLeft((left) => left - 1);
-    }, RESTART_WATCH_INTERVAL_MS);
+    // One arming expression and one cleanup, rather than an early `return` for the idle case:
+    // `clearTimeout(undefined)` is a specified no-op, so the idle render still yields a cleanup and
+    // the effect has a single exit.
+    const handle =
+      attemptsLeft <= 0
+        ? undefined
+        : setTimeout(() => {
+            refetchRef.current();
+            setAttemptsLeft((left) => left - 1);
+          }, RESTART_WATCH_INTERVAL_MS);
     return () => clearTimeout(handle);
   }, [attemptsLeft]);
 
   const begin = useCallback(() => setAttemptsLeft(RESTART_WATCH_ATTEMPTS), []);
   return { watching: attemptsLeft > 0, begin };
+}
+
+/** One restart outcome — a RESOLVED `{ok: false, reason}` is this route's "refused right now", not a
+ *  rejection (`api.ts`'s own comment on `restartAssistantDaemon`). */
+type RestartOutcome = { ok: boolean; reason?: string };
+
+/**
+ * The click handler: fire the restart, record its outcome, and arm the post-restart watch only when
+ * the restart was ACCEPTED. A `{ok: false}` refusal ("shutting down") means nothing was restarted,
+ * so there is no new daemon to catch up to and re-reading would just re-fetch the same snapshot
+ * eight times.
+ *
+ * Split out of {@link useExternalMcpAdmissions} to keep that hook under the shop complexity ceiling.
+ *
+ * @complexity O(1).
+ */
+function useRestartAction(
+  mutate: (input: undefined) => Promise<RestartOutcome>,
+  setOutcome: (outcome: RestartOutcome | null) => void,
+  beginRestartWatch: () => void,
+): () => void {
+  return useCallback(() => {
+    setOutcome(null);
+    // `.catch` is required, not defensive: `mutate`'s own promise already carries a handler, but
+    // `.then` derives a NEW promise that would reject unhandled. The failure itself is not
+    // swallowed — it is read back off `restartCall.error` by the caller.
+    void mutate(undefined)
+      .then((result) => {
+        setOutcome(result);
+        if (result.ok) beginRestartWatch();
+      })
+      .catch(() => undefined);
+  }, [mutate, setOutcome, beginRestartWatch]);
+}
+
+/** The route's own refusal reason, or `null`. Its 409 body carries `reason`; an older build that
+ *  refuses without one still has to say something, so the fallback is a sentence rather than a
+ *  silent `null` that would render as "the restart worked". */
+function resolveRefusal(outcome: RestartOutcome | null): string | null {
+  if (!outcome || outcome.ok) return null;
+  return outcome.reason ?? "the restart was refused";
 }
 
 /**
@@ -143,7 +189,7 @@ export function useExternalMcpAdmissions(deps: {
   // `MutationResult` carries `status`/`error` but no `data`, and this route's "refused right now"
   // outcome is a RESOLVED `{ ok: false, reason }` rather than a rejection (`api.ts`'s own comment on
   // `restartAssistantDaemon`) — so the refusal reason has to be captured here or it is lost.
-  const [outcome, setOutcome] = useState<{ ok: boolean; reason?: string } | null>(null);
+  const [outcome, setOutcome] = useState<RestartOutcome | null>(null);
 
   const connections = useMemo(
     () => describeAdmissionDrift(admissions.data, savedAllowedToolNamesById),
@@ -151,25 +197,9 @@ export function useExternalMcpAdmissions(deps: {
   );
 
   const { watching, begin: beginRestartWatch } = useRestartWatch(admissions.refetch);
+  const restart = useRestartAction(restartCall.mutate, setOutcome, beginRestartWatch);
 
-  const { mutate } = restartCall;
-  const restart = useCallback(() => {
-    setOutcome(null);
-    // `.catch` is required, not defensive: `mutate`'s own promise already carries a handler, but
-    // `.then` derives a NEW promise that would reject unhandled. The failure itself is not
-    // swallowed — it is read back off `restartCall.error` below.
-    void mutate(undefined)
-      .then((result) => {
-        setOutcome(result);
-        // Only an ACCEPTED restart arms the watch. A `{ok: false}` refusal ("shutting down") means
-        // nothing was restarted, so there is no new daemon to catch up to and re-reading would just
-        // re-fetch the same snapshot eight times.
-        if (result.ok) beginRestartWatch();
-      })
-      .catch(() => undefined);
-  }, [mutate, beginRestartWatch]);
-
-  const refusal = outcome && !outcome.ok ? (outcome.reason ?? "the restart was refused") : null;
+  const refusal = resolveRefusal(outcome);
 
   return {
     loading: admissions.status === "loading",

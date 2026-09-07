@@ -181,9 +181,13 @@ const INERT_WRITE_GRANT_EXPLANATION =
 function refusalItems(entry: FederationAdmissionSnapshotEntry): FederationRefusalItem[] {
   const admittedNames = new Set(entry.report.admitted.map((tool) => tool.remoteName));
   const items: FederationRefusalItem[] = [];
+  // One combined `continue` rather than two, and a loop rather than `filter().map()`: falling past
+  // this guard is what narrows `refusal.reason` out of `not-in-operator-allowlist`, which is exactly
+  // the key `EXPLANATION_BY_REASON` does not carry. A `filter` predicate cannot narrow the element
+  // type for a following `map`, so that shape needs a cast to compile — a cast standing in for a
+  // guarantee the control flow already provides.
   for (const refusal of entry.report.refused) {
-    if (refusal.reason === "not-in-operator-allowlist") continue;
-    if (admittedNames.has(refusal.remoteName)) continue;
+    if (refusal.reason === "not-in-operator-allowlist" || admittedNames.has(refusal.remoteName)) continue;
     items.push({
       connectionId: entry.connectionId,
       remoteName: safeRemoteName(refusal.remoteName),

@@ -337,26 +337,26 @@ export function describeAdmissionDrift(
   savedById: Readonly<Record<string, SavedConnectionIntent>>,
 ): readonly AdmissionDriftConnection[] {
   if (!snapshot) return [];
-  const liveById = new Map(snapshot.connections.map((entry) => [entry.connectionId, entry]));
+  const liveIds = new Set(snapshot.connections.map((entry) => entry.connectionId));
 
-  const drifted: AdmissionDriftConnection[] = [];
-  for (const entry of snapshot.connections) {
-    const saved = savedById[entry.connectionId];
-    const connectionLevel = saved ? connectionLevelEntry(entry.connectionId, saved, entry) : null;
-    // A whole-connection disagreement supersedes the per-tool rows: telling an operator which of a
-    // switched-off server's tools are still loaded, one line each, buries the one thing they need
-    // to read — that the server they turned off is still running.
-    const connection = connectionLevel ?? describeConnectionDrift(entry, saved?.allowedToolNames);
-    if (connection) drifted.push(connection);
-  }
+  return [
+    ...snapshot.connections.map((entry) => describeLiveConnection(entry, savedById[entry.connectionId])),
+    ...Object.entries(savedById)
+      .filter(([connectionId]) => !liveIds.has(connectionId))
+      .map(([connectionId, saved]) => connectionLevelEntry(connectionId, saved, undefined)),
+  ].filter((connection): connection is AdmissionDriftConnection => connection !== null);
+}
 
-  for (const [connectionId, saved] of Object.entries(savedById)) {
-    if (liveById.has(connectionId)) continue;
-    const connection = connectionLevelEntry(connectionId, saved, undefined);
-    if (connection) drifted.push(connection);
-  }
-
-  return drifted;
+/** One LIVE connection's row. A whole-connection disagreement supersedes the per-tool rows: telling
+ *  an operator which of a switched-off server's tools are still loaded, one line each, buries the
+ *  one thing they need to read — that the server they turned off is still running. Split out of
+ *  {@link describeAdmissionDrift} to keep that function under the shop complexity ceiling. */
+function describeLiveConnection(
+  entry: AdminFederatedAdmissionEntry,
+  saved: SavedConnectionIntent | undefined,
+): AdmissionDriftConnection | null {
+  const connectionLevel = saved ? connectionLevelEntry(entry.connectionId, saved, entry) : null;
+  return connectionLevel ?? describeConnectionDrift(entry, saved?.allowedToolNames);
 }
 
 /**
