@@ -177,3 +177,30 @@ Pass 4's Accomplish item said "no logger module exists". True for logging, but i
 ### New gap discovered (NOT fixed)
 - **A false code comment.** `apps/website/src/server/runtime/composition/deps.ts:439-441` still reads "outbox + event bus remain in-memory for now (events are fire-on-write side effects, not yet durable across restarts) — a durable outbox is a later …", while line 934 of the same file constructs `new SqliteOutboxAdapter(db)`. The comment contradicts the code 495 lines below it.
 
+---
+
+## Pass 6 — Master Build Inventory §19-§25 (parity / AEO / GEO / tooling / reference repos)
+
+Conservative pass, as instructed: **38 `[x]` items deleted**, every `[ ]` item kept unless source flatly contradicts it. After this pass the file contains **zero** `[x]` items and 291 open ones.
+
+### Spot-verified before deleting the `[x]` items
+`apps/website/src/features/{taxonomy,seo,redirects,members,newsletter,analytics,forms,navigation}` all exist; `apps/admin/src/features/{users/Users,roles/Roles,media/Media,recovery/Recovery,forms/FormsList}.tsx` all exist; `ts-morph` is a real devDependency (`package.json:138`); `/Users/la/Programming/OSS-Repos/medusa` is cloned. The one cited file that does **not** exist is `apps/admin/src/sections/Appearance.tsx` — the theme settings UI is now `apps/admin/src/features/themes/Themes.tsx`, rendered under both the `themes` and `appearance` panel ids. That item was `[x]` and deleted anyway, but the same stale path appeared in a surviving `[ ]` item and was corrected there.
+
+### `[ ]` item deleted because source contradicts it
+- **§19 "Comments/moderation system (if in scope) — ADR-031 Accepted, but backend NOT built yet"** — **false**, and it contradicted this file's own Admin Section Spec Sweep (which lists Comments as ✅ Implemented). `apps/website/src/features/comments/` ships `repo.sqlite.ts`, `write-service.ts`, `ingress.ts`, `sanitize.ts`, `spam.heuristic.ts`, `spam.external.ts`, `settings.ts`, `data-module-install.ts`, `agent-tools.ts`. Deleted.
+
+### `[ ]` items corrected
+- **§24 "Evaluate OpenTelemetry (later)"** — **adopted**. Six `@opentelemetry/*` packages are real dependencies (`package.json:101-106`) and `apps/website/src/platform/observability/otel.ts` imports `@opentelemetry/api`, `exporter-trace-otlp-http`, `resources` and `semantic-conventions` behind `ObservabilityPort`. Replaced §24's scattered adoption notes with one "already adopted, do not re-evaluate" block covering dependency-cruiser, ts-morph, Biome and OpenTelemetry.
+- **§24 Nx/Turborepo "moot for now, `src/` has not been split into `packages/`"** — a `packages/` root does exist, holding `packages/sdk`. Reworded to "still mostly moot: no multi-package graph to tag or cache yet".
+- **§19 theme preview/activation** — `Appearance.tsx` -> `apps/admin/src/features/themes/Themes.tsx`.
+- **§19 block editor** — `apps/admin/src/sections/PostEditor.tsx` -> `apps/admin/src/features/posts/PostEditor.tsx` and `apps/admin/src/features/collections/CollectionEntryEditor.tsx`.
+- **§22 JSON-LD** — `server/http/site/page-head.ts` -> `apps/website/src/server/inbound/public-http/http/site/page-head.ts`; `seo/page-head-contributor.ts` -> `apps/website/src/features/seo/page-head-contributor.ts`.
+- **§22 robots.txt builder** — `src/seo/` -> `apps/website/src/features/seo/`.
+- **§19 `#### SEO + discovery`** emptied completely (all four items were `[x]`); replaced the empty heading with a one-line "at parity — ADR-032/ADR-033" note rather than leaving a bare heading.
+
+### Left `[UNVERIFIED 2026-09-06]`
+- **§24's source citation** — the three files it rests on (`claude-`/`gemini-`/`codex-tovu-competitor-findings.md`) are not present anywhere in the repo, so the reasoning behind the tool picks could not be re-read. Section kept; the missing sources are flagged inline.
+
+### Deliberately untouched
+- §21, §22 (AEO/GEO/AI surfaces, ~120 lines), §23 (Platform Gaps), §25 (Reference Codebases) — aspirational lists with no falsifiable claims about current source beyond the paths already fixed. Kept whole, as instructed.
+

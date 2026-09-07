@@ -693,23 +693,19 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 ### 19) WordPress Parity Gap Checklist (Detailed)
 
 #### Content + publishing
-- [x] Post/page/custom-type parity (authoring + APIs + permissions) — `features/post` (post/page) + `features/content-types` (custom types, ADR-043 Collections), full authz via ADR-021
 - [ ] Draft/review/published/future/private status model parity — draft/published exists (`features/entries`, `features/post`); scheduled ("future") and private-visibility states not confirmed built
 - [ ] Scheduled publishing with timezone correctness
 - [ ] Revisions + restore + compare views — append-only revisions exist (ADR-022); restore-to-a-past-revision and compare-views UI not built
 - [ ] Autosave and crash recovery
-- [x] Slug/permalink management and uniqueness handling — ADR-039 routing + slug-uniqueness guard in `entries/write-service.ts` + ADR-033 redirects capture on slug change
 - [ ] Trash/restore/delete lifecycle — content-type deprecate/tombstone/cleanup lifecycle is built (ADR-043); a per-entry trash/delete lifecycle is not confirmed
 - [ ] Sticky/featured content behavior
 
 #### Taxonomy + navigation
-- [x] Categories/tags/custom taxonomies — ADR-044 (`features/taxonomy`)
 - [ ] Term archives and filtering behavior — taxonomy backend/admin is built (ADR-044); public-facing term-archive/filter pages are not confirmed
-- [x] Menu builder (hierarchical) + assignment to theme locations — ADR-029 (`src/navigation`, `MenuEditor.tsx`)
 - [ ] Breadcrumb/navigation helper model — ADR-039 routing (`urlFor`/`isActive`) provides the primitive; no breadcrumb helper built on top yet
 
 #### Editor + design system
-- [ ] Block editor equivalent (or strict alternative) with schema safety — a TipTap-based rich-text editor exists (`apps/admin/src/sections/PostEditor.tsx`, `CollectionEntryEditor.tsx`); not a block-based, schema-safe editor per ADR-016/017's fuller vision
+- [ ] Block editor equivalent (or strict alternative) with schema safety — a TipTap-based rich-text editor exists (`apps/admin/src/features/posts/PostEditor.tsx`, `apps/admin/src/features/collections/CollectionEntryEditor.tsx`); not a block-based, schema-safe editor per ADR-016/017's fuller vision
 - [ ] Reusable blocks/patterns/templates
 - [ ] Full-site editing equivalents (template parts, global styles) — ADR-017 (Proposed, blocked on theme system)
 - [ ] Media embed blocks and short content primitives (quote/code/table/etc.)
@@ -717,10 +713,9 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 
 #### Theme system parity
 - [ ] Template hierarchy and fallback rules — same gap as §8 item 2 (ADR-017 Proposed, blocked)
-- [x] Theme manifest and settings UI — `theme.json` manifest (ADR-020) + `apps/admin/src/sections/Appearance.tsx`
 - [ ] Child-theme equivalent strategy
 - [ ] Theme update compatibility checks and rollback
-- [ ] Theme preview and activation flow — activation flow exists (`Appearance.tsx`'s `activate()`); a preview-before-activate step wasn't found
+- [ ] Theme preview and activation flow — activation flow exists (`apps/admin/src/features/themes/Themes.tsx`'s `activate()`); a preview-before-activate step wasn't found
 
 #### Plugin ecosystem parity
 - [ ] Plugin install/activate/deactivate/update/uninstall flows — Tier-1 install/uninstall is built (ADR-023, `features/plugins/data-module.ts`); activate/deactivate/update flows and UI not confirmed
@@ -730,57 +725,39 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Plugin conflict detection and safe disable/quarantine
 
 #### Admin + operations
-- [x] Users/roles/capabilities management UI — `Users.tsx` + `Roles.tsx` (ADR-021)
-- [ ] Comments/moderation system (if in scope) — ADR-031 Accepted, but backend NOT built yet (blocked on ADR-023's dataModule engine per ADR-INDEX); only `comments/ports.ts`/`types.ts` exist today
-- [x] Settings pages parity (general/reading/writing/permalinks-like) — ADR-028 (`features/settings`) + `Settings.tsx`
 - [ ] Update center and update history
 - [ ] Built-in site health diagnostics — ADR-041's drift banner (`features/storage/drift.ts`) is a partial analog, but no route/UI is wired for it yet (deliberately deferred in the 2026-07-15 backend session)
 - [ ] Import/export tooling and migration helpers
 
 #### SEO + discovery
-- [x] XML sitemap generation + controls — ADR-032 (`src/seo/sitemap.ts`)
-- [x] Canonical/meta/schema controls — ADR-032/040, `seo/seo.ts`, `seo/page-head-contributor.ts`
-- [x] Robots and indexing controls — ADR-032 (`buildRobots` in `seo/sitemap.ts`)
-- [x] Redirect rules + canonicalization strategy — ADR-033 (`src/redirects`)
+At parity — ADR-032 (XML sitemap + controls, canonical/meta/schema, robots/indexing) and ADR-033
+(redirect rules + canonicalization) are all shipped.
 
 #### Media + files
-- [x] Media library parity (search/filter/metadata) — ADR-027 + `Media.tsx`
-- [x] Image derivatives and responsive sizes — ADR-027 (`media/transform-registry.ts`, `rendition-service.ts`)
-- [x] ~~File replacement/versioning behavior~~ — superseded: ADR-027 deliberately rejects in-place file replace; source-replace mints a new media entry instead (write-once `bodyJson.$.source.sha256`)
 - [ ] Bulk media operations
 
 #### Infrastructure + reliability
 - [ ] Cron/scheduler equivalent
 - [ ] Caching strategy (page/data/object) with invalidation — one narrow cache exists (SEO sitemap cache, `seo/sitemap.ts`'s `regenerateSitemapCache`/`invalidateSitemapCache`); no general page/data/object caching strategy
-- [x] Backup/restore UX — ADR-041/045, `Storage.tsx`/`Recovery.tsx`
 - [ ] Safe update/rollback flows — ADR-041's migrate-forward state machine is the closest analog for DB schema changes; app/plugin/theme update rollback isn't built
-- [x] Multisite/tenant strategy (if parity target includes multisite) — ADR-007 (workspace scoping) + ADR-011/012 (deployment topology; Tovu-Runner as the multi-site host)
 
 ### 20) Payload/Directus/Ghost Parity and Strategic Additions
 
 #### Payload-like capabilities
-- [x] Field-level schema builder parity (rich field types + validation) — ADR-022/043 (5-entry field-kind enum, validated on write)
 - [ ] Relationship and nested/document modeling parity — taxonomy relations (ADR-044) + media `entry_refs` (ADR-027) exist; ADR-022's flat-typed-columns + JSON-ext-bag model is deliberately not a Payload-style deep nested/relational document model
 - [ ] Access control at collection/field/doc level — collection/doc-level access control is built (ADR-021 permissions); field-level ACL is not built
 - [ ] Hooks lifecycle parity (`beforeChange`, `afterRead`, etc. equivalent)
-- [x] Local API equivalent (server-side direct invocation) — every feature module exposes direct typed functions (`write-service.ts` etc.) callable server-side without HTTP, matching Payload's Local API pattern (an architectural property of the whole codebase, not a discrete build item)
-- [x] Draft/publish + versioning parity — `features/entries` publish/unpublish + ADR-022 revisions
 - [ ] Uploads with focal points/transforms and ACL — transforms + ACL are built (ADR-027); focal-point cropping is not confirmed
 
 #### Directus-like capabilities
-- [x] ~~Database-first introspection mode (optional strategy)~~ — superseded/rejected: ADR-043 explicitly rejects Directus-style per-collection tables/DB-first introspection for operator-defined content types in favor of a data-driven registry
 - [ ] Data Studio-like admin configurability — a basic registry UI exists (`Collections.tsx`); full Directus-style Data Studio configurability isn't a stated goal or built
 - [ ] Flows/automation builder equivalent
 - [ ] Realtime subscriptions and event streams
-- [x] Granular permissions matrix (role/policy/filter-based) — ADR-021 (roles→policies→permissions, explicitly "Directus-shaped" per the ADR's own text)
 - [ ] Extension types parity (interface/display/layout/module/hook/endpoint/op/panel analogs)
 - [ ] Marketplace/distribution model for extensions (if in scope) — ADR-024 sets the trust-tier forcing function for a future marketplace ("shipping the marketplace is shipping the sandbox") but the marketplace itself isn't built
 
 #### Ghost-like capabilities
 - [ ] Writer-first editing experience quality target
-- [x] Membership/subscription primitives — ADR-030 (`src/members`: directory, consent, magic-link) — note subscription tiers/paywall specifically are still open, see the Membership/Paywall plugin items in §22
-- [x] Newsletter/email publishing primitives — ADR-034 (`src/newsletter`), domain layer built; routes/UI intentionally parked per explicit owner request (not a gap — deferred indefinitely by choice)
-- [x] Publication settings and audience segmentation — `newsletter/lists.ts` + ADR-034
 - [ ] SEO + canonical + social cards defaults — canonical/meta is done (ADR-032); social-card (OG/Twitter card) defaults are not confirmed built
 - [ ] Performance-first defaults for publishing surfaces
 
@@ -789,7 +766,6 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Guided incident remediation — ADR-045's Recovery screen is the closest built analog
 - [ ] Preflight update risk checks + canary + rollback — ADR-041's migrate-forward cost-gating is a partial analog, scoped to DB migrations only
 - [ ] Policy-based governance and provenance controls
-- [x] Contract-first plugin security model — ADR-023/024/025/026 collectively are this: capability-gated typed writes, a frozen transport-agnostic ABI, and cross-origin iframe isolation for plugin JS
 
 ### 21) Big Missing Items to Explicitly Track
 - [ ] Billing/licensing domain model (if SaaS)
@@ -800,14 +776,14 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Disaster recovery objectives (RPO/RTO targets) — ADR-041/045 build the restore mechanism itself; no stated RPO/RTO numeric targets
 - [ ] Internationalization/localization strategy
 - [ ] Accessibility baseline and regression checks — an `alt` field exists on media (ADR-027, `media/types.ts`); no broader accessibility baseline or regression testing
-- [x] Analytics/event taxonomy and data governance — ADR-035 (`src/analytics`, PII-death-at-sink ingest design)
 - [ ] Support/admin tooling for operations team
 
 ### 22) AEO / GEO / AI Surfaces (First-Class)
 
 #### AEO (Answer Engine Optimization)
 - [ ] Define AEO content model (Q&A entities, canonical answer blocks, evidence links)
-- [ ] Add structured data generation for answer engines (schema consistency + validation) — a JSON-LD serialization primitive already exists (`server/http/site/page-head.ts`'s `serializeJsonLd`, ADR-032 `seo/page-head-contributor.ts`); full per-content-type auto-generation is not confirmed complete
+- [ ] Add structured data generation for answer engines (schema consistency + validation) — a JSON-LD serialization primitive already exists (`apps/website/src/server/inbound/public-http/http/site/page-head.ts`'s `serializeJsonLd`, ADR-032
+  `apps/website/src/features/seo/page-head-contributor.ts`); full per-content-type auto-generation is not confirmed complete
 - [ ] Build answer freshness workflow (staleness checks + auto-review queue)
 - [ ] Add answer quality scoring (accuracy, completeness, citation confidence)
 - [ ] Add AEO analytics surface (answer impressions, citation wins, decay signals)
@@ -869,8 +845,7 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 ##### Site-level outputs
 - [ ] Auto-generate `/llms.txt` from site structure and key pages (low-cost future bet)
 - [ ] IndexNow integration — ping Bing instantly on publish/update (only proven instant-discovery signal)
-- [x] Sitemap.xml with accurate `<lastmod>` dates (freshness signal across all engines) — ADR-032 (`seo/sitemap.ts`)
-- [ ] robots.txt builder — per-bot allow/block config (OAI-SearchBot, GPTBot, PerplexityBot, Googlebot, bingbot, ChatGPT-User) — a generic `RobotsPolicy`/`buildRobots` exists (ADR-032, `src/seo/`); per-bot granularity (OAI-SearchBot/GPTBot/etc.) not confirmed
+- [ ] robots.txt builder — per-bot allow/block config (OAI-SearchBot, GPTBot, PerplexityBot, Googlebot, bingbot, ChatGPT-User) — a generic `RobotsPolicy`/`buildRobots` exists (ADR-032, `apps/website/src/features/seo/`); per-bot granularity (OAI-SearchBot/GPTBot/etc.) not confirmed
 
 ##### Engine-specific optimizations
 - [ ] Google AI Overviews: "nugget in the mine" content structure (long-form with extractable direct answers per section)
@@ -886,10 +861,7 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Freshness monitoring — alert when pages go stale and become displacement targets
 
 ##### Forms plugin (TanStack Form-based)
-- [x] Define form schema model compatible with TanStack Form's typed API (agent-manipulable field definitions, validation rules, nested structures) — `src/forms` (`forms.ts`, `types.ts`, `manifest.ts`)
-- [x] Form builder capability contracts (agent can create/modify/validate forms via typed commands) — `forms/write-service.ts` + `apps/admin/src/sections/FormEditor.tsx`/`FormsList.tsx`
 - [ ] Submission routing, conditional logic, payment integration — submission handling + notification is built (`forms/submit-service.ts`, `notify-subscriber.ts`); conditional logic and payment integration are not confirmed built
-- [x] Notification/webhook triggers on submission — `forms/notify-subscriber.ts` + ADR-036 integrations webhooks
 
 ##### Multilingual plugin
 - [ ] Locale model + fallback chains (per-content-type locale config)
@@ -903,7 +875,6 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Content restriction rules (per-page, per-section, per-content-type)
 - [ ] Drip/scheduled content release
 - [ ] Payment gateway integration (Stripe primary)
-- [x] Member directory, login/registration flows, profile management — ADR-030 (`src/members`)
 
 #### AI Surfaces (User + Employee)
 - [ ] Define end-user AI surface (assistant panel for guided site changes)
@@ -962,14 +933,10 @@ Source prompts:
 - [ ] Define billing/audit reconciliation workflows
 
 #### API and ecosystem lifecycle
-- [x] Define API versioning lifecycle and sunset/deprecation policy — ADR-005 (semver, deprecation ladder)
 - [ ] Define SDK generation and release process
-- [x] Define backward-compatibility guarantees for core APIs — ADR-005 (SDK compatibility promise, API snapshot tests)
-- [x] Define extension API stability policy (what can break and when) — ADR-005/024 (ABI frozen now, capability manifest namespace frozen/contents iterate)
 
 #### Marketplace and supply chain trust
 - [ ] Define plugin/theme submission and review workflow
-- [x] Define package signing and integrity verification model — ADR-004 (prebuilt ESM + signed manifest)
 - [ ] Define extension trust scoring (security, maintenance, quality)
 - [ ] Define malicious package response workflow (disable/quarantine/notify)
 
@@ -990,26 +957,32 @@ Source prompts:
 
 ### 24) Architecture Tooling Evaluation (added 2026-06-30)
 
-Source: competitor-analysis session. See `claude-tovu-competitor-findings.md`, `gemini-tovu-competitor-findings.md`, `codex-tovu-competitor-findings.md`.
+Source: competitor-analysis session. **[UNVERIFIED 2026-09-06]** the three findings files this
+section cites (`claude-`/`gemini-`/`codex-tovu-competitor-findings.md`) are not present anywhere in
+the repo, so the reasoning behind these picks could not be re-read.
 Goal: evaluate/adopt tooling that keeps the codebase modular, maintainable, and flexible (enforces the ports/adapters + spec-first constraints). Ties into existing items 1) "architecture boundary enforcement" and 15) "architecture lint".
 
 Recommended starting five (highest ROI):
-- [x] Evaluate **dependency-cruiser** — adopted (CORRECTED 2026-09-02, was stale): `.dependency-cruiser.mjs` (674 lines) enforces boundary rules including the inward "core never imports adapters" rule, run via `check:boundaries` in `package.json`; the wider `check:architecture` gate currently reports RED as measured, but the config and enforcement exist.
 - [ ] Evaluate **knip** — find unused files/exports/deps across the workspace (keeps plugin-heavy platform lean)
 - [ ] Evaluate **Zod** at all boundaries — runtime validation + single source of truth for types (fits SQLite JSON-text ↔ jsonb strategy) — not adopted; relates to §10's still-open request-validation item
 - [ ] Evaluate **ArchUnitTS / ts-arch** — architecture rules as unit tests (fits spec-first / M3 test-contract framework)
 - [ ] Evaluate **Testcontainers** (+ **Pact**) — contract-test each DB/storage/payment adapter against a real backend
 
 Adopt when splitting `src/` into `packages/`:
-- [ ] Evaluate **Nx** vs **Turborepo** — workspace + module-boundary tags + affected graph + caching — moot for now, `src/` has not been split into `packages/`
+- [ ] Evaluate **Nx** vs **Turborepo** — workspace + module-boundary tags + affected graph + caching — still mostly moot: a `packages/` root exists but holds only `packages/sdk`, so there is no
+      multi-package graph to tag or cache yet
 - [ ] Evaluate **Sheriff** / **good-fences** — lighter encapsulation if not going full Nx
 
 Understanding / codegen / docs:
 - [ ] Evaluate **Madge** — fast circular-dependency detection (cheap complement to Graphify/CBM)
-- [x] Evaluate **ts-morph** — TS AST manipulation for `migration-generator.ts`, plugin `sdk-builder`, typegen (how Payload does config/typegen) — adopted (`package.json` devDependency), in active use in `scripts/write-path-inventory.ts` for the ADR-042 structural graph-audit tooling
 - [ ] Evaluate **ts-rest / tRPC** — compiler-checked contracts for the headless packet (Next/Vue shells)
 - [ ] Evaluate **Structurizr DSL / C4 model** (+ PlantUML) — diagrams-as-code living architecture docs (pairs with ADR log in item 18) — the ADR log itself (`ADR-INDEX.md`) serves the living-decision-record role in prose form; no diagrams-as-code tooling adopted
-- [ ] Evaluate **OpenTelemetry** (later) — runtime coupling/traces once modules talk via events
+
+**Already adopted, do not re-evaluate:** **dependency-cruiser** (`.dependency-cruiser.mjs`, wired as
+`check:boundaries`), **ts-morph** (`package.json` devDependency), **Biome** (lint + format,
+`biome.json`), and **OpenTelemetry** — six `@opentelemetry/*` packages are real dependencies
+(`package.json:101-106`) behind `apps/website/src/platform/observability/otel.ts`. Remaining OTel
+instrumentation work is tracked in Master Build Inventory §1 and §16, not here.
 
 ### 25) Reference Codebases to Study (added 2026-06-30)
 
@@ -1018,7 +991,6 @@ Goal: study exemplary OSS repos for architecture/design patterns Tovu needs (por
 Ports/adapters + DDD references (TS):
 - [ ] **Sairyss/domain-driven-hexagon** — canonical TS DDD + hexagonal + CQRS reference (closest to Tovu's intended core)
 - [ ] **CodelyTV/typescript-ddd-example** — DDD/CQRS skeleton in TS
-- [x] **medusajs/medusa** — modular monolith, module container + module links, provider pattern (already partly in specs; graphify it) — cloned to `OSS-Repos/medusa` and graphified (465 files in `OSS-Repos/graphify-out/manifest.json`)
 
 Plugin-system gold standards:
 - [ ] **microsoft/vscode** — contribution points, extension host, activation events (the canonical extensible-platform design)
