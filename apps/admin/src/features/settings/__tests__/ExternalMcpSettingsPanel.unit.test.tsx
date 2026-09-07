@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
+import { FetchQueryProvider } from "@/lib/fetch-query";
+
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 
 /**
@@ -20,7 +22,16 @@ function renderPanel() {
     sources: [],
     createSource: (input) => ({ id: input.fields.id?.trim() || "new-server", fields: input.fields }),
   });
-  return render(<ExternalMcpSettingsPanel dependencies={dependencies} />);
+  // The panel now also asks the RUNNING assistant what it admitted
+  // (`useWiredExternalMcpAdmissions` -> `useFetchQuery`), which needs the app's query client. In
+  // production `FetchQueryProvider` is mounted at the app root; here it has to be explicit. The
+  // reads themselves fail in jsdom and the banner degrades to its "could not ask" line, which is
+  // exactly the behaviour under test elsewhere and is invisible to the field assertions below.
+  return render(
+    <FetchQueryProvider>
+      <ExternalMcpSettingsPanel dependencies={dependencies} />
+    </FetchQueryProvider>,
+  );
 }
 
 async function openAddForm(user: ReturnType<typeof userEvent.setup>) {

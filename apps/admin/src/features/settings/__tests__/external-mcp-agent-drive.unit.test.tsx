@@ -5,6 +5,8 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
+import { FetchQueryProvider } from "@/lib/fetch-query";
+
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 
 /**
@@ -53,7 +55,16 @@ function renderPanel(sources: SourceConfigItem[] = []) {
     sources,
     createSource: (input) => ({ id: input.fields.id?.trim() || "new-server", fields: input.fields }),
   });
-  return render(<ExternalMcpSettingsPanel dependencies={dependencies} />);
+  // The panel now also asks the RUNNING assistant what it admitted
+  // (`useWiredExternalMcpAdmissions` -> `useFetchQuery`), which needs the app's query client. In
+  // production `FetchQueryProvider` is mounted at the app root; here it has to be explicit. The
+  // reads themselves fail in jsdom and the banner degrades to its "could not ask" line, which is
+  // exactly the behaviour under test elsewhere and is invisible to the field assertions below.
+  return render(
+    <FetchQueryProvider>
+      <ExternalMcpSettingsPanel dependencies={dependencies} />
+    </FetchQueryProvider>,
+  );
 }
 
 /** Opens the add form and returns a driver over the rendered panel, as the agent bridge would. */

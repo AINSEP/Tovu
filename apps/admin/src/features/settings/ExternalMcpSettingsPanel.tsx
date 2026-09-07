@@ -10,7 +10,14 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
-import { resolveExternalMcpCardHandles } from "./ExternalMcpSettingsPanel.hooks";
+import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
+import {
+  buildAllowWritePatch,
+  resolveExternalMcpCardHandles,
+  useExternalMcpDriftCopy,
+  useSavedAllowedToolNamesById,
+} from "./ExternalMcpSettingsPanel.hooks";
+import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
 import {
   buildExternalMcpFieldSpecs,
   EXTERNAL_MCP_ADD_FORM_HANDLE,
@@ -225,6 +232,13 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
   const banner = list.error;
   const cardHandles = resolveExternalMcpCardHandles(list.sources);
 
+  // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
+  // because `mcp-federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
+  // existed the gap was visible only in the daemon's boot terminal.
+  const savedAllowedToolNamesById = useSavedAllowedToolNamesById(list.sources);
+  const admissions = useWiredExternalMcpAdmissions(savedAllowedToolNamesById);
+  const tDrift = useExternalMcpDriftCopy();
+
   return (
     <section className="external-mcp-tab">
       <div className="external-mcp-head">
@@ -257,6 +271,15 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
         testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
         testResult={list.testResults[DRAFT_TEST_SCOPE]}
         onTest={() => void list.test(undefined, addForm.values)}
+      />
+
+      <ExternalMcpAdmissionsBanner
+        controller={admissions}
+        t={tDrift}
+        onAllowWrite={(connectionId, remoteName) => {
+          const patch = buildAllowWritePatch(list.sources, connectionId, remoteName);
+          if (patch) void list.update(connectionId, patch);
+        }}
       />
 
       <ExternalMcpSourcesSection list={list} cardHandles={cardHandles} t={t} />
