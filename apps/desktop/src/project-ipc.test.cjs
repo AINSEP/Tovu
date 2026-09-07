@@ -25,6 +25,7 @@ const {
 const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } = require("./project-registry.cjs");
 const { classifySiteDir } = require("./site-dir-store.cjs");
 const { createKeyedSerializer } = require("./keyed-serializer.cjs");
+const { createSiteSupervisor } = require("./site-supervisor.cjs");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
@@ -105,6 +106,40 @@ test("buildProjectRecord gives two different site dirs two different partitions"
   const a = buildProjectRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
   const b = buildProjectRecord({ siteDir: "/sites/b", createdAt: "2026-01-01" }, deps);
   assert.notEqual(a.partition, b.partition);
+});
+
+test("a crashed project is reported stopped, with a statusDetail saying why", async () => {
+  // D-06 end to end at the sink the renderer actually reads. Before the supervisor owned the
+  // `running -> exited` transition this record kept saying `running` with the dead child's port
+  // forever, and `useProjectsPolling`'s 4s re-poll re-read the same unchanged answer.
+  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
+  const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
+
+  let died;
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  assert.equal(buildProjectRecord(row, deps).status, "running");
+
+  died({ code: 1, signal: null });
+
+  const record = buildProjectRecord(row, deps);
+  assert.equal(record.status, "stopped");
+  assert.equal(record.port, 0);
+  assert.equal(record.statusDetail, "The site's server exited (code 1).");
+});
+
+test("a project that was simply never started has no statusDetail to report", () => {
+  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
+  const record = buildProjectRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
+  assert.equal(record.status, "stopped");
+  assert.equal(record.statusDetail, null);
+});
+
+test("a killed project reports its signal rather than an exit code", () => {
+  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
+  let died;
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  died({ code: null, signal: "SIGKILL" });
+  assert.equal(buildProjectRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps).statusDetail, "The site's server was stopped by SIGKILL.");
 });
 
 test("handleList returns one record per tracked row, joined against openSites", () => {

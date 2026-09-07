@@ -401,6 +401,46 @@ function describeBootFailure(output, fallback) {
 }
 
 /**
+ * A one-shot, replayable exit signal for a spawned child.
+ *
+ * The gap this closes (D-06): the only `exit` listener {@link startTovuServer} had fed its
+ * single-settle `finish()`, which is a NO-OP once the boot line has already resolved the promise.
+ * So nothing in this process observed a child dying AFTER it came up — `main.cjs`'s `openSites`
+ * kept the dead handle, `buildProjectRecord` kept reporting `running`, and "Start site" handed the
+ * corpse straight back instead of spawning a replacement.
+ *
+ * REPLAYING rather than just forwarding is the load-bearing part. A supervisor attaches its
+ * listener after `startTovuServer` resolves, and a child is free to die inside that gap; a plain
+ * `child.once("exit", listener)` registered then would never fire, and the entry would be wedged
+ * "running" for the whole session — the very state this exists to prevent. Registering the capture
+ * here, immediately after `spawn` and before any `await`, means there is no instant at which an
+ * exit can go unrecorded.
+ *
+ * @returns `{ onExit }` — `onExit(listener)` calls `listener({code, signal})` when the child exits,
+ *   or immediately if it already has. Listeners fire once each and are then dropped.
+ * @complexity O(1) per registration; O(n) in registered listeners at exit time.
+ */
+function createExitSignal(child) {
+  let exit = null;
+  const waiting = [];
+
+  child.once("exit", (code, signal) => {
+    exit = { code, signal };
+    for (const listener of waiting.splice(0)) listener(exit);
+  });
+
+  return {
+    onExit(listener) {
+      if (exit !== null) {
+        listener(exit);
+        return;
+      }
+      waiting.push(listener);
+    },
+  };
+}
+
+/**
  * Spawn `tovu serve <siteDir> --port <port>` and resolve once it reports the port it bound.
  *
  * Resolves to a handle whose `stop()` is the only supported way to shut the server down. Rejects —
@@ -419,7 +459,8 @@ function describeBootFailure(output, fallback) {
  *   seeding exactly as it was.
  * @param input.cliMode `"source"` or `"compiled"` — see {@link buildCliSpawnPlan}; defaults to
  *   `"compiled"` when omitted (unchanged prior behavior for any existing caller).
- * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop() }`
+ * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —
+ *   `onExit` is the post-ready liveness signal a supervisor needs; see {@link createExitSignal}.
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
@@ -454,6 +495,8 @@ async function startTovuServer(input) {
       detached: true,
     },
   );
+
+  const exitSignal = createExitSignal(child);
 
   return await new Promise((resolve, reject) => {
     let output = "";
@@ -502,6 +545,7 @@ async function startTovuServer(input) {
             // passed, which is every caller but the desktop shell.
             bootToken: parseBootToken(output),
             stop: () => stopChild(child, stopGraceMs),
+            onExit: exitSignal.onExit,
           }),
         );
       });
@@ -532,6 +576,7 @@ module.exports = {
   buildCliSpawnPlan,
   buildServeEnv,
   allocatePort,
+  createExitSignal,
   startTovuServer,
   DEFAULT_READY_TIMEOUT_MS,
   DEFAULT_STOP_GRACE_MS,

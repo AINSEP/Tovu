@@ -395,3 +395,49 @@ test("stop() is a no-op on a child that has already exited", async () => {
   await handle.stop();
   assert.deepEqual(child.killed, []);
 });
+
+test("startTovuServer's handle reports the child's exit AFTER boot, which is the signal D-06 had none of", async () => {
+  // The only exit listener used to be the boot-failure one, a no-op once `settled` is true. Nothing
+  // in the process observed a POST-ready exit, so `openSites` kept a dead handle forever and
+  // "Start site" handed it straight back.
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+
+  const seen = [];
+  handle.onExit((exit) => seen.push(exit));
+  child.emit("exit", 1, null);
+
+  assert.deepEqual(seen, [{ code: 1, signal: null }]);
+});
+
+test("startTovuServer's onExit replays an exit that already happened before the listener attached", async () => {
+  // The registration window is real: the child can die between `startTovuServer` resolving and the
+  // supervisor attaching. A listener that only ever waits for a future event would miss it and the
+  // entry would be wedged "running" — exactly the state D-06 is about.
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: () => child,
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+
+  child.emit("exit", null, "SIGKILL");
+  const seen = [];
+  handle.onExit((exit) => seen.push(exit));
+
+  assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
+});

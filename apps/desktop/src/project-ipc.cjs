@@ -42,6 +42,23 @@ const RUNNER_PROJECT_CHANNELS = Object.freeze({
 });
 
 /**
+ * Why this site's server is not running, when it stopped on its own — `null` when it was never
+ * started, was stopped deliberately, or when `openSites` is a store that cannot say (a plain `Map`
+ * in a test that is not exercising liveness).
+ *
+ * Operator-facing prose, not a raw exit record: this string is rendered on the card. `code` and
+ * `signal` are mutually exclusive in Node's `exit` event — whichever is non-null is the reason.
+ *
+ * @complexity O(1).
+ */
+function describeLastExit(openSites, siteDir) {
+  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf(siteDir) : null;
+  if (exit === null) return null;
+  if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
+  return `The site's server exited (code ${exit.code}).`;
+}
+
+/**
  * One tracked row plus `openSites` (ground truth for "running") joined into the `ProjectRecord`
  * shape `contracts/project.ts` declares. Every field this shell cannot really know — `templateId`,
  * `templateVersion`, `database` — gets a stated, honest default rather than a fabricated value:
@@ -69,7 +86,10 @@ function buildProjectRecord(row, deps) {
     database: { kind: "sqlite" },
     desiredState: running ? "running" : "stopped",
     status: running ? "running" : "stopped",
-    statusDetail: null,
+    // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
+    // started, and before `site-supervisor.cjs` owned that transition the two were indistinguishable
+    // to the renderer (D-06). This is the one place the difference can be told.
+    statusDetail: running ? null : describeLastExit(deps.openSites, row.siteDir),
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
@@ -181,7 +201,9 @@ async function deleteProject(id, deps) {
   if (openEntry !== undefined) {
     await openEntry.server.stop();
     deps.openSites.delete(id);
-    deps.recordSiteClosed(deps.registryPath, id);
+    // By pid: `recordSiteOpened` can leave a live sibling instance's row for this same site dir,
+    // and a close by site dir alone would drop that one too (D-07).
+    deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
     // A fleet-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
     // `main.cjs` — so this is optional, not a missing null check.
     if (openEntry.window && !openEntry.window.isDestroyed()) openEntry.window.destroy();
@@ -286,9 +308,11 @@ function rescanProjects(deps) {
  * @param {{handle: Function}} deps.ipcMain
  * @param {{showOpenDialog: Function}} deps.dialog
  * @param {{openExternal: Function}} deps.shell
- * @param {Map<string, {server: object, window?: object}>} deps.openSites live open sites, keyed by
- *   site dir — `main.cjs`'s own module-level map, passed in rather than imported. A fleet-opened
- *   (embedded-tab) entry carries no `window`; only own-server-mode entries do.
+ * @param {object} deps.openSites live open sites, keyed by site dir — `main.cjs`'s own module-level
+ *   store, passed in rather than imported. `Map`-compatible; in production it is
+ *   `site-supervisor.cjs`'s supervisor, which additionally drops an entry whose child has died and
+ *   answers `lastExitOf` about it. A fleet-opened (embedded-tab) entry carries no `window`; only
+ *   own-server-mode entries do.
  * @param {{run: Function}} deps.serializer per-site-dir operation serializer (`keyed-serializer.cjs`).
  * @param {string} deps.projectsPath `project-registry.cjs`'s tracked-project JSON file.
  * @param {string} deps.registryPath crash-safety registry file (`site-registry.cjs`), for

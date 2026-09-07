@@ -79,24 +79,64 @@ function writeRegistry(registryPath, state) {
 }
 
 /**
- * Record (or replace) one open site's row, keyed by `siteDir` — called once `startTovuServer` has
- * actually resolved, so a row is never written for a spawn attempt that failed.
- * @complexity O(n) in row count.
+ * Record one open site's row — called once `startTovuServer` has actually resolved, so a row is
+ * never written for a spawn attempt that failed.
+ *
+ * **Refuse-not-replace, and that is the D-07 fix.** This used to drop every existing row with the
+ * same `siteDir` unconditionally. `isOrphanedProcess`'s own doc already established that two
+ * Electron instances can run at once (there is no `requestSingleInstanceLock`), and
+ * {@link reconcileOrphans} was taught to RETAIN a live sibling's row — but the write path was left
+ * on the old rule, so instance B opening a site instance A already has open erased A's row. A's
+ * child was then supervised only by A's in-memory map: hard-kill A and nothing on disk named that
+ * process, so no later boot could ever reconcile it. The reap arm was fixed and the record arm was
+ * not; this is the sibling.
+ *
+ * A row is only displaced once it is PROVEN dead — the same identity proof
+ * ({@link isServeProcessForSite}) reconciliation makes before it kills anything, so a pid the OS
+ * recycled to something unrelated never counts as "still live" and rows cannot accumulate. Two rows
+ * for one `siteDir` therefore mean exactly what they say: two `tovu serve` children really are
+ * running over that site's `content.db`. That is its own problem (two sqlite writers), but recording
+ * it truthfully is strictly better than recording one of them and losing the other.
+ *
+ * @param options.isLiveRow test seam — the "is this row's process still its own live `tovu serve`"
+ *   predicate. Defaults to {@link isLiveServeRow}, which really asks the OS.
+ * @complexity O(n) in row count, times one `ps` call per same-`siteDir` row (in practice zero or one).
  */
-function recordSiteOpened(registryPath, row) {
+function recordSiteOpened(registryPath, row, options = {}) {
+  const isLiveRow = options.isLiveRow ?? isLiveServeRow;
   const { sites } = readRegistry(registryPath);
-  writeRegistry(registryPath, { sites: [row, ...sites.filter((existing) => existing.siteDir !== row.siteDir)] });
+  const retained = sites.filter((existing) => existing.siteDir !== row.siteDir || isLiveRow(existing));
+  writeRegistry(registryPath, { sites: [row, ...retained] });
+}
+
+/**
+ * Whether `row`'s pid is still alive AND still that row's own `tovu serve` — alive alone is not
+ * enough, since the OS is free to have reassigned that number to something unrelated.
+ * @complexity O(1) beyond one `ps` call.
+ */
+function isLiveServeRow(row) {
+  if (!isProcessAlive(row.pid)) return false;
+  return isServeProcessForSite(readProcessCommand(row.pid) ?? "", row);
 }
 
 /**
  * Drop a site's row — called once its `tovu serve` child has been asked to stop deliberately (a
  * window closed, or the whole app quit cleanly), so an ordinary shutdown is never mistaken for a
  * crash and reconciled against on the next launch.
+ *
+ * @param options.pid drop only the row carrying this pid. Every caller that HAS a pid passes it,
+ *   and they all do — this is only ever called about a child the caller is holding a handle to.
+ *   It matters because {@link recordSiteOpened} can now legitimately leave two rows for one
+ *   `siteDir` (a live sibling instance's, plus this one): closing by `siteDir` alone would wipe the
+ *   sibling's row too and reintroduce D-07 from the close side. Omitting it keeps the original
+ *   drop-every-row-for-this-site behaviour, so a future caller that genuinely means "forget this
+ *   site entirely" still has that, and no existing call site changed meaning silently.
  * @complexity O(n) in row count.
  */
-function recordSiteClosed(registryPath, siteDir) {
+function recordSiteClosed(registryPath, siteDir, options = {}) {
   const { sites } = readRegistry(registryPath);
-  writeRegistry(registryPath, { sites: sites.filter((existing) => existing.siteDir !== siteDir) });
+  const isDoomed = (existing) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
+  writeRegistry(registryPath, { sites: sites.filter((existing) => !isDoomed(existing)) });
 }
 
 /**
@@ -270,6 +310,7 @@ module.exports = {
   writeRegistry,
   recordSiteOpened,
   recordSiteClosed,
+  isLiveServeRow,
   isProcessAlive,
   readProcessCommand,
   readProcessParentPid,

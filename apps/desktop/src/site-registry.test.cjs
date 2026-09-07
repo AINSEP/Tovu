@@ -282,3 +282,64 @@ test("reconcileOrphans leaves a LIVE sibling instance's child alone, and keeps i
     }
   }
 });
+
+test("recordSiteOpened keeps a LIVE sibling instance's row for the same site instead of replacing it", async () => {
+  // D-07. Nothing prevents two Electron instances (there is no `requestSingleInstanceLock`).
+  // Instance A has site X open; instance B opens the same site and used to overwrite A's row by
+  // siteDir. A's child is then supervised only by A's in-memory map: hard-kill A and no row names
+  // it, so no later boot can ever reconcile it.
+  const registryPath = tempStatePath();
+  const siblingChild = spawnFakeServeChild("/site-x", 100);
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid, updatedAt: 1 });
+
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 999_999, updatedAt: 2 });
+
+  const pids = readRegistry(registryPath).sites.map((row) => row.pid);
+  assert.ok(pids.includes(siblingChild.pid), "the live sibling's child must still be recorded and therefore still reapable");
+  assert.ok(pids.includes(999_999), "and this instance's own child must be recorded too");
+
+  siblingChild.kill("SIGKILL");
+  await waitForExit(siblingChild);
+});
+
+test("recordSiteOpened still replaces a row whose process is dead or is no longer that site's serve", () => {
+  // The other direction, and the reason this is not just "never replace": a row left by a crashed
+  // child, or one whose pid the OS recycled to something unrelated, must not accumulate.
+  const registryPath = tempStatePath();
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: 999_998, updatedAt: 1 });
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 999_999, updatedAt: 2 });
+
+  assert.deepEqual(readRegistry(registryPath).sites.map((row) => row.pid), [999_999]);
+});
+
+test("recordSiteClosed narrowed by pid drops only that child's row, not a sibling's for the same site", async () => {
+  // The write path's other half. Once two rows can legitimately exist for one siteDir, a
+  // remove-everything-by-siteDir close would wipe the sibling's row and reintroduce D-07 from the
+  // close side.
+  const registryPath = tempStatePath();
+  const siblingChild = spawnFakeServeChild("/site-x", 100);
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid, updatedAt: 1 });
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 999_999, updatedAt: 2 });
+
+  recordSiteClosed(registryPath, "/site-x", { pid: 999_999 });
+
+  assert.deepEqual(readRegistry(registryPath).sites.map((row) => row.pid), [siblingChild.pid]);
+
+  siblingChild.kill("SIGKILL");
+  await waitForExit(siblingChild);
+});
+
+test("recordSiteClosed with no pid still drops every row for that site — the unchanged old contract", () => {
+  const registryPath = tempStatePath();
+  writeRegistry(registryPath, {
+    sites: [
+      { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: 111, updatedAt: 1 },
+      { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 222, updatedAt: 2 },
+      { siteDir: "/site-y", port: 200, workspaceId: "w2", pid: 333, updatedAt: 3 },
+    ],
+  });
+
+  recordSiteClosed(registryPath, "/site-x");
+
+  assert.deepEqual(readRegistry(registryPath).sites.map((row) => row.pid), [333]);
+});

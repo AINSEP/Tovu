@@ -107,6 +107,7 @@ const { startTovuServer } = require("./src/tovu-server.cjs");
 const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
+const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
@@ -206,9 +207,26 @@ function fleetUiRequested() {
   return !bypassesFrontPage;
 }
 
-/** `siteDir -> { server, window }` for every site this process currently has open. Replaces the
- *  single-site `tovuServer` variable the shell used before multi-site. */
-const openSites = new Map();
+/**
+ * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
+ * single-site `tovuServer` variable the shell used before multi-site.
+ *
+ * A `site-supervisor.cjs` supervisor rather than a bare `Map` since D-06. The `Map` surface is
+ * unchanged — every `get`/`set`/`has`/`delete`/`values`/`size` below and in `project-ipc.cjs` means
+ * exactly what it did — but it now also watches each entry's child and REMOVES an entry whose
+ * `tovu serve` has died. Without that this map answered "was started", never "is alive": a crashed
+ * site stayed `running` for the rest of the session, `openSiteServer` handed its dead handle back
+ * to "Start site", and the 4 s renderer poll re-read an answer that could not change.
+ */
+const openSites = createSiteSupervisor({
+  onUnexpectedExit: (siteDir, exit, entry) => {
+    // The row exists to let the NEXT launch reap a child this process left running. This one is
+    // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
+    // Narrowed by pid: a live sibling instance may hold its own row for this same site (D-07).
+    recordSiteClosed(registryFilePath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
+    console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
+  },
+});
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
 const serializer = createKeyedSerializer();
@@ -526,7 +544,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
   try {
     window = createWindow(server.adminUrl, readSiteName(siteDir), partition);
   } catch (error) {
-    recordSiteClosed(ctx.registryPath, siteDir);
+    recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
     await server.stop();
     throw error;
   }
@@ -534,7 +552,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
   openSites.set(siteDir, { server, window });
   window.on("closed", () => {
     openSites.delete(siteDir);
-    recordSiteClosed(ctx.registryPath, siteDir);
+    recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
     // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
     // later — the other half of the accumulation fix above. Best-effort and awaited before
     // `server.stop()` so the request actually reaches the child before BR-07's graceful SIGTERM
