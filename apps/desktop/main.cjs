@@ -92,6 +92,8 @@
  *   self-allocates (two sites must never collide).
  * - `TOVU_DESKTOP_CLI_MODE`  — `"source"` (default) or `"compiled"`; see the schema-skew note above.
  * - `TOVU_DESKTOP_SELFTEST`  — `1` to verify and exit rather than staying open.
+ * - `TOVU_DESKTOP_USER_DATA_DIR` — E2E-only. Overrides `app.getPath("userData")`. Unset in every
+ *   real launch — see the constant's own doc for why this exists instead of scoping `HOME`.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -107,6 +109,24 @@ const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 const { redeemBootSession, sitePartition, hasActiveSessionCookie, endSiteSession } = require("./src/desktop-auth.cjs");
 const { projectsFilePath, seedDevFallbackProject } = require("./src/project-registry.cjs");
 const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
+
+/**
+ * E2E-only override for `app.getPath("userData")`. Must run before `app.whenReady()` — Electron
+ * reads `userData` off whatever `setPath` last set, and every consumer in this file (crash
+ * registry, MRU state, tracked projects) calls `app.getPath("userData")` lazily from inside the
+ * `whenReady` handler, so this only has to win the race against that, not against `require`.
+ *
+ * This exists because scoping the E2E harness's own `HOME` env var does NOT isolate this app's
+ * on-disk state: `app.getPath("userData")` resolves the macOS path independently of `HOME`
+ * (Chromium computes it directly), so every launch that only overrode `HOME` was actually reading
+ * and writing the operator's real `~/Library/Application Support/tovu-desktop/` — see
+ * `development/e2e/desktop-shell.spec.ts`'s own header for how that was found (six stale
+ * `tovu-desktop-e2e-*` MRU entries in the real `desktop-state.json`). `app.setPath` is the
+ * documented, supported lever Electron gives for this; unset in every real launch.
+ */
+if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
+  app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR.trim());
+}
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and

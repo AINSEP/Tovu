@@ -23,25 +23,19 @@ const DESKTOP_DIR = path.join(REPO_ROOT, "apps", "desktop");
 const ELECTRON_BIN = path.join(DESKTOP_DIR, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
 
 /**
- * A scratch `HOME` per launch — and **it does not do what this comment used to claim.**
+ * A scratch `HOME` per launch. **This alone does not isolate Electron's on-disk state** — kept
+ * only because it still isolates anything that genuinely honors `HOME`. The isolation that
+ * actually matters here is `launchShell`'s `TOVU_DESKTOP_USER_DATA_DIR`, below.
  *
  * Measured 2026-09-06: Electron's `app.getPath("userData")` **ignores a `HOME` override on macOS**
- * (Chromium resolves the mac path independently), so every launch here — and every other spec in
- * this file — actually reads and writes the one real
- * `~/Library/Application Support/tovu-desktop/`. Confirmed empirically: `desktop-state.json` was
- * found already holding six `tovu-desktop-e2e-*` MRU entries left by earlier runs.
- *
- * So the isolation this used to promise is false, and the suite has been polluting the developer's
- * own app data. It has not caused a visible failure yet only because every spec below pins
- * `TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS`, and `resolveSiteDir`'s first arm returns the
- * env value before the MRU is ever consulted — so the poisoned MRU is short-circuited rather than
- * unused. **Any test that relies on MRU precedence would be order-dependent and would fail
- * mysteriously.** Do not write one until this is fixed.
- *
- * The real fix is `app.setPath("userData", ...)` called early in `main.cjs` behind an E2E-only env
- * var; that is test-infrastructure work with its own ticket. The scratch home is kept in the
- * meantime because it does still isolate anything that genuinely honors `HOME`, and removing it
- * would make the pollution worse rather than better.
+ * (Chromium resolves the mac path independently), so a launch that only overrode `HOME` actually
+ * read and wrote the one real `~/Library/Application Support/tovu-desktop/`. Confirmed
+ * empirically: `desktop-state.json` was found already holding six `tovu-desktop-e2e-*` MRU
+ * entries left by earlier runs. Fixed by giving `main.cjs` a `TOVU_DESKTOP_USER_DATA_DIR` env var
+ * that calls `app.setPath("userData", ...)` before `whenReady` — the documented, supported lever
+ * for this — and having `launchShell` set it to a fresh scratch dir on every call, so no call site
+ * had to change. See `launchShell`'s own doc for the guard that backs this rather than just
+ * trusting it.
  */
 function scratchHome(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `tovu-desktop-e2e-${label}-`));
@@ -53,14 +47,37 @@ function emptySiteFolder(label: string): string {
   return dir;
 }
 
+/** The one real userData directory this suite must never touch — see `launchShell`'s guard. */
+const REAL_USER_DATA_DIR = path.join(os.homedir(), "Library", "Application Support", "tovu-desktop");
+
+/**
+ * Launches the shell with a disposable `TOVU_DESKTOP_USER_DATA_DIR` on every call, then verifies —
+ * from inside the running app, via `app.getPath("userData")` itself, not by trusting the env var
+ * round-tripped correctly — that Electron actually resolved userData somewhere other than the
+ * operator's real directory. This is the guard against the class of bug this file used to carry
+ * silently: if a future change breaks the override, this fails loud and immediately (and closes
+ * the app before returning) instead of quietly writing into `REAL_USER_DATA_DIR` again.
+ */
 async function launchShell(env: Record<string, string>): Promise<ElectronApplication> {
-  return await electron.launch({
+  const userDataDir =
+    env.TOVU_DESKTOP_USER_DATA_DIR ?? fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-e2e-userdata-"));
+  const app = await electron.launch({
     executablePath: ELECTRON_BIN,
     args: ["."],
     cwd: DESKTOP_DIR,
-    env: { ...process.env, ...env } as Record<string, string>,
+    env: { ...process.env, ...env, TOVU_DESKTOP_USER_DATA_DIR: userDataDir } as Record<string, string>,
     timeout: 150_000,
   });
+  const resolvedUserDataDir = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
+  if (resolvedUserDataDir === REAL_USER_DATA_DIR) {
+    await app.close();
+    throw new Error(
+      `e2e isolation failure: Electron resolved userData to the operator's real directory (${REAL_USER_DATA_DIR}) ` +
+        "instead of the scratch dir this suite passed via TOVU_DESKTOP_USER_DATA_DIR. Refusing to continue rather " +
+        "than pollute it.",
+    );
+  }
+  return app;
 }
 
 test.describe("apps/desktop shell", () => {
