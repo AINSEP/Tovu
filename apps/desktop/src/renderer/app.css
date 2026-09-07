@@ -1106,6 +1106,12 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .database-option.is-selected { border-color: var(--primary); background: var(--primary-dim); }
+/* An option this app cannot provision (D-02). The `disabled` attribute on the radio is what
+   actually prevents selection — a disabled control is neither clickable through its label nor
+   reachable by keyboard; this only makes the card look the way it already behaves, so nobody
+   spends a click finding out. Higher specificity than the base rule's `cursor`, and it can never
+   collide with `.is-selected`, which an unselectable option cannot become. */
+.database-option.is-unavailable { cursor: not-allowed; opacity: 0.55; }
 .database-option input { position: absolute; opacity: 0; pointer-events: none; }
 .database-option__radio {
   width: 18px;

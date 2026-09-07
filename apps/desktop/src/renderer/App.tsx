@@ -508,8 +508,10 @@ function ProjectWorkspace({
   // never changes on its own, so nothing else here would notice. Combining `reloadNonce` and `view`
   // into one reset key mirrors what actually invalidates a failure — a fresh guest node or a fresh
   // navigation, not a re-render for its own sake.
-  const webviewRef = useRef<HTMLWebViewElement>(null);
-  const { failed, stalled } = useWebviewLoadFailure(webviewRef, `${reloadNonce}:${view}`);
+  // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
+  // hook's listeners have to attach when the guest actually mounts, and this tab mounts it
+  // conditionally (`running && !failed` below). See the hook's own doc.
+  const { failed, stalled, guestRef } = useWebviewLoadFailure(`${reloadNonce}:${view}`);
 
   // Deliberately sends an id and a view, never `url` — main rebuilds it from the registry row, so
   // this bridge is not an "open any url" button. A rejection means the project stopped existing
@@ -608,7 +610,7 @@ function ProjectWorkspace({
               `key` stays the reload affordance, and because it remounts with whichever `src` is
               current, reload reloads the view on screen rather than always the admin. */}
           <webview
-            ref={webviewRef}
+            ref={guestRef}
             key={reloadNonce}
             className="workspace__frame"
             src={url}

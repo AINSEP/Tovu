@@ -16,16 +16,29 @@ function DatabaseOption({
   onSelect,
   title,
   hint,
+  unavailable = false,
 }: {
   value: DatabaseProviderKind;
   selected: boolean;
   onSelect: (value: DatabaseProviderKind) => void;
   title: string;
   hint: string;
+  /** This app cannot provision this provider, so the option is shown and cannot be chosen — see
+   *  `DatabasePicker`'s own comment on why it is shown at all rather than removed. */
+  unavailable?: boolean;
 }) {
   return (
-    <label className={`database-option ${selected ? 'is-selected' : ''}`}>
-      <input type="radio" name="database" value={value} checked={selected} onChange={() => onSelect(value)} />
+    <label className={`database-option ${selected ? 'is-selected' : ''} ${unavailable ? 'is-unavailable' : ''}`}>
+      {/* `disabled`, not just the class: a control that only LOOKS disabled is still reachable by
+          keyboard and still selectable, which is the whole failure being fixed. */}
+      <input
+        type="radio"
+        name="database"
+        value={value}
+        checked={selected}
+        disabled={unavailable}
+        onChange={() => onSelect(value)}
+      />
       <span className="database-option__radio" aria-hidden="true" />
       <span>
         <strong>{title}</strong>
@@ -65,9 +78,20 @@ function DatabasePicker({
   return (
     <>
       <fieldset className="database-picker">
+        {/* D-02. Supabase and Custom were selectable, and choosing either made `computeCanCreate`
+            refuse to enable the button until the operator typed a project URL and an API key —
+            which `handleCreate` then discarded before reporting a plain SQLite site as success.
+            This app has no hosted-database provisioner (`project-ipc.cjs`'s `handleCreate` now
+            refuses the choice outright, which is the boundary these two must never reach).
+
+            Shown-and-disabled rather than deleted: the options say what this app will be able to
+            do, and a form that silently loses a whole axis of choice tells the operator less than
+            one that says "not yet". Whether they should be removed entirely once the roadmap is
+            settled is a product call, not this fix's. A disabled radio cannot be selected, so the
+            vendor field blocks below never render and no credential is ever asked for. */}
         <DatabaseOption value="sqlite" selected={database === 'sqlite'} onSelect={onSelect} title="SQLite" hint="Default · created inside this Tovu workspace" />
-        <DatabaseOption value="supabase" selected={database === 'supabase'} onSelect={onSelect} title="Supabase" hint="Hosted · requires a project URL and API key" />
-        <DatabaseOption value="custom" selected={database === 'custom'} onSelect={onSelect} title="Custom DB Provider" hint="Any vendor · add its endpoint and credential" />
+        <DatabaseOption value="supabase" selected={database === 'supabase'} onSelect={onSelect} title="Supabase" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable />
+        <DatabaseOption value="custom" selected={database === 'custom'} onSelect={onSelect} title="Custom DB Provider" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable />
       </fieldset>
 
       {database === 'supabase' && (

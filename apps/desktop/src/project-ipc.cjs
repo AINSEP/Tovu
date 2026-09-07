@@ -110,11 +110,29 @@ function handleList(deps) {
  * provisioner, so creating a project here means the operator picks WHERE it lives, the same way
  * "Open Site…" already does; `input.displayName` becomes `tovu init`'s `--name`.
  *
- * @throws {Error} when the folder picker is cancelled, or the chosen folder is occupied/incomplete
- *   (`adoptSiteDir`'s own errors — an operator-facing message either way).
+ * **The database choice is REFUSED rather than ignored (D-02).** Knowing the field was dead and
+ * narrowing it silently was the defect: `buildProjectRecord` hard-codes `{kind: "sqlite"}`, so an
+ * operator who chose Supabase — and whom `computeCanCreate` then FORCED to type a project URL and
+ * an API key before the button would enable — got a local SQLite site reported back as a success,
+ * with their credential discarded. A contract this process does not honour must fail loudly at its
+ * boundary; the renderer's own fix (disabling the options it cannot deliver) is the first line,
+ * and this is the one that holds whoever calls the channel next.
+ *
+ * Refused BEFORE the folder dialog, deliberately: nobody should pick a folder for a site that was
+ * never going to be made. An absent `database` is the same as `sqlite` — every existing caller
+ * omits it, and omitting it is not a claim about a provider.
+ *
+ * @throws {Error} when a non-SQLite database is asked for, when the folder picker is cancelled, or
+ *   when the chosen folder is occupied/incomplete (`adoptSiteDir`'s own errors — an
+ *   operator-facing message either way).
  * @complexity O(1) beyond `adoptSiteDir`'s own cost.
  */
 async function handleCreate(input, deps) {
+  const kind = input.database?.kind;
+  if (kind !== undefined && kind !== "sqlite") {
+    throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
+  }
+
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose a folder for your new site",
     message: `Pick an empty folder for "${input.displayName}".`,

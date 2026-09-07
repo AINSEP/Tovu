@@ -156,6 +156,39 @@ test("handleList returns one record per tracked row, joined against openSites", 
   assert.equal(byId.get("/sites/b").port, 9000);
 });
 
+test("handleCreate refuses a hosted-database choice instead of quietly making a SQLite site", async () => {
+  // D-02. The renderer's CreateProjectInput carries a `database` choice, ported from Tovu-Runner's
+  // provisioner-backed form; this shell has no provisioner and `buildProjectRecord` hard-codes
+  // `{kind: "sqlite"}`. The operator picked Supabase, was FORCED to type a URL and key to get past
+  // `canCreate`, and got a local SQLite site reported back as success. Refusing at the boundary is
+  // what stops main silently narrowing a contract it does not honour — and it refuses BEFORE the
+  // folder dialog, so nobody picks a folder for a site that was never going to be made.
+  let pickerOpened = false;
+  const deps = baseDeps({ dialog: { showOpenDialog: async () => { pickerOpened = true; return { canceled: true, filePaths: [] }; } } });
+
+  for (const kind of ["supabase", "custom"]) {
+    await assert.rejects(
+      () => handleCreate({ displayName: "New Site", database: { kind } }, deps),
+      /only creates SQLite sites/,
+      `a "${kind}" choice must be refused, not silently narrowed`,
+    );
+  }
+  assert.equal(pickerOpened, false, "the refusal must come before the folder picker");
+});
+
+test("handleCreate accepts an explicit sqlite choice, and an input with no database at all", async () => {
+  for (const database of [{ kind: "sqlite" }, undefined]) {
+    const siteDir = writeSite(path.join(tempDir(), "ok"), "site-a");
+    const deps = baseDeps({
+      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) },
+      classifySiteDir: () => "empty",
+      adoptSiteDir: async () => siteDir,
+    });
+    const record = await handleCreate({ displayName: "New Site", database }, deps);
+    assert.equal(record.database.kind, "sqlite");
+  }
+});
+
 test("handleCreate throws when the folder picker is cancelled", async () => {
   const deps = baseDeps({ dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) } });
   await assert.rejects(() => handleCreate({ displayName: "New Site" }, deps), /No folder was chosen/);

@@ -641,13 +641,33 @@ export function useProjectStart(project: ProjectRecord): {
  * without one a single transient failure would pin the recovery panel in place even after the
  * operator's next click plainly asked for another try. The same reset also re-arms the stall timer,
  * which is what lets the recovery panel's own "Start site" retry get a second, fresh judgment.
+ *
+ * **The guest arrives through `guestRef`, a callback ref, and that is the D-03 fix.** This used to
+ * take a `RefObject` and depend on `[webviewRef, resetKey]`. A ref OBJECT is stable for the
+ * component's whole life, and `ProjectWorkspace` renders the `<webview>` only when
+ * `running && !failed` — so on the two ordinary paths that mount a guest (a stopped tab whose 4 s
+ * poll flips to `running`, and the failure panel's own retry) neither dependency changed, the
+ * effect never re-ran, and NO listener and no stall timer were ever installed on the node actually
+ * on screen. Only "Reload while healthy" — where `key` remounts the guest in the same commit the
+ * effect follows — attached them, which is the path that needs recovery least. The hook was right
+ * in form and wrong in binding: its own doc said the listeners "must move with" the node, and
+ * nothing in its inputs changed when the node appeared. Holding the node in STATE makes it a
+ * dependency that really does change on attach, so the effect's lifetime IS the node's.
+ *
+ * The reset is deliberately a SECOND effect keyed on `resetKey` alone. Folding it back into the
+ * node-keyed effect looks tidier and reintroduces a worse bug: `failed` going true unmounts the
+ * guest, which fires `guestRef(null)`, which would re-run a combined effect and clear the very
+ * flag that unmounted it — the guest remounts, fails again, and the panel flickers forever.
+ *
+ * @returns `guestRef` alongside the two flags — the caller MUST put it on the `<webview>`; there is
+ *   no other way for this hook to see the node.
  */
 export function useWebviewLoadFailure(
-  webviewRef: RefObject<HTMLWebViewElement | null>,
   resetKey: unknown,
-): { failed: boolean; stalled: boolean } {
+): { failed: boolean; stalled: boolean; guestRef: (node: HTMLWebViewElement | null) => void } {
   const [failed, setFailed] = useState(false);
   const [stalled, setStalled] = useState(false);
+  const [guest, setGuest] = useState<HTMLWebViewElement | null>(null);
 
   useEffect(() => {
     // Not read for its value — only for when it changes. `resetKey` is what makes reload and a
@@ -657,8 +677,10 @@ export function useWebviewLoadFailure(
     void resetKey;
     setFailed(false);
     setStalled(false);
-    const webview = webviewRef.current;
-    if (webview === null) return;
+  }, [resetKey]);
+
+  useEffect(() => {
+    if (guest === null) return;
 
     const STALL_TIMEOUT_MS = 8000;
     const stallTimer = window.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);
@@ -677,16 +699,19 @@ export function useWebviewLoadFailure(
       setStalled(false);
     };
 
-    webview.addEventListener('did-fail-load', onFailLoad);
-    webview.addEventListener('did-finish-load', onFinishLoad);
+    guest.addEventListener('did-fail-load', onFailLoad);
+    guest.addEventListener('did-finish-load', onFinishLoad);
     return () => {
       window.clearTimeout(stallTimer);
-      webview.removeEventListener('did-fail-load', onFailLoad);
-      webview.removeEventListener('did-finish-load', onFinishLoad);
+      guest.removeEventListener('did-fail-load', onFailLoad);
+      guest.removeEventListener('did-finish-load', onFinishLoad);
     };
-  }, [webviewRef, resetKey]);
+    // `resetKey` as well as the node: a VIEW switch changes `src` on the guest that is already
+    // mounted, so the node is unchanged and only this re-arms the stall timer for the new
+    // navigation. A reload changes both (`key` remounts the element).
+  }, [guest, resetKey]);
 
-  return { failed, stalled };
+  return { failed, stalled, guestRef: setGuest };
 }
 
 /**
