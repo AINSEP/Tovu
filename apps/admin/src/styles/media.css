@@ -303,31 +303,8 @@
 .media-lightbox-nav-prev { left: var(--space-4); }
 .media-lightbox-nav-next { right: var(--space-4); }
 
-/* Media page tab bar (OD-parity pass, 2026-08-08): All / Images / Videos / Media providers.
-   Deliberately its own small pill row, not a reuse of `@jini-ai/ui`'s settings-dialog nav —
-   that component is a left-sidebar list styled for a dialog's fixed-width panel, not a full
-   admin page's top-of-content tab row. Token-only, same rule as the rest of this file. */
-.media-tabs {
-  display: flex;
-  gap: var(--space-2);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-2);
-}
-.media-tab {
-  appearance: none;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--faint);
-  font-size: var(--text-sm);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--r-pill);
-  cursor: pointer;
-}
-.media-tab:hover { background: var(--surface-2); color: var(--fg-2); }
-.media-tab[aria-selected="true"] {
-  background: var(--accent-dim);
-  color: var(--accent-text);
-  border-color: var(--accent-ring);
-  font-weight: 600;
-}
+/* The Media page tab bar used to live here as its own pill row (`.media-tabs`/`.media-tab`,
+   OD-parity pass 2026-08-08). Retired 2026-09-06: the strip is drawn by the shared
+   `components/TabBar` now (`Media.tsx`, `Media.hooks.tsx`'s `resolveMediaTabs`), the same
+   underline-and-icon primitive every other tab row in this admin uses, so its rules are
+   `styles.css`'s `.tab-bar*` block. Nothing else ever used these two classes. */

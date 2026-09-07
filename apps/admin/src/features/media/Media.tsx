@@ -13,7 +13,9 @@ import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
-import { useMediaTabs, MEDIA_TABS, type MediaTabId } from "./hooks/use-media-tabs.hooks";
+import { useMediaTabs, type MediaTabId } from "./hooks/use-media-tabs.hooks";
+import { TabBar } from "../../components/TabBar";
+import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -973,26 +975,18 @@ export function Media(props: MediaProps) {
         </div>
       </div>
 
-      {/* OD-parity tab bar (owner instruction, 2026-08-08), `?tab=` deep-linked — see
-          `use-media-tabs.hooks.ts` for the URL-sync convention. "Media providers" mounts
+      {/* Tab bar (OD-parity pass, 2026-08-08), `?tab=` deep-linked — see `use-media-tabs.hooks.ts`
+          for the URL-sync convention. Drawn by the shared `components/TabBar` since 2026-09-06
+          (owner: "give the tabs icons … every other tab row in this admin already pairs an icon
+          with its label — match that"): the same underline-and-icon primitive Roles, Source
+          Control, Database, Sites, Themes and Pages use, replacing the pill row this screen used
+          to draw itself (`media.css`'s retired `.media-tabs`). Tabs, ids, order, the translated
+          labels and every per-tab agent handle are unchanged — `Media.hooks.tsx`'s
+          `resolveMediaTabs` builds them from the same `MEDIA_TABS` list. "Media providers" mounts
           `@jini-ai/ui`'s component against Tovu's own backend: credentials persist per workspace
           in `media_provider_credentials` and survive a reload. Both the port and the catalog are
           module-level constants, so neither needs a `useRef` to stay stable across renders. */}
-      <div className="media-tabs" role="tablist" aria-label="Media">
-        {MEDIA_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            className="media-tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            {...agentHandle(`media-tab-${tab.id}`, { role: "button", label: `Switch to the ${tab.label} tab` })}
-          >
-            {t(tab.label)}
-          </button>
-        ))}
-      </div>
+      <TabBar ariaLabel="Media" tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
 
       {activeTab === "media-providers" ? (
         // `data-theme="light"` is REQUIRED, not cosmetic — same trap `AiAssistant.tsx` and

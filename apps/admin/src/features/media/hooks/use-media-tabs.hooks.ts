@@ -19,8 +19,10 @@ export interface MediaTabsController {
 /** Falls back to "all" for an absent or unrecognized `?tab=` value — same "don't trust a raw
  *  query value" guard `Deployment.tsx`'s `resolveActiveTabId`/`SettingsUi.tsx`'s `requestedTabId`
  *  both apply, for the same reason (a stale link or a typo must not blank the panel).
+ *  Exported (2026-09-06) so `Media.hooks.tsx`'s `resolveMediaTabChange` can run `TabBar`'s
+ *  string id through the same guard instead of a cast; behavior unchanged.
  *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
+export function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
   return tabId && MEDIA_TAB_IDS.includes(tabId) ? (tabId as MediaTabId) : "all";
 }
 
