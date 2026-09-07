@@ -10,7 +10,8 @@ import {
   type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
-import { isAutosaveDraftStale, pageAutosaveBannerMessage, pagePublicPath } from "./rules";
+import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
+import { isAutosaveDraftStale, pageAutosaveBannerMessage, pageEditorSurface, pagePublicPath } from "./rules";
 
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
@@ -509,47 +510,22 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         onDeleteClick={() => setConfirmingDelete(true)}
       />
 
-      {view === "preview" ? (
-        <PagePreview
-          html={html}
-          width={PAGE_PREVIEW_WIDTHS[device]}
-          slug={slug}
-          status={status}
-          dirty={dirty}
-          contentDirty={contentDirty}
-          templatePreviewUrl={templatePreviewUrl}
-          frameRef={frameRef}
-          paneWidth={paneWidth}
-        />
-      ) : view === "interactive" ? (
-        // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
-        // header for why it reads `html` once at mount rather than reacting to later prop changes.
-        // `canvasStyling` is read once at mount for that same reason, which is why this waits for it
-        // to settle instead of mounting an unstyled canvas that could never pick the theme up
-        // afterwards. The wait is normally invisible: `preview` is this screen's default tab, so the
-        // theme's token files have already loaded by the time anyone clicks Interactive.
-        canvasStyling.status === "pending" ? (
-          <div className="notice">Loading the theme's styles…</div>
-        ) : (
-          <InteractiveHtmlEditor html={html} onChange={setHtml} canvasStyling={canvasStyling.styling} />
-        )
-      ) : (
-        <textarea
-          className="page-html-source"
-          value={draftHtml}
-          onChange={(e) => {
-            // Raw pass-through, same as before this tab had any formatting — an edit made on top of
-            // the pretty-printed baseline becomes the new working copy verbatim, not reformatted
-            // again mid-keystroke (which would fight the operator's cursor position).
-            setDraftHtml(e.target.value);
-            setHtml(e.target.value);
-          }}
-          spellCheck={false}
-          aria-label="Page HTML"
-          placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
-          {...agentHandle("page-html-source", { role: "field", label: "This page's raw HTML source" })}
-        />
-      )}
+      <PageEditorPane
+        view={view}
+        canvasStyling={canvasStyling}
+        html={html}
+        setHtml={setHtml}
+        draftHtml={draftHtml}
+        setDraftHtml={setDraftHtml}
+        device={device}
+        slug={slug}
+        status={status}
+        dirty={dirty}
+        contentDirty={contentDirty}
+        templatePreviewUrl={templatePreviewUrl}
+        frameRef={frameRef}
+        paneWidth={paneWidth}
+      />
 
       <ConfirmDialog
         open={confirmingDelete}
@@ -564,6 +540,95 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       />
     </div>
   );
+}
+
+/**
+ * The editor's main pane — one of four surfaces, chosen by {@link pageEditorSurface}.
+ *
+ * Extracted from `PageEditor` in the 2026-09-06 complexity-ceiling pass. This was a chain of nested
+ * ternaries inline in that component's JSX, worth 6 of its 10 cognitive-complexity points against a
+ * ceiling of 9 (plus two `sonarjs/no-nested-conditional` warnings). The DECISION did not move here —
+ * it moved to `rules.ts`, where it is pure and directly testable, per this feature's own "everything
+ * that computes a value rather than rendering one" rule; what is left below is markup dispatch and
+ * nothing else, one early return per surface, scored in its own scope.
+ *
+ * The Interactive tab remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s
+ * own file header for why it reads `html` once at mount rather than reacting to later prop changes.
+ * `canvasStyling` is read once at mount for that same reason, which is why `interactive-pending` is
+ * its own surface rather than a skipped loading flash: mounting an unstyled canvas could never pick
+ * the theme up afterwards. The wait is normally invisible — `preview` is this screen's default tab,
+ * so the theme's token files have already loaded by the time anyone clicks Interactive.
+ */
+function PageEditorPane({
+  view,
+  canvasStyling,
+  html,
+  setHtml,
+  draftHtml,
+  setDraftHtml,
+  device,
+  slug,
+  status,
+  dirty,
+  contentDirty,
+  templatePreviewUrl,
+  frameRef,
+  paneWidth,
+}: {
+  view: PageEditorView;
+  canvasStyling: ThemeCanvasStylingState;
+  html: string;
+  setHtml: (value: string) => void;
+  draftHtml: string;
+  setDraftHtml: (value: string) => void;
+  device: PagePreviewDevice;
+  slug: string;
+  status: "draft" | "published";
+  dirty: boolean;
+  contentDirty: boolean;
+  templatePreviewUrl: string;
+  frameRef: (node: HTMLDivElement | null) => void;
+  paneWidth: number;
+}) {
+  const surface = pageEditorSurface(view, canvasStyling);
+  if (surface.kind === "preview") {
+    return (
+      <PagePreview
+        html={html}
+        width={PAGE_PREVIEW_WIDTHS[device]}
+        slug={slug}
+        status={status}
+        dirty={dirty}
+        contentDirty={contentDirty}
+        templatePreviewUrl={templatePreviewUrl}
+        frameRef={frameRef}
+        paneWidth={paneWidth}
+      />
+    );
+  }
+  if (surface.kind === "html") {
+    return (
+      <textarea
+        className="page-html-source"
+        value={draftHtml}
+        onChange={(e) => {
+          // Raw pass-through, same as before this tab had any formatting — an edit made on top of
+          // the pretty-printed baseline becomes the new working copy verbatim, not reformatted
+          // again mid-keystroke (which would fight the operator's cursor position).
+          setDraftHtml(e.target.value);
+          setHtml(e.target.value);
+        }}
+        spellCheck={false}
+        aria-label="Page HTML"
+        placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
+        {...agentHandle("page-html-source", { role: "field", label: "This page's raw HTML source" })}
+      />
+    );
+  }
+  if (surface.kind === "interactive-pending") {
+    return <div className="notice">Loading the theme's styles…</div>;
+  }
+  return <InteractiveHtmlEditor html={html} onChange={setHtml} canvasStyling={surface.styling} />;
 }
 
 /**

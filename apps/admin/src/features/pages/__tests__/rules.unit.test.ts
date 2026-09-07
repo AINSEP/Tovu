@@ -14,6 +14,7 @@ import {
   pageAdminPath,
   pageAutosaveBannerMessage,
   pageColumnSortLabel,
+  pageEditorSurface,
   pagePublicPath,
   pageRowMenuItems,
   themePageRowMenuItems,
@@ -432,6 +433,37 @@ describe("buildPageAutosaveDraft", () => {
       { title: "About", slug: "about", html: "<p/>" }
     );
     expect(draft.baseVersion).toBe(42);
+  });
+});
+
+/**
+ * The editor main pane's four-way surface choice, pulled out of `PageEditor.tsx`'s JSX in the
+ * 2026-09-06 complexity-ceiling pass — it was 6 of that component's 10 cognitive-complexity points
+ * and, as a nested ternary chain inside a render, could not be asserted without mounting the whole
+ * editor. Same reasoning `pageRowMenuItems` records at the top of this file.
+ */
+describe("pageEditorSurface", () => {
+  const READY = { status: "ready", styling: { css: "body{}" } } as const;
+  const PENDING = { status: "pending" } as const;
+
+  it("shows the preview surface on the preview tab, whatever the canvas is doing", () => {
+    expect(pageEditorSurface("preview", PENDING)).toEqual({ kind: "preview" });
+    expect(pageEditorSurface("preview", READY)).toEqual({ kind: "preview" });
+  });
+
+  it("shows the raw HTML surface on the html tab, whatever the canvas is doing", () => {
+    expect(pageEditorSurface("html", PENDING)).toEqual({ kind: "html" });
+    expect(pageEditorSurface("html", READY)).toEqual({ kind: "html" });
+  });
+
+  it("holds the Interactive tab at the pending surface until the theme's styling settles", () => {
+    // Not cosmetic: `InteractiveHtmlEditor` reads its canvas styling ONCE at mount, so mounting it
+    // early produces a canvas that can never pick the theme up afterwards.
+    expect(pageEditorSurface("interactive", PENDING)).toEqual({ kind: "interactive-pending" });
+  });
+
+  it("carries the resolved styling through on the interactive surface, so the view needs no cast", () => {
+    expect(pageEditorSurface("interactive", READY)).toEqual({ kind: "interactive", styling: READY.styling });
   });
 });
 
