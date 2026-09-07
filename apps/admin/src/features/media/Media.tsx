@@ -302,117 +302,11 @@ interface EditMediaPanelProps {
   titleId?: string;
 }
 
-/**
- * The `HTML attributes` field — owner ask, 2026-09-07, stated future uses: animations, custom
- * WebMCP hooks on the emitted tag. Directly under CSS class per owner's placement instruction, same
- * as Width/Height's own "own row directly under Caption/Credit" precedent in `EditMediaPanel`
- * below. Split into its own component for the same reason `MediaToolbar`/`MediaPurgeDialog` above
- * are: the error-or-hint ternary is one more independent branch, scored here instead of adding to
- * `EditMediaPanel`'s own count (which is already large — REQ-01's six original fields plus the
- * sizing/class overrides).
- *
- * Security-sensitive: this text is validated against `rules.ts`'s `parseMediaHtmlAttributes`
- * allowlist (the data- and aria- prefix families, plus loading, decoding, playsinline, muted, loop,
- * autoplay, poster — no event handlers, no javascript-colon values) because media metadata authored
- * here renders on the public site; see that function's own header for the full threat model. NOT
- * wired to `save()`'s patch — `use-edit-media-panel.hooks.ts`'s own header explains why (no server
- * field exists yet to receive it), hence the permanent second hint below rather than pretending
- * this persists today.
- */
-function MediaHtmlAttributesField({
-  itemId,
-  value,
-  onChange,
-  error,
-  t,
-}: {
-  itemId: string;
-  value: string;
-  onChange: (value: string) => void;
-  error: string | null;
-  t: (key: string) => string;
-}) {
-  return (
-    <div className="field">
-      <label className="field-label" htmlFor={`media-edit-html-attrs-${itemId}`}>
-        {t("HTML attributes (optional)")}
-      </label>
-      <input
-        id={`media-edit-html-attrs-${itemId}`}
-        className="field-mono"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder='data-motion="fade-in" loading="lazy"'
-        {...agentHandle("media-edit-html-attributes", {
-          role: "field",
-          label: "Extra HTML attributes for this asset's tag — data-*, aria-*, or a short allowlist; no event handlers",
-        })}
-      />
-      {error ? (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      ) : (
-        <p className="field-hint">
-          {t("data-*, aria-*, loading, decoding, playsinline, muted, loop, autoplay, poster only — no event handlers or javascript: values.")}
-        </p>
-      )}
-      <p className="field-hint">{t("Not saved to the server yet — publishing support is coming.")}</p>
-    </div>
-  );
-}
-
-/**
- * The Save/Cancel action bar at the foot of the edit form — split out of `EditMediaPanel` for the
- * same "independent branches scored in their own scope" reasoning as `MediaHtmlAttributesField`
- * above: the Save label's `saving` ternary, plus the `blocked` (invalid HTML-attributes draft)
- * disable condition added alongside it, were pushing `EditMediaPanel` itself over this app's
- * complexity ceiling.
- */
-function EditMediaActions({
-  saving,
-  blocked,
-  onSave,
-  onCancel,
-  t,
-}: {
-  saving: boolean;
-  /** True while `htmlAttributesText` fails its allowlist check — blocks Save the same way an
-   *  in-flight save does, so an operator cannot submit past a rejection they haven't fixed. */
-  blocked: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-  t: (key: string) => string;
-}) {
-  return (
-    <span className="editor-actions">
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving || blocked}
-        {...agentHandle("media-edit-save", { role: "button", label: "Save this asset's metadata" })}
-      >
-        {saving ? t("Saving…") : t("Save")}
-      </button>
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onCancel}
-        disabled={saving}
-        {...agentHandle("media-edit-cancel", { role: "button", label: "Close this panel without saving" })}
-      >
-        {t("Cancel")}
-      </button>
-    </span>
-  );
-}
-
 /** The metadata edit form for one media item's title/alt/caption/credit (REQ-01) plus the
- *  quick-and-dirty sizing/class overrides and the not-yet-persisted HTML-attributes draft below.
- *  Presented inside `EditMediaModal`'s `<dialog>` (owner ask, 2026-09-07 — see this file's header
- *  for why this moved off the grid) rather than rendering its own card chrome: the dialog itself
- *  supplies the surface/border/shadow (`media.css`'s `.media-edit-dialog`), so this component's own
- *  root is a plain content wrapper. */
+ *  quick-and-dirty sizing/class overrides. Presented inside `EditMediaModal`'s `<dialog>` (owner
+ *  ask, 2026-09-07 — see this file's header for why this moved off the grid) rather than rendering
+ *  its own card chrome: the dialog itself supplies the surface/border/shadow (`media.css`'s
+ *  `.media-edit-dialog`), so this component's own root is a plain content wrapper. */
 function EditMediaPanel(props: EditMediaPanelProps) {
   const { item, onSaved, onCancel, useEditMediaPanelHook = useWiredEditMediaPanel, t, titleId } = props;
   const {
@@ -424,9 +318,6 @@ function EditMediaPanel(props: EditMediaPanelProps) {
     setWidth,
     setHeight,
     setCssClass,
-    htmlAttributesText,
-    setHtmlAttributesText,
-    htmlAttributesError,
     saving,
     error,
     hashCopied,
@@ -442,7 +333,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
       className="media-edit-modal-body"
       {...agentHandle("media-edit-panel", {
         role: "region",
-        label: "Edit media metadata — title, alt text, caption, credit, size, CSS class and HTML attributes",
+        label: "Edit media metadata — title, alt text, caption, credit, size and CSS class",
       })}
     >
       <div className="editor-header">
@@ -555,13 +446,6 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
           />
         </div>
-        <MediaHtmlAttributesField
-          itemId={item.id}
-          value={htmlAttributesText}
-          onChange={setHtmlAttributesText}
-          error={htmlAttributesError}
-          t={t}
-        />
         {/* User report: "where is the location of the asset? I dont see the location data" — there
             was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
             row below (this component's own established idiom for "show it, let it be copied, it
@@ -606,7 +490,25 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             </button>
           </div>
         </div>
-        <EditMediaActions saving={saving} blocked={Boolean(htmlAttributesError)} onSave={save} onCancel={onCancel} t={t} />
+        <span className="editor-actions">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            {...agentHandle("media-edit-save", { role: "button", label: "Save this asset's metadata" })}
+          >
+            {saving ? t("Saving…") : t("Save")}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCancel}
+            disabled={saving}
+            {...agentHandle("media-edit-cancel", { role: "button", label: "Close this panel without saving" })}
+          >
+            {t("Cancel")}
+          </button>
+        </span>
       </div>
       {error ? (
         <span className="save-error" role="alert">

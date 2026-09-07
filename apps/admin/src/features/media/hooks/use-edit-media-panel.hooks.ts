@@ -2,15 +2,7 @@ import { useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
 import { useFetchMutation } from "@/lib/fetch-query";
-import {
-  KEYS,
-  describeApiError,
-  describeMediaHtmlAttributeError,
-  diffMediaMetadata,
-  parseMediaHtmlAttributes,
-  parseOptionalPixelSize,
-  type MediaMetadataPatch,
-} from "../rules";
+import { KEYS, describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
@@ -50,20 +42,6 @@ import type { MediaPort } from "./media-port.hooks";
  * had since changed would show up as "changed" (draft's stale original vs the new live value) and
  * get wrongly included in the patch, silently reverting the other operator's committed change. See
  * `rules.ts`'s `diffMediaMetadata` doc for the other half of this fix.
- *
- * `htmlAttributesText` (2026-09-07, owner ask — "HTML attributes" field directly under CSS class,
- * for future animation/WebMCP hooks on the emitted media tag): deliberately NOT part of `draft`/
- * `MediaMetadataPatch` and NEVER included in `save()`'s patch. `AdminMedia`/`MediaRecord` (this
- * repo's `lib/api.ts`, backed by `@jini-ai/cms/src/media/types.ts`) has no field for it at all —
- * making it persist needs a schema/type change in `@jini-ai/cms` (a different repo) plus route glue
- * in `apps/website`'s `routes/admin/media/update.ts`, both outside this admin app's boundary and
- * outside this task's authorized scope (see the media-admin-ui report for the full cross-package
- * gap). Sending it in the PATCH body today would be a silent no-op — `parseMediaMetadataPatch`
- * there reads exactly seven fixed keys and drops anything else — so this hook validates the field
- * live (via `rules.ts`'s `parseMediaHtmlAttributes`, the admin-side half of the allowlist this field
- * needs; see that function's own header for the XSS threat model) and BLOCKS `save()` while it's
- * invalid, but never transmits it. `Media.tsx`'s field shows a permanent "not saved yet" hint so an
- * operator is never told this control did something it did not.
  */
 
 export interface EditMediaPanelHookProps {
@@ -88,14 +66,6 @@ export interface EditMediaPanelController {
   setWidth: (value: string) => void;
   setHeight: (value: string) => void;
   setCssClass: (value: string) => void;
-  /** Raw text of the `HTML attributes` field — see this file's own header for why this is tracked
-   *  independently of `draft` and never reaches `save()`'s patch. */
-  htmlAttributesText: string;
-  setHtmlAttributesText: (value: string) => void;
-  /** The specific, visible allowlist-rejection message for `htmlAttributesText`'s current value, or
-   *  `null` when it parses clean (including empty). Non-null blocks `save()` — see this file's own
-   *  header. */
-  htmlAttributesError: string | null;
   saving: boolean;
   error: string | null;
   /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
@@ -134,13 +104,6 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   });
   const [hashCopied, setHashCopied] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
-  // No server value to seed from (see this file's own header) — every edit session starts blank,
-  // same as any other not-yet-supported draft-only field.
-  const [htmlAttributesText, setHtmlAttributesText] = useState("");
-  const htmlAttributesParsed = parseMediaHtmlAttributes(htmlAttributesText);
-  const htmlAttributesError = htmlAttributesParsed.error
-    ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
-    : null;
 
   /** `MediaRecord` (`@jini-ai/cms/media`) carries no filename/path/URL field at all — only
    *  `title`/`alt`/`caption`/`credit`/`source.sha256` (see that type's own doc comment: media is
@@ -201,11 +164,6 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   }
 
   async function save() {
-    // Blocks on an invalid HTML-attributes draft even though that field never reaches the patch
-    // below — an operator should see and fix the rejection, not have Save silently no-op past it
-    // (the component also disables the Save button on the same condition; this is the defense-in-
-    // depth copy for any caller that invokes `save()` directly).
-    if (htmlAttributesError) return;
     const patch = diffMediaMetadata({ item: baselineRef.current, draft });
     if (Object.keys(patch).length === 0) {
       onCancel();
@@ -230,9 +188,6 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setWidth,
     setHeight,
     setCssClass,
-    htmlAttributesText,
-    setHtmlAttributesText,
-    htmlAttributesError,
     saving: saveMutation.status === "pending",
     error,
     hashCopied,
