@@ -186,14 +186,23 @@ describe("term list rendering", () => {
 });
 
 describe("term selection", () => {
-  it("marks the selected row with is-selected/aria-selected", () => {
+  // Regression (accessibility audit): this row used to be `role="listitem"` with `aria-selected`
+  // set on it — but `aria-selected` is only defined for `option`/`row`/`gridcell`/`tab`/`treeitem`
+  // -family roles, so it was silently dropped for both a real screen reader and any
+  // accessibility-tree-driven agent (`getAllByRole("listitem", { selected: true })` throws
+  // `"aria-selected" is not supported on role "listitem"` — proven live before this fix). The old
+  // assertion here only ever checked the raw attribute string was present in the markup, which
+  // passed regardless. Asserted now via `getByRole`'s own `current` filter — what a consumer
+  // actually queries — against the row's real role (`button`, matching its actual Tab/Enter/Space
+  // keyboard contract) and state (`aria-current`, the correct global "current item" attribute).
+  it("marks the selected row as the current item, exposed through a real accessible role and state", () => {
     const t = term({ id: "t1", name: "Selected Term" });
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
     renderTaxonomy({ taxonomies: [group], selectedTermId: "t1" });
 
-    const row = screen.getByText("Selected Term").closest("li");
+    const row = screen.getByRole("button", { name: "Selected Term", current: true });
     expect(row).toHaveClass("is-selected");
-    expect(row).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("button", { name: "Selected Term", current: false })).not.toBeInTheDocument();
   });
 
   it("clicking a row calls setSelectedTermId with that term's id", async () => {

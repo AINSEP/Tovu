@@ -735,7 +735,12 @@ function namespaceList(
             {group.terms.length === 0 ? (
               <p className="muted-cell">{t("No terms yet.")}</p>
             ) : (
-              <ul role="list" className="settings-row-list taxonomy-term-list">
+              /* `<ul>` carries native list semantics on its own — no explicit `role="list"` needed
+                 (it was redundant even before the row fix below). Left off entirely now rather than
+                 kept: an explicit `list` role formally expects `listitem`-family children, and each
+                 row below is now `role="button"` (see that comment), so an explicit `role="list"`
+                 here would assert a parent/child relationship that no longer holds. */
+              <ul className="settings-row-list taxonomy-term-list">
                 {group.terms.map((term) => {
                   const depth = group.taxonomy.hierarchical ? termDepth({ term, byId }) : 0;
                   // Gated on `hierarchical` for the same reason `depth` is: a term's `parentId` can
@@ -754,10 +759,32 @@ function namespaceList(
                   return (
                     <li
                       key={term.id}
-                      role="listitem"
+                      // `role="button"` (audit finding, not "listitem"): this row is independently
+                      // focusable (`tabIndex={0}`) and Enter/Space-activatable below — the exact
+                      // keyboard contract WAI-ARIA defines for a button, not a passive list member.
+                      // `aria-selected` used to sit here too, but `aria-selected` is only defined for
+                      // `option`/`row`/`gridcell`/`tab`/`treeitem`-family roles — on `listitem` (and
+                      // still on `button`) it is simply dropped by the accessible-name/state
+                      // computation, so no screen reader or accessibility-tree consumer ever saw this
+                      // row's selected state (verified: `getAllByRole("listitem", { selected: true })`
+                      // throws `"aria-selected" is not supported on role "listitem"` — the existing
+                      // test only ever asserted the raw attribute string, not the computed state).
+                      // `aria-current` is the correct fit instead — a global state, valid on `button`,
+                      // meaning "the current item in a set" — and needs no matching `listbox`/`option`
+                      // composite-widget conversion, which would additionally imply a roving-tabindex
+                      // keyboard model this row does not (and, given every row is independently
+                      // tabbable today, should not) implement.
+                      role="button"
                       className={`settings-row${selectedTermId === term.id ? " is-selected" : ""}`}
                       style={depth > 0 ? { marginLeft: `${depth * 1.1}rem` } : undefined}
-                      aria-label={parentName ? `${term.name}, subcategory of ${parentName}` : undefined}
+                      // Explicit now in EVERY case, not only the `parentName` branch: making this
+                      // row a real `role="button"` (above) means its name-from-content computation
+                      // now matters, and it was garbled — concatenating the term-name span and the
+                      // adjacent status span with no separator (verified live: "Selected Termactive"
+                      // for a term named "Selected Term" with status "active"). An explicit
+                      // `aria-label` is the fix either way, so the `parentName` case no longer needs
+                      // to be the only one that sets it.
+                      aria-label={parentName ? `${term.name}, subcategory of ${parentName}` : term.name}
                       onClick={() => setSelectedTermId(term.id)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -766,7 +793,7 @@ function namespaceList(
                         }
                       }}
                       tabIndex={0}
-                      aria-selected={selectedTermId === term.id}
+                      aria-current={selectedTermId === term.id ? "true" : undefined}
                     >
                       {/* The handle sits on this `<span>`, not the `<li>` it lives inside: the `<li>`
                           also contains the RowMenu trigger button below as a descendant, and
