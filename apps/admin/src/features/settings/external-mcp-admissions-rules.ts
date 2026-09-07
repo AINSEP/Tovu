@@ -40,14 +40,25 @@ export type AdmissionDriftKind =
   | "destructive"
   | "not-offered"
   | "inert-write-grant"
-  | "server-side-defect";
+  | "server-side-defect"
+  // The three reverse-direction kinds (2026-09-07, ADM-001) — see {@link liveOnlyEntries} and
+  // {@link connectionLevelEntry}. Every one of them is fixed by the same restart, and none of them
+  // could produce a row before, because the comparison only ever ran `saved − live`.
+  | "still-live-after-removal"
+  | "not-running"
+  | "disabled-but-running";
 
-/** One tool the operator asked for that the running assistant does not have. */
+/** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
   /** The connection's id — identical to the roster row's `serverId` (`toResolvedFederatedConnections`
    *  sets `connectionId: config.serverId`), which is what lets a row be matched back to its card. */
   readonly connectionId: string;
-  readonly remoteName: string;
+  /** `null` for a row about the CONNECTION rather than about one of its tools (`not-running`,
+   *  `disabled-but-running`). The section around the row already carries the connection id as its
+   *  heading, so repeating it in the name slot would be a label, not a tool name — and a field
+   *  called `remoteName` holding a connection id is the kind of misleading name that survives into
+   *  a later reader's assumptions. */
+  readonly remoteName: string | null;
   readonly kind: AdmissionDriftKind;
   /** Exact English copy, which is its own i18n key. */
   readonly messageKey: string;
@@ -65,6 +76,22 @@ export interface AdmissionDriftConnection {
   readonly notLoaded: readonly string[];
   readonly savedToolCount: number;
   readonly entries: readonly AdmissionDriftEntry[];
+}
+
+/**
+ * What the operator's roster says about ONE connection — the "saved" half of every comparison in
+ * this file.
+ *
+ * `enabled` is here and not derivable (2026-09-07, ADM-001): `external-mcp-store.ts`'s
+ * `readEnabledExternalMcpConfigs` skips a switched-off server, so "saved but not live" is the
+ * CORRECT and expected state for one, and a rule that could not see the flag would report the
+ * operator's own most deliberate action back to them as a fault.
+ */
+export interface SavedConnectionIntent {
+  /** The roster card's `allowedToolNames` field, verbatim — `"a, b , c"` as it is stored. */
+  readonly allowedToolNames: string;
+  /** The card's on/off toggle. */
+  readonly enabled: boolean;
 }
 
 /** The one refusal that is routine rather than newsworthy — see this file's header. */
@@ -112,6 +139,14 @@ const NOT_OFFERED_KEY = "This server does not offer a tool by that name.";
 const INERT_WRITE_GRANT_KEY =
   "'{name}' is on the write list but not on the allowlist — it has no effect until it's also allowlisted.";
 
+/** ADM-001's three keys. English-only for now, the same deliberate choice the four server-side-defect
+ *  strings above record: `createDictionaryTranslator` falls back to the English key, and inventing
+ *  21 translations ahead of the copy settling is the more expensive mistake to undo. Each one names
+ *  the restart, because the restart is the entire fix in all three cases. */
+const STILL_LIVE_KEY = "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.";
+const NOT_RUNNING_KEY = "The assistant isn't running this server at all. Restart the assistant to load it.";
+const DISABLED_BUT_RUNNING_KEY = "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.";
+
 /** The gate refusals worth showing, in the daemon's own order. */
 function refusalEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntry[] {
   const rows: AdmissionDriftEntry[] = [];
@@ -152,6 +187,34 @@ function driftEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntry[
   ];
 }
 
+/**
+ * ADM-001's `live − saved` half: tools the running daemon is still serving that the operator's
+ * allowlist no longer names.
+ *
+ * `savedAllowedToolNames === undefined` returns NOTHING, and that is the load-bearing case rather
+ * than a defensive default. `mcp-federation/bootstrap.ts` merges roster connections with
+ * env-registered PRESET connections (`resolveRegisteredPresets`, e.g. the Supabase MCP plugin) into
+ * one report list, and a preset has no roster card by design — so "no saved entry" means "no
+ * operator intent is recorded here", not "the operator allowlisted nothing". Reading it as the
+ * latter would put every preset tool in this list on every boot, forever. An empty STRING is the
+ * opposite: a card exists and its allowlist was cleared, so every live tool really is drift.
+ *
+ * @complexity O(t) in the connection's admitted tool count.
+ */
+function liveOnlyEntries(entry: AdminFederatedAdmissionEntry, savedAllowedToolNames: string | undefined): AdmissionDriftEntry[] {
+  if (savedAllowedToolNames === undefined) return [];
+  const saved = new Set(parseSavedToolNames(savedAllowedToolNames));
+  return entry.admitted
+    .filter((tool) => !saved.has(tool.remoteName))
+    .map((tool): AdmissionDriftEntry => ({
+      connectionId: entry.connectionId,
+      remoteName: tool.remoteName,
+      kind: "still-live-after-removal",
+      messageKey: STILL_LIVE_KEY,
+      messageVars: {},
+    }));
+}
+
 /** `"a, b , c"` as the roster card stores it, back to names. Mirrors `use-external-mcp.hooks.ts`'s
  *  own `join(", ")` on the way out; blanks are dropped so an empty field is zero names, not one. */
 export function parseSavedToolNames(value: string | undefined): string[] {
@@ -166,15 +229,17 @@ export function parseSavedToolNames(value: string | undefined): string[] {
  * common case, which must render nothing at all rather than a reassuring banner nobody needs.
  *
  * @param entry - This connection's live admission report from the daemon.
- * @param savedAllowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
- * @complexity O(t) in the connection's advertised/refused tool count.
+ * @param savedAllowedToolNames - The roster card's own `allowedToolNames` field, verbatim, or
+ *   `undefined` when this connection has no roster card at all (an env preset). The two are NOT
+ *   interchangeable — see {@link liveOnlyEntries}.
+ * @complexity O(t) in the connection's advertised/refused/admitted tool count.
  * @overallScore 100
  */
 export function describeConnectionDrift(
   entry: AdminFederatedAdmissionEntry,
   savedAllowedToolNames: string | undefined,
 ): AdmissionDriftConnection | null {
-  const entries = [...refusalEntries(entry), ...driftEntries(entry)];
+  const entries = [...refusalEntries(entry), ...driftEntries(entry), ...liveOnlyEntries(entry, savedAllowedToolNames)];
   const live = new Set(entry.admitted.map((tool) => tool.remoteName));
   const saved = parseSavedToolNames(savedAllowedToolNames);
   const notLoaded = saved.filter((name) => !live.has(name));
@@ -191,23 +256,106 @@ export function describeConnectionDrift(
 }
 
 /**
- * Every connection with something to say, in the daemon's own connection order.
+ * The four-combination truth table {@link connectionLevelEntry} documents, as a flat chain rather
+ * than a nested ternary — the same extraction `lib/fetch-query/adapter.tanstack.tsx`'s
+ * `resolveFetchQueryStatus` records the reasoning for.
  *
- * @param snapshot - `getExternalMcpAdmissions()`'s response.
- * @param savedAllowedToolNamesById - Each roster card's `allowedToolNames` field, keyed by its id.
+ * @returns The disagreement's kind, or `null` when intent and reality agree.
+ * @complexity O(1).
+ */
+function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolCount: number): AdmissionDriftKind | null {
+  if (!isLive) return enabled ? "not-running" : null;
+  // A live connection with an empty admitted set says nothing either way — the daemon may hold the
+  // session open having admitted none of its tools, which the per-tool rows already explain.
+  if (!enabled && liveToolCount > 0) return "disabled-but-running";
+  return null;
+}
+
+/**
+ * ADM-001's whole-connection half: a saved connection whose state the daemon disagrees with
+ * outright, rather than one tool inside a connection it is running.
+ *
+ * Only two of the four combinations are a disagreement. Saved-and-enabled-and-not-live is the
+ * operator having added or re-enabled a server since boot — `trust.ts` R5 freezes the admitted set
+ * at connect, so it is genuinely absent and stays absent until a restart. Saved-and-disabled-and-
+ * still-live is the same freeze seen from the other side. The other two agree and must render
+ * nothing: an off server that is not running is not a fault, it is the switch working.
+ *
+ * @returns The connection row, or `null` when intent and reality agree.
+ * @complexity O(t) in the saved name count.
+ */
+function connectionLevelEntry(
+  connectionId: string,
+  saved: SavedConnectionIntent,
+  liveEntry: AdminFederatedAdmissionEntry | undefined,
+): AdmissionDriftConnection | null {
+  const savedNames = parseSavedToolNames(saved.allowedToolNames);
+  const liveToolCount = liveEntry?.admitted.length ?? 0;
+  const kind = resolveConnectionLevelKind(saved.enabled, liveEntry !== undefined, liveToolCount);
+  if (!kind) return null;
+
+  return {
+    connectionId,
+    liveToolCount,
+    // Every saved name for a connection that is not running: all of them are missing, which is the
+    // count line's whole job. Empty for the disabled-but-running arm, where the live tools ARE the
+    // saved ones and nothing is missing.
+    notLoaded: liveEntry ? [] : savedNames,
+    savedToolCount: savedNames.length,
+    entries: [
+      {
+        connectionId,
+        remoteName: null,
+        kind,
+        messageKey: kind === "not-running" ? NOT_RUNNING_KEY : DISABLED_BUT_RUNNING_KEY,
+        messageVars: {},
+      },
+    ],
+  };
+}
+
+/**
+ * Every connection with something to say, in the daemon's own connection order, then any saved
+ * connection the daemon never reported.
+ *
+ * Two passes rather than one, and they never both claim the same connection: the first covers every
+ * connection the daemon IS running (roster-backed or env preset), the second only adds rows for a
+ * whole-connection disagreement the first pass structurally cannot see — a saved connection with no
+ * live entry, or a switched-off one that is still live (2026-09-07, ADM-001). A live, agreeing
+ * connection is claimed by neither.
+ *
+ * @param snapshot - `getExternalMcpAdmissions()`'s response. `undefined` means the daemon could not
+ *   be asked, and returns `[]` deliberately: the caller renders that as its own sentence, and
+ *   inventing "not running" rows out of a failed read would put a wrong diagnosis under a right one.
+ * @param savedById - Each roster card's saved intent, keyed by its id. A connection the daemon
+ *   reports that is absent here is an env preset, not an empty roster entry.
  * @complexity O(c · t).
  * @overallScore 100
  */
 export function describeAdmissionDrift(
   snapshot: AdminExternalMcpAdmissionsSnapshot | undefined,
-  savedAllowedToolNamesById: Readonly<Record<string, string>>,
+  savedById: Readonly<Record<string, SavedConnectionIntent>>,
 ): readonly AdmissionDriftConnection[] {
   if (!snapshot) return [];
+  const liveById = new Map(snapshot.connections.map((entry) => [entry.connectionId, entry]));
+
   const drifted: AdmissionDriftConnection[] = [];
   for (const entry of snapshot.connections) {
-    const connection = describeConnectionDrift(entry, savedAllowedToolNamesById[entry.connectionId]);
+    const saved = savedById[entry.connectionId];
+    const connectionLevel = saved ? connectionLevelEntry(entry.connectionId, saved, entry) : null;
+    // A whole-connection disagreement supersedes the per-tool rows: telling an operator which of a
+    // switched-off server's tools are still loaded, one line each, buries the one thing they need
+    // to read — that the server they turned off is still running.
+    const connection = connectionLevel ?? describeConnectionDrift(entry, saved?.allowedToolNames);
     if (connection) drifted.push(connection);
   }
+
+  for (const [connectionId, saved] of Object.entries(savedById)) {
+    if (liveById.has(connectionId)) continue;
+    const connection = connectionLevelEntry(connectionId, saved, undefined);
+    if (connection) drifted.push(connection);
+  }
+
   return drifted;
 }
 

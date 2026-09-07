@@ -135,7 +135,7 @@ describe("describeAdmissionDrift", () => {
           entry({ connectionId: "higgsfield", refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] }),
         ],
       },
-      { clean: "a", higgsfield: "generate_image" },
+      { clean: { allowedToolNames: "a", enabled: true }, higgsfield: { allowedToolNames: "generate_image", enabled: true } },
     );
 
     expect(drifted.map((connection) => connection.connectionId)).toEqual(["higgsfield"]);
@@ -172,5 +172,107 @@ describe("parseSavedToolNames", () => {
     expect(parseSavedToolNames("")).toEqual([]);
     expect(parseSavedToolNames("  ")).toEqual([]);
     expect(parseSavedToolNames("a ,, b ,")).toEqual(["a", "b"]);
+  });
+});
+
+/**
+ * ADM-001 (2026-09-07) — the comparison was one-directional.
+ *
+ * The file's own header promises "every place the operator's own intent and the gate's decision
+ * disagree". It computed `saved − live` only, so two real disagreements produced no row at all:
+ * a tool REMOVED from the allowlist that the running daemon is still serving, and a whole
+ * connection the operator saved (or switched off) that the boot-frozen daemon knows nothing about.
+ * In both cases the operator's next move is the same — restart — and the banner said nothing.
+ *
+ * The negative cases in this block are the load-bearing half. `bootstrap.ts` merges ROSTER
+ * connections with env-registered PRESET connections (`resolveRegisteredPresets`, e.g. the Supabase
+ * MCP plugin) into one report list, and a preset has no roster card by design. A `live − saved`
+ * rule that treated "no saved entry" as "the operator allowlisted nothing" would report every
+ * preset tool as removed-but-still-running, on every boot, forever.
+ */
+describe("ADM-001 — the reverse direction", () => {
+  it("reports a tool the daemon is still serving after the operator removed it from the allowlist", () => {
+    const drift = describeConnectionDrift(
+      entry({
+        admitted: [
+          { remoteName: "list_styles", writeAuthorized: false },
+          { remoteName: "generate_image", writeAuthorized: true },
+        ],
+      }),
+      "list_styles",
+    );
+
+    expect(drift?.entries.map((row) => [row.kind, row.remoteName])).toEqual([
+      ["still-live-after-removal", "generate_image"],
+    ]);
+  });
+
+  it("says nothing about a connection with no roster card — an env preset is not an empty allowlist", () => {
+    const drift = describeConnectionDrift(
+      entry({ connectionId: "supabase-preset", admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
+      undefined,
+    );
+
+    expect(drift).toBeNull();
+  });
+
+  it("DOES report every live tool when the card exists and its allowlist was cleared to empty", () => {
+    // The distinction the case above rests on: `undefined` is "no operator intent recorded here",
+    // `""` is "the operator recorded an intent, and it was none".
+    const drift = describeConnectionDrift(
+      entry({ admitted: [{ remoteName: "list_styles", writeAuthorized: false }] }),
+      "",
+    );
+
+    expect(drift?.entries.map((row) => [row.kind, row.remoteName])).toEqual([
+      ["still-live-after-removal", "list_styles"],
+    ]);
+  });
+
+  it("reports a saved, enabled connection the running daemon has never heard of", () => {
+    const drifted = describeAdmissionDrift(
+      { connections: [] },
+      { higgsfield: { allowedToolNames: "generate_image, list_styles", enabled: true } },
+    );
+
+    expect(drifted).toHaveLength(1);
+    expect(drifted[0]?.connectionId).toBe("higgsfield");
+    expect(drifted[0]?.liveToolCount).toBe(0);
+    expect(drifted[0]?.savedToolCount).toBe(2);
+    expect(drifted[0]?.notLoaded).toEqual(["generate_image", "list_styles"]);
+    expect(drifted[0]?.entries.map((row) => [row.kind, row.remoteName])).toEqual([["not-running", null]]);
+  });
+
+  it("says nothing about a saved connection the operator switched OFF and the daemon is not running", () => {
+    // Intent and reality agree. A row here would be the banner crying wolf about the one thing the
+    // operator most deliberately did.
+    const drifted = describeAdmissionDrift({ connections: [] }, { higgsfield: { allowedToolNames: "generate_image", enabled: false } });
+
+    expect(drifted).toEqual([]);
+  });
+
+  it("reports a connection the operator switched OFF that the daemon is STILL running", () => {
+    const drifted = describeAdmissionDrift(
+      { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
+      { higgsfield: { allowedToolNames: "generate_image", enabled: false } },
+    );
+
+    expect(drifted).toHaveLength(1);
+    expect(drifted[0]?.entries.map((row) => row.kind)).toEqual(["disabled-but-running"]);
+  });
+
+  it("still returns nothing at all when the daemon could not be asked, however much is saved", () => {
+    // `undefined` means "the daemon did not answer", which the hook renders as its own sentence.
+    // Inventing "not running" rows from a failed read would put a wrong diagnosis under a right one.
+    expect(describeAdmissionDrift(undefined, { higgsfield: { allowedToolNames: "generate_image", enabled: true } })).toEqual([]);
+  });
+
+  it("does not report a live, agreeing connection twice — the two passes must not both claim it", () => {
+    const drifted = describeAdmissionDrift(
+      { connections: [entry({ connectionId: "higgsfield", admitted: [{ remoteName: "generate_image", writeAuthorized: false }] })] },
+      { higgsfield: { allowedToolNames: "generate_image", enabled: true } },
+    );
+
+    expect(drifted).toEqual([]);
   });
 });

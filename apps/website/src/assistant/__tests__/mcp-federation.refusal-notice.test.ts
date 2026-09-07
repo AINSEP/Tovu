@@ -249,3 +249,130 @@ test("safeRemoteName accepts exactly the names the admission gate itself accepts
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// MCP-01 (2026-09-07) — an ADMITTED tool must never be reported as withheld
+//
+// `PREFIX_INSTRUCTION` asserts of EVERY item in the list that it is "NOT in `search_tools`",
+// that "`describe_tool` cannot describe" it, and that "calling it is impossible". For a
+// `duplicate-remote-tool-name` refusal that is flatly false: `admitRemoteToolName` admits the
+// FIRST descriptor of a name and refuses only the REPEAT, so the same `remoteName` appears in
+// `admitted` and in `refused`. The tool is registered and callable, and the model was being told
+// on every single turn that it was not — the exact class of invented-cause failure this whole file
+// exists to prevent, produced by the file itself.
+//
+// Built on the REAL gate rather than a hand-written report: the collision is a property of
+// `admitRemoteTools`, and a synthetic snapshot could assert it in a shape the gate never produces.
+// ---------------------------------------------------------------------------
+
+/** A connection allowlisting `image_lookup`, the way an operator who wanted it would. */
+function duplicateNameConfig(): FederatedMcpConnectionConfig {
+  return {
+    connectionId: "vendor",
+    label: "Vendor",
+    allowedToolNames: ["image_lookup"],
+    writeAllowedToolNames: [],
+    connectTimeoutMs: 1_000,
+    callTimeoutMs: 1_000,
+    maxResultBytes: 1_024,
+    maxTools: 8,
+  };
+}
+
+test("the gate really does put a duplicated name in BOTH lists — the premise the two tests below rest on", () => {
+  const report = admitRemoteTools({
+    tools: [
+      { name: "image_lookup", inputSchema: { type: "object" } },
+      { name: "image_lookup", inputSchema: { type: "object" } },
+    ],
+    config: duplicateNameConfig(),
+  });
+
+  assert.deepEqual(
+    report.admitted.map((tool) => tool.remoteName),
+    ["image_lookup"],
+    "the first descriptor is admitted and the tool IS callable",
+  );
+  assert.deepEqual(report.refused, [{ remoteName: "image_lookup", reason: "duplicate-remote-tool-name" }]);
+});
+
+test("a tool that was ADMITTED is never listed as withheld, even when a later descriptor of the same name was refused", () => {
+  const report = admitRemoteTools({
+    tools: [
+      { name: "image_lookup", inputSchema: { type: "object" } },
+      { name: "image_lookup", inputSchema: { type: "object" } },
+    ],
+    config: duplicateNameConfig(),
+  });
+
+  const items = summarizeFederatedRefusals([{ connectionId: "vendor", report }]);
+
+  assert.deepEqual(
+    items,
+    [],
+    "'image_lookup' is registered and callable — every sentence the prefix would attach to this item is false",
+  );
+});
+
+test("the prefix stays empty when the only refusal is a duplicate of an admitted name — the model must not be told a callable tool is impossible", () => {
+  const report = admitRemoteTools({
+    tools: [
+      { name: "image_lookup", inputSchema: { type: "object" } },
+      { name: "image_lookup", inputSchema: { type: "object" } },
+    ],
+    config: duplicateNameConfig(),
+  });
+
+  const prefix = buildFederatedRefusalPrefix([{ connectionId: "vendor", report }]);
+
+  assert.equal(prefix, "", `expected no prefix, got:\n${prefix}`);
+});
+
+test("a duplicate whose name was NOT admitted is still reported — the subtraction must not swallow a real refusal", () => {
+  // The other arm: the operator never allowlisted `unwanted`, so the FIRST descriptor is refused
+  // `not-in-operator-allowlist` (R-B, not reported) and the SECOND is refused as a duplicate. The
+  // name reaches `admitted` never, so the duplicate item is TRUE and must survive.
+  //
+  // Without this case, "subtract admitted" and "drop every duplicate refusal" are indistinguishable,
+  // and the cheaper wrong fix would pass every other test in this block.
+  // Its own allowlist, empty: `duplicateNameConfig()`'s `image_lookup` entry would additionally
+  // (and correctly) produce an `allowlisted-but-absent` drift item here, which has nothing to do
+  // with what this case is asserting.
+  const report = admitRemoteTools({
+    tools: [
+      { name: "unwanted", inputSchema: { type: "object" } },
+      { name: "unwanted", inputSchema: { type: "object" } },
+    ],
+    config: { ...duplicateNameConfig(), allowedToolNames: [] },
+  });
+
+  assert.deepEqual(report.admitted, [], "premise: nothing by that name was admitted");
+
+  const items = summarizeFederatedRefusals([{ connectionId: "vendor", report }]);
+
+  assert.deepEqual(
+    items.map((item) => [item.remoteName, item.kind, item.reason]),
+    [["unwanted", "refused", "duplicate-remote-tool-name"]],
+  );
+});
+
+test("the subtraction is per connection — an admission on one server must not silence a refusal of the same name on another", () => {
+  const admittedReport = admitRemoteTools({
+    tools: [{ name: "image_lookup", inputSchema: { type: "object" } }],
+    config: duplicateNameConfig(),
+  });
+  const refusedElsewhere: FederatedAdmissionReport = report({
+    refused: [{ remoteName: "image_lookup", reason: "missing-or-invalid-input-schema" }],
+  });
+
+  const items = summarizeFederatedRefusals([
+    { connectionId: "vendor", report: admittedReport },
+    { connectionId: "other-vendor", report: refusedElsewhere },
+  ]);
+
+  assert.deepEqual(
+    items.map((item) => [item.connectionId, item.remoteName]),
+    [["other-vendor", "image_lookup"]],
+    "'other-vendor:image_lookup' is a different tool id and genuinely is not callable",
+  );
+});

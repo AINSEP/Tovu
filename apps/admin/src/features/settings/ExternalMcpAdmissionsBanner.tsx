@@ -31,17 +31,29 @@ import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-a
 function AdmissionDriftRow(props: { entry: AdmissionDriftEntry; t: Translate; onAllowWrite: (connectionId: string, remoteName: string) => void }) {
   const { entry, t, onAllowWrite } = props;
   const message = interpolate(t(entry.messageKey), entry.messageVars);
+  // Bound locally so the null check below narrows inside the `onChange` closure too. A
+  // `needs-write-grant` row always names a tool (it comes from a gate refusal), but the type cannot
+  // know that, and asserting it would be the more expensive way to be right.
+  const { remoteName } = entry;
 
   return (
     <li className="external-mcp-drift-row">
-      <code>{entry.remoteName}</code> — <span>{message}</span>
-      {entry.kind === "needs-write-grant" ? (
+      {/* Absent for a row about the whole connection rather than one of its tools — the section's
+          own `<h4>` already names it, and an empty `<code>` before a dash would read as a tool
+          whose name failed to load. */}
+      {remoteName === null ? null : (
+        <>
+          <code>{remoteName}</code> —{" "}
+        </>
+      )}
+      <span>{message}</span>
+      {entry.kind === "needs-write-grant" && remoteName !== null ? (
         <label className="external-mcp-drift-grant">
           <input
             type="checkbox"
             checked={false}
-            onChange={() => onAllowWrite(entry.connectionId, entry.remoteName)}
-            data-agent-element={`mcp-drift-grant-${entry.connectionId}-${entry.remoteName}`}
+            onChange={() => onAllowWrite(entry.connectionId, remoteName)}
+            data-agent-element={`mcp-drift-grant-${entry.connectionId}-${remoteName}`}
           />
           <span>{t("may write")}</span>
         </label>

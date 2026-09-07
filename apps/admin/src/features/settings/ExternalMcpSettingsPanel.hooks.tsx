@@ -4,7 +4,7 @@ import type { SourceConfigItem } from "@jini-ai/ui";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
-import { grantWriteFieldValue } from "./external-mcp-admissions-rules";
+import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
 import { t as tExternalMcp } from "./external-mcp-i18n";
 import { buildExternalMcpCardHandles } from "./rules";
 
@@ -25,14 +25,23 @@ export function resolveExternalMcpCardHandles(sources: readonly SourceConfigItem
   return buildExternalMcpCardHandles(sources.map((source) => source.id));
 }
 
-/** Each card's saved `allowedToolNames` field, keyed by server id — the "saved" half of the
- *  saved-vs-live comparison the admissions banner states. Memoized because it is the dependency of
- *  a `useMemo` inside `useExternalMcpAdmissions`: rebuilding the object every render would make
- *  that memo useless. */
-export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[]): Record<string, string> {
+/** Each card's saved intent, keyed by server id — the "saved" half of the saved-vs-live comparison
+ *  the admissions banner states. Memoized because it is the dependency of a `useMemo` inside
+ *  `useExternalMcpAdmissions`: rebuilding the object every render would make that memo useless.
+ *
+ *  `enabled` joined `allowedToolNames` here for ADM-001 (2026-09-07): the banner now reports a saved
+ *  connection the daemon is not running, and without the toggle it would report every server the
+ *  operator deliberately switched off as a fault. `SourceConfigItem.enabled` is optional in
+ *  `@jini-ai/ui`'s type; `toItem` in `use-external-mcp.hooks.ts` always sets it from the stored
+ *  record, so `?? true` only ever covers a source that came from somewhere else — and "on" is the
+ *  right reading of a missing flag, since a card with no toggle state is not one the operator
+ *  turned off. */
+export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[]): Record<string, SavedConnectionIntent> {
   return useMemo(() => {
-    const byId: Record<string, string> = {};
-    for (const source of sources) byId[source.id] = source.fields["allowedToolNames"] ?? "";
+    const byId: Record<string, SavedConnectionIntent> = {};
+    for (const source of sources) {
+      byId[source.id] = { allowedToolNames: source.fields["allowedToolNames"] ?? "", enabled: source.enabled ?? true };
+    }
     return byId;
   }, [sources]);
 }

@@ -51,6 +51,10 @@ import type { FederatedAdmissionReport, ToolRefusalReason } from "./trust.js";
  *      announced with the true total, so the model is never told a smaller number than the truth.
  *      Same discipline as `wrapUntrustedResult`'s announced truncation.
  *
+ * R-E. NOTHING CALLABLE IS EVER REPORTED AS WITHHELD. A refused `remoteName` whose name is also in
+ *      `admitted` is dropped — see {@link refusalItems} for the case that produces one and why the
+ *      subtraction is by admitted set rather than by refusal reason.
+ *
  * Architectural role:
  * Pure functions. No I/O, no registry, no protocol — the same posture as `trust.ts`, and for the
  * same reason: every rule above is a unit test.
@@ -149,11 +153,37 @@ const INERT_WRITE_GRANT_EXPLANATION =
   "the administrator put this tool in \"Allowed to make changes\" but not in \"Allowed tools\", so the grant does nothing at all. " +
   "Fix: add the same name to \"Allowed tools\" too, then restart the assistant.";
 
-/** One connection's gate refusals, minus R-B's routine default-deny. */
+/**
+ * One connection's gate refusals, minus R-B's routine default-deny and minus R-E's names that were
+ * admitted anyway.
+ *
+ * R-E. A NAME PRESENT IN `admitted` IS NEVER REPORTED AS WITHHELD (2026-09-07, MCP-01). A refused
+ *      `remoteName` is not the same thing as an absent tool: `trust.ts`'s `admitRemoteToolName`
+ *      admits the FIRST descriptor of a name and refuses only the REPEAT, so a server that
+ *      advertises `image_lookup` twice puts that one name into `admitted` AND into `refused`. Every
+ *      sentence {@link PREFIX_INSTRUCTION} attaches to an item — "NOT in `search_tools`",
+ *      "`describe_tool` cannot describe them", "calling them is impossible" — is then false, and the
+ *      model was told so on every turn for the life of the process, about a tool it can call. That
+ *      is the invented-cause failure this whole file exists to prevent, produced by this file.
+ *
+ *      Subtracting the ADMITTED SET rather than special-casing `duplicate-remote-tool-name` is
+ *      deliberate: the property that makes an item true is "the model cannot call this", and the
+ *      admitted set is what answers that directly. A reason-based skip would state the same rule in
+ *      terms that stop being equivalent the moment the gate grows another refusal an admitted name
+ *      can also collect. A duplicate whose name was NOT admitted (both descriptors refused) is
+ *      still reported, correctly — the admin-facing arm in `apps/admin`'s
+ *      `external-mcp-admissions-rules.ts` already computes `notLoaded` this same way, and this
+ *      brings the model-facing arm to the accounting the operator-facing one already had.
+ *
+ * Per connection, never global: a federated tool id is namespaced by `connectionId`, so
+ * `vendor:image_lookup` being callable says nothing about `other-vendor:image_lookup`.
+ */
 function refusalItems(entry: FederationAdmissionSnapshotEntry): FederationRefusalItem[] {
+  const admittedNames = new Set(entry.report.admitted.map((tool) => tool.remoteName));
   const items: FederationRefusalItem[] = [];
   for (const refusal of entry.report.refused) {
     if (refusal.reason === "not-in-operator-allowlist") continue;
+    if (admittedNames.has(refusal.remoteName)) continue;
     items.push({
       connectionId: entry.connectionId,
       remoteName: safeRemoteName(refusal.remoteName),
@@ -196,7 +226,8 @@ function driftItems(entry: FederationAdmissionSnapshotEntry): FederationRefusalI
  *
  * @param snapshot - `AttachFederatedToolsResult.reports`, verbatim.
  * @returns Items in connection order, refusals before drift within each connection.
- * @complexity O(c · t) in connections and their refused/drift entries.
+ * @complexity O(c · t) in connections and their admitted/refused/drift entries — the per-connection
+ *   admitted-name set R-E subtracts against is built once per connection, not per refusal.
  * @overallScore 100
  */
 export function summarizeFederatedRefusals(

@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, describeApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { hasPermission } from "@/lib/permissions";
 
-import { describeAdmissionDrift, type AdmissionDriftConnection } from "../external-mcp-admissions-rules";
+import { describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
 
 /**
  * @file The transport behind Settings → External MCP's "what is the assistant actually running"
@@ -47,8 +47,11 @@ export interface ExternalMcpAdmissionsController {
   readonly restarting: boolean;
   /** The restart route's own refusal reason (it answers 409 while shutting down), or `null`. */
   readonly restartError: string | null;
-  /** `true` once a restart was ACCEPTED — never "the assistant is back up", which no signal in
-   *  this codebase can currently claim (see the restart route's own header). */
+  /** `true` while a restart this hook triggered was ACCEPTED and the bounded re-read that follows it
+   *  is still running — never "the assistant is back up", which no signal in this codebase can
+   *  currently claim (see the restart route's own header). It goes false when the watch window
+   *  closes, so the "Restarting…" line stops after {@link RESTART_WATCH_ATTEMPTS} attempts rather
+   *  than standing for the rest of the mounted session (2026-09-07, ADM-002). */
   readonly restartAccepted: boolean;
   restart(): void;
 }
@@ -71,16 +74,66 @@ function resolveUnavailable(error: unknown): string | null {
   return describeApiError(error, "The assistant is not reporting what it loaded — it may not be running.");
 }
 
+/** Gap between post-restart re-reads. The daemon is a child of the API process and comes back in
+ *  roughly three seconds, so this is a little under two boots — long enough that a slow boot is not
+ *  spent on the first two attempts, short enough that the banner is not visibly lagging. */
+const RESTART_WATCH_INTERVAL_MS = 2_500;
+
+/** How many re-reads one accepted restart buys. Eight × 2.5s covers twenty seconds, which is far
+ *  outside any observed daemon boot. Bounded rather than "until the snapshot changes" because
+ *  nothing in the snapshot identifies WHICH daemon answered — a restart into an identical
+ *  configuration produces a byte-identical reply, so "it changed" is not a signal that exists. */
+const RESTART_WATCH_ATTEMPTS = 8;
+
+/**
+ * A bounded re-read of the admissions snapshot, armed by an accepted restart.
+ *
+ * Not `invalidates: [ADMISSIONS_KEY]` on the restart mutation, and that is the whole design point.
+ * `POST .../system/assistant-daemon/restart` answers as soon as a restart has been INITIATED and
+ * structurally cannot wait for the new daemon to be healthy (that route's own header states this
+ * and points the caller at polling instead). A refetch fired on its 200 is therefore guaranteed to
+ * read the dying daemon or a 503 — it would replace one wrong answer with another and then stop.
+ *
+ * A chain of `setTimeout`s driven by the remaining-attempt count, rather than one `setInterval`:
+ * the count is the state the UI already needs to render (`watching`), so deriving the schedule from
+ * it keeps one source of truth and makes React's own cleanup cancel the pending read on unmount.
+ *
+ * @param refetch - The admissions query's `refetch`. Read through a ref because `useFetchQuery`
+ *   rebuilds it every render (its `useCallback` closes over TanStack's per-render result object),
+ *   so depending on it directly would re-arm the timer on every render — a spin, not a schedule.
+ * @complexity O(1) per attempt; at most {@link RESTART_WATCH_ATTEMPTS} attempts per accepted restart.
+ */
+function useRestartWatch(refetch: () => void): { watching: boolean; begin: () => void } {
+  const [attemptsLeft, setAttemptsLeft] = useState(0);
+  const refetchRef = useRef(refetch);
+  useEffect(() => {
+    refetchRef.current = refetch;
+  });
+
+  useEffect(() => {
+    if (attemptsLeft <= 0) return;
+    const handle = setTimeout(() => {
+      refetchRef.current();
+      setAttemptsLeft((left) => left - 1);
+    }, RESTART_WATCH_INTERVAL_MS);
+    return () => clearTimeout(handle);
+  }, [attemptsLeft]);
+
+  const begin = useCallback(() => setAttemptsLeft(RESTART_WATCH_ATTEMPTS), []);
+  return { watching: attemptsLeft > 0, begin };
+}
+
 /**
  * @param deps.port - See {@link ExternalMcpAdmissionsPort}.
  * @param deps.savedAllowedToolNamesById - Each roster card's own `allowedToolNames` field value,
- *   keyed by server id, so the banner can state saved-vs-live rather than only live.
+ *   keyed by server id, plus its on/off toggle, so the banner can state saved-vs-live rather than
+ *   only live — including for a saved connection the daemon never reported (ADM-001).
  * @complexity O(c · t) in connections and their refused tools.
  * @overallScore 100
  */
 export function useExternalMcpAdmissions(deps: {
   port: ExternalMcpAdmissionsPort;
-  savedAllowedToolNamesById: Readonly<Record<string, string>>;
+  savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>;
 }): ExternalMcpAdmissionsController {
   const { port, savedAllowedToolNamesById } = deps;
 
@@ -97,6 +150,8 @@ export function useExternalMcpAdmissions(deps: {
     [admissions.data, savedAllowedToolNamesById],
   );
 
+  const { watching, begin: beginRestartWatch } = useRestartWatch(admissions.refetch);
+
   const { mutate } = restartCall;
   const restart = useCallback(() => {
     setOutcome(null);
@@ -104,9 +159,15 @@ export function useExternalMcpAdmissions(deps: {
     // `.then` derives a NEW promise that would reject unhandled. The failure itself is not
     // swallowed — it is read back off `restartCall.error` below.
     void mutate(undefined)
-      .then(setOutcome)
+      .then((result) => {
+        setOutcome(result);
+        // Only an ACCEPTED restart arms the watch. A `{ok: false}` refusal ("shutting down") means
+        // nothing was restarted, so there is no new daemon to catch up to and re-reading would just
+        // re-fetch the same snapshot eight times.
+        if (result.ok) beginRestartWatch();
+      })
       .catch(() => undefined);
-  }, [mutate]);
+  }, [mutate, beginRestartWatch]);
 
   const refusal = outcome && !outcome.ok ? (outcome.reason ?? "the restart was refused") : null;
 
@@ -117,7 +178,7 @@ export function useExternalMcpAdmissions(deps: {
     canRestart: hasPermission(permissions.data?.effectivePermissions ?? [], "system.write"),
     restarting: restartCall.status === "pending",
     restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, "Could not restart the assistant.") : null),
-    restartAccepted: outcome?.ok === true,
+    restartAccepted: outcome?.ok === true && watching,
     restart,
   };
 }
@@ -125,7 +186,7 @@ export function useExternalMcpAdmissions(deps: {
 /** The zero-argument half of the `useX(deps)` / `useWiredX()` pair this app uses everywhere, so a
  *  component composes the real ports and a test composes fakes. */
 export function useWiredExternalMcpAdmissions(
-  savedAllowedToolNamesById: Readonly<Record<string, string>>,
+  savedAllowedToolNamesById: Readonly<Record<string, SavedConnectionIntent>>,
 ): ExternalMcpAdmissionsController {
   return useExternalMcpAdmissions({ port: defaultExternalMcpAdmissionsPort, savedAllowedToolNamesById });
 }
