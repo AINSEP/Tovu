@@ -22,8 +22,8 @@
  * Dry-run by default; `--apply` required to delete, and dry-run opens the database READ-ONLY
  * (`openContentDbReadOnly`) so "dry run" is not just "print but still write" — same discipline
  * `c412bc75` established for the `backfill-*-aad.ts` scripts. `--db` defaults to a path this repo
- * never creates (mirrors `backfill-db-path.ts`'s five siblings, NOT `backfill-external-mcp-aad.ts`'s
- * live-db default) — the operator must name the real site database explicitly.
+ * never creates (mirrors every `backfill-*-aad.ts` script) — the operator must name the real site
+ * database explicitly.
  *
  * ## Usage
  *
@@ -44,9 +44,9 @@ import { sessions } from "../../apps/website/src/platform/db/schema.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-// Deliberately a path this repo never creates (mirrors backfill-db-path.ts's own five siblings,
-// not backfill-external-mcp-aad.ts's live-db default) — see resolveExistingDbPath's own doc for why
-// defaulting to a real database would be the exact footgun this script exists to avoid.
+// Deliberately a path this repo never creates (mirrors every backfill-*-aad.ts script) — see
+// resolveExistingDbPath's own doc for why defaulting to a real database would be the exact footgun
+// this script exists to avoid.
 const DEFAULT_DB_PATH = path.join(REPO_ROOT, "infra", "content.db");
 
 export interface CleanupArgs {

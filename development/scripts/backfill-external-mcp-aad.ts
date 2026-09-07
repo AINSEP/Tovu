@@ -52,7 +52,10 @@ import {
 } from "./aad-backfill-runner.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-const DEFAULT_DB_PATH = path.join(REPO_ROOT, "sites", "tovu-com", "content.db");
+// Deliberately a path this repo never creates, matching the five sibling backfill-*-aad.ts scripts:
+// omitting --db must fail loudly rather than re-seal whatever live site database this checkout
+// happens to contain. See backfill-db-path.ts's header for the false all-clear the guard prevents.
+const DEFAULT_DB_PATH = path.join(REPO_ROOT, "infra", "content.db");
 
 /** One blob needing migration. `slot` selects which column family and which AAD builder applies. */
 interface PendingBlob {

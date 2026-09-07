@@ -89,3 +89,32 @@ for (const script of SCRIPTS) {
     assert.ok(!/would be migrated/.test(output), `${script} reported a migration count without a real database`);
   });
 }
+
+/**
+ * The guard only ever sees the path a script actually resolves, so a script whose DEFAULT names a
+ * database that really exists never reaches it — which is what `backfill-external-mcp-aad.ts` did
+ * until 2026-09-06 (it defaulted to `sites/tovu-com/content.db`, a live site database, so a
+ * forgotten `--db` ran against production instead of erroring).
+ *
+ * Asserted against the source text rather than by invoking each script with no `--db`: a regression
+ * here would point that invocation at a real database, which is the precise outcome this test
+ * exists to forbid. The second assertion keeps the first one meaningful — the shared default is
+ * only a guaranteed refusal for as long as nothing is created at it.
+ */
+test("every AAD backfill script defaults --db to a path this repo never creates", () => {
+  for (const script of SCRIPTS) {
+    const source = fs.readFileSync(path.join(REPO_ROOT, "development", "scripts", script), "utf8");
+    const declaration = /^const DEFAULT_DB_PATH = (.+);$/m.exec(source);
+    assert.equal(
+      declaration?.[1],
+      'path.join(REPO_ROOT, "infra", "content.db")',
+      `${script} does not default --db to the deliberately absent infra/content.db — omitting --db must be refused, never run against a real database`,
+    );
+  }
+
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, "infra", "content.db")),
+    false,
+    "infra/content.db now exists — the shared default is no longer a guaranteed refusal",
+  );
+});

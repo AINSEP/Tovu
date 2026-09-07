@@ -37,10 +37,10 @@ export interface AadBackfillArgs {
 }
 
 /**
- * Identical across all six scripts except the default path when `--db` is omitted — that default
- * is itself a real per-store difference (`backfill-external-mcp-aad.ts` defaults to a real site db,
- * the other five to a path this repo never creates, forcing an explicit `--db`), so it stays a
- * required parameter here rather than a shared constant.
+ * Identical across all six scripts, including the default path when `--db` is omitted: every one of
+ * them names a path this repo never creates, so a forgotten `--db` is refused by
+ * `resolveExistingDbPath` rather than run against a real database. `defaultDbPath` stays a required
+ * parameter rather than a shared constant so each script's default is visible in its own file.
  *
  * @complexity O(n) in argv length — one `indexOf` scan.
  */
