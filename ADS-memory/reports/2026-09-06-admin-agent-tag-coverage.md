@@ -370,6 +370,29 @@ several agents landed overlapping commits on this shared tree in the same window
 oneline -- apps/admin/src/features/pages apps/admin/src/features/posts` for the authoritative
 sequence).
 
+## Authorship note — commit `f3579456` misattributes ~15 tags (record only, history NOT rewritten)
+
+`f3579456 feat(admin-pages): tag PageEditor's remaining view/device controls` landed under a single
+author name but contains two agents' work. Its parent carried **zero** real `agentHandle` tags in
+`PageEditor.tsx` (only a prose comment mentioning the convention), while the commit adds 19 distinct
+handle sites. Of those, 3 are the committing agent's own — the `page-preview-width-*` buttons, the
+`page-view-*` tabs, and `page-html-source` — exactly what its own message describes. The other ~15
+(`page-header`, `page-back-to-list`, `page-actions`, `page-status`, `page-publish`, `page-save`,
+`page-delete`, the three `page-autosave-*` handles, both `page-template-choice` branches,
+`page-title`, `page-slug`, `page-view-live`, `page-delete-confirm`) were authored by a **different**
+agent and were still uncommitted in the shared tree when this commit swept them up. The commit
+message's own line — "PageEditor.tsx already carried 15 agentHandle tags from the recent
+standing-draft autosave pass" — records the misreading: those tags were another agent's working-tree
+changes, not a committed baseline.
+
+**Nothing was lost and the code is correct** — every tag is present, correct, and live-verified per
+Phase 5 above. Only the authorship recorded in git history is wrong. History was deliberately **not**
+rewritten (no rebase, no amend): later commits sit on top of `f3579456`, and on a shared tree with
+concurrent agents the rewrite is more dangerous than the wrong byline. This note is the entire
+remedy. General lesson for this tree: an agent that finds unexpected uncommitted changes in files it
+is about to commit should check `git status`/`git diff` for another agent's work before staging, and
+commit only its own hunks by explicit path.
+
 **Known pre-existing issue, NOT introduced by this pass and NOT fixed** (out of scope — a structural
 refactor, not a tagging gap): `PageEditor.tsx`'s top-level `PageEditor` function already exceeded the
 cognitive-complexity ceiling (10 vs. the 9 allowed, `sonarjs/cognitive-complexity`) on the committed
