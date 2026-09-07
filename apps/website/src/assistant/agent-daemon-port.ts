@@ -24,6 +24,11 @@ export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-aut
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
+// Pure, no transport: turns the SAME boot admission snapshot `attachFederatedMcpTools` returns into
+// the prompt text that tells the model which external tools were withheld and why. Exported through
+// this port for the same reason the line above is — the daemon process reaches this subtree only
+// here. See `mcp-federation/refusal-notice.ts`.
+export { buildFederatedRefusalPrefix } from "./mcp-federation/refusal-notice.js";
 export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
 export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store.js";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:

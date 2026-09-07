@@ -117,6 +117,7 @@ import {
   AGENT_DAEMON_EXIT_CODE,
   FRONTEND_CONTROL_CAPABILITIES,
   attachFederatedMcpTools,
+  buildFederatedRefusalPrefix,
   type ResolvedFederatedConnection,
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -553,6 +554,24 @@ const principalByRunId = new Map<string, Principal>();
  */
 let attachmentStore: AttachmentStore | undefined;
 
+/**
+ * The federation refusal notice this boot's admission pass produced, prepended to every run's
+ * prompt below. `""` — the overwhelmingly common case — costs nothing and adds nothing.
+ *
+ * Assigned once inside `start()`, on the same snapshot `registerFederationAdmissionsRoute` is
+ * handed, so the operator's view (`GET /api/federation/admissions`) and the model's view can never
+ * disagree about what was withheld. A module-level `let` for the same reason `attachmentStore` is
+ * one: `onStarted` is registered at module scope, long before `start()` runs, and reads this at
+ * request time.
+ *
+ * Why the model needs this AT ALL, given the route already exists: a refused tool is never
+ * registered, so it is absent from `search_tools` and `describe_tool` — indistinguishable from a
+ * capability Tovu simply does not have. Asked why it could not generate an image, the assistant
+ * invented a cause, because there was nothing anywhere it could read that said "this exists and was
+ * withheld." See `mcp-federation/refusal-notice.ts`.
+ */
+let federationRefusalPrefix = "";
+
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
@@ -753,6 +772,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // no-op unless a probe sets `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
       const capabilityManifestPrefix = buildCapabilityManifestPrefix(resolveCapabilityManifestArm());
       prompt = assemblePromptWithPluginPrefix(prompt, capabilityManifestPrefix);
+
+      // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
+      // not have to go looking for. Not a tool, deliberately: a model that does not know it is
+      // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
+      // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
+      prompt = assemblePromptWithPluginPrefix(prompt, federationRefusalPrefix);
 
       const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle, routeDeps.workspaceId);
       if (pluginPromptPrefix === null) return;
@@ -1041,6 +1066,16 @@ async function start(): Promise<void> {
   // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
   // other route in this process.
   registerFederationAdmissionsRoute(app, { reports: federationAdmissionReports });
+
+  // The same snapshot, for the OTHER party that never heard the refusal. Built once here rather
+  // than per run: the admitted set is frozen at connect (`trust.ts` R5), so this text cannot change
+  // for this process's lifetime, and re-deriving it on every run would be recomputing a constant.
+  federationRefusalPrefix = buildFederatedRefusalPrefix(federationAdmissionReports);
+  if (federationRefusalPrefix !== "") {
+    console.warn(
+      `[agent-daemon] mcp-federation: ${federationRefusalPrefix.split("\n").filter((line) => line.startsWith("- ")).length} withheld external tool(s) will be reported to the model in every run's prompt`,
+    );
+  }
 
   /**
    * Registers every installed Agent Plugin as a real tool, so a plain `search_tools` reaches it the
