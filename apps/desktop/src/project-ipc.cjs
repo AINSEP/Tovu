@@ -151,9 +151,29 @@ async function handleCreate(input, deps) {
  * `openSites.delete` and `recordSiteClosed` are no-ops on an absent entry), so the double call is
  * harmless rather than a race.
  *
- * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents.
+ * **Runs through the SAME `serializer` key `handleStart` uses, and that is what makes the paragraph
+ * above true** (D-05/SEC-02). It used to be false for one interleaving: `openSiteServer` publishes
+ * into `openSites` only AFTER `startSiteBackend` resolves, and that can take the full
+ * `DEFAULT_READY_TIMEOUT_MS` (60s) while `tovu serve` boots. Start a site, go back to All, delete
+ * it, and the delete saw no entry, skipped the stop, and recursively erased the directory the child
+ * was booting in — then the start completed and published a running entry for a project that no
+ * longer existed. Serializing the two verbs against each other is the whole fix: the delete now
+ * queues behind the in-flight start and finds the entry it must stop.
+ *
+ * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
+ *   an already-queued operation on the same site takes to settle.
  */
 async function handleDelete(id, deps) {
+  await deps.serializer.run(id, () => deleteProject(id, deps));
+}
+
+/**
+ * {@link handleDelete}'s body, separated only so the serialized region is one named thing rather
+ * than an inline closure — everything here assumes it holds this site's serializer key.
+ *
+ * @complexity see {@link handleDelete}.
+ */
+async function deleteProject(id, deps) {
   const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -203,17 +223,26 @@ async function handleOpenExternal(input, deps) {
  * `port` this call just produced, and re-deriving it would mean a second `list` round trip for
  * every tab open.
  *
+ * The tracked-row check happens INSIDE the serialized region, not before it (D-05/SEC-02). Read
+ * outside, it answered a question about a moment that had already passed: a delete queued on the
+ * same key could untrack the row and erase the directory between the check and the spawn, and this
+ * would then start a `tovu serve` on a path that no longer exists. Inside, "is this project still
+ * tracked" is asked at the only instant its answer is still true when acted on.
+ *
  * @throws {Error} when `id` names a project this shell is not tracking — a stale id from a renderer
  *   that has not yet re-polled past a delete, refused rather than opening an arbitrary path.
- * @complexity O(1) beyond `openSiteServer`'s own cost.
+ * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
+ *   operation on the same site takes to settle.
  */
 async function handleStart(id, deps) {
-  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
-  if (row === undefined) {
-    throw new Error(`Unknown project: ${id}`);
-  }
-  await deps.serializer.run(id, () => deps.openSiteServer(id, deps.ctx));
-  return buildProjectRecord(row, deps);
+  return await deps.serializer.run(id, async () => {
+    const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
+    if (row === undefined) {
+      throw new Error(`Unknown project: ${id}`);
+    }
+    await deps.openSiteServer(id, deps.ctx);
+    return buildProjectRecord(row, deps);
+  });
 }
 
 /**

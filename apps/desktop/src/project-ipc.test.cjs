@@ -24,6 +24,7 @@ const {
 } = require("./project-ipc.cjs");
 const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } = require("./project-registry.cjs");
 const { classifySiteDir } = require("./site-dir-store.cjs");
+const { createKeyedSerializer } = require("./keyed-serializer.cjs");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
@@ -243,6 +244,55 @@ test("registerProjectIpcHandlers registers exactly the five real channels", () =
 // written against: `seedDevFallbackProject` tracks `<repo>/sites/tovu-com` — a git-tracked folder
 // holding a real 44 MB production database — and the Projects screen gives every card a two-click
 // delete. Nothing about that row said "the app did not make this".
+
+test("handleDelete waits for an in-flight handleStart on the same site instead of rm-ing under it", async () => {
+  // D-05/SEC-02. Start a site, then immediately delete it: the child spends up to
+  // DEFAULT_READY_TIMEOUT_MS (60s) booting before `openSiteServer` publishes it into `openSites`,
+  // so a delete that does not queue behind the start sees no entry, skips the stop, and erases the
+  // directory the `tovu serve` is booting in.
+  const siteDir = writeSite(path.join(tempDir(), "started-then-deleted"), "site-a");
+  const deps = baseDeps({ serializer: createKeyedSerializer() });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-a" });
+
+  const order = [];
+  let releaseBoot;
+  const booted = new Promise((resolve) => { releaseBoot = resolve; });
+  deps.openSiteServer = async (id) => {
+    order.push("boot:started");
+    await booted;
+    order.push(fs.existsSync(id) ? "boot:dir-present" : "boot:dir-ERASED");
+    deps.openSites.set(id, { server: { port: 4321, stop: async () => order.push("stopped") } });
+  };
+
+  const starting = handleStart(siteDir, deps);
+  const deleting = handleDelete(siteDir, deps);
+  releaseBoot();
+  await Promise.all([starting, deleting]);
+
+  assert.deepEqual(order, ["boot:started", "boot:dir-present", "stopped"]);
+  assert.equal(deps.openSites.has(siteDir), false);
+  assert.equal(fs.existsSync(siteDir), false, "the delete the operator confirmed still happens, just after the stop");
+});
+
+test("handleStart refuses a project that was deleted while its start was queued behind the delete", async () => {
+  // The reverse interleaving: `handleStart` used to validate the row OUTSIDE the serialized
+  // function, so a delete landing between the check and the spawn started a `tovu serve` for a
+  // directory that had just been erased.
+  const siteDir = writeSite(path.join(tempDir(), "deleted-then-started"), "site-a");
+  const deps = baseDeps({ serializer: createKeyedSerializer() });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-a" });
+
+  let spawned = false;
+  deps.openSiteServer = async () => { spawned = true; };
+  deps.openSites.set(siteDir, { server: { stop: async () => { await new Promise((r) => setTimeout(r, 20)); } } });
+
+  const deleting = handleDelete(siteDir, deps);
+  const starting = handleStart(siteDir, deps);
+
+  await deleting;
+  await assert.rejects(() => starting, /Unknown project/);
+  assert.equal(spawned, false, "no tovu serve may be spawned for an erased directory");
+});
 
 test("handleDelete does NOT erase a created project's path once a DIFFERENT site occupies it", async () => {
   // SEC-01/D-04 at the sink that actually calls `fs.rm`. The operator moved their site elsewhere and
