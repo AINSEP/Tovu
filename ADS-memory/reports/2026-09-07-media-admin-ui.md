@@ -10,11 +10,13 @@ Agent F. Branch `restructure/apps-website-phased`. Scope: `apps/admin/src/featur
 | 1 | Roughly double the media card size | DONE |
 | 2 | Eye icon on the card opens the edit form as a modal | DONE |
 | 3 | Check/fix mobile sizing after doubling | DONE |
-| 4 | Add "HTML attributes" field under "CSS class (optional)" | **NOT IMPLEMENTED — dropped by coordinator decision** (2026-09-07, after I flagged the cross-package gap). Being folded into a separate slug+HTML-attributes pipe one agent will own end to end. See "Touchpoints for the follow-up agent" below. |
+| 4 | Add "HTML attributes" field under "CSS class (optional)" | **FIELD NOT SHIPPED — dropped by coordinator decision** (2026-09-07). The allowlist VALIDATOR is kept, unwired, as a tested pure function for the follow-up to reuse. See "Item 4: built, reverted, validator restored" below. |
 
 Commits, in order: `bf41e81c` (items 1-3 + a first pass at item 4), `7664a7aa` (report v1),
-`a7cce060` (**reverted item 4** — see "Item 4 was built, then reverted" below). The tree as it
-stands now contains items 1-3 only.
+`a7cce060` (full revert of item 4 — field AND validator), `6bf4aece` (report v2), `046d1a47`
+(**restored the validator only** — `parseMediaHtmlAttributes` + its 24 tests, still with no UI
+field). The tree as it stands now has items 1-3 shipped in the UI, plus an unwired, tested
+validator in `rules.ts`.
 
 ## 1 & 3 — Card size + mobile
 
@@ -69,25 +71,50 @@ risk (see the repo's own "never bare stash/pop in a shared repo" rule). The prio
   opens the same form the row menu opens, inside a real `<dialog>`; exactly one shared
   `<dialog class="media-edit-dialog">` exists (not one per card).
 
-## Item 4 was built, then reverted
+## Item 4: built, reverted, validator restored
 
 I built the HTML attributes field, its admin-side allowlist validator, and its tests in commit
 `bf41e81c`, having flagged the cross-package gap to the coordinator (`main`) beforehand and gotten
-no objection to shipping it as validated-but-not-yet-persisted. The coordinator then reviewed and
-pulled it: **a field that renders, validates, and then silently doesn't persist is worse than no
-field** — a "not yet saved" hint is still a control surface that looks functional in a screenshot
-or a demo, and this shape is exactly what gets mistaken for working later. It was also identified
-as the same underlying job as a media-slug feature Leona separately asked for, which needs the
-identical three-file pipe crossed — the two should be built together by one agent that owns the
-whole thing, not stitched across three agents.
+no objection to shipping it as validated-but-not-yet-persisted. Two mid-flight "drop item 4"
+messages from the coordinator did not reach me before I shipped (a known limitation of this
+session's messaging, not something either of us missed), so the coordinator caught it on review
+instead and gave two reasons, in order of escalation:
 
-Commit `a7cce060` removes `MediaHtmlAttributesField`, `rules.ts`'s
-`parseMediaHtmlAttributes`/`isAllowedMediaHtmlAttributeName`/`describeMediaHtmlAttributeError` and
-supporting types, the `htmlAttributesText`/`htmlAttributesError` state in
-`use-edit-media-panel.hooks.ts`, and their tests. Re-verified live afterward (screenshot below) that
-the modal goes straight from "CSS class (optional)" to "File URL" again, with items 1-3 fully
-intact. `npx tsc --noEmit`: 0 errors. `npx eslint`: 0 errors, same 2 pre-existing warnings as
-before (see Verification below). Full `apps/admin/src/features/media/` suite: 105/105 passing.
+1. **A field that renders, validates, and names specific rejected attributes reads as working**,
+   even with an honest "not saved yet" hint under it. This is Leona's live admin, not a staging
+   surface — the field is the strongest signal in the UI regardless of the caveat beneath it.
+2. **Worse: it was blocking Save on fields that DO persist.** `use-edit-media-panel.hooks.ts`'s
+   `save()` returned early whenever `htmlAttributesText` failed the allowlist check, before
+   `diffMediaMetadata` ever ran — so an invalid value in a field that could not be saved under any
+   circumstances was able to prevent saving title/alt/caption/credit/width/height/cssClass, fields
+   that genuinely do persist. That is a functional regression on the working part of the form, not
+   just an honesty problem.
+
+It was also identified as the same underlying job as a media-slug feature Leona separately asked
+for, needing the identical three-file pipe crossed — assigned as one batched follow-up rather than
+stitched across agents (see Touchpoints below).
+
+**First pass (commit `a7cce060`)** removed everything: `MediaHtmlAttributesField`, the field's
+render site, the `htmlAttributesText`/`htmlAttributesError` state and its save-blocking flag, the
+allowlist validator itself (`parseMediaHtmlAttributes`/`isAllowedMediaHtmlAttributeName`/
+`describeMediaHtmlAttributeError`), and all 26 of the related tests (24 dedicated validator tests +
+2 in `Media.unit.test.tsx` asserting the field's presence in the form).
+
+**Second pass (commit `046d1a47`)**, after the coordinator clarified: the UI field, its state, and
+its save-blocking flag stay gone — but the validator itself is **restored**, because it is a pure
+function with no React/DOM dependency and its own direct-invoke tests, which is this repo's
+accepted shape for not-yet-wired code (the standing rule for an unreachable branch is "delete it,
+or give it a direct-invoke test" — this one already has the latter). Restored from `bf41e81c`
+unchanged except for a new header comment on `rules.ts`'s allowlist block and on the test file
+explaining, in place, why the validator exists with no caller: not wired to a form, why, and where
+the persistence pipe is tracked. `Media.tsx` and `use-edit-media-panel.hooks.ts` were NOT touched in
+this second pass — no field, no state, no save-blocking flag came back.
+
+Re-verified live after the first-pass revert (screenshot below) that the modal goes straight from
+"CSS class (optional)" to "File URL" again, with items 1-3 fully intact. `npx tsc --noEmit`: 0
+errors at every step. `npx eslint`: 0 errors throughout, same 2 pre-existing warnings as before (see
+Verification below). Full `apps/admin/src/features/media/` suite: 105/105 after the first-pass
+revert, **129/129 after the validator was restored** (105 + the 24 dedicated validator tests).
 
 ## Touchpoints for the follow-up agent (item 4 + the media-slug feature)
 
@@ -142,10 +169,14 @@ different app than `apps/admin`.
   `.../routes/site/pages.ts:931` shows the full existing wiring to extend.
 - I did not modify anything in this file or its callers — read-only confirmation only.
 
-## Recommendation carried forward from the reverted work: the HTML-attributes allowlist
+## The HTML-attributes allowlist: implemented and tested, deliberately unwired
 
-Not implemented, but worth starting from rather than redesigning. This is a stored-XSS boundary:
-media metadata is authored in admin, rendered on the public site via the emission point above.
+Live in `rules.ts` right now (not just a recommendation to rebuild) — `parseMediaHtmlAttributes`,
+`isAllowedMediaHtmlAttributeName`, `describeMediaHtmlAttributeError`, and 24 unit tests in
+`__tests__/media-html-attributes.unit.test.tsx`. No UI calls it. This is a stored-XSS boundary:
+media metadata is authored in admin, rendered on the public site via the emission point above. The
+follow-up agent should **import and reuse this**, at both the write path and the render path,
+rather than redesign it — the design decisions it already encodes:
 
 - **Allowlist, not a blocklist.** Permit exactly: the `data-*` and `aria-*` prefix families
   (open-ended, no fixed suffix list), plus an exact list — `loading`, `decoding`, `playsinline`,
@@ -161,26 +192,41 @@ media metadata is authored in admin, rendered on the public site via the emissio
   client actually ran it.
 - **Errors must name the exact rejected attribute or fragment** — "invalid input" is not
   actionable; "'onerror' is not an allowed HTML attribute" is.
-- A working pure-function parser (tokenizer + allowlist check + specific rejection reasons, plus 24
-  unit tests covering adversarial cases — mixed valid+invalid tokens, case variation, an allowed
-  name carrying a dangerous value, quote-style variation, boolean attributes, malformed fragments)
-  existed in `rules.ts` before the revert and is fully recoverable from commit `bf41e81c` if the
-  follow-up agent wants a starting point rather than a blank page — it has no React/DOM dependency,
-  so the same logic can run again at the write path and again at render time.
+- The 24 tests cover the adversarial cases that matter for a validator whose whole job is refusing
+  input: mixed valid+invalid tokens (first offender wins, nothing partially accepted), case
+  variation, an allowed name (`poster`) carrying a dangerous `javascript:` value, quote-style
+  variation, boolean attributes, malformed fragments.
+
+## Found but NOT fixed — flagged for a coordinator decision
+
+Agent H (working in `apps/admin/src/features/posts/**`, fixing a stale image-only MIME accept list
+there) audited for the same defect shape elsewhere and found a 4th instance live in this file, not
+touched by any of my commits:
+
+`Media.tsx:819` — the upload `<input>`'s `accept="image/jpeg,image/png,image/webp,image/gif,image/
+avif"` (label text at `:823` says the same five types) is missing `video/mp4`/`video/webm`, even
+though the server ceiling (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s `media-service.ts`) has
+accepted both since 2026-08-24 — this file's own `MediaTypeEmptyState` comment already documents
+that exact gap for the Videos tab. Agent H deliberately did not fix it (collision-avoidance with my
+in-progress work) and I did not fix it either, since it's outside the scope the coordinator gave me
+for this session and I was told to stand down after the item-4 correction — surfacing it here rather
+than silently expanding scope. Same fix shape as what Agent H just did for the post editor's
+`FILE_HANDLER_ALLOWED_MIME_TYPES`: widen the literal `accept` string (and the adjacent label) to
+include both video types. See Agent H's own `ADS-memory/reports/2026-09-07-media-animation-fix.md`.
 
 ## Verification
 
-- `apps/admin`: `npx tsc --noEmit` — 0 errors (repo baseline is 0; introduced none) both with item 4
-  present and after the revert.
-- `apps/admin`: `npx eslint` on all 4 changed files — 0 errors. 2 pre-existing
+- `apps/admin`: `npx tsc --noEmit` — 0 errors (repo baseline is 0; introduced none) at every stage:
+  item 4 present, after the full revert, and after restoring the validator.
+- `apps/admin`: `npx eslint` on every changed file — 0 errors throughout. 2 pre-existing
   `sonarjs/no-nested-conditional` warnings remain in `MediaPreview` (same shape as the file's
   pre-existing `expandButton` pattern; not introduced by this change, not blocking).
 - Tests: `env -u TOVU_ADMIN_PASSWORD npx vitest run` on the full `apps/admin/src/features/media/`
-  directory plus `request-volume.measurement.test.tsx` — **105 passed, 0 failed** after the revert
-  (includes the pre-existing 2026-08-12 stale-draft regression pin, unaffected by the modal
-  wrapper).
+  directory plus `request-volume.measurement.test.tsx` — 105/105 after the full revert, **129/129**
+  in the final state (105 + the 24 restored validator tests), 0 failed at either point (includes the
+  pre-existing 2026-08-12 stale-draft regression pin, unaffected by the modal wrapper).
 - Visual: live in the running dev admin (`https://localhost:5173`, already up, not restarted) via
   Playwright MCP — desktop 1280px, mobile 375px, the modal at both widths, the video tab, and
-  (post-revert) confirmation the HTML-attributes field is gone. Screenshots under
+  confirmation the HTML-attributes field is gone from the form. Screenshots under
   `ADS-memory/reports/assets/2026-09-07-media-admin-ui/`. One pre-existing, unrelated console error
   (`favicon.ico` 404) — not caused by this change.
