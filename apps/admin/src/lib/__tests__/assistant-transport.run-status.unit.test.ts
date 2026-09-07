@@ -7,6 +7,7 @@ import { useConversation } from "@jini-ai/chat/react";
 
 import { createTovuAssistantTransport, terminalFailureError } from "../assistant-transport";
 import { persistableMessages } from "../assistant-chats";
+import { shouldPublishOnMessagesChange } from "../../components/AssistantDock/hooks/AssistantDock.hooks";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 
 /**
@@ -147,6 +148,7 @@ describe("subscribeToRun — a daemon-classified failure reaches onError", () =>
 async function runOneTurnEndingWith(endPayload: Record<string, unknown>): Promise<{
   messages: ChatMessage[];
   assistant: ChatMessage;
+  isStreaming: boolean;
 }> {
   const transport: ChatTransport = createTovuAssistantTransport();
   const { result } = renderHook(() => useConversation({ transport }));
@@ -161,7 +163,7 @@ async function runOneTurnEndingWith(endPayload: Record<string, unknown>): Promis
 
   const messages = result.current.messages;
   const assistant = messages.find((m) => m.role === "assistant")!;
-  return { messages, assistant };
+  return { messages, assistant, isStreaming: result.current.isStreaming };
 }
 
 describe("what a dead run writes down (real useConversation, no mocks on the status path)", () => {
@@ -203,5 +205,32 @@ describe("what a dead run writes down (real useConversation, no mocks on the sta
   test("a canceled run is persisted as 'succeeded' today and must not silently become 'failed'", async () => {
     const { assistant } = await runOneTurnEndingWith({ status: "canceled", code: null, signal: "SIGTERM" });
     expect(assistant.runStatus).not.toBe("failed");
+  });
+
+  /**
+   * The failure this change could plausibly have traded the wrong record FOR: if `failed` were not
+   * already terminal, a failed run would settle nothing and the dock would spin forever waiting.
+   * Asserted against the two real consumers rather than against `isTerminalRunStatus` directly —
+   * a `failed` that is terminal in the predicate but mishandled by a caller would still hang, and
+   * the predicate alone cannot show that.
+   */
+  test("a failed run settles the pane and the dock — no wrong record traded for a stuck UI", async () => {
+    const { messages, assistant, isStreaming } = await runOneTurnEndingWith({
+      status: "failed",
+      code: 1,
+      signal: null,
+      resumable: false,
+    });
+
+    // `useConversation.isStreaming` is what `ChatPane` reads to keep the composer disabled and the
+    // streaming indicator up.
+    expect(isStreaming).toBe(false);
+
+    // `AssistantDock.hooks.tsx`'s real settlement gate — the settings/content refresh buses fire
+    // exactly once per finished run, and a run that never counts as finished never releases them.
+    expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null })).toEqual({
+      publish: true,
+      nextSettledRunMessageId: assistant.id,
+    });
   });
 });
