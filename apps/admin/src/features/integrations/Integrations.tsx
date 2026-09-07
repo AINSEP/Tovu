@@ -45,7 +45,7 @@ function IntegrationCreateForm(props: {
 }) {
   const { locale } = props;
   return (
-    <form onSubmit={props.onSubmit} className="notice integrations-form">
+    <form onSubmit={props.onSubmit} className="notice integrations-form form-measure">
       {props.formError ? <span className="save-error">{props.formError}</span> : null}
       <label>
         {t(locale, "Label")}

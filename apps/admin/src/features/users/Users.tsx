@@ -81,7 +81,7 @@ interface NewUserFormProps {
 /** The "New user" form — extracted from `Users` verbatim; own scope for `formError`/`saving`. */
 function NewUserForm({ username, setUsername, email, setEmail, password, setPassword, saving, formError, onCreate, t }: NewUserFormProps) {
   return (
-    <form onSubmit={onCreate} className="notice integrations-form">
+    <form onSubmit={onCreate} className="notice integrations-form form-measure">
       {formError ? <span className="save-error">{formError}</span> : null}
       <label>
         {t("Username")}
