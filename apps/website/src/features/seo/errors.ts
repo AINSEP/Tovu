@@ -15,3 +15,15 @@ export class SeoFieldValidationError extends Error {}
 export class SeoInvalidCanonicalUrlError extends Error {}
 export class SeoEntryNotFoundError extends Error {}
 export class SeoSettingsValidationError extends Error {}
+/**
+ * A concurrent write kept an SEO override from landing (2026-09-07, fable bugs audit SEO-01).
+ *
+ * `setEntrySeoOverrides` writes the whole `posts` row, so it now writes it under a version
+ * predicate and re-reads/re-merges when another writer wins the row. This error is what remains
+ * after that bounded retry is exhausted — a row being rewritten faster than this chokepoint can
+ * merge onto it. Deliberately its own class rather than reusing `features/post`'s
+ * `PostVersionConflictError`: no SEO caller states a version basis, so there is no basis to report
+ * back and nothing for the client to reconcile — the honest answer is "retry", not "your version
+ * was N and theirs is M".
+ */
+export class SeoConcurrentWriteError extends Error {}

@@ -33,6 +33,7 @@ export { resolveSeoImageRef, type ResolveSeoImageRefDeps, type ResolveSeoImageRe
 export { createSeoPageHeadHook } from "./page-head-contributor.js";
 export { toAbsoluteUrl, resolveWorkspaceOrigin } from "./absolute-url.js";
 export {
+  SeoConcurrentWriteError,
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,

@@ -1,6 +1,7 @@
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { PostRepoPort } from "../post/index.js";
 import {
+  SeoConcurrentWriteError,
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
@@ -189,6 +190,72 @@ export interface SetEntrySeoOverridesRequired {
   input: SetEntrySeoOverridesInput;
 }
 
+/**
+ * How many times the read-merge-write below will re-read a row another writer won underneath it.
+ *
+ * Three, not one, because a single retry is indistinguishable from luck, and not "until it lands",
+ * because an unbounded loop against a hot row is a request that never returns. A row rewritten
+ * three times inside the microtask gaps of one SEO write is not contention, it is something wrong.
+ */
+const MAX_MERGE_ATTEMPTS = 3;
+
+/**
+ * The SEO chokepoint's whole write: read the row, merge the patch onto whatever it currently holds,
+ * and persist it ONLY while it is still the row that was read.
+ *
+ * Why the predicate (2026-09-07, fable bugs audit SEO-01): this writes the WHOLE row — it is a
+ * `PostRecord` spread, not a one-column UPDATE — so an unconditional `save()` here rewrites
+ * `bodyJson`, `title` and `status` with whatever they were when this function read them. A content
+ * save that landed in the gap was silently reverted by an operator editing a meta description, and
+ * the SEO write reported success. `saveIfVersion` refuses that write instead.
+ *
+ * Why a retry rather than a conflict error: unlike `updatePost`, no SEO caller states a version
+ * basis, so there is nobody to hand a 409 to and nothing for them to reconcile — the patch is a
+ * merge, and re-reading simply merges it onto newer content, which is what the caller asked for.
+ * The caller-visible outcome on a contended row is therefore unchanged (success); what changed is
+ * that it no longer takes the other writer's content down with it.
+ *
+ * Note this DOES still bump `version` on an SEO-only change, which makes an open editor's autosave
+ * basis stale (`PostRepoPort.writeAutosave`'s predicate) and can 409 its next explicit Save. That
+ * is pre-existing behaviour and deliberately unchanged here — it is a contract question about what
+ * `posts.version` means, not a concurrency bug.
+ *
+ * @throws SeoEntryNotFoundError when the entry does not exist (or is deleted mid-retry).
+ * @throws SeoConcurrentWriteError when {@link MAX_MERGE_ATTEMPTS} reads all lost the row.
+ * @complexity O(attempts) queries, one read + one conditional write each; one of each in the
+ * uncontended case.
+ */
+async function mergeOverridesOntoCurrentRow(
+  postRepo: PostRepoPort,
+  input: SetEntrySeoOverridesInput
+): Promise<SeoExtFields> {
+  for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt += 1) {
+    const existing = await postRepo.findById({ workspaceId: input.workspaceId, id: input.entryId });
+    if (!existing) {
+      throw new SeoEntryNotFoundError(`entry '${input.entryId}' was not found`);
+    }
+
+    const currentOverrides: SeoExtFields = existing.seoExtJson ? JSON.parse(existing.seoExtJson) : {};
+    const mergedOverrides: SeoExtFields = applyOverridesPatch(currentOverrides, input.patch);
+
+    const { applied } = await postRepo.saveIfVersion({
+      record: {
+        ...existing,
+        // Zero remaining keys returns the row to its true original state (`NULL`), not a leftover
+        // `"{}"` — see file header.
+        seoExtJson: Object.keys(mergedOverrides).length === 0 ? null : JSON.stringify(mergedOverrides),
+        version: existing.version + 1,
+      },
+      ifVersion: existing.version,
+    });
+    if (applied) return mergedOverrides;
+  }
+
+  throw new SeoConcurrentWriteError(
+    `entry '${input.entryId}' is being written by another save; the SEO overrides were not applied`
+  );
+}
+
 /** REQ-01/02/03 chokepoint write: authorize -> validate -> merge -> save -> conditional cache invalidation. */
 export async function setEntrySeoOverrides(
   required: SetEntrySeoOverridesRequired
@@ -212,21 +279,7 @@ export async function setEntrySeoOverrides(
 
   validateSeoExtFieldsPatch(input.patch as Record<string, unknown>);
 
-  const existing = await deps.postRepo.findById({ workspaceId: input.workspaceId, id: input.entryId });
-  if (!existing) {
-    throw new SeoEntryNotFoundError(`entry '${input.entryId}' was not found`);
-  }
-
-  const currentOverrides: SeoExtFields = existing.seoExtJson ? JSON.parse(existing.seoExtJson) : {};
-  const mergedOverrides: SeoExtFields = applyOverridesPatch(currentOverrides, input.patch);
-
-  await deps.postRepo.save({
-    ...existing,
-    // Zero remaining keys returns the row to its true original state (`NULL`), not a leftover
-    // `"{}"` — see file header.
-    seoExtJson: Object.keys(mergedOverrides).length === 0 ? null : JSON.stringify(mergedOverrides),
-    version: existing.version + 1,
-  });
+  const mergedOverrides = await mergeOverridesOntoCurrentRow(deps.postRepo, input);
 
   if (touchesSitemapEligibility(input.patch as Record<string, unknown>)) {
     deps.invalidateSitemapCache({ workspaceId: input.workspaceId });

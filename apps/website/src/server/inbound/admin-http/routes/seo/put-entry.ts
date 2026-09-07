@@ -1,6 +1,7 @@
 import {
   getEntryMeta,
   setEntrySeoOverrides,
+  SeoConcurrentWriteError,
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
@@ -21,6 +22,12 @@ function seoPutEntryErrorResponse(err: unknown): { status: number; body: { error
   }
   if (err instanceof SeoEntryNotFoundError) {
     return { status: 404, body: { error: err.message, code: "SEO_ENTRY_NOT_FOUND" } };
+  }
+  // 409, not the generic 500 below: the request was well-formed and authorized, it simply lost the
+  // row to another writer three times running. Resending it is the correct next move, which is the
+  // one thing a 500 would not tell the caller (2026-09-07, fable bugs audit SEO-01).
+  if (err instanceof SeoConcurrentWriteError) {
+    return { status: 409, body: { error: err.message, code: "SEO_CONCURRENT_WRITE" } };
   }
   return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
 }
