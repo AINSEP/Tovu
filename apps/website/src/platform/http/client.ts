@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+import { EgressRefusedError } from "./errors.js";
 import { FetchHttpTransportAdapter } from "./transport.fetch.js";
 import type { EgressPolicy, HttpClientPort, HttpTransportAdapter } from "./ports.js";
 import type { CreateHttpClient } from "./ports.js";
@@ -23,6 +24,12 @@ import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
  *   wire I/O only.
  * - `Integrations`/Newsletter/Analytics all import `createHttpClient`, never the raw transport
  *   (enforced by `__tests__/import-boundary.test.ts`).
+ *
+ * Every one of those pre-connect refusals throws `./errors.ts`'s `EgressRefusedError`, never a bare
+ * `Error` — see that file for why the distinction is load-bearing at a consumer's boundary. A DNS
+ * failure, a connect timeout, and a transport error deliberately stay untyped: they are not
+ * decisions this process made, and a consumer must not report them as though a different URL fixes
+ * them.
  */
 
 /** Address classification used to decide whether `EgressPolicy.denyPrivateAddresses` blocks a target. */
@@ -205,13 +212,13 @@ function isCrossOrigin(a: URL, b: URL): boolean {
   return a.protocol !== b.protocol || a.hostname !== b.hostname || a.port !== b.port;
 }
 
-/** @throws {Error} on a disallowed scheme, or on credentials embedded in the target URL. */
+/** @throws {EgressRefusedError} on a disallowed scheme, or on credentials embedded in the target URL. */
 function assertAllowedTarget(url: URL, policy: EgressPolicy): void {
   if (!policy.allowedSchemes.includes(url.protocol.replace(":", ""))) {
-    throw new Error(`scheme '${url.protocol}' is not in the allowed egress schemes`);
+    throw new EgressRefusedError(`scheme '${url.protocol}' is not in the allowed egress schemes`);
   }
   if (url.username || url.password) {
-    throw new Error("credentials embedded in the target URL are not allowed");
+    throw new EgressRefusedError("credentials embedded in the target URL are not allowed");
   }
 }
 
@@ -234,12 +241,12 @@ async function resolveHostAddresses(hostname: string): Promise<string[]> {
   return resolved.map((entry) => entry.address);
 }
 
-/** @throws {Error} naming the first non-public resolved address, per {@link classifyAddress}. */
+/** @throws {EgressRefusedError} naming the first non-public resolved address, per {@link classifyAddress}. */
 function assertNoPrivateAddress(hostname: string, addresses: readonly string[]): void {
   for (const address of addresses) {
     const addressClass = classifyAddress(address);
     if (addressClass !== "public") {
-      throw new Error(`egress to '${hostname}' (${address}) rejected: resolved address is ${addressClass}`);
+      throw new EgressRefusedError(`egress to '${hostname}' (${address}) rejected: resolved address is ${addressClass}`);
     }
   }
 }

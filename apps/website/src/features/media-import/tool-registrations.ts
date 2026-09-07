@@ -13,7 +13,10 @@ import {
 } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import type { HttpClientPort } from "#src/platform/http/index";
+// `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
+// the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
+// anything; see {@link isImportShapeRejection}.
+import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
   sniffContentType,
@@ -78,6 +81,42 @@ const CATALOG_BY_ID = indexCatalogById(mediaImportAgentToolCatalog);
 const DOMAIN = "media-import";
 
 /**
+ * Decides which of this tool's rejections are the CALLER's to fix — the predicate
+ * `withSchemaOnRejection` turns into a `ToolInputError`, which `@jini-ai/daemon`'s `ToolExecutor`
+ * tags `errorKind: 'validation'` and `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` answers as a
+ * `400 BAD_REQUEST` carrying the message, instead of SEC-005-redacting it into a bare
+ * `INTERNAL_ERROR`.
+ *
+ * Two classes, for one reason each:
+ *
+ * - `MediaImportValidationError` — a bad scheme, a non-200, bytes that are not an importable image.
+ * - `EgressRefusedError` — the egress policy refused the target: a non-public resolved address
+ *   (`169.254.169.254` and friends), a disallowed scheme, or credentials in the URL, on the first
+ *   hop or any re-verified redirect. Added 2026-09-07 (SEC-05): it was previously unclassified, so
+ *   every SSRF block — the guard doing precisely its job — reached the operator and the model as
+ *   "an internal error occurred", with the reason stripped and the audit row recording a crash
+ *   rather than a block. Hours of live debugging went into that message.
+ *
+ * The marker is the honest classification for both, not a trick to defeat the redaction: it means
+ * "the caller's input was the problem and a different input would fix it", and a different
+ * (publicly reachable) URL does fix an egress refusal. Its message names only the host the caller
+ * already supplied, the address it resolved to, and the classification — see `EgressRefusedError`'s
+ * own doc for why that is safe to surface. Same precedent as `features/post`'s
+ * `PostVersionConflictError` and `features/media`'s `AttachmentRejectedError` re-classifications.
+ *
+ * Deliberately NOT widened to "anything the HTTP client threw": a DNS failure, a connect timeout,
+ * or a transport error are not decisions this process made, a different URL does not reliably fix
+ * them, and their text can carry internal detail. Those keep the redacted-`internal` path, which
+ * `assistant/__tests__/tool-registrations.media-import-egress-refusal.integration.test.ts` pins
+ * with a negative control alongside the positive ones.
+ *
+ * @complexity O(1) — two `instanceof` checks.
+ */
+function isImportShapeRejection(error: unknown): boolean {
+  return error instanceof MediaImportValidationError || error instanceof EgressRefusedError;
+}
+
+/**
  * This wiring layer's OWN risk classification, authored from what the one handler below actually
  * calls — see `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
  * `sideEffects` declaration.
@@ -117,7 +156,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.upload", entityType: "media" });
 
       return withSchemaOnRejection(
-        { toolId: "media_import_from_url", catalog: CATALOG_BY_ID, isShapeRejection: (error) => error instanceof MediaImportValidationError },
+        { toolId: "media_import_from_url", catalog: CATALOG_BY_ID, isShapeRejection: isImportShapeRejection },
         async () => {
           const fetched = await fetchImage({ httpClient: routeDeps.mediaImportHttpClient }, { url });
 

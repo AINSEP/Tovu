@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { classifyAddress, createHttpClient } from "../client.js";
+import { EgressRefusedError } from "../errors.js";
 import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports.js";
 import type { HttpTransportAdapter } from "../ports.js";
 
@@ -504,4 +505,90 @@ test("a 3xx with no Location header reports its own URL rather than stalling on 
   const response = await client.send(makeRequest({ url: "https://8.8.8.8/no-location" }));
 
   assert.equal(response.finalUrl, "https://8.8.8.8/no-location");
+});
+
+// -------------------------------------------------------------------------------------------
+// Refusals are a distinguishable TYPE, not a message string (2026-09-07, SEC-05)
+//
+// Every assertion in this block is about `instanceof EgressRefusedError`, not about the message.
+// The messages themselves are already asserted verbatim above; what these add is the property a
+// consumer at a tool or HTTP boundary actually needs, and the one the block below proves the
+// absence of: that a policy REFUSAL can be told apart from a transport failure without parsing
+// prose. `features/media-import/tool-registrations.ts` reported every SSRF block as a redacted
+// `INTERNAL_ERROR` for exactly as long as this type did not exist.
+// -------------------------------------------------------------------------------------------
+
+test("a private-address refusal is an EgressRefusedError, recognisable by type and not merely by message", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const error = await client.send(makeRequest({ url: "https://169.254.169.254/latest/meta-data/" })).then(
+    () => null,
+    (e: unknown) => e
+  );
+
+  assert.ok(error instanceof EgressRefusedError, `expected EgressRefusedError, got ${(error as Error)?.constructor?.name}`);
+  assert.equal(
+    error.message,
+    "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local",
+    "the reason must survive the typing — a typed error with a blanked message would be the same defect in a new shape"
+  );
+  assert.equal(transport.calls.length, 0);
+});
+
+test("a disallowed-scheme refusal is an EgressRefusedError", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https"] }) });
+
+  const error = await client.send(makeRequest({ url: "http://example.com/" })).then(
+    () => null,
+    (e: unknown) => e
+  );
+
+  assert.ok(error instanceof EgressRefusedError, `expected EgressRefusedError, got ${(error as Error)?.constructor?.name}`);
+  assert.equal(error.message, "scheme 'http:' is not in the allowed egress schemes");
+});
+
+test("an embedded-credentials refusal is an EgressRefusedError", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const error = await client.send(makeRequest({ url: "https://user:pass@example.com/" })).then(
+    () => null,
+    (e: unknown) => e
+  );
+
+  assert.ok(error instanceof EgressRefusedError, `expected EgressRefusedError, got ${(error as Error)?.constructor?.name}`);
+  assert.equal(error.message, "credentials embedded in the target URL are not allowed");
+});
+
+test("a refusal on a REDIRECT hop is typed too — the re-verification arm is not a second, untyped code path", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://169.254.169.254/steal" }, bodyText: "" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const error = await client.send(makeRequest({ url: "https://8.8.8.8/start" })).then(
+    () => null,
+    (e: unknown) => e
+  );
+
+  assert.ok(error instanceof EgressRefusedError, `expected EgressRefusedError, got ${(error as Error)?.constructor?.name}`);
+  assert.match(error.message, /resolved address is link-local/);
+});
+
+test("a DNS failure is NOT an EgressRefusedError — the type must mean 'this process refused', not 'the request did not succeed'", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  // `.invalid` is reserved by RFC 2606 and never resolves, so this is a genuine lookup failure and
+  // not a policy decision. A type that swallowed this too would let a real outage be reported to a
+  // model as "supply a different URL", which is the inverse of the bug being fixed.
+  const error = await client.send(makeRequest({ url: "https://nonexistent-host.invalid/" })).then(
+    () => null,
+    (e: unknown) => e
+  );
+
+  assert.ok(error instanceof Error);
+  assert.equal(error instanceof EgressRefusedError, false, `a DNS failure must not be typed as a refusal (got ${(error as Error).message})`);
 });
