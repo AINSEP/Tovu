@@ -7,8 +7,14 @@ import { InternalError } from "./errors.js";
 
 /**
  * @file The `content.db` half of `duplicateSite` (SPEC-003 sibling operation, 2026-09-05) — a
- * physically consistent, WAL-safe copy of one site's content database with conversation/session
- * history excluded BY CONSTRUCTION rather than by a hand-maintained exclusion list.
+ * physically consistent, WAL-safe copy of one site's content database with every table `schema.ts`
+ * does not declare purged BY CONSTRUCTION rather than by a hand-maintained exclusion list.
+ *
+ * READ THIS BEFORE TRUSTING IT WITH CHAT HISTORY. Everything below is scoped to the TABLES inside
+ * one `content.db` file. It cannot see, and never could, the site directory around that file. Since
+ * the chat/session split (`0fb84ae0`) conversation history lives in a SIBLING `<siteDir>/chat.db`,
+ * so keeping a duplicated SITE free of the source's chat history is `site-dir/layout.ts`'s job —
+ * its portable allowlist does not name `chat.db` — not this file's.
  *
  * WHY NOT A PLAIN FILESYSTEM COPY. This repo runs `journal_mode = WAL` (`sqlite/content-db.ts`'s
  * `openContentDb`) — a `.db` file's bytes are not the whole story once WAL is in play; committed
@@ -21,30 +27,29 @@ import { InternalError } from "./errors.js";
  * from a READ-ONLY open of the source (`openContentDbReadOnly`), so duplicating a site can never be
  * the thing that mutates it.
  *
- * WHY CHAT/SESSION HISTORY IS EXCLUDED "BY CONSTRUCTION". The owner's requirement is that
- * duplicating a client's site must never carry its chat history along. The three tables that hold
- * that history (`ai_chats`, `ai_chat_messages`, `assistant_agent_sessions`) are raw SQL — never
- * declared in `db/schema.ts` — precisely because `db/migration/manifest.ts`'s own
- * `RAW_SQL_MANAGED_TABLES` registry already documents this (see that file's own header). Rather than
- * re-deriving a THIRD hand-maintained "these are the chat tables" list here (this repo has already
- * paid for that mistake once — see `development/scripts/seed-site.mjs`'s `PRUNE_TABLES`, a
- * hand-maintained exclude-list this file deliberately does NOT imitate), this module inverts the
- * direction: it builds an ALLOWLIST of every table `schema.ts` actually declares
- * (`collectCoreTables()` — the exact same introspection `schema-migration-drift.test.ts` and the
- * Postgres-migration manifest already trust as the one source of truth for "what is real content"),
- * plus the small set of infrastructure `schema.ts` never declares on purpose (the migrator's own
- * bookkeeping table, SQLite's internal catalog, and the FTS5 search-index objects `DERIVED_OBJECTS`
- * already documents as rebuildable-not-authored), and purges every OTHER table's rows.
+ * WHY UNDECLARED TABLES ARE PURGED "BY CONSTRUCTION". The tables that hold conversation history
+ * (`ai_chats`, `ai_chat_messages`, `assistant_agent_sessions`) are raw SQL — never declared in
+ * `db/schema.ts` — precisely because `db/migration/manifest.ts`'s own `RAW_SQL_MANAGED_TABLES`
+ * registry already documents this (see that file's own header). Rather than re-deriving a THIRD
+ * hand-maintained "these are the chat tables" list here (this repo has already paid for that
+ * mistake once — see `development/scripts/seed-site.mjs`'s `PRUNE_TABLES`, a hand-maintained
+ * exclude-list this file deliberately does NOT imitate), this module inverts the direction: it
+ * builds an ALLOWLIST of every table `schema.ts` actually declares (`collectCoreTables()` — the
+ * exact same introspection `schema-migration-drift.test.ts` and the Postgres-migration manifest
+ * already trust as the one source of truth for "what is real content"), plus the small set of
+ * infrastructure `schema.ts` never declares on purpose (the migrator's own bookkeeping table,
+ * SQLite's internal catalog, and the FTS5 search-index objects `DERIVED_OBJECTS` already documents
+ * as rebuildable-not-authored), and purges every OTHER table's rows.
  *
- * The three chat/session tables are never named anywhere in this file. That is the point: if the
- * concurrent chat/session split into a separate `chat.db` lands, those three tables simply stop
- * existing in `content.db` and this file purges nothing for them (there is nothing left to purge) —
- * still correct, with zero code change here. If a future engineer adds a FOURTH raw-SQL table to
- * `content.db` without a `schema.ts` declaration, it is purged from every duplicate by default
- * (the conservative failure mode for a "make me a copy of this site" operation) until someone
- * deliberately reviews it into either `schema.ts` (making it real content) or this module's own
- * `isKeptInfrastructureTable` (making it recognized infrastructure) — never a duplicate that
- * silently, structurally, keeps something like it.
+ * No table is named anywhere in this file. That is what let the chat/session split land without a
+ * change here: whatever those three tables still hold in a given `content.db` is purged because
+ * `schema.ts` does not declare them, and in a post-split database written by the current runtime
+ * they simply hold nothing. It is also why a FOURTH raw-SQL table added to `content.db` without a
+ * `schema.ts` declaration is purged from every duplicate by default (the conservative failure mode
+ * for a "make me a copy of this site" operation) until someone deliberately reviews it into either
+ * `schema.ts` (making it real content) or this module's own `isKeptInfrastructureTable` (making it
+ * recognized infrastructure) — never a duplicate that silently, structurally, keeps something like
+ * it. What it does NOT do is follow chat history OUT of this file: see the header note above.
  *
  * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Depends on
  * `db/migration/manifest.ts` and `db/sqlite/content-db.ts` only, both already `site-dir`-reachable
@@ -118,8 +123,8 @@ export interface DuplicateContentDbRequired {
 
 /**
  * Produces a physically consistent copy of `sourceDbPath` at `targetDbPath`, with every table that
- * is not declared real content (chat/session history today, whatever else is raw SQL tomorrow)
- * purged — see this file's own header for the full design.
+ * is not declared real content purged — see this file's own header for the full design, and for
+ * why this says nothing about the `chat.db` sibling next to `sourceDbPath`.
  *
  * @throws {InternalError} `VACUUM INTO` failing (e.g. `targetDbPath` already exists, or the parent
  *   directory is not writable), or the purged copy failing `integrity_check` — surfaced with the

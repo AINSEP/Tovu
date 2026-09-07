@@ -5,6 +5,7 @@ import path from "node:path";
 import { duplicateContentDb } from "./duplicate-content-db.js";
 import { InternalError, SiteDirInvalidError } from "./errors.js";
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
+import { CONTENT_DB_FILENAME, isPortableSiteEntry } from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
@@ -15,22 +16,25 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * existing site directory under a new identity, for the "a designer/developer wants one site per
  * client" workflow (`listSites`/`createSite`'s own product framing, `site-registry.ts`).
  *
- * WHAT GETS COPIED, AND WHY THIS IS DATA-DRIVEN RATHER THAN A HARDCODED DIRECTORY LIST. A site dir
- * is a portable folder (`site-root.ts`'s own doc: "owns its own `content.db`, `uploads/`, `themes/`,
- * `skills/`, `agent-plugins/` and journals") — `initSite` only ever CREATES `uploads/`, `plugins/`,
- * `overrides/`, and a seeded `themes/`, but a real site can grow other top-level entries later
- * (`features/skills/layout.ts`'s `skills/`, `features/agent-plugins/layout.ts`'s `agent-plugins/`,
- * a future journal directory) that this function has no reason to know about by name. Rather than
- * hand-list every directory a site might ever contain — the same maintenance trap
- * `duplicate-content-db.ts`'s own header rejects for table names — {@link copyPortableEntries}
- * copies EVERY top-level entry under the source except the three that need special handling
- * (`content.db` and its WAL/SHM sidecars, `config.json`, `.site-meta.json`), so a directory this
- * file has never heard of is still carried over correctly.
+ * WHAT GETS COPIED, AND WHY IT IS AN ALLOWLIST. A site dir is a portable folder (`site-root.ts`'s
+ * own doc: "owns its own `content.db`, `uploads/`, `themes/`, `skills/`, `agent-plugins/` and
+ * journals") — but it is ALSO where that site's database sidecars, backups, restore-point
+ * snapshots, operational journals and publish output accumulate, every one of them private to the
+ * SOURCE. {@link copyPortableEntries} therefore copies only the top-level entries `layout.ts`
+ * names as portable, and leaves everything else — known or unknown — behind.
+ *
+ * This function originally did the opposite: it copied every top-level entry EXCEPT a short list of
+ * names, and shipped the source's `chat.db`, its `.bak` databases and its `restore-point-*.db`
+ * snapshots into every duplicate as a result. See `layout.ts`'s own header for that incident and
+ * for what an allowlist costs.
  *
  * WHAT NEVER GETS COPIED VERBATIM, AND WHY:
  * - `content.db` — delegated to {@link duplicateContentDb}: a WAL-mode SQLite file's bytes are not
- *   the whole story (see that module's own header), and chat/session history must never ride along
- *   (excluded there BY CONSTRUCTION, not by a list this file would have to remember to update).
+ *   the whole story (see that module's own header), and every table `schema.ts` does not declare is
+ *   purged from the copy rather than named in a list. Note the boundary that purge does NOT cross:
+ *   since the chat/session split, conversation history lives in a SIBLING `chat.db` file, outside
+ *   any table `duplicateContentDb` can see. Chat history stays out of a duplicate because `chat.db`
+ *   is not on `layout.ts`'s portable allowlist — a directory-level fact, not a database-level one.
  * - `content.db-wal` / `content.db-shm` — the source's OWN transient sidecars. Copying them
  *   verbatim next to a freshly `VACUUM INTO`'d target would either be stale (frames already folded
  *   into the copy) or actively wrong (frames belonging to a database the target no longer matches
@@ -41,16 +45,17 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  *   is a live-traffic footgun this function refuses to create silently. A caller who genuinely wants
  *   either carried over sets it explicitly after duplicating, the same as after `createSite`.
  * - `.site-meta.json` — THE SCHEMA-STAMP TRAP. This function performs no migration of its own; the
- *   `content.db` it ships is a byte-for-byte (minus chat history) copy of the SOURCE's database at
- *   whatever schema state it was actually in. Stamping the RUNTIME's bundled migration identity
- *   here (the way `initSite` correctly does for a BRAND NEW, freshly-migrated db) would be a LIE
- *   about a database this function did not migrate — and `compareSchemaVersion` believing that lie
- *   on the duplicate's first `tovu serve` either skips a migration the copied data still needs, or
- *   throws `SiteNewerThanRuntimeError` for a divergence that was never real. The only stamp that is
- *   actually true of this copy is the SOURCE's own `schemaVersion`/`schemaTag`/`templateId`/
- *   `templateVersion`, read via {@link readSiteDir} before anything is written, so this function
- *   carries them forward verbatim. `siteId` is the one field that must NEVER be copied — two site
- *   directories sharing an id is a distinct bug this function does not introduce.
+ *   `content.db` it ships is a copy of the SOURCE's database — minus every table `schema.ts` does
+ *   not declare — at whatever schema state that database was actually in. Stamping the RUNTIME's
+ *   bundled migration identity here (the way `initSite` correctly does for a BRAND NEW, freshly-
+ *   migrated db) would be a LIE about a database this function did not migrate — and
+ *   `compareSchemaVersion` believing that lie on the duplicate's first `tovu serve` either skips a
+ *   migration the copied data still needs, or throws `SiteNewerThanRuntimeError` for a divergence
+ *   that was never real. The only stamp that is actually true of this copy is the SOURCE's own
+ *   `schemaVersion`/`schemaTag`/`templateId`/`templateVersion`, read via {@link readSiteDir} before
+ *   anything is written, so this function carries them forward verbatim. `siteId` is the one field
+ *   that must NEVER be copied — two site directories sharing an id is a distinct bug this function
+ *   does not introduce.
  *
  * Cleanup-on-failure and the empty/absent-target refusal reuse `init-site.ts`'s own
  * {@link cleanupAndRethrow}/{@link validateInitTarget}/`InitDirNotEmptyError` verbatim (exported
@@ -65,38 +70,29 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * raw `targetDir` argument (INV-01, mirrors `initSite`'s identical discipline).
  */
 
-const CONTENT_DB_FILENAME = "content.db";
-const CONTENT_DB_SIDECAR_SUFFIXES = ["-wal", "-shm"] as const;
-
-/** True for `content.db` itself or one of its WAL-mode sidecar files — see this file's own header
- *  for why none of the three is ever part of the generic directory copy below. */
-function isContentDbArtifact(entryName: string): boolean {
-  return (
-    entryName === CONTENT_DB_FILENAME ||
-    CONTENT_DB_SIDECAR_SUFFIXES.some((suffix) => entryName === `${CONTENT_DB_FILENAME}${suffix}`)
-  );
-}
-
-/** The two JSON marker files this function regenerates itself rather than copying — see this
- *  file's own header for `config.json`/`.site-meta.json`'s own paragraphs. */
-const REGENERATED_ENTRY_NAMES = new Set(["config.json", ".site-meta.json"]);
-
 /**
- * Copies every top-level entry of `source` into `target` EXCEPT the three names this function
- * regenerates or delegates elsewhere (`content.db` + sidecars, `config.json`, `.site-meta.json`).
- * Data-driven over the source's real directory listing — see this file's own header for why that is
- * deliberate rather than a hardcoded `uploads`/`themes`/`plugins`/`overrides` list.
+ * Copies the source's portable top-level entries — and only those — into `target`, per
+ * `layout.ts`'s {@link isPortableSiteEntry}. Everything else the source directory holds, including
+ * entries neither file has ever heard of, is left behind; see `layout.ts`'s own header for why
+ * that direction is deliberate rather than a hardcoded `uploads`/`themes` shortlist.
  *
+ * @param onBeforeFirstWrite - invoked once, immediately before the FIRST entry is copied, and not
+ *   at all when the source has no portable entries. `fs.cpSync` is not atomic: it creates the
+ *   destination directory and copies into it incrementally, so from that call onward `target` may
+ *   hold a partial tree even if the copy then throws. The caller flips its `wroteAnything` flag
+ *   here rather than after the loop so `cleanupAndRethrow` actually removes such a partial — the
+ *   contract `init-site.ts` states, and the reason this is a callback rather than a return value
+ *   (a failure mid-loop means no return value ever arrives).
  * @throws {InternalError} the source directory cannot be listed (surfaced rather than silently
- *   copying nothing), or whatever `fs.cpSync` throws for a real copy failure (e.g. a broken symlink,
- *   a permission-denied entry) — never swallowed, since a duplicate missing an upload silently is
- *   worse than one that fails loudly.
- * @complexity O(n) in the source directory's own top-level entry count, each a recursive
- *   `fs.cpSync` bounded by that entry's own on-disk size — never a function of any single request's
- *   input; this is a filesystem operation over an operator's existing site, the same profile
- *   `initSite`'s own `seedSiteThemes()` call already has.
+ *   copying nothing), or whatever `fs.cpSync` throws for a real copy failure (e.g. a permission-
+ *   denied entry) — never swallowed, since a duplicate silently missing an upload is worse than
+ *   one that fails loudly.
+ * @complexity O(n) in the source directory's own top-level entry count, each portable one a
+ *   recursive `fs.cpSync` bounded by that entry's own on-disk size — never a function of any single
+ *   request's input; this is a filesystem operation over an operator's existing site, the same
+ *   profile `initSite`'s own `seedSiteThemes()` call already has.
  */
-function copyPortableEntries(source: string, target: string): void {
+function copyPortableEntries(source: string, target: string, onBeforeFirstWrite: () => void): void {
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(source, { withFileTypes: true });
@@ -104,8 +100,13 @@ function copyPortableEntries(source: string, target: string): void {
     throw new InternalError(`duplicateSite: failed to read source directory ${source}: ${(err as Error).message}`);
   }
 
+  let announced = false;
   for (const entry of entries) {
-    if (isContentDbArtifact(entry.name) || REGENERATED_ENTRY_NAMES.has(entry.name)) continue;
+    if (!isPortableSiteEntry(entry.name)) continue;
+    if (!announced) {
+      onBeforeFirstWrite();
+      announced = true;
+    }
     fs.cpSync(path.join(source, entry.name), path.join(target, entry.name), { recursive: true });
   }
 }
@@ -133,8 +134,11 @@ export interface DuplicateSiteResult {
 
 /**
  * Create a full working copy of an existing site directory under a new identity (SPEC-003 sibling
- * operation to `initSite`) — content database (chat/session history excluded), uploads, themes, and
- * every other portable entry the source directory actually contains.
+ * operation to `initSite`) — the content database, with every table `schema.ts` does not declare
+ * purged, plus exactly the top-level directories `layout.ts` calls portable (`uploads/`, `themes/`,
+ * `plugins/`, `overrides/`, `skills/`, `agent-plugins/`). The source's chat database, database
+ * backups, restore-point snapshots, operational journals and publish output are NOT carried over,
+ * nor is any top-level entry `layout.ts` has not classified.
  *
  * @param required.sourceDir - path to the site being duplicated; resolved once (path/symlink
  *   containment, mirrors `initSite`'s own `resolveInstallDirTarget` discipline) and validated as a
@@ -175,16 +179,19 @@ export function duplicateSite(required: DuplicateSiteRequired): DuplicateSiteRes
       wroteAnything = true;
     }
 
-    // Every portable entry the source actually has (uploads/, themes/, plugins/, overrides/, and
-    // anything else — see this file's own header for why this is data-driven).
-    copyPortableEntries(source, target);
-    wroteAnything = true;
+    // Only the portable entries the source actually has (see this file's own header). The flag is
+    // raised from inside, before the first `fs.cpSync` — a copy that throws halfway has already
+    // written into `target`, and that partial tree is exactly what cleanup must remove.
+    copyPortableEntries(source, target, () => {
+      wroteAnything = true;
+    });
 
     // config.json — new display name, domain/port reset (see this file's own header).
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
     writeJsonFileAtomic(path.join(target, "config.json"), config);
 
-    // content.db — WAL-safe physical copy, chat/session history excluded by construction.
+    // content.db — WAL-safe physical copy, with every table schema.ts does not declare purged from
+    // it. Chat history's own file, `chat.db`, is left behind by the allowlist copy above, not here.
     duplicateContentDb({
       sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
       targetDbPath: path.join(target, CONTENT_DB_FILENAME),
