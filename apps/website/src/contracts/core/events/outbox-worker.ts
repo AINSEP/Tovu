@@ -1,4 +1,4 @@
-import type { ClockPort, EventBusPort, ISODateTime, OutboxPort } from "@jini-ai/cms/core";
+import type { ClockPort, EventBusPort, ISODateTime, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
 /**
  * @file Outbox processing orchestration.
@@ -27,19 +27,20 @@ import type { ClockPort, EventBusPort, ISODateTime, OutboxPort } from "@jini-ai/
  * `features` (`.dependency-cruiser.mjs` line ~124), so this is a deliberate, documented parallel
  * implementation, not an accidental fork.
  *
- * Unlike `WebhookDeliveryRepoPort.markFailed`, `OutboxPort.markFailed` (defined in the external
- * `@jini-ai/cms` package, not this repo) takes no `nextStatus` — its caller can only supply
- * `nextAttemptAt`. There is no way for this worker to tell the port "this row is now terminal"
- * without changing that cross-repo contract, which is out of proportion for this fix (it would
- * require a scoped Jini rebuild + dev-server restart touching every `OutboxPort` consumer and
- * both adapters). Instead, the two adapters that implement `OutboxPort` in this repo
- * (`InMemoryOutbox` below and `SqliteOutboxAdapter`) each independently compare the row's own
- * already-persisted `attempts` against `MAX_OUTBOX_ATTEMPTS` inside `markFailed` and activate the
- * `"failed"` status already declared on `OutboxRecord` (previously dead code — `markFailed` always
- * wrote `"pending"`) as the terminal, poison-marked state: `claimPending` only ever selects
- * `status = "pending"` rows, so a `"failed"` row is permanently excluded from retry regardless of
- * `nextAttemptAt`. `MAX_OUTBOX_ATTEMPTS` is exported from this module (and re-exported via
- * `./index.js`) so both adapters share one source of truth instead of each hardcoding the cap.
+ * `OutboxPort.markFailed` (defined in the external `@jini-ai/cms` package, not this repo) gained a
+ * `nextStatus` parameter (2026-09-06 follow-up) so this worker can now tell the port "this row is
+ * now terminal" the same way `recordDeliveryOutcome` tells `WebhookDeliveryRepoPort.markFailed` —
+ * one caller decides the retry-vs-terminal policy, every adapter just persists it. Before that
+ * port change landed, the two adapters implementing `OutboxPort` in this repo (`InMemoryOutbox`
+ * below and `SqliteOutboxAdapter`) each independently re-derived the same decision from the row's
+ * own already-persisted `attempts`, which this file's own header used to flag as a disclosed
+ * policy-split WARNING. `processOutbox` below computes `nextStatus` from `row.attempts` (the exact
+ * same signal the adapters used to read for themselves) and activates the `"failed"` status
+ * already declared on `OutboxRecord` (previously dead code — `markFailed` always wrote `"pending"`)
+ * as the terminal, poison-marked state: `claimPending` only ever selects `status = "pending"` rows,
+ * so a `"failed"` row is permanently excluded from retry regardless of `nextAttemptAt`.
+ * `MAX_OUTBOX_ATTEMPTS` is exported from this module (and re-exported via `./index.js`) so this is
+ * the one place the cap is defined.
  */
 
 /** Capped delivery attempts before an outbox row is permanently excluded from retry (`"failed"`). */
@@ -101,8 +102,10 @@ export async function processOutbox(
       await outbox.markDelivered(row.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown outbox error";
+      const nextStatus: Extract<OutboxRecord["status"], "pending" | "failed"> =
+        row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
       const nextAttemptAt = addMsToIso(now, computeOutboxBackoffMs(row.attempts, { random }));
-      await outbox.markFailed(row.id, message, nextAttemptAt);
+      await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
     }
   }
 

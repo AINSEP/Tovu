@@ -84,7 +84,7 @@ function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
     await outbox.enqueue(makeEvent());
     const [claimed] = await outbox.claimPending(10, "2026-07-16T00:00:01.000Z");
 
-    await outbox.markFailed(claimed.id, "delivery boom", "2026-07-16T01:00:00.000Z");
+    await outbox.markFailed(claimed.id, "delivery boom", "2026-07-16T01:00:00.000Z", "pending");
 
     // Not yet eligible at the old time.
     const tooEarly = await outbox.claimPending(10, "2026-07-16T00:00:02.000Z");
@@ -96,7 +96,7 @@ function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
     assert.equal(retried[0].attempts, 2);
   });
 
-  test(`[${label}] markFailed permanently excludes a row once attempts reach MAX_OUTBOX_ATTEMPTS (2026-09-06 fix)`, async () => {
+  test(`[${label}] markFailed permanently excludes a row once the CALLER passes nextStatus="failed" (2026-09-06 fix)`, async () => {
     const outbox = makeOutbox();
     await outbox.enqueue(makeEvent());
 
@@ -106,13 +106,31 @@ function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
       assert.equal(claimed.attempts, attempt);
 
       nowIso = new Date(Date.parse(nowIso) + 60 * 60 * 1000).toISOString();
-      await outbox.markFailed(claimed.id, `boom #${attempt}`, nowIso);
+      // The caller (mirroring processOutbox) decides nextStatus from the row it already has —
+      // the adapter is not consulted about the cap at all.
+      const nextStatus = attempt >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
+      await outbox.markFailed(claimed.id, `boom #${attempt}`, nowIso, nextStatus);
     }
 
-    // The row's own persisted attempts count has reached the cap: the next claim attempt, at any
-    // future time, must find nothing -- proving the row is sealed, not merely waiting out a delay.
+    // The caller's last decision was "failed": the next claim attempt, at any future time, must
+    // find nothing -- proving the row is sealed, not merely waiting out a delay.
     const final = await outbox.claimPending(10, "2099-01-01T00:00:00.000Z");
     assert.equal(final.length, 0);
+  });
+
+  test(`[${label}] markFailed honors the caller's nextStatus rather than re-deriving it from persisted attempts (2026-09-06 seam)`, async () => {
+    const outbox = makeOutbox();
+    await outbox.enqueue(makeEvent());
+    const [claimed] = await outbox.claimPending(10, "2026-07-16T00:00:01.000Z");
+    assert.equal(claimed.attempts, 1, "well below MAX_OUTBOX_ATTEMPTS");
+
+    // The caller declares this row terminal on its VERY FIRST attempt -- something the old
+    // attempts-based adapter logic could never produce on its own. If the adapter still computed
+    // the decision itself instead of trusting the caller, this row would come back as retryable.
+    await outbox.markFailed(claimed.id, "caller decided terminal early", "2026-07-16T01:00:00.000Z", "failed");
+
+    const final = await outbox.claimPending(10, "2099-01-01T00:00:00.000Z");
+    assert.equal(final.length, 0, "adapter must honor an early terminal decision from the caller, not recompute it");
   });
 }
 

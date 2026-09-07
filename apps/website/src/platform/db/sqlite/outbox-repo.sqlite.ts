@@ -1,6 +1,5 @@
 import { and, asc, eq, lte } from "drizzle-orm";
 
-import { MAX_OUTBOX_ATTEMPTS } from "../../../contracts/core/events/index.js";
 import { outboxEvents } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
@@ -86,23 +85,22 @@ export class SqliteOutboxAdapter implements OutboxPort {
   }
 
   /**
-   * Marks a claimed row failed and reschedules it, unless its own already-persisted `attempts`
-   * has reached `MAX_OUTBOX_ATTEMPTS` — then it is sealed as permanently `"failed"` instead of
-   * re-entering `"pending"` (see `contracts/core/events/outbox-worker.ts`'s header doc for why
-   * this decision lives here rather than being passed in by the caller: `OutboxPort.markFailed`
-   * is a cross-repo `@jini-ai/cms` contract with no `nextStatus` parameter). Read-then-write is
-   * wrapped in one transaction so a concurrent claim of the same row can never race the decision.
+   * Marks a claimed row failed and persists whichever `nextStatus` the caller decided (2026-09-06:
+   * `OutboxPort.markFailed` gained this parameter so the retry-cap decision lives with the worker,
+   * not here — see `contracts/core/events/outbox-worker.ts`'s header doc). A single UPDATE, same
+   * shape as `markDelivered` — no read-then-write race to guard against any more, since the caller
+   * already had every value it needed (including `row.attempts`) at the moment it decided.
    */
-  async markFailed(id: UUID, error: string, nextAttemptAt: ISODateTime): Promise<void> {
-    this.db.transaction((tx) => {
-      const row = tx
-        .select({ attempts: outboxEvents.attempts })
-        .from(outboxEvents)
-        .where(eq(outboxEvents.id, id))
-        .get();
-      const status = row && row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
-
-      tx.update(outboxEvents).set({ status, lastError: error, nextAttemptAt }).where(eq(outboxEvents.id, id)).run();
-    });
+  async markFailed(
+    id: UUID,
+    error: string,
+    nextAttemptAt: ISODateTime,
+    nextStatus: Extract<OutboxRecord["status"], "pending" | "failed">
+  ): Promise<void> {
+    this.db
+      .update(outboxEvents)
+      .set({ status: nextStatus, lastError: error, nextAttemptAt })
+      .where(eq(outboxEvents.id, id))
+      .run();
   }
 }
