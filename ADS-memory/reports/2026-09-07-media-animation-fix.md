@@ -160,7 +160,23 @@ npx eslint src/features/posts/hooks/use-post-editor.hooks.ts src/features/posts/
    0 errors), confirmed clean, gave F a heads-up before committing, then committed all three files
    together crediting both contributions (`c55da3e1`).
 
-2. **Widening `FILE_HANDLER_ALLOWED_MIME_TYPES` opens a second on-ramp to a pre-existing "no video
+2. **i18n gap in the `MediaTypeEmptyState` copy change — caught by Agent I, fixed (UPDATE).** Agent I
+   flagged that F's companion copy fix (item 1 above) added a new string,
+   `"Uploaded videos appear here once you add them."`, to `Media.tsx` without adding it to any of
+   `media-i18n.ts`'s 21 locale blocks — `MEDIA_DICT[locale]?.[key] ?? key` means a missing entry
+   silently renders raw English rather than erroring. Verified the claim directly (confirmed 0 of 21
+   locales had the new key; all 21 still carried the now-dead `"Only image uploads are supported right
+   now."` entry the new copy replaced). Translated the new key into all 21 locales — mechanically,
+   reusing each locale's own already-established "video" word (from that same locale's `Videos` tab
+   label / `"No videos yet."` entry) for consistency, not independently sourced — and removed the 21
+   dead entries. Added `media-i18n.unit.test.ts`, mirroring the existing
+   `lib/__tests__/i18n-common.unit.test.ts` cross-locale-parity idiom (same key set + non-empty values
+   across every locale) plus a spot-check pinning this specific key, confirmed RED before the fix (the
+   general parity checks alone would NOT have caught this — all 21 locales agreed with each other on
+   having zero coverage for the new key, so only a check tied to the specific key exposed it).
+   Committed `05bb6b21`. 109/109 in the full `features/media/` suite, tsc 0 errors.
+
+3. **Widening `FILE_HANDLER_ALLOWED_MIME_TYPES` opens a second on-ramp to a pre-existing "no video
    node" editor gap — not a new bug class.** Traced `handleFileDrop`/`handleFilePaste` and the Media
    Picker's own `insertMediaRef` (`apps/admin/src/lib/media-image-extension.tsx`): both build the
    IDENTICAL `{assetId, transformName: "public", alt}` shape into TipTap's `MediaImage` node — there
