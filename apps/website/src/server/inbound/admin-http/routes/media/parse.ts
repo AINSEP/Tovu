@@ -61,3 +61,24 @@ export function parseOptionalTitleField(raw: unknown): string | undefined {
   }
   return raw;
 }
+
+/**
+ * Same omitted/provided/reject-null shape as {@link parseOptionalTitleField}, for the same reason:
+ * `slug` (2026-09-07) has no empty-string "cleared" representation either — `updateMediaMetadata`'s
+ * own `resolveSlugForUpdate` (`@jini-ai/cms/media`) rejects an empty or malformed slug outright
+ * rather than treating it as "unset". Format/uniqueness validation itself stays entirely in that
+ * service function (`MediaValidationError`/`MediaConflictError`) — this parser's only job is the
+ * same undefined-vs-provided/wrong-JSON-type boundary every other field parser in this file owns.
+ *
+ * @complexity O(1).
+ */
+export function parseOptionalSlugField(raw: unknown): string | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) {
+    throw new MediaValidationError("media.slug cannot be cleared to null; slug is required and cannot be empty");
+  }
+  if (typeof raw !== "string") {
+    throw new MediaValidationError(`media.slug must be a string, got ${describeType(raw)}`);
+  }
+  return raw;
+}

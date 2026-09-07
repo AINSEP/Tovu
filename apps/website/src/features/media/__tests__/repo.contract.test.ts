@@ -16,6 +16,7 @@ import {
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
+  MediaConflictError,
 } from "@jini-ai/cms/media";
 import type {
   AssetBlobRepoPort,
@@ -41,6 +42,7 @@ function makeMedia(overrides: Partial<MediaRecord> = {}): MediaRecord {
     id: "media-1",
     workspaceId: WORKSPACE_ID,
     title: "A photo",
+    slug: "a-photo",
     alt: "alt text",
     caption: "a caption",
     credit: "a credit",
@@ -89,10 +91,61 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
     await repo.remove({ workspaceId: WORKSPACE_ID, id: "media-1" });
     assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), null);
   });
+
+  test(`[${label}] findBySlug() round-trips and is scoped by workspace (2026-09-07)`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeMedia());
+    await repo.save(makeMedia({ id: "m-other-ws", workspaceId: "workspace-2", slug: "a-photo" }));
+
+    const found = await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "a-photo" });
+    assert.equal(found?.id, "media-1");
+
+    const miss = await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "no-such-slug" });
+    assert.equal(miss, null);
+
+    // Same slug text in a DIFFERENT workspace must never resolve across the boundary — uniqueness
+    // (and lookup) is (workspaceId, slug), never slug alone.
+    const wrongWorkspace = await repo.findBySlug({ workspaceId: "workspace-3", slug: "a-photo" });
+    assert.equal(wrongWorkspace, null);
+  });
 }
 
 runMediaSuite("memory", () => new InMemoryMediaRepo());
 runMediaSuite("sqlite", () => new SqliteMediaRepo(openContentDb(":memory:")));
+
+/**
+ * `idx_media_workspace_slug` is the REAL enforcement (2026-09-07) — `updateMediaMetadata`'s own
+ * `findBySlug` check is only a friendly-error courtesy on top of it (see `MediaRecord.slug`'s doc
+ * in `@jini-ai/cms`). Only `SqliteMediaRepo` has a real DB constraint to violate; `InMemoryMediaRepo`
+ * has no such index, so this is deliberately not part of the shared `runMediaSuite` (that suite's
+ * whole point is behavior both adapters must agree on — this one is SQLite-specific by construction).
+ */
+test("[sqlite] save() with a slug already claimed by a DIFFERENT row in the same workspace throws MediaConflictError, translated from the raw UNIQUE constraint violation", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  await repo.save(makeMedia({ id: "media-1", slug: "taken-slug" }));
+
+  await assert.rejects(
+    () => repo.save(makeMedia({ id: "media-2", slug: "taken-slug" })),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaConflictError, `expected MediaConflictError, got ${err}`);
+      assert.match((err as Error).message, /taken-slug/);
+      return true;
+    }
+  );
+
+  // The second row must never have landed — the failed insert must not leave a partial row behind.
+  assert.equal(await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-2" }), null);
+});
+
+test("[sqlite] save() lets a row keep re-claiming its OWN slug on every update (not a self-conflict against its own prior row)", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  await repo.save(makeMedia({ id: "media-1", slug: "stable-slug" }));
+  await repo.save(makeMedia({ id: "media-1", slug: "stable-slug", version: 2, title: "Updated" }));
+
+  const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
+  assert.equal(found?.slug, "stable-slug");
+  assert.equal(found?.version, 2);
+});
 
 function makeAssetBlob(overrides: Partial<AssetBlobRecord> = {}): AssetBlobRecord {
   return {

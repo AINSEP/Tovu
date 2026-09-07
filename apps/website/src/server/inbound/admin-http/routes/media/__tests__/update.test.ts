@@ -52,7 +52,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
 /** Seeds one media row directly through the repo so PATCH has something to update. */
 async function seedMedia(
   deps: MediaRouteDeps,
-  overrides: { title?: string; alt?: string; caption?: string; credit?: string } = {}
+  overrides: { title?: string; slug?: string; alt?: string; caption?: string; credit?: string } = {}
 ): Promise<string> {
   const id = deps.idGen.newId();
   const nowIso = deps.clock.nowIso();
@@ -60,6 +60,7 @@ async function seedMedia(
     id,
     workspaceId: WORKSPACE_ID,
     title: overrides.title ?? "Original Title",
+    slug: overrides.slug ?? `original-slug-${id}`,
     alt: overrides.alt ?? "Original alt text",
     caption: overrides.caption ?? "Original caption",
     credit: overrides.credit ?? "Original credit",
@@ -249,4 +250,121 @@ test("update: a normal string value is stored trimmed", async (t) => {
   const { status, json } = await patch(t, app, id, { alt: "  A mountain at dawn  " });
   assert.equal(status, 200);
   assert.equal(json.media.alt, "A mountain at dawn");
+});
+
+// ---------------------------------------------------------------------------
+// slug (2026-09-07) — PATCH-route coverage. `parseMediaMetadataPatch` reading `body.slug` is what
+// closes the exact silent-drop trap this route used to have for any unrecognized key (a 200 with
+// every OTHER field applied, and the new one never persisted) — every assertion below reads the
+// PERSISTED value back through the repo, never just the response status, per that same trap.
+// ---------------------------------------------------------------------------
+
+test("update: slug is persisted — asserted by re-reading the repo, not just a 200 status (closes the silent-drop trap)", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const id = await seedMedia(base, { slug: "old-slug" });
+  const { status, json } = await patch(t, app, id, { slug: "Woodnest-Cabin-Booking" });
+  assert.equal(status, 200);
+  assert.equal(json.media.slug, "woodnest-cabin-booking", "normalized to lowercase, and present in the response DTO");
+
+  const persisted = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(persisted?.slug, "woodnest-cabin-booking", "the repo's own state, not just the echoed response");
+});
+
+test("update: a slug already claimed by ANOTHER row in the same workspace is refused with 409, naming the conflict — and neither row's slug changes", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const takenId = await seedMedia(base, { slug: "cabin-booking" });
+  const id = await seedMedia(base, { slug: "other-asset" });
+
+  const { status, json } = await patch(t, app, id, { slug: "cabin-booking" });
+  assert.equal(status, 409);
+  assert.match(json.error, /cabin-booking/, "the error must name the conflicting slug, not a generic message");
+
+  const persisted = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(persisted?.slug, "other-asset", "the rejected row's slug must be untouched");
+  const persistedTaken = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: takenId });
+  assert.equal(persistedTaken?.slug, "cabin-booking", "the row that already owns the slug must be untouched too");
+});
+
+test("update: re-submitting a row's OWN current slug alongside another field change is not a self-conflict", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const id = await seedMedia(base, { slug: "stable-slug" });
+  const { status, json } = await patch(t, app, id, { slug: "stable-slug", alt: "new alt" });
+  assert.equal(status, 200);
+  assert.equal(json.media.slug, "stable-slug");
+  assert.equal(json.media.alt, "new alt");
+});
+
+test("update: a malformed slug (uppercase/space/symbol) is rejected with 400 naming the reason, not silently accepted or dropped", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const id = await seedMedia(base, { slug: "original-slug" });
+  const { status, json } = await patch(t, app, id, { slug: "not a valid slug!" });
+  assert.equal(status, 400);
+  assert.match(json.error, /lowercase letters, numbers, and dashes/);
+
+  const persisted = await base.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.equal(persisted?.slug, "original-slug", "a rejected slug must not partially land");
+});
+
+test("update: renaming the title alone leaves the slug untouched, end to end through the route", async (t) => {
+  const base = createRouteDeps();
+  const app = buildApp({
+    mediaRepo: base.mediaRepo,
+    assetBlobRepo: base.assetBlobRepo,
+    assetRenditionRepo: base.assetRenditionRepo,
+    blobStore: base.blobStore,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    transformDefinitionRepo: base.transformDefinitionRepo,
+    imageTransformer: base.imageTransformer,
+    idGen: base.idGen,
+    clock: base.clock,
+  });
+  const id = await seedMedia(base, { title: "Old Title", slug: "old-title" });
+  const { status, json } = await patch(t, app, id, { title: "Brand New Title" });
+  assert.equal(status, 200);
+  assert.equal(json.media.title, "Brand New Title");
+  assert.equal(json.media.slug, "old-title", "slug is a separate field — a title-only PATCH must never recompute it");
 });

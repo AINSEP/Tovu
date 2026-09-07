@@ -1,9 +1,9 @@
-import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
+import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
 import type { MediaRouteRegistrar } from "./deps.js";
-import { parseOptionalStringField, parseOptionalTitleField } from "./parse.js";
+import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "./parse.js";
 
 /**
  * `undefined` (omitted) survives as `undefined`, `null` (explicit clear) survives as `null` rather
@@ -23,17 +23,23 @@ function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) =
 }
 
 /**
- * Reads the seven metadata fields `updateMediaMetadata` accepts off an untyped request body,
- * applying the two field-level parse rules above. A missing body coerces to `{}` so every field
+ * Reads the eight metadata fields `updateMediaMetadata` accepts off an untyped request body,
+ * applying the field-level parse rules above. A missing body coerces to `{}` so every field
  * reads as omitted rather than throwing on a property access — the pre-extraction route made the
  * same allowance via `req.body?.field`.
  *
- * @complexity O(1) — reads seven fixed properties.
+ * `slug` (2026-09-07) joins the fixed key list `updateMediaMetadata` reads — this function silently
+ * dropping an unrecognized key is exactly the trap that would have made `slug` a no-op PATCH before
+ * this line was added (see `ADS-memory/reports/2026-09-07-media-admin-ui.md`'s "the trap" for the
+ * confirmed mechanism: a 200 response with every OTHER field's change applied and no error at all).
+ *
+ * @complexity O(1) — reads eight fixed properties.
  */
 function parseMediaMetadataPatch(rawBody: unknown) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: parseOptionalTitleField(body.title),
+    slug: parseOptionalSlugField(body.slug),
     alt: parseOptionalStringField(body.alt, "alt"),
     caption: parseOptionalStringField(body.caption, "caption"),
     credit: parseOptionalStringField(body.credit, "credit"),
@@ -44,7 +50,7 @@ function parseMediaMetadataPatch(rawBody: unknown) {
 }
 
 /**
- * PATCH media metadata (title/alt/caption/credit only — `source.sha256` is
+ * PATCH media metadata (title/slug/alt/caption/credit/width/height/cssClass — `source.sha256` is
  * write-once and this route's input shape has no field for it, matching
  * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
@@ -89,6 +95,14 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
       }
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });
+        return;
+      }
+      // A slug collision — either `resolveSlugForUpdate`'s own app-level courtesy check, or (on a
+      // genuine race) `SqliteMediaRepo.save()`'s translated UNIQUE-constraint catch; both throw the
+      // same `MediaConflictError` so this route needs only one branch regardless of which layer
+      // caught it. 409, not 400: the request is well-formed, it just collides with existing state.
+      if (err instanceof MediaConflictError) {
+        res.status(409).json({ error: err.message });
         return;
       }
       res.status(500).json({ error: "internal error" });

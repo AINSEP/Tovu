@@ -15,6 +15,9 @@ export interface AdminMediaResponse {
   id: string;
   workspaceId: string;
   title: string;
+  /** Human-memorable, unique-per-workspace lookup key (2026-09-07) — see `MediaRecord.slug`'s own
+   *  doc (`@jini-ai/cms/media`) for the full identity model. */
+  slug: string;
   alt: string;
   caption: string;
   credit: string;
@@ -63,6 +66,7 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
     id: media.id,
     workspaceId: media.workspaceId,
     title: media.title,
+    slug: media.slug,
     alt: media.alt,
     caption: media.caption,
     credit: media.credit,

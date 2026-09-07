@@ -21,7 +21,7 @@
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort, EntryRecord, EntryRepoPort } from "../entries/index.js";
-import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index.js";
+import { CORE_PUBLIC_TRANSFORM_NAME, findMediaByIdOrSlug, getLatestTransformDefinition } from "../media/index.js";
 import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import { findPublishedPostById } from "../post/index.js";
@@ -602,16 +602,23 @@ async function resolveOneMediaEmbed(
 ): Promise<{ assetId: string; ir: WidgetRenderIR } | undefined> {
   const parsed = parseMediaEmbedRef(ref, context);
   if (!parsed) return undefined;
-  const { assetId, transformName } = parsed;
+  // `refAssetId` is exactly what the marker's `data-embed-id` says — a theme author may write
+  // either the asset's `id` or its `slug` (2026-09-07). It stays the MAP KEY this function returns
+  // (`resolveMediaTypeEmbeds`'s caller looks up the resolved map by the marker's own literal id, so
+  // the key must match what was typed, not what it resolved to) — only the `props.assetId` used to
+  // BUILD the served URL is normalized to the canonical `record.id` below, so a later slug rename
+  // never breaks a URL already baked into previously-rendered HTML.
+  const { assetId: refAssetId, transformName } = parsed;
 
-  const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
+  const record = await findMediaByIdOrSlug({ deps: { mediaRepo }, input: { workspaceId: context.workspaceId, idOrSlug: refAssetId } });
   if (!record) {
     console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset', {
       workspaceId: context.workspaceId,
-      assetId,
+      assetId: refAssetId,
     });
     return undefined;
   }
+  const canonicalAssetId = record.id;
 
   const contentType = mediaContentTypeStore
     ? (await mediaContentTypeStore.getMany({ workspaceId: context.workspaceId, sha256s: [record.source.sha256] })).get(
@@ -624,16 +631,23 @@ async function resolveOneMediaEmbed(
     // video can't go through the image-transform pipeline below), so `transformName`/`version`
     // would be unused props for this IR.
     return {
-      assetId,
+      assetId: refAssetId,
       ir: {
         componentId: "media-image",
-        props: { assetId, contentType, alt: record.alt, width: record.width, height: record.height, cssClass: record.cssClass },
+        props: {
+          assetId: canonicalAssetId,
+          contentType,
+          alt: record.alt,
+          width: record.width,
+          height: record.height,
+          cssClass: record.cssClass,
+        },
       },
     };
   }
 
-  const ir = await buildMediaImageIr(assetId, transformName, transformRepo, record, context);
-  return ir ? { assetId, ir } : undefined;
+  const ir = await buildMediaImageIr(canonicalAssetId, transformName, transformRepo, record, context);
+  return ir ? { assetId: refAssetId, ir } : undefined;
 }
 
 async function resolveMediaTypeEmbeds(

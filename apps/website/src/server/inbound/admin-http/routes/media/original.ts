@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { sniffContentType, type MediaRecord } from "#src/features/media/index";
+import { findMediaByIdOrSlug, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
@@ -82,20 +82,28 @@ export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
  * `null` — 404 for an unknown media id, 410 for a trashed one. Isolated so these three sequential
  * guards don't add to the handler's own branch count.
  *
+ * `params.mediaId` (2026-09-07: resolved via `findMediaByIdOrSlug`, not a bare `findById`) may be
+ * either the asset's real `id` or its `slug` — this route's `:mediaId` segment is exactly the kind
+ * of hand-typeable reference the slug feature exists for. Safe to do here without the FK hazard
+ * `resolveMediaRendition`'s own doc calls out for `asset_renditions`: this function's only downstream
+ * key is `media.source.sha256` (blob content-addressing), never the raw `params.mediaId` itself.
+ *
  * Exported (2026-08-24) — `routes/site/media-rendition.ts`'s public video-original route reuses
  * this same lookup/guard sequence rather than re-implementing it (same "own it once, reuse
- * everywhere" split this codebase already applies to `renderImageTag`/`renderWidgetMediaImage`).
+ * everywhere" split this codebase already applies to `renderImageTag`/`renderWidgetMediaImage`) —
+ * so this one change covers the admin preview route AND the public hand-typed `<video src="/m/
+ * {slug-or-id}/original">` case in one edit.
  *
  * @throws {Error} the same data-integrity-gap error the pre-extraction route threw, if the media row
  * exists but its source blob does not (see the inline comment at the throw site).
- * @complexity O(1) — two point lookups.
+ * @complexity O(1) — at most two indexed lookups for the media row (slug, then id), plus one blob lookup.
  */
 export async function resolveMediaOriginalBlob(
   deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">,
   res: Response,
   params: { workspaceId: string; mediaId: string }
 ): Promise<{ media: MediaRecord; blob: NonNullable<Awaited<ReturnType<MediaRouteDeps["assetBlobRepo"]["findByHash"]>>> } | null> {
-  const media = await deps.mediaRepo.findById({ workspaceId: params.workspaceId, id: params.mediaId });
+  const media = await findMediaByIdOrSlug({ deps: { mediaRepo: deps.mediaRepo }, input: { workspaceId: params.workspaceId, idOrSlug: params.mediaId } });
   if (!media) {
     res.status(404).json({ error: `media '${params.mediaId}' was not found` });
     return null;
