@@ -3,6 +3,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
@@ -1310,6 +1311,28 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * env-then-default fallback both callers share.
    */
   exportOutputRootDir: string;
+  /**
+   * What THIS process is actually serving, read ONCE at boot by `server/app.ts`'s
+   * `createRouteDeps()`/`server/deps.ts`'s `createSqliteRouteDeps()` — same "read once at the root,
+   * thread the value down" discipline `exportOutputRootDir`/`themesDir` above establish for their
+   * own env-derived values.
+   *
+   * Before this field existed, `routes/system/sites.ts` and `sites_duplicate_site`
+   * (`features/sites/tool-registrations.ts`) each called `platform/site-dir`'s
+   * `describeSiteBinding()`/read `process.cwd()` fresh, independently, at REQUEST time rather than
+   * receiving the value the composition root already resolved at BOOT time. The two agree for every
+   * boot path that resolves the served site from `{cwd, env}` (the default boot, and desktop's
+   * `TOVU_SITE_DIR`) — `describeSiteBinding()` is a pure, cheap re-derivation of the identical
+   * inputs, so calling it twice was harmless there. They silently DISAGREE for `tovu serve <dir>`:
+   * `cli/commands/serve.ts` resolves the served site directly from the CLI's `<dir>` argument
+   * (`bootSiteDir`), never touching `TOVU_SITE_DIR`/`TOVU_SITE`, so a bare `describeSiteBinding()`
+   * call re-derives an unrelated `<process.cwd()>/sites/tovu-com` instead — reporting the wrong site
+   * as "currently serving" and, for the Sites-switcher's write operations, targeting the wrong
+   * `sites/` tree entirely (2026-09-06 composition-root fix). `cli/commands/serve.ts` supplies this
+   * field explicitly (`switcherCompatible: false` — see that flag's own doc); every other boot path
+   * falls back to `describeSiteBinding()`, an unchanged default.
+   */
+  siteBinding: SiteBinding;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`

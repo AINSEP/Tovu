@@ -30,7 +30,7 @@ const SAMPLE_SITE: SiteListEntry = {
   active: true,
 };
 
-const SAMPLE_BINDING = { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false };
+const SAMPLE_BINDING = { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, switcherCompatible: true };
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
@@ -87,7 +87,7 @@ test("sites: List — 200 with switchingEnabled + the injected site list, regard
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => false,
     listSites: () => [SAMPLE_SITE],
-    describeSiteBinding: () => SAMPLE_BINDING,
+    siteBinding: SAMPLE_BINDING,
     readPersistedActiveSite: () => null,
   };
   const app = createApp(deps);
@@ -113,7 +113,7 @@ test("sites: List — currentSite.listed is FALSE when the served directory is a
     // from the marker-less-but-real case below, which DOES get a row: `includeServingSite` refuses
     // to invent a card for a folder that is not there, so this stays empty and `listed` stays false.
     listSites: () => [],
-    describeSiteBinding: () => SAMPLE_BINDING,
+    siteBinding: SAMPLE_BINDING,
     readPersistedActiveSite: () => null,
   };
   const app = createApp(deps);
@@ -145,7 +145,7 @@ test("sites: List — the served directory appears in sites[] as `unregistered` 
     // The real gap the owner reported: the folder is plainly being served, and `listSites` returns
     // nothing because `readSiteDir` requires both marker files.
     listSites: () => [],
-    describeSiteBinding: () => ({ dir, name: "tovu-com", dirOverridden: false }),
+    siteBinding: { dir, name: "tovu-com", dirOverridden: false, switcherCompatible: true },
     readPersistedActiveSite: () => null,
   };
   const app = createApp(deps);
@@ -171,7 +171,7 @@ test("sites: List — a served directory that IS registered reports registration
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE],
-    describeSiteBinding: () => SAMPLE_BINDING,
+    siteBinding: SAMPLE_BINDING,
     readPersistedActiveSite: () => null,
   };
   const app = createApp(deps);
@@ -192,7 +192,7 @@ test("sites: Activate — an `unregistered` served name is STILL a 404, because 
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [],
-    describeSiteBinding: () => ({ dir, name: "tovu-com", dirOverridden: false }),
+    siteBinding: { dir, name: "tovu-com", dirOverridden: false, switcherCompatible: true },
     persistActiveSite: () => {
       called = true;
     },
@@ -215,7 +215,7 @@ test("sites: List — reports a pending persisted choice and the TOVU_SITE_DIR o
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE],
-    describeSiteBinding: () => ({ ...SAMPLE_BINDING, dirOverridden: true }),
+    siteBinding: { ...SAMPLE_BINDING, dirOverridden: true },
     readPersistedActiveSite: () => "second-site",
   };
   const app = createApp(deps);
@@ -247,6 +247,30 @@ test("sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and n
   });
   assert.equal(res.status, 403);
   assert.deepEqual(await res.json(), { error: "site switching is disabled on this deployment", code: "SITE_SWITCHING_DISABLED" });
+  assert.equal(called, false);
+});
+
+test("sites: Create — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never calls createSite", async (t) => {
+  let called = false;
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    siteBinding: { ...SAMPLE_BINDING, switcherCompatible: false },
+    createSite: () => {
+      called = true;
+      throw new Error("must not be called when siteBinding is not switcher-compatible");
+    },
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ name: "new-site" }),
+  });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).code, "SITE_BINDING_NOT_SWITCHABLE");
   assert.equal(called, false);
 });
 
@@ -311,6 +335,29 @@ test("sites: Activate — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and
   assert.equal(res.status, 403);
   assert.deepEqual(await res.json(), { error: "site switching is disabled on this deployment", code: "SITE_SWITCHING_DISABLED" });
   assert.equal(called, false);
+});
+
+test("sites: Activate — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never persists", async (t) => {
+  let called = false;
+  const deps: RouteDeps = {
+    ...createRouteDeps(),
+    isSiteSwitcherEnabled: () => true,
+    siteBinding: { ...SAMPLE_BINDING, switcherCompatible: false },
+    listSites: () => [SAMPLE_SITE],
+    persistActiveSite: () => {
+      called = true;
+    },
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites/tovu-com/activate`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).code, "SITE_BINDING_NOT_SWITCHABLE");
+  assert.equal(called, false, "an install-dir boot must never persist an Activate choice against an unrelated sites/ tree");
 });
 
 test("sites: Activate — a name not present in listSites() is a 404 SITE_NOT_FOUND, and never persists", async (t) => {

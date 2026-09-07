@@ -94,6 +94,22 @@ class SiteSwitchingDisabledError extends Error {
   }
 }
 
+/**
+ * Raised when this boot's `siteBinding.switcherCompatible` is `false` (an install-dir boot, `tovu
+ * serve <dir>` — 2026-09-06 composition-root fix). NOT a shape rejection for the same reason
+ * {@link SiteSwitchingDisabledError} isn't: no `sourceName`/`targetName` retry can fix a structural
+ * fact about which `sites/` root this process was even started against. Same HTTP-layer
+ * classification `sites.ts`'s `sendSiteBindingNotSwitchable` gives the identical case.
+ */
+class SiteBindingNotSwitchableError extends Error {
+  constructor() {
+    super(
+      "this server was started against a specific site directory (tovu serve <dir>) with no related sites/ folder to manage — sites_duplicate_site is unavailable"
+    );
+    this.name = "SiteBindingNotSwitchableError";
+  }
+}
+
 /** Every error class a DIFFERENT input would fix — the three domain errors `duplicateSite()`
  *  itself can throw for a bad name or an occupied target all name exactly the argument a retry
  *  should change, same as this file's own two local input errors. */
@@ -136,6 +152,12 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
 
       if (!switcherEnabled) {
         throw new SiteSwitchingDisabledError();
+      }
+      // Same "deployment-wide, independent of the caller's own permissions" ordering the flag check
+      // immediately above already follows — checked before spending a requireToolPermission call on
+      // an operation this boot cannot fulfill regardless of who is asking.
+      if (!resolved.switcherCompatible) {
+        throw new SiteBindingNotSwitchableError();
       }
 
       await requireToolPermission(routeDeps, {

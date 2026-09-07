@@ -219,6 +219,23 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
     // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
     // `sites/tovu-com/themes` beside the operator's shell instead of the site it was given.
     themesDir: path.join(target, "themes"),
+    // 2026-09-06 composition-root fix: without this, `RouteDeps.siteBinding` fell back to
+    // `describeSiteBinding()`, which re-derives `<process.cwd()>/sites/tovu-com` — unrelated to
+    // `target` whenever this command is invoked from outside `target`'s own parent directory. The
+    // admin Sites screen then reported the WRONG site as "currently serving", and (had a caller
+    // exercised Create/Activate against it) `sites.ts`/`sites_duplicate_site` would have written
+    // under that unrelated `<cwd>/sites` tree instead of anywhere near `target`.
+    // `switcherCompatible: false` because `target` is an arbitrary install-dir argument with no
+    // `{cwd, env}`-relative `sites/`-sibling relationship at all — see `SiteBinding.switcherCompatible`'s
+    // own doc. `dirOverridden: true` for the same reason `TOVU_SITE_DIR` reports it: this run's
+    // served site was pinned by an explicit argument, so a persisted Activate choice would be inert
+    // on a subsequent `tovu serve <dir>` invocation exactly as it already is under `TOVU_SITE_DIR`.
+    siteBinding: {
+      dir: target,
+      name: path.basename(target),
+      dirOverridden: true,
+      switcherCompatible: false,
+    },
   });
 
   // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —

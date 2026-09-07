@@ -4,6 +4,7 @@ import {
   duplicateSite as duplicateSiteReal,
   listSites as listSitesReal,
   type DuplicateSiteResult,
+  type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
 
@@ -50,6 +51,14 @@ export interface SitesToolDeps {
   /** Defaults to `process.cwd()` — the base `sites/` is resolved under, matching every other
    *  `site-dir` caller's own default. */
   cwd?: string;
+  /**
+   * A real `RouteDeps` object already carries this (2026-09-06 composition-root fix — see
+   * `RouteDeps.siteBinding`'s own doc), so no extra wiring is needed for it to reach here the same
+   * way `workspaceId`/`authorize` already do. `resolveSitesDeps` reads only
+   * `siteBinding.switcherCompatible` off it — see `ResolvedSitesDeps.switcherCompatible`'s own doc
+   * for why `duplicateSite` cannot simply be handed a corrected `cwd` instead.
+   */
+  siteBinding?: SiteBinding;
 }
 
 /** The three `site-dir`-local implementations, bundled once so `tool-registrations.ts` reads one
@@ -60,6 +69,15 @@ export interface ResolvedSitesDeps {
   listSites: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   duplicateSite: (required: { sourceDir: string; targetDir: string; name?: string }) => DuplicateSiteResult;
   cwd: string;
+  /**
+   * `false` only for an install-dir boot (`tovu serve <dir>`, `SiteBinding.switcherCompatible`
+   * false) — `cwd` above stays `process.cwd()` in that case too (there is no principled `sites/`
+   * root to correct it TO: `target` bears no `{cwd, env}`-relative relationship to any `sites/`
+   * folder), so `tool-registrations.ts`'s handler must refuse rather than silently duplicate under
+   * whatever `process.cwd()/sites` happens to be. Defaults to `true` when `siteBinding` is absent
+   * (every existing caller/test that never supplies one keeps today's unrestricted behavior).
+   */
+  switcherCompatible: boolean;
 }
 
 /**
@@ -73,5 +91,6 @@ export function resolveSitesDeps(deps: SitesToolDeps): ResolvedSitesDeps {
     listSites: deps.listSites ?? listSitesReal,
     duplicateSite: deps.duplicateSite ?? duplicateSiteReal,
     cwd: deps.cwd ?? process.cwd(),
+    switcherCompatible: deps.siteBinding?.switcherCompatible ?? true,
   };
 }

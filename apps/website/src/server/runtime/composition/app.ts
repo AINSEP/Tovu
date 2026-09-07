@@ -53,6 +53,7 @@ import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
+import { describeSiteBinding } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -562,6 +563,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     themesDir: builtInThemesDir(),
+    siteBinding: describeSiteBinding(),
     outbox,
     bus,
     // Always the no-op adapter here, never the env-driven `createObservabilityPort()` — this root

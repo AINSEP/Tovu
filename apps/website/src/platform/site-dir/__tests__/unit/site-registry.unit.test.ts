@@ -147,6 +147,19 @@ test("describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it 
   assert.equal(binding.dirOverridden, true);
 });
 
+test("describeSiteBinding: switcherCompatible is always true — every binding it produces is resolved via the same {cwd, env} listSites/createSite use", () => {
+  // Three distinct precedence branches (default, TOVU_SITE, TOVU_SITE_DIR) — switcherCompatible
+  // must not vary with any of them: it is false ONLY for a binding built OUTSIDE this function
+  // entirely (an explicit install-dir override, `cli/commands/serve.ts`), which this function
+  // itself can never produce.
+  assert.equal(describeSiteBinding({ cwd: "/repo", env: {} }).switcherCompatible, true);
+  assert.equal(describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE: "second-site" } }).switcherCompatible, true);
+  assert.equal(
+    describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE_DIR: "/elsewhere/my-site" } }).switcherCompatible,
+    true
+  );
+});
+
 test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-binding-"));
   try {

@@ -47,7 +47,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
-import { resolveSiteRoot } from "#src/platform/site-dir/index";
+import { resolveSiteRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
@@ -499,6 +499,14 @@ export interface CreateSqliteRouteDepsOverrides {
    * rather than the site it was told to run. Omitted, it falls back to {@link siteThemesDir}.
    */
   themesDir: string;
+  /**
+   * The `RouteDeps.siteBinding` value this boot should carry — supplied by `cli/commands/serve.ts`
+   * for the install-dir path (`{dir: target, ..., switcherCompatible: false}`, since `target` bears
+   * no `{cwd, env}`-relative relationship to any `sites/` folder). Omitted, it falls back to
+   * `describeSiteBinding()` — the legacy same-process default boot's existing behavior, unchanged.
+   * See `RouteDeps.siteBinding`'s own doc for the full defect this fixes.
+   */
+  siteBinding: SiteBinding;
 }
 
 /**
@@ -553,6 +561,16 @@ function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSqli
  */
 function resolveThemesDirOverride(overrides?: Partial<CreateSqliteRouteDepsOverrides>): string {
   return overrides?.themesDir ?? siteThemesDir();
+}
+
+/**
+ * `overrides.siteBinding ?? describeSiteBinding()`, hoisted for the same reason
+ * {@link resolveThemesDirOverride} is: one `??` counted once here, not inline in the composition
+ * root. See `CreateSqliteRouteDepsOverrides.siteBinding`'s own doc for why the install-dir boot
+ * path (`cli/commands/serve.ts`) must supply an explicit value rather than let this default apply.
+ */
+function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOverrides>): SiteBinding {
+  return overrides?.siteBinding ?? describeSiteBinding();
 }
 
 /**
@@ -685,6 +703,7 @@ export function createSqliteRouteDeps(
   // the whole ~19MB stock tree per test run.
   const resolvedThemesDir = resolveThemesDirOverride(overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
+  const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
 
   hydrateContentDbIfNeeded(dbPath, overrides);
 
@@ -1230,6 +1249,7 @@ export function createSqliteRouteDeps(
     revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
     themes: discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" }),
     themesDir: resolvedThemesDir,
+    siteBinding: resolvedSiteBinding,
     outbox,
     bus,
     // Env-driven — off (the real no-op port) unless the operator has set

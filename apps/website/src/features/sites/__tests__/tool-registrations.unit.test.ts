@@ -48,6 +48,7 @@ function registrationFor(registrations: ToolRegistration[], id: string): ToolReg
 interface FakeDepsOptions {
   allow?: boolean;
   switcherEnabled?: boolean;
+  switcherCompatible?: boolean;
   sites?: readonly SiteListEntry[];
   duplicateSiteResult?: DuplicateSiteResult;
 }
@@ -73,6 +74,12 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
       return options.duplicateSiteResult ?? { siteId: "new-site-id-1234", dir: required.targetDir };
     },
     cwd: "/tmp/fake-cwd",
+    // Omitted entirely unless a test explicitly opts into the install-dir (not-switcher-compatible)
+    // case below — `resolveSitesDeps` defaults `switcherCompatible` to `true` when `siteBinding` is
+    // absent, matching every other test in this file that never touches this field.
+    ...(options.switcherCompatible === false
+      ? { siteBinding: { dir: "/some/site", name: "some-site", dirOverridden: true, switcherCompatible: false } }
+      : {}),
   };
 
   return { routeDeps, duplicateSiteCalls };
@@ -153,6 +160,26 @@ test("sites_duplicate_site: refuses when site switching is disabled, without eve
     (err: unknown) => err instanceof Error && err.name === "SiteSwitchingDisabledError"
   );
   assert.equal(authorizeCalled, false, "the capability flag must be checked BEFORE authorize is ever called");
+  assert.equal(duplicateSiteCalls.length, 0);
+});
+
+test("sites_duplicate_site: refuses when siteBinding.switcherCompatible is false (install-dir boot), without ever calling duplicateSite or authorize", async () => {
+  let authorizeCalled = false;
+  const { routeDeps, duplicateSiteCalls } = fakeDeps({ switcherCompatible: false });
+  const spiedDeps: SitesToolDeps = {
+    ...routeDeps,
+    authorize: async (args) => {
+      authorizeCalled = true;
+      return routeDeps.authorize(args);
+    },
+  };
+  const handler = registrationFor(buildSitesRegistrations(spiedDeps), "sites_duplicate_site").handler;
+
+  await assert.rejects(
+    () => handler(ctxFor({ sourceName: "source-site", targetName: "new-client" })),
+    (err: unknown) => err instanceof Error && err.name === "SiteBindingNotSwitchableError"
+  );
+  assert.equal(authorizeCalled, false, "the binding check must be checked BEFORE authorize is ever called");
   assert.equal(duplicateSiteCalls.length, 0);
 });
 

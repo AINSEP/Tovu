@@ -2,7 +2,6 @@ import type { Express, Response } from "express";
 
 import {
   createSite as createSiteReal,
-  describeSiteBinding as describeSiteBindingReal,
   includeServingSite,
   listSites as listSitesReal,
   persistActiveSite as persistActiveSiteReal,
@@ -38,13 +37,20 @@ import type { RouteDeps } from "#src/server/routes/types";
  * List's response also carries the two facts a UI needs to avoid CLAIMING A SWITCH THAT HAS NOT
  * HAPPENED (2026-09-05, admin Sites screen). Neither is derivable from `sites[]`:
  *
- * - `currentSite` — what this process is bound to RIGHT NOW (`describeSiteBinding`), plus `listed`:
- *   whether that directory is a REGISTERED site, i.e. one `tovu serve` would accept. It legitimately
- *   may not be — `listSites` skips any directory without a valid `.site-meta.json` commit marker,
- *   and this repo's own live `sites/tovu-com` carries neither marker file, so it was being served
- *   while `listSites` returned nothing and the screen rendered "All sites 0" (2026-09-05).
+ * - `currentSite` — what this process is bound to RIGHT NOW, read from `deps.siteBinding`
+ *   (`RouteDeps.siteBinding`, resolved ONCE by the composition root at boot — 2026-09-06, replacing
+ *   a per-request `describeSiteBinding()` call that silently disagreed with the real served site
+ *   whenever `tovu serve <dir>` resolved it from an explicit install-dir argument instead of
+ *   `{cwd, env}`; see that field's own doc), plus `listed`: whether that directory is a REGISTERED
+ *   site, i.e. one `tovu serve` would accept. It legitimately may not be — `listSites` skips any
+ *   directory without a valid `.site-meta.json` commit marker, and this repo's own live
+ *   `sites/tovu-com` carries neither marker file, so it was being served while `listSites` returned
+ *   nothing and the screen rendered "All sites 0" (2026-09-05).
  *   `currentSite.dirOverridden` reports the `TOVU_SITE_DIR` precedence trap — see {@link
  *   SiteBinding.dirOverridden}: with it set, an activate is inert and the UI must say so.
+ *   `currentSite.switcherCompatible` (`false` only for an install-dir boot) is what Create/Activate
+ *   below actually gate on — see {@link SiteBinding.switcherCompatible} and
+ *   `sendSiteBindingNotSwitchable`.
  * - `persistedSiteName` — the pending `TOVU_SITE` choice a previous activate left in `.env`
  *   (`readPersistedActiveSite`), so "serving A, B queued for the next restart" survives a page
  *   reload rather than living only in the activate response the reload threw away.
@@ -70,14 +76,13 @@ import type { RouteDeps } from "#src/server/routes/types";
  * server on a click). The response's `restartRequired`/`restartInstructions` fields exist so the
  * UI never has to hardcode that prose itself.
  */
-export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
+export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: typeof listSitesReal;
   createSite?: typeof createSiteReal;
   persistActiveSite?: typeof persistActiveSiteReal;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
-  describeSiteBinding?: typeof describeSiteBindingReal;
   readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
 };
 
@@ -92,6 +97,21 @@ function sendSiteSwitchingDisabled(res: Response): void {
   res.status(403).json({
     error: "site switching is disabled on this deployment",
     code: "SITE_SWITCHING_DISABLED",
+  });
+}
+
+/**
+ * The refusal for a boot whose `siteBinding.switcherCompatible` is `false` (2026-09-06,
+ * composition-root fix) — an install-dir boot (`tovu serve <dir>`) has no `{cwd, env}`-relative
+ * `sites/` tree to Create into or Activate against; `process.cwd()` could be any directory an
+ * operator happened to be standing in. 409, not 403: this is a per-boot structural fact about which
+ * `sites/` root exists, not a permissions or deployment-flag refusal (those two already use 403).
+ */
+function sendSiteBindingNotSwitchable(res: Response): void {
+  res.status(409).json({
+    error:
+      "this server was started against a specific site directory (tovu serve <dir>) with no related sites/ folder to manage — Create/Activate are unavailable",
+    code: "SITE_BINDING_NOT_SWITCHABLE",
   });
 }
 
@@ -132,7 +152,6 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   const createSite = deps.createSite ?? createSiteReal;
   const persistActiveSite = deps.persistActiveSite ?? persistActiveSiteReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
-  const describeSiteBinding = deps.describeSiteBinding ?? describeSiteBindingReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
@@ -152,7 +171,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       if (!authorized) return;
 
       const registered: SiteListEntry[] = listSites();
-      const binding = describeSiteBinding();
+      const binding = deps.siteBinding;
       const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
       const serving = sites.find((site) => site.dir === binding.dir);
       res.status(200).json({
@@ -174,6 +193,13 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
     }
     if (!isSiteSwitcherEnabled()) {
       sendSiteSwitchingDisabled(res);
+      return;
+    }
+    // Same ordering rationale as the flag check immediately above: a per-boot structural fact,
+    // independent of the caller's own permissions, so it is checked before spending an authorize()
+    // call on an operation this boot cannot fulfill regardless of who is asking.
+    if (!deps.siteBinding.switcherCompatible) {
+      sendSiteBindingNotSwitchable(res);
       return;
     }
 
@@ -213,6 +239,10 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
     }
     if (!isSiteSwitcherEnabled()) {
       sendSiteSwitchingDisabled(res);
+      return;
+    }
+    if (!deps.siteBinding.switcherCompatible) {
+      sendSiteBindingNotSwitchable(res);
       return;
     }
 

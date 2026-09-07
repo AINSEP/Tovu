@@ -266,6 +266,22 @@ export interface SiteBinding {
    * that cannot happen.
    */
   dirOverridden: boolean;
+  /**
+   * False when `dir` was resolved from an explicit, arbitrary install-dir argument (`tovu serve
+   * <dir>` / `bootSiteDir`) rather than from THIS function's own `{cwd, env}`-relative
+   * `<cwd>/sites/<name>` convention.
+   *
+   * `listSites`/`createSite`/`persistActiveSite`/`sites_duplicate_site` all resolve their OWN
+   * `sites/` root independently from `process.cwd()` (or an injected `cwd`) — a DIFFERENT
+   * computation from whatever `dir` this binding names. For every caller of THIS function
+   * (`describeSiteBinding`), those two computations agree by construction, so `true` here is always
+   * correct. `dir` set explicitly by a `tovu serve <dir>` boot (see
+   * `server/runtime/composition/deps.ts`'s `siteBinding` override) is an arbitrary path with no
+   * `sites/`-sibling relationship to any `cwd` at all — `process.cwd()` could be any directory an
+   * operator happened to be standing in — so `false` there tells the Sites-switcher's write paths to
+   * refuse rather than silently write under an unrelated `<cwd>/sites`.
+   */
+  switcherCompatible: boolean;
 }
 
 /**
@@ -284,5 +300,14 @@ export interface SiteBinding {
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
   const dir = resolveSiteRoot(optional);
   const env = optional.env ?? process.env;
-  return { dir, name: path.basename(dir), dirOverridden: env.TOVU_SITE_DIR !== undefined };
+  return {
+    dir,
+    name: path.basename(dir),
+    dirOverridden: env.TOVU_SITE_DIR !== undefined,
+    // Always true here — see {@link SiteBinding.switcherCompatible}'s own doc: every binding this
+    // function produces is, by construction, resolved via the same `{cwd, env}` the Sites-switcher's
+    // write paths use. Only a binding built OUTSIDE this function (an explicit install-dir override)
+    // can be `false`.
+    switcherCompatible: true,
+  };
 }
