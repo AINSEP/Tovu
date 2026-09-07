@@ -77,6 +77,28 @@ function untrackProject(projectsPath, siteDir) {
   return rows;
 }
 
+/**
+ * Seed `devFallbackDir` as the operator's first tracked project, but only on a TRULY fresh install
+ * — the projects file has never been written at all. Deliberately checked by file EXISTENCE, not by
+ * an empty tracked list: `trackProject`/`untrackProject` both call `writeTrackedProjects`
+ * unconditionally, so an operator who has tracked and later removed every project still has a
+ * projects file on disk (holding `{projects: []}`), and must never be re-seeded against their will.
+ * A brand-new `userData` has no file at all — that is the one state this seeds into.
+ *
+ * `classifySiteDir` is injected rather than required directly (`site-dir-store.cjs`) so this
+ * deliberately dependency-light module (see this file's header) stays decoupled from it, and so
+ * callers can test the seeding decision without a real directory on disk.
+ *
+ * @returns whether a row was seeded.
+ * @complexity O(1) beyond `classifySiteDir`'s and `trackProject`'s own cost.
+ */
+function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
+  if (fs.existsSync(projectsPath)) return false;
+  if (classifySiteDir(devFallbackDir) !== "site") return false;
+  trackProject(projectsPath, devFallbackDir);
+  return true;
+}
+
 module.exports = {
   PROJECTS_FILE_NAME,
   projectsFilePath,
@@ -84,4 +106,5 @@ module.exports = {
   writeTrackedProjects,
   trackProject,
   untrackProject,
+  seedDevFallbackProject,
 };

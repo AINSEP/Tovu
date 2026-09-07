@@ -102,7 +102,7 @@ const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 const { redeemBootSession, sitePartition } = require("./src/desktop-auth.cjs");
-const { projectsFilePath, readTrackedProjects, trackProject } = require("./src/project-registry.cjs");
+const { projectsFilePath, seedDevFallbackProject } = require("./src/project-registry.cjs");
 const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
@@ -685,12 +685,10 @@ app
       // the "Add project" card forever until the operator ran "+ Create website" once. Seeding the
       // same dev-fallback site `resolveStartupSiteDirs` already falls back to below (`sites/tovu-
       // com` in a checkout, absent in a packaged app) gives a real card on first launch instead —
-      // mirroring that existing precedent rather than fabricating one. Only when NOTHING is tracked
-      // yet, so this never re-adds a site the operator deliberately removed.
-      if (readTrackedProjects(fleetCtx.projectsPath).length === 0) {
-        const devFallbackDir = path.join(REPO_ROOT, "sites", "tovu-com");
-        if (classifySiteDir(devFallbackDir) === "site") trackProject(fleetCtx.projectsPath, devFallbackDir);
-      }
+      // mirroring that existing precedent rather than fabricating one. See `seedDevFallbackProject`'s
+      // own doc for exactly what "first launch" means (file existence, not an empty tracked list) —
+      // that distinction is what keeps this from re-adding a site the operator deliberately removed.
+      seedDevFallbackProject(fleetCtx.projectsPath, path.join(REPO_ROOT, "sites", "tovu-com"), classifySiteDir);
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
       // five real handlers must claim their channels first — see `project-ipc.cjs`'s own header.
       registerProjectIpcHandlers({

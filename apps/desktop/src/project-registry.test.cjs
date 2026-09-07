@@ -14,6 +14,7 @@ const {
   writeTrackedProjects,
   trackProject,
   untrackProject,
+  seedDevFallbackProject,
 } = require("./project-registry.cjs");
 
 function tempDir() {
@@ -89,4 +90,46 @@ test("writeTrackedProjects creates the parent directory if it does not exist", (
   const file = projectsFilePath(nested);
   writeTrackedProjects(file, [{ siteDir: "/x", createdAt: "2026-01-01" }]);
   assert.deepEqual(readTrackedProjects(file), [{ siteDir: "/x", createdAt: "2026-01-01" }]);
+});
+
+test("seedDevFallbackProject tracks the fallback dir on a truly fresh install", () => {
+  const file = projectsFilePath(tempDir());
+  const classifySiteDir = () => "site";
+  const seeded = seedDevFallbackProject(file, "/repo/sites/tovu-com", classifySiteDir);
+  assert.equal(seeded, true);
+  assert.deepEqual(
+    readTrackedProjects(file).map((r) => r.siteDir),
+    ["/repo/sites/tovu-com"],
+  );
+});
+
+test("seedDevFallbackProject does nothing when the fallback dir does not classify as a site", () => {
+  const file = projectsFilePath(tempDir());
+  const classifySiteDir = () => "occupied";
+  const seeded = seedDevFallbackProject(file, "/repo/sites/tovu-com", classifySiteDir);
+  assert.equal(seeded, false);
+  assert.deepEqual(readTrackedProjects(file), []);
+});
+
+test("seedDevFallbackProject never runs once the projects file exists, even if it holds zero rows", () => {
+  // The exact "operator removed every project" shape: `untrackProject` always calls
+  // `writeTrackedProjects`, so the file is present with an empty list, not absent.
+  const file = projectsFilePath(tempDir());
+  writeTrackedProjects(file, []);
+  const classifySiteDir = () => "site";
+  const seeded = seedDevFallbackProject(file, "/repo/sites/tovu-com", classifySiteDir);
+  assert.equal(seeded, false);
+  assert.deepEqual(readTrackedProjects(file), []);
+});
+
+test("seedDevFallbackProject does not run a second time once something is already tracked", () => {
+  const file = projectsFilePath(tempDir());
+  trackProject(file, "/sites/other");
+  const classifySiteDir = () => "site";
+  const seeded = seedDevFallbackProject(file, "/repo/sites/tovu-com", classifySiteDir);
+  assert.equal(seeded, false);
+  assert.deepEqual(
+    readTrackedProjects(file).map((r) => r.siteDir),
+    ["/sites/other"],
+  );
 });
