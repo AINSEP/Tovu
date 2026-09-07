@@ -99,11 +99,16 @@ export interface IdentityRouteDepsSlice {
  * `authorize()` closure over the same repos, and return the `IdentityRouteDepsSlice` shape both
  * composition roots need. Factored out so the in-memory and SQLite constructors below stay
  * identical except for which repo instances they pass in.
+ *
+ * `required.reconcileGrantsOnBoot` (default `true`) gates the write-capable steps chained onto
+ * `identityReady` below (`migrateDeprecatedPermissionGrants` + `applyBuiltinRoleGrants`) — see
+ * their call site's own comment for why a caller holding a genuinely read-only connection MUST
+ * pass `false` rather than relying on there being nothing left to reconcile.
  */
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
+  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
   const apiKeySecretHasher = new ScryptApiKeySecretHasher();
@@ -127,37 +132,48 @@ function buildIdentityRouteDeps(
   const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
 
   const identityReady = seedResult
-    .then(() =>
-      // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
-      // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
-      // fans out to any pre-existing policy still holding the deprecated string. Additive-only
-      // and idempotent (permission-migrations.ts) — safe to run on every boot, no-ops once every
-      // policy already holds the new string(s).
-      migrateDeprecatedPermissionGrants({
-        policyPermissions: repos.policyPermissions,
-        policies: repos.policies,
-        idGen: required.idGen,
-        workspaceId: required.workspaceId,
-      })
-    )
-    .then(() =>
-      // SPEC-047 REQ-9: the second boot-time grant path, and the one that covers what the fan-out
-      // above structurally cannot. That fan-out is `from`-anchored, so it reaches a workspace only
-      // when the anchor permission is already present there; a permission whose intended holder
-      // holds no suitable anchor in THIS workspace reaches nobody, silently, and the gate refuses
-      // its own intended role. `applyBuiltinRoleGrants` states the grant against the built-in role
-      // instead and reconciles it here. Additive-only and idempotent, same as the step above — see
-      // `builtin-role-grants.ts`. Ordered AFTER the fan-out so a grant the fan-out would have made
-      // is already in place and this step no-ops on it rather than racing it.
-      applyBuiltinRoleGrants({
-        roles: repos.roles,
-        rolePolicies: repos.rolePolicies,
-        policies: repos.policies,
-        policyPermissions: repos.policyPermissions,
-        idGen: required.idGen,
-        workspaceId: required.workspaceId,
-      })
-    )
+    .then(() => {
+      // Both steps below are additive-only and idempotent (see their own headers) — "safe to run
+      // on every boot" ASSUMES a writable connection. It is not: `migrateDeprecatedPermissionGrants`
+      // and `applyBuiltinRoleGrants` only skip their `.save()` when they find nothing outstanding to
+      // add, and calling `.save()` against a genuinely read-only SQLite handle (`better-sqlite3`'s
+      // `readonly: true`, as `openContentDbReadOnly` uses) throws `SqliteError: attempt to write a
+      // readonly database` rather than no-op'ing. A caller building identity deps over such a
+      // connection — `development/scripts/backfill-reset-admin-password.ts`'s dry-run path is the
+      // one that exists today — must pass `reconcileGrantsOnBoot: false` so this whole step is
+      // skipped outright, instead of depending on the workspace happening to have nothing left to
+      // reconcile (true today only by chance, not by any guarantee).
+      if (required.reconcileGrantsOnBoot === false) return undefined;
+
+      return (
+        migrateDeprecatedPermissionGrants({
+          // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
+          // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
+          // fans out to any pre-existing policy still holding the deprecated string.
+          policyPermissions: repos.policyPermissions,
+          policies: repos.policies,
+          idGen: required.idGen,
+          workspaceId: required.workspaceId,
+        })
+          // SPEC-047 REQ-9: the second boot-time grant path, and the one that covers what the fan-out
+          // above structurally cannot. That fan-out is `from`-anchored, so it reaches a workspace only
+          // when the anchor permission is already present there; a permission whose intended holder
+          // holds no suitable anchor in THIS workspace reaches nobody, silently, and the gate refuses
+          // its own intended role. `applyBuiltinRoleGrants` states the grant against the built-in role
+          // instead and reconciles it here. Ordered AFTER the fan-out so a grant the fan-out would have
+          // made is already in place and this step no-ops on it rather than racing it.
+          .then(() =>
+            applyBuiltinRoleGrants({
+              roles: repos.roles,
+              rolePolicies: repos.rolePolicies,
+              policies: repos.policies,
+              policyPermissions: repos.policyPermissions,
+              idGen: required.idGen,
+              workspaceId: required.workspaceId,
+            })
+          )
+      );
+    })
     .then(() => undefined);
 
   const authorize: AuthorizeFn = (params) =>
@@ -210,6 +226,11 @@ export function createInMemoryIdentityRouteDeps(required: {
   workspaceId: UUID;
   clock: ClockPort;
   idGen: IdGeneratorPort;
+  /** See `buildIdentityRouteDeps`'s doc. `false` skips the boot-time grant/migration reconciliation
+   *  fan-out; omit (default `true`) to keep today's behavior. The in-memory store never rejects a
+   *  write, so no in-memory caller needs this — kept here only for signature parity with the
+   *  SQLite constructor below. */
+  reconcileGrantsOnBoot?: boolean;
 }): IdentityRouteDepsSlice {
   const repos: IdentityRepos = {
     principals: new InMemoryPrincipalRepo(),
@@ -237,7 +258,17 @@ export function createInMemoryIdentityRouteDeps(required: {
  * @overallScore 100
  */
 export function createSqliteIdentityRouteDeps(
-  required: { db: ContentDb; workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
+  required: {
+    db: ContentDb;
+    workspaceId: UUID;
+    clock: ClockPort;
+    idGen: IdGeneratorPort;
+    /** See `buildIdentityRouteDeps`'s doc. Pass `false` when `db` is a genuinely read-only
+     *  connection (e.g. `openContentDbReadOnly`) — otherwise an outstanding grant/migration attempts
+     *  a real `.save()` against it and throws, instead of the intended no-op. Omit (default `true`)
+     *  for a writable connection to keep today's behavior. */
+    reconcileGrantsOnBoot?: boolean;
+  }
 ): IdentityRouteDepsSlice {
   const { db, ...seedRequired } = required;
   const repos: IdentityRepos = {

@@ -54,6 +54,27 @@ function countTables(dbPath: string): number {
   }
 }
 
+/** Reads a named built-in policy's held permissions via raw SQL on a fresh read-only connection —
+ *  same independent-witness reasoning as `countTables`: this must not go through
+ *  `createSqliteIdentityRouteDeps`/any repo this script itself uses, or a bug in the thing under
+ *  test could mask itself from its own assertion. */
+function permissionsOfBuiltinPolicy(dbPath: string, policyName: string): string[] {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db
+      .prepare(
+        `SELECT pp.permission AS permission
+         FROM policy_permissions pp
+         JOIN policies p ON p.id = pp.policy_id
+         WHERE p.name = ?`
+      )
+      .all(policyName) as { permission: string }[];
+    return rows.map((r) => r.permission);
+  } finally {
+    db.close();
+  }
+}
+
 function runScript(dbPath: string, extraArgs: string[] = [], envOverrides: Record<string, string | undefined> = {}): string {
   const env = { ...process.env, ...envOverrides };
   for (const [key, value] of Object.entries(envOverrides)) {
@@ -285,6 +306,49 @@ test("backfill-reset-admin-password: --db=<path> (the same '=' form --username=/
   // path instead of finding the real one this test seeded.
   const dryRunOutput = runScriptDbEquals(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
   assert.match(dryRunOutput, /DRY RUN: found user 'admin'/);
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+/**
+ * The concrete "unwired call site" fix: this script previously built identity deps without
+ * importing `features/pages/index.js`, so `identityReady`'s boot-time reconciliation ran against an
+ * EMPTY registry here — the `theme.edit -> pages.edit_html` migration and the `admin ->
+ * pages.edit_html` built-in-role grant (SPEC-047 REQ-9) that every real server boot applies never
+ * reached this script's own `--apply` writes. `seedWorkspaceAndIdentity` above deliberately does
+ * NOT import the Pages barrel either, so the DB it produces starts in exactly that gap: admin holds
+ * `theme.edit` (from the base seed) but not yet `pages.edit_html`.
+ *
+ * The dry-run half guards the hazard the fix itself introduced: `identityReady` now attempts that
+ * same reconciliation on every invocation, and a dry run's connection is genuinely read-only
+ * (`openContentDbReadOnly`) — without `reconcileGrantsOnBoot: args.apply` gating it (see wiring.ts),
+ * this exact fixture would make a dry run crash instead of safely reporting.
+ */
+test("backfill-reset-admin-password: --apply reconciles this repo's own pages.edit_html grant onto admin, same as a real server boot; a dry run against the identical gap neither writes nor crashes", async () => {
+  const scratch = tmpDir("backfill-reset-admin-password-pages-grant-");
+  const dbPath = path.join(scratch, "content.db");
+  await seedWorkspaceAndIdentity(dbPath);
+
+  assert.deepEqual(
+    permissionsOfBuiltinPolicy(dbPath, "admin-builtin-policy").includes("pages.edit_html"),
+    false,
+    "fixture precondition: the fresh seed above must NOT already hold pages.edit_html"
+  );
+
+  const dryRunOutput = runScript(dbPath, [], { TOVU_ADMIN_RESET_PASSWORD: undefined });
+  assert.match(dryRunOutput, /DRY RUN: found user 'admin'/);
+  assert.deepEqual(
+    permissionsOfBuiltinPolicy(dbPath, "admin-builtin-policy").includes("pages.edit_html"),
+    false,
+    "a dry run must not have written the grant — its connection is read-only"
+  );
+
+  runScript(dbPath, ["--apply"], { TOVU_ADMIN_RESET_PASSWORD: "recovered-pw-778899" });
+  assert.deepEqual(
+    permissionsOfBuiltinPolicy(dbPath, "admin-builtin-policy").includes("pages.edit_html"),
+    true,
+    "--apply must reconcile the same admin -> pages.edit_html grant a real server boot would"
+  );
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });

@@ -48,7 +48,11 @@
  * A dry run resolves the target user and reports whether it exists — it never touches the hasher,
  * never captures a restore point, never writes. It opens the database strictly read-only
  * (`openContentDbReadOnly`), so unlike an ordinary `openContentDb` open it also never migrates the
- * schema or writes the bootstrap watermark row — only `--apply` does either.
+ * schema or writes the bootstrap watermark row — only `--apply` does either. For the identical
+ * reason, `createSqliteIdentityRouteDeps` is called with `reconcileGrantsOnBoot: args.apply`: that
+ * flag being unset would let `identityReady`'s boot-time permission-grant/migration reconciliation
+ * attempt a real write against this dry run's read-only connection the moment a workspace actually
+ * has something outstanding to reconcile — see `wiring.ts`'s own comment on that flag.
  *
  * Exit codes: `0` on a successful `--apply` (write + self-verification both succeeded), or a dry
  * run that found the target; `1` if the target user does not exist, or the write's self-
@@ -69,6 +73,16 @@ import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
 } from "../../apps/website/src/features/identity/reset-admin-password-self-verified.js";
+// Side-effect import: registers this repo's OWN theme.edit -> pages.edit_html permission-migration
+// pair and admin -> pages.edit_html built-in-role grant (features/pages/permissions.ts, both
+// consumed via createSqliteIdentityRouteDeps's identityReady below) before that promise resolves.
+// This script previously omitted it, so identityReady's boot-time reconciliation fan-out ran
+// against an EMPTY registry here — every other composition root (server/runtime/composition/app.ts,
+// deps.ts) reaches this registration only incidentally, by also importing the Pages barrel for an
+// unrelated reason (InMemoryPagesHtmlDocumentStore / PagesHtmlDocumentStore), so this script was the
+// one place the grant silently never applied. Mirrors the identical side-effect import
+// `features/identity/__tests__/wiring.test.ts` already carries, and for the same reason.
+import "../../apps/website/src/features/pages/index.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
@@ -129,7 +143,12 @@ async function main(): Promise<void> {
 
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
+  // reconcileGrantsOnBoot mirrors args.apply exactly: a dry run's `db` is opened strictly read-only
+  // above, and identityReady's boot-time grant/migration reconciliation calls `.save()` when
+  // anything is outstanding — against a read-only connection that throws instead of no-op'ing (see
+  // wiring.ts's own comment on this). `--apply`'s writable connection reconciles exactly like every
+  // real server boot does.
+  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, reconcileGrantsOnBoot: args.apply });
   await identity.identityReady;
 
   const target = await identity.userRepo.findByUsername({ workspaceId, username: args.username });

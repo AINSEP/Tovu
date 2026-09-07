@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { openContentDb, openContentDbReadOnly } from "#src/platform/db/sqlite/content-db";
 // Side-effect import: registers the real BASE_CATALOG + the real permission-migration pairs
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the
@@ -29,7 +29,7 @@ import {
 // library, which is the seam `registerPermissionMigration` is exported for.
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
-import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps } from "../wiring.js";
+import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z" };
@@ -444,4 +444,110 @@ test("createInMemoryIdentityRouteDeps: a second identityReady over the same repo
     (row) => row.permission === PAGES_EDIT_HTML_PERMISSION
   );
   assert.equal(rows.length, 1, "re-running the backfill must no-op, not append a second grant row");
+});
+
+/**
+ * `reconcileGrantsOnBoot: false` — the escape hatch added for
+ * `development/scripts/backfill-reset-admin-password.ts`'s dry-run path (see `wiring.ts`'s own
+ * comment on this option). This proves the flag actually suppresses the fan-out, not just that a
+ * fresh workspace happens to have nothing outstanding: the sibling test at line ~275 (same fresh
+ * vintage, flag omitted) asserts admin DOES gain `pages.edit_html`; this one asserts it does not.
+ */
+test("createInMemoryIdentityRouteDeps: reconcileGrantsOnBoot: false skips the pages.edit_html backfill the default path performs", async () => {
+  const workspaceId = "workspace-reconcile-flag-inmemory";
+  const deps = createInMemoryIdentityRouteDeps({
+    workspaceId,
+    clock: fixedClock,
+    idGen: counterIdGen(),
+    reconcileGrantsOnBoot: false,
+  });
+
+  await deps.identityReady;
+
+  const policy = await deps.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
+  assert.ok(policy, "seedIdentity itself is unaffected by the flag — the built-in policy still exists");
+  const permissions = (await deps.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id })).map(
+    (row) => row.permission
+  );
+  assert.ok(
+    !permissions.includes(PAGES_EDIT_HTML_PERMISSION),
+    "reconcileGrantsOnBoot: false must skip applyBuiltinRoleGrants entirely, not just no-op it"
+  );
+});
+
+/** Removes the `pages.edit_html` row a default (`reconcileGrantsOnBoot` omitted) boot just granted
+ *  onto `admin-builtin-policy`, so the fixture below can simulate "still outstanding" without a
+ *  second, differently-shaped workspace vintage. Mirrors `dropAdminThemeEdit` above, adapted to the
+ *  `IdentityRouteDepsSlice` field names (`policyRepo`/`policyPermissionRepo`) rather than
+ *  `IdentityRepos`'s (`policies`/`policyPermissions`) since this fixture drives the public wiring
+ *  constructors, not the repos directly. */
+async function dropAdminPagesEditHtml(
+  deps: Pick<IdentityRouteDepsSlice, "policyRepo" | "policyPermissionRepo">,
+  workspaceId: string
+): Promise<void> {
+  const policy = await deps.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
+  assert.ok(policy, "seedIdentity must have created the built-in admin policy");
+  const grants = await deps.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id });
+  const row = grants.find((g) => g.permission === PAGES_EDIT_HTML_PERMISSION);
+  assert.ok(row, "the default-reconcile boot just above must have granted pages.edit_html before this drops it");
+  await deps.policyPermissionRepo.delete({ workspaceId, id: row.id });
+}
+
+/**
+ * The concrete hazard `reconcileGrantsOnBoot` exists to prevent, proven against a REAL read-only
+ * `better-sqlite3` connection rather than reasoned about: `applyBuiltinRoleGrants`'s `.save()` is
+ * additive-only, but "additive-only" is a statement about which ROWS it touches, not about whether
+ * it attempts to write at all — against a workspace with an outstanding grant, it always tries, and
+ * a genuinely read-only connection throws on that attempt instead of no-op'ing.
+ *
+ * Two identity constructions run over the SAME on-disk file, already seeded and already missing
+ * `pages.edit_html` (dropped below) so there is something for the fan-out to do: one opts out via
+ * `reconcileGrantsOnBoot: false` and must resolve cleanly; the other omits the flag (today's
+ * pre-existing default behavior) and must reject with the exact underlying SQLite error — proving
+ * the flag is load-bearing, not incidentally unnecessary.
+ */
+test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the readonly-write crash a dry-run connection would otherwise hit", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-identity-wiring-readonly-test-"));
+  const dbPath = join(dir, "content.db");
+  const workspaceId = "workspace-reconcile-flag-sqlite-readonly";
+  try {
+    const setupDb = openContentDb(dbPath);
+    const setup = createSqliteIdentityRouteDeps({ db: setupDb, workspaceId, clock: fixedClock, idGen: counterIdGen() });
+    await setup.identityReady;
+    await dropAdminPagesEditHtml(setup, workspaceId);
+    setupDb.$client.close();
+
+    const roForFlagOff = openContentDbReadOnly(dbPath);
+    const flagOff = createSqliteIdentityRouteDeps({
+      db: roForFlagOff,
+      workspaceId,
+      clock: fixedClock,
+      idGen: counterIdGen(),
+      reconcileGrantsOnBoot: false,
+    });
+    await assert.doesNotReject(
+      () => flagOff.identityReady,
+      "reconcileGrantsOnBoot: false must never attempt the write, so a read-only connection is safe"
+    );
+    roForFlagOff.$client.close();
+
+    const roForFlagDefault = openContentDbReadOnly(dbPath);
+    const flagDefault = createSqliteIdentityRouteDeps({
+      db: roForFlagDefault,
+      workspaceId,
+      clock: fixedClock,
+      idGen: counterIdGen(),
+    });
+    await assert.rejects(
+      () => flagDefault.identityReady,
+      (err: unknown) => {
+        assert.equal((err as Error).message, "attempt to write a readonly database");
+        return true;
+      },
+      "omitting the flag against the identical outstanding grant must hit the real SQLite readonly error — proving flagOff's clean resolution above was the flag's doing, not the fixture's"
+    );
+    roForFlagDefault.$client.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
