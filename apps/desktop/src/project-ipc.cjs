@@ -21,7 +21,14 @@
 const path = require("node:path");
 const fsp = require("node:fs/promises");
 
-const { PROJECT_ORIGIN, readTrackedProjects, trackProject, untrackProject } = require("./project-registry.cjs");
+const {
+  PROJECT_ORIGIN,
+  readTrackedProjects,
+  trackProject,
+  untrackProject,
+  discoverSiteDirs,
+  adoptDiscoveredProjects,
+} = require("./project-registry.cjs");
 const { mayEraseProjectDirectory } = require("./project-delete-guard.cjs");
 const { sitePartition } = require("./desktop-auth.cjs");
 
@@ -204,6 +211,40 @@ async function handleStart(id, deps) {
 }
 
 /**
+ * Find every Tovu site on disk the operator has no stored answer about, track it, and return the
+ * whole refreshed list.
+ *
+ * This is the fix for the Projects screen having no discovery at all: {@link handleList} renders
+ * `desktop-projects.json` and nothing else — no scan, no rescan, no fallback — so a site created by
+ * `tovu init` outside the shell, or restored from a backup, was invisible forever no matter how
+ * plainly it sat on disk. Runs once at boot (`main.cjs`) and again whenever the operator asks.
+ *
+ * **A directory the operator removed on purpose is never brought back**, however many times this
+ * runs. That is `adoptDiscoveredProjects`' rule, not this function's, and the reason it lives down
+ * there is that the boot pass and the operator's button must not be able to disagree about it: a
+ * rescan that resurrected deleted cards would be the same bug the seed guard exists to prevent,
+ * and worse here, since a button can be pressed again. Their way back is the folder dialog, which
+ * reaches `trackProject` directly — see that function's own comment on why only the explicit adder
+ * clears a dismissal.
+ *
+ * @param deps.projectScanRoots directories whose immediate children are candidate sites.
+ * @param deps.recentSiteDirs `site-dir-store.cjs`'s recently-opened list, as a thunk — the sites
+ *   own-server mode has been recording all along, which are the operator's by definition and
+ *   generally do not live under any scan root.
+ * @returns the same records {@link handleList} would return, after the pass.
+ * @complexity O(n) in the scanned child count, times the registry size.
+ */
+function rescanProjects(deps) {
+  const found = discoverSiteDirs({
+    scanRoots: deps.projectScanRoots,
+    knownDirs: deps.recentSiteDirs(),
+    classifySiteDir: deps.classifySiteDir,
+  });
+  adoptDiscoveredProjects(deps.projectsPath, found);
+  return handleList(deps);
+}
+
+/**
  * Registers the five real `runner:projects:*` handlers above.
  *
  * @param {object} deps
@@ -247,5 +288,6 @@ module.exports = {
   handleDelete,
   handleOpenExternal,
   handleStart,
+  rescanProjects,
   registerProjectIpcHandlers,
 };

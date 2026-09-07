@@ -19,9 +19,11 @@ const {
   handleDelete,
   handleOpenExternal,
   handleStart,
+  rescanProjects,
   registerProjectIpcHandlers,
 } = require("./project-ipc.cjs");
 const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } = require("./project-registry.cjs");
+const { classifySiteDir } = require("./site-dir-store.cjs");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
@@ -312,4 +314,85 @@ test("handleDelete still stops and closes a running project it may not erase", a
 
   assert.deepEqual(order, ["stopped", "destroyed"], "removing the card still closes the site it was showing");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true);
+});
+
+// ---------------------------------------------------------------------------------------------
+// `rescanProjects` — the discovery pass, run once at boot and again whenever the operator asks.
+// ---------------------------------------------------------------------------------------------
+
+/** A directory the REAL `classifySiteDir` will call a site: both marker files present. */
+function siteFolder(parent, name) {
+  const dir = path.join(parent, name);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "config.json"), "{}");
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), "{}");
+  return dir;
+}
+
+/** `deps` wired to the REAL classifier over a real scan root, since a fake one would happily
+ *  "discover" folders that are not sites at all and prove nothing about the boot path. */
+function scanDeps(overrides = {}) {
+  const root = path.join(tempDir(), "sites");
+  fs.mkdirSync(root, { recursive: true });
+  return {
+    ...baseDeps({
+      classifySiteDir,
+      projectScanRoots: [root],
+      recentSiteDirs: () => [],
+      ...overrides,
+    }),
+    scanRoot: root,
+  };
+}
+
+test("rescanProjects makes a site dir that exists on disk but was never registered visible", () => {
+  const deps = scanDeps();
+  const alpha = siteFolder(deps.scanRoot, "alpha");
+  assert.deepEqual(handleList(deps), [], "precondition: nothing is tracked yet");
+  const records = rescanProjects(deps);
+  assert.deepEqual(records.map((r) => r.id), [alpha]);
+  assert.deepEqual(handleList(deps).map((r) => r.id), [alpha], "and it survives into the next list");
+});
+
+test("rescanProjects records a discovery as adopted, so deleting its card can never erase it", () => {
+  const deps = scanDeps();
+  siteFolder(deps.scanRoot, "alpha");
+  const [record] = rescanProjects(deps);
+  assert.equal(record.deleteErasesFiles, false);
+  assert.equal(readTrackedProjects(deps.projectsPath)[0].origin, PROJECT_ORIGIN.adopted);
+});
+
+test("rescanProjects never resurrects a project the operator removed on purpose", async () => {
+  const deps = scanDeps();
+  const alpha = siteFolder(deps.scanRoot, "alpha");
+  rescanProjects(deps);
+  await handleDelete(alpha, deps);
+  assert.deepEqual(handleList(deps), [], "precondition: the removal took");
+  // Repeatedly, because a rescan is an operator-triggered button, not a one-shot boot step.
+  assert.deepEqual(rescanProjects(deps), []);
+  assert.deepEqual(rescanProjects(deps), []);
+  assert.deepEqual(handleList(deps), []);
+  assert.equal(fs.existsSync(path.join(alpha, "config.json")), true, "and the folder itself is untouched");
+});
+
+test("rescanProjects picks up a recently-opened site that lives outside every scan root", () => {
+  const outside = siteFolder(tempDir(), "elsewhere");
+  const deps = scanDeps({ recentSiteDirs: () => [outside] });
+  assert.deepEqual(rescanProjects(deps).map((r) => r.id), [outside]);
+});
+
+test("rescanProjects leaves an already-tracked project's row exactly as it was", () => {
+  const deps = scanDeps();
+  const alpha = siteFolder(deps.scanRoot, "alpha");
+  trackProject(deps.projectsPath, alpha, PROJECT_ORIGIN.adopted);
+  const before = readTrackedProjects(deps.projectsPath);
+  rescanProjects(deps);
+  assert.deepEqual(readTrackedProjects(deps.projectsPath), before);
+});
+
+test("rescanProjects ignores a folder under the scan root that is not a site", () => {
+  const deps = scanDeps();
+  fs.mkdirSync(path.join(deps.scanRoot, "not-a-site"), { recursive: true });
+  fs.writeFileSync(path.join(deps.scanRoot, "loose.txt"), "hi");
+  assert.deepEqual(rescanProjects(deps), []);
 });

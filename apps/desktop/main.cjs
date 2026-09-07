@@ -111,8 +111,8 @@ const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
 const { redeemBootSession, sitePartition, hasActiveSessionCookie, endSiteSession } = require("./src/desktop-auth.cjs");
-const { projectsFilePath, seedDevFallbackProject } = require("./src/project-registry.cjs");
-const { registerProjectIpcHandlers } = require("./src/project-ipc.cjs");
+const { projectsFilePath, seedDevFallbackProject, migrateLegacyDismissals } = require("./src/project-registry.cjs");
+const { registerProjectIpcHandlers, rescanProjects } = require("./src/project-ipc.cjs");
 
 /**
  * E2E-only override for `app.getPath("userData")`. Must run before `app.whenReady()` — Electron
@@ -156,6 +156,30 @@ const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand",
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
+
+/**
+ * The site a checkout always has and a packaged app never does — `bootOwnServerMode`'s last
+ * precedence tier, the fleet UI's first-launch seed, and the one directory
+ * `migrateLegacyDismissals` can reason about.
+ *
+ * A named constant rather than three copies of the same `path.join` because those last two MUST be
+ * the same directory to be correct at all: the migration records "the operator removed this" about
+ * whatever it is pointed at, and the seed asks about whatever IT is pointed at. Pointed at
+ * different folders they would silently stop talking about the same thing, and the symptom — a
+ * deleted card coming back on one boot — would surface nowhere near the cause.
+ */
+const DEV_FALLBACK_SITE_DIR = path.join(REPO_ROOT, "sites", "tovu-com");
+
+/**
+ * Where a site created outside this shell is looked for at boot: the flat `sites/` directory a
+ * checkout keeps, the same one {@link DEV_FALLBACK_SITE_DIR} sits in.
+ *
+ * A list because the shell has no single instances root to scan — unlike Tovu-Runner, whose
+ * provisioner owns `<userData>/instances` and names every folder in it, this shell's
+ * "+ Create website" asks the operator WHERE the site should live, so its projects are scattered
+ * wherever they said. `rescanProjects` covers the rest through the recently-opened list.
+ */
+const PROJECT_SCAN_ROOTS = [path.join(REPO_ROOT, "sites")];
 
 /**
  * `true` when this launch should open the fleet Projects screen (boot mode 0) rather than a site
@@ -796,7 +820,7 @@ async function resolveStartupSiteDirs(ctx) {
     statePath: ctx.statePath,
     // Correct for a developer, absent in a packaged app — one tier of a precedence chain rather
     // than a hardcoded default.
-    devFallbackDir: path.join(REPO_ROOT, "sites", "tovu-com"),
+    devFallbackDir: DEV_FALLBACK_SITE_DIR,
     repoRoot: REPO_ROOT,
     cliMode: ctx.cliMode,
     // No `name`: `initSite` defaults it to the chosen folder's basename (BR-03).
@@ -923,17 +947,26 @@ app
         registryPath: registryFilePath(app.getPath("userData")),
         projectsPath: projectsFilePath(app.getPath("userData")),
       };
+      // Once, before the seed reads the file: a registry written before removals were RECORDED
+      // cannot say whether the dev fallback below is absent because it was never seeded or because
+      // the operator deleted its card, and the seed is about to ask exactly that. See
+      // `migrateLegacyDismissals`' own doc for why this is the narrow, one-directory conversion it
+      // is, and `main-project-wiring.test.cjs` for the test that pins this call ahead of the seed.
+      migrateLegacyDismissals(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR);
       // A brand-new `userData` tracks nothing, so the Projects screen would otherwise show only
       // the "Add project" card forever until the operator ran "+ Create website" once. Seeding the
       // same dev-fallback site `resolveStartupSiteDirs` already falls back to below (`sites/tovu-
       // com` in a checkout, absent in a packaged app) gives a real card on first launch instead —
-      // mirroring that existing precedent rather than fabricating one. See `seedDevFallbackProject`'s
-      // own doc for exactly what "first launch" means (file existence, not an empty tracked list) —
-      // that distinction is what keeps this from re-adding a site the operator deliberately removed.
-      seedDevFallbackProject(fleetCtx.projectsPath, path.join(REPO_ROOT, "sites", "tovu-com"), classifySiteDir);
-      // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
-      // five real handlers must claim their channels first — see `project-ipc.cjs`'s own header.
-      registerProjectIpcHandlers({
+      // mirroring that existing precedent rather than fabricating one. The guard is per-DIRECTORY
+      // now, not the old "has this file ever been written": that one also blocked every legitimate
+      // case, so nothing could ever be seeded or discovered again after the first write. A project
+      // the operator removed still stays removed, from the recorded dismissal rather than from the
+      // file's mere existence — see `seedDevFallbackProject`'s own doc.
+      seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir);
+      // Built once and shared: `rescanProjects` below needs the same `deps` the handlers get, and a
+      // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
+      // `classifySiteDir`, the scan inputs) where drift is invisible until a site fails to appear.
+      const projectDeps = {
         ipcMain,
         dialog,
         shell,
@@ -952,8 +985,20 @@ app
         classifySiteDir,
         openSiteServer,
         recordSiteClosed,
+        projectScanRoots: PROJECT_SCAN_ROOTS,
+        // A thunk, not the list: read fresh on every scan, so a site opened during this session is
+        // found by a later rescan instead of being frozen out by a snapshot taken at boot.
+        recentSiteDirs: () => existingRecentSiteDirs(fleetCtx.statePath),
         ctx: fleetCtx,
-      });
+      };
+      // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
+      // real handlers must claim their channels first — see `project-ipc.cjs`'s own header.
+      registerProjectIpcHandlers(projectDeps);
+      // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
+      // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
+      // nothing else. Runs before `openFleetWindow` so the first render already shows what is
+      // really on disk rather than a list that fills in on the next 4s poll.
+      rescanProjects(projectDeps);
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.

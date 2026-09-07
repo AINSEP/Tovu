@@ -1,0 +1,91 @@
+/**
+ * @file Static-analysis tests for `../main.cjs`'s project-discovery wiring — the boot pass that
+ * makes a site on disk appear on the Projects screen without hand-registration.
+ *
+ * Source text, not behaviour, for the reason `main-speech-wiring.test.cjs` documents at length:
+ * `main.cjs` requires `"electron"` at module scope, which resolves to a path string rather than the
+ * real API outside a real Electron process, so `require`-ing it under plain `node --test` crashes
+ * before proving anything. The pieces it wires together are behaviourally covered where they live
+ * (`project-registry.test.cjs`, `project-ipc.test.cjs`); what only this file can check is that
+ * `main.cjs` actually CALLS them, and in the one order where the call is correct.
+ *
+ * That order is the whole point of the first two tests. `migrateLegacyDismissals` is what carries
+ * "the operator removed this, never offer it again" across the registry's format change, and it
+ * must record that fact BEFORE `seedDevFallbackProject` asks whether to seed. Reversed, the seed
+ * reads a file that cannot yet answer, re-adds the card the operator deleted, and the migration
+ * then dutifully records that it is tracked. Nothing downstream would ever report the mistake.
+ */
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const MAIN_PATH = path.join(__dirname, "..", "main.cjs");
+const source = fs.readFileSync(MAIN_PATH, "utf8");
+
+/** The call site's index, asserted to exist first so a renamed function fails loudly here rather
+ *  than making every ordering comparison below vacuously true against two -1s. */
+function callIndex(name) {
+  const index = source.indexOf(`${name}(`);
+  assert.notEqual(index, -1, `expected a ${name}(...) call in main.cjs`);
+  return index;
+}
+
+test("main.cjs requires the migration, the seed and the rescan from their own modules", () => {
+  assert.match(source, /migrateLegacyDismissals/);
+  assert.match(source, /seedDevFallbackProject/);
+  assert.match(source, /rescanProjects/);
+  assert.match(source, /require\(["']\.\/src\/project-registry\.cjs["']\)/);
+  assert.match(source, /require\(["']\.\/src\/project-ipc\.cjs["']\)/);
+});
+
+test("migrateLegacyDismissals runs BEFORE the seed, or a removed project is re-seeded once", () => {
+  assert.ok(
+    callIndex("migrateLegacyDismissals") < callIndex("seedDevFallbackProject"),
+    "the pre-dismissals registry must be migrated before the seed reads it, or the seed asks a file that cannot yet say the operator removed the dev fallback",
+  );
+});
+
+test("the boot discovery pass runs before the fleet window opens", () => {
+  // Against the CALL, not `openFleetWindow`'s own definition, which appears earlier in the file and
+  // would make this comparison pass no matter where the scan went.
+  const openCall = source.indexOf("openFleetWindow();");
+  assert.notEqual(openCall, -1, "expected an openFleetWindow(); call in the fleet branch");
+  assert.ok(
+    callIndex("rescanProjects") < openCall,
+    "a scan that ran after the window opened would leave the first render showing the un-scanned list",
+  );
+});
+
+test("the migration and the seed are handed the SAME dev-fallback directory", () => {
+  // One named constant, checked at both call sites. Two copies of the same `path.join` would pass a
+  // looser test today and silently diverge the moment either moved.
+  assert.match(source, /migrateLegacyDismissals\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR\)/);
+  assert.match(source, /seedDevFallbackProject\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\)/);
+  assert.match(source, /const DEV_FALLBACK_SITE_DIR = path\.join\(REPO_ROOT, "sites", "tovu-com"\)/);
+});
+
+test("the shared deps object the handlers get is the one the boot scan is run against", () => {
+  // Two separately-built deps literals could drift in `projectsPath` or `classifySiteDir` and the
+  // only symptom would be a site that never appears — no error anywhere.
+  assert.match(source, /registerProjectIpcHandlers\(projectDeps\)/);
+  assert.match(source, /rescanProjects\(projectDeps\)/);
+});
+
+test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
+  const depsStart = source.indexOf("const projectDeps = {");
+  assert.notEqual(depsStart, -1, "expected a projectDeps object in the fleet branch");
+  const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
+  assert.match(depsBlock, /projectScanRoots: PROJECT_SCAN_ROOTS/);
+  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(fleetCtx\.statePath\)/);
+});
+
+test("the scan root is the sites directory the dev fallback already lives in", () => {
+  assert.match(source, /const PROJECT_SCAN_ROOTS = \[path\.join\(REPO_ROOT, "sites"\)\]/);
+});
+
+test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot", () => {
+  // A value would freeze the list at registration time, so a site opened during the session would
+  // never be found by a later rescan — the exact staleness the rescan button exists to cure.
+  assert.match(source, /recentSiteDirs:\s*\(\)\s*=>\s*existingRecentSiteDirs\(/);
+});
