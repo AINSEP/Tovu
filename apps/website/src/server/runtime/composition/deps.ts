@@ -17,7 +17,7 @@ import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import type { EgressPolicy } from "#src/platform/http/index";
+import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -1107,43 +1107,25 @@ export function createSqliteRouteDeps(
   // third `EnvOrFileKeyring` instance).
   const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(db);
   const runtimeMode = resolveRuntimeMode();
-  // A dedicated `EgressPolicy` for outbound mail-API calls (Resend today) — no default policy
-  // exists elsewhere in this codebase to reuse (checked: no production `HttpClientPort` consumer
-  // is wired into either composition root yet; `platform/http/__tests__/client.test.ts`'s own
-  // fixture is the only prior art, mirrored loosely here). `maxRedirects: 0`: a JSON POST to a
-  // fixed, first-party API endpoint has no legitimate reason to redirect.
-  const mailHttpClientPolicy: EgressPolicy = {
-    allowedSchemes: ["https"],
-    denyPrivateAddresses: true,
-    devHostAllowlist: [],
-    maxRedirects: 0,
-    connectTimeoutMs: 10_000,
-    maxResponseBytes: 1_000_000,
-    maxDecompressedBytes: 1_000_000,
-  };
+  // Outbound mail-API calls (Resend today) use the shared `SINGLE_HOP_HTTPS_EGRESS_POLICY` — see
+  // `platform/http/egress-policies.ts`'s own header for why this used to be a hand-copied literal
+  // (no default policy exists elsewhere in this codebase to reuse otherwise; checked: no production
+  // `HttpClientPort` consumer was wired into either composition root before this).
   const resolvedMailer = createResolvedMailer({
     workspaceId,
     customCredentialRepo: customCredentialSetRepo,
     sealer: siteAssistantSecretSealer,
-    httpClient: createDefaultHttpClient(mailHttpClientPolicy),
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
     mode: runtimeMode,
   });
 
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
   // `routes/types.ts`'s `customCredentialsHttpClient` doc for why this is a genuinely separate
-  // instance from `mailHttpClientPolicy` above rather than a shared one. Identical policy shape:
-  // no legitimate reason to redirect a fixed-method call to an operator-typed base URL either.
-  const customCredentialsHttpClientPolicy: EgressPolicy = {
-    allowedSchemes: ["https"],
-    denyPrivateAddresses: true,
-    devHostAllowlist: [],
-    maxRedirects: 0,
-    connectTimeoutMs: 10_000,
-    maxResponseBytes: 1_000_000,
-    maxDecompressedBytes: 1_000_000,
-  };
-  const customCredentialsHttpClient = createDefaultHttpClient(customCredentialsHttpClientPolicy);
+  // CLIENT instance from the mailer's above rather than a shared one, even though both are built
+  // from the identical `SINGLE_HOP_HTTPS_EGRESS_POLICY`: no legitimate reason to redirect a
+  // fixed-method call to an operator-typed base URL either.
+  const customCredentialsHttpClient = createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY);
 
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
