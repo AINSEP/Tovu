@@ -65,11 +65,53 @@ import {
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "#src/features/tool-audit/types";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
+
+/**
+ * Wraps {@link SqliteToolAttemptAuditSink} to defer its real `openContentDb()` call — a genuine
+ * disk open plus an UNCONDITIONAL `migrate()` — until the first actual `append()`, instead of
+ * paying it merely for {@link createAssistantByokModule} being constructed.
+ *
+ * That distinction matters here specifically because `app.ts` ends its own file with an eager
+ * `export const app = createApp()`: importing `app.ts` at all — which ~190 test files do, and which
+ * `cli/commands/serve.ts` also does before `runServeCommand`'s body ever runs — built that ONE
+ * throwaway `app` too, unconditionally constructing this module (and, before this fix, opening a
+ * real `ContentDb` handle right then) whether or not the BYOK route was ever mounted, let alone hit.
+ * Verified directly: `TOVU_CONTENT_DB` pointed at a nonexistent directory crashed the whole process
+ * on a bare `import "app.ts"`, with zero HTTP traffic involved — the literal `serve-command.
+ * integration.test.ts` BR-07 failure this fixes. Laziness closes that same gap for CR-R04's
+ * foreign-cwd scenario too: a passing test that never sends a BYOK request now never opens (and
+ * `migrate()`s) ANY database on that request's behalf, correct path or not.
+ *
+ * Preserves {@link ToolAttemptAuditSink.append}'s own "never throws" contract (see that interface's
+ * doc): a failed lazy open is reported to `onError` exactly like a failed write, not propagated —
+ * an audit failure must never convert into a failed tool call, and a bad path discovered lazily is
+ * no different from a bad path discovered eagerly in that respect.
+ */
+function createLazySqliteToolAttemptAuditSink(
+  contentDbPath: string,
+  onError: (error: unknown) => void = (error) => console.error("[tool-audit] append failed", error),
+): ToolAttemptAuditSink {
+  let opened: SqliteToolAttemptAuditSink | undefined;
+  return {
+    async append(event: ToolAttemptEvent): Promise<void> {
+      if (!opened) {
+        try {
+          opened = new SqliteToolAttemptAuditSink(openContentDb(contentDbPath));
+        } catch (error) {
+          onError(error);
+          return;
+        }
+      }
+      return opened.append(event);
+    },
+  };
+}
 
 /**
  * Resolves the sink `search_tools`/`describe_tool` calls are logged to when
@@ -78,24 +120,24 @@ import type { ServerModuleHandle } from "./types.js";
  * need). Mirrors `agent-daemon-server.ts`'s identical `auditSink` construction shape, including its
  * `TOVU_DB=memory` branch and its reason for opening a dedicated handle rather than reusing
  * `RouteDeps`': that type does not expose its own `ContentDb`, by the same design choice documented
- * there — but NOT that function's own path resolution. `agent-daemon-server.ts` runs as a genuinely
- * separate process spawned with `TOVU_SITE_DIR` already set to the real install dir
- * (`daemon-supervisor.ts`'s `buildDaemonSpawnEnvOverrides`), so its own `defaultContentDbPath()` call
- * is correct in that context. This module runs IN-PROCESS with `createApp()`, sharing `routeDeps`
- * with every other module here — `defaultContentDbPath()` would instead recompute the path fresh from
- * `process.cwd()`/env, which disagrees with `routeDeps.contentDbPath` (this composition root's real,
- * already-resolved path) whenever `tovu serve <dir>` was launched with a `<dir>` other than the
- * process's own default site root, or from a cwd other than the install dir (CR-R04's exact
- * scenario) — silently opening (and, since `openContentDb` migrates unconditionally, migrating) a
- * DIFFERENT database than the one this composition root's other 50+ repos read and write. Fixed by
- * reading the path this `RouteDeps` was actually built from — see `RouteDeps.contentDbPath`'s own
- * doc.
+ * there — but NOT that function's own path resolution or its eagerness. `agent-daemon-server.ts` runs
+ * as a genuinely separate process, spawned only when a real daemon is actually wanted, with
+ * `TOVU_SITE_DIR` already set to the real install dir (`daemon-supervisor.ts`'s
+ * `buildDaemonSpawnEnvOverrides`) — its own `defaultContentDbPath()` call is correct there, and eager
+ * is fine there, because the whole process exists for that one job. This module runs IN-PROCESS with
+ * `createApp()`, constructed unconditionally by every caller of `createApp()` (see
+ * {@link createLazySqliteToolAttemptAuditSink}'s doc for why that includes callers that never mount
+ * or hit this route at all) — so it must be both lazy AND correctly path-scoped: reading
+ * `routeDeps.contentDbPath` (this composition root's real, already-resolved path — see
+ * `RouteDeps.contentDbPath`'s own doc) rather than recomputing `defaultContentDbPath()` fresh from
+ * `process.cwd()`/env, which disagrees with it whenever `tovu serve <dir>` was launched with a
+ * `<dir>` other than the process's own default site root, or from a cwd other than the install dir
+ * (CR-R04's exact scenario).
  */
-function resolveToolAttemptAuditSink(routeDeps: RouteDeps) {
-  console.error("[DEBUG] contentDbPath=", routeDeps.contentDbPath, "TOVU_DB=", process.env.TOVU_DB);
+function resolveToolAttemptAuditSink(routeDeps: RouteDeps): ToolAttemptAuditSink {
   return process.env.TOVU_DB === "memory"
     ? createInMemoryToolAttemptAuditSink()
-    : new SqliteToolAttemptAuditSink(openContentDb(routeDeps.contentDbPath));
+    : createLazySqliteToolAttemptAuditSink(routeDeps.contentDbPath);
 }
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";

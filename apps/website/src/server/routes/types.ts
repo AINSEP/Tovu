@@ -1048,6 +1048,21 @@ export interface DatabaseOpsDeps {
    * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
    */
   gatedMutations: { gatewayDeps: GatewayDeps };
+  /**
+   * The `content.db` path THIS `RouteDeps` instance was actually built from — `server/deps.ts`'s
+   * `createSqliteRouteDeps(dbPath, ...)` exposes its own `dbPath` parameter here verbatim;
+   * `server/app.ts`'s hermetic composition exposes `defaultContentDbPath()` (it has no real file of
+   * its own, so the global default is the only honest answer). Added specifically so a module that
+   * needs to open a SECOND, independent `ContentDb` handle (`modules/assistant-byok.ts`'s own
+   * `resolveToolAttemptAuditSink`) can target the SAME database this composition root's other 50+
+   * repos already read and write, instead of recomputing `defaultContentDbPath()` itself — that
+   * recomputation reads `process.cwd()`/`TOVU_SITE_DIR`/`TOVU_CONTENT_DB` fresh, which disagrees
+   * with this field whenever the caller resolved an explicit install dir (`tovu serve <dir>`) that
+   * differs from the process's own default site root (CR-R04's exact scenario). A plain path
+   * string, not the `ContentDb` handle itself — `RouteDeps` still does not expose that, by the same
+   * design choice `agent-daemon-server.ts`'s own `auditSink` doc documents.
+   */
+  contentDbPath: string;
 }
 
 /**

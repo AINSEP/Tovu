@@ -1367,6 +1367,9 @@ export function createSqliteRouteDeps(
     restorePointsRepo,
     dbOps,
     databaseIntrospection,
+    // The resolved path THIS instance opened `db` from — see `RouteDeps.contentDbPath`'s own doc
+    // for why `modules/assistant-byok.ts` needs this rather than recomputing `defaultContentDbPath()`.
+    contentDbPath: dbPath,
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
