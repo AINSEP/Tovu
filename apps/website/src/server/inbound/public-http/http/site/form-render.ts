@@ -152,8 +152,17 @@ export function renderFormErrorSlot(options: FormSlotOptions): string {
 // smaller, more legible cost than a circular import between the two form-rendering modules.
 // ---------------------------------------------------------------------------
 
+// BUG FIX (2026-09-06, owner-approved): `'` was never escaped — every other entity here already was.
+// `&` MUST stay first: it is the escape character for every entity below it, so escaping any other
+// character before `&` would double-escape the `&` those replacements themselves introduce (e.g. an
+// unescaped `<` becoming `&lt;` and THEN having its own `&` re-escaped to `&amp;lt;`). `&#39;` (the
+// numeric form) is used rather than the named `&apos;`, which is undefined in the HTML4/XHTML1 entity
+// set some older parsers still rely on — `&#39;` is universally valid. Every call site in this file
+// interpolates the result into a DOUBLE-quoted attribute or bare text content (verified 2026-09-06,
+// no `='...'` sink anywhere in this module) — see this file's own escaping-helpers header comment —
+// so the missing apostrophe was defence-in-depth, not an exploitable attribute-injection gap here.
 function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -303,8 +303,15 @@ function writeTextFile(filePath: string, contents: string): void {
   writeFileSync(filePath, contents, "utf8");
 }
 
+// BUG FIX (2026-09-06, owner-approved): `'` was never escaped — the same omission
+// `server/inbound/public-http/http/site/render.ts`'s and `features/theme/static-render.ts`'s own
+// `escapeHtml` copies carried. `&` is replaced first for the same double-escaping reason those two
+// files' own fixes document; `&#39;` (numeric) over `&apos;` for HTML4/XHTML1-parser compatibility.
+// Both of this function's call sites (`renderRedirectStub`'s meta-refresh/canonical/link sinks)
+// interpolate into double-quoted attributes or bare text, never `='...'`, so this was
+// defence-in-depth, not an exploitable attribute-injection gap on its own.
 function escapeHtmlAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#39;");
 }
 
 // Fixed placeholder origin `safeHref` (below) resolves a claimed same-origin-relative href

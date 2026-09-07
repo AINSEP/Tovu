@@ -97,8 +97,15 @@ export function injectCurrentEntityContentId(html: string, entityId: string): st
  * theme module — importing a runtime value back would open the one runtime import cycle between
  * `features/theme` and `server/http/site` that does not exist today. A four-line pure function is
  * cheaper than that edge. */
+// BUG FIX (2026-09-06, owner-approved): `'` was never escaped here — this file's OWN `escapeHtml`
+// just below (line ~161+, used for menu items) already carries the apostrophe entity from a prior
+// fix; this sibling text-escaper had drifted out of sync with it. `&` stays first for the same
+// double-escaping reason documented on `render.ts`'s own `escapeHtml`; `&#39;` (numeric) over
+// `&apos;` for the same HTML4/XHTML1-compatibility reason. `injectPageTitle`'s only call site below
+// interpolates into a `<title>` element's TEXT content, never an attribute, so this was a
+// defence-in-depth gap, not an exploitable one.
 function escapeHtmlText(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 /**

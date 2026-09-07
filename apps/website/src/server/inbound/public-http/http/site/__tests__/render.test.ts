@@ -1597,6 +1597,17 @@ test("injectFormSubmissionResultIntoHtml: validation reveals the matching field'
   assert.match(updated, /Please fix the highlighted fields below\./);
 });
 
+test("injectFormSubmissionResultIntoHtml: a field reason containing an apostrophe is HTML-escaped, not left to survive raw (2026-09-06 escapeHtml fix — form-render.ts's copy omitted the apostrophe entity)", () => {
+  const html = contactFormPageHtml();
+  const updated = injectFormSubmissionResultIntoHtml(html, {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [{ field: "email", reason: "Don't leave this blank" }],
+  });
+  assert.match(updated, /Don&#39;t leave this blank/, "an apostrophe in attacker-influenced text must be escaped");
+  assert.doesNotMatch(updated, /Don't leave this blank</, "a raw, unescaped apostrophe must never survive into rendered HTML");
+});
+
 test("injectFormSubmissionResultIntoHtml: a field reason containing '$&'/'$1'-shaped text renders literally instead of corrupting the surrounding HTML (String.prototype.replace's own replacement-pattern syntax)", () => {
   const html = contactFormPageHtml();
   const updated = injectFormSubmissionResultIntoHtml(html, {
