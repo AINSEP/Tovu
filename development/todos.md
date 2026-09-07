@@ -273,6 +273,63 @@ plugin**, to expose the missing core-mediated primitives as a concrete "dead wit
 (3) **Tier-2 content analyzer** over the ABI via worker/RPC, no sandbox, with a written note on any
 DX pain.
 
+## Completed (WordPress Specs)
+All WordPress spec work is complete. See `wordpress_specs/` for the full library (53 files).
+- ✓ wp-includes (20 specs)
+- ✓ wp-content (overview)
+- ✓ wp-admin (12 specs including users)
+- ✓ wp-root (3 condensed specs + 12 originals archived)
+- ✓ Plugin & Theme Authoring Structure
+- ✓ Headless CMS paradigm
+
+## Completed (Architecture)
+- ✓ `tovu-architecture.md` — combined, renamed Forge→Tovu, includes appendix of all general patterns
+- ✓ `competitor-analysis.md` — Ghost, Payload, Directus breakdown
+- ✓ `tovu/` scaffold initialized (TypeScript, Express, tests, modular structure)
+- ✓ `tovu/` conventions captured (`PROJECT_MEMORY.md`, local `AGENTS.md`, module `INFO.md`)
+
+Prioritization source: `tovu-architecture.md` section 13 (User Friction Coverage).
+
+---
+
+## Canonical Architecture Decisions (ADRs)
+
+This checklist is the **capability backlog**, not the decision record. Where an ADR
+exists, it is the source of truth and supersedes the loose wording below. Index:
+`ADS-memory/reports/architecture/ADR-INDEX.md`.
+
+Which ADR owns which inventory area:
+- **§1 Kernel / §10 Server** — ADR-001 (agent-native modular monolith), ADR-009
+  (decoupling: sync calls + outbox + hooks).
+- **§3 Data Layer** — ADR-006 (ports need two adapters), ADR-007 (`workspaceId`
+  everywhere). **Site content lives in a per-site `content.db` behind
+  `SiteStorePort`** (better-sqlite3 now → Supabase later) — ADR-012 + ADR-013.
+- **§5 Storage/Media** — media blobs under the site folder's `uploads/`, metadata
+  rows in that site's `content.db` (ADR-012).
+- **§7 Feature Modules** — the `features/*` slices are the site content model
+  (post/page/media/presentation), scoped per ADR-007/012.
+- **§8 Theme System** — ADR-010 (declarative themes by default; code = trusted
+  mode), ADR-002 (React blessed renderer). Two planes: site theme vs app chrome —
+  see `admin-sitemap.md §1`.
+- **§9 Plugin System** — ADR-003 (plugins never run DDL), ADR-004 (prebuilt ESM +
+  signed manifest), ADR-005 (SDK compatibility).
+- **§11 Admin UI** — IA in `admin-sitemap.md`; per-screen UI brief in
+  `docs/design/admin-sections-ui-brief.md`; rail pages in
+  `docs/design/rail-pages-ui-brief.md`.
+- **§12 Agentic UI / AI Layer** — **ADR-013**: one CopilotKit client + one AG-UI
+  daemon agent; `tools.ts` registry with an execution `surface` (frontend/data);
+  agent detection ported from open-design; composer rebuilt headless. Paradigm note:
+  `ADS-memory/docs/architecture/appendices/A12-tool-use-first-architecture.md`.
+- **§13 Protocols** — ADR-011 (two deployment topologies; open-design desktop host),
+  ADR-013 (AG-UI/MCP surface, tool exposure).
+
+A "site" everywhere below = **a folder (install dir) with its own `content.db` +
+`uploads/` + themes/plugins**, instantiated from a versioned template (ADR-012).
+
+---
+
+## Learn (What You Need to Understand)
+
 ### Core architecture fundamentals
 - Ports/adapters and dependency inversion (how core stays swappable)
 - Hybrid sync command + outbox flow (what is synchronous vs asynchronous)
