@@ -149,6 +149,19 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
     placeholder: "comma-separated — nothing runs unless it is listed here",
   });
 
+  // Unconditional, same as `allowedToolNames` immediately above: `trust.ts` R2/R3 apply this pair
+  // regardless of transport or auth mode — a remote tool declaring `readOnlyHint: false` is refused
+  // unless the operator has named it here, and that check does not care how the connection is
+  // reached or authenticated. See `mergeSourceUpdate`'s neighboring header comment and this
+  // module's own top-of-section note for why the spec array itself (not a hidden/disabled flag) is
+  // how a field is shown or withheld here.
+  specs.push({
+    key: "writeAllowedToolNames",
+    label: "Allowed to make changes",
+    kind: "text",
+    placeholder: "comma-separated — a tool can change or create things only if it's listed both here and in Allowed tools above",
+  });
+
   if (isStdio) {
     specs.push({
       key: "env",

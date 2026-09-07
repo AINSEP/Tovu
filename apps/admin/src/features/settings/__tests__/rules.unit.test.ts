@@ -181,6 +181,33 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
       expect(keys.some((key) => key.startsWith("oauth"))).toBe(false);
     }
   });
+
+  it("always includes writeAllowedToolNames, immediately after allowedToolNames, for every transport/authMode combination", () => {
+    // Unconditional per trust.ts R2/R3 — the write-grant check doesn't key off transport or auth
+    // mode, so unlike oauthClientId/oauthTokenEnvName above, no combination here may omit it. This
+    // is what would fail if the field spec were accidentally gated onto only one arm (e.g. stdio-only,
+    // matching the `env` field's own gate a few lines below it in rules.ts).
+    for (const values of [
+      {},
+      { transport: "streamable_http" },
+      { authMode: "oauth" },
+      { authMode: "none" },
+      { transport: "streamable_http", authMode: "oauth" },
+    ]) {
+      const keys = keysOf(values);
+      const allowedIndex = keys.indexOf("allowedToolNames");
+      const writeIndex = keys.indexOf("writeAllowedToolNames");
+      expect(allowedIndex).toBeGreaterThanOrEqual(0);
+      expect(writeIndex).toBe(allowedIndex + 1);
+    }
+  });
+
+  it("writeAllowedToolNames is optional (not required) and never disabled/hidden by required:false being mistaken for absence", () => {
+    const spec = buildExternalMcpFieldSpecs({}).find((s) => s.key === "writeAllowedToolNames");
+    expect(spec).toBeDefined();
+    expect(spec?.required).toBeFalsy();
+    expect(spec?.kind).toBe("text");
+  });
 });
 
 describe("validateExternalMcpOAuthIdentity", () => {
