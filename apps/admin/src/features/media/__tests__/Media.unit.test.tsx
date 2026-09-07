@@ -137,6 +137,36 @@ describe("page header", () => {
   });
 });
 
+describe("upload toolbar accessible names (regression: agent-driveability audit)", () => {
+  // Both fields used to carry ONLY this file's own `agentHandle(..., { label })` — a
+  // `data-agent-label` attribute, Tovu's own convention, invisible to a real screen reader or a
+  // generic browser agent reading the accessibility tree. The file picker had no visible `<label>`
+  // at all, and the alt-text field's `placeholder` is not a substitute for one (a placeholder drops
+  // out of the accessible name the moment the field has a value). Asserted via `getByRole` — what a
+  // consumer actually queries — not by checking the attribute string is present in the markup.
+  it("the file picker has a real accessible name, not just an agentHandle label", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    // `getByLabelText` (not `getByRole`): this jsdom/aria-query stack computes no ARIA role at all
+    // for a bare `<input type="file">` (verified — it shows up under none of `getByRole`'s listed
+    // groups), even though real browsers expose one. `getByLabelText` still resolves its `aria-label`
+    // directly, which is what actually matters here: a real accessible name, reachable by a query
+    // that only succeeds via a genuine label mechanism (never by reading the attribute string off
+    // the markup).
+    expect(screen.getByLabelText("File to upload")).toBeInTheDocument();
+  });
+
+  it("the alt-text field has a real accessible name beyond its placeholder", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    expect(screen.getByRole("textbox", { name: "Alt text (optional)" })).toBeInTheDocument();
+  });
+});
+
 describe("empty state", () => {
   it("renders a real .card/.empty-state instead of an empty grid", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse({ media: [] })) }]));

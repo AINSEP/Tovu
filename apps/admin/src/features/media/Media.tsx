@@ -572,7 +572,17 @@ function MediaLightbox(props: MediaLightboxProps) {
 
 /** The upload row — file picker, alt-text draft, and the Upload button. Extracted out of `Media`
  *  because its "Uploading…"/"Upload" label ternary was one of that component's independent
- *  branches; as a top-level function it's scored in its own scope instead. */
+ *  branches; as a top-level function it's scored in its own scope instead.
+ *
+ *  Neither the file picker nor the alt-text field has a visible `<label>` (this toolbar was built
+ *  compact, one row, no stacked labels) and the alt-text field's `placeholder` alone is not an
+ *  accessible name — a placeholder is erased from the accessibility tree the moment it has a
+ *  value, and a bare `<input type="file">` has none at all. Both had only this file's own
+ *  `agentHandle(..., { label })`, which is a `data-agent-label` attribute invisible to a real
+ *  screen reader or a generic browser agent's accessibility tree (only Tovu's own `data-agent-*`
+ *  convention reads it) — so both get an explicit `aria-label` too, reusing the same `t()` key
+ *  already shown as the alt field's placeholder rather than inventing a second string for the
+ *  same field. */
 function MediaToolbar({
   fileInputRef,
   altDraft,
@@ -598,6 +608,7 @@ function MediaToolbar({
         className="file-input"
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        aria-label={t("File to upload")}
         {...agentHandle("media-upload-file", {
           role: "field",
           label: "The file to upload — image/jpeg, png, webp, gif or avif",
@@ -607,6 +618,7 @@ function MediaToolbar({
         value={altDraft}
         onChange={(e) => setAltDraft(e.target.value)}
         placeholder={t("Alt text (optional)")}
+        aria-label={t("Alt text (optional)")}
         {...agentHandle("media-upload-alt", { role: "field", label: "Alt text for the file being uploaded" })}
       />
       <button
