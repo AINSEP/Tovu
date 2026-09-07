@@ -50,8 +50,9 @@ import {
 } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
+import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
-import { builtInThemesDir, defaultContentDbPath, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
+import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import {
   seededPosts,
   seededPresentation,
@@ -668,9 +669,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     dbOps: new InMemoryDbOpsAdapter(),
     databaseIntrospection: new InMemoryDatabaseIntrospectionAdapter(),
     // This hermetic root has no real `content.db` of its own (see file header: "in-memory adapters
-    // seeded from `./seed`"), so the global default is the only honest answer — see
-    // `RouteDeps.contentDbPath`'s own doc.
-    contentDbPath: defaultContentDbPath(),
+    // seeded from `./seed`"), so its tool-attempt audit sink is the in-memory half of the same
+    // rule-of-two split every adapter above follows — see `RouteDeps.toolAttemptAuditSink`'s own doc
+    // for why the root constructs this rather than handing a module a path to open for itself.
+    toolAttemptAuditSink: createInMemoryToolAttemptAuditSink(),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),

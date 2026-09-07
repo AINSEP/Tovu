@@ -89,9 +89,6 @@ import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/t
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
 import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
-import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
-import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
-import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import {
@@ -484,15 +481,16 @@ for (const registration of frontendControl.toolRegistrations) {
 // appends a `requested` row before delegating, which is the only ordering under which those cases
 // are recorded. Audit is observation — a sink failure can never change a tool call's outcome.
 // See `tool-executor-audit.ts`.
-// A dedicated handle rather than the one `createSqliteRouteDeps()` opened: `RouteDeps` does not
-// expose its handle, and widening that widely-faked type for one writer is a worse trade than a
-// second connection. `content-db.ts` already documents this shape as expected (its `busy_timeout`
-// pragma exists for exactly the "another dedicated handle holds a lock" case), `migrate()` is
-// idempotent, and no seed is passed so this connection creates nothing.
-const auditSink =
-  process.env.TOVU_DB === "memory"
-    ? createInMemoryToolAttemptAuditSink()
-    : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
+// Read off `routeDeps` rather than hand-built here (2026-09-06). This process IS a composition
+// root, so constructing a sink here was legitimate — but `routeDeps` above is already the product
+// of one of the two real roots, chosen on the SAME `TOVU_DB === "memory"` branch this const used to
+// repeat, so the field it now carries (`RouteDeps.toolAttemptAuditSink`) is that same choice made
+// once instead of twice. Same rows, same database: the sqlite branch's
+// `createSqliteRouteDepsForWorkspace(...)` defaults its `dbPath` to `defaultContentDbPath()`, the
+// exact path the deleted `openContentDb(defaultContentDbPath())` call opened — the only difference
+// an operator can observe is that this process no longer opens a SECOND connection to that file
+// (and no longer runs `openContentDb`'s unconditional `migrate()` a second time) at boot.
+const auditSink = routeDeps.toolAttemptAuditSink;
 // The decorator order — and in particular why the read-only gate is innermost — lives in
 // `tool-executor-stack.ts` alongside the composition itself, so it is exercisable by a test that does
 // not have to boot this whole module.

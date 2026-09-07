@@ -40,6 +40,7 @@ import {
 } from "#src/assistant/index";
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
+import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
@@ -1367,9 +1368,11 @@ export function createSqliteRouteDeps(
     restorePointsRepo,
     dbOps,
     databaseIntrospection,
-    // The resolved path THIS instance opened `db` from — see `RouteDeps.contentDbPath`'s own doc
-    // for why `modules/assistant-byok.ts` needs this rather than recomputing `defaultContentDbPath()`.
-    contentDbPath: dbPath,
+    // Built HERE, over the SAME `db` handle every repo above shares, rather than in the module that
+    // consumes it — see `RouteDeps.toolAttemptAuditSink`'s own doc. Deliberately not a second
+    // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
+    // (and migrated) the one file both handles would point at.
+    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(db),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),

@@ -3,6 +3,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/platform/export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -945,6 +946,26 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   observability: ObservabilityPort;
+  /**
+   * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
+   * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds
+   * `new SqliteToolAttemptAuditSink(db)` over the SAME open `ContentDb` handle its other repos
+   * already share; `server/app.ts`'s hermetic composition builds `createInMemoryToolAttemptAuditSink()`.
+   * `modules/assistant-byok.ts` is the consumer. `agent-daemon-server.ts` is its own composition
+   * root and reads this same field off the `RouteDeps` it already builds, so there is exactly one
+   * construction per root rather than a hand-written copy per consumer.
+   *
+   * A PORT, replacing the `contentDbPath: string` this field superseded on 2026-09-06 (added hours
+   * earlier by `b359e613`). Threading a path made every consumer call `openContentDb` itself, and
+   * that function runs `migrate()` UNCONDITIONALLY (verified: `content-db.ts`'s `openContentDb`
+   * calls `migrate` on every open) — so a module merely being CONSTRUCTED could migrate a database.
+   * It also forced `server/app.ts`'s hermetic root, which owns no `content.db` file at all, to
+   * publish a global default path it never opens; a root that has to fake a field is the tell that
+   * the field is the wrong abstraction. Injecting the sink removes the `process.env` read, the
+   * second handle, the deferral wrapper that existed only to postpone that handle, and the path
+   * field, and leaves the consumer testable with a plain fake.
+   */
+  toolAttemptAuditSink: ToolAttemptAuditSink;
 }
 
 /**
@@ -1048,21 +1069,6 @@ export interface DatabaseOpsDeps {
    * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
    */
   gatedMutations: { gatewayDeps: GatewayDeps };
-  /**
-   * The `content.db` path THIS `RouteDeps` instance was actually built from — `server/deps.ts`'s
-   * `createSqliteRouteDeps(dbPath, ...)` exposes its own `dbPath` parameter here verbatim;
-   * `server/app.ts`'s hermetic composition exposes `defaultContentDbPath()` (it has no real file of
-   * its own, so the global default is the only honest answer). Added specifically so a module that
-   * needs to open a SECOND, independent `ContentDb` handle (`modules/assistant-byok.ts`'s own
-   * `resolveToolAttemptAuditSink`) can target the SAME database this composition root's other 50+
-   * repos already read and write, instead of recomputing `defaultContentDbPath()` itself — that
-   * recomputation reads `process.cwd()`/`TOVU_SITE_DIR`/`TOVU_CONTENT_DB` fresh, which disagrees
-   * with this field whenever the caller resolved an explicit install dir (`tovu serve <dir>`) that
-   * differs from the process's own default site root (CR-R04's exact scenario). A plain path
-   * string, not the `ContentDb` handle itself — `RouteDeps` still does not expose that, by the same
-   * design choice `agent-daemon-server.ts`'s own `auditSink` doc documents.
-   */
-  contentDbPath: string;
 }
 
 /**
