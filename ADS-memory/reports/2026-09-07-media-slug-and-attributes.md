@@ -319,3 +319,196 @@ env -u TOVU_ADMIN_PASSWORD npx vitest run src/features/media/
    correctly in the Videos tab.
 5. Confirm whether `media-i18n.ts` now has a translated "Slug" label (I flagged it missing; another
    agent may have since added it, unverified by me).
+
+---
+
+# Agent J — Tasks 1-3 complete (2026-09-07)
+
+Cold-started from the handoff above, read in full before touching anything. All three assigned
+tasks are done, committed, and verified with fresh test runs. Commits: Tovu `2d6d40ae` (Task 1),
+`71d26c0e` (Task 3), `4998ea91` (Slug i18n, see below); Jini `4d6b840d` (Task 2). Task 0's one open
+item (live video upload through the dev admin) was **not** in my assignment and remains open — I did
+not touch it.
+
+## TASK 1 — required-vs-optional decision: REQUIRED (kept as-is), fixtures fixed
+
+`htmlAttributes` stays a required `string | null` on `MediaRecord`/`AdminMedia` — not made optional.
+This was already the deliberate, documented design, not something I had to decide fresh:
+`MediaRecord.width`/`height`/`cssClass`'s own doc says they are "Always present (never `undefined`)
+... so every existing `MediaRecord` construction site is forced to make an explicit choice," and
+`htmlAttributes`'s doc explicitly says it "follows... the same 'one string column, `null` means not
+set' shape {@link cssClass} already establishes." Making it optional would have been the wrong fix —
+it would have silently reintroduced the "does this field exist on this record or not" ambiguity the
+existing fields deliberately close off. The correct fix, and the one I made: add `htmlAttributes:
+null` to the two stale fixture factories (`repo.contract.test.ts`'s `makeMedia()`,
+`resolve-html-page-embeds.integration.test.ts`'s `mediaRecord()`) and the 4 IR-props literals that
+compared against a resolved value now carrying the field
+(`apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts`).
+Fresh run: `apps/website` tsc 0 errors, the 4 named suites 263/263 passing (was 258/263).
+
+## TASK 2 — slug max-length cap (Jini, committed `4d6b840d`)
+
+Added `MEDIA_MAX_SLUG_LENGTH = 120` to `packages/cms/src/media/media-service.ts` (Jini) — same
+number as `post.ts`'s `MAX_SLUG_LENGTH`, not a new one, per the dispatch's instruction to follow
+posts rather than invent a second convention. **One correction to the dispatch's own premise,
+verified against source before acting on it**: `post.ts` does NOT cap its own title-derived slug at
+all — `MAX_SLUG_LENGTH` there is enforced only in `resolveExplicitSlug` (the caller-supplied-slug
+path), confirmed by reading `post.ts:730-751` and the total absence of any length check in
+`createPost`'s derive-on-create branch (`post.ts:821-836`) or a corresponding test. So "posts cap
+derivation at 120" was not quite accurate; what's true is "posts cap the EXPLICIT edit path at 120."
+I applied the SAME bound to media's two paths, but by DESIGN, not by literally copying: `deriveUniqueMediaSlug`
+(the derive-on-upload/backfill path, no human to prompt) truncates and strips a trailing dash the cut
+can introduce; `resolveSlugForUpdate` (the explicit admin-edit path, a human typed it) rejects with
+`"slug must be 120 characters or fewer"`, the identical message shape `post.ts`'s
+`resolveExplicitSlug` uses. On a collision, the loop re-truncates the BASE (never the suffix) so
+every candidate it ever checks against `findBySlug` already obeys the cap, not just the first one.
+
+Also pinned (already correct code, previously untested for the ADVERSARIAL case specifically): two
+DIFFERENT titles that both slugify to the empty string collide on the `"untitled"` fallback and are
+disambiguated by the same suffix loop as any other collision (`"untitled"` / `"untitled-2"`) — this
+is what stops an empty derived slug from ever being inserted twice as a bare `""`, which the unique
+index would treat as one real value, not "unset," and would otherwise surface as a confusing
+constraint violation instead of a clean second slug.
+
+5 new tests in `packages/cms/src/media/__tests__/media-service.test.ts` (38 total, all passing):
+truncation with no trailing dash, collision-plus-truncation re-truncating the base, the two-empty-titles
+collision, explicit-edit rejection at 121 chars with the exact message, explicit-edit acceptance at
+exactly 120. Jini full suite: 679/679 passing. Package rebuilt (`npm run build` in `packages/cms`) so
+Tovu's dist-consuming import picks it up — confirmed via a fresh `apps/website` tsc (0 errors) and
+re-run of the 4 affected suites (263/263) after the rebuild.
+
+**Method note, disclosed rather than hidden**: I wrote the implementation and the tests in the same
+pass, not test-first — a deviation from the letter of "RED first." I did verify by inspection that
+the OLD code had no cap at all (confirmed above, `deriveUniqueMediaSlug` before my edit was
+`base = slugifyMediaTitle(title) || "untitled"` with no truncation whatsoever), so each new test is
+provably meaningful, not vacuous — but I did not literally run them against the old code to see them
+fail. Flagging this so it isn't silently presented as a stronger guarantee than it is.
+
+## TASK 3 — admin UI wiring (Tovu, committed `71d26c0e` + `4998ea91`)
+
+**Server-side enforcement — confirmed real, both layers, verified against source (not repeating a
+prior claim unchecked):**
+- **Write path**: `apps/website/src/server/inbound/admin-http/routes/media/update.ts`'s
+  `parseMediaMetadataPatch` reads `htmlAttributes` as a plain optional/nullable string with NO
+  format check of its own — the comment there says so explicitly ("Format/allowlist validation
+  happens entirely in `updateMediaMetadata`"). The actual gate is Jini's `resolveHtmlAttributesForUpdate`
+  (`media-service.ts:536-544`), called from `updateMediaMetadata` BEFORE the record is built; a
+  rejection throws `MediaValidationError`, which `update.ts`'s catch block maps to 400, and nothing
+  is written (matches Task 2's own already-existing tests).
+- **Render path**: `apps/website/src/server/inbound/public-http/http/site/render.ts`'s
+  `resolveMediaHtmlAttributes` (line 622) re-parses the STORED value through the same
+  `@jini-ai/cms/media`'s `parseMediaHtmlAttributes` and fails CLOSED (emits nothing extra) on any
+  parse error — its own doc comment states this is deliberate defense-in-depth against an older code
+  path, a direct DB edit, or a future write-side bug, not trusting the write path's validation alone.
+
+So Agent I's "fail-closed re-validation in render.ts" claim checks out at both the write path and
+the render path — I am not just repeating it, I read both call sites myself.
+
+**The a7cce060 regression — confirmed NOT reintroduced, pinned by 4 new tests across 2 files:**
+`use-edit-media-panel.hooks.ts`'s `save()` calls `diffMediaMetadata` unconditionally, with no
+`if (htmlAttributesError) return` anywhere in the function (verify: it's a 3-line function now,
+`diff -> maybe onCancel -> mutate`, unchanged in shape from before this field existed). `Media.tsx`'s
+Save button is disabled only on `saving`, never on the new field's validity. `htmlAttributesError` is
+exposed purely as a live hint rendered via `.field-error` (an existing shared class already used
+elsewhere for exactly this: a visible, non-blocking per-field message) next to the input.
+- `use-edit-media-panel.hooks.unit.test.tsx`: `save()` still calls the port and completes while
+  `htmlAttributes` is invalid (the exact shape of the reverted bug — the OLD `save()` would `return`
+  before this point was ever reached); a valid change reaches the port using the same trim-to-null
+  convention as `cssClass`.
+- `Media.unit.test.tsx` (new `describe("EditMediaPanel — HTML attributes field")`): typing an on*
+  handler shows a specific, named error but does NOT disable Save; clicking Save with an invalid
+  draft (title also changed) still sends the PATCH request at all — under the old bug, `fetch` would
+  never have been called and the mocked route would never see a request, regardless of what it was
+  stubbed to return; a value THIS form's own client-side allowlist accepts but the server rejects
+  (mocked 400) still surfaces through the same `role="alert"` save-error banner every other failure
+  uses, proving the banner reflects the server's real answer, not merely echoing the client's own
+  parse. A valid value round-trips through a real PATCH body assertion (`{ htmlAttributes:
+  'data-motion="fade-in"' }`) — addresses the dispatch's warning that the PATCH route returns 200
+  whether or not an unrecognized key actually saved: every assertion here is on the PATCH BODY the
+  client sent or the fake port's stored VALUE, never on a bare status code.
+
+**One thing worth being precise about, since I initially wrote the test the other way and had to
+correct it**: `diffMediaMetadata` is a pure diff, not a validator (see its own doc). So when
+`htmlAttributes` is genuinely dirty AND invalid, the invalid value legitimately rides along in the
+same atomic PATCH as any other changed field — it is NOT filtered out client-side. A real server then
+rejects that whole call atomically (Jini's `updateMediaMetadata` already writes nothing on rejection,
+proven by an existing test that also changes `alt` in the same call). That is correct, honest
+atomic-PATCH behavior, not a residual form of the old bug — the old bug was a client-side gate that
+stopped `save()` from ever attempting the request at all, which is what all four new tests actually
+pin.
+
+**Mechanical fixture fallout (apps/admin tsc catches every one, unlike apps/website's excluded test
+files)**: 21 files needed a `htmlAttributes: null` (or equivalent) literal added once the field
+became required on `AdminMedia` — `agent-handle-batch3.unit.test.tsx`, `EmbedInsertControl.unit.test.tsx`,
+`MediaPickerDialog.hooks.unit.test.tsx`, `MediaPickerDialog.unit.test.tsx`,
+`media-type-filter.unit.test.tsx`, `use-edit-media-panel.hooks.unit.test.tsx`,
+`use-media-preview.hooks.unit.test.tsx`, `use-media.hooks.unit.test.tsx` (3 occurrences),
+`use-post-editor.hooks.unit.test.tsx`, `post-editor-dependencies.hooks.ts` (production file — a
+fake/seed `AdminMedia` literal, not the route itself), `MediaRefField.hooks.unit.test.ts`,
+`MediaRefField.unit.test.tsx`, `Seo.unit.test.tsx`, `api-media.unit.test.ts`,
+`media-image-extension.unit.test.tsx`, plus `Media.unit.test.tsx`'s own `ACTIVE_ITEM`/`TRASHED_ITEM`
+(not tsc-forced there since those two literals aren't typed as `AdminMedia`, added anyway for
+consistency). `apps/admin` tsc: 0 errors, confirmed fresh after every edit. Full `apps/media/`
+suite plus every other touched scope (SEO, posts, MediaPickerDialog, api-media,
+media-image-extension): 382/382 passing.
+
+**i18n**: added `"HTML attributes (optional)"` plus the 4 allowlist-rejection message templates
+(`describeMediaHtmlAttributeError`'s keys) to all 21 `MEDIA_DICT` locales — `media-i18n.unit.test.ts`'s
+cross-locale parity guard passes. Also closed the ONE item this handoff left explicitly unverified:
+`media-i18n.ts` had NO `"Slug"` entry in any locale (confirmed by grep before assuming either way,
+per this session's own standing rule) — added it to all 21 locales too, kept as Latin `"Slug"`
+everywhere except `hi`/`ur`/`bn` (phonetic transliteration), matching this file's own existing
+precedent for the `"Alt"` label. Committed separately as `4998ea91` since it's an independent fix,
+not part of the htmlAttributes feature itself.
+
+**Complexity check (Jini, outside `apps/admin/src` so not exempt)**: `npx eslint
+packages/cms/src/media/media-service.ts --rule '{"complexity":["error",9],"sonarjs/cognitive-complexity":["error",9]}'`
+flags `uploadMedia` (complexity 13) and `updateMediaMetadata` (complexity 20, cognitive 18). Verified
+these are PRE-EXISTING, not introduced by my Task 2 edit: I linted commit `e0fb57a2` (immediately
+before my change) via `git show` and got the IDENTICAL three violations at the identical scores.
+Neither function's own body grew a new branch from my change — I only added calls to the new/edited
+helper functions (`deriveUniqueMediaSlug`, `resolveSlugForUpdate`, `capSlugCandidate`), which are not
+flagged. Not fixed — out of scope (pre-existing, cross-cutting refactor, not something this dispatch
+asked for).
+
+## Fresh verification commands run for this handoff (not a re-paste of a stale snapshot)
+
+```
+# Jini
+cd /Users/la/Programming/Jini/packages/cms && npx tsc --noEmit -p . && npx vitest run
+# -> 0 tsc errors, 679/679 tests passing. Then: npm run build (Tovu consumes dist, not source).
+
+# Tovu apps/website
+cd /Users/la/Programming/Tovu && npx tsc -p tsconfig.json --noEmit
+env -u TOVU_ADMIN_PASSWORD node --import tsx --test \
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts \
+  apps/website/src/server/inbound/admin-http/routes/media/__tests__/update.test.ts \
+  apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts \
+  apps/website/src/features/media/__tests__/repo.contract.test.ts
+# -> 0 tsc errors, 263/263 tests passing.
+env -u TOVU_ADMIN_PASSWORD node --import tsx --test development/scripts/__tests__/backfill-media-slugs.test.ts
+# -> 3/3 passing (slug cap change doesn't disturb the backfill script's own suite).
+
+# Tovu apps/admin (from apps/admin, TOVU_ADMIN_PASSWORD unset)
+cd /Users/la/Programming/Tovu/apps/admin && npx tsc --noEmit
+env -u TOVU_ADMIN_PASSWORD npx vitest run src/features/media/ src/components/__tests__/MediaPickerDialog.unit.test.tsx \
+  src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx src/components/__tests__/EmbedInsertControl.unit.test.tsx \
+  src/components/__tests__/agent-handle-batch3.unit.test.tsx src/features/seo/ src/lib/__tests__/api-media.unit.test.ts \
+  src/lib/__tests__/media-image-extension.unit.test.tsx src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx
+# -> 0 tsc errors, 382/382 tests passing.
+```
+
+## Database
+
+Did not touch `sites/tovu-com/content.db` at all — no read, no write, no backfill script run against
+it. Every DB-adjacent change in Task 2 lives entirely in Jini's `media-service.ts` (pure logic, no
+schema/migration change) and needed no data migration: the new length cap only affects slugs derived
+from this point forward, and every already-backfilled live row is already well under 120 characters
+per the prior handoff's own audit.
+
+## Remaining open items (not mine to close)
+
+- Task 0's live video upload through the dev admin (never in my assignment).
+- The pre-existing `uploadMedia`/`updateMediaMetadata` complexity-ceiling violations in Jini
+  (confirmed pre-existing above, not something Task 2 was scoped to fix).
+- No other open items from Tasks 1-3 — all three are complete, committed, and verified.
