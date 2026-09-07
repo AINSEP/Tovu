@@ -718,11 +718,19 @@ function MediaToolbar({
         ref={fileInputRef}
         className="file-input"
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        // Hand-copied, not imported — same "kept in sync manually with the server's real ceiling"
+        // pattern as `FILE_HANDLER_ALLOWED_MIME_TYPES` (`apps/admin/src/features/posts/hooks/
+        // use-post-editor.hooks.ts`) and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/
+        // media-import/fetch-image.ts`): mirrors `DEFAULT_ALLOWED_MIME_TYPES`
+        // (`@jini-ai/cms/media`'s `media-service.ts`), which has accepted `video/mp4`/`video/webm`
+        // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
+        // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
+        // the real allowlist server-side regardless of what this lets past the file picker.
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
         aria-label={t("File to upload")}
         {...agentHandle("media-upload-file", {
           role: "field",
-          label: "The file to upload — image/jpeg, png, webp, gif or avif",
+          label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
         })}
       />
       <input
@@ -1004,14 +1012,13 @@ function MediaLibraryPanel(
  * The empty state for a tab whose filter matched nothing — distinct from the All tab's "No media
  * uploaded yet.", which would be a lie on a filtered tab holding a library full of other types.
  *
- * The Videos copy names the real reason that tab is normally empty. NOTE (2026-09-06): the reason
- * this comment used to give — that the server allowlist rejects video — has been false since
- * 2026-08-24, when `DEFAULT_ALLOWED_MIME_TYPES` (`@jini-ai/cms`'s `media-service.ts`) was widened
- * to `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`, `video/mp4` and
- * `video/webm`. The server accepts a `.mp4` today. What still keeps the tab empty is this
- * screen's own file-input `accept` filter above, which lists only the image types, so an operator
- * cannot pick a video in the first place. Aligning that filter with the server is a pending
- * owner decision, not an oversight — deliberately left as-is here.
+ * NOTE (2026-09-07, fixed): this comment used to explain why the Videos tab was normally empty —
+ * first "the server allowlist rejects video" (false since 2026-08-24), then, after that was
+ * corrected, "this screen's own file-input `accept` filter lists only the image types" (Agent H's
+ * finding, `MediaToolbar`'s `accept` above — that gap was real and is now fixed too). With both the
+ * server ceiling AND this screen's own file picker accepting `video/mp4`/`video/webm`, a video is a
+ * completely ordinary upload now — the Videos tab's copy below matches the Images tab's own
+ * "appears here once you add them" phrasing instead of claiming videos aren't supported.
  */
 function MediaTypeEmptyState({ kind, t }: { kind: "images" | "videos"; t: (key: string) => string }) {
   return (
@@ -1021,7 +1028,7 @@ function MediaTypeEmptyState({ kind, t }: { kind: "images" | "videos"; t: (key: 
         <p className="page-description">
           {kind === "images"
             ? t("Uploaded images appear here once you add them.")
-            : t("Only image uploads are supported right now.")}
+            : t("Uploaded videos appear here once you add them.")}
         </p>
       </div>
     </div>

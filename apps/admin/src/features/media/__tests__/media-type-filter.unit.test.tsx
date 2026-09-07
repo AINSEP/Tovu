@@ -161,5 +161,10 @@ describe("Media screen type tabs", () => {
 
     expect(await screen.findByText("No videos yet.")).toBeInTheDocument();
     expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+    // Regression (2026-09-07, alongside the upload picker's accept-list fix): this used to read
+    // "Only image uploads are supported right now.", which became false the moment the file picker
+    // and the server both accept video — see `MediaTypeEmptyState`'s own doc comment for the history.
+    expect(screen.queryByText("Only image uploads are supported right now.")).not.toBeInTheDocument();
+    expect(screen.getByText("Uploaded videos appear here once you add them.")).toBeInTheDocument();
   });
 });

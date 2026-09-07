@@ -165,6 +165,27 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     await screen.findByRole("heading", { name: "Media" });
     expect(screen.getByRole("textbox", { name: "Alt text (optional)" })).toBeInTheDocument();
   });
+
+  // 2026-09-07 (Agent H, following up on Agent F's flag): this `accept` list is a hand-copied
+  // literal, same "kept in sync manually with the server list" pattern as
+  // `FILE_HANDLER_ALLOWED_MIME_TYPES` (`apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts`)
+  // and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/media-import/fetch-image.ts`) — it had
+  // drifted the same way theirs had: `video/mp4`/`video/webm` were added to the server's real ceiling
+  // (`DEFAULT_ALLOWED_MIME_TYPES`, `@jini-ai/cms/media`'s `media-service.ts`) 2026-08-24 but never
+  // mirrored into this upload `<input>`'s `accept` attribute or its handle label. Pinned here to the
+  // exact 7-type set so a future server-side addition fails this test instead of silently drifting
+  // again.
+  it("the file picker's accept list matches the server's real upload ceiling (all 7 DEFAULT_ALLOWED_MIME_TYPES, not just images)", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    const fileInput = screen.getByLabelText("File to upload");
+    const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
+    expect(accepted).toEqual(
+      new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "video/mp4", "video/webm"])
+    );
+  });
 });
 
 describe("empty state", () => {
