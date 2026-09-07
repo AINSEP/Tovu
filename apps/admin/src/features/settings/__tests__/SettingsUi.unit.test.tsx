@@ -239,7 +239,7 @@ describe("Settings page theme is pinned to light (owner decision, 2026-09-06)", 
   // `dark` and `system` rows fail, which is the point: this is what pins that the page cannot
   // render dark, not a restatement of the default. The stored value still round-trips (the
   // onChange test above), so this is not a claim that the control stopped saving.
-  it.each(["light", "dark", "system"])('renders data-theme="light" when the stored theme is %j', (theme) => {
+  it.each(["light", "dark", "system"] as const)('renders data-theme="light" when the stored theme is %j', (theme) => {
     const controller = baseController({ appearance: makeSlice({ ...DEFAULT_APPEARANCE, theme }) });
     const { container } = render(<SettingsUi useSettingsUiHook={() => controller} />);
 

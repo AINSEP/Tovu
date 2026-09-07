@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AdminIdentityUser } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/use-users.hooks";
@@ -569,7 +570,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onAssignRole: a stale success settling after the operator switched panels and picked a NEW role must not clear it", async () => {
     let resolveA!: (v: { assignment: unknown }) => void;
     const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
-    port.assignRole = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+    port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
@@ -599,9 +600,9 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // stops opening a DIFFERENT user's Disable confirmation while this one's toggle is in flight.
   // See `confirmDisable`'s own doc comment.
   it("confirmDisable: a stale settlement after the operator opened a DIFFERENT user's confirm dialog must not silently close it", async () => {
-    let resolveA!: (v: { user: typeof USER_A }) => void;
+    let resolveA!: (v: { user: AdminIdentityUser }) => void;
     const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
-    port.disableUser = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+    port.disableUser = vi.fn(() => new Promise<{ user: AdminIdentityUser }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());

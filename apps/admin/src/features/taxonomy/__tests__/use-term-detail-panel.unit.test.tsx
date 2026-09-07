@@ -165,7 +165,7 @@ describe("stale rename settlement across a term switch (no key={term.id} remount
       groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term1, term2] }],
     });
     let resolveRename!: (v: { term: AdminTerm }) => void;
-    port.renameTerm = vi.fn(() => new Promise((resolve) => (resolveRename = resolve)));
+    port.renameTerm = vi.fn(() => new Promise<{ term: AdminTerm }>((resolve) => (resolveRename = resolve)));
 
     const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en"), {
       initialProps: { term: term1 },

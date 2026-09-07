@@ -126,14 +126,14 @@ describe("useMedia — trash/purge shared rowSavingId race safety", () => {
     const deferredTrash: { resolve?: (v: { media: AdminMedia }) => void } = {};
     port.trashMedia = vi.fn(
       (_id: string) =>
-        new Promise((resolve) => {
+        new Promise<{ media: AdminMedia }>((resolve) => {
           deferredTrash.resolve = resolve;
         })
     );
     const deferredPurge: { resolve?: (v: { purged: true }) => void } = {};
     port.deleteMedia = vi.fn(
       (_id: string) =>
-        new Promise((resolve) => {
+        new Promise<{ purged: true }>((resolve) => {
           deferredPurge.resolve = resolve;
         })
     );

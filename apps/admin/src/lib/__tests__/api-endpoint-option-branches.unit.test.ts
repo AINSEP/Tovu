@@ -335,7 +335,7 @@ test("createForm omits notify from the body when the caller doesn't pass one", a
 
 test("createForm includes notify when the caller passes it", async () => {
   const { body } = stubFetchCapturing();
-  const notify = { toEmails: ["a@b.com"] };
+  const notify = { enabled: true, recipients: ["a@b.com"] };
   await api.createForm({ name: "Contact", slug: "contact", fields: [] }, { notify });
   expect(body()).toEqual({ name: "Contact", slug: "contact", fields: [], notify });
 });

@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminWidgetType } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
@@ -68,7 +68,7 @@ export interface EmbedInsertControlProps {
  *  four conditional agent-handle spreads was its own nested branch in `EmbedMenu`'s own cognitive
  *  complexity count. `{}` (no markup) when `base` is unset, same as every inline occurrence it
  *  replaces. */
-function handleSpread(base: string | undefined, suffix: string, opts: { role: string; label: string }): Record<string, unknown> {
+function handleSpread(base: string | undefined, suffix: string, opts: { role: AgentElementRole; label: string }): Record<string, unknown> {
   return base ? agentHandle(`${base}-${suffix}`, opts) : {};
 }
 

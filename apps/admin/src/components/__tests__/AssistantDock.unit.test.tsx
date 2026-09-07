@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -103,7 +103,7 @@ import {
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { navigate } from "../../lib/router";
 import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { registerExtEventRenderer } from "@jini-ai/chat/react";
+import { registerExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
@@ -621,14 +621,35 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
  * call.
  */
 describe("AssistantDock — ext event renderer registrations", () => {
-  type Renderer = (props: Record<string, unknown>) => { type: unknown; props: Record<string, unknown> };
+  /**
+   * A complete `ExtEventRenderProps` plus whatever extra props one assertion wants to watch flow
+   * through. Each registered renderer spreads its whole props object onto the card it renders,
+   * which is the pass-through property these tests pin. `extra` goes in FIRST so it can never
+   * clobber the five fields the contract actually declares, and `runId` — a real field of that
+   * contract, not an extra — is its own parameter rather than a member of `extra`.
+   */
+  function extEventProps(extra: Record<string, unknown>, runId?: string): ExtEventRenderProps {
+    return { ...extra, name: "ext", events: [], runStreaming: false, runSucceeded: true, runId };
+  }
+
+  /**
+   * Narrows a renderer's declared `ReactNode` return down to the element shape these assertions
+   * read. `isValidElement` is a real runtime check, not a cast: a renderer that returned anything
+   * else fails here loudly instead of quietly satisfying `.type`/`.props`.
+   */
+  function renderedElement(node: ReactNode): { type: unknown; props: Record<string, unknown> } {
+    if (!isValidElement<Record<string, unknown>>(node)) {
+      throw new Error("the registered ext-event renderer did not return a React element");
+    }
+    return { type: node.type, props: node.props };
+  }
 
   it("registers a renderer under MCP_UI_EXT_EVENT_NAME that renders OverflowAwareMcpUiSurfaceCard with every prop passed through, plus a real onToolCall", () => {
     const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [, renderer] = mockedRegister.mock.calls[0] as [string, Renderer];
+    const [, renderer] = mockedRegister.mock.calls[0];
     expect(renderer).toBeInstanceOf(Function);
 
-    const element = renderer({ toolCallId: "tc-1", someProp: "value" });
+    const element = renderedElement(renderer(extEventProps({ toolCallId: "tc-1", someProp: "value" })));
 
     expect(element.type).toBe(OverflowAwareMcpUiSurfaceCard);
     expect(element.props).toMatchObject({ toolCallId: "tc-1", someProp: "value" });
@@ -653,10 +674,10 @@ describe("AssistantDock — ext event renderer registrations", () => {
    */
   it("passes the SAME sandboxProxyUrl object identity across repeated renderer invocations, not a fresh URL each time", () => {
     const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [, renderer] = mockedRegister.mock.calls[0] as [string, Renderer];
+    const [, renderer] = mockedRegister.mock.calls[0];
 
-    const first = renderer({ toolCallId: "tc-1" });
-    const second = renderer({ toolCallId: "tc-2" });
+    const first = renderedElement(renderer(extEventProps({ toolCallId: "tc-1" })));
+    const second = renderedElement(renderer(extEventProps({ toolCallId: "tc-2" })));
 
     expect(first.props.sandboxProxyUrl).toBe(second.props.sandboxProxyUrl);
   });
@@ -669,10 +690,10 @@ describe("AssistantDock — ext event renderer registrations", () => {
    */
   it("registers a renderer under 'a2ui' that renders RoutedA2uiSurfaceCard with every prop passed through, plus a real onAgentAction", () => {
     const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [eventName, renderer] = mockedRegister.mock.calls[1] as [string, Renderer];
+    const [eventName, renderer] = mockedRegister.mock.calls[1];
     expect(eventName).toBe("a2ui");
 
-    const element = renderer({ actionId: "a-1", someProp: "value" });
+    const element = renderedElement(renderer(extEventProps({ actionId: "a-1", someProp: "value" })));
 
     expect(element.type).toBe(RoutedA2uiSurfaceCard);
     expect(element.props).toMatchObject({ actionId: "a-1", someProp: "value" });
@@ -681,10 +702,10 @@ describe("AssistantDock — ext event renderer registrations", () => {
 
   it("registers a renderer under 'slow_running' that renders SlowRunNoticeCard with every prop passed through", () => {
     const mockedRegister = vi.mocked(registerExtEventRenderer);
-    const [eventName, renderer] = mockedRegister.mock.calls[2] as [string, Renderer];
+    const [eventName, renderer] = mockedRegister.mock.calls[2];
     expect(eventName).toBe("slow_running");
 
-    const element = renderer({ runId: "r-1", someProp: "value" });
+    const element = renderedElement(renderer(extEventProps({ someProp: "value" }, "r-1")));
 
     expect(element.type).toBe(SlowRunNoticeCard);
     expect(element.props).toMatchObject({ runId: "r-1", someProp: "value" });

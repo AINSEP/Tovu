@@ -583,7 +583,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
     let resolveA!: (v: { role: typeof ROLE }) => void;
     const port = createFakeRolesPort({ roles: [ROLE, roleB], policies: [POLICY] });
-    port.updateRole = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+    port.updateRole = vi.fn(() => new Promise<{ role: typeof ROLE }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
@@ -611,7 +611,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     const policyB = { id: "pB", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
     let resolveA!: (v: { policy: typeof POLICY }) => void;
     const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, policyB] });
-    port.updatePolicy = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+    port.updatePolicy = vi.fn(() => new Promise<{ policy: typeof POLICY }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
@@ -671,7 +671,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     let resolveA!: (v: { policyPermission: unknown }) => void;
     const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
     const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
-    port.writePolicyPermission = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+    port.writePolicyPermission = vi.fn(() => new Promise<{ policyPermission: unknown }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());

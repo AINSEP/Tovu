@@ -939,14 +939,33 @@ describe("useThemeExplore — initial load failure", () => {
   });
 });
 
+/**
+ * The `getThemeDetail` payload the deferred-resolution tests below hand back. This is the real
+ * route's shape, which is WIDER than `ThemeExplorePort["getThemeDetail"]`'s own return type — the
+ * port deliberately drops `pages`/`partials` (see `theme-explore-port.hooks.ts`), and a fake that
+ * still carries them is what a real response looks like on the wire.
+ */
+type DeferredThemeDetail = {
+  id: string;
+  name: string;
+  tier: string;
+  status: string;
+  errors: string[];
+  pages: string[];
+  partials: string[];
+  lineage: null;
+  hasOriginal: boolean;
+  files: never[];
+};
+
 describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
   it("drops a stale successful getThemeDetail response after unmount", async () => {
-    let resolveDetail!: (value: { id: string; name: string; tier: string; status: string; errors: string[]; pages: string[]; partials: string[]; lineage: null; hasOriginal: boolean; files: never[] }) => void;
+    let resolveDetail!: (value: DeferredThemeDetail) => void;
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = vi.fn(
       () =>
-        new Promise((resolve) => {
-          resolveDetail = resolve as never;
+        new Promise<DeferredThemeDetail>((resolve) => {
+          resolveDetail = resolve;
         })
     );
     const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
@@ -978,7 +997,7 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = vi.fn(
       () =>
-        new Promise((_resolve, reject) => {
+        new Promise<never>((_resolve, reject) => {
           rejectDetail = reject;
         })
     );
@@ -999,25 +1018,14 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
    * the stale response's content never lands.
    */
   it("a stale successful response for an OLD themeId does not overwrite state the NEW themeId already loaded", async () => {
-    let resolveStale!: (value: {
-      id: string;
-      name: string;
-      tier: string;
-      status: string;
-      errors: string[];
-      pages: string[];
-      partials: string[];
-      lineage: null;
-      hasOriginal: boolean;
-      files: never[];
-    }) => void;
+    let resolveStale!: (value: DeferredThemeDetail) => void;
     const port = createFakeThemeExplorePort({
       detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
       files: [],
     });
     const realGetThemeDetail = port.getThemeDetail.bind(port);
     port.getThemeDetail = vi.fn((themeId: string) => {
-      if (themeId === "a") return new Promise((resolve) => (resolveStale = resolve as never));
+      if (themeId === "a") return new Promise<DeferredThemeDetail>((resolve) => (resolveStale = resolve));
       return realGetThemeDetail(themeId);
     });
 
@@ -1087,7 +1095,7 @@ describe("useThemeExplore — file-content effect failure", () => {
     });
     port.getThemeFile = vi.fn(
       (_themeId: string, path: string) =>
-        new Promise((_resolve, reject) => {
+        new Promise<never>((_resolve, reject) => {
           deferred[path] = { reject };
         })
     );
@@ -1118,7 +1126,7 @@ describe("useThemeExplore — file-content effect failure", () => {
     });
     port.getThemeFile = vi.fn(
       (_themeId: string, path: string) =>
-        new Promise((resolve) => {
+        new Promise<{ content: string }>((resolve) => {
           deferred[path] = { resolve };
         })
     );
@@ -1773,7 +1781,7 @@ describe("useThemeExplore — onKeyDown save shortcut", () => {
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    port.putThemeFile = vi.fn(() => new Promise(() => {}));
+    port.putThemeFile = vi.fn(() => new Promise<never>(() => {}));
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
     act(() => result.current.setSource("<h1>Changed</h1>"));

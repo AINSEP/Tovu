@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
-import type { AdminTerm } from "@/lib/api";
+import type { AdminTerm, GatedPlanResult, MergeTermPlanDetails } from "@/lib/api";
 
 /**
  * @file `useMergeTermSection` — the plan/confirm/execute merge-term ceremony (ADR-044,
@@ -253,8 +253,10 @@ describe("stale settlement across a term switch mid-wizard (no key={term.id} rem
    */
   it("a plan started for term A that settles AFTER switching to term B must not advance B's wizard", async () => {
     const port = createFakeMergeTermSectionPort({ overlappingContentCount: 3 });
-    let resolvePlan!: (v: { planId: string; planHash: string; details: { fromTermId: string; intoTermId: string; overlapLossDisclosed: boolean; overlappingContentCount: number } }) => void;
-    port.planMergeTerm = vi.fn(() => new Promise((resolve) => (resolvePlan = resolve)));
+    let resolvePlan!: (v: GatedPlanResult<MergeTermPlanDetails>) => void;
+    port.planMergeTerm = vi.fn(
+      () => new Promise<GatedPlanResult<MergeTermPlanDetails>>((resolve) => (resolvePlan = resolve))
+    );
 
     const { result, rerender } = renderHook(
       ({ term }) => useMergeTermSection({ term, onMerged: vi.fn() }, port, "en"),

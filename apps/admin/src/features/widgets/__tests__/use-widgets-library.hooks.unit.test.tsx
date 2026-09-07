@@ -133,7 +133,7 @@ describe("useWidgetsLibrary — concurrent purge-attempt race safety", () => {
     const deferred: Record<string, { reject: (e: unknown) => void }> = {};
     const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
     port.purgeWidget = vi.fn(({ id }: { id: string }) => {
-      return new Promise((_resolve, reject) => {
+      return new Promise<never>((_resolve, reject) => {
         deferred[id] = { reject };
       });
     });

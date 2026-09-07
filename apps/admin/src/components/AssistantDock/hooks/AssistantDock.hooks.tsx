@@ -1163,8 +1163,12 @@ function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { 
 /** `typeof value === "string" && value.length > 0 ? { [key]: value } : {}` as a named helper —
  *  same rationale as {@link includeIfDefined}: each of {@link resolveRunContext}'s "send only when
  *  a real value is present" string fields was its own two-branch (`&&` + ternary) contributor to
- *  that function's own complexity. Same value, same "absent means default" behavior. */
-function includeIfNonEmptyString<K extends string>(key: K, value: string | undefined): { [P in K]?: string } {
+ *  that function's own complexity. Same value, same "absent means default" behavior.
+ *
+ *  `null` is accepted alongside `undefined` and treated identically — `conversationId` is
+ *  `chats.activeId`, which is `null` (not `undefined`) between chats. The `typeof` guard already
+ *  excluded it; only the parameter type had not said so. */
+function includeIfNonEmptyString<K extends string>(key: K, value: string | null | undefined): { [P in K]?: string } {
   return (typeof value === "string" && value.length > 0 ? { [key]: value } : {}) as { [P in K]?: string };
 }
 

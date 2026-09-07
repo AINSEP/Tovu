@@ -34,17 +34,18 @@ const { createFakePageEditorPort, defaultPageEditorPort } = await import("../pag
 
 const PAGE: AdminPost = {
   id: "page-1",
-  type: "page",
+  workspaceId: "w1",
+  kind: "page",
   slug: "privacy-policy",
   title: "Privacy Policy",
   status: "published",
+  bodyJson: {},
   bodyFormat: "html",
   bodyHtml: "<p>hello</p>",
-  bodyDoc: null,
   templateChoice: null,
-  createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt: "2026-08-01T00:00:00.000Z",
-} as AdminPost;
+  version: 1,
+};
 
 describe("defaultPageEditorPort.deletePage", () => {
   it("forwards id to api.deletePage, returning the response unchanged", async () => {

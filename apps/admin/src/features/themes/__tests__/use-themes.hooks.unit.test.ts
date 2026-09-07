@@ -12,6 +12,16 @@ import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
  * `useThemes` itself.
  */
 
+/** What `ThemesPort.downloadMarketplaceTheme` resolves with — named once here because the two
+ *  deferred-download race tests below each need it twice (the captured `resolve`'s parameter and
+ *  the promise they hand the port). */
+type MarketplaceDownloadResult = {
+  id: string;
+  suffixed: boolean;
+  tier: string;
+  rescan: { added: string[]; removed: string[]; total: number };
+};
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -129,7 +139,7 @@ describe("useThemes — activate race safety", () => {
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     port.setActiveTheme = vi.fn(
       (activeThemeId: string) =>
-        new Promise((resolve) => {
+        new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
           deferred[activeThemeId] = { resolve };
         })
     );
@@ -285,7 +295,7 @@ describe("useThemes — download race safety", () => {
     const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
     port.downloadMarketplaceTheme = vi.fn(
       (themeId: string) =>
-        new Promise((resolve) => {
+        new Promise<MarketplaceDownloadResult>((resolve) => {
           deferred[themeId] = { resolve };
         })
     );
@@ -326,7 +336,7 @@ describe("useThemes — download race safety", () => {
     const promises: Record<string, Promise<unknown>> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
     port.downloadMarketplaceTheme = vi.fn((themeId: string) => {
-      const promise = new Promise((resolve, reject) => {
+      const promise = new Promise<MarketplaceDownloadResult>((resolve, reject) => {
         deferred[themeId] = { reject, resolveOk: resolve };
       });
       promises[themeId] = promise;

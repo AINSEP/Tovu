@@ -27,7 +27,8 @@ if (typeof Range.prototype.getClientRects !== "function") {
   };
 }
 if (typeof Range.prototype.getBoundingClientRect !== "function") {
-  // @ts-expect-error jsdom omission — see comment above
+  // No `@ts-expect-error` here, unlike `getClientRects` above: this stub's return value is
+  // structurally a `DOMRect` already, so the assignment typechecks on its own.
   Range.prototype.getBoundingClientRect = function () {
     return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
   };
