@@ -12,6 +12,7 @@ import {
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
+import { SiteFlagIcon } from "./sites-visuals";
 
 /**
  * @file The "All sites" tab — the card grid of every site folder listed under `sites/`, and the
@@ -112,7 +113,13 @@ function SiteCardFacts({ site, snapshot, t }: { site: AdminSiteListEntry; snapsh
     <>
       {subtitle === null ? null : <p className="site-card-display-name">{subtitle}</p>}
       {registration === null ? null : (
+        // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
+        // card's status strip"): this line used to render in the same pill chrome as the state
+        // badge in the head, so the two read as competing states. The icon is what makes it a
+        // footnote about the folder rather than a second status; `aria-hidden` inside the
+        // component, since the text beside it already says the same thing.
         <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
+          <SiteFlagIcon />
           {t(registration.labelKey)}
         </span>
       )}

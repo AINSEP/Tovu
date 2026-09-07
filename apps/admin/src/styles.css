@@ -4504,3 +4504,60 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * split that free space evenly instead — above the name and below the badges — which centers the
  * identity block in the card and leaves the action on the baseline. */
 .site-card-name { margin-top: auto; }
+
+/* Sites — the card's status strip (2026-09-06, owner, from a screenshot of `/admin/sites?tab=all`:
+ * a pink/blush header band holding a "Serving now" pill, then the name, a "Not initialized" pill,
+ * and a disabled "Serve after restart" button crammed into a narrow box — "two status pills saying
+ * different things stacked above each other is the core confusion").
+ *
+ * Measured before changing anything: the band was `--primary-dim` — this admin's burnt orange at
+ * 10% over white, which is the blush she is seeing — under a GREEN `.status-ok` pill: two colors
+ * making one statement, and disagreeing about it. The second pill is `.site-card-flag`, the
+ * registration footnote (`resolveSiteRegistrationBadge`): a warning-toned `.status` in the same
+ * pill chrome as the state badge two lines above it, so a reader sees two peers ("Serving now",
+ * "Not initialized") and has to work out which one is the card's state. The button is painted by
+ * the global `button:disabled` peach tint — the same rule `.btn-danger:disabled` and
+ * `.settings-ui-section button:disabled` each already carry an override for.
+ *
+ * Three changes, all overriding the `.site-card*` blocks above rather than editing them (this
+ * stylesheet is append-only for concurrent work). No markup fact moves: the same two facts render,
+ * in the same order, from the same functions.
+ *
+ * 1. The HEAD IS the status strip. The state badge keeps its tone class (so `siteRowStateToneClass`
+ *    still decides the color) but drops the pill chrome — no fill, no padding — and gains a dot in
+ *    `currentColor`; the BAND takes the tone instead: `--ok-bg` for the serving card (the "green
+ *    active" strip the owner asked for on 2026-09-05), `--warning-bg` for a pending restart,
+ *    `--surface-2` otherwise. One statement, one color (`kole-jain`: color for purpose, and derive
+ *    the background from the semantic color rather than adding an unrelated one). The dot is
+ *    `aria-hidden` by construction — a `::before` with no text — so the accessible name is still
+ *    the words.
+ * 2. The FLAG is a footnote, not a peer. `.site-card-flag` loses the pill fill and becomes a small
+ *    warning-colored line with a glyph (`SiteFlagIcon`, `sites-visuals.tsx`) — the shape says
+ *    "note about this folder", the pill above it says "state". Same words, same `title` tooltip;
+ *    the glyph plus the text keeps the meaning off color alone (`frontend-accessibility`).
+ * 3. The disabled Activate button goes quiet. Transparent, faint text, hairline border — the
+ *    treatment `.deployment-action .btn-secondary[aria-disabled="true"]` already uses for the
+ *    identical "this action does not apply to this card" case. (0,3,1) beats the global (0,1,1). */
+.site-card-head .status {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 0; border-radius: 0; background: transparent;
+  font-size: var(--text-xs); letter-spacing: 0.01em;
+}
+.site-card-head .status::before {
+  content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+.site-card-serving .site-card-head { background: var(--ok-bg); border-bottom-color: transparent; }
+.site-card-head:has(.status-warning) { background: var(--warning-bg); border-bottom-color: transparent; }
+
+.site-card-flag {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 0; border-radius: 0; background: transparent;
+  font-size: var(--text-xs); font-weight: 600; color: var(--warning);
+  white-space: normal; text-align: left;
+}
+.site-card-flag svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+
+.site-card-actions .btn-secondary:disabled {
+  background: transparent; color: var(--faint); border-color: var(--border);
+}
