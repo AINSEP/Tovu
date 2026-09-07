@@ -11,13 +11,24 @@
  * `--jini-*`.
  */
 
-/* `auto-fill`, not a fixed count — the grid finds however many ~180px cards fit the viewport on
-   its own, which is what "fewer columns" than the old 4-column table actually buys: a narrow
-   viewport collapses to 1-2 cards per row without a breakpoint rule of its own, and a wide one
-   fills out without a hardcoded ceiling. */
+/* `auto-fill`, not a fixed count — the grid finds however many cards fit the viewport on its own,
+   which is what "fewer columns" than the old 4-column table actually buys: a narrow viewport
+   collapses to 1-2 cards per row without a breakpoint rule of its own, and a wide one fills out
+   without a hardcoded ceiling.
+
+   Card min-width doubled 180px -> 360px (owner ask, 2026-09-07 — "make the media card roughly
+   twice as big", thumbnails especially video were hard to read). The bare `minmax(360px, 1fr)`
+   this would naively become breaks a narrow viewport: `auto-fill` still lays out a full 360px
+   TRACK even when only one fits, and a track wider than the viewport overflows it (checked live at
+   375px — a bare 360px minimum overflows the page horizontally the instant the container is
+   narrower than 360px plus this container's own padding). `minmax(min(360px, 100%), 1fr)` caps the
+   minimum at the container's own width, so the single column at a narrow viewport shrinks to fit
+   instead of forcing an overflow — same doubled size everywhere it fits, safe everywhere it
+   doesn't. Verified in the running admin at 375px and 1280px (see the media-admin-ui report's
+   screenshots) — one column at 375px, several at desktop, no horizontal scroll either width. */
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
   gap: var(--space-4);
 }
 
@@ -67,6 +78,28 @@
 }
 .media-card-expand:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
 .media-card-expand svg { width: 15px; height: 15px; }
+
+/* The eye-icon "edit metadata" trigger (owner ask, 2026-09-07 — reach `EditMediaModal` from the
+   card itself, not just the row's `RowMenu`). Same corner-badge shape and dark scrim as
+   `.media-card-expand` above (for the identical reason: has to read against an arbitrary photo/
+   video frame in both themes), placed on the OPPOSITE corner so the two never collide and a video
+   card's native `<video controls>` bar (bottom of the frame) never sits under either one. */
+.media-card-edit {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: oklch(0% 0 0 / 0.55);
+  color: oklch(100% 0 0);
+  border: none;
+  border-radius: var(--r-sm);
+}
+.media-card-edit:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+.media-card-edit svg { width: 15px; height: 15px; }
 
 .media-card-media {
   width: 100%;
@@ -134,13 +167,36 @@
   gap: var(--space-2);
 }
 
-/* The in-progress metadata edit sits above the grid as its own full-width card rather than inside
-   one grid cell — see `EditMediaPanel`'s own comment for why (a single expanded cell in a CSS grid
-   would either reflow every sibling's row height or get clipped, neither of which is acceptable
-   for a form with 4+ fields plus a read-only hash row). */
-.media-edit-panel {
-  margin-bottom: var(--space-4);
+/* ============================================================
+   EDIT MODAL — `EditMediaModal`'s `<dialog>` (owner ask, 2026-09-07). Used to be a `.card` sitting
+   above the grid, pushing every card down while open; now a modal reachable from either the row's
+   `RowMenu` or the new eye-icon card trigger (`.media-card-edit` above) — see `Media.tsx`'s file
+   header for the full history. Same native-`<dialog>` foundation and `[open]`-scoped `display`
+   split as `.confirm-dialog`/`.theme-page-details-dialog` (see those rules' own comments for the
+   "an author `display` rule on the bare class always beats the UA stylesheet's `dialog:not([open])
+   { display: none }`" trap both of them already found live). Sized wider than
+   `.theme-page-details-dialog`'s 28rem — this form carries far more fields (title/alt/caption/
+   credit/width/height/CSS class/HTML attributes/file URL/sha256) — and capped at `90vh` with its
+   own scroll, since that many fields can exceed a short viewport's height even at this width.
+   ============================================================ */
+.media-edit-dialog {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--space-5) var(--space-6);
+  max-width: min(94vw, 34rem);
+  width: calc(100% - var(--space-6));
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
 }
+.media-edit-dialog[open] { display: block; }
+.media-edit-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+/* The form content's own root, replacing the old `.card` wrapper — the dialog above already
+   supplies the surface/border/shadow, so this contributes layout only (the `.editor-header`/
+   `.field-group` children keep their own existing rules unchanged). */
+.media-edit-modal-body { display: flex; flex-direction: column; }
 
 /* ============================================================
    LIGHTBOX — a single shared <dialog> instance for the whole grid, opened via `.media-card-

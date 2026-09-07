@@ -699,6 +699,91 @@ describe("switching edit target between items (regression: stale draft overwrite
   });
 });
 
+/**
+ * `EditMediaModal` — owner ask (2026-09-07): the metadata edit form is now reachable from an eye
+ * icon on the card, presented as a modal, instead of an inline panel pushing the grid down. Pins
+ * three things: the eye icon actually opens the same form the row menu already did (not a second,
+ * divergent UI), it renders inside a `<dialog>` (not the old inline `.card`), and the new HTML
+ * attributes field blocks Save while its allowlist check is failing.
+ */
+describe("EditMediaModal — eye-icon trigger and HTML attributes field", () => {
+  it("the card's eye icon opens the SAME edit form the row menu's 'Edit metadata' opens, inside a <dialog>", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+
+    const dialog = document.querySelector("dialog.media-edit-dialog")!;
+    expect(dialog.hasAttribute("open")).toBe(false);
+
+    await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
+
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+    expect(within(dialog as HTMLElement).getByRole("heading", { name: /editing "sunset photo"/i })).toBeInTheDocument();
+    expect(within(dialog as HTMLElement).getByLabelText("Title")).toHaveValue("Sunset Photo");
+  });
+
+  it("is a single shared <dialog>, not one per card", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen();
+    await screen.findByText("Sunset Photo");
+
+    expect(document.querySelectorAll("dialog.media-edit-dialog")).toHaveLength(1);
+  });
+
+  it("rejects an on* handler with a specific error naming it, and disables Save until it's fixed", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
+    await screen.findByLabelText("Title");
+
+    const htmlAttrsInput = screen.getByLabelText("HTML attributes (optional)");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).not.toBeDisabled();
+
+    await user.type(htmlAttrsInput, 'onerror="alert(1)"');
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/onerror/i);
+    expect(saveButton).toBeDisabled();
+
+    // Fixing the field (clearing it back to empty, which parses clean) re-enables Save — proves the
+    // block is live/reactive, not a one-time check.
+    await user.clear(htmlAttrsInput);
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+  });
+
+  it("never sends htmlAttributes to the server — a valid draft is not included in the save PATCH", async () => {
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH") {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: ACTIVE_ITEM }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
+    await screen.findByLabelText("Title");
+
+    await user.type(screen.getByLabelText("HTML attributes (optional)"), 'data-motion="fade-in"');
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // This save has no title/alt/caption/etc. change, so `diffMediaMetadata` produces an EMPTY
+    // patch and `save()` short-circuits through `onCancel()` without ever calling the port/PATCH at
+    // all (`use-edit-media-panel.hooks.ts`'s own `save()`) — proving `htmlAttributesText` truly
+    // never reaches `diffMediaMetadata`'s inputs, not just "wasn't in this particular payload".
+    await waitFor(() => expect(document.querySelector("dialog.media-edit-dialog")!.hasAttribute("open")).toBe(false));
+    expect(patchBody).toBeNull();
+  });
+});
+
 /** Waits for the grid to have finished its initial load (the card for `title` exists), then
  *  returns the container for `cardFor` to re-scope against. */
 async function waitForCard(container: HTMLElement, title: string): Promise<HTMLElement> {
