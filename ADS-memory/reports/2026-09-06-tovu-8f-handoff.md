@@ -82,10 +82,19 @@ Claims from the reports, **not independently verified**. Two of the original twe
 `duplicateContentDb`) are now closed by section B.
 
 **Admin**
-1. Four `<button>` inside `<a href>` — `collections/CollectionEntries.tsx:74`,
-   `collections/CollectionEntryEditor.tsx:361`, `forms/FormsList.tsx:72`, `forms/FormEditor.tsx:971`.
-   Depends on a `.btn-*`-on-a-bare-`<a>` CSS fix that `Collections.tsx` calls "in flight elsewhere" —
-   **established as belonging to nobody. Treat that comment as false.**
+1. ~~Four `<button>` inside `<a href>`~~ — **CORRECTED 2026-09-06, and the correction matters more than
+   the item.** `tovu-67` fixed those four (`a44148a1`, `530d6122`) and established that **they were never
+   blocked on anything.** `Collections.tsx`'s "a fix in flight elsewhere" comment is false, but not for the
+   reason two sessions concluded: the `.btn-*`-on-a-bare-`<a>` CSS **already existed when the comment was
+   written** — `apps/admin/src/styles.css:1135`, landed 2026-08-01 in `bdc3776e` (I verified both the rule
+   and its date), already in production use by `Dashboard.tsx`'s "View site ↗" anchor. `git blame` puts the
+   comment the same minute that CSS landed: **stale from birth.**
+
+   **The real count was 13 repo-wide, not 4.** A comment-aware scan of all 312 admin `.tsx` files found nine
+   more, still open and unowned: `PostEditor.tsx:662`, `PageEditor.tsx:102` (both in someone's in-flight
+   work), `Menus.tsx:44`, `WidgetRegions.tsx:98`, `WidgetsLibrary.tsx:113`, `WidgetRegionEditor.tsx:46`,
+   `WidgetInstanceEditor.tsx:134`, `Recovery.tsx:94`, and `MenuEditor.tsx:373` — that last inside the owner's
+   own uncommitted work, so it needs her rather than an agent.
 2. `security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator` — "Make default" is a `<button>` inside a
    `<summary>` with no `stopPropagation`, so clicking it also toggles the row. Correct pattern already exists
    at `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`.
@@ -153,3 +162,16 @@ Claims from the reports, **not independently verified**. Two of the original twe
   `duplicate-content-db.ts` ×2 including a citation to a constant that does not exist where it says,
   `routes/posts/autosave.ts` describing client logic that never existed, `Seo.hooks.tsx` and `api.ts`,
   `Collections.tsx`'s "fix in flight elsewhere". Verify before trusting.
+- **A comment claiming work is "in flight elsewhere" is not evidence that it is pending.** Check whether it
+  already landed before concluding it is unowned. Two sessions read that comment tonight and both drew a
+  wrong conclusion from it — just a *different* wrong conclusion than the one it was written to induce. The
+  CSS it described as forthcoming had shipped the same minute the comment was written, and four fixes sat
+  blocked on nothing for five weeks. Cost: two sessions' analysis and a wrong entry in the first version of
+  this very document (see C1).
+- **The same failure appears in commit messages, where it is even less likely to be re-checked.**
+  `1bb6fa67` claims it fixed a problem "as a class"; `withReadOnlyToolConstraint` has exactly one call site,
+  because BYOK hand-composes its own stack. And `64e6c029` carries `ab3c01cc`'s message entirely — its real
+  diff is a credential-redaction fix. Treat a commit message as a claim, like a comment.
+- **Counts in a report are lower bounds, not totals.** The nested-`<button>` item was reported as 4 sites; a
+  comment-aware scan across all 312 admin `.tsx` files found **13**. A grep that misses commented-out code,
+  or stops at the first directory it was pointed at, undercounts silently.
