@@ -587,6 +587,7 @@ export const media = pgTable("media", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   title: text("title").notNull(),
+  slug: text("slug"),
   alt: text("alt").notNull(),
   caption: text("caption").notNull(),
   credit: text("credit").notNull(),
@@ -598,7 +599,9 @@ export const media = pgTable("media", {
   width: bigint("width", { mode: "number" }),
   height: bigint("height", { mode: "number" }),
   cssClass: text("css_class"),
-});
+}, (t) => [
+    uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
+  ]);
 
 export const mediaProviderCredentials = pgTable("media_provider_credentials", {
   workspaceId: text("workspace_id").notNull(),

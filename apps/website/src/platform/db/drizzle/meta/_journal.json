@@ -414,6 +414,13 @@
       "when": 1788726761787,
       "tag": "0058_keen_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1788802435806,
+      "tag": "0059_woozy_micromacro",
+      "breakpoints": true
     }
   ]
 }

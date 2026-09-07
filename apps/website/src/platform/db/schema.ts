@@ -1236,27 +1236,49 @@ export const originSettings = sqliteTable("origin_settings", {
  * (`media-service.ts` enforces the immutability guard — this table has no DB-level constraint for
  * it, matching every other write-once field in this schema).
  */
-export const media = sqliteTable("media", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  title: text("title").notNull(),
-  alt: text("alt").notNull(),
-  caption: text("caption").notNull(),
-  credit: text("credit").notNull(),
-  sourceSha256: text("source_sha256").notNull(),
-  status: text("status").notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-  version: integer("version").notNull(),
-  /** Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix, 2026-08-05):
-   * an operator-set width/height/CSS class for THIS asset, threaded through to the public `<img>`
-   * tag by `render.ts`'s `image` node case so an inserted image no longer renders at full native
-   * pixel width with nothing constraining it. All three are nullable — `null` means "no override
-   * set", which the renderer treats as "omit the attribute entirely", not "render 0×0". */
-  width: integer("width"),
-  height: integer("height"),
-  cssClass: text("css_class"),
-});
+export const media = sqliteTable(
+  "media",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    title: text("title").notNull(),
+    /**
+     * Human-memorable lookup key (owner-directed, 2026-09-07) — ADDITIONAL to `id`, never a
+     * replacement: every existing embed/reference resolves by `id` first and foremost, and `slug`
+     * only gives operators a second, typeable way to reach the same row (`findMediaByIdOrSlug`
+     * tries slug first, `id` second — same order `posts_workspace_slug_unique`'s own `post.ts`
+     * lookup already establishes for the identical id-vs-slug duality).
+     *
+     * Nullable, additive, NO on-write backfill here: every pre-existing row reads back as `NULL`
+     * until `development/scripts/backfill-media-slugs.ts` is run once (see that script's own
+     * header) — mirroring `asset_blobs.content_type`'s identical "nullable cache column, backfilled
+     * out of band" precedent in this same table family, not `posts.slug`'s (which never needed a
+     * backfill because every post has always had one from creation). The uniqueness index below is
+     * safe to add in the SAME migration as this column specifically because SQL treats every NULL
+     * as distinct from every other NULL for uniqueness purposes — a table full of NULL slugs cannot
+     * violate this constraint, so the constraint and the column land together and the backfill runs
+     * as a separate, explicit, re-runnable step afterward.
+     */
+    slug: text("slug"),
+    alt: text("alt").notNull(),
+    caption: text("caption").notNull(),
+    credit: text("credit").notNull(),
+    sourceSha256: text("source_sha256").notNull(),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+    /** Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix, 2026-08-05):
+     * an operator-set width/height/CSS class for THIS asset, threaded through to the public `<img>`
+     * tag by `render.ts`'s `image` node case so an inserted image no longer renders at full native
+     * pixel width with nothing constraining it. All three are nullable — `null` means "no override
+     * set", which the renderer treats as "omit the attribute entirely", not "render 0×0". */
+    width: integer("width"),
+    height: integer("height"),
+    cssClass: text("css_class"),
+  },
+  (table) => [uniqueIndex("idx_media_workspace_slug").on(table.workspaceId, table.slug)]
+);
 
 /** `asset_blobs` sidecar (ADR-027 §2) — one row per unique blob (content-addressed by sha256,
  * deduplicated within a workspace). */
