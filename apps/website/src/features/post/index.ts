@@ -20,6 +20,7 @@ export {
   PostConflictError,
   PostNotFoundError,
   PostValidationError,
+  PostVersionConflictError,
   type PostRecord,
   type PostRepoPort,
   type PostBodyFormat,

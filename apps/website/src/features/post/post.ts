@@ -322,6 +322,24 @@ export interface UpdatePostInput {
    * explicit choice. See {@link PostRecord.overridesThemePage} for the full tri-state contract.
    */
   overridesThemePage?: boolean | null;
+  /**
+   * Optimistic-concurrency basis (2026-09-06) — the {@link PostRecord.version} the caller believes
+   * it is editing, captured when it read the row.
+   *
+   * OPTIONAL and opt-in. Omit it and `updatePost` behaves exactly as it always has (last write
+   * wins), so no existing caller's behavior moves. Send it and a save built on a basis another save
+   * has already superseded is rejected with a {@link PostVersionConflictError} instead of silently
+   * erasing the other operator's document.
+   *
+   * Compared with strict equality against the row's current version and nothing else, so a value
+   * that is not exactly that version is a conflict — including a nonsense one. Fail-closed by
+   * design: the only safe reading of "I do not know which version I am editing" is "do not write".
+   *
+   * The same basis seam {@link PostAutosaveSnapshot.baseVersion} already keys off, applied to the
+   * real save rather than to the standing draft. The two are independent guards over different
+   * things: that one protects a parked draft, this one protects the live document.
+   */
+  expectedVersion?: number;
 }
 
 export interface UpdatePostDeps {
@@ -447,6 +465,34 @@ export interface GetPostOptional {}
 export class PostNotFoundError extends Error {}
 export class PostValidationError extends Error {}
 export class PostConflictError extends Error {}
+/**
+ * Optimistic-concurrency rejection (2026-09-06) — `updatePost` was handed an
+ * {@link UpdatePostInput.expectedVersion} that no longer matches the row's current
+ * {@link PostRecord.version}, meaning another save landed between the caller reading the post and
+ * submitting its edit. Before this guard existed that second save simply won, erasing the first
+ * operator's document with no error raised anywhere.
+ *
+ * Extends {@link PostConflictError} deliberately, which is what makes the guard additive at every
+ * existing call site: `sendPostUpdateError` (`server/inbound/admin-http/routes/posts/update.ts`),
+ * its `pages/update.ts` twin and the `content_post_update` tool handler all already map a
+ * `PostConflictError` onto 409 — the right status for this too — so a caller that has not been
+ * updated still responds correctly, while one that wants to tell "slug taken" apart from "someone
+ * else saved first" narrows on this subclass. It is deliberately NOT a `PostValidationError`,
+ * matching `tool-registrations.ts`'s `isPostShapeRejection` rule: resending the identical input
+ * cannot fix it, the caller has to reload the row first.
+ *
+ * Both versions travel as fields, not only inside the message, so a route can build a structured
+ * envelope (and a client can offer "reload and reapply") without parsing prose.
+ */
+export class PostVersionConflictError extends PostConflictError {
+  constructor(
+    message: string,
+    public readonly expectedVersion: number,
+    public readonly currentVersion: number
+  ) {
+    super(message);
+  }
+}
 
 /**
  * SPEC-002 api.spec.md `POST_CREATE`/`PAGE_CREATE` §4 documented `bodyJson` default —
@@ -836,6 +882,29 @@ async function assertSlugAvailableForUpdate(
 }
 
 /**
+ * Optimistic-concurrency compare-and-set for `updatePost` (2026-09-06).
+ *
+ * A no-op when the caller sent no `expectedVersion` — that is what keeps the guard opt-in and this
+ * whole change non-breaking. See {@link UpdatePostInput.expectedVersion} for the contract.
+ *
+ * Called BEFORE field validation and the slug-uniqueness check, unlike every other precondition in
+ * `updatePost`: once the caller's basis is stale, its title, slug and body all describe a row that
+ * no longer exists as it was read, so reporting a field problem in content the caller is about to
+ * have to re-enter anyway would answer the wrong question. Called AFTER the not-found check so a
+ * missing or trashed row still reads as a plain 404, rather than disclosing through a version
+ * number that the id exists.
+ */
+function assertExpectedVersion(existing: PostRecord, expectedVersion: number | undefined): void {
+  if (expectedVersion === undefined) return;
+  if (expectedVersion === existing.version) return;
+  throw new PostVersionConflictError(
+    `post '${existing.id}' was modified by another save (expected version ${expectedVersion}, current version ${existing.version})`,
+    expectedVersion,
+    existing.version
+  );
+}
+
+/**
  * Assembles the `PostRecord` `updatePost` will persist, once validation, the uniqueness check,
  * and the before-save hook have all already run.
  *
@@ -880,6 +949,7 @@ export async function updatePost(
   // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
   // editing it; there is no edit-through-the-trash path.
   if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  assertExpectedVersion(existing, input.expectedVersion);
 
   const { title, slug } = validateUpdatePostInput(input, existing);
   await assertSlugAvailableForUpdate(deps.repo, input.workspaceId, slug, input.id);
