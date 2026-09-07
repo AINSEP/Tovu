@@ -5,6 +5,7 @@ import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { UUID } from "@jini-ai/cms/core";
+import { MediaConflictError } from "@jini-ai/cms/media";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -41,6 +42,13 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
     id: row.id,
     workspaceId: row.workspaceId,
     title: row.title,
+    // `row.slug` is nullable in the DB (see `schema.ts`'s doc: backfilled out of band, not on
+    // write) but `MediaRecord.slug` is non-nullable in the domain model — every row this repo
+    // itself ever writes always has a real slug (`SqliteMediaRepo.save()`'s `values` below never
+    // omits it), so a `null` here can only mean a genuinely pre-backfill row. Falling back to the
+    // row's own `id` rather than `""`/`"untitled"` keeps the fallback ALREADY unique (ids are
+    // primary keys) without a repo-layer uniqueness check of its own.
+    slug: row.slug ?? row.id,
     alt: row.alt,
     caption: row.caption,
     credit: row.credit,
@@ -62,6 +70,12 @@ export class SqliteMediaRepo implements MediaRepoPort {
     return findOneBy(this.db, media, [eq(media.workspaceId, required.workspaceId), eq(media.id, required.id)], toMediaRecord);
   }
 
+  /** Second lookup key (`MediaRepoPort.findBySlug`, 2026-09-07) — same `findOneBy` shape as
+   *  `findById`, just against `idx_media_workspace_slug` instead of the primary key. */
+  async findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MediaRecord | null> {
+    return findOneBy(this.db, media, [eq(media.workspaceId, required.workspaceId), eq(media.slug, required.slug)], toMediaRecord);
+  }
+
   async list(required: { workspaceId: UUID }): Promise<MediaRecord[]> {
     return this.db.select().from(media).where(eq(media.workspaceId, required.workspaceId)).all().map(toMediaRecord);
   }
@@ -72,6 +86,7 @@ export class SqliteMediaRepo implements MediaRepoPort {
       id: record.id,
       workspaceId: record.workspaceId,
       title: record.title,
+      slug: record.slug,
       alt: record.alt,
       caption: record.caption,
       credit: record.credit,
@@ -84,10 +99,22 @@ export class SqliteMediaRepo implements MediaRepoPort {
       height: record.height,
       cssClass: record.cssClass,
     };
-    if (existing) {
-      this.db.update(media).set(values).where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id))).run();
-    } else {
-      this.db.insert(media).values(values).run();
+    // `updateMediaMetadata`'s own `findBySlug` check (see `@jini-ai/cms/media`'s `media-service.ts`)
+    // is a friendly-error courtesy, not the enforcement — `idx_media_workspace_slug` is. A caller
+    // that races past that check (or bypasses the service entirely) hits the real DB constraint
+    // here; translated to the SAME `MediaConflictError` type the app-level check throws, so every
+    // caller handles one error shape regardless of which layer actually caught the collision.
+    try {
+      if (existing) {
+        this.db.update(media).set(values).where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id))).run();
+      } else {
+        this.db.insert(media).values(values).run();
+      }
+    } catch (err) {
+      if (isUniqueConstraintViolation(err)) {
+        throw new MediaConflictError(`slug '${record.slug}' is already used by another media asset in this workspace`);
+      }
+      throw err;
     }
   }
 
