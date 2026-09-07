@@ -204,12 +204,11 @@ export function useSectionNav(
 }
 
 export interface ProjectTabsState {
-  // Project ids with an open tab, in the order they were opened. Always empty under the
-  // N-BrowserWindow model — see this hook's own doc — kept in the shape so `TabStrip` and
-  // `deriveFleetView` need no separate "no tabs" type.
+  // Project ids with an open tab, in the order they were opened.
   openTabs: readonly string[];
   activeTab: string | null;
   setActiveTab: Dispatch<SetStateAction<string | null>>;
+  openProjectTab: (id: string) => void;
   closeProjectTab: (id: string) => void;
 }
 
@@ -218,18 +217,22 @@ export interface ProjectTabsState {
  * from it. Everything that was derived here now lives in `deriveFleetView`, which needs section
  * state this hook does not have.
  *
- * `openTabs` never grows under the N-`BrowserWindow` model: a project opens in its OWN OS window
- * (`useOpenProjectWindow`, IPC to `openSiteWindow`) rather than an embedded tab, so there is
- * nothing left for a tab to switch to — the tab strip renders its permanent "All" tab only (see
- * `TabStrip` in `App.tsx`). No `openProjectTab` here for exactly that reason: nothing calls it.
- * `closeProjectTab` stays — `useProjectMutations`'s delete flow still calls it defensively, and it
- * is a safe no-op against an already-empty list.
+ * `openProjectTab` only ever adds a tab and selects it — it does not itself ask main to start
+ * anything. `ProjectWorkspace` (`App.tsx`) is what shows a "not running" panel for a freshly opened
+ * tab and lets the operator start it from there (`useProjectStart`), the same split Tovu-Runner's
+ * own `App.hooks.ts` makes: opening a tab and starting a site are two different actions, one
+ * instant and local, the other async and IPC-backed.
  */
 export function useProjectTabs(): ProjectTabsState {
-  // `null` active tab means the fleet tab (Runner's own sections); a string would mean a
-  // project's tab, but nothing ever sets one — see this hook's own doc.
+  // `null` active tab means the fleet tab (Runner's own sections); a string means that project's
+  // embedded admin.
   const [openTabs, setOpenTabs] = useState<readonly string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+
+  const openProjectTab = (id: string) => {
+    setOpenTabs((current) => (current.includes(id) ? current : [...current, id]));
+    setActiveTab(id);
+  };
 
   const closeProjectTab = (id: string) => {
     setOpenTabs((current) => current.filter((tabId) => tabId !== id));
@@ -238,24 +241,7 @@ export function useProjectTabs(): ProjectTabsState {
     setActiveTab((current) => (current === id ? null : current));
   };
 
-  return { openTabs, activeTab, setActiveTab, closeProjectTab };
-}
-
-/**
- * A project card's click target under the N-`BrowserWindow` model: ask main to open (or focus)
- * that project in its own OS window, via `runner:projects:open-window` → `openSiteWindow`. Errors
- * are logged rather than surfaced inline — there is no per-card error slot in `ProjectGrid` today,
- * and the 4s poll (`useProjectsPolling`) is what would show the project as still stopped if the
- * open genuinely failed.
- */
-export function useOpenProjectWindow(): (id: string) => void {
-  return useCallback((id: string) => {
-    const bridge = runnerInventoryBridge();
-    if (bridge === undefined) return;
-    void bridge.openProjectWindow(id).catch((err) => {
-      console.error(`tovu-runner: could not open project ${id} —`, err);
-    });
-  }, []);
+  return { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab };
 }
 
 export interface ProjectMutationsState {
@@ -371,32 +357,28 @@ export function useProjectMutations(deps: {
 }
 
 export interface FleetView {
+  openProjects: readonly ProjectRecord[];
   // Tabs are a Projects mechanic. Every other section is a single Runner screen, so a strip above
   // one would advertise routes that section cannot take.
   inProjects: boolean;
+  activeProject: ProjectRecord | undefined;
+  showProjectTab: boolean;
   showFleet: boolean;
+  visibleWorkspaceId: string | null;
   // Whether the (permanently mounted, see `CreateWebsiteHost` in `App.tsx`) create form should be
-  // the thing on screen right now, as opposed to hidden behind Appearance or a non-Projects
-  // section.
+  // the thing on screen right now, as opposed to hidden behind Appearance, a project's workspace,
+  // or a non-Projects section.
   showCreateForm: boolean;
 }
 
 /**
- * Everything `App` renders from that is a pure function of section state + the create-form flag:
- * whether the fleet grid or the create form is on screen.
+ * Everything `App` renders from that is a pure function of section state + tab state + the polled
+ * project list: whether the fleet grid, a project's workspace, or the create form is on screen,
+ * and which one.
  *
  * A plain function, not a hook, and that is the point. It holds no state and calls nothing from
  * React, so the whole "which surface should be showing" rule set is exercisable by calling it with
  * an object — no renderer, no component, no hook harness.
- *
- * Reduced from its original shape, which also derived a project's embedded-tab workspace
- * (`openProjects`, `activeProject`, `showProjectTab`, `visibleWorkspaceId`). Under the
- * N-`BrowserWindow` model a project opens in its own OS window, never an embedded tab (see
- * `useOpenProjectWindow`), so `openTabs`/`activeTab` never hold a project id and `showFleet` is
- * simply "is Projects the active section" — there is no second surface left to derive a switch
- * between. `activeTab`/`openTabs` stay as parameters rather than being dropped from the signature:
- * `useSectionNav`'s `setActiveTab` calls still reset them on every section move, and a caller here
- * should not need to know that reset is now inert to pass the right shape.
  */
 export function deriveFleetView(input: {
   activeId: RunnerSectionId;
@@ -406,15 +388,73 @@ export function deriveFleetView(input: {
   projects: readonly ProjectRecord[];
   isCreating: boolean;
 }): FleetView {
-  void input.activeTab;
-  void input.openTabs;
-  void input.projects;
+  const openProjects = input.openTabs
+    .map((id) => input.projects.find((project) => project.id === id))
+    .filter((project): project is ProjectRecord => project !== undefined);
 
+  // Gating on `activeId` hides the strip without touching `openTabs`/`activeTab`, so navigating
+  // away and back leaves the same tabs open.
   const inProjects = input.activeId === 'projects';
-  const showFleet = true;
+
+  // A project deleted or lost between polls must not strand its tab pointing at nothing.
+  const activeProject =
+    input.activeTab === null ? undefined : openProjects.find((p) => p.id === input.activeTab);
+  // Deriving this from `inProjects` as well — not from `activeTab` alone — is what makes a
+  // project's workspace unreachable outside Projects rather than merely unlikely to be reached.
+  const showProjectTab = inProjects && activeProject !== undefined;
+  const showFleet = !showProjectTab;
+  // Every open project's workspace stays mounted (see `App`'s `<main>` body); this is the one that
+  // is not hidden. Appearance layers over the whole content area, so it hides the workspace too.
+  const visibleWorkspaceId = !input.appearanceOpen && showProjectTab ? input.activeTab : null;
+  // The create form is a fourth layer competing for the same space as Appearance and a project's
+  // workspace, so it is visible only when none of those are: not over Appearance, not over a
+  // project tab, not over a non-Projects section.
   const showCreateForm = input.isCreating && !input.appearanceOpen && showFleet && inProjects;
 
-  return { inProjects, showFleet, showCreateForm };
+  return {
+    openProjects,
+    inProjects,
+    activeProject,
+    showProjectTab,
+    showFleet,
+    visibleWorkspaceId,
+    showCreateForm,
+  };
+}
+
+/**
+ * Immersive mode: the active project's admin takes the whole window and Tovu's own chrome (top
+ * nav, tab strip, fleet chat) gets out of the way. Owns both the state and the two rules that keep
+ * it honest — it must never outlive the workspace it is immersing, and Escape must collapse it.
+ */
+export function useExpandedMode(showProjectTab: boolean): {
+  expanded: boolean;
+  toggleExpanded: () => void;
+} {
+  const [expanded, setExpanded] = useState(false);
+
+  // Expanded hides the only navigation there is, so it must never outlive the thing it was
+  // expanding. Closing the tab, deleting the project, or a `runner.navigate` call moving the nav
+  // would otherwise leave the chrome hidden with nothing to be immersed in and no way back.
+  useEffect(() => {
+    if (!showProjectTab) setExpanded(false);
+  }, [showProjectTab]);
+
+  // Escape collapses. This listener only sees keys pressed in Tovu's own chrome — a <webview>
+  // is a separate browsing context and does not bubble its keydowns out to this document — so it
+  // is a convenience, never the only exit. The bar's collapse button is the one that always works.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expanded]);
+
+  const toggleExpanded = () => setExpanded((on) => !on);
+
+  return { expanded, toggleExpanded };
 }
 
 /**
@@ -482,6 +522,130 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
   };
 
   return { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete };
+}
+
+/**
+ * `ProjectStartPanel`'s start/pending/error state.
+ *
+ * Starting from here rather than only from the grid matters because this is where the operator
+ * already is when they find out — the tab was opened expecting a site. Nothing is set locally on
+ * success: `useProjectsPolling`'s 4s poll flips `status` to `running`, which swaps the panel this
+ * hook backs for the webview on its own.
+ *
+ * Deliberately NOT built on `useDeleteConfirmation`'s shape, even though both are a "pending flag
+ * + error string around one async call": on a missing bridge, `start` sets `error` and returns
+ * WITHOUT ever setting `starting` true — a call that never got as far as attempting the action
+ * shouldn't flash a loading state. `useDeleteConfirmation`'s `confirmDelete` always sets its
+ * pending flag first and lets the try/catch around the call itself produce the error. A shared
+ * generic "set pending, run this, catch" wrapper can't reproduce the early return without either
+ * special-casing it (which defeats sharing) or setting `starting` true for one tick it was never
+ * true for before. That is a real, if small, behaviour change, so the two stay separate.
+ */
+export function useProjectStart(project: ProjectRecord): {
+  starting: boolean;
+  error: string | null;
+  start: () => Promise<void>;
+} {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = async () => {
+    const bridge = runnerInventoryBridge();
+    if (bridge === undefined) {
+      setError('Tovu desktop connection required to start a website.');
+      return;
+    }
+    setStarting(true);
+    setError(null);
+    try {
+      await bridge.startProject(project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  return { starting, error, start };
+}
+
+/**
+ * Detects a guest that is alive-but-not-answering, and tells apart the two different ways that
+ * can happen — `failed`, a FACT: `did-fail-load` fired on the `<webview>`'s main frame with a
+ * real error, as opposed to a normal in-flight navigation being cancelled. `stalled`, a GUESS:
+ * neither `did-fail-load` nor `did-finish-load` showed up at all within `STALL_TIMEOUT_MS`, which
+ * means exactly nothing — Chromium never told this hook anything either way, and the guest may
+ * still be about to answer on its own. `ProjectWorkspace` treats the two accordingly: `failed`
+ * swaps the guest out outright, the same way a stopped project does, because there is nothing left
+ * to wait for. `stalled` only lays a recovery panel over the still-loading guest, because there
+ * might be.
+ *
+ * Two Electron quirks make `isMainFrame`/`errorCode` filtering load-bearing rather than optional.
+ * `did-fail-load` fires for sub-resources too — a missing favicon, a failed XHR inside the admin —
+ * and `isMainFrame` is what tells those apart from the guest itself being unreachable. It also
+ * fires with `errorCode === -3` (`ABORTED`) on completely ordinary navigations: the view toggle
+ * and the reload button both cancel whatever load was already in flight, and Chromium reports that
+ * cancellation exactly the way it reports a real failure. Counting either as a failure would swap
+ * a perfectly good admin for an error panel on every ordinary click.
+ *
+ * `STALL_TIMEOUT_MS` is this hook's own ceiling on "still loading, no verdict yet" — ported
+ * unchanged from Tovu-Runner's own measurement of a freshly created project's slowest real first
+ * `/admin/` request (see that file's own history for the live numbers): comfortably past how long a
+ * local admin normally takes to answer, comfortably short of leaving the operator staring at a
+ * blank pane for the rest of the session.
+ *
+ * `resetKey` is `ProjectWorkspace`'s own `` `${reloadNonce}:${view}` ``, not read here for its
+ * value — only for when it changes. A manual reload remounts the guest (new DOM node, so listeners
+ * must move with it) and a view switch renavigates the same node; both deserve a clean slate, since
+ * without one a single transient failure would pin the recovery panel in place even after the
+ * operator's next click plainly asked for another try. The same reset also re-arms the stall timer,
+ * which is what lets the recovery panel's own "Start site" retry get a second, fresh judgment.
+ */
+export function useWebviewLoadFailure(
+  webviewRef: RefObject<HTMLWebViewElement | null>,
+  resetKey: unknown,
+): { failed: boolean; stalled: boolean } {
+  const [failed, setFailed] = useState(false);
+  const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    // Not read for its value — only for when it changes. `resetKey` is what makes reload and a
+    // view switch a clean slate rather than a permanent black mark; without a genuine reference
+    // to it here, Biome's exhaustive-deps rule reads the dependency as dead weight and asks to
+    // drop it, which would drop the reset along with it.
+    void resetKey;
+    setFailed(false);
+    setStalled(false);
+    const webview = webviewRef.current;
+    if (webview === null) return;
+
+    const STALL_TIMEOUT_MS = 8000;
+    const stallTimer = window.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);
+
+    const onFailLoad = (event: WebviewDidFailLoadEvent) => {
+      if (!event.isMainFrame || event.errorCode === -3) return;
+      window.clearTimeout(stallTimer);
+      // A fact arriving after a guess: the guess was wrong (or overtaken), so withdraw it rather
+      // than leave both true and ask `ProjectWorkspace` to decide which one wins.
+      setStalled(false);
+      setFailed(true);
+    };
+    const onFinishLoad = () => {
+      window.clearTimeout(stallTimer);
+      setFailed(false);
+      setStalled(false);
+    };
+
+    webview.addEventListener('did-fail-load', onFailLoad);
+    webview.addEventListener('did-finish-load', onFinishLoad);
+    return () => {
+      window.clearTimeout(stallTimer);
+      webview.removeEventListener('did-fail-load', onFailLoad);
+      webview.removeEventListener('did-finish-load', onFinishLoad);
+    };
+  }, [webviewRef, resetKey]);
+
+  return { failed, stalled };
 }
 
 /**

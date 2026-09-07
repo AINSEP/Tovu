@@ -4,26 +4,33 @@ import { ChatPane } from '@jini-ai/chat/react/chat-pane';
 import type { ChatPaneComposerHandle, ChatPaneRunContext } from '@jini-ai/chat/react/chat-pane';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
 import { GearIcon, SectionIcon } from './icons.js';
+import { runnerInventoryBridge } from './runner-api.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
   deriveFleetView,
   useConversationDeleteConfirmation,
   useDismissibleDropdown,
-  useOpenProjectWindow,
+  useExpandedMode,
   useProjectMutations,
+  useProjectStart,
   useProjectTabs,
   useProjectsPolling,
   useRunnerChatTransport,
   useRunnerConversations,
   useRunnerNavigation,
   useSectionNav,
+  useWebviewLoadFailure,
 } from './App.hooks.js';
 import { folderPathsFromDataTransfer } from './folder-drop.js';
 import { ProjectGrid } from './ProjectGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
-import type { CreateProjectInput, ProjectRecord } from '../contracts/project.js';
+import { STATUS_LABEL } from './project-status.js';
+import type { CreateProjectInput, ProjectRecord, ProjectView } from '../contracts/project.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
+
+// Admin first because that is where a workspace opens. See `ProjectWorkspace` for why.
+const PROJECT_VIEWS: readonly ProjectView[] = ['admin', 'site'];
 
 /**
  * Runner's root component.
@@ -50,17 +57,19 @@ export function App({
   useProjects = useProjectsPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
+  useExpanded = useExpandedMode,
 }: {
   useProjects?: typeof useProjectsPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
+  useExpanded?: typeof useExpandedMode;
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the fleet tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveFleetView`.
-  const { openTabs, activeTab, setActiveTab, closeProjectTab } = useTabs();
+  const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab } = useTabs();
   const {
     activeId,
     setActiveId,
@@ -72,14 +81,9 @@ export function App({
     startCreating,
     stopCreating,
   } = useNav(setActiveTab);
-  const { inProjects, showFleet, showCreateForm } = deriveFleetView({
-    activeId,
-    appearanceOpen,
-    activeTab,
-    openTabs,
-    projects,
-    isCreating,
-  });
+  const { openProjects, inProjects, showProjectTab, showFleet, visibleWorkspaceId, showCreateForm } =
+    deriveFleetView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
+  const { expanded, toggleExpanded } = useExpanded(showProjectTab);
   useRunnerNavigation(setActiveId, setActiveTab);
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
     useProjectMutations({
@@ -88,15 +92,13 @@ export function App({
       startCreating,
       stopCreating,
     });
-  // A project card's open target under the N-`BrowserWindow` model: its own OS window, via IPC —
-  // see this hook's own doc. Replaces the old `openProjectTab`, which added an embedded tab.
-  const openProjectWindow = useOpenProjectWindow();
 
   const runningCount = projects.filter((project) => project.status === 'running').length;
   const active = findSection(activeId);
 
   return (
     <div className="app">
+      {!expanded && (
       <TopNav
         activeId={activeId}
         onFleet={showFleet && !appearanceOpen}
@@ -106,8 +108,17 @@ export function App({
         onOpenAppearance={openAppearance}
         onSelectSection={selectSection}
       />
+      )}
 
-      {inProjects && !appearanceOpen && <TabStrip onSelectFleet={() => setActiveTab(null)} />}
+      {inProjects && !appearanceOpen && !expanded && (
+        <TabStrip
+          projects={openProjects}
+          activeTab={showProjectTab ? activeTab : null}
+          onSelectFleet={() => setActiveTab(null)}
+          onSelectTab={setActiveTab}
+          onCloseTab={closeProjectTab}
+        />
+      )}
 
       <main className="main">
         <MainArea
@@ -122,7 +133,7 @@ export function App({
           loadError={loadError}
           projects={projects}
           onCreateWebsite={openCreateWebsite}
-          onOpenProject={openProjectWindow}
+          onOpenProject={openProjectTab}
           onDeleteProject={handleDelete}
         />
 
@@ -132,14 +143,24 @@ export function App({
           onBack={cancelCreate}
           onCreate={handleCreate}
         />
+
+        <ProjectWorkspaces
+          inProjects={inProjects}
+          openProjects={openProjects}
+          visibleWorkspaceId={visibleWorkspaceId}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
+        />
       </main>
 
       {/* The fleet-operator chat behind this FAB is not built yet — see
           `2026-09-06-runner-ui-port-manifest-v2.md` §9, open question 2. Rendered (it is on
           Leona's reference) but disabled the same way a not-yet-built nav destination is: a real
           button, `aria-disabled`, an early return in its own click handler, `tabIndex={-1}` so it
-          is not keyboard-reachable, and `data-tip` so the destination is still named on hover. */}
-      <DisabledChatFab />
+          is not keyboard-reachable, and `data-tip` so the destination is still named on hover.
+          Absent while expanded, same as the top nav and tab strip: the admin filling the window
+          has no room left for a second chat entry point. */}
+      {!expanded && <DisabledChatFab />}
     </div>
   );
 }
@@ -336,27 +357,338 @@ function SettingsControl({
 }
 
 /**
- * A single, permanent, always-active "All" tab, labelled after what it shows: the grid of every
- * website. Under the N-`BrowserWindow` model a project opens in its own OS window, never an
- * embedded tab (see `useOpenProjectWindow`), so there is nothing left for a per-project tab to
- * switch to — rendering one would name a destination this strip cannot actually reach, which is
- * the same reasoning `554f6183` recorded on the admin side for refusing a per-project strip there.
- * `onSelectFleet` stays wired (a click always lands on the one tab that exists) rather than
- * removed outright, since a strip whose own tab does nothing when clicked would be a worse trap
- * than a strip with only one tab.
+ * One tab per open site, plus a permanent leading tab for Tovu's own screens. That leading tab is
+ * labelled "All" because what it shows is the grid of every website; the `fleet` in `tab--fleet`
+ * and `onSelectFleet` is the internal name for the same thing.
+ *
+ * It is not closable by design: it is the only route back to the project list, and a tab strip
+ * that can be emptied needs a second way home that would duplicate the nav above it.
  */
-function TabStrip({ onSelectFleet }: { onSelectFleet: () => void }) {
+function TabStrip({
+  projects,
+  activeTab,
+  onSelectFleet,
+  onSelectTab,
+  onCloseTab,
+}: {
+  projects: readonly ProjectRecord[];
+  activeTab: string | null;
+  onSelectFleet: () => void;
+  onSelectTab: (id: string) => void;
+  onCloseTab: (id: string) => void;
+}) {
   return (
     <div className="tabstrip" role="tablist" aria-label="Open websites">
       <button
         type="button"
         role="tab"
-        className="tab tab--fleet is-active"
-        aria-selected="true"
+        className={`tab tab--fleet ${activeTab === null ? 'is-active' : ''}`}
+        aria-selected={activeTab === null}
         onClick={onSelectFleet}
       >
         <span className="tab__label">All</span>
       </button>
+
+      {projects.map((project) => (
+        <span key={project.id} className={`tab ${project.id === activeTab ? 'is-active' : ''}`}>
+          <button
+            type="button"
+            role="tab"
+            className="tab__select"
+            aria-selected={project.id === activeTab}
+            onClick={() => onSelectTab(project.id)}
+          >
+            <span className={`tab__dot is-${project.status}`} aria-hidden="true" />
+            <span className="tab__label">{project.displayName}</span>
+          </button>
+          <button
+            type="button"
+            className="tab__close"
+            onClick={() => onCloseTab(project.id)}
+            aria-label={`Close ${project.displayName}`}
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+              <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" />
+            </svg>
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Every open project's workspace, all mounted at once inside `App`'s `<main>`.
+ *
+ * Open workspaces are hidden with CSS, never unmounted. A <webview> is a live browsing context:
+ * unmounting one on a tab switch would throw away the site's admin route, scroll position and any
+ * half-written form, and re-run its whole boot the next time the operator came back to it.
+ */
+function ProjectWorkspaces({
+  inProjects,
+  openProjects,
+  visibleWorkspaceId,
+  expanded,
+  onToggleExpanded,
+}: {
+  inProjects: boolean;
+  openProjects: readonly ProjectRecord[];
+  visibleWorkspaceId: string | null;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+}) {
+  if (!inProjects) return null;
+  return (
+    <>
+      {openProjects.map((project) => (
+        <ProjectWorkspace
+          key={project.id}
+          project={project}
+          hidden={project.id !== visibleWorkspaceId}
+          expanded={expanded}
+          onToggleExpanded={onToggleExpanded}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * One open project's tab: the site's own `tovu serve` output, embedded.
+ *
+ * The guest is an Electron `<webview>` rather than an `<iframe>` so it runs in its own process —
+ * this renderer holds `window.tovuRunner`, which can create and delete any project in the fleet,
+ * and a site has no business executing beside it. `main.cjs`'s `openFleetWindow` enables the tag
+ * and pins the guest's `webPreferences` from `will-attach-webview`.
+ *
+ * The embed OPENS on the site's ADMIN rather than its public front end: the admin is the surface
+ * an operator works in, and it can reach the front end from the inside while the reverse is not
+ * true. The bar's view toggle is what makes the front end a second view instead of a trapdoor —
+ * getting back is one click, so landing there strands nobody. Trailing slash on `/admin/` included
+ * deliberately: `/admin` answers 301 to `/admin/`, and letting the guest spend its first
+ * navigation on a redirect is a visible flash on every open.
+ *
+ * `partition` is set explicitly to the project's own `sitePartition` (`contracts/project.ts`,
+ * `desktop-auth.cjs`) — a deliberate departure from Tovu-Runner's own `ProjectWorkspace`, which
+ * sets no `partition` at all. Tovu's own `desktop-auth.cjs` documents why this shell cannot skip
+ * it: cookies ignore port, so two sites both answering on `127.0.0.1` would otherwise share one
+ * cookie jar and each open would overwrite the other's session — the exact bug that motivated
+ * `sitePartition` for the per-project `BrowserWindow` model in the first place. Setting the same
+ * partition string here is what makes the boot-session cookie `main.cjs`'s `openSiteServer` already
+ * seeded into that partition visible to THIS guest.
+ *
+ * `hidden` is a CSS concern, not a mount one. See the <main> body in `App` for why.
+ */
+function ProjectWorkspace({
+  project,
+  hidden,
+  expanded,
+  onToggleExpanded,
+}: {
+  project: ProjectRecord;
+  hidden: boolean;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+}) {
+  // Per workspace, not lifted into `App`: every open project stays mounted at once, so one shared
+  // value would swing every other tab's guest at the same time.
+  const [view, setView] = useState<ProjectView>('admin');
+  // Remounting the guest IS the reload. The imperative `.reload()` would mean typing a ref
+  // against Electron's element API for one call, and a key change gets the same fresh load.
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const url = `http://127.0.0.1:${project.port}${view === 'site' ? '/' : '/admin/'}`;
+  const running = project.status === 'running';
+
+  // `did-fail-load` is how a mid-session wedge gets caught: the registry row this `running` reads
+  // never changes on its own, so nothing else here would notice. Combining `reloadNonce` and `view`
+  // into one reset key mirrors what actually invalidates a failure — a fresh guest node or a fresh
+  // navigation, not a re-render for its own sake.
+  const webviewRef = useRef<HTMLWebViewElement>(null);
+  const { failed, stalled } = useWebviewLoadFailure(webviewRef, `${reloadNonce}:${view}`);
+
+  // Deliberately sends an id and a view, never `url` — main rebuilds it from the registry row, so
+  // this bridge is not an "open any url" button. A rejection means the project stopped existing
+  // between the last poll and this click, and that same poll is about to take the tab away.
+  const openInBrowser = () => {
+    void runnerInventoryBridge()
+      ?.openProjectExternal({ projectId: project.id, view })
+      .catch(() => undefined);
+  };
+
+  return (
+    <section
+      className={`workspace ${running ? 'is-running' : ''} ${hidden ? 'is-hidden' : ''}`}
+      aria-hidden={hidden}
+    >
+      {/* The bar survives into expanded mode on purpose. It is the only chrome left, so it is
+          also the only always-available way back out — Escape does not reach this document while
+          focus is inside the guest. */}
+      <div className="workspace__bar">
+        <span className="state" aria-hidden="true">
+          <span className="state__dot" />
+        </span>
+        <div className="workspace__views">
+          {PROJECT_VIEWS.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className={`workspace__view ${option === view ? 'is-on' : ''}`}
+              onClick={() => setView(option)}
+              aria-pressed={option === view}
+            >
+              {option === 'admin' ? 'View admin' : 'View site'}
+            </button>
+          ))}
+        </div>
+        {/* The url is the toggle's answer written out, so it tracks the active view. */}
+        <span className="workspace__url">{url}</span>
+        <span className="workspace__spacer" />
+        <button
+          type="button"
+          className="workspace__act"
+          onClick={() => setReloadNonce((nonce) => nonce + 1)}
+          disabled={!running}
+        >
+          Reload
+        </button>
+        <button
+          type="button"
+          className="workspace__act"
+          onClick={openInBrowser}
+          disabled={!running}
+          title="Open the current view in your default browser"
+        >
+          Open in browser
+        </button>
+        <button
+          type="button"
+          className="workspace__act workspace__act--icon"
+          onClick={onToggleExpanded}
+          title={expanded ? 'Exit full window (Esc)' : 'Expand to full window'}
+          aria-label={expanded ? 'Exit full window' : 'Expand to full window'}
+          aria-pressed={expanded}
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+            {expanded ? (
+              <path d="M9.5 2.5v4h4M6.5 13.5v-4h-4" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M10 2.5h3.5V6M6 13.5H2.5V10" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </button>
+      </div>
+      {running && !failed ? (
+        // `stalled` and `failed` gate whether the recovery overlay shows, not whether the guest
+        // stays mounted: `failed` is Chromium reporting a real error on the guest's main frame — a
+        // FACT, nothing left to wait for — while `stalled` is this hook's own guess, made only
+        // because `STALL_TIMEOUT_MS` passed with no verdict from Chromium either way. Unmounting on
+        // a guess would kill a load that was merely slow with no path back to it except a manual
+        // retry, so the guest stays mounted for as long as it might still be right and `stalled`
+        // only toggles an overlay on top of it.
+        <div className="workspace__guest">
+          {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.cjs`
+              denies every window-open request a guest makes, handing the url to the operator's own
+              browser only when it targets a site this launch supervises. Without the attribute
+              Electron sets `disablePopups` on the guest and the request never leaves its renderer,
+              so main never sees it at all — which is why the admin's `target="_blank"` "View site"
+              link would otherwise do nothing.
+
+              The cast past `boolean` is not cosmetic — see `electron-webview.d.ts`'s own header on
+              why React's own `webview` JSX entry silently drops a real boolean `true` here and a
+              string is what Electron's presence check actually reads.
+
+              Switching views is a `src` change and NOT a `key` bump on purpose: React mutates the
+              attribute, and Electron's webview navigates the guest that is already running, so a
+              toggle costs one navigation instead of destroying a process and building another.
+              `key` stays the reload affordance, and because it remounts with whichever `src` is
+              current, reload reloads the view on screen rather than always the admin. */}
+          <webview
+            ref={webviewRef}
+            key={reloadNonce}
+            className="workspace__frame"
+            src={url}
+            partition={project.partition}
+            allowpopups={'' as unknown as boolean}
+          />
+          {stalled && (
+            <div className="workspace__overlay">
+              <ProjectStartPanel
+                project={project}
+                body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
+                onStarted={() => setReloadNonce((nonce) => nonce + 1)}
+              />
+            </div>
+          )}
+        </div>
+      ) : running ? (
+        // The registry row still says `running` — nothing crashed for a poll to catch — but the
+        // guest just told us, as a fact rather than a guess, that its main frame would not load.
+        // Nothing is left running underneath worth preserving, so this replaces the guest outright
+        // rather than overlaying it the way `stalled` does above.
+        <ProjectStartPanel
+          project={project}
+          body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
+          onStarted={() => setReloadNonce((nonce) => nonce + 1)}
+        />
+      ) : (
+        <ProjectStartPanel project={project} />
+      )}
+    </section>
+  );
+}
+
+/**
+ * What a project tab shows when its process is not up — or when it is up but just failed to
+ * answer the guest (`ProjectWorkspace`'s `did-fail-load` branch). `body` and `onStarted` are what
+ * let the second case share this panel instead of duplicating it: the registry status text this
+ * panel shows by default would read "Running", which is true and explains nothing, so the wedge
+ * caller overrides it; and that caller's `running` never flips on its own the way a genuinely
+ * stopped project's does, so it needs telling when to give the guest another try.
+ *
+ * Starting from here rather than only from the grid matters because this is where the operator
+ * already is when they find out — the tab was opened expecting a site. Nothing is set locally on
+ * success for a stopped project: `App`'s 4s poll flips `status` to `running`, which swaps this
+ * panel for the webview on its own.
+ */
+function ProjectStartPanel({
+  project,
+  body,
+  onStarted,
+}: {
+  project: ProjectRecord;
+  body?: string;
+  onStarted?: () => void;
+}) {
+  const { starting, error, start } = useProjectStart(project);
+
+  const handleStart = async () => {
+    await start();
+    onStarted?.();
+  };
+
+  return (
+    <div className="workspace__idle">
+      <h2 className="empty__title">{project.displayName}</h2>
+      <p className="empty__body">
+        {body ??
+          `${STATUS_LABEL[project.status]} on port ${project.port}.`}
+      </p>
+      {/* A blocked project is waiting on database-provider support Tovu does not have, so the
+          only honest affordance is none — starting it would fail every time. Every project this
+          shell tracks is sqlite today (`buildProjectRecord`), so this branch is currently dead in
+          practice; kept because `ProjectLifecycleStatus` still declares `'blocked'` as a real
+          value the contract allows a future provider to reach. */}
+      {project.status !== 'blocked' && (
+        <button
+          type="button"
+          className="button button--create"
+          onClick={() => void handleStart()}
+          disabled={starting}
+        >
+          {starting ? 'Starting…' : 'Start site'}
+        </button>
+      )}
+      {error && <p className="workspace__error">{error}</p>}
     </div>
   );
 }
