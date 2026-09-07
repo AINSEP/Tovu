@@ -38,3 +38,34 @@ Written incrementally, pass by pass.
 - **7 ADRs exist on disk but have no row in `ADS-memory/reports/architecture/ADR-INDEX.md`**: ADR-053 (mcp-ui-confirmation-transport), ADR-055 (mcp-ui-return-path), ADR-056 (pages-vibecoding), ADR-057 (site-glue-tier), **ADR-059 (assistant-transport-ag-ui-canary)**, ADR-063 (admin-tab-deep-linking), ADR-064 (agent-guided-deployment). `grep -c "059" ADR-INDEX.md` = 0. The todos entry that was just deleted pointed at ADR-059 as the authority for a resolved decision, so the index is missing exactly the ADRs that recent work depends on.
 - **ADR-047 is live in production code but never reached ACCEPTED** — the widgets/embeds implementation shipped (SPEC-043, commits `03a87816`/`285bbfc1`/`cf41bf14`) while `ADR-INDEX.md:54` still records "owes `/audit-work` before ACCEPTED".
 
+---
+
+## Pass 2 — Admin Section Spec Sweep + 2026-08-10 Commerce/Auth/Agent-Plugins slice
+
+Rewrote the whole 17-row matrix down to remaining-work rows only. Verified each disposition:
+
+### Rows dropped as done (rule 1)
+- **Collections, User management, SEO, Redirects** — the matrix's own "What is still not done" column already read "No material admin-screen gap found" / an intentional exclusion. Left as a one-line "nothing outstanding" list rather than four table rows.
+- **Comments** — the row's remaining item ("Remove the stale `soon` badge/unfinished copy in the panel registry") is **now false**. `apps/admin/src/panels.tsx:435-440` documents that `soon: true` on a panel rendering a real screen is a deliberate owner call, the only entry in the file shaped that way, made coherent by `soonPreviewable: true`. Removing the badge would now contradict a recorded decision.
+
+### Rows corrected (claim was stale, section still has other open work)
+- **Database / Storage** — "Wire the drift banner" is **done**: `SchemaStateWarningBanner` exists in `Database.tsx:32` with a dedicated test (`Database.unit.test.tsx:223`). Still open per `Database.tsx:40`: "the `PENDING_MIGRATION` boot banner and the Tier-3 browser have no route yet".
+- **Media** — "Replace Images/Videos filter placeholders" is **done since 2026-08-24**: `Media.tsx:31-34` records that `AdminMedia.contentType` now drives `rules.ts`'s `filterMediaByTab`, "replacing the 'not wired up yet' placeholders those tabs used to render". Replaced with the real current gap from `Media.tsx:900-907`: the screen's file-input `accept` lists images only while `DEFAULT_ALLOWED_MIME_TYPES` accepts `video/mp4`+`video/webm` — an explicit pending owner decision.
+- **Analytics** — the "stale 'in memory' copy" item is **done**: `Analytics.tsx:13-15` records the notice was corrected because the in-memory `LocalBufferSink` is only reachable under `TOVU_DB=memory`.
+
+### Rows confirmed still open (kept, tightened with a source citation)
+- **Newsletter** — `panels.tsx:984-989` renders `<Placeholder sectionId="newsletter">`; no `apps/admin/src/features/newsletter/` directory exists.
+- **Forms** — SPEC-010 / ADR-PIPE-010 have **zero** hits in `ADR-INDEX.md`, while the same ids DO match `ADS-memory/specs/043-widgets/feature.spec.md:464` (so the zero is real, not a silent-miss).
+- **Settings** — "Five of 13 tabs" is exactly right: `SettingsUi.tsx` declares 13 tab ids and contains 5 `settings-ui-inert-wrap` occurrences.
+- **Menus** — drag-and-drop still absent: `grep -i "draggable|dragstart|dnd" apps/admin/src/features/menus/` returns nothing.
+- Categories & Tags, Roles & Permissions, Members, Integrations/API, Backups/Recovery — kept verbatim; not cheaply falsifiable from source alone, and each names concrete unbuilt controls.
+
+### Commerce/Auth/Agent-Plugins checklist
+- Deleted all 5 `[x]` items (done by their own marking; git history keeps them).
+- **Kept 3 `[ ]` items**, each confirmed against `panels.tsx`: commerce (`payments`/`orders`/`products`/`subscriptions`/`billing` all `soon: true`), authentication (`soon: true`), Agent Plugin Marketplace (`plugins-marketplace` `soon: true` + `Placeholder`).
+- **Closed 3 `[ ]` items** that source contradicts:
+  - "Build the Agent Plugin loader/installer, validation, trust/permission review, lifecycle, sandboxing, execution boundaries" — `apps/website/src/features/agent-plugins/` ships `install.ts` (205: `installAgentPlugin`), `install-from-url.ts` (72), `capability-projection.ts`, `tool-registrations.ts` (380). `install.ts:5-32` documents hardened extraction (zip-slip, symlink refusal, decompression bombs) and records that *no plugin code is executed at all in v1* — so "sandboxing/execution boundaries" is a deliberate non-goal, not a gap.
+  - "Extend the Tovu daemon attachment contract beyond `image/*`" — done. `AssistantDock.tsx:567-584`: `attachmentAccept` deliberately removed, `agent-daemon-server.ts`'s non-image filter deleted, upload path kind-agnostic end to end.
+  - "Replace the bounded source catalog with real installed/enabled inventories" — moot. `tool-catalog-composer-source.ts:10-25`: the source was deliberately unwired by owner decision 2026-08-21.
+- Folded the standalone "Coverage-gap note (2026-07-07 audit-of-parity)" paragraph into the sweep's own "still separately wanted" blockquote — same subject, was duplicated.
+

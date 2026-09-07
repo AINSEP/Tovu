@@ -113,82 +113,67 @@ spec covering "how do embeds work across Posts + Pages" as a single subject rath
 
 ---
 
-## Admin Section Spec Sweep — implementation reconciliation (2026-08-10)
+## Admin Section Spec Sweep — remaining work only (reconciled 2026-09-06)
 
-**The former next-session blocker is substantially complete.** The original sweep contained
-17 sections, not 18. Current source under `src/**` and `apps/**` was reconciled against the
-admin panel registry, HTTP routes, focused tests, and accepted ADR index.
+The 2026-08-10 sweep covered 17 sections. **Nothing outstanding** in: Collections (ADR-043),
+User management (ADR-021/SPEC-006 — hard delete is intentionally excluded by the disable-only
+identity model), Comments (ADR-031 — the `soon` badge is a **deliberate** owner call documented at
+`apps/admin/src/panels.tsx:435-440`, not stale copy), SEO (ADR-032), Redirects (ADR-033).
 
-> **Status legend:** ✅ implemented admin screen · 🟡 real screen with material deferred scope ·
-> ⬜ admin screen remains a placeholder. **Progress: 9 implemented · 7 partial · 1 placeholder.**
+| Section | Status | What is still not done |
+|---|---|---|
+| Database / Storage | 🟡 | The `PENDING_MIGRATION` boot banner and the Tier-3 browser still have no route (`apps/admin/src/features/database/Database.tsx:40`). The drift banner IS built (`SchemaStateWarningBanner`, tested). |
+| Categories & Tags | 🟡 | Reparent, deprecate, and term-slug controls. |
+| Roles & Permissions | ✅ | Removing one permission still requires delete/recreate. |
+| Forms | ✅ | SPEC-010 / ADR-PIPE-010 still have no row in `ADR-INDEX.md` (zero hits; the ids do appear in `ADS-memory/specs/043-widgets/feature.spec.md:464`). |
+| Media | 🟡 | The Images/Videos tabs are real filters now (`rules.ts`'s `filterMediaByTab`). Remaining: this screen's own file-input `accept` still lists image types only while the server accepts `video/mp4`/`video/webm` — a pending **owner decision**, not an oversight (`Media.tsx:900-907`); plus origin-isolation, where-used protection, ingress, and GC behavior now owned by Jini. |
+| Menus | ✅ | Drag-and-drop deferred (no `draggable`/dnd code under `apps/admin/src/features/menus/`); reorder controls exist. |
+| Members | ✅ | Pagination and billing deferred. |
+| Newsletter | ⬜ | No admin screen — `panels.tsx:984` renders `<Placeholder sectionId="newsletter">`. Backend is substantial (campaign/list/subscriber/send-log routes, ADR-034). Build the admin client/types plus campaigns, lists, subscribers, and send-log screens. |
+| Analytics | 🟡 | Aggregation, trends, breakdowns, goals, export. (The stale "sitting in memory" copy is already fixed — `Analytics.tsx:13-15`.) |
+| Integrations / API | 🟡 | API-key issuance (ADR-048), outbound credentials, and rotation surfaces. |
+| Backups / Recovery | 🟡 | Import/export, the interrupted-migration unblock route, and complete write-window counts. |
+| Settings | 🟡 | 5 of 13 tabs are still `settings-ui-inert-wrap` mounts with no Tovu backend (13 tab ids, 5 inert wrappers in `SettingsUi.tsx`). |
 
-| Section | Status | Current evidence | What is still not done |
-|---|---|---|---|
-| Database / Storage | 🟡 Partial | Real Database screen plus timeline, restore-point, and migrate-forward routes; ADR-041 Accepted. | Wire the drift banner, pending-migration boot banner, and Tier-3 browser. |
-| Collections | ✅ Implemented | Collection, entries, and entry-editor screens with content-type/entry routes and tests; ADR-043. | No material admin-screen gap found. |
-| Categories & Tags | 🟡 Partial | Real Taxonomy screen and CRUD/assign/merge routes; ADR-044. | Reparent, deprecate, and term-slug controls. |
-| User management | ✅ Implemented | Users screen supports create/update, assignments, password reset, disable, and enable; ADR-021/SPEC-006. | Hard delete is intentionally excluded by the disable-only identity model. |
-| Roles & Permissions | ✅ Implemented | Role/policy create, rename, delete, and permission writes are wired and tested. | Removing one permission still requires delete/recreate. |
-| Forms | ✅ Implemented | Forms list/editor, fields, status, notifications, submissions, and routes are built. | Add the SPEC-010/ADR-PIPE-010 cross-link to the central ADR index. |
-| Media | 🟡 Partial | Real Media screen and upload/list/edit/trash/purge/original/provider routes; ADR-027. | Replace Images/Videos filter placeholders; confirm remaining origin-isolation, where-used protection, ingress, and GC behavior now owned by Jini. |
-| Menus | ✅ Implemented | Menu list/editor, tree update, delete, and location routes; ADR-029. | Drag-and-drop is deferred; reorder controls exist. |
-| Members | ✅ Implemented | List/detail/disable/resend-sign-in-link plus public sign-in flows; ADR-030. | Pagination and billing remain deferred. |
-| Comments | ✅ Implemented | Moderation queue/settings and approve/spam/trash/restore/purge flows; ADR-031. | Remove the stale `soon` badge/unfinished copy in the panel registry. |
-| SEO | ✅ Implemented | Defaults, robots, sitemap regeneration, per-entry overrides, and analysis; ADR-032. | No material admin-screen gap found. |
-| Redirects | ✅ Implemented | CRUD/tombstone, bulk import, and lazy hit statistics; ADR-033. | No material admin-screen gap found. |
-| Newsletter | ⬜ Admin UI open | Backend is substantial: campaign/list/subscriber/send-log routes and domain tests; ADR-034. | Build the admin client/types and campaigns, lists, subscribers, and send-log screens. |
-| Analytics | 🟡 Partial | Real recent-hits screen and authenticated route; ADR-035. | Aggregation, trends, breakdowns, goals, export, and stale “in memory” copy. |
-| Integrations / API | 🟡 Partial | Webhook subscription CRUD/pause and delivery history are wired; ADR-036. | API-key issuance/ADR-048, outbound credentials, and rotation surfaces. |
-| Backups / Recovery | 🟡 Partial | Recovery supersedes Backups; restore-point creation and plan→confirm→execute restore are built; ADR-045. | Import/export, interrupted-migration unblock route, and complete write-window counts. |
-| Settings | 🟡 Partial | Real Settings UI plus ledger/effective/raw/value/reset/event routes; ADR-028/050. | Five of 13 tabs still have no Tovu backend and remain inert/fake-port mounts. |
+**Evidence caveat:** panel/route existence was verified against source; tests were inventoried, not
+executed. Several domains re-export their core implementation from `@jini-ai/cms` — those internals
+need a separate cross-repo audit before claiming complete runtime behavior.
 
-**Evidence caveat:** panel/route/test existence was verified against current source, but tests were
-inventoried rather than executed during this reconciliation. Several domains now re-export their
-core implementation from `@jini-ai/cms`; those Jini internals need a separate cross-repo audit before
-claiming complete runtime behavior.
+**Process note:** 16 of these 17 areas already have Accepted ADRs. Do not repeat the full
+teardown → debate → audit → ADR → spec cycle for an implemented section; route only the remaining
+slice through the appropriate gates. Newsletter needs an admin-UI-only spec check, not a new
+backend ADR.
 
-**Historical process note:** the original competitor teardown → debate → audit → ADR → spec cycle
-has already produced Accepted ADRs for 16 of these 17 areas. Do not repeat that full cycle for an
-implemented section. Use its current ADR/spec and route only the explicit remaining slice through the
-appropriate planning/test gates. Newsletter needs an admin-UI-only spec check, not a new backend ADR.
+> **Still separately wanted:** an Accessibility ADR, and the coverage/parity ADR + matrix. The parity
+> map lives only in `tovu-v2-design.md §3.5` plus the corpus `coverage-audit.md` files and is **NOT**
+> reconciled into ADRs or specs. One matrix mapping each competitor subsystem →
+> {v1 / bundled-plugin / deferred / dropped} with its owning ADR would give "are we implementing
+> everything the others have?" one authoritative answer instead of four scattered documents.
 
-> **Still separately wanted:** an Accessibility ADR and the coverage/parity ADR + matrix described
-> below.
+### 2026-08-10 Commerce, Authentication, and Agent Plugins slice — still open
 
-### 2026-08-10 Commerce, Authentication, and Agent Plugins slice
-
-- [x] Replace the Payments placeholder with a provider-neutral Commerce overview informed by
-  Open SaaS pricing, checkout, subscriptions, orders, and revenue information architecture.
-- [ ] Implement Commerce write paths and provider adapters. Stripe and PayPal remain planned
-  labels only; checkout, billing, subscriptions, reconciliation, and revenue data are not wired.
-- [x] Replace the Authentication placeholder with honest Google, Facebook, and LinkedIn
-  credential schemas (client/app IDs plus write-only secret fields).
+- [ ] Implement Commerce write paths and provider adapters. Stripe and PayPal remain planned labels
+  only; checkout, billing, subscriptions, reconciliation, and revenue data are not wired
+  (`payments`/`orders`/`products`/`subscriptions`/`billing` are all `soon: true` in `panels.tsx`).
 - [ ] Implement the approved Jini `@jini-ai/capability-providers/visitor-auth` boundary, provider
   adapters, callback/state/PKCE lifecycle, Tovu sealed stores, identity linking, and local session
-  issuance. The current admin fields are disabled previews and do not persist or enable OAuth.
-- [x] Package AI Dev Shop's `ui-ux-design` material as the source-bundled
-  `ui-ux-design` Agent Plugin (`plugin.json` + `skills/ui-ux-design/SKILL.md` + references).
-- [x] Build the Agent Plugins screen with `Installed` first, a read-only allowlisted package-source
-  inspector, and a second inert `Marketplace` tab for future wiring.
-- [x] Add generic Jini Composer discovery and Tovu catalog wiring for attachments/images,
-  regular plugins, Agent Plugins, singular skills, and MCP, shared by the `+` menu and bare-`/`
-  autocomplete. `/mcp` currently routes to existing External MCP settings; there is no server-id
-  argument because that settings route has no argument consumer.
-- [ ] Replace the bounded source catalog with real installed/enabled inventories when the
-  corresponding plugin, Agent Plugin, skills, and MCP backends expose trustworthy discovery APIs.
-- [ ] Build the Agent Plugin loader/installer, validation, trust/permission review, lifecycle,
-  sandboxing, and execution boundaries. The package catalog must not imply these exist today.
-- [ ] Wire the Agent Plugin Marketplace backend and installation flow. The tab currently performs
-  no fetch and shows no fake inventory or install action.
-- [ ] Extend the Tovu daemon attachment contract beyond `image/*` before presenting general file
-  upload as supported in the Composer.
+  issuance. The admin fields are disabled previews and do not persist or enable OAuth
+  (`authentication` is `soon: true`).
+- [ ] Wire the Agent Plugin Marketplace backend and installation flow. The tab performs no fetch and
+  shows no fake inventory (`plugins-marketplace` is `soon: true` + `Placeholder`).
 
-**Coverage-gap note (surfaced 2026-07-07 audit-of-parity):** the parity map lives in
-`tovu-v2-design.md §3.5` (mutable design doc) and the corpus `coverage-audit.md` files —
-**it is NOT reconciled into ADRs or the specs.** Recommended first artifact next session: a
-**coverage/parity ADR + matrix** mapping each competitor subsystem → {v1 / bundled-plugin /
-deferred / dropped} with the owning ADR, so "are we implementing everything the others have?"
-has one authoritative answer instead of being spread across four docs.
+**Closed since 2026-08-10 — verified 2026-09-06, do not re-open:**
+- The Agent Plugin **loader/installer + validation + trust review** is built:
+  `apps/website/src/features/agent-plugins/{install,install-from-url,capability-projection,tool-registrations}.ts`,
+  with adversarially-hardened extraction (zip-slip lexical check, outright symlink refusal,
+  decompression-bomb bounds). **Sandboxing/execution boundaries are a deliberate v1 non-goal** —
+  Skills are markdown read for context injection, MCP servers are preview-only, and Tovu executes no
+  plugin code at all. `install.ts`'s header still describes the MCP admission gate as future work.
+- The **daemon attachment contract is no longer `image/*`-only**: `attachmentAccept` was removed on
+  purpose and `agent-daemon-server.ts`'s non-image filter is gone, so the upload path is kind-agnostic
+  end to end (`AssistantDock.tsx:567-584`). The residual is cosmetic Jini-side naming (`imagePaths`).
+- The **bounded source catalog** item is moot: `createToolCatalogComposerCapabilitySource()` was
+  deliberately unwired by owner decision 2026-08-21 (`tool-catalog-composer-source.ts:10-25`).
 
 ---
 
