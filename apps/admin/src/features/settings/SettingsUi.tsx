@@ -328,6 +328,7 @@ export function SettingsUi(props: SettingsUiProps) {
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
             formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
+            agentHandle="settings-execution"
           />
         </>
       ),
@@ -350,6 +351,7 @@ export function SettingsUi(props: SettingsUiProps) {
           // `''`; the slice is typed on the stored shape, which is a string.
           onChange={(next) => s.instructions.onChange(next ?? DEFAULT_INSTRUCTIONS)}
           description="Extra instructions applied to every conversation in this workspace, in addition to any per-request instructions."
+          agentHandle="settings-instructions"
         />
       ),
     },
@@ -374,6 +376,7 @@ export function SettingsUi(props: SettingsUiProps) {
           onChange={(patch) =>
             s.notifications.onChange({ ...(s.notifications.value as NotificationsPreferences), ...patch })
           }
+          agentHandle="settings-notifications"
         />
       ),
     },
@@ -419,7 +422,7 @@ export function SettingsUi(props: SettingsUiProps) {
             )}
           </p>
           <div className="settings-ui-inert-control" inert>
-            <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} />
+            <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} agentHandle="settings-privacy" />
           </div>
         </div>
       ),
@@ -453,6 +456,7 @@ export function SettingsUi(props: SettingsUiProps) {
           // configures this dialog. We scope it to the section wrapper below
           // via `data-theme` instead.
           livePreview={false}
+          agentHandle="settings-appearance"
         />
       ),
     },
@@ -477,6 +481,7 @@ export function SettingsUi(props: SettingsUiProps) {
           locales={ADMIN_LOCALES}
           selectedLocale={s.language.value as string}
           onSelectLocale={s.language.onChange}
+          agentHandle="settings-language"
         />
       ),
     },
@@ -495,7 +500,7 @@ export function SettingsUi(props: SettingsUiProps) {
           <circle cx="11.5" cy="11.5" r="1.5" />
         </TabIcon>
       ),
-      panel: <IntegrationsTab serverName="tovu" />,
+      panel: <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />,
     },
     {
       id: "media-providers",
@@ -526,7 +531,7 @@ export function SettingsUi(props: SettingsUiProps) {
             )}
           </p>
           <div className="settings-ui-inert-control" inert>
-            <MediaProvidersTab port={s.mediaProvidersPort} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} />
+            <MediaProvidersTab port={s.mediaProvidersPort} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} agentHandle="settings-media-providers" />
           </div>
         </div>
       ),
@@ -578,6 +583,7 @@ export function SettingsUi(props: SettingsUiProps) {
               ctaLabel: "Get API Key",
               ctaHref: "https://app.composio.dev",
             }}
+            agentHandle="settings-connectors"
           />
         </>
       ),
@@ -616,6 +622,7 @@ export function SettingsUi(props: SettingsUiProps) {
               onToggleEnabled={() => {}}
               topTab={s.memoryTopTab}
               onTopTabChange={s.setMemoryTopTab}
+              agentHandle="settings-memory"
               savedMemory={{
                 entries: EMPTY_MEMORY_ENTRIES,
                 filtered: EMPTY_MEMORY_ENTRIES,
@@ -716,6 +723,7 @@ export function SettingsUi(props: SettingsUiProps) {
               port={s.skillsPort}
               disabledSkillIds={EMPTY_DISABLED_SKILL_IDS}
               onToggleEnabled={() => {}}
+              agentHandle="settings-skills"
             />
           </div>
         </div>
