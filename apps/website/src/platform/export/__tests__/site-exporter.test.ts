@@ -595,6 +595,88 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
 });
 
+/**
+ * Regression for the disclosed-but-unfixed `renderRedirectStub` XSS gap
+ * (`ADS-memory/reports/2026-09-01-to-03-review-bugs.md` Finding 2): the same
+ * `javascript:`-scheme class of stored XSS `a69f5892`/`0a41515c` (09-03) fixed
+ * everywhere else `safeHref` now guards, left open here.
+ *
+ * A `javascript:` `toTarget` can never survive a REAL redirect rule's own
+ * lifecycle: `createRedirect`/`updateRedirect`'s `assertTargetAllowed`
+ * chokepoint (`features/redirects/redirects.ts`) and the live read-path
+ * open-redirect oracle (`features/redirects/phase-handler.ts`'s
+ * `RedirectPhaseHandlerResolver`) both reject any non-http(s) scheme via the
+ * same `OriginRegistry.isAllowedRedirectTarget` — verified empirically: a real
+ * end-to-end export of such a rule 404s (the live app never actually issues
+ * the 3xx), so `writeRedirectRoute` never even reaches `renderRedirectStub`
+ * with it. Written directly into `redirectRepo` below — bypassing both
+ * chokepoints, the same "write straight into the repo instance" technique the
+ * shadowing-prefix-rule test already uses — to reach the one branch that DOES
+ * still carry an unvetted target into `renderRedirectStub` unfiltered:
+ * `redirectOutcomeFor`'s own manifest-fallback, taken whenever a live response
+ * is a real 3xx with no `Location` header (mocked below, mirroring the
+ * crashed-404-page test's own fetch-interception technique) — the
+ * `redirectTarget` this exporter then trusts verbatim as the manifest's hint.
+ */
+test("exportSite: a redirect stub never embeds a javascript:-scheme target unescaped into an href/url= sink", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const rule: RedirectRecord = {
+    id: "redir-xss-fallback",
+    workspaceId: base.workspaceId,
+    matchType: "exact",
+    fromPattern: "/xss-fallback-probe",
+    toTarget: "javascript:alert(document.cookie)",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  await base.redirectRepo.save({
+    record: rule,
+    revision: {
+      redirectId: rule.id,
+      workspaceId: rule.workspaceId,
+      seq: 1,
+      state: rule,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: now,
+    },
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/xss-fallback-probe")) {
+      // A real 3xx with NO Location header — forces redirectOutcomeFor's manifest-fallback branch.
+      return new Response("", { status: 301 });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    const report = await exportSite({ routeDeps: base, outputDir });
+
+    const succeeded = report.routes.succeeded.find((r) => r.path === "/xss-fallback-probe");
+    if (!succeeded) throw new Error(`expected /xss-fallback-probe in routes.succeeded: ${JSON.stringify(report.routes.failed)}`);
+
+    const stub = readFileSync(path.join(outputDir, "xss-fallback-probe", "index.html"), "utf8");
+    assert.doesNotMatch(stub, /url=javascript:/i, "a javascript: target must never reach the meta-refresh url=");
+    assert.doesNotMatch(stub, /href="javascript:/i, "a javascript: target must never reach a raw href attribute");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("exportSite: a prefix redirect rule shadowing the 404 probe's own path makes the probe fetch return <400, reported as a route failure", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));

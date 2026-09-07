@@ -307,6 +307,46 @@ function escapeHtmlAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Fixed placeholder origin `safeHref` (below) resolves a claimed same-origin-relative href
+// against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
+// real browser) both resolve OFF this origin and get refused, the same reasoning
+// `features/theme/static-render.ts`'s own copy of this constant documents at length.
+const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
+const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
+
+/**
+ * Scheme allowlist for a redirect-stub target, applied before {@link escapeHtmlAttr} embeds it
+ * into `renderRedirectStub`'s three sinks. `escapeHtmlAttr` alone only neutralizes
+ * quote/attribute-breakout characters — it does nothing to stop a `javascript:`/`data:` scheme
+ * from executing once emitted into an `href`, the exact gap `a69f5892`/`0a41515c` (2026-09-03)
+ * closed for every other comparable sink in `features/theme/static-render.ts` and
+ * `server/inbound/public-http/http/site/render.ts`. THIS is a third, deliberate duplicate of
+ * those two files' own byte-identical `safeHref` — not a shared import, because `platform/export`
+ * pulling a private helper out of either of those modules would need it exported first, widening
+ * a surface neither module wants widened for one more caller; those two files already document
+ * this exact "duplicate, don't share" precedent for the identical reason. If this logic changes,
+ * BOTH of those copies must change too — none of the three update each other automatically.
+ *
+ * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
+ *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
+ * @complexity O(n) in the length of `value` (bounded by one `URL` parse); O(1) space.
+ */
+function safeHref(value: string): string {
+  const href = value.trim();
+  if (href.startsWith("#")) return href;
+  if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
+  if (href.startsWith("/")) {
+    let resolved: URL;
+    try {
+      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
+    } catch {
+      return "#";
+    }
+    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
+  }
+  return "#";
+}
+
 // ---------------------------------------------------------------------------
 // --base-path support (2026-08-15, team-lead-approved option (a)): every route in this exporter's
 // output is root-relative (`href="/about"`, `<loc>/welcome</loc>`, `Sitemap: /sitemap.xml`) because
@@ -383,13 +423,21 @@ function rewriteRobotsBasePath(text: string, basePath: string): string {
  * embeds it, the same "one place decides the path" split every rewrite above already follows.
  */
 function renderRedirectStub(location: string): string {
-  const safe = escapeHtmlAttr(location);
+  // Scheme-checked FIRST, escaped second — matching every other href sink's `escapeHtml(safeHref(x))`
+  // order in `render.ts`/`static-render.ts`. `safeHref` degrades an unsafe scheme to `"#"` rather
+  // than refusing to render the page: this stub's whole job is being a working redirect, and a
+  // `javascript:`/`data:` target was never a real destination to preserve. Used for all three
+  // sinks (meta refresh, canonical, and the visible link's `href`) — the label text below is
+  // separately escaped-only, matching this codebase's convention that display TEXT (never parsed
+  // as a URL by the browser) doesn't need the scheme check a live `href`/`url=` attribute does.
+  const safeTarget = escapeHtmlAttr(safeHref(location));
+  const label = escapeHtmlAttr(location);
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
-    `<meta http-equiv="refresh" content="0; url=${safe}">` +
-    `<link rel="canonical" href="${safe}">` +
+    `<meta http-equiv="refresh" content="0; url=${safeTarget}">` +
+    `<link rel="canonical" href="${safeTarget}">` +
     `<title>Redirecting…</title></head>` +
-    `<body>Redirecting to <a href="${safe}">${safe}</a>.</body></html>\n`
+    `<body>Redirecting to <a href="${safeTarget}">${label}</a>.</body></html>\n`
   );
 }
 
