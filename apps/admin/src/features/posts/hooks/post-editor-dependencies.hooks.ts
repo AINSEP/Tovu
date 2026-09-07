@@ -1,4 +1,5 @@
-import { api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import { ApiError, api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
@@ -105,6 +106,14 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   readonly putAutosaveCalls: StandingDraftAutosaveInput[];
   /** Whether `discardAutosave` has been called at least once. */
   readonly discardAutosaveCalled: boolean;
+  /** Every `updatePost` patch this fake received, in call order — the assertion surface for "did
+   *  the editor actually SEND the basis version", which `post` alone cannot show (a patch the fake
+   *  applied and a patch it merely received look identical in the stored row). */
+  readonly updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }>;
+  /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
+   *  under test knowing — the only way to reach a genuine stale-basis conflict rather than faking
+   *  the rejection. */
+  simulateConcurrentSave(title?: string): void;
 } {
   const state = { post: options.post ?? { ...DEFAULT_POST } };
   const settings: PresentationSettings = {
@@ -116,6 +125,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
   const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
   let discardAutosaveCalled = false;
+  const updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }> = [];
 
   return {
     get post() {
@@ -125,8 +135,13 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       state.post = value;
     },
     putAutosaveCalls,
+    updatePostCalls,
     get discardAutosaveCalled() {
       return discardAutosaveCalled;
+    },
+
+    simulateConcurrentSave(title = "Saved by someone else") {
+      state.post = { ...state.post, title, version: state.post.version + 1 };
     },
 
     async getPost() {
@@ -144,9 +159,26 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     },
 
     async updatePost(target, patch) {
+      updatePostCalls.push(patch);
       if (options.updatePostError) throw new Error(options.updatePostError);
       if (target.id !== state.post.id) throw new Error(`fake post not found: ${target.id}`);
-      state.post = { ...state.post, ...patch, version: state.post.version + 1 };
+      // The real route's optimistic-concurrency guard, modeled rather than stubbed (2026-09-06):
+      // the same opt-in strict-equality compare `updatePost` runs server-side, rejecting with the
+      // same `ApiError` shape `lib/api.ts` builds from a `409 VERSION_CONFLICT` body. Modeled here
+      // so a hook test reaches a conflict by actually being stale (`simulateConcurrentSave`), not
+      // by seeding a canned rejection that would pass just as happily if the editor never sent a
+      // version at all.
+      const { expectedVersion, ...fields } = patch;
+      if (expectedVersion !== undefined && expectedVersion !== state.post.version) {
+        throw new ApiError(
+          `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
+          409,
+          POST_VERSION_CONFLICT_CODE,
+          { details: { expectedVersion, currentVersion: state.post.version } }
+        );
+      }
+      // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.
+      state.post = { ...state.post, ...fields, version: state.post.version + 1 };
       return { post: state.post };
     },
 

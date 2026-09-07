@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia, AdminPost } from "@/lib/api";
+import { ApiError, type AdminMedia, type AdminPost } from "@/lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
@@ -838,5 +838,206 @@ describe("useWiredPostEditor", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "not found" }), { status: 404 })));
     const { result } = renderHook(() => useWiredPostEditor("nonexistent"));
     await waitFor(() => expect(result.current.error).not.toBeNull());
+  });
+});
+
+/**
+ * Optimistic concurrency (2026-09-06) — the editor half of the guard `be45461e` added to
+ * `updatePost` and `routes/posts/update.ts` wired to the wire.
+ *
+ * Every conflict below is reached by the editor genuinely being stale (`simulateConcurrentSave`
+ * advances the fake's row behind its back) rather than by seeding a canned rejection: a canned one
+ * would pass identically if the editor never sent a version at all, which is exactly the bug.
+ */
+describe("usePostEditor — optimistic concurrency", () => {
+  it("sends the version the editor loaded as expectedVersion on every save", async () => {
+    const port = createFakePostEditorPort({ post: POST }); // POST.version === 3
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.updatePostCalls).toHaveLength(1);
+    expect(port.updatePostCalls[0].expectedVersion).toBe(3);
+
+    // And the NEXT save uses the version that save produced, not the stale original — otherwise
+    // every second save in a session would conflict with itself.
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(port.updatePostCalls[1].expectedVersion).toBe(4);
+  });
+
+  it("rejects a save whose basis another operator superseded, WITHOUT discarding the operator's typed work", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    act(() => result.current.setTitle("My careful rewrite"));
+    act(() => result.current.setSlug("my-careful-rewrite"));
+    await waitFor(() => expect(result.current.dirty).toBe(true));
+
+    // Another operator saves first.
+    act(() => port.simulateConcurrentSave("Their version"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.saveConflict).toEqual({ expectedVersion: 3, currentVersion: 4, attemptedStatus: undefined });
+    // Not folded into the generic save-error line — the two need opposite reactions.
+    expect(result.current.error).toBeNull();
+    // The operator's work: still here, still unsaved, still dirty.
+    expect(result.current.title).toBe("My careful rewrite");
+    expect(result.current.slug).toBe("my-careful-rewrite");
+    expect(result.current.dirty).toBe(true);
+    // And the other operator's save is intact — this was a rejection, not a report.
+    expect(port.post.title).toBe("Their version");
+    expect(port.post.version).toBe(4);
+  });
+
+  it("keeps rejecting an ordinary Save after a conflict — nothing silently re-bases", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Mine"));
+    act(() => port.simulateConcurrentSave("Theirs"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.saveConflict).not.toBeNull();
+    expect(port.post.title).toBe("Theirs");
+  });
+
+  it("saveOverwritingConflict re-reads the current version, lands the work, and keeps the publish intent", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Mine, published"));
+    act(() => port.simulateConcurrentSave("Theirs"));
+
+    await act(async () => {
+      await result.current.save("published");
+    });
+    expect(result.current.saveConflict?.attemptedStatus).toBe("published");
+
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(port.post.title).toBe("Mine, published");
+    // The ORIGINAL intent replayed — a rejected Publish must not quietly retry as a draft save.
+    expect(port.post.status).toBe("published");
+    expect(result.current.status).toBe("published");
+    expect(result.current.message).toMatch(/^Published/);
+    // Sent against the version the other operator produced, not the stale basis.
+    expect(port.updatePostCalls.at(-1)?.expectedVersion).toBe(4);
+  });
+
+  it("saveOverwritingConflict never pulls the other operator's content into the working copy", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Mine"));
+    act(() => port.simulateConcurrentSave("Theirs"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    // Re-reading the row is for its VERSION only. If the fresh row's title had been applied, this
+    // would read "Theirs" and the operator's rewrite would be gone.
+    expect(result.current.title).toBe("Mine");
+    expect(port.post.title).toBe("Mine");
+  });
+
+  it("dismissSaveConflict hides the banner and saves nothing", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Mine"));
+    act(() => port.simulateConcurrentSave("Theirs"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    act(() => result.current.dismissSaveConflict());
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(result.current.title).toBe("Mine");
+    expect(port.post.title).toBe("Theirs");
+  });
+
+  it("treats a slug-uniqueness 409 as an ordinary save error, NOT a version conflict", async () => {
+    const base = createFakePostEditorPort({ post: POST });
+    const port: PostEditorPort = {
+      ...base,
+      async updatePost() {
+        // Same status, same route, no code — the exact envelope the slug-collision branch returns.
+        throw new ApiError("slug 'taken' already exists", 409);
+      },
+    };
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    // Also the loaded row, not just the editor: `expectedVersion` comes from `post`, so a test that
+    // acted while the load effect was still in flight would assert against an unloaded editor and
+    // read the documented no-basis fallback instead of the behavior it means to pin.
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(result.current.error).toBe("slug 'taken' already exists");
+  });
+
+  it("falls back to an unguarded save only when no post has loaded yet — there is no version to claim", async () => {
+    const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.error).toBe("boom"));
+    expect(result.current.post).toBeNull();
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.updatePostCalls[0].expectedVersion).toBeUndefined();
   });
 });

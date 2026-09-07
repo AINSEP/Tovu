@@ -29,7 +29,15 @@ import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
 } from "@/hooks/use-standing-draft-autosave.hooks";
-import { buildPostAutosaveDraft, handleImageDrop, readFileAsDataUrl, titleNodeText, withTitleNode } from "../rules";
+import {
+  buildPostAutosaveDraft,
+  handleImageDrop,
+  readFileAsDataUrl,
+  readPostVersionConflict,
+  titleNodeText,
+  withTitleNode,
+  type PostSaveConflict,
+} from "../rules";
 import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
@@ -195,6 +203,25 @@ export interface PostEditorController extends PostEditorUiController {
    *  `post` loads — `PostPreview` never renders that early. */
   previewFormTarget: string;
   save: (statusOverride?: "draft" | "published") => Promise<void>;
+  /**
+   * Optimistic concurrency (2026-09-06) — non-null once a save was rejected because another
+   * operator's save superseded the version this editor loaded. The caller renders an explicit
+   * banner; nothing about the working copy is touched, so the operator's typed title/slug/body are
+   * all still exactly where they left them and can simply be saved again on purpose.
+   */
+  saveConflict: PostSaveConflict | null;
+  /**
+   * The operator's explicit "yes, overwrite theirs" — re-reads the row to get the CURRENT version,
+   * then re-runs the rejected save (same status intent) against it.
+   *
+   * A separate action rather than an auto-retry, and the plain Save button deliberately keeps
+   * failing until it is used: silently re-basing on the new version would turn the guard back into
+   * the last-write-wins clobber it exists to prevent, just one click later.
+   */
+  saveOverwritingConflict: () => Promise<void>;
+  /** Dismisses the conflict banner without saving. The working copy is untouched either way — this
+   *  only hides the notice, it does not resolve or discard anything. */
+  dismissSaveConflict: () => void;
   remove: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `PostEditor.tsx`
    *  never imports `useAdminLocale`/`POSTS_DICT` itself. See this file's header. */
@@ -427,6 +454,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const [mentionablePosts, setMentionablePosts] = useState<AdminPost[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Optimistic concurrency (2026-09-06) — held separately from `error` because it is not the same
+  // KIND of thing: `error` is a one-line message next to the Save button, this is a state the screen
+  // stays in (with its own actions) until the operator resolves it.
+  const [saveConflict, setSaveConflict] = useState<PostSaveConflict | null>(null);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
   // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
   // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
@@ -763,7 +794,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Re-baselines `original` either way, so a publish also clears the dirty guard, same as an
    * ordinary save.
    */
-  async function save(statusOverride?: "draft" | "published") {
+  async function runSave(statusOverride: "draft" | "published" | undefined, expectedVersion: number | undefined) {
     if (!editor) return;
     // Claim this call's generation BEFORE the first `await` — see `saveGenerationRef`'s own doc for
     // why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a double-click,
@@ -772,12 +803,16 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     const generation = saveGenerationRef.current;
     setMessage(null);
     setError(null);
+    setSaveConflict(null);
     const nextStatus = statusOverride ?? status;
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
       const { post: saved } = await port.updatePost(
         { id: postId },
-        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage },
+        // `expectedVersion` is the optimistic-concurrency basis, not content — see
+        // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
+        // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
+        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion },
       );
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
@@ -792,8 +827,53 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // of what "Save succeeded" means to the operator.
       void autosave.clearStandingDraft();
     } catch (e) {
-      if (saveGenerationRef.current === generation) setError(formatSaveErrorMessage(e, statusOverride));
+      if (saveGenerationRef.current !== generation) return;
+      // The version conflict is NOT folded into the generic error line. The two need opposite
+      // reactions from the operator (a slug collision or a network blip: fix it and press Save
+      // again; this: pressing Save again erases somebody's document), and the whole point of the
+      // route's distinct `code` is that the client no longer has to guess which it got.
+      const conflict = readPostVersionConflict(e, statusOverride);
+      if (conflict) {
+        setSaveConflict(conflict);
+        return;
+      }
+      setError(formatSaveErrorMessage(e, statusOverride));
     }
+  }
+
+  /**
+   * Persists the working copy against the version this editor loaded — see {@link runSave}.
+   *
+   * `post?.version` is the basis. `undefined` before the load effect resolves is deliberate and is
+   * the only unguarded path left: with no loaded row there is no version to claim, and claiming a
+   * wrong one would be worse than claiming none.
+   */
+  async function save(statusOverride?: "draft" | "published") {
+    await runSave(statusOverride, post?.version);
+  }
+
+  /**
+   * The operator's explicit overwrite after a conflict — see {@link PostEditorController.saveOverwritingConflict}.
+   *
+   * Re-reads the row purely for its current `version`: the response's title/slug/body are
+   * deliberately NOT applied to the working copy, because doing so is exactly the "your typed work
+   * disappeared" outcome this whole path exists to avoid. `attemptedStatus` replays the ORIGINAL
+   * intent, so a rejected Publish retries as a publish rather than quietly downgrading to a draft.
+   */
+  async function saveOverwritingConflict(): Promise<void> {
+    const attemptedStatus = saveConflict?.attemptedStatus;
+    const fresh = await port.getPost(postId).then(({ post: p }) => p, () => null);
+    if (!fresh) {
+      setError("could not re-read the current version — your changes are still here, try again");
+      return;
+    }
+    setPost(fresh);
+    await runSave(attemptedStatus, fresh.version);
+  }
+
+  /** Hides the conflict banner without saving — see {@link PostEditorController.dismissSaveConflict}. */
+  function dismissSaveConflict(): void {
+    setSaveConflict(null);
   }
 
   /**
@@ -917,6 +997,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     previewFormRef,
     previewFormTarget,
     save,
+    saveConflict,
+    saveOverwritingConflict,
+    dismissSaveConflict,
     remove,
     t,
     recoverableDraft: autosave.recoverableDraft,

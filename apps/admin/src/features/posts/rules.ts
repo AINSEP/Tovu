@@ -2,7 +2,7 @@ import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
-import type { AdminPost } from "../../lib/api";
+import { ApiError, type AdminPost } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
@@ -115,6 +115,72 @@ export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: n
 export function postAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
   const when = formatRelativeMinutesAgo(savedAt, nowMs);
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
+}
+
+/**
+ * The server's machine-readable `code` for "the version you were editing has been superseded"
+ * (`server/inbound/admin-http/routes/posts/update.ts`'s `sendPostUpdateError`). Named here rather
+ * than string-matched at the call site because this route returns TWO different 409s from the same
+ * `PostConflictError` hierarchy: a slug-uniqueness collision (fix the slug and resend) and this one
+ * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
+ * `code`, which is exactly what makes them tellable apart.
+ */
+export const POST_VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
+
+/** A rejected save whose basis version had already been superseded — {@link readPostVersionConflict}'s
+ *  output, and the editor's own conflict state. */
+export interface PostSaveConflict {
+  /** The version the editor believed it was editing. `null` only if the server omitted it. */
+  expectedVersion: number | null;
+  /** The version actually stored now — what the other operator's save produced. `null` only if the
+   *  server omitted it. */
+  currentVersion: number | null;
+  /** The `statusOverride` the rejected save was attempting, carried so an explicit retry re-runs the
+   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
+  attemptedStatus: "draft" | "published" | undefined;
+}
+
+/**
+ * Classifies a caught save error: the version conflict, or `null` for everything else (including the
+ * slug-uniqueness 409, which is the same status from the same error class and must NOT take this
+ * branch — that is the trap this function exists to close).
+ *
+ * Reads both versions out of the response `details` rather than parsing the message prose, and
+ * tolerates their absence (`null`) rather than throwing: an older server that returns the code
+ * without the detail bag must still produce a conflict the editor reacts to, since misreading a
+ * conflict as an ordinary error is what loses an operator's work.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function readPostVersionConflict(
+  e: unknown,
+  attemptedStatus: "draft" | "published" | undefined
+): PostSaveConflict | null {
+  if (!(e instanceof ApiError) || e.status !== 409 || e.code !== POST_VERSION_CONFLICT_CODE) return null;
+  const details = (e.body?.details ?? {}) as Record<string, unknown>;
+  return {
+    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
+    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
+    attemptedStatus,
+  };
+}
+
+/**
+ * The conflict banner's own message. NOT run through `t()`, for the same reason
+ * {@link postAutosaveBannerMessage} just above is not — see that function's doc.
+ *
+ * States the two things an operator has to know and cannot infer: that their work was NOT saved but
+ * is still in front of them, and that saving again overwrites the other person rather than merging.
+ * Deliberately does not promise a merge, a diff, or a way to see what changed — none of those exist
+ * here, and the recovery this screen genuinely offers is "your text is still in the editor".
+ */
+export function postVersionConflictMessage(conflict: PostSaveConflict): string {
+  const basis = conflict.expectedVersion === null ? "the version you loaded" : `version ${conflict.expectedVersion}`;
+  const current = conflict.currentVersion === null ? "a newer version" : `version ${conflict.currentVersion}`;
+  return (
+    `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
+    "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+  );
 }
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the

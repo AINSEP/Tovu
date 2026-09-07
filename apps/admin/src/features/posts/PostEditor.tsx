@@ -24,6 +24,8 @@ import {
   isAutosaveDraftStale,
   overridesThemePageFromSelectValue,
   postAutosaveBannerMessage,
+  postVersionConflictMessage,
+  type PostSaveConflict,
 } from "./rules";
 
 /**
@@ -733,6 +735,66 @@ function PostAutosaveRecoveryBanner({
 }
 
 /**
+ * Optimistic concurrency (2026-09-06) — the "someone else saved while you were editing" banner.
+ * Rendered only after a save was actually rejected with `409 VERSION_CONFLICT`; never on load, and
+ * never for the slug-uniqueness 409 the same route can also return (see `rules.ts`'s
+ * `readPostVersionConflict` for the distinction the server's `code` makes possible).
+ *
+ * Deliberately does NOT show the other operator's content, offer a diff, or replace anything in the
+ * editor: the operator's own typed work is still on screen untouched, which is the single most
+ * important property of this whole path. `postVersionConflictMessage` (`rules.ts`) owns the wording
+ * so this component stays markup only, same split `PostAutosaveRecoveryBanner` above already uses.
+ *
+ * "Save anyway" is the only way past the conflict, and that is on purpose: the plain Save button
+ * keeps failing until the operator explicitly chooses to replace the other version.
+ */
+function PostVersionConflictBanner({
+  saveConflict,
+  onSaveAnyway,
+  onDismiss,
+  t,
+}: {
+  saveConflict: PostSaveConflict;
+  onSaveAnyway: () => void;
+  onDismiss: () => void;
+  t: Translate;
+}) {
+  return (
+    <div
+      className="notice error"
+      {...agentHandle("post-version-conflict", {
+        role: "region",
+        label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
+      })}
+    >
+      <p>{postVersionConflictMessage(saveConflict)}</p>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onSaveAnyway}
+        {...agentHandle("post-version-conflict-overwrite", {
+          role: "button",
+          label: "Save these changes anyway, replacing the version the other operator saved",
+        })}
+      >
+        {t("Save anyway")}
+      </button>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onDismiss}
+        {...agentHandle("post-version-conflict-dismiss", {
+          role: "button",
+          label: "Hide this notice and keep editing without saving",
+        })}
+      >
+        {t("Keep editing")}
+      </button>
+    </div>
+  );
+}
+
+/**
  * The status select, save feedback and the publish/save/delete buttons — their own row, below the
  * view/template toolbar rather than in the header (owner request, 2026-09-06: "put the published
  * save and delete buttons under the gray desktop/tablet/mobile row").
@@ -1204,6 +1266,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,
+    saveConflict,
+    saveOverwritingConflict,
+    dismissSaveConflict,
   } = usePostEditorHook(postId);
 
   if (error && !post) return <div className="notice error">{error}</div>;
@@ -1221,6 +1286,14 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           currentVersion={post.version}
           onRestore={restoreRecoveredDraft}
           onDiscard={discardRecoveredDraft}
+          t={t}
+        />
+      ) : null}
+      {saveConflict ? (
+        <PostVersionConflictBanner
+          saveConflict={saveConflict}
+          onSaveAnyway={() => void saveOverwritingConflict()}
+          onDismiss={dismissSaveConflict}
           t={t}
         />
       ) : null}

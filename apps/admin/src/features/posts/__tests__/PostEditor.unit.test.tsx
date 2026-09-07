@@ -842,6 +842,17 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     previewFormRef: { current: null },
     previewFormTarget: post ? `post-preview-pending-${post.id}` : "",
     save,
+    // Standing-draft autosave (2026-09-06). Present because `PostEditorController` requires them,
+    // not because this DI harness exercises the recovery banner — `recoverableDraft: null` is the
+    // "nothing parked", banner-not-rendered case every test in this file wants.
+    recoverableDraft: null,
+    restoreRecoveredDraft: vi.fn(),
+    discardRecoveredDraft: vi.fn(),
+    // Optimistic concurrency (2026-09-06) — same reasoning as the autosave three just above:
+    // `saveConflict: null` is "no conflict", so `PostVersionConflictBanner` never renders here.
+    saveConflict: null,
+    saveOverwritingConflict: vi.fn(),
+    dismissSaveConflict: vi.fn(),
     remove: vi.fn(),
     t: (key: string) => key,
     ...overrides,

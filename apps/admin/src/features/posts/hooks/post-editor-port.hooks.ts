@@ -35,9 +35,26 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
     activeThemeTemplates: string[];
     activeThemeStaticPageIds: string[];
   }>;
+  /**
+   * `expectedVersion` (2026-09-06) is the optimistic-concurrency basis, NOT a field of the post:
+   * the {@link AdminPost.version} this editor loaded, sent so the server can reject a save whose
+   * basis another operator's save has already superseded. Typed as its own member rather than
+   * folded into the `Partial<Pick<AdminPost, …>>` bag precisely because it is not writable content
+   * — nothing about it is stored, it is only compared.
+   *
+   * Optional here because the server treats it as optional (omit it and the save is last-write-wins,
+   * exactly as before this feature). `usePostEditor` always sends it once a post has loaded; a
+   * caller that omits it gets the old, unguarded behavior.
+   *
+   * Rejects with an `ApiError` carrying `code: "VERSION_CONFLICT"` (`rules.ts`'s
+   * `POST_VERSION_CONFLICT_CODE`) when the basis is stale — distinct from the slug-uniqueness 409
+   * this same route can also return, which carries no code at all.
+   */
   updatePost(
     target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">>
+    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+      expectedVersion?: number;
+    }
   ): Promise<{ post: AdminPost }>;
   deletePost(id: string): Promise<{ post: AdminPost }>;
   /** Mention feature (2026-08-11, coordinator MSG #1 licensing sweep) — the picker list for

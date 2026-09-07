@@ -6,6 +6,8 @@ import {
   buildPostRowMenuHandleMap,
   isAutosaveDraftStale,
   postAutosaveBannerMessage,
+  postVersionConflictMessage,
+  readPostVersionConflict,
   comparePostsByStatus,
   comparePostsBySlug,
   comparePostsByTitle,
@@ -21,7 +23,7 @@ import {
   updatedColumnSortLabel,
   withTitleNode,
 } from "../rules";
-import type { AdminPost } from "@/lib/api";
+import { ApiError, type AdminPost } from "@/lib/api";
 
 /**
  * @file Pure(ish) logic for `features/posts` — `postRowMenuItems` (the row-action menu, driven
@@ -737,6 +739,60 @@ describe("postAutosaveBannerMessage", () => {
   it("a stale draft names the newer save explicitly instead of implying it is current", () => {
     expect(postAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, true)).toBe(
       "Unsaved changes from before a newer save (captured 5 minutes ago)"
+    );
+  });
+});
+
+describe("readPostVersionConflict / postVersionConflictMessage", () => {
+  /**
+   * The trap this whole pair exists for: `PUT /posts/:id` returns 409 for BOTH a slug-uniqueness
+   * collision and a stale version, from the same `PostConflictError` hierarchy. Only the version
+   * one carries `code: "VERSION_CONFLICT"`, so a status-only check would send an operator into the
+   * "someone else saved" flow for a duplicate slug — and, worse, tell them their edit is safe to
+   * force through.
+   */
+  it("does NOT classify a slug-uniqueness 409 (same status, no code) as a version conflict", () => {
+    const slugConflict = new ApiError("slug 'taken' already exists", 409);
+    expect(readPostVersionConflict(slugConflict, undefined)).toBeNull();
+  });
+
+  it("classifies a 409 VERSION_CONFLICT, carrying both versions and the attempted status", () => {
+    const err = new ApiError("post 'p1' was modified by another save (expected version 3, current version 4)", 409, "VERSION_CONFLICT", {
+      details: { expectedVersion: 3, currentVersion: 4 },
+    });
+    expect(readPostVersionConflict(err, "published")).toEqual({
+      expectedVersion: 3,
+      currentVersion: 4,
+      attemptedStatus: "published",
+    });
+  });
+
+  it("still reports a conflict when the server sent the code but no details bag", () => {
+    const err = new ApiError("stale", 409, "VERSION_CONFLICT");
+    expect(readPostVersionConflict(err, undefined)).toEqual({
+      expectedVersion: null,
+      currentVersion: null,
+      attemptedStatus: undefined,
+    });
+  });
+
+  it("ignores the code on a non-409 status, and any non-ApiError", () => {
+    expect(readPostVersionConflict(new ApiError("nope", 500, "VERSION_CONFLICT"), undefined)).toBeNull();
+    expect(readPostVersionConflict(new Error("network down"), undefined)).toBeNull();
+    expect(readPostVersionConflict("not an error at all", undefined)).toBeNull();
+  });
+
+  it("says the work is unsaved AND still present, naming both versions", () => {
+    expect(postVersionConflictMessage({ expectedVersion: 3, currentVersion: 4, attemptedStatus: undefined })).toBe(
+      "Someone else saved this while you were editing — you were working from version 3, and version 4 is now stored. " +
+        "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+    );
+  });
+
+  it("degrades to prose rather than printing 'version null' when the server omitted the details", () => {
+    expect(postVersionConflictMessage({ expectedVersion: null, currentVersion: null, attemptedStatus: undefined })).toBe(
+      "Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. " +
+        "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
     );
   });
 });
