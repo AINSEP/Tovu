@@ -56,7 +56,6 @@
  * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
-import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 import express from "express";
@@ -102,8 +101,9 @@ import { createLiveRunTracker } from "./agent-run-concurrency.js";
 import { buildBaseSystemOverlay, resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
+import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
-import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../../runtime/composition/deps.js";
+import { createSqliteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -261,28 +261,15 @@ installUnhandledRejectionGuard();
  * Root directory the chat composer's staged image/file uploads land in before a run claims them
  * (`@jini-ai/http-kit`'s `createDiskAttachmentStore`) — deliberately NOT `process.cwd()`.
  *
- * `TOVU_CONTENT_DB`/`TOVU_MEDIA_UPLOADS_DIR` are this process's own precedent for "resolve against
- * an explicit env var, falling back to something derived rather than a bare `process.cwd()`", and
- * this follows the same shape with its own override (`TOVU_CHAT_ATTACHMENTS_DIR`). It is
- * deliberately NOT anchored the way `mediaUploadsDir()` is (`server/deps.ts` — `TOVU_MEDIA_UPLOADS_DIR
- * ?? join(process.cwd(), "infra", "uploads")`): that fallback is itself `process.cwd()`-relative
- * and this process's own `process.cwd()` is not provably the site install dir (this daemon is a
- * `spawn()` child of `src/index.ts`, inheriting whatever cwd THAT process happened to have — see
- * that file's module doc). Anchoring to `dirname(defaultContentDbPath())`
- * instead ties this to the SAME directory the daemon's own `content.db` connection already resolves
- * against, which is the strongest "the daemon process agrees this is the site's home" signal
- * available here without adding a new resolution path this process doesn't already have.
- *
- * Residual, disclosed rather than silently assumed safe: unlike `cli/commands/serve.ts`'s
- * `resolveInstallDirTarget()`-based boot path (which `serve-command.integration.test.ts`'s CR-R01
- * case exercises under a foreign cwd), this daemon process is never spawned by that CLI path at all
- * — it only exists under `src/index.ts`'s env-var-driven boot, which that regression test does not
- * cover. No foreign-cwd assertion protects this constant specifically; an operator who needs a
- * guaranteed location should set `TOVU_CHAT_ATTACHMENTS_DIR` explicitly, same as
- * `TOVU_CONTENT_DB`/`TOVU_MEDIA_UPLOADS_DIR` today.
+ * The resolution itself moved to `chat-attachment-directory.ts` (see that file for the full
+ * anchoring rationale and its disclosed residual risk) and is UNCHANGED by the move — same
+ * `TOVU_CHAT_ATTACHMENTS_DIR` override, same `dirname(defaultContentDbPath())` fallback. It is a
+ * shared function rather than this file's private constant for one reason: the API process now
+ * reads these same uploads back over HTTP (`modules/assistant.ts`'s
+ * `registerAdminChatAttachmentReadRoute`), and two copies of a path expression in two processes is
+ * exactly the "one call site drifts" defect this repo keeps finding.
  */
-const ATTACHMENT_UPLOAD_DIRECTORY =
-  process.env.TOVU_CHAT_ATTACHMENTS_DIR ?? path.join(path.dirname(defaultContentDbPath()), "uploads", "chat-attachments");
+const ATTACHMENT_UPLOAD_DIRECTORY = resolveChatAttachmentUploadDirectory();
 
 /**
  * Opt-in-only diagnostic gate for the base system overlay's Bash-prohibition instrument — see
