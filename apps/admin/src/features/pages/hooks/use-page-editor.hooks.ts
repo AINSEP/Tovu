@@ -7,6 +7,7 @@ import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
+  type StandingDraftStaleBasis,
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
@@ -165,6 +166,22 @@ export interface PageEditorController {
   restoreRecoveredDraft: () => void;
   /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
   discardRecoveredDraft: () => Promise<void>;
+  /**
+   * Standing-draft autosave — non-null once the server has REFUSED a background write for this page
+   * because another operator's save moved the row's `version` out from under this editor. Distinct
+   * from {@link recoverableDraft}, which is work found parked from a previous session: this is the
+   * session happening right now, and while it is set nothing the operator types is being persisted
+   * anywhere the server can see.
+   *
+   * Surfaced so `PageEditor.tsx` can say so on screen. That is the whole point of passing it
+   * through: `useStandingDraftAutosave` has recorded this since commit `a60e07e8`, and with no
+   * editor consuming it the operator could type for an hour into a screen that looked completely
+   * normal and be told nothing until they reloaded.
+   *
+   * Reporting it never costs the operator their text — the working copy (`title`/`slug`/`html`) is
+   * not touched on this path, by this hook or by the shared one.
+   */
+  autosaveStaleBasis: StandingDraftStaleBasis | null;
 }
 
 /** `contentDirty`'s own computation, named out of `usePageEditor`'s body purely to keep that
@@ -592,6 +609,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     recoverableDraft: autosave.recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,
+    autosaveStaleBasis: autosave.staleBasis,
   };
 }
 

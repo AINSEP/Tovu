@@ -13,6 +13,7 @@ import {
   pageAcceptsHtmlBody,
   pageAdminPath,
   pageAutosaveBannerMessage,
+  pageAutosaveStaleBasisMessage,
   pageColumnSortLabel,
   pageEditorSurface,
   pagePublicPath,
@@ -490,5 +491,49 @@ describe("pageAutosaveBannerMessage", () => {
     expect(pageAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, true)).toBe(
       "Unsaved changes from before a newer save (captured 5 minutes ago)"
     );
+  });
+});
+
+/**
+ * The stale-basis notice's copy, pinned literally. `toBe` on the whole sentence, not a substring
+ * match: this is the only thing an operator ever learns about a running editor that has silently
+ * stopped persisting their work, so each clause is load-bearing and a reworded one should have to be
+ * a deliberate edit here. In particular it must never grow a promise that the text is recoverable
+ * after a reload — see the function's own doc for why that promise cannot be kept.
+ */
+describe("pageAutosaveStaleBasisMessage", () => {
+  const EXPECTED =
+    "Someone else saved this while you were editing — you were working from version 4, so autosaving " +
+    "has paused and nothing you type now is being stored. Your changes were NOT saved, and are still " +
+    "here in the editor. Reload to pick up their version and resume autosaving; copy anything you " +
+    "want to keep first.";
+
+  it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
+    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+      bodyFormat: "html",
+      bodyHtml: "<p>still being typed</p>",
+      title: "Landing",
+      slug: "landing",
+      baseVersion: 4,
+    } });
+
+    expect(message).toBe(EXPECTED);
+    // Spelled out so a reword that drops one of them fails here rather than silently shipping.
+    expect(message).toContain("version 4");
+    expect(message).toContain("autosaving has paused");
+    expect(message).toContain("were NOT saved");
+    expect(message).toContain("still here in the editor");
+  });
+
+  it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
+    const message = pageAutosaveStaleBasisMessage({ baseVersion: 4, draft: {
+      bodyFormat: "html",
+      bodyHtml: "<p>still being typed</p>",
+      title: "Landing",
+      slug: "landing",
+      baseVersion: 4,
+    } });
+
+    expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
   });
 });

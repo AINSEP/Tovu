@@ -66,6 +66,10 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
   readonly putAutosaveCalls: StandingDraftAutosaveInput[];
   /** Whether `discardAutosave` has been called at least once. */
   readonly discardAutosaveCalled: boolean;
+  /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
+   *  under test knowing — the only way to reach a genuine stale-basis refusal from `putAutosave`
+   *  rather than stubbing the rejection. Mirrors `createFakePostEditorPort`'s identical member. */
+  simulateConcurrentSave(title?: string): void;
 } {
   let page = { ...options.page };
   const updatePostCalls: Array<Partial<AdminPost>> = [];
@@ -87,6 +91,10 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     putAutosaveCalls,
     get discardAutosaveCalled() {
       return discardAutosaveCalled;
+    },
+
+    simulateConcurrentSave(title = "Saved by someone else") {
+      page = { ...page, title, version: page.version + 1 };
     },
 
     async getPage() {
@@ -135,9 +143,15 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
 
+    // Models the real guard, not just the happy path — see `createFakePostEditorPort`'s identical
+    // member for the full reasoning: `writeAutosave` is one `UPDATE ... WHERE version =
+    // baseVersion`, so a draft built on a superseded basis is refused and nothing is parked. The
+    // call is still recorded, because "the editor sent a write the server threw away" is the
+    // observation a stale-basis test needs.
     async putAutosave(id, draft) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       putAutosaveCalls.push(draft);
+      if (draft.baseVersion !== page.version) return { applied: false };
       autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
       return { applied: true };
     },

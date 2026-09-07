@@ -74,6 +74,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // A REFUSED autosave mirrors the operator's text into `localStorage`
+  // (`lib/standing-draft-local-backup.ts`), and jsdom keeps one storage for the whole file — so
+  // without this, one test's refused draft becomes the NEXT test's mount-time `recoverableDraft`
+  // for the same page id. Refusals are reachable from any test here now that
+  // `createFakePageEditorPort` models the server's real version guard.
+  localStorage.clear();
 });
 
 function urlsCalled(): string[] {
@@ -613,6 +619,77 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
         bodyFormat: "html",
         bodyHtml: "<p>half-typed, then left the screen</p>",
       });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /**
+   * STALE BASIS (2026-09-06) — the Pages half of the two-tab case
+   * `use-post-editor.hooks.unit.test.tsx` covers for Posts, and the reason this hook has to consume
+   * `staleBasis` at all: both editors share `useStandingDraftAutosave`, so a fix landing in only one
+   * of them leaves the other silently dropping an operator's work.
+   *
+   * `simulateConcurrentSave` moves the stored row under this editor exactly as another operator's
+   * save would, so the tick is refused by the fake's own version guard rather than a stubbed answer.
+   * Asserting only that `putAutosave` was called would pass under the silent bug; asserting only the
+   * notice without the text would pass under a "fix" that reported the conflict by discarding the
+   * work.
+   */
+  it("a refused autosave surfaces autosaveStaleBasis carrying the refused text, and leaves the working copy untouched", async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+      expect(result.current.autosaveStaleBasis).toBeNull();
+
+      // Another operator saves. This editor is not told, and still believes it is on HTML_PAGE.version.
+      deps.port.simulateConcurrentSave();
+
+      act(() => result.current.setHtml("<p>typed while the other tab was saving</p>"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(deps.port.putAutosaveCalls).toHaveLength(1);
+      expect(result.current.autosaveStaleBasis).toEqual({
+        baseVersion: HTML_PAGE.version,
+        draft: expect.objectContaining({
+          bodyHtml: "<p>typed while the other tab was saving</p>",
+          baseVersion: HTML_PAGE.version,
+        }),
+      });
+      // The single most important property of this whole path.
+      expect(result.current.html).toBe("<p>typed while the other tab was saving</p>");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /** The notice must not linger once autosaving actually works again — an operator staring at a
+   *  false "autosaving has paused" would stop trusting the true one. A real Save re-bases this
+   *  editor onto the row the server hands back, and the next tick is accepted on that basis. */
+  it("autosaveStaleBasis clears once a write is accepted again, rather than sticking for the session", async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.page).not.toBeNull();
+
+      deps.port.simulateConcurrentSave();
+      act(() => result.current.setHtml("<p>typed while the other tab was saving</p>"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+      expect(result.current.autosaveStaleBasis).not.toBeNull();
+
+      await act(async () => {
+        await result.current.save();
+      });
+      act(() => result.current.setHtml("<p>typed again, now on the current version</p>"));
+      await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+      expect(result.current.autosaveStaleBasis).toBeNull();
+      expect(result.current.html).toBe("<p>typed again, now on the current version</p>");
     } finally {
       vi.useRealTimers();
     }

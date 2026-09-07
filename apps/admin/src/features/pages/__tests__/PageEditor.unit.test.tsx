@@ -114,6 +114,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     recoverableDraft: null,
     restoreRecoveredDraft: vi.fn(),
     discardRecoveredDraft: vi.fn(),
+    // Stale basis (2026-09-06). `null` is "autosave is healthy", so the notice never renders in the
+    // pre-existing tests here — its own suite below overrides it.
+    autosaveStaleBasis: null,
     ...overrides,
   };
 }
@@ -218,6 +221,51 @@ describe("standing-draft autosave recovery banner", () => {
     const { ctrl } = renderEditor({ recoverableDraft: RECOVERABLE });
     await user.click(screen.getByRole("button", { name: /discard/i }));
     expect(ctrl.discardRecoveredDraft).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Standing-draft autosave — the STALE-BASIS notice (2026-09-06). Distinct from the recovery banner
+ * above: that one offers work found parked from a PREVIOUS session, this one reports that the
+ * server is refusing writes for the session happening right now. `usePageEditor` decides when
+ * (`autosaveStaleBasis`) and `rules.ts` decides what it says; this proves the component renders it
+ * at all, which is precisely the gap that existed — the hook recorded the refusal and no editor
+ * consumed it, so the operator was told nothing until they reloaded.
+ */
+describe("standing-draft autosave stale-basis notice", () => {
+  const STALE = {
+    baseVersion: 1,
+    draft: {
+      bodyFormat: "html" as const,
+      bodyHtml: "<p>still being typed</p>",
+      title: "About",
+      slug: "about",
+      baseVersion: 1,
+    },
+  };
+
+  it("renders nothing while autosave is healthy", () => {
+    renderEditor({ autosaveStaleBasis: null });
+    expect(screen.queryByText(/someone else saved this/i)).not.toBeInTheDocument();
+  });
+
+  it("tells the operator autosaving has paused, their work is unsaved, and it is still in the editor", () => {
+    renderEditor({ autosaveStaleBasis: STALE });
+    const notice = screen.getByText(/someone else saved this while you were editing/i);
+    expect(notice).toHaveTextContent(/version 1/);
+    expect(notice).toHaveTextContent(/autosaving has paused/i);
+    expect(notice).toHaveTextContent(/were NOT saved/);
+    expect(notice).toHaveTextContent(/still here in the editor/i);
+  });
+
+  /** Deliberately no Dismiss, and deliberately no Reload button — see `PageAutosaveStaleBanner`'s
+   *  own doc. This asserts the absence, because "add a Dismiss" is the obvious next change and it
+   *  would put the operator back in the silent state this whole fix exists to end. */
+  it("offers no button that could silence it or discard the operator's text", () => {
+    const { container } = renderEditor({ autosaveStaleBasis: STALE });
+    const region = container.querySelector('[data-agent-element="page-autosave-stale"]');
+    expect(region).not.toBeNull();
+    expect(region!.querySelectorAll("button")).toHaveLength(0);
   });
 });
 

@@ -3,7 +3,10 @@ import { agentHandle } from "@jini-ai/agentic";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
-import type { StandingDraftAutosaveSnapshot } from "../../hooks/use-standing-draft-autosave.hooks";
+import type {
+  StandingDraftAutosaveSnapshot,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
 import {
   PAGE_PREVIEW_WIDTHS,
   useWiredPageEditor,
@@ -11,7 +14,13 @@ import {
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
-import { isAutosaveDraftStale, pageAutosaveBannerMessage, pageEditorSurface, pagePublicPath } from "./rules";
+import {
+  isAutosaveDraftStale,
+  pageAutosaveBannerMessage,
+  pageAutosaveStaleBasisMessage,
+  pageEditorSurface,
+  pagePublicPath,
+} from "./rules";
 
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
@@ -265,6 +274,41 @@ function PageAutosaveRecoveryBanner({
 }
 
 /**
+ * Standing-draft autosave — the STALE-BASIS notice (2026-09-06). The counterpart to
+ * `PageAutosaveRecoveryBanner` above and not a duplicate of it: that banner offers work found parked
+ * from a PREVIOUS session, this reports that background autosaving has STOPPED for the session
+ * happening right now, because another operator's save moved this page's version out from under this
+ * tab. Until then the operator had no way to know — the editor looked completely normal while every
+ * write it made was being thrown away. `pageAutosaveStaleBasisMessage` (`rules.ts`) owns the wording
+ * so this component stays markup only, the same split the recovery banner already uses.
+ *
+ * NO buttons, deliberately, and this is the one design decision here worth defending:
+ * - A "Dismiss" would let the operator silence a warning that is still true, putting them straight
+ *   back into the silent data loss this whole path exists to end. The notice clears by itself when
+ *   autosaving actually resumes (`usePageEditor`'s `autosaveStaleBasis` goes null once a write is
+ *   accepted on a fresh basis) and at no other time, so it can never be lying while it is on screen.
+ * - A "Reload" would wipe the operator's typed text out of the editor on their behalf. Their only
+ *   remaining copy would then be the shared hook's best-effort browser-storage mirror, which is not
+ *   a guarantee this component can make on their behalf (`localStorage` throws outright in some
+ *   privacy modes). The message tells them to copy their work first and leaves the choice with them.
+ */
+function PageAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStaleBasis }) {
+  return (
+    <div
+      className="notice warning"
+      {...agentHandle("page-autosave-stale", {
+        role: "region",
+        label:
+          "Another operator saved this page while you were editing — autosaving has stopped, and your " +
+          "unsaved changes are still here in the editor",
+      })}
+    >
+      <p>{pageAutosaveStaleBasisMessage(staleBasis)}</p>
+    </div>
+  );
+}
+
+/**
  * The toolbar's right-hand group — the device-width control (preview view only) and the template
  * picker. Extracted out of `PageEditor` for the same reason `PageEditorHeader` above was: this is
  * where nearly all of the remaining branching in that component's render lived (the preview-only
@@ -405,6 +449,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     recoverableDraft,
     restoreRecoveredDraft,
     discardRecoveredDraft,
+    autosaveStaleBasis,
   } = usePageEditorHook(routeSlug);
 
   if (error && !page) return <div className="notice error">{error}</div>;
@@ -422,6 +467,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           onDiscard={discardRecoveredDraft}
         />
       ) : null}
+      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.

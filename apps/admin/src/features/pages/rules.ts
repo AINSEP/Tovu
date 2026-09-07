@@ -5,7 +5,10 @@ import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
-import type { StandingDraftAutosaveInput } from "../../hooks/use-standing-draft-autosave.hooks";
+import type {
+  StandingDraftAutosaveInput,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
 import { PAGES_DICT } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
@@ -299,6 +302,35 @@ export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: n
 export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
   const when = formatRelativeMinutesAgo(savedAt, nowMs);
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
+}
+
+/**
+ * The stale-basis notice's own message — the BACKGROUND-autosave counterpart of the recovery
+ * banner's {@link pageAutosaveBannerMessage} just above, and the reason `staleBasis` exists on the
+ * shared autosave hook at all. Kept feature-local and character-identical to
+ * `features/posts/rules.ts`'s `postAutosaveStaleBasisMessage`, the same "no cross-feature import"
+ * boundary {@link isAutosaveDraftStale} already documents for itself.
+ *
+ * Says the four things an operator cannot infer from a screen that otherwise looks completely
+ * normal: that someone else saved, that autosaving has consequently STOPPED (a running editor that
+ * silently persists nothing is the entire defect), that their work is unsaved but still in front of
+ * them, and what actually resumes autosaving.
+ *
+ * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
+ * refused draft into browser storage (`lib/standing-draft-local-backup.ts`), but that mirror is
+ * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
+ * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
+ * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pageAutosaveStaleBasisMessage(staleBasis: StandingDraftStaleBasis): string {
+  return (
+    `Someone else saved this while you were editing — you were working from version ${staleBasis.baseVersion}, ` +
+    "so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are " +
+    "still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want " +
+    "to keep first."
+  );
 }
 
 /** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
