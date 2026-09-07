@@ -383,14 +383,42 @@ calls it — its own comment says "Nothing here ever closes what it opens." So f
 the Projects grid, a stale cookie is never cleared and persists across launches: every subsequent
 launch skips the boot token, the admin 401s, and quit-and-relaunch does **not** recover it.
 
-Combined with `project_tovu_desktop_no_site_password`, that is a lockout with no in-app exit.
+### Correction to my own first write-up (2026-09-07, after review by Agent B)
 
-**Recommended shape** (for whoever owns `apps/desktop`): probe validity rather than presence — one
-authenticated `GET /api/admin/v1/auth/me` through the partition's session before deciding
-`emitBootToken`. Minting an unused boot token is cheap; the accumulation problem
-`hasActiveSessionCookie` was added to solve is about 30-day SESSIONS, not tokens.
+I first wrote that this is "a lockout with no in-app exit". **That was an overstatement**, and the
+`identity_users` question behind it is now settled against source rather than against memory:
 
-Severity: raise from Low to **Medium** on the fleet path.
+- `features/identity/wiring.ts:125-126` seeds the owner as
+  `process.env.TOVU_ADMIN_USER ?? "admin"` / `process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD`,
+  and `DEFAULT_OWNER_PASSWORD = "tovu-dev"` (`wiring.ts:62`).
+- The shell never passes `desktopCredential` — it appears only inside `tovu-server.cjs` (`:323-325`
+  definition, `:490` threading), never in `main.cjs` or `project-ipc.cjs`, so neither env var is set
+  in the spawned `tovu serve`. Agent B's independent read of this agrees.
+- `@jini-ai/cms`'s `seedIdentity` (`identity/seed.ts:400-420`) early-returns when the owner user
+  already exists, so the password is whatever first boot set and is never rotated.
+
+**So there IS a way in: `admin` / `tovu-dev`.** The accurate statement is not "no exit" but "the only
+exit is a hard-coded default the desktop operator has never been shown" — the boot token exists
+precisely so they never learn a password. That is a bad recovery story, not a lockout.
+
+Severity: still **Medium** on the fleet path (a stale cookie there survives relaunch, and nothing in
+the UI tells the operator what to do), but the "no way in" framing is withdrawn.
+
+### Recommended shape — my first suggestion was WRONG; use Agent B's inverse
+
+I suggested probing `GET /api/admin/v1/auth/me` *before* deciding `emitBootToken`. **That cannot
+work**, and Agent B caught it: `emitBootToken` becomes the argv element `--emit-boot-token`
+(`tovu-server.cjs:482`), chosen inside `startSiteBackend` **before** `startTovuServer` spawns the
+process — there is no server to probe yet. Verified directly; the correction stands.
+
+The inverse does work, and is the recommendation of record: **always emit the token, probe after
+boot, redeem only if the session is actually dead, and discard it unused otherwise.** An unredeemed
+boot token is single-use and process-scoped, so it is inert; and it does not reintroduce the
+713-row accumulation `hasActiveSessionCookie` was added to fix, which was about 30-day SESSIONS
+rather than tokens.
+
+Separately, and independent of which shape is chosen: the fleet `<webview>` path needs an
+`endSiteSession` call of its own, or the stale cookie is never cleared regardless.
 
 ---
 
