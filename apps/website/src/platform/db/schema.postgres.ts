@@ -599,6 +599,7 @@ export const media = pgTable("media", {
   width: bigint("width", { mode: "number" }),
   height: bigint("height", { mode: "number" }),
   cssClass: text("css_class"),
+  htmlAttributes: text("html_attributes"),
 }, (t) => [
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
   ]);

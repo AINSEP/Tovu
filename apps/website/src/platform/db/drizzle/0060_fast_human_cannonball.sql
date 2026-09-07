@@ -1,0 +1,1 @@
+ALTER TABLE `media` ADD `html_attributes` text;

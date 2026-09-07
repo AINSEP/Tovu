@@ -1276,6 +1276,17 @@ export const media = sqliteTable(
     width: integer("width"),
     height: integer("height"),
     cssClass: text("css_class"),
+    /**
+     * Owner-directed (2026-09-07) free-text HTML attributes threaded onto this asset's public
+     * `<img>`/`<video>` tag (stated uses: animations, custom WebMCP hooks) — same nullable,
+     * no-backfill-needed shape `cssClass` above already establishes (every pre-existing row reads
+     * back as `NULL`, "no extra attributes", with zero migration work). This is a stored-XSS
+     * boundary: `@jini-ai/cms/media`'s `updateMediaMetadata` validates it against
+     * `html-attributes.ts`'s allowlist before ever writing it, and the render path re-validates
+     * before emitting it onto a real tag — see that column's own `MediaRecord.htmlAttributes` doc
+     * for the full rationale. This column stores the raw, ALREADY-VALIDATED source text verbatim.
+     */
+    htmlAttributes: text("html_attributes"),
   },
   (table) => [uniqueIndex("idx_media_workspace_slug").on(table.workspaceId, table.slug)]
 );
