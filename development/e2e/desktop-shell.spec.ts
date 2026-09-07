@@ -51,6 +51,23 @@ function emptySiteFolder(label: string): string {
 const REAL_USER_DATA_DIR = path.join(os.homedir(), "Library", "Application Support", "tovu-desktop");
 
 /**
+ * The slice of Electron's own `MenuItem` that the "Open Site…" menu walk below actually reads.
+ *
+ * Declared by hand rather than imported: Playwright types `app.evaluate`'s first callback argument
+ * as `typeof import("electron")`, but `electron` is installed only under
+ * `apps/desktop/node_modules` and does NOT resolve from `development/e2e/` (this suite typechecks
+ * under `development/tsconfig.e2e.json`, whose module resolution never reaches that directory), so
+ * `Menu` arrives as `any` and every callback parameter off it was an implicit `any`. Naming the
+ * shape here restores real checking on the walk instead of only silencing the parameters. Erased
+ * at compile time, so nothing crosses into the Electron main process where the callback runs.
+ */
+type MenuItemLike = {
+  label: string;
+  submenu?: { items: MenuItemLike[] };
+  click: () => void;
+};
+
+/**
  * Launches the shell with a disposable `TOVU_DESKTOP_USER_DATA_DIR` on every call, then verifies —
  * from inside the running app, via `app.getPath("userData")` itself, not by trusting the env var
  * round-tripped correctly — that Electron actually resolved userData somewhere other than the
@@ -124,8 +141,9 @@ test.describe("apps/desktop shell", () => {
 
       await app.evaluate(async ({ dialog, Menu }, chosen) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [chosen] });
-        const item = Menu.getApplicationMenu()
-          ?.items.find((i) => i.label === "File")
+        const items: MenuItemLike[] | undefined = Menu.getApplicationMenu()?.items;
+        const item = items
+          ?.find((i) => i.label === "File")
           ?.submenu?.items.find((i) => i.label === "Open Site…");
         if (!item) throw new Error("File > 'Open Site…' not found in the application menu");
         item.click();
