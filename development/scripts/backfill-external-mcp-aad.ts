@@ -17,6 +17,11 @@
  * Everything else on the row (`transport`, `auth_mode`, `env_names`, `oauth_*` metadata, the
  * write-grant attribution columns) is left untouched.
  *
+ * The dry-run/`--apply` split, restore-point capture, and per-blob seal-verify-write loop live in
+ * `aad-backfill-runner.ts`, shared with the other five `backfill-*-aad.ts` scripts — this file keeps
+ * only what's genuinely specific to `external_mcp_servers`: its two-blobs-per-row identity shape,
+ * both AAD builders, and its own column writes.
+ *
  * ## Usage
  *
  *   npx tsx development/scripts/backfill-external-mcp-aad.ts --db <path>            (dry run)
@@ -32,40 +37,22 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { resolveExistingDbPath } from "./backfill-db-path.js";
-import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { externalMcpServers } from "../../apps/website/src/platform/db/schema.js";
-import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/index.js";
+import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad, EXTERNAL_MCP_AAD_VERSION } from "../../apps/website/src/assistant/external-mcp-aad.js";
+
 import {
-  buildExternalMcpEnvAad,
-  buildExternalMcpOAuthAad,
-  EXTERNAL_MCP_AAD_VERSION,
-} from "../../apps/website/src/assistant/external-mcp-aad.js";
+  runAadBackfill,
+  runAadBackfillMain,
+  type AadBackfillDeps,
+  type AadBackfillMainMessages,
+  type AadBackfillResult,
+  type AadBackfillUnit,
+  type SealedColumns,
+} from "./aad-backfill-runner.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-
-interface Args {
-  readonly dbPath: string;
-  readonly apply: boolean;
-}
-
-function parseArgs(argv: readonly string[]): Args {
-  const dbFlag = argv.indexOf("--db");
-  return {
-    dbPath: dbFlag === -1 ? path.join(REPO_ROOT, "sites", "tovu-com", "content.db") : path.resolve(argv[dbFlag + 1]!),
-    apply: argv.includes("--apply"),
-  };
-}
-
-interface SealedColumns {
-  readonly keyId: string;
-  readonly ciphertext: string;
-  readonly nonce: string;
-  readonly alg: string;
-}
+const DEFAULT_DB_PATH = path.join(REPO_ROOT, "sites", "tovu-com", "content.db");
 
 /** One blob needing migration. `slot` selects which column family and which AAD builder applies. */
 interface PendingBlob {
@@ -103,17 +90,69 @@ function loadPendingBlobs(db: ContentDb): PendingBlob[] {
   return pending;
 }
 
-export interface ExternalMcpAadBackfillDeps {
-  readonly db: ContentDb;
-  readonly sealer: SecretSealerPort;
-  readonly keyring: KeyringPort;
-  readonly log?: (message: string) => void;
+/** @complexity O(n) in the pending blob count. */
+function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
+  return loadPendingBlobs(db).map((blob) => {
+    const identity = { workspaceId: blob.workspaceId, serverId: blob.serverId };
+    const where = and(eq(externalMcpServers.workspaceId, blob.workspaceId), eq(externalMcpServers.serverId, blob.serverId));
+    return {
+      label: `workspace=${blob.workspaceId} server=${blob.serverId} slot=${blob.slot}`,
+      sealed: blob.sealed,
+      buildAad: () => (blob.slot === "env" ? buildExternalMcpEnvAad(identity) : buildExternalMcpOAuthAad(identity)),
+      write: (sealed) => {
+        if (blob.slot === "env") {
+          db.update(externalMcpServers)
+            .set({
+              sealedKeyId: sealed.keyId,
+              sealedCiphertext: sealed.ciphertext,
+              sealedNonce: sealed.nonce,
+              sealedAlg: sealed.alg,
+              aadVersion: EXTERNAL_MCP_AAD_VERSION,
+            })
+            .where(where)
+            .run();
+        } else {
+          db.update(externalMcpServers)
+            .set({
+              oauthSealedKeyId: sealed.keyId,
+              oauthSealedCiphertext: sealed.ciphertext,
+              oauthSealedNonce: sealed.nonce,
+              oauthSealedAlg: sealed.alg,
+              oauthAadVersion: EXTERNAL_MCP_AAD_VERSION,
+            })
+            .where(where)
+            .run();
+        }
+      },
+    };
+  });
 }
 
-export interface ExternalMcpAadBackfillResult {
-  readonly migrated: number;
-  readonly total: number;
+/**
+ * The dry-run line (unlike the MIGRATED line) names the target column, which is slot-dependent —
+ * `label` always ends in `slot=env` or `slot=oauth` (see `loadPendingUnits`' own label format
+ * immediately above), so this recovers `blob.slot` from the one place the shared message interface
+ * still has it by the time this runs. Kept local to this file, matching the original script's own
+ * `blob.slot === "env" ? "aad_version" : "oauth_aad_version"` ternary one-for-one.
+ */
+function targetVersionColumn(label: string): "aad_version" | "oauth_aad_version" {
+  return label.endsWith("slot=env") ? "aad_version" : "oauth_aad_version";
 }
+
+const messages: AadBackfillMainMessages = {
+  found: (count) => `Found ${count} sealed blob(s) at version 0 to migrate.`,
+  dryRunUnit: (label) => `DRY RUN: would migrate ${label} -> ${targetVersionColumn(label)}=${EXTERNAL_MCP_AAD_VERSION}`,
+  migratedUnit: (label) => `MIGRATED: ${label}`,
+  mismatch: (label) =>
+    `external-mcp AAD backfill: post-seal verification mismatch for ${label} — refusing to write a blob that cannot be proven to re-open correctly`,
+  dryRunSummary: (result) =>
+    `DRY RUN: ${result.migrated} blob(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`,
+  nothingToMigrate: () => "Nothing to migrate — every external_mcp_servers sealed blob already carries a bound AAD.",
+  done: (result) => `Done: ${result.migrated} blob(s) migrated, ${result.total} total pending.`,
+};
+
+export interface ExternalMcpAadBackfillDeps extends AadBackfillDeps {}
+export interface ExternalMcpAadBackfillResult extends AadBackfillResult {}
 
 /**
  * The core per-blob upgrade — see this file's header. `opts.apply === false` never touches the
@@ -129,102 +168,16 @@ export async function runExternalMcpAadBackfill(
   deps: ExternalMcpAadBackfillDeps,
   opts: { apply: boolean }
 ): Promise<ExternalMcpAadBackfillResult> {
-  const log = deps.log ?? ((message: string) => console.log(message));
-  const pending = loadPendingBlobs(deps.db);
-  log(`Found ${pending.length} sealed blob(s) at version 0 to migrate.`);
-
-  let migrated = 0;
-  for (const blob of pending) {
-    const label = `workspace=${blob.workspaceId} server=${blob.serverId} slot=${blob.slot}`;
-    if (!opts.apply) {
-      migrated += 1;
-      log(`DRY RUN: would migrate ${label} -> ${blob.slot === "env" ? "aad_version" : "oauth_aad_version"}=${EXTERNAL_MCP_AAD_VERSION}`);
-      continue;
-    }
-
-    const plaintext = await deps.sealer.open({ sealed: blob.sealed });
-    const identity = { workspaceId: blob.workspaceId, serverId: blob.serverId };
-    const aad = blob.slot === "env" ? buildExternalMcpEnvAad(identity) : buildExternalMcpOAuthAad(identity);
-    const activeKey = await deps.keyring.activeKey();
-    const sealed = await deps.sealer.seal({ plaintext, key: activeKey, aad });
-
-    const verifyPlaintext = await deps.sealer.open({ sealed, aad });
-    if (verifyPlaintext !== plaintext) {
-      throw new Error(
-        `external-mcp AAD backfill: post-seal verification mismatch for ${label} — refusing to write a blob that cannot be proven to re-open correctly`
-      );
-    }
-
-    const where = and(
-      eq(externalMcpServers.workspaceId, blob.workspaceId),
-      eq(externalMcpServers.serverId, blob.serverId)
-    );
-    if (blob.slot === "env") {
-      deps.db
-        .update(externalMcpServers)
-        .set({
-          sealedKeyId: sealed.keyId,
-          sealedCiphertext: sealed.ciphertext,
-          sealedNonce: sealed.nonce,
-          sealedAlg: sealed.alg,
-          aadVersion: EXTERNAL_MCP_AAD_VERSION,
-        })
-        .where(where)
-        .run();
-    } else {
-      deps.db
-        .update(externalMcpServers)
-        .set({
-          oauthSealedKeyId: sealed.keyId,
-          oauthSealedCiphertext: sealed.ciphertext,
-          oauthSealedNonce: sealed.nonce,
-          oauthSealedAlg: sealed.alg,
-          oauthAadVersion: EXTERNAL_MCP_AAD_VERSION,
-        })
-        .where(where)
-        .run();
-    }
-
-    migrated += 1;
-    log(`MIGRATED: ${label}`);
-  }
-
-  return { migrated, total: pending.length };
+  return runAadBackfill(deps, opts, { loadPending: loadPendingUnits, messages });
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  // Prove the database is really there BEFORE opening it: `openContentDb` creates and
-  // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
-  const dbPath = resolveExistingDbPath(args.dbPath);
-
-  if (!args.apply) {
-    // Read-only open: a dry run must never migrate or write the bootstrap watermark row (this
-    // file's own header, "Safety" — deferred to `backfill-media-provider-credential-aad.ts`).
-    const db = openContentDbReadOnly(dbPath);
-    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-    const sealer = new AesGcmSecretSealer(keyring);
-    const result = await runExternalMcpAadBackfill({ db, sealer, keyring }, { apply: false });
-    console.log(`DRY RUN: ${result.migrated} blob(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`);
-    return;
-  }
-
-  const db = openContentDb(dbPath);
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
-
-  const pendingCount = loadPendingBlobs(db).length;
-  if (pendingCount === 0) {
-    console.log("Nothing to migrate — every external_mcp_servers sealed blob already carries a bound AAD.");
-    return;
-  }
-
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
-  const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-external-mcp-aad" });
-  console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
-
-  const result = await runExternalMcpAadBackfill({ db, sealer, keyring }, { apply: true });
-  console.log(`Done: ${result.migrated} blob(s) migrated, ${result.total} total pending.`);
+  await runAadBackfillMain(process.argv.slice(2), {
+    defaultDbPath: DEFAULT_DB_PATH,
+    restorePointScopeId: "backfill-external-mcp-aad",
+    loadPending: loadPendingUnits,
+    messages,
+  });
 }
 
 main().catch((err) => {
