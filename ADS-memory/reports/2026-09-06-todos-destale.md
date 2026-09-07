@@ -69,3 +69,23 @@ Rewrote the whole 17-row matrix down to remaining-work rows only. Verified each 
   - "Replace the bounded source catalog with real installed/enabled inventories" — moot. `tool-catalog-composer-source.ts:10-25`: the source was deliberately unwired by owner decision 2026-08-21.
 - Folded the standalone "Coverage-gap note (2026-07-07 audit-of-parity)" paragraph into the sweep's own "still separately wanted" blockquote — same subject, was duplicated.
 
+---
+
+## Pass 3 — Active Working Items AW-1 … AW-7
+
+### Deleted (rule 3 — verified does not reproduce)
+- **AW-1 (mobile nav drawer clipping)** — the bug was described against theme `tovu-official`, which no longer exists: `ls content/themes/static/` returns `basic basic-2 tailark-dusk tailark-quartz-dark tailark-quartz-libre`, and the only remaining `tovu-official` strings are `NOTICE.md` attribution files plus a legacy name in `seed.ts`. `content/themes/static/basic/css/theme.css` exists and is guarded: `development/e2e/theme-visual.spec.ts:104-159` runs real geometry assertions at 390x844 and takes `home-mobile-390-drawer-open.png`.
+- **AW-4 (wide-screen content-page layout)** — same stale-theme premise; guarded by the `AW-4` block at `theme-visual.spec.ts:175-235` (2 page types x 3 widths). Its one residual — a true non-post `page-shell.html` page was never exercised — was **folded into AW-2** rather than dropped.
+
+### Reconciled: the AW-1 / AW-2 baseline contradiction the dispatch flagged
+`development/e2e/theme-visual.spec.ts-snapshots/` holds 5 baselines. Four are dated **Jul 15 16:56-16:58**; `home-mobile-390-drawer-open-chromium-darwin.png` is dated **Aug 30 21:41**. That is consistent, not contradictory: AW-1 said "add an open-drawer baseline once AW-1 is fixed", and the 2026-08-30 re-verification found there was nothing to fix, so the baseline was captured at that point alongside the new AW-1 guard block. The four stale baselines are a separate, still-open problem and are kept as such.
+
+### Rewritten
+| Entry | Disposition |
+|---|---|
+| **AW-2** | Rule 2 collapse. Harness half is **done and verified**: `development/playwright.config.ts:82` spawns `apps/website/src/index.ts` (the repoint landed in commit `d4c600b9`, "repoint 39 Playwright configs at apps/website/src"). The "all 4 pass clean" prose and the SETUP-DONE history were deleted. Kept as open: the 4 stale Jul-15 baselines, dev theme hot-reload, cross-platform baseline drift, AW-4's untested page type, and the closed-drawer `scrollWidth` quirk. 31 -> 25 lines but with no superseded prose. |
+| **AW-3** | Kept (both ADRs Accepted, spec slices genuinely open); trimmed to 5 lines. |
+| **AW-5** | Tier-1 theme names were stale — `column` and `tovu-official` are both gone from disk. AW-5a's paths all moved in the restructure and are now corrected: `render.ts`/`liquid-sandbox.ts`/`liquid-worker.ts` -> `apps/website/src/server/inbound/public-http/http/site/`; `theme.ts`/`liquid-allowlist.ts` -> `apps/website/src/features/theme/` (all five verified present). The `themes/dispatch/` demonstrator no longer exists; templated themes on disk are `content/themes/templated/{fashion-modern,storefront}`. Kept the one residual (VRT baseline for the `render_block` seam) and AW-5b unchanged. 21 -> 20 lines, all of it now true. |
+| **AW-6** | Rule 2 collapse. The CORRECTION was itself re-verified: `ADR-INDEX.md:31` reads "Accepted 2026-07-11". Superseded "Proposed / owner sign-off owed" prose deleted; kept the one open item (the ~50k-product faceted-catalog SQLite benchmark). 10 -> 6 lines. |
+| **AW-7** | Kept ⭐ and settled most of the 2026-08-30 `UNVERIFIED` note rather than carrying it forward. **Tier 3**: `apps/website/src/features/plugins/store/store-plugin.ts:81` declares its table through the core `dataModule` seam, and `__tests__/store-plugin.test.ts:4` states it "Proves the store plugin declares its table through the core dataModule seam (B: snapshot→DDL)" — so owned-tables + snapshot-before-change IS evidenced; only "live-verified, hand the owner the commands" is not. **Tier 1**: Contact Form shipped as `features/widgets/resolvers/contact-form.ts`, the widgets subsystem, not the plugin/`dataModule` subsystem this item is about — so the item stays open. **Tier 2**: zero hits for `readability`/`content.analyzer` under `apps/website/src/features/plugins/`, and the same pattern matches 5+ other files under `apps/website/src`, so the zero is real. |
+

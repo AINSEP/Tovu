@@ -184,207 +184,94 @@ backend ADR.
 > Master Build Inventory (§8 Theme System / §9 Plugin System overlap — de-dupe later if needed).
 > The ⭐ item (sample plugins) is the current **build-next**.
 
-### AW-1. Fix the mobile nav drawer (header) — via a visual regression test
-**Status: STALE / DOES NOT REPRODUCE (re-verified 2026-08-30).** This entry described theme
-`tovu-official`, which no longer exists in the repo. The live theme is `basic`, and `basic`'s mobile
-CSS (`content/themes/static/basic/css/theme.css`, `@media (max-width: 640px)`) already uses
-`.main-nav { position:absolute; top:100% }` inside the sticky header — i.e. the very "candidate fix"
-below. The cited selectors (`.nav-menu`, hard-coded `top: 3.7rem`) return ZERO hits repo-wide.
-Verified with real geometry assertions at 390x844, not screenshots: drawer top >= header bottom,
-every nav link clear of the header, CTA reachable, closes on toggle — all passed with no CSS change.
-Guarded now by the `AW-1` block in `development/e2e/theme-visual.spec.ts`. Historical text follows.
-**Status:** known bug, intentionally left unfixed until AW-2 (VRT) exists, so the test proves the bug
-and guards the fix. On narrow viewports (`< 52rem`) tapping the hamburger opens the drawer but its top
-edge doesn't line up with the sticky header bottom — first item ("Product") is clipped. Cause (confirm
-with the test): `.nav-menu` uses a hard-coded `top: 3.7rem` offset in `themes/tovu-official/styles.css`
-(`@media (max-width: 52rem)` block, ~line 226), which doesn't match real header height at every
-font-size/zoom. Candidate fixes: full-height drawer (`top:0;bottom:0`) w/ its own close affordance; or
-drive the offset from real header height (drawer inside sticky header + `top:100%`, or a CSS var); add a
-scrim + body-scroll-lock. **Acceptance:** 390×844 — hamburger opens a drawer whose top meets the header
-cleanly, no clipped items, all items+CTA reachable, closes on toggle; VRT captures it and stays green.
+### AW-2. Visual regression testing — harness works; 4 baselines are stale
 
-### AW-2. Learn visual regression testing (the skill that fixes AW-1 + AW-4)
-**CORRECTION 2026-08-30: the "all 4 pass clean" claim below was FALSE on this repo layout.** The
-harness never booted: `development/playwright.config.ts` pointed at `src/index.ts`, which moved to
-`apps/website/src/index.ts` in the apps/website restructure. **39 OTHER `playwright.*.config.ts`
-files had the same dead path — the entire e2e suite was non-functional on this branch.** All 40 are
-now repointed and one was re-run end to end to confirm the server boots (1 passed, 25s). Separately,
-the 4 original baselines (`home-desktop`, `home-wide`, `home-mobile-390`, `post-welcome`) now FAIL
-against fresh renders — real content/CSS drift since capture, deliberately NOT regenerated. That
-needs its own look. Historical text follows.
-**Status: SETUP DONE (2026-07-15).** `@playwright/test` + chromium installed; `playwright.config.ts`
-boots a fresh `PORT=3999 TOVU_DB=memory node --import tsx src/index.ts` per run (`reuseExistingServer`
-left off, so a stale long-running dev server can never serve these tests — confirmed the fresh-boot
-gotcha below doesn't apply). `e2e/theme-visual.spec.ts` + committed baselines under
-`e2e/theme-visual.spec.ts-snapshots/`: `home-desktop.png` (1280, full page), `home-wide.png` (2560, full
-page — guards the band rhythm), `home-mobile-390.png` (390, full page, **drawer CLOSED only** — AW-1's
-open-drawer clipping bug was deliberately NOT baselined, per this section's own plan; add an
-open-drawer baseline once AW-1 is fixed), `post-welcome.png` (`/welcome`, 1280). Anti-flake: reuses the
-theme's own baked-in `prefers-reduced-motion` CSS via `page.emulateMedia`, bounded `document.fonts.ready`
-wait, pinned viewport/deviceScaleFactor, `maxDiffPixelRatio: 0.02`, headless. `npm run test:visual` runs
-the suite; all 4 pass clean against their own baselines. **New finding while building this (not
-fixed, test-infra only):** the mobile-390 baseline needed `clip` (not a bare `fullPage` shot) because
-the *closed* drawer (`position:fixed; transform:translateX(110%)`) still contributes to
-`document.documentElement.scrollWidth` at mobile widths (confirmed 742px vs 390px clientWidth) — an
-unclipped screenshot bled the off-canvas "Product" dropdown into the "closed drawer" baseline. This is a
-separate, previously-undocumented mobile horizontal-overflow quirk from AW-1's clipping bug; worth a
-look whenever AW-1 is picked up. Also flagging the still-open follow-up this surfaced: **add theme
-hot-reload in dev** (the server caches the theme at boot with no hot-reload of `themes/**` — VRT's fresh
-per-run `webServer` boot sidesteps it, but dev iteration still eats a manual restart per theme edit).
-Next: AW-1 and AW-4 fixes are now safely guardable by this suite but neither was done here (both stay
-their own separate items). Stretch, still open: cross-platform baseline drift (Mac vs CI Linux) → pinned
-Docker image or hosted service (Chromatic/Percy/`reg-suit`).
+**Harness fixed 2026-08-30.** `development/playwright.config.ts` (and 39 sibling
+`playwright.*.config.ts` files) pointed at `src/index.ts`, dead since the apps/website restructure —
+the entire e2e suite was non-functional on this branch. All 40 are repointed
+(`playwright.config.ts:82` now spawns `apps/website/src/index.ts`) and one was re-run end to end.
+`npm run test:visual` runs `development/e2e/theme-visual.spec.ts`.
+
+**Still open:**
+- The 4 original baselines (`home-desktop`, `home-wide`, `home-mobile-390`, `post-welcome`, all
+  captured 2026-07-15) **fail against fresh renders** — real content/CSS drift since capture,
+  deliberately NOT regenerated. Needs its own look: decide per baseline whether the drift is the
+  intended design or a regression, then re-approve. (`home-mobile-390-drawer-open`, added 2026-08-30
+  with the AW-1 guard, is current.)
+- **Theme hot-reload in dev**: the server caches the theme at boot with no `themes/**` watch. VRT's
+  fresh per-run `webServer` sidesteps it, but dev iteration still costs a manual restart per edit.
+- **Cross-platform baseline drift** (Mac vs CI Linux) — pinned Docker image or a hosted service
+  (Chromatic/Percy/`reg-suit`). Stretch.
+- **Coverage gap inherited from the AW-4 check:** a true non-post `page-shell.html` page was never
+  exercised (none seeded under `TOVU_DB=memory`); wide-screen safety there is inferred from
+  byte-identical CSS, not directly run.
+- **Mobile horizontal-overflow quirk** (test-infra only, previously undocumented): the *closed*
+  drawer (`position:fixed; transform:translateX(110%)`) still contributes to
+  `document.documentElement.scrollWidth` at mobile widths (742px vs 390px clientWidth), so the
+  mobile baseline needs `clip` rather than a bare `fullPage` shot.
 
 ### AW-3. Theme trust model + theme bundles — **DECIDED** (pointer)
 **ADR-019 ACCEPTED** (theme bundles / plugin deps) + **ADR-020 ACCEPTED** (theme capability tiers:
-Declarative / Templated=LiquidJS / Code via `theme.json.tier`). Themes stay pure data; behavior lives in
-plugins. **Still open:** the standalone spec slices (theme bundles; theme tiers + LiquidJS renderer +
-sandbox — see AW-5a C6 hardening).
-
-### AW-4. Fix content-page (entry) wide-screen layout — via a visual regression test
-**Status: STALE / DOES NOT REPRODUCE (re-verified 2026-08-30).** Same stale-theme problem as AW-1.
-In `basic`, `.wrap` and `.post-detail` sit on the SAME element (`<article class="post-detail wrap">`)
-and `.post-detail` carries `margin: 0 auto` — there is no un-centered inner box. Verified across
-2 page types x 3 widths (1280/1920/2560): left and right gutters within 20px, column not collapsed.
-All 6 passed with no CSS change. Guarded by the `AW-4` block in `development/e2e/theme-visual.spec.ts`.
-GAP: a true non-post `page-shell.html` page could not be tested (none seeded under TOVU_DB=memory);
-inferred safe from byte-identical CSS, not directly run. Historical text follows.
-**Status:** known bug, intentionally left unfixed until AW-2 (write the test first). On a content page
-(`/about`, any `/:slug`) at ≥~1600px (obvious at 2560px), nav + footer go full-width but the article
-column is anchored left with the right half empty — stretching just grows white space. Cause (verified):
-`tovu/entry-content` renders `.wrap`(max-width 75rem, centered) → `article.entry` → `.prose`(max-width
-42rem, **no auto margins**, `themes/tovu-official/styles.css` ~line 187), so the article is left-aligned
-inside the centered wrap. Candidate fixes: `article.entry { max-width:46rem; margin:0 auto }` (and/or a
-`.wrap--narrow`); optional full-bleed band to match home rhythm; check `column` theme too. **Acceptance:**
-at 1280/1920/2560 the article is a centered readable column with balanced gutters (no dead right half),
-baselined per theme. Lesson: **verify a fix on every page type + width it claims to cover, not just the
-one page you were looking at** (home looked fixed; content pages were never checked).
+Declarative / Templated=LiquidJS / Code, via `theme.json.tier`). Themes stay pure data; behavior
+lives in plugins. **Still open:** the standalone spec slices — theme bundles, and theme tiers +
+LiquidJS renderer + sandbox (see AW-5a).
 
 ### AW-5. Build a theme at each capability tier (owner roadmap)
-- **Tier 1 — basic declarative theme: DONE.** `column` is the barebones starter; `tovu-official` the
-  flagship. (`signal` removed 2026-07-08 as redundant.)
-- **AW-5a. Tier-2 LiquidJS theme — SPIKE DONE (2026-07-08).** Renderer (LiquidJS 10.27.1, pin ≥10.26.0)
-  wired into `src/server/http/site/render.ts` behind `theme.json.tier:"templated"`, over the existing
-  component registry via `{% render_block %}` + `{{content|raw}}`; autoescape ON + zero fs = the safety
-  baseline; loader (`src/features/theme/theme.ts`) reads `tier` + discovers `.liquid`. Demonstrator
-  `themes/dispatch/` verified live (home + `/welcome` 200, no unrendered tags, titles escaped, content
-  raw, C7 link-sanitization intact). **C6 HARDENING DONE (2026-07-15).** Tag/filter allowlist
-  (`src/features/theme/liquid-allowlist.ts`, AST-walked, enforced at `loadTheme()` publish-time lint and
-  again defensively at render time) + render isolation (`liquid-worker.ts` runs in a `worker_threads`
-  worker spawned per render by `liquid-sandbox.ts`, bounded by a wall-clock timeout and V8
-  `resourceLimits`, with an explicit no-op `fs` adapter closing LiquidJS's default real-filesystem
-  access) + template lint-before-publish, all wired and covered by tests (nested-loop CPU timeout and
-  heap-limit termination both verified to actually fire, not just compile). Still add a VRT baseline for
-  the `render_block` seam once AW-2 lands.
-- **AW-5b. Tier-3 JS-in-theme (Framer Motion) — LATER.** Framework-agnostic (Astro or Next); client-side
-  islands under strict CSP, build-time compiled → static HTML + hydrated islands. **Blocked on the
-  Tier-3 isolation design (its own future ADR):** separate cookie-less origin + CSP `connect-src 'none'`
-  (ADR-020 §6 amendment — same-origin theme JS can steal the admin session). Trust-based tier, explicit
-  "this runs JS on your site" consent.
+- **Tier 1 — declarative: DONE.** Current static themes are `basic`, `basic-2`, `tailark-dusk`,
+  `tailark-quartz-dark`, `tailark-quartz-libre` under `content/themes/static/`. (The `column` and
+  `tovu-official` themes this entry used to name no longer exist on disk.)
+- **AW-5a. Tier-2 LiquidJS — DONE (spike 2026-07-08, C6 hardening 2026-07-15).** Renderer wired into
+  `apps/website/src/server/inbound/public-http/http/site/render.ts` behind `theme.json.tier:
+  "templated"`; loader `apps/website/src/features/theme/theme.ts` reads `tier` and discovers
+  `.liquid`. Hardening: AST-walked tag/filter allowlist
+  (`apps/website/src/features/theme/liquid-allowlist.ts`, enforced at `loadTheme()` publish-time lint
+  and again at render time) plus render isolation (`liquid-worker.ts` in a `worker_threads` worker
+  spawned per render by `liquid-sandbox.ts`, bounded by wall-clock timeout and V8 `resourceLimits`,
+  with a no-op `fs` adapter closing LiquidJS's default filesystem access) — CPU-timeout and
+  heap-limit termination both verified to actually fire. Templated themes on disk today:
+  `content/themes/templated/{fashion-modern,storefront}` (the `dispatch` demonstrator is gone).
+  **Residual:** add a VRT baseline for the `render_block` seam.
+- **AW-5b. Tier-3 JS-in-theme — LATER.** Framework-agnostic (Astro or Next); client-side islands
+  under strict CSP, build-time compiled to static HTML + hydrated islands. **Blocked on the Tier-3
+  isolation design (its own future ADR):** separate cookie-less origin + CSP `connect-src 'none'`
+  (ADR-020 §6 amendment — same-origin theme JS can steal the admin session). Trust-based tier with
+  an explicit "this runs JS on your site" consent step.
 
 ### AW-6. Plugin extensibility ceiling (plugins owning tables) — **DECIDED** (pointer)
-**CORRECTION (re-verified 2026-08-30): ADR-023 is Accepted, not Proposed.** `ADR-INDEX.md` line 31
-reads "Accepted 2026-07-11 (extends 003/022; relates 024/015/021/008/011; resolves TODO §6; from
-2-round swarm debate + 3-round `/audit-work` `TM-adr023-dataModule-001`, round-3 unanimous PASS Codex
-9.0/agy 10.0)" — the owner DRAFT→ACCEPTED sign-off this entry says is still owed already happened.
-Historical text follows, evidence-corrected: ADR-023 (Core-Mediated Plugin Data Modules) — **Accepted**
-(2-round swarm debate picked core-mediated declarative tables + consent model; split-finalized per
-ADR-024). Plugins may own real `p_{pluginId}__*` tables via schema-as-data core executes;
-snapshot-before-DDL; retain-on-uninstall. **Remaining, not reverified this pass:** owed evidence for
-"commerce-grade" = a ~50k-product faceted-catalog benchmark on end-user SQLite.
+**ADR-023 (Core-Mediated Plugin Data Modules) is ACCEPTED**, 2026-07-11 (`ADR-INDEX.md` line 31;
+2-round swarm debate + 3-round `/audit-work` `TM-adr023-dataModule-001`, round-3 unanimous PASS).
+Plugins may own real `p_{pluginId}__*` tables via schema-as-data that core executes;
+snapshot-before-DDL; retain-on-uninstall. **Still open:** the owed evidence for "commerce-grade" — a
+~50k-product faceted-catalog benchmark on end-user SQLite.
 
 ### ⭐ AW-7. HIGH PRIORITY — build one sample plugin at each tier (build-next)
-Approved 2026-07-08. Prove the plugin design (ADR-024 accepted; ADR-023/025 proposed) in real running
-code, the way the Tier-2 LiquidJS spike surfaced real seams. Each sample is genuinely wanted *and*
-stress-tests a different part of the design.
+Approved 2026-07-08. Prove the plugin design in real running code, the way the Tier-2 LiquidJS spike
+surfaced real seams. Each sample is genuinely wanted *and* stress-tests a different part of it.
 
 | Tier | Sample | Why users want it | What it stress-tests |
 |---|---|---|---|
-| **1 — declarative** | **Contact form** (submissions as core entries; email/webhook on submit) | forms = top-3 install category | the zero-code surface **and** forces ADR-024 audit-condition #1: it can't send/notify until core ships the **core-mediated primitives** (mail adapter, webhook dispatch, form-submission sink) |
-| **2 — sandboxed code** | **SEO / content analyzer** (readability, TOC, reading-time) | SEO = biggest plugin category | running stranger code safely: pure computation, no fs/network → cleanest test of the frozen async/serializable ABI. Build the **ABI-boundary slice (worker/RPC), NOT the real `utilityProcess` sandbox** (deferred, ADR-024 §4) |
-| **3 — trusted, full access** | **Store / commerce** (products→cart→orders→checkout→payments) | the CMS-choice driver; Tovu's thesis | everything: a plugin that **owns real tables** (ADR-023 `dataModule`), external network, heavy work — if "plugins can own tables" has a flaw, a store finds it |
+| **1 — declarative** | **Contact form** (submissions as core entries; email/webhook on submit) | forms = top-3 install category | the zero-code surface **and** ADR-024 audit-condition #1: it cannot send/notify until core ships the **core-mediated primitives** (mail adapter, webhook dispatch, form-submission sink) |
+| **2 — sandboxed code** | **SEO / content analyzer** (readability, TOC, reading-time) | SEO = biggest plugin category | running stranger code safely: pure computation, no fs/network, so the cleanest test of the frozen async/serializable ABI. Build the **ABI-boundary slice (worker/RPC), NOT the real `utilityProcess` sandbox** (deferred, ADR-024 §4) |
+| **3 — trusted, full access** | **Store / commerce** (products→cart→orders→checkout→payments) | the CMS-choice driver; Tovu's thesis | everything: a plugin that **owns real tables** (ADR-023 `dataModule`), external network, heavy work |
 
-**Build order:** (1) **Tier-3 thin store slice** = products → own table → listed on site (tests the
-irreversible foundation — the plugin↔Tovu ABI + plugin-owned tables w/ snapshot-before-schema-change —
-on ~200 lines); (2) **Tier-1 contact form** (exposes the missing core-mediated primitives as a concrete
-"dead without them"); (3) **Tier-2 content analyzer** (proves stranger-code survives the frozen contract,
-no sandbox). Optional pre-check: a ~1hr throwaway Tier-3 plugin against the ABI to feel whether the frozen
-contract is painful. **Acceptance:** three plugins run + live-verified (hand owner the commands, don't
-auto-run); Tier-3 slice proves owned-tables end-to-end w/ snapshot-before-change; Tier-1 yields the
-written list of core-mediated primitives core must build; Tier-2 runs over the ABI via worker/RPC with a
-written note on any DX pain.
+**Status, re-verified 2026-09-06:**
+- **Tier 3 — substantially built.** `apps/website/src/features/plugins/store/store-plugin.ts`
+  declares its table through the core `dataModule` seam with snapshot→DDL and is covered by
+  `__tests__/store-plugin.test.ts`. `lipay/`, `deploy/`, and `supabase-mcp/` are real plugin code
+  too. Not yet evidenced: the "live-verified, hand the owner the commands" half of the acceptance.
+- **Tier 1 — shipped through the WRONG subsystem for this item.**
+  `apps/website/src/features/widgets/resolvers/contact-form.ts` implements Contact Form as a
+  **widget resolver** under ADR-047/SPEC-043, a thin adapter over `src/forms/` + `MailerPort` — not
+  the plugin/`dataModule` system AW-7 is about, so it does not yield the written list of missing
+  core-mediated primitives this item exists to produce.
+- **Tier 2 — not started.** No content-analyzer/SEO plugin exists (`readability` /
+  `content.analyzer` under `apps/website/src/features/plugins/`: zero hits, while the same pattern
+  matches freely elsewhere in `apps/website/src`).
 
-**UNVERIFIED against this item's own acceptance criteria (checked 2026-08-30).** Real code exists that
-covers similar ground, but through a different subsystem than the one this item specifies, so its status
-is left as-is rather than marked done or stale from a partial look: `apps/website/src/features/plugins/`
-now has `store/` (Tier-3, `store-plugin.ts` + tests), `lipay/`, `deploy/`, and `supabase-mcp/` — real
-plugin-system code, not stubs. But `features/widgets/resolvers/contact-form.ts` shows the Contact Form
-piece shipped as a **widget resolver** under ADR-047/SPEC-043 ("Contact Form ships in v1 (thin adapter
-over the already-built `src/forms/`+`MailerPort`)" per `ADR-047`'s own text) — the **widgets** system, not
-the **plugins**/`dataModule` system AW-7 is specifically about. No Tier-2 sandboxed-code
-content-analyzer/SEO plugin was found (`rg` for `readability|content.analyzer` under `features/plugins`:
-zero hits). Whether `store/` satisfies this item's Tier-3 acceptance bar (owned tables, snapshot-before-
-schema-change, live-verified) was not checked line-by-line — that needs its own look before this item's
-⭐ HIGH PRIORITY status changes.
-
----
-
-## Completed (WordPress Specs)
-All WordPress spec work is complete. See `wordpress_specs/` for the full library (53 files).
-- ✓ wp-includes (20 specs)
-- ✓ wp-content (overview)
-- ✓ wp-admin (12 specs including users)
-- ✓ wp-root (3 condensed specs + 12 originals archived)
-- ✓ Plugin & Theme Authoring Structure
-- ✓ Headless CMS paradigm
-
-## Completed (Architecture)
-- ✓ `tovu-architecture.md` — combined, renamed Forge→Tovu, includes appendix of all general patterns
-- ✓ `competitor-analysis.md` — Ghost, Payload, Directus breakdown
-- ✓ `tovu/` scaffold initialized (TypeScript, Express, tests, modular structure)
-- ✓ `tovu/` conventions captured (`PROJECT_MEMORY.md`, local `AGENTS.md`, module `INFO.md`)
-
-Prioritization source: `tovu-architecture.md` section 13 (User Friction Coverage).
-
----
-
-## Canonical Architecture Decisions (ADRs)
-
-This checklist is the **capability backlog**, not the decision record. Where an ADR
-exists, it is the source of truth and supersedes the loose wording below. Index:
-`ADS-memory/reports/architecture/ADR-INDEX.md`.
-
-Which ADR owns which inventory area:
-- **§1 Kernel / §10 Server** — ADR-001 (agent-native modular monolith), ADR-009
-  (decoupling: sync calls + outbox + hooks).
-- **§3 Data Layer** — ADR-006 (ports need two adapters), ADR-007 (`workspaceId`
-  everywhere). **Site content lives in a per-site `content.db` behind
-  `SiteStorePort`** (better-sqlite3 now → Supabase later) — ADR-012 + ADR-013.
-- **§5 Storage/Media** — media blobs under the site folder's `uploads/`, metadata
-  rows in that site's `content.db` (ADR-012).
-- **§7 Feature Modules** — the `features/*` slices are the site content model
-  (post/page/media/presentation), scoped per ADR-007/012.
-- **§8 Theme System** — ADR-010 (declarative themes by default; code = trusted
-  mode), ADR-002 (React blessed renderer). Two planes: site theme vs app chrome —
-  see `admin-sitemap.md §1`.
-- **§9 Plugin System** — ADR-003 (plugins never run DDL), ADR-004 (prebuilt ESM +
-  signed manifest), ADR-005 (SDK compatibility).
-- **§11 Admin UI** — IA in `admin-sitemap.md`; per-screen UI brief in
-  `docs/design/admin-sections-ui-brief.md`; rail pages in
-  `docs/design/rail-pages-ui-brief.md`.
-- **§12 Agentic UI / AI Layer** — **ADR-013**: one CopilotKit client + one AG-UI
-  daemon agent; `tools.ts` registry with an execution `surface` (frontend/data);
-  agent detection ported from open-design; composer rebuilt headless. Paradigm note:
-  `ADS-memory/docs/architecture/appendices/A12-tool-use-first-architecture.md`.
-- **§13 Protocols** — ADR-011 (two deployment topologies; open-design desktop host),
-  ADR-013 (AG-UI/MCP surface, tool exposure).
-
-A "site" everywhere below = **a folder (install dir) with its own `content.db` +
-`uploads/` + themes/plugins**, instantiated from a versioned template (ADR-012).
-
----
-
-## Learn (What You Need to Understand)
+**Remaining build order:** (1) finish Tier-3 live verification; (2) **Tier-1 contact form as a real
+plugin**, to expose the missing core-mediated primitives as a concrete "dead without them";
+(3) **Tier-2 content analyzer** over the ABI via worker/RPC, no sandbox, with a written note on any
+DX pain.
 
 ### Core architecture fundamentals
 - Ports/adapters and dependency inversion (how core stays swappable)
