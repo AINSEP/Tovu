@@ -13,6 +13,7 @@ Status legend: **CONFIRMED** = traced reachable path from untrusted input to sin
 ## 0. Progress log (append-only, newest last)
 
 - 00:01 — report created, first commit.
+- 00:22 — boot token (`15548bef`) read end to end: `boot-session-token.ts`, `dev-auth.ts:391-427`, `serve.ts:259-283`, `desktop-auth.cjs`, `tovu-server.cjs`. Verdict below (§3a). INV-05 fix commit read; route file next.
 - 00:12 — desktop read at frozen SHA: `project-delete-guard.cjs`, `project-ipc.cjs`, `main.cjs`, `desktop-auth.cjs`, `tovu-server.cjs`, `keyed-serializer.cjs`, `preload.mts`, `site-registry.cjs` (partial). D-04/D-05 verdicts below.
 
 ## 1. Codex claim verification (priority 1)
@@ -40,8 +41,27 @@ _(pending)_
 ### Sweep — authz against stale / attacker-influenceable record (INV-05 shape)
 _(pending)_
 
+## 1a. Loopback boot token (`15548bef`) + desktop auto-auth (`2aa317ab`) — what holding the token grants
+
+Read: `apps/website/src/features/identity/boot-session-token.ts` (whole), `apps/website/src/server/inbound/admin-http/dev-auth.ts:258-427`, `apps/website/src/cli/commands/serve.ts:259-283`, `apps/desktop/src/desktop-auth.cjs` (whole), `apps/desktop/src/tovu-server.cjs:23-60,295-334,426-522`, `apps/desktop/main.cjs:407-488`.
+
+**What the token grants:** one redemption → `mintSessionForPrincipal(deps, await deps.ownerPrincipalId)` (`dev-auth.ts:403-410`) → an ordinary revocable `sessions` row for the **seeded owner principal** of `deps.workspaceId`, with the library's default lifetime (the desktop-auth header says 30 days). It is a full-owner admin session, not a scoped one. That is the intended design; no bypass flag exists downstream.
+
+**Scoping, verified in code (all hold):**
+- Minted only when `--emit-boot-token` is on argv (`serve.ts:280`), inside the `listening` callback, so never for a failed boot; every other `tovu serve` has the route present but permanently closed (`redeem` on an unarmed store → `false` for every input, `boot-session-token.ts:95`).
+- Single-use, digest+`timingSafeEqual`, failed redeem does not burn (`:94-106`).
+- Route checks `req.socket.remoteAddress ∈ {127.0.0.1, ::1, ::ffff:127.0.0.1}` BEFORE looking at the token (`dev-auth.ts:275-278, 393`); `X-Forwarded-For`/`req.ip` not consulted.
+- Token travels on the child's stdout pipe only (`stdio: ["ignore","pipe","pipe"]`, `tovu-server.cjs:450`); parent redacts it from mirrored output and from every `describeBootFailure` error string (`:38-51, 463, 485, 516`). Never in env, never on disk.
+- Parent redeems (`authenticateSiteSession`, `main.cjs:407-432`) inside `startSiteBackend` BEFORE any `BrowserWindow`/`<webview>` exists, so an XSS in the site's admin (the `<webview>` guest is loopback and could POST to the route) finds the token already spent. If the parent's redeem fails on a transport error the token stays armed for the child's lifetime, but nothing else holds it.
+- Reuse guard (`hasActiveSessionCookie`, `desktop-auth.cjs:192-195`) skips the mint when a `tovu_session` cookie already sits in the partition → `emitBootToken: false` → nothing minted.
+
+**Observations (not defects in the token itself):**
+- **SEC-03 (Low, PLAUSIBLE — pre-existing, not introduced in window, but the fleet-UI default makes it the default desktop experience):** `serve.ts:259` `app.listen(port)` binds ALL interfaces. Every desktop-spawned site admin (login form + `/api/assistant` daemon proxy) is reachable from the LAN. The boot-session route is loopback-gated, so the token is safe; the exposure is the ordinary admin login surface (rate-limited `LOGIN_STRICT`) on a machine whose operator never asked to serve a network. Commit `15548bef`'s own message acknowledges the bind. Recommend `app.listen(port, "127.0.0.1")` in the desktop-spawned path (the shell already hardcodes `http://127.0.0.1:${port}` as origin, `tovu-server.cjs:491`).
+- **SEC-04 (Low, CONFIRMED):** `TOVU_AGENT_DAEMON_TOKEN` is minted per launch into the child's ENVIRONMENT (`tovu-server.cjs:299-301`), and `desktop-auth.cjs:22-24` itself states the reason env is unsuitable for a secret ("readable from the process list by anything running as this user"). The same reasoning was applied to the boot token and not to the daemon token. What the daemon token grants is examined in §1b (daemon-auth). Not written to disk by anything in this repo — the "launcher at 0700 baking a bearer" generation path is Tovu-Runner's, not found here: no `writeFileSync`/`chmod 0o700` of a token exists under `apps/desktop`, `development/scripts`, or `apps/website/src` (grep for `0o700|chmodSync|launcher` — only `agent-plugins/install.ts` dirs, `webhooks/keyring.env.ts` key file at 0600, `atomic-write.ts`).
+- No rate limiter on `/auth/boot-session` (login has `LOGIN_STRICT`). Irrelevant at 256-bit entropy and loopback-only; noting for completeness, not a finding.
+
 ## 2. Codex `pending` commits (priority 2)
-_(pending)_
+_(in progress — §1b daemon-auth, INV-05 route file, MCP federation next)_
 
 ## 3. Rest of window (priority 3)
 _(pending)_
@@ -52,6 +72,8 @@ _(pending)_
 |---|---|---|---|---|
 | SEC-01 (=D-04) | High | CONFIRMED | `apps/desktop/src/project-delete-guard.cjs:104-108`, `project-ipc.cjs:164-166` | Erase authorized by a stale path-keyed row; live directory identity never checked |
 | SEC-02 (=D-05) | Medium | CONFIRMED | `apps/desktop/src/project-ipc.cjs:151-167` vs `:205-211`; `main.cjs:569-576` | Delete bypasses the per-site serializer Start uses; rm under a booting child |
+| SEC-03 | Low | PLAUSIBLE | `apps/website/src/cli/commands/serve.ts:259` | Desktop-spawned `tovu serve` binds all interfaces; admin + daemon proxy reachable from LAN |
+| SEC-04 | Low | CONFIRMED | `apps/desktop/src/tovu-server.cjs:299-301` | Daemon bearer token passed via child env, contradicting the boot-token rationale in `desktop-auth.cjs:22-24` |
 
 
 ## 5. Open questions for the owner
