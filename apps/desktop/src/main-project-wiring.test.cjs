@@ -61,7 +61,9 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   // One named constant, checked at both call sites. Two copies of the same `path.join` would pass a
   // looser test today and silently diverge the moment either moved.
   assert.match(source, /migrateLegacyDismissals\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR\)/);
-  assert.match(source, /seedDevFallbackProject\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\)/);
+  // The classifier argument is pinned by its own test above; this one is about the DIRECTORY, so
+  // it matches whichever classifier form is passed rather than restating that decision here.
+  assert.match(source, /seedDevFallbackProject\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
   assert.match(source, /const DEV_FALLBACK_SITE_DIR = path\.join\(REPO_ROOT, "sites", "tovu-com"\)/);
 });
 
@@ -88,4 +90,29 @@ test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot"
   // A value would freeze the list at registration time, so a site opened during the session would
   // never be found by a later rescan — the exact staleness the rescan button exists to cure.
   assert.match(source, /recentSiteDirs:\s*\(\)\s*=>\s*existingRecentSiteDirs\(/);
+});
+
+test("the two bulk site scans in the boot chain use the NON-throwing classifier", () => {
+  // D-01. `classifySiteDir` throws by design, for the operator-picked-folder path where the dialog
+  // shows the error. Both boot-time scans run inside the `whenReady()` chain whose only handler is
+  // `reportBootFailure`, and before `openFleetWindow()` — so one unreadable candidate used to show
+  // a dialog and quit, with no renderer for the Rescan button to live in.
+  //
+  // Source text rather than behaviour, for this file's stated reason. It is still the check that
+  // matters: `site-dir-store.cjs` and `project-registry.cjs` are behaviourally covered, and what
+  // only main.cjs can get wrong is handing them the throwing form.
+  assert.match(source, /seedDevFallbackProject\(\s*fleetCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
+    "seedDevFallbackProject must be given the non-throwing classifier");
+  assert.match(source, /^\s*classifySiteDir: classifySiteDirSafely,$/m,
+    "projectDeps.classifySiteDir (which rescanProjects scans with) must be the non-throwing classifier");
+});
+
+test("describeRejectedDefault answers the 'unreadable' verdict the safe classifier can now return", () => {
+  // The unwired-call-site half of the same change: `resolveDevFallback` can now report
+  // `kind: "unreadable"`, and that arm carries no `missing` array — the existing code path does
+  // `rejectedDefault.missing.join(...)` unconditionally once past "empty", which would throw on
+  // undefined while building the very dialog that explains why the site could not be opened.
+  const body = source.slice(source.indexOf("function describeRejectedDefault("));
+  assert.match(body.slice(0, body.indexOf("\n}")), /"unreadable"/,
+    "describeRejectedDefault must handle the unreadable kind before it reaches .missing.join()");
 });

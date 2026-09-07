@@ -21,6 +21,7 @@ const {
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,
+  classifySiteDirSafely,
   resolveDevFallback,
   initSiteDir,
   resolveOrInitSiteDir,
@@ -478,4 +479,46 @@ test("initSiteDir creates a real, servable site through Tovu's actual CLI", asyn
   assert.equal(classifySiteDir(target), "site");
   assert.equal(fs.existsSync(path.join(target, "content.db")), true);
   assert.equal(JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8")).name, "Created By Test");
+});
+
+test("classifySiteDirSafely answers 'unreadable' where classifySiteDir throws, and agrees everywhere else", () => {
+  const base = tempDir();
+  const notADirectory = path.join(base, "a-plain-file");
+  fs.writeFileSync(notADirectory, "x");
+
+  assert.throws(() => classifySiteDir(notADirectory), { code: "ENOTDIR" }, "the picker path must keep throwing — an operator who chose this folder needs the error");
+  assert.equal(classifySiteDirSafely(notADirectory), "unreadable");
+
+  const site = fakeSiteDir();
+  const empty = tempDir();
+  assert.equal(classifySiteDirSafely(site), classifySiteDir(site));
+  assert.equal(classifySiteDirSafely(empty), classifySiteDir(empty));
+});
+
+test("existingRecentSiteDirs skips a remembered path that is now a FILE instead of aborting", () => {
+  // D-01, arm 1 — and the one with no guard at all. This list is `projectDeps.recentSiteDirs`,
+  // called from `rescanProjects` inside the `whenReady()` chain whose only handler is
+  // `reportBootFailure`: one bad MRU entry used to quit the app before any window existed.
+  const statePath = tempStatePath();
+  const alive = fakeSiteDir();
+  const replacedByAFile = path.join(tempDir(), "was-a-site-now-a-file");
+  fs.writeFileSync(replacedByAFile, "the operator replaced their site folder with a file");
+
+  rememberSiteDir(statePath, replacedByAFile);
+  rememberSiteDir(statePath, alive);
+
+  assert.deepEqual(existingRecentSiteDirs(statePath), [alive]);
+});
+
+test("resolveDevFallback reports an unreadable candidate as rejected rather than throwing", () => {
+  // D-01, arm 3: own-server mode's `resolveStartupSiteDirs` runs this in the same boot chain. A
+  // candidate nobody picked must be turned DOWN, not allowed to take the launch with it.
+  const notADirectory = path.join(tempDir(), "sites-tovu-com-is-a-file-now");
+  fs.writeFileSync(notADirectory, "x");
+
+  const resolved = resolveDevFallback(notADirectory);
+
+  assert.equal(resolved.useDir, null);
+  assert.equal(resolved.rejected.kind, "unreadable");
+  assert.equal(resolved.rejected.dir, notADirectory);
 });

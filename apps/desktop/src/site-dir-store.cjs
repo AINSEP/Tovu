@@ -96,7 +96,7 @@ function rememberSiteDir(statePath, dir) {
  * @complexity O(n) stat calls, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
 function existingRecentSiteDirs(statePath) {
-  return readDesktopState(statePath).recentSiteDirs.filter((dir) => classifySiteDir(dir) === "site");
+  return readDesktopState(statePath).recentSiteDirs.filter((dir) => classifySiteDirSafely(dir) === "site");
 }
 
 /**
@@ -130,6 +130,38 @@ function classifySiteDir(dir) {
   if (missing.length === 0) return "site";
   if (missing.length === 1) return "incomplete";
   return fs.readdirSync(dir).length === 0 ? "empty" : "occupied";
+}
+
+/**
+ * {@link classifySiteDir}'s answer, or `"unreadable"` in place of the throw — the classifier as a
+ * BULK-SCAN predicate rather than as an operator-picked-folder verdict.
+ *
+ * D-01, and the reason both forms exist. `classifySiteDir` was written for one folder the operator
+ * chose in a dialog, where throwing is exactly right: the picker catches it and shows them why
+ * their folder cannot be used. It was then reused, unchanged, as the filter predicate of two bulk
+ * scans ({@link existingRecentSiteDirs} and `project-registry.cjs`'s `discoverSiteDirs`) — and a
+ * predicate that throws turns "one candidate out of forty is unreadable" into "the whole list
+ * fails". Both scans run inside `main.cjs`'s `app.whenReady()` chain, whose only handler is
+ * `reportBootFailure`, and both run BEFORE any window is opened: one plain file where a remembered
+ * site dir used to be, or one EACCES directory under `<repo>/sites`, showed the operator a dialog
+ * and quit — with no way to fix it from inside the app, since the Rescan button never got a
+ * renderer to live in.
+ *
+ * So this is the deliberate split rather than a change of contract: the picker path keeps the
+ * throw, and every list filter asks this instead. Callers that filter to `"site"` reject
+ * `"unreadable"` for free; callers that report a rejection (`resolveDevFallback`) name it.
+ *
+ * @returns {@link classifySiteDir}'s own values, plus `"unreadable"` when the directory cannot be
+ *   examined at all — EACCES on an unreadable directory, ENOTDIR where a file has replaced one,
+ *   ELOOP on a symlink cycle.
+ * @complexity same as {@link classifySiteDir}.
+ */
+function classifySiteDirSafely(dir) {
+  try {
+    return classifySiteDir(dir);
+  } catch {
+    return "unreadable";
+  }
 }
 
 /**
@@ -254,7 +286,9 @@ async function adoptSiteDir(input) {
  */
 function resolveDevFallback(devFallbackDir) {
   if (!devFallbackDir) return { useDir: null, rejected: null };
-  const kind = classifySiteDir(devFallbackDir);
+  // Safely: a candidate NOBODY picked must be turned down, never allowed to take the launch with
+  // it. `resolveStartupSiteDirs` runs this inside the `whenReady()` chain (D-01).
+  const kind = classifySiteDirSafely(devFallbackDir);
   if (kind === "site") return { useDir: devFallbackDir, rejected: null };
   const rejected = { dir: devFallbackDir, kind };
   if (kind === "incomplete" || kind === "occupied") {
@@ -345,6 +379,7 @@ module.exports = {
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,
+  classifySiteDirSafely,
   resolveDevFallback,
   initSiteDir,
   resolveOrInitSiteDir,

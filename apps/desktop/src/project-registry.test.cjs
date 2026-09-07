@@ -378,3 +378,58 @@ test("adoptDiscoveredProjects does not duplicate or re-date an already-tracked d
   assert.deepEqual(adoptDiscoveredProjects(file, ["/sites/a"]), []);
   assert.deepEqual(readTrackedProjects(file), before);
 });
+
+test("discoverSiteDirs skips a scan-root child it cannot even stat, and still returns the real sites", () => {
+  // D-01, arm 2. The existing guard is `statSync(dir, {throwIfNoEntry: false})` — and
+  // `throwIfNoEntry` suppresses ENOENT ALONE. A symlink cycle raises ELOOP out of `statSync`
+  // itself, before `classifySiteDir` is ever consulted, so the guard's own line throws and takes
+  // the whole boot scan with it.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-discover-"));
+  const good = path.join(root, "a-real-site");
+  fs.mkdirSync(good);
+  fs.writeFileSync(path.join(good, "config.json"), "{}");
+  fs.writeFileSync(path.join(good, ".site-meta.json"), "{}");
+  const loopA = path.join(root, "loop-a");
+  const loopB = path.join(root, "loop-b");
+  fs.symlinkSync(loopB, loopA);
+  fs.symlinkSync(loopA, loopB);
+
+  const found = discoverSiteDirs({ scanRoots: [root], knownDirs: [], classifySiteDir });
+
+  assert.deepEqual(found, [good]);
+});
+
+test("discoverSiteDirs skips a candidate whose classifier throws, rather than aborting the scan", () => {
+  // The same blast radius one level in: `classifySiteDir` is INJECTED here, so a scan that trusts
+  // it not to throw is a scan whose robustness depends on a caller it does not control.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-discover-"));
+  const good = path.join(root, "fine");
+  const bad = path.join(root, "explodes");
+  fs.mkdirSync(good);
+  fs.mkdirSync(bad);
+
+  const found = discoverSiteDirs({
+    scanRoots: [root],
+    knownDirs: [],
+    classifySiteDir: (dir) => {
+      if (dir === bad) throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+      return "site";
+    },
+  });
+
+  assert.deepEqual(found, [good]);
+});
+
+test("seedDevFallbackProject declines an unreadable fallback instead of aborting boot", () => {
+  // D-01, arm 4: this runs one line before `projectDeps` is built, in the same `whenReady()` chain.
+  const projectsPath = projectsFilePath(tempDir());
+  const notADirectory = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-seed-")), "not-a-dir");
+  fs.writeFileSync(notADirectory, "x");
+
+  const seeded = seedDevFallbackProject(projectsPath, notADirectory, (dir) => {
+    throw Object.assign(new Error(`ENOTDIR: not a directory, scandir '${dir}'`), { code: "ENOTDIR" });
+  });
+
+  assert.equal(seeded, false);
+  assert.deepEqual(readTrackedProjects(projectsPath), []);
+});

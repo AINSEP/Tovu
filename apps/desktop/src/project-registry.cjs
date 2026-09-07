@@ -266,7 +266,10 @@ function migrateLegacyDismissals(projectsPath, devFallbackDir) {
  */
 function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
   if (isProjectDirKnown(projectsPath, devFallbackDir)) return false;
-  if (classifySiteDir(devFallbackDir) !== "site") return false;
+  // Guarded, not bare: this runs one line before `projectDeps` is built, inside the `whenReady()`
+  // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
+  // fallback to decline — never a launch to abort (D-01).
+  if (!classifiesAsSite(devFallbackDir, classifySiteDir)) return false;
   // ALWAYS `adopted`, and stated rather than left to the default: this row points at a folder that
   // already held a site before this app ever ran — `<repo>/sites/tovu-com` in a checkout, someone's
   // real content. Deleting its card must never delete it.
@@ -314,15 +317,52 @@ function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }) {
     for (const entry of entries) candidates.push(path.join(root, entry));
   }
   candidates.push(...knownDirs);
-  return [...new Set(candidates)]
-    .filter((dir) => {
-      // `statSync` and not a dirent check: `classifySiteDir` calls `readdirSync` on anything whose
-      // two marker files are both absent, which throws ENOTDIR on a plain file and would take the
-      // whole boot down. Following symlinks is the intent — a symlinked site dir is a site.
-      const stat = fs.statSync(dir, { throwIfNoEntry: false });
-      return stat !== undefined && stat.isDirectory() && classifySiteDir(dir) === "site";
-    })
-    .sort();
+  return [...new Set(candidates)].filter((dir) => isDiscoverableSite(dir, classifySiteDir)).sort();
+}
+
+/**
+ * Whether one candidate is a real site, with every way of failing to find out treated as "no".
+ *
+ * The try/catch is the D-01 fix and it belongs HERE, in the scan, rather than only in the predicate
+ * the scan is handed. The previous guard was `statSync(dir, {throwIfNoEntry: false})` plus
+ * `isDirectory()`, which reads like a guard and is not one: `throwIfNoEntry` suppresses ENOENT
+ * ALONE, so `statSync` itself still raises EACCES on an unreadable directory and ELOOP on a symlink
+ * cycle — the guard's own line was one of the two throws that could quit the app before any window
+ * existed. And `classifySiteDir` arrives INJECTED, so a scan that assumes it cannot throw has made
+ * its own robustness the responsibility of a caller it does not control.
+ *
+ * One unexaminable candidate is not a site; it is also not a reason to discover nothing.
+ *
+ * @complexity O(1) beyond `classifySiteDir`'s own cost.
+ */
+function isDiscoverableSite(dir, classifySiteDir) {
+  try {
+    // Following symlinks is the intent — a symlinked site dir is a site.
+    const stat = fs.statSync(dir, { throwIfNoEntry: false });
+    if (stat === undefined || !stat.isDirectory()) return false;
+  } catch {
+    return false;
+  }
+  return classifiesAsSite(dir, classifySiteDir);
+}
+
+/**
+ * `classifySiteDir(dir) === "site"`, with a throw counted as "no".
+ *
+ * Separate from {@link isDiscoverableSite} because the two callers need different amounts of it.
+ * A scan over candidates it found itself must also survive `statSync` (D-01, and the arm the old
+ * guard got wrong); {@link seedDevFallbackProject} is asking about ONE named directory through a
+ * classifier that is injected exactly so the seeding decision can be tested without a real folder
+ * on disk — adding a filesystem check there would break that contract to fix a throw.
+ *
+ * @complexity O(1) beyond `classifySiteDir`'s own cost.
+ */
+function classifiesAsSite(dir, classifySiteDir) {
+  try {
+    return classifySiteDir(dir) === "site";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -365,5 +405,7 @@ module.exports = {
   isProjectDirKnown,
   migrateLegacyDismissals,
   discoverSiteDirs,
+  isDiscoverableSite,
+  classifiesAsSite,
   adoptDiscoveredProjects,
 };

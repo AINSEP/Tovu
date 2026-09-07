@@ -104,7 +104,7 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
-const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
+const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
@@ -262,6 +262,11 @@ function explicitStartupSiteDirs() {
  */
 function describeRejectedDefault(rejectedDefault) {
   if (rejectedDefault.kind === "empty") return "has no site in it yet";
+  // Before the `missing` read below: `classifySiteDirSafely` reports a candidate it could not
+  // examine at all (EACCES/ENOTDIR/ELOOP — see D-01), and that verdict has no marker list to name,
+  // so the generic branch would throw on `undefined.join` while building the very dialog that is
+  // supposed to explain the problem.
+  if (rejectedDefault.kind === "unreadable") return "could not be read (check its permissions, or whether something replaced it)";
   // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
   // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
   const missing = rejectedDefault.missing.join(" and ");
@@ -980,7 +985,12 @@ app
       // case, so nothing could ever be seeded or discovered again after the first write. A project
       // the operator removed still stays removed, from the recorded dismissal rather than from the
       // file's mere existence — see `seedDevFallbackProject`'s own doc.
-      seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir);
+      // `classifySiteDirSafely`, not `classifySiteDir`: this line and `rescanProjects` below both
+      // run inside this `whenReady()` chain, whose only handler is `reportBootFailure`, and both
+      // run BEFORE `openFleetWindow()`. The throwing form is for the folder PICKER, where the
+      // dialog shows the operator the error; here one unreadable candidate quit the app before any
+      // window existed, leaving no renderer for the Rescan button to live in (D-01).
+      seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
       // Built once and shared: `rescanProjects` below needs the same `deps` the handlers get, and a
       // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
       // `classifySiteDir`, the scan inputs) where drift is invisible until a site fails to appear.
@@ -1000,7 +1010,12 @@ app
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the
         // fact `project-delete-guard.cjs` needs before any delete may erase anything.
-        classifySiteDir,
+        //
+        // The SAFE form, because `rescanProjects` scans with this same value (D-01). `handleCreate`
+        // is unaffected: an unreadable pick classifies `"unreadable"` rather than `"empty"`, so the
+        // row would be `adopted` — and it never gets written, because `adoptSiteDir` re-classifies
+        // with the throwing form one line later and refuses the folder with its own message.
+        classifySiteDir: classifySiteDirSafely,
         openSiteServer,
         recordSiteClosed,
         projectScanRoots: PROJECT_SCAN_ROOTS,
