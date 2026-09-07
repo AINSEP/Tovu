@@ -1385,28 +1385,102 @@ on screen, rather than silently listing a subset as if it were everything.
 
 ---
 
-## HTML-format Pages render in the fallback shell, not the theme
+## HTML-format Pages render in the fallback shell, not the theme — RESOLVED (re-measured 2026-09-06)
 
-Filed 2026-08-30 from a live admin-assistant session auditing tovu-com.
+Filed 2026-08-30 from a live admin-assistant session auditing tovu-com. **Re-measured 2026-09-06
+against the running dev site with `curl -sk https://localhost:3000/<path>` (HTTPS, self-signed cert)
+plus read-only SQLite (`file:sites/tovu-com/content.db?mode=ro`). The symptom is gone on the live
+server render path.** Both of this entry's original claims — the symptom AND its stated cause — were
+false by the time anyone re-checked.
 
-**Symptom the owner sees:** five authored pages (`/quickstart`, `/documentation`, `/faq`,
-`/how-tovu-works`, `/about`) come back cream-and-peach while Posts render correctly in the full Basic
-theme. The peach is NOT a theme bug — those pages are served by Tovu's built-in fallback shell
-(`SITE_TITLE = "Tovu Demo Site"`, `server/inbound/public-http/routes/site/pages.ts`), so no theme CSS
-is requested, the author's own CSS fallbacks win, and `pages_write_html`'s contract specifies
-`var(--accent, #8a4b2a)` over `var(--surface-2, #f6f2ef)`. That is the peach.
+**What was claimed.** Five authored pages (`/quickstart`, `/documentation`, `/faq`,
+`/how-tovu-works`, `/about`) came back cream-and-peach while Posts rendered in the full Basic theme,
+because those pages were served by Tovu's built-in fallback shell (`SITE_TITLE = "Tovu Demo Site"`,
+`server/inbound/public-http/routes/site/pages.ts`) — no theme CSS requested, so the author's own
+`var(--accent, #8a4b2a)` / `var(--surface-2, #f6f2ef)` fallbacks (from `pages_write_html`'s contract)
+won and produced the peach. The stated cause was **"there is no per-page template selection anywhere
+in the system"**.
 
-**[UNVERIFIED 2026-09-06] — this entry's stated cause is now false; the symptom was not re-checked.**
-It claimed "there is no per-page template selection anywhere in the system". There is: a
-`templateChoice` column (`apps/website/src/platform/db/schema.ts:107`, mirrored in
-`schema.postgres.ts:871`), threaded through `features/post/post.ts` and `repo.sqlite.ts`, exposed on
-the headless contract (`contracts/headless/contracts.ts:53`), resolved by
-`features/theme/static-render.ts`'s `resolveTemplate` / `isEligibleForTemplateBranch` /
-`resolveStaticTierPageShellFallback`, and surfaced in the Pages editor
-(`apps/admin/src/features/pages/rules.ts`). ADR-065 (content-template naming convention, Accepted
-2026-09-03) landed in the same area. **Whether these five pages still render in the fallback shell
-needs a live check against a running site** — that could not be settled from source, so the entry is
-kept rather than closed.
+**The stated cause was already false when written, and is verified false today.** A `templateChoice`
+column exists and is threaded end to end — all five citations confirmed by line 2026-09-06:
+`platform/db/schema.ts:107` (`templateChoice: text("template_choice")`), mirrored at
+`schema.postgres.ts:871`; threaded through `features/post/post.ts` (`:101`, `:332`, `:958`); exposed
+on the headless contract at `contracts/headless/contracts.ts:53`; resolved by
+`features/theme/static-render.ts` (`resolveTemplate`, `isEligibleForTemplateBranch`,
+`resolveStaticTierPageShellFallback`). Not one citation had drifted.
+
+**What actually fixed the symptom: `ed1dd2e9`, "give untemplated static-tier html Pages the theme's
+real shell"** (2026-09-02), hardened by `e7715996` and renamed by `38e022fc`. It added
+`resolveStaticTierPageShellFallback` (`static-render.ts:1043`), wired at
+`routes/site/pages.ts:1116-1117` — when `isEligibleForTemplateBranch` refuses an untemplated Page,
+the route now renders it through the theme's own canonical page shell
+(`STATIC_TIER_PAGE_SHELL_IDS = ["pages-default", "page-shell"]`) instead of `pageShell()`'s generic
+chrome. The choice is applied to a shallow clone for that one render only; nothing is written back.
+
+### Evidence, measured 2026-09-06
+
+| Path | Code | `kind`/`body_format` | `template_choice` | `data-theme` | `/theme-assets/` refs | `"Tovu Demo Site"` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `/quickstart` | 200 | page / html | `blog-post.html` | yes | 11 | 0 |
+| `/documentation` | 301 | — | — | — | — | — |
+| `/faq` | 200 | page / html | `page-shell.html` | yes | 11 | 0 |
+| `/how-tovu-works` | 200 | page / html | `blog-sidebar-template.html` | yes | 11 | 0 |
+| `/about` | 200 | page / **doc** | `pages-default.html` | yes | 11 | 0 |
+| `/catalog` | 200 | page / html | **NULL** | yes | 11 | 0 |
+
+Two corrections to the original five-page list: `/documentation` is now a 301 to `/docs`, and
+`/about` is `doc`-format, not `html`, so only three of the five are the shape this entry describes.
+
+**`/catalog` is the load-bearing row, not the original five.** The four surviving originals all
+carry an explicit `template_choice` now, so they prove only that *someone set the column* — data, not
+code. `/catalog` is the one published `html`-format Page still at `template_choice = NULL`, i.e. the
+exact never-chosen state every Page starts in and the exact state the bug was filed about. It renders
+the theme's real document, and a comment string unique to
+`sites/tovu-com/themes/static/basic/render/pages/pages-default.html` appears verbatim in its response
+body. That is `resolveStaticTierPageShellFallback` firing live, on the untested state.
+
+**The peach is gone for a second, independent reason worth recording.** `theme-assets/basic/css/
+theme.css` (44,049 bytes) defines only two custom properties, `--header-h` and `--kui-pin-offset` —
+it does NOT define `--accent`, `--fg`, `--surface`, `--surface-2` or `--border`. Those come from an
+inline `<style>` token block in the theme's own page shell (`--accent: oklch(82.1% 0.153 80.1)` dark
+/ `#f8b838` light). So the fix works by supplying the shell that carries the tokens, not by making
+the stylesheet define them — a page reaching a theme's *stylesheet* without its *shell* would still
+go peach. Note the tokens are `oklch`, so an `rgb()`-shaped grep will not find them.
+
+### Which render paths this was measured on
+
+- **Live server render — EXERCISED.** All six routes above, over real HTTPS against the running dev
+  app. This is where the verdict comes from.
+- **Static publish — NOT separately exercised, and does not need to be.** `platform/export/site-
+  exporter.ts` boots the real app and fetches every route over real loopback HTTP; its own header
+  states there is "exactly one way to boot the real app and fetch it — no second implementation is
+  ever expected", precisely so exported bytes are identical to a live visitor's. It therefore runs
+  the same `pages.ts` handler and inherits the fix by construction. No export was run.
+- **Template preview — NOT exercised, and it DOES diverge. New finding, code-traced only.**
+  `server/inbound/admin-http/routes/posts/template-preview.ts:194` calls `renderViaTemplate`
+  **directly**, bypassing `renderTemplateBranchIfEligible` and therefore never consulting
+  `resolveStaticTierPageShellFallback`. With no `?templateChoice` query param it passes
+  `templateChoice: null` (`resolveOverrideTemplateChoice`, `:132`), which `resolveTemplate` resolves
+  to `theme.manifest.templates[0]` — a Post-shaped template. So an untemplated `html` Page previews
+  under a *different* template than the public site serves it with. This is not the filed symptom
+  (the preview still renders theme chrome, not the generic shell) and is not this entry's bug, but it
+  is a real preview-vs-public divergence in the third render path and is unverified live.
+
+### Status
+
+**Closed as fixed for the live server and static-publish paths.** Do not reopen from the original
+symptom description; reopen only against a fresh measurement.
+
+**One live degrade stays, by design, and is the thing to watch.** The fix resolves only against a
+small closed vocabulary of Tovu-owned filenames. Of the five static themes installed under
+`sites/tovu-com/themes/static/`, only `basic` (as `pages-default.html`) and `basic-2` (still
+`page-shell.html`) ship one at all — `tailark-dusk`, `tailark-quartz-dark` and
+`tailark-quartz-libre` ship neither. **Switching the active theme to any tailark theme reopens this
+exact bug at HTTP 200.** That degrade is deliberate (guessing at another template is what once put
+`terms-of-service` under a Post-shaped template), and `e7715996` made the miss observable — it emits
+a `[theme] static theme '<id>' ships none of 'pages-default.html', 'page-shell.html'; untemplated
+html Pages render in Tovu's generic chrome instead of this theme's own document` warning, once per
+process per distinct message, so it now shows up in the server log rather than only in the pixels.
 
 **Second finding — theme pages have no "don't publish" switch.** Public routing for a static theme is
 driven purely by file presence: any `.html` under the theme's `render/pages/` not declared as a
