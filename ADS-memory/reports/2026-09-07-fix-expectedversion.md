@@ -47,6 +47,8 @@ Scope: `apps/website/src/features/post/**`, `apps/website/src/features/seo/write
 
 ## RED evidence
 
+Status: all four findings closed — see the Findings section below.
+
 ### C01 — `apps/website/src/features/post/__tests__/post.concurrent-save.test.ts`
 Command (repo root): `node --import tsx --test apps/website/src/features/post/__tests__/post.concurrent-save.test.ts`
 
@@ -71,10 +73,6 @@ compare→write window by parking operator A inside the before-save hook.
 ```
 
 `Missing expected rejection` is the exact failure the finding predicts: the stale save resolves 200.
-
----
-
-## Status: all four closed. See the Findings section below.
 
 ### C02 — `apps/website/src/server/__tests__/routes/pages-update-expected-version.test.ts`
 Command (repo root): `env -u TOVU_ADMIN_PASSWORD node --import tsx --test apps/website/src/server/__tests__/routes/pages-update-expected-version.test.ts`
