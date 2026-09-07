@@ -46,14 +46,20 @@ const REAL_PNG = Buffer.from(
   "base64"
 );
 
-/** A real ISO-BMFF `ftyp` header with the `isom` brand — sniffs as `video/mp4`, a type `uploadMedia`
- *  itself would accept but that this tool deliberately refuses to pull from an arbitrary URL. */
+/** A real ISO-BMFF `ftyp` header with the `isom` brand — sniffs as `video/mp4`, one of the two video
+ *  types this tool imports on the same footing as the five still-image types (2026-09-07: the
+ *  storage layer (`uploadMedia`'s `DEFAULT_ALLOWED_MIME_TYPES`) has accepted `video/mp4`/`video/webm`
+ *  since 2026-08-24 — this tool's own allowlist was the one gap, not a deliberate narrower policy). */
 const MP4_HEADER = Buffer.concat([
   Buffer.from([0x00, 0x00, 0x00, 0x20]),
   Buffer.from("ftypisom", "ascii"),
   Buffer.from([0x00, 0x00, 0x02, 0x00]),
   Buffer.from("isomiso2avc1mp41", "ascii"),
 ]);
+
+/** A minimal real EBML/Matroska header — sniffs as `video/webm` (`content-type-sniffer.ts`'s
+ *  `EBML_SIGNATURE`, `0x1A 0x45 0xDF 0xA3`, is the only byte sequence `isWebm` checks). */
+const WEBM_HEADER = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]);
 
 const HTML_BODY = Buffer.from("<!DOCTYPE html>\n<html><head><title>Sign in</title></head><body>nope</body></html>", "utf8");
 const SVG_BODY = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', "utf8");
@@ -136,7 +142,7 @@ test("the outbound request is a bounded GET that asks for an image and nothing e
   assert.equal(client.calls[0]!.url, URL_UNDER_TEST);
   assert.equal(client.calls[0]!.timeoutMs, MEDIA_IMPORT_TIMEOUT_MS);
   assert.equal(client.calls[0]!.body, undefined, "an import must never send a request body");
-  assert.deepEqual(client.calls[0]!.headers, { Accept: "image/*" });
+  assert.deepEqual(client.calls[0]!.headers, { Accept: "image/*, video/*" });
 });
 
 // ---------------------------------------------------------------------------
@@ -192,10 +198,22 @@ test("Content-Type: image/png over an HTML body is rejected — the served heade
   );
 });
 
-test("an MP4 served as image/png is rejected — uploadMedia would accept video/mp4, this tool will not import one", async () => {
+test("an MP4 served as image/png round-trips byte-for-byte — the header is still ignored, the bytes still decide, and video is now an importable shape", async () => {
   const client = new FakeHttpClient([imageResponse(MP4_HEADER, { headers: { "content-type": "image/png" } })]);
 
-  await assert.rejects(() => fetchImage({ httpClient: client }, { url: URL_UNDER_TEST }), /its actual bytes are 'video\/mp4'/);
+  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+
+  assert.deepStrictEqual(Buffer.from(fetched.bytes), MP4_HEADER);
+  assert.equal(fetched.contentType, "video/mp4");
+});
+
+test("a WebM served with no content-type header round-trips byte-for-byte and sniffs as video/webm", async () => {
+  const client = new FakeHttpClient([imageResponse(WEBM_HEADER, { headers: {} })]);
+
+  const fetched = await fetchImage({ httpClient: client }, { url: URL_UNDER_TEST });
+
+  assert.deepStrictEqual(Buffer.from(fetched.bytes), WEBM_HEADER);
+  assert.equal(fetched.contentType, "video/webm");
 });
 
 test("an SVG served as image/png is rejected — SVG has no ingest sanitizer, so it is not importable regardless of the header", async () => {
@@ -210,8 +228,11 @@ test("a '.png.html' double-extension URL is decided by its bytes, not by either 
   await assert.rejects(() => fetchImage({ httpClient: client }, { url: "https://cdn.example.com/a/photo.png.html" }), /its actual bytes are 'text\/html'/);
 });
 
-test("IMPORTABLE_CONTENT_TYPES is exactly the five still-image types — never silently widened to video or SVG", () => {
-  assert.deepEqual([...IMPORTABLE_CONTENT_TYPES].sort(), ["image/avif", "image/gif", "image/jpeg", "image/png", "image/webp"]);
+test("IMPORTABLE_CONTENT_TYPES is exactly the five still-image types plus video/mp4 and video/webm — the same set uploadMedia's own DEFAULT_ALLOWED_MIME_TYPES accepts, never silently widened beyond it (e.g. to SVG)", () => {
+  assert.deepEqual(
+    [...IMPORTABLE_CONTENT_TYPES].sort(),
+    ["image/avif", "image/gif", "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -408,6 +429,8 @@ test("the extension comes from the SNIFFED type, never from the URL", () => {
   assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/webp"), "fox.webp");
   assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox"), "image/avif"), "fox.avif");
   assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.png"), "image/gif"), "fox.gif");
+  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox.mov"), "video/mp4"), "fox.mp4");
+  assert.equal(buildImportFilename(new URL("https://cdn.example.com/a/fox"), "video/webm"), "fox.webm");
 });
 
 test("a path-traversal segment cannot survive into the filename", () => {

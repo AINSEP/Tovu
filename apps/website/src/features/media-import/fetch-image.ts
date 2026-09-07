@@ -2,8 +2,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { sniffContentType, DEFAULT_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
 
 /**
- * @file The guarded "fetch an image from a URL" half of `media_import_from_url` — everything between
- * an agent-supplied URL string and a validated `Uint8Array` that is safe to hand to `uploadMedia`.
+ * @file The guarded "fetch a media file from a URL" half of `media_import_from_url` — everything
+ * between an agent-supplied URL string and a validated `Uint8Array` that is safe to hand to `uploadMedia`.
  * The tool surface itself lives in `agent-tools.ts`/`tool-registrations.ts` alongside it; this module
  * is separated so the security-relevant decisions (which URLs, which bytes, how many) are directly
  * unit-testable with a fake `HttpClientPort` and no tool harness, permission check, or database.
@@ -44,8 +44,8 @@ import { sniffContentType, DEFAULT_MAX_UPLOAD_BYTES, type SniffedContentType } f
  *   independently — this is a better error, never the actual control.
  * - **Bytes are what the bytes say they are.** The response's own `Content-Type` header is NEVER
  *   trusted (see {@link fetchImage}); the type is decided by `sniffContentType`'s magic-byte read of
- *   the actual payload, and only the still-image types in {@link IMPORTABLE_CONTENT_TYPES} are
- *   accepted. A server that answers `image/png` and returns HTML, a PDF, or an MP4 is rejected.
+ *   the actual payload, and only the types in {@link IMPORTABLE_CONTENT_TYPES} are accepted. A
+ *   server that answers `image/png` and returns HTML, a PDF, or an unsanitized SVG is rejected.
  * - **Bounded, with no silent truncation.** {@link MEDIA_IMPORT_MAX_BYTES} caps the payload, and a
  *   response whose BYTES the egress policy clipped (`HttpResponse.bodyBytesTruncated`) is refused
  *   outright rather than stored. That distinction is the whole point: a truncated image is not a
@@ -67,19 +67,23 @@ import { sniffContentType, DEFAULT_MAX_UPLOAD_BYTES, type SniffedContentType } f
 export class MediaImportValidationError extends Error {}
 
 /**
- * The still-image types this tool will import, decided by magic bytes rather than by any header.
+ * The still-image and video types this tool will import, decided by magic bytes rather than by any
+ * header — the SAME set `@jini-ai/cms/media`'s `DEFAULT_ALLOWED_MIME_TYPES` accepts, which is the
+ * ceiling `uploadMedia` enforces on the very next call regardless of what this tool lets through.
  *
- * A strict SUBSET of `@jini-ai/cms/media`'s `DEFAULT_ALLOWED_MIME_TYPES`, deliberately — that set
- * also carries `video/mp4`/`video/webm`, which `uploadMedia` accepts but which this tool has no
- * business pulling from an arbitrary URL: a video is never re-encoded by the transform pipeline (its
- * public URL serves the original bytes as-is), so importing one is a straight "fetch a remote file
- * and republish it byte-for-byte from our origin" primitive — a materially different thing to
- * authorize than importing an image that gets decoded and re-encoded on the way out. SVG is absent
- * for the reason `DEFAULT_ALLOWED_MIME_TYPES` itself states: it needs an ingest sanitizer that does
- * not exist yet.
- *
- * Narrowing later (adding video) is additive; widening a shipped tool's reach is not. Starting
- * narrow is the reversible direction.
+ * `video/mp4`/`video/webm` (2026-09-07): previously excluded here on the reasoning that a video is
+ * never re-encoded by the transform pipeline (its public URL serves the original bytes as-is), so
+ * importing one is a "fetch a remote file and republish it byte-for-byte from our origin" primitive —
+ * a materially different thing to authorize than importing an image that gets decoded and re-encoded
+ * on the way out. That distinction was real but not a reason to reject the request: `media_upload_asset`
+ * already lets an agent put an arbitrary video's bytes in the library today (it accepts
+ * `DEFAULT_ALLOWED_MIME_TYPES` verbatim, video included — `@jini-ai/cms/media`'s `agent-tools.ts`),
+ * and `resolveMediaPublicUrls` (`features/media/tool-registrations.ts`) already branches on the
+ * sniffed content type to hand back the byte-passthrough `/m/{id}/original` route for anything
+ * `video/`-prefixed — so accepting a video HERE adds no new capability the assistant could not
+ * already reach one hop earlier (fetch the bytes itself, base64-encode them, call
+ * `media_upload_asset`); it only removes the pointless detour. SVG stays absent for the reason
+ * `DEFAULT_ALLOWED_MIME_TYPES` itself states: it needs an ingest sanitizer that does not exist yet.
  */
 export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedContentType>([
   "image/png",
@@ -87,6 +91,8 @@ export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedCont
   "image/gif",
   "image/webp",
   "image/avif",
+  "video/mp4",
+  "video/webm",
 ]);
 
 /**
@@ -110,6 +116,8 @@ const EXTENSION_BY_CONTENT_TYPE: Readonly<Record<string, string>> = {
   "image/gif": "gif",
   "image/webp": "webp",
   "image/avif": "avif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
 };
 
 export interface FetchImageDeps {
@@ -248,7 +256,7 @@ export function validateImageBytes(url: URL, bytes: Uint8Array, bytesTruncated: 
   const contentType = sniffContentType(bytes);
   if (!IMPORTABLE_CONTENT_TYPES.has(contentType)) {
     throw new MediaImportValidationError(
-      `'${url.href}' is not an importable image: its actual bytes are '${contentType}'. ` +
+      `'${url.href}' is not an importable file: its actual bytes are '${contentType}'. ` +
         `Only ${[...IMPORTABLE_CONTENT_TYPES].join(", ")} can be imported (the served Content-Type header is deliberately ignored — the bytes decide).`
     );
   }
@@ -256,7 +264,7 @@ export function validateImageBytes(url: URL, bytes: Uint8Array, bytesTruncated: 
 }
 
 /**
- * Fetches one image through the SSRF-guarded client and returns its validated bytes.
+ * Fetches one file through the SSRF-guarded client and returns its validated bytes.
  *
  * The response's own `Content-Type` header is read nowhere in this function, on purpose: it is
  * remote-controlled metadata about remote-controlled bytes, and trusting it is precisely the gap
@@ -281,7 +289,7 @@ export async function fetchImage(deps: FetchImageDeps, input: { url: string }): 
   const response = await deps.httpClient.send({
     method: "GET",
     url: url.href,
-    headers: { Accept: "image/*" },
+    headers: { Accept: "image/*, video/*" },
     timeoutMs: MEDIA_IMPORT_TIMEOUT_MS,
   });
 
