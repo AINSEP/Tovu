@@ -2031,9 +2031,16 @@ export const api = {
         templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
       }`
     ),
+  // `expectedVersion` (2026-09-06) is the optimistic-concurrency basis, not a writable field —
+  // the `AdminPost.version` the caller loaded, which the server compares and rejects with
+  // `409 VERSION_CONFLICT` when a newer save has superseded it. Purely additive and optional: a
+  // caller that omits it (every caller but `features/posts`' editor today, PageEditor included)
+  // gets exactly the last-write-wins behavior this method has always had.
   updatePost: (
     { id }: { id: string },
-    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> = {}
+    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+      expectedVersion?: number;
+    } = {}
   ) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`, {
       method: "PUT",
