@@ -60,6 +60,8 @@ import {
   type SurfaceExchangeStore,
 } from "#src/assistant/index";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
+import { resolveChatAttachmentUploadDirectory } from "#src/server/inbound/assistant/chat-attachment-directory";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -472,6 +474,27 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
         forwardAttachmentUpload(req, res).catch(next);
       });
       app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res).catch(next));
+
+      // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
+      // had, so until now bytes could be uploaded and never fetched again and the admin's preview
+      // modal could only show attachments from the current session out of a client-side `File`
+      // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
+      // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
+      // attachment with no recorded owner is readable by nobody).
+      //
+      // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it
+      // that will surprise the next reader: the daemon owns the live `AttachmentStore`, but that
+      // port exposes no non-mutating owner-scoped read (`resolveForRun` CLAIMS what it resolves,
+      // and `listPendingForOwner` returns no path and excludes exactly the already-claimed
+      // attachments this feature exists for). Serving it here instead also means the principal is
+      // compared in the same process that mints it, with no trusted-header hop between the check
+      // and the value being checked.
+      //
+      // Registered inside this module rather than as its own, for the `app.use` two lines above:
+      // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
+      // this route is covered by the same mount that covers the upload it reads back. A separate
+      // module would have to re-mount the same guard, which is a second thing to keep in sync.
+      registerAdminChatAttachmentReadRoute(app, { uploadDirectory: resolveChatAttachmentUploadDirectory() });
 
       // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
       // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
