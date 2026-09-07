@@ -110,7 +110,9 @@
  *
  * Owner report, from a screenshot of `/admin/settings`: the whole settings surface renders
  * inside a bordered panel floating on the page, unlike every other admin screen, which is flush
- * to the content column.
+ * to the content column. Owner's follow-up decision the same evening: the page has no dark mode
+ * any more — `SettingsUi.tsx` pins the wrapper's `data-theme` to light (see the comment above its
+ * `return`) — so this is one unconditional treatment, not a per-theme one.
  *
  * Measured live before changing anything (1440 viewport, `getBoundingClientRect`):
  *
@@ -119,7 +121,8 @@
  *   - Everything inside is inset a further `--jini-modal-padding` (24px): the head's own
  *     padding (`24px 24px 12px`), the tab strip's (`0 24px`, `styles.css`'s row override), and
  *     the content's (`16px 24px 22px`). So the kicker sits at x=125 and y=62, where every
- *     other screen's `.page-kicker` sits at x=100, y=39.
+ *     other screen's `.page-kicker` sits at x=100, y=39. That 25px is the concrete statement
+ *     of "it doesn't match the other admin".
  *
  * That is a modal's chrome — right for a dialog floating over its own dimmed backdrop, which is
  * what `SettingsDialogShell` was built as — rendered inline on a white page. `styles.css`'s
@@ -133,16 +136,14 @@
  * `.settings-ui-section` comment: the screen has no `.page-header` precisely so this strip can
  * be its heading), so it stays, and only loses its inset.
  *
- * SCOPED TO THE LIGHT RENDERING, deliberately — the one thing here that is a decision and not
- * a measurement. `core.appearance.theme` themes this panel (see `SettingsUi.tsx`'s
- * `dialogDataTheme` comment and `rules.ts`'s `resolveDialogDataTheme`): `dark` paints the
- * panel dark inside an otherwise-light admin, and `system` follows the OS. Light-on-dark text
- * needs its dark ground, so removing the shell's fill in dark would either leave a borderless
- * dark rectangle still floating on the page or require the dark ground to bleed across the
- * whole content column — a change to what "Dialog appearance" scopes, which is not this pass's
- * call. Dark is therefore untouched, and "renders light" is written out the way
- * `tabbed-dialog.css` resolves it: `data-theme="light"` explicitly, or no `data-theme` at all
- * (`system`) on an OS that is not asking for dark.
+ * SCOPED TO `.settings-page`, the Settings screen's own class, NOT to `.settings-ui-section`:
+ * five screens share that wrapper class and render the same inline shell (Agent Plugins,
+ * Authentication, AI Assistant, `PlaceholderTabs`, and this one). A first cut of this block
+ * (`9f13f0e3`) selected on `.settings-ui-section[data-theme="light"]` and reached all five —
+ * a restyle of four screens nobody asked about, caught on re-read and corrected here.
+ * `.settings-ui-section.settings-page` (0,2,0) as the prefix keeps every rule above
+ * `styles.css`'s (0,3,0) strip override and Jini's own shell rules regardless of which
+ * stylesheet the bundler injects first.
  *
  * `overflow: visible` on the shell so nothing at its edges is clipped now that there is no box
  * to clip to; `.jini-tabbed-dialog-content` keeps its own `overflow: auto` — that internal
@@ -154,66 +155,25 @@
  * content still starts at x=100.
  *
  * The chrome (save status + "Open as dialog") moves from 24px inside the vanished panel edge to
- * the column's own top-right corner, where every other screen's `.page-actions` sit.
- *
- * Specificity: `[data-theme="light"]`/`:not([data-theme])` each add (0,1,0), so these land at
- * (0,3,0)–(0,4,0) and beat both Jini's own shell rules and `styles.css`'s (0,3,0) strip
- * override regardless of which stylesheet the bundler injects first. Each block is written
- * twice — once per way of being light — because a media query cannot join a selector list. */
-.settings-ui-section[data-theme="light"] > .jini-tabbed-dialog--inline {
+ * the column's own top-right corner, where every other screen's `.page-actions` sit. */
+.settings-ui-section.settings-page > .jini-tabbed-dialog--inline {
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
   overflow: visible;
 }
-.settings-ui-section[data-theme="light"] > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-head {
+.settings-ui-section.settings-page > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-head {
   padding: 0 0 12px;
 }
-.settings-ui-section[data-theme="light"] > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-chrome {
+.settings-ui-section.settings-page > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-chrome {
   top: 0;
   right: 0;
 }
-.settings-ui-section[data-theme="light"] > .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+.settings-ui-section.settings-page > .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
   padding-inline: 0;
 }
-.settings-ui-section[data-theme="light"] > .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
+.settings-ui-section.settings-page > .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
   padding-inline: 4px;
   margin-inline: -4px;
-}
-
-@media (prefers-color-scheme: light) {
-  /* The same two warm tokens the block at the top of this file re-points for an explicit
-     `data-theme="light"`, re-pointed here for `system`-on-a-light-OS too. That first fix was
-     scoped to the attribute, so with the setting on `system` the shell still measured
-     `#fffefc` (cream) — invisible enough behind a border, but with the box gone the cards'
-     `--jini-bg-panel` cream would sit directly on the page's white. Jini declares both on
-     `:root` for this case (`tabbed-dialog.css`), so a declaration on the section inherits
-     past it to every consumer, exactly as the attribute-scoped one does. Dark still untouched:
-     this media query is the light branch. */
-  .settings-ui-section:not([data-theme]) {
-    --jini-bg-panel: var(--surface);
-    --jini-bg-elevated: var(--surface);
-  }
-  .settings-ui-section:not([data-theme]) > .jini-tabbed-dialog--inline {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    overflow: visible;
-  }
-  .settings-ui-section:not([data-theme]) > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-head {
-    padding: 0 0 12px;
-  }
-  .settings-ui-section:not([data-theme]) > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-chrome {
-    top: 0;
-    right: 0;
-  }
-  .settings-ui-section:not([data-theme]) > .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
-    padding-inline: 0;
-  }
-  .settings-ui-section:not([data-theme]) > .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
-    padding-inline: 4px;
-    margin-inline: -4px;
-  }
 }

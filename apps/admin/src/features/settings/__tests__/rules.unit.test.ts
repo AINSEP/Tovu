@@ -8,7 +8,6 @@ import {
   buildExternalMcpFieldSpecs,
   describeSaveStatus,
   resolveByokConfig,
-  resolveDialogDataTheme,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
   validateExternalMcpOAuthIdentity,
@@ -67,17 +66,6 @@ describe("describeSaveStatus", () => {
     [{ status: "idle" }, ""],
   ])("renders %o as %j", (save, expected) => {
     expect(describeSaveStatus(save)).toBe(expected);
-  });
-});
-
-describe("resolveDialogDataTheme", () => {
-  it('maps "system" to undefined, so the CSS falls back to prefers-color-scheme', () => {
-    expect(resolveDialogDataTheme("system")).toBeUndefined();
-  });
-
-  it("passes any concrete theme through unchanged", () => {
-    expect(resolveDialogDataTheme("light")).toBe("light");
-    expect(resolveDialogDataTheme("dark")).toBe("dark");
   });
 });
 

@@ -334,21 +334,6 @@ export function describeSaveStatus(save: SaveState): string {
 }
 
 /**
- * Maps the stored `core.appearance.theme` choice to the settings panel's `data-theme` attribute.
- *
- * `"system"` means "match the OS", which the panel already does natively via
- * `@media (prefers-color-scheme)` when no `data-theme` is set at all — so `"system"` maps to
- * `undefined` here rather than a literal string `data-theme` has no value for. See
- * `SettingsUi.tsx`'s own comment at the call site for the fuller history (the reconciled-default
- * fix that made this control real again).
- *
- * @complexity Time/space: O(1).
- */
-export function resolveDialogDataTheme(theme: string): string | undefined {
-  return theme === "system" ? undefined : theme;
-}
-
-/**
  * `SettingsUi`'s own `byok` argument to `useAdminExecutionCredentialHook` — falls back to
  * `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null` (see the call site's
  * own comment for why that fallback is harmless). Pulled out to a top-level pure function per the

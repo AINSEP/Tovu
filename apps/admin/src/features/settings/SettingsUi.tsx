@@ -75,7 +75,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { ExternalMcpSettingsPanel } from "./ExternalMcpSettingsPanel";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
-import { describeSaveStatus, resolveByokConfig, resolveDialogDataTheme } from "./rules";
+import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -453,8 +453,12 @@ export function SettingsUi(props: SettingsUiProps) {
           // OFF deliberately. The tab's default writes the picked theme onto
           // `document.documentElement`, which would re-theme the ENTIRE admin
           // — every other section included — from a control that says it
-          // configures this dialog. We scope it to the section wrapper below
-          // via `data-theme` instead.
+          // configures this dialog. Nothing applies the picked theme anywhere
+          // now: the section wrapper's `data-theme` is pinned to light (owner
+          // decision, 2026-09-06 — see the comment above `return`), so Dark and
+          // System here save but render nothing different. Deliberately left
+          // in place rather than hidden; what becomes of the two options is
+          // the owner's call.
           livePreview={false}
           agentHandle="settings-appearance"
         />
@@ -805,32 +809,31 @@ export function SettingsUi(props: SettingsUiProps) {
     </>
   );
 
-  /**
-   * Follows the operator's stored `core.appearance.theme` choice, scoped to
-   * this section only.
+  /*
+   * `data-theme="light"` on the wrapper below is PINNED — the owner's call,
+   * 2026-09-06: "take dark mode off the Settings page entirely; Settings
+   * renders light, like every other admin screen." This page has no
+   * appearance of its own any more, so its chrome can come off too
+   * (`styles/settings.css`, "Take Settings out of the card") and the surface
+   * sits flush in the admin column with every other screen.
    *
-   * `settings-dialog.css` resolves its `--jini-*` tokens from a `data-theme`
-   * attribute on ANY ancestor, falling back to `@media (prefers-color-scheme)`
-   * when none is set — see `rules.ts`'s `resolveDialogDataTheme` for the
-   * `"system"` → `undefined` mapping this relies on.
+   * History, because this attribute has flipped twice and the next reader
+   * deserves to know it was deliberate each time: it was first a literal
+   * `"light"` (a workaround for `core.appearance.theme` getting stuck on
+   * `"system"` on installs that predated the source default); then, once
+   * `reconcileDefinitionDefault` fixed the stuck default upstream, it followed
+   * the stored choice through `resolveDialogDataTheme` — picking Dark or
+   * System genuinely rendered a dark panel inside the light admin. That
+   * per-panel theming is what the owner has now removed, and the resolver
+   * went with it.
    *
-   * This used to be pinned to a literal `"light"` unconditionally, because the
-   * stored default for `core.appearance.theme` could get stuck on `"system"`
-   * on any install that booted before the source default became `"light"` —
-   * `ensureSettingDefinitions` used to skip definitions that already existed,
-   * so a source-side default fix could never reach an existing database. Fixed
-   * upstream in `reconcileDefinitionDefault` (see `ensure-definitions.ts`):
-   * `content.db` now reconciles a drifted core-owned default at boot instead
-   * of leaving it stuck. The control is real again — picking dark or system
-   * now actually changes what renders here, not just what's stored.
-   *
-   * Note this only themes the settings panel itself, not the rest of the
-   * Tovu admin shell (which stays light-only) — picking "dark" or "system" on
-   * a dark OS renders a dark settings panel inside an otherwise-light admin.
-   * That is the intended scope of a "Dialog appearance" control, not a bug.
+   * CONSEQUENCE, stated rather than hidden: the "Dialog appearance" tab's
+   * Dark and System options still SAVE (`s.appearance.onChange` is untouched
+   * and the value round-trips to the store) but no longer change anything on
+   * this page or in the "Open as dialog" overlay. What to do with those two
+   * options — disable, remove, or hold for an admin-wide dark mode — is the
+   * owner's separate decision; nothing here pre-empts it.
    */
-  const dialogDataTheme = resolveDialogDataTheme((s.appearance.value as AppearanceConfig).theme);
-
   return (
     /**
      * `initialLocale` is safe to read straight from the slice here: this
@@ -856,7 +859,11 @@ export function SettingsUi(props: SettingsUiProps) {
       syncDocumentAttributes={false}
     >
       <SettingsLocaleSync locale={s.language.value as string} />
-      <div className="settings-ui-section" data-theme={dialogDataTheme}>
+      {/* `settings-page` is THIS screen's own hook for `styles/settings.css` — five screens share
+          `settings-ui-section` (Agent Plugins, Authentication, AI Assistant, the placeholder tabs,
+          and this one), so anything meant for the Settings page alone must not select on the
+          shared class. `data-theme` is pinned — see the comment above `return`. */}
+      <div className="settings-ui-section settings-page" data-theme="light">
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
             Could not load saved settings ({s.loadError}). Showing defaults — edits will still save.
