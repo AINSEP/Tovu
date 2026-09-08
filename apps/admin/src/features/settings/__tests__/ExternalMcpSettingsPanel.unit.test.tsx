@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
@@ -91,5 +91,96 @@ describe("ExternalMcpSettingsPanel — add-form field visibility reacts live to 
 
     expect(screen.getByLabelText(/^Client ID/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Access token environment variable/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * @file (continued) Regression coverage for the accidental-delete incident: an operator pressed
+ * a configured server's "Remove" and it deleted immediately, with no confirmation — unrecoverable
+ * for an OAuth connection, since its sealed secret is not returned by the read API. `onRemove`
+ * must open a confirmation dialog instead of calling `list.remove` directly; the port is only
+ * ever reached from the dialog's own confirm action.
+ */
+function renderPanelWithSources(sources: SourceConfigItem[]) {
+  const dependencies = createFakeSourceConfigDependencies<SourceConfigItem>({
+    sources,
+    createSource: (input) => ({ id: input.fields.id?.trim() || "new-server", fields: input.fields }),
+  });
+  return render(
+    <FetchQueryProvider>
+      <ExternalMcpSettingsPanel dependencies={dependencies} />
+    </FetchQueryProvider>,
+  );
+}
+
+const HIGGSFIELD: SourceConfigItem = { id: "higgsfield", fields: { id: "higgsfield", command: "npx" } };
+const GITHUB: SourceConfigItem = { id: "github", fields: { id: "github", command: "npx" } };
+
+describe("ExternalMcpSettingsPanel — Remove asks for confirmation before deleting", () => {
+  it("pressing Remove does not delete the connection — it opens a confirmation dialog, and the row is untouched", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // Still there: the click must not have reached the port before confirmation.
+    expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+  });
+
+  it("names the right server when several are configured, not a sibling", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD, GITHUB]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    const removeButtons = screen.getAllByRole("button", { name: "Remove" });
+    await user.click(removeButtons[1]!); // github's row
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("github");
+    expect(dialog).not.toHaveTextContent("higgsfield");
+  });
+
+  it("Confirm deletes exactly once", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+    // The fake port's own removeSource resolves via a Promise (not synchronously), so the row's
+    // removal is awaited rather than asserted immediately.
+    await waitFor(() => expect(screen.queryAllByTestId("source-config-item-card")).toHaveLength(0));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Cancel deletes nothing and leaves the row untouched", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+  });
+
+  it("Escape deletes nothing and leaves the row untouched", async () => {
+    const user = userEvent.setup();
+    renderPanelWithSources([HIGGSFIELD]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
   });
 });

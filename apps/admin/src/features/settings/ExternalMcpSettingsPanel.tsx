@@ -3,6 +3,7 @@ import {
   Icon,
   SourceConfigAddForm,
   SourceConfigItemCard,
+  sourceDisplayLabel,
   useT,
   useWiredSourceConfigAddForm,
   useWiredSourceConfigList,
@@ -11,6 +12,7 @@ import {
 } from "@jini-ai/ui";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
+import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
 import {
   buildAllowWritePatch,
   resolveExternalMcpCardHandles,
@@ -93,6 +95,15 @@ const DRAFT_TEST_SCOPE = "__draft__";
  * fields, so `mcp-add-field-oauth-client-secret` is discoverable and correctly labelled but only a
  * human can type into it. That split is `@jini-ai/agentic`'s guard, not this file's, and is
  * deliberately not routed around.
+ *
+ * ## Remove asks first (2026-09-08)
+ *
+ * `SourceConfigItemCard`'s own "Remove" fires `onRemove` on click — no confirm step, and an
+ * operator pressing it on a live OAuth connection loses its sealed secret for good (the read API
+ * never returns it, so removal means reconnecting from scratch). Rather than editing that card in
+ * Jini (this surface is Tovu-only per the outline's "Zero Jini change" rule), `onRemove` here opens
+ * `ExternalMcpRemoveConfirmDialog` (`confirmRemoveId` below) and `list.remove` is only ever called
+ * from that dialog's own Confirm — see `ExternalMcpRemoveConfirmSection`.
  */
 
 /** The "Add server" form, split out from `ExternalMcpSettingsPanel` purely to keep that
@@ -139,8 +150,11 @@ function ExternalMcpSourcesSection(props: {
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
   cardHandles: string[];
   t: ReturnType<typeof useT>;
+  /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
+   *  see this file's own "Remove asks first" header note. */
+  onRequestRemove: (sourceId: string) => void;
 }) {
-  const { list, cardHandles, t } = props;
+  const { list, cardHandles, t, onRequestRemove } = props;
 
   if (list.loading) {
     return (
@@ -176,7 +190,7 @@ function ExternalMcpSourcesSection(props: {
           testing={list.isPending(source.id, "test")}
           updating={list.isPending(source.id, "update")}
           onRefresh={() => void list.refresh(source.id)}
-          onRemove={() => void list.remove(source.id)}
+          onRemove={() => onRequestRemove(source.id)}
           onTrustChange={() => {}}
           onTest={() => void list.test(source.id)}
           onUpdate={(patch) => void list.update(source.id, patch)}
@@ -184,6 +198,37 @@ function ExternalMcpSourcesSection(props: {
         />
       ))}
     </div>
+  );
+}
+
+/** The remove-confirmation dialog, split out for the same complexity-budget reason as
+ *  {@link ExternalMcpAddFormSection}/{@link ExternalMcpSourcesSection} above. Renders nothing until
+ *  `confirmRemoveId` names a still-configured source — cleared (by the panel) the instant Confirm
+ *  or Cancel resolves, so a stale id from a source removed some other way (e.g. a second tab)
+ *  degrades to "no dialog" rather than throwing on a missing source. */
+function ExternalMcpRemoveConfirmSection(props: {
+  confirmRemoveId: string | null;
+  sources: readonly SourceConfigItem[];
+  cardHandles: string[];
+  t: ReturnType<typeof useT>;
+  onConfirm: (sourceId: string) => void;
+  onCancel: () => void;
+}) {
+  const { confirmRemoveId, sources, cardHandles, t, onConfirm, onCancel } = props;
+  if (confirmRemoveId === null) return null;
+  const index = sources.findIndex((source) => source.id === confirmRemoveId);
+  if (index === -1) return null;
+  const source = sources[index]!;
+
+  return (
+    <ExternalMcpRemoveConfirmDialog
+      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields))}
+      isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
+      cardHandle={cardHandles[index]!}
+      onConfirm={() => onConfirm(source.id)}
+      onCancel={onCancel}
+      t={t}
+    />
   );
 }
 
@@ -196,6 +241,9 @@ export interface ExternalMcpSettingsPanelProps {
 export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: ExternalMcpSettingsPanelProps) {
   const t = useT();
   const [formOpen, setFormOpen] = useState(false);
+  // The id of the source Remove was pressed for, until Confirm or Cancel resolves it — see this
+  // file's own "Remove asks first" header note. `null` means no confirmation dialog is open.
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const list = useWiredSourceConfigList<SourceConfigItem>({ dependencies });
 
   const [transportGuess, setTransportGuess] = useState<string>("stdio");
@@ -282,7 +330,19 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
         }}
       />
 
-      <ExternalMcpSourcesSection list={list} cardHandles={cardHandles} t={t} />
+      <ExternalMcpSourcesSection list={list} cardHandles={cardHandles} t={t} onRequestRemove={setConfirmRemoveId} />
+
+      <ExternalMcpRemoveConfirmSection
+        confirmRemoveId={confirmRemoveId}
+        sources={list.sources}
+        cardHandles={cardHandles}
+        t={t}
+        onConfirm={(sourceId) => {
+          setConfirmRemoveId(null);
+          void list.remove(sourceId);
+        }}
+        onCancel={() => setConfirmRemoveId(null)}
+      />
 
       {saveStatusLabel ? (
         <div className="external-mcp-footer">

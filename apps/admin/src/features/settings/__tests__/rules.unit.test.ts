@@ -6,6 +6,7 @@ import {
   areAnySlicesLoading,
   buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,
+  buildExternalMcpRemoveConfirmCopy,
   describeSaveStatus,
   resolveByokConfig,
   resolveExternalMcpEffectiveAuthMode,
@@ -392,5 +393,28 @@ describe("buildExternalMcpCardHandles", () => {
 
   it("returns nothing for an empty list", () => {
     expect(buildExternalMcpCardHandles([])).toEqual([]);
+  });
+});
+
+describe("buildExternalMcpRemoveConfirmCopy", () => {
+  it("names the server being removed in the title", () => {
+    const copy = buildExternalMcpRemoveConfirmCopy({ name: "higgsfield", isOAuth: false });
+    expect(copy.title).toBe('Remove "higgsfield"?');
+  });
+
+  it("names a DIFFERENT server when there are several configured", () => {
+    const copy = buildExternalMcpRemoveConfirmCopy({ name: "github", isOAuth: false });
+    expect(copy.title).toBe('Remove "github"?');
+  });
+
+  it("an OAuth connection's body states the sealed credential cannot be recovered", () => {
+    const copy = buildExternalMcpRemoveConfirmCopy({ name: "higgsfield", isOAuth: true });
+    expect(copy.body).toMatch(/sealed/i);
+    expect(copy.body).toMatch(/cannot be recovered/i);
+  });
+
+  it("a non-OAuth connection's body does not claim a sealed credential is lost", () => {
+    const copy = buildExternalMcpRemoveConfirmCopy({ name: "higgsfield", isOAuth: false });
+    expect(copy.body).not.toMatch(/sealed/i);
   });
 });

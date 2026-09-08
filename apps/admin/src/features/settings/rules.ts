@@ -359,3 +359,39 @@ export function describeSaveStatus(save: SaveState): string {
 export function resolveByokConfig(executionConfig: ExecutionConfig | null): ByokConfig {
   return executionConfig?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }
+
+// ---------------------------------------------------------------------------
+// External MCP: remove-confirmation copy
+// ---------------------------------------------------------------------------
+//
+// An operator accidentally deleted a live, fully-configured OAuth connection by pressing the
+// card's "Remove" — it deleted with no confirmation, and the sealed OAuth secret does not come
+// back. `ExternalMcpRemoveConfirmDialog` gates that click on this copy; kept here rather than
+// inline in the component, same "pure decision, no React" split as the rest of this file.
+
+/** `ExternalMcpRemoveConfirmDialog`'s two pieces of copy — mirrors `LifecycleConfirmDialog`'s own
+ *  `{ title, body }` shape in `features/collections/rules.ts`. */
+export interface RemoveConfirmCopy {
+  title: string;
+  body: string;
+}
+
+/**
+ * Names the server being removed in the title (an operator managing several connections must see
+ * WHICH one they are about to lose, not a generic "Are you sure?"), and states what is actually
+ * lost in the body: an OAuth connection's sealed credential cannot be recovered, so removing it
+ * means reconnecting from scratch — the fact that would have saved an accidental delete from
+ * costing an hour. A non-OAuth connection is still not restored by undo, but its credential (a
+ * plain env var/API key the operator typed in) is at least something they can re-enter, not
+ * something that has to be re-authorized.
+ *
+ * @complexity Time/space: O(1) — one ternary, no iteration.
+ */
+export function buildExternalMcpRemoveConfirmCopy(params: { name: string; isOAuth: boolean }): RemoveConfirmCopy {
+  return {
+    title: `Remove "${params.name}"?`,
+    body: params.isOAuth
+      ? "This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again."
+      : "This connection will stop working immediately. You'll need to re-enter its configuration to use it again.",
+  };
+}
