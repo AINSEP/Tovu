@@ -48,6 +48,12 @@ export interface ExternalMcpSaveInput {
   args?: string;
   url?: string;
   allowedToolNames?: string;
+  /** Raw operator input, comma-separated remote tool names separately authorized to write —
+   *  `SaveExternalMcpServerInput.writeAllowedToolNames`'s own tri-state convention (resent in full on
+   *  every save, not tri-state like `env`; see `tool-registrations.ts`'s
+   *  `buildSaveExternalMcpServerInputFromFormParams` for why). The store rejects a name here that is
+   *  not also in `allowedToolNames` (`external-mcp-store.ts`'s `assertWriteAllowlistSubset`). */
+  writeAllowedToolNames?: string;
   authMode?: string;
   oauthProviderId?: string;
   oauthGrant?: string;
@@ -83,6 +89,7 @@ export function mergeExternalMcpSavePrefill(
     args: input.args ?? existing.args.join(" "),
     url: input.url ?? existing.url ?? undefined,
     allowedToolNames: input.allowedToolNames ?? existing.allowedToolNames.join(", "),
+    writeAllowedToolNames: input.writeAllowedToolNames ?? existing.writeAllowedToolNames.join(", "),
     authMode: input.authMode ?? existing.authMode,
     oauthProviderId: input.oauthProviderId ?? existing.oauth.providerId ?? undefined,
     oauthGrant: input.oauthGrant ?? existing.oauth.grant ?? undefined,
@@ -132,6 +139,16 @@ function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
     label: "Allowed tools",
     ...fieldValue(input.allowedToolNames),
     hint: "Comma-separated — nothing runs unless it is listed here.",
+  };
+}
+
+function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
+  return {
+    kind: "string",
+    name: "writeAllowedToolNames",
+    label: "May write",
+    ...fieldValue(input.writeAllowedToolNames),
+    hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access.",
   };
 }
 
@@ -207,6 +224,7 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
     buildLabelField(input),
     ...(isStdio ? buildStdioTransportFields(input) : buildHttpTransportFields(input)),
     buildAllowedToolNamesField(input),
+    buildWriteAllowedToolNamesField(input),
     ...(isStdio ? [buildEnvField(isUpdate)] : []),
     ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),
   ];

@@ -311,6 +311,107 @@ test("workflow: save a new streamable_http server via the confirmation form, the
   assert.ok(listed.servers.some((s) => s.serverId === "higgsfield"), "the save must be visible in a FRESH list, proving it actually persisted");
 });
 
+// ---------------------------------------------------------------------------
+// 6a. external_mcp_save — writeAllowedToolNames must survive the round trip
+// ---------------------------------------------------------------------------
+//
+// ADS-memory/reports/2026-09-08-dock-recovery-product-test.md: `buildSaveExternalMcpServerInputFromFormParams`
+// used to hardcode `writeAllowedToolNames: ""` on every save, so a connection recreated through the
+// assistant would silently come back with read tools only, having lost every write grant with no
+// warning shown — in the reported incident this would have dropped `generate_image` and
+// `reveal_generation`, the two grants that made the connection useful at all. The store-side
+// contract (`SaveExternalMcpServerInput.writeAllowedToolNames`, `ExternalMcpServerView.writeAllowedToolNames`,
+// `assertWriteAllowlistSubset` — `external-mcp-store.ts`) already fully supports this field; only this
+// domain's agent-tool wiring never carried it through the form.
+
+test("workflow: a write grant submitted on the confirmation form survives the round trip and is visible in a fresh list", async () => {
+  const { deps } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const saveTool = registrations.get("external_mcp_save")!;
+
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "higgsfield", transport: "streamable_http" });
+  exchanges.deliver({
+    exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: {
+      id: "higgsfield",
+      transport: "streamable_http",
+      url: "https://higgsfield.example/mcp",
+      allowedToolNames: "generate_image, reveal_generation, models_explore",
+      writeAllowedToolNames: "generate_image, reveal_generation",
+    },
+  });
+
+  const result = (await pending) as { saved: true; server: { writeAllowedToolNames: string[] } };
+  assert.equal(result.saved, true);
+  assert.deepEqual(
+    [...result.server.writeAllowedToolNames].sort(),
+    ["generate_image", "reveal_generation"],
+    "the write grant submitted on the form must be persisted, not silently dropped",
+  );
+
+  const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as {
+    servers: Array<{ serverId: string; writeAllowedToolNames: string[] }>;
+  };
+  const found = listed.servers.find((s) => s.serverId === "higgsfield");
+  assert.ok(found);
+  assert.deepEqual(
+    [...found.writeAllowedToolNames].sort(),
+    ["generate_image", "reveal_generation"],
+    "a FRESH list must still show the write grant — proving it actually persisted, not just echoed back",
+  );
+});
+
+test("workflow: omitting writeAllowedToolNames on the form still saves with no write grants (the safe default, not a silent drop of an EXISTING grant)", async () => {
+  const { deps } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const saveTool = registrations.get("external_mcp_save")!;
+
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "no-write-grant", transport: "streamable_http" });
+  exchanges.deliver({
+    exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: { id: "no-write-grant", transport: "streamable_http", url: "https://example.test/mcp", allowedToolNames: "read_only_tool" },
+  });
+
+  const result = (await pending) as { saved: true; server: { writeAllowedToolNames: string[] } };
+  assert.equal(result.saved, true);
+  assert.deepEqual(result.server.writeAllowedToolNames, []);
+});
+
+test("an invalid write grant (a tool not in allowedToolNames) is reported as { saved: false, reason: 'invalid', field: 'writeAllowedToolNames' }, not thrown, and nothing is saved", async () => {
+  const { deps } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const saveTool = registrations.get("external_mcp_save")!;
+
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "bad-write-grant", transport: "streamable_http" });
+  exchanges.deliver({
+    exchangeId,
+    toolId: "external_mcp_save",
+    principalId: PRINCIPAL_ID,
+    params: {
+      id: "bad-write-grant",
+      transport: "streamable_http",
+      url: "https://example.test/mcp",
+      allowedToolNames: "generate_image",
+      writeAllowedToolNames: "delete_everything",
+    },
+  });
+
+  const result = (await pending) as { saved: false; reason: string; field: string; message: string };
+  assert.equal(result.saved, false);
+  assert.equal(result.reason, "invalid");
+  assert.equal(result.field, "writeAllowedToolNames");
+
+  const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as { servers: unknown[] };
+  assert.equal(listed.servers.length, 0, "the rejected save must not have created a row");
+});
+
 test("cancelling the form saves nothing", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore();

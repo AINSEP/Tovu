@@ -155,6 +155,7 @@ const SAVE_MODEL_OPTIONAL_FIELDS = [
   "args",
   "url",
   "allowedToolNames",
+  "writeAllowedToolNames",
   "authMode",
   "oauthProviderId",
   "oauthGrant",
@@ -218,9 +219,13 @@ function buildOAuthSaveInputFromFormParams(params: Record<string, unknown>): Sav
  * tool's job is "connect a server", not "flip one that already exists off/on"), so every save this
  * tool ever performs both creates and enables, or re-enables, the row — matching the admin PUT
  * route's own default (`enabled: body.enabled !== false`) for the identical "caller sent nothing"
- * case. `writeAllowedToolNames` is always `""`: this form has no field for it either, and
- * `SaveExternalMcpServerInput`'s own doc states that degrading to "no write grants" for an
- * un-migrated caller is the designed default, not a bug.
+ * case. `writeAllowedToolNames` is read from the submitted form the same tri-state way
+ * `allowedToolNames` is (`optionalStringField(params, ...) ?? ""`) — see `save-form.ts`'s
+ * `buildWriteAllowedToolNamesField`/`mergeExternalMcpSavePrefill` for the field this reads and its
+ * prefill-from-existing-row behavior. 2026-09-08 fix: this used to hardcode `""` unconditionally,
+ * silently dropping every write grant on any save performed through the assistant — this domain's
+ * form now has the field `SaveExternalMcpServerInput`'s own doc always assumed an un-migrated caller
+ * would eventually grow (ADS-memory/reports/2026-09-08-dock-recovery-product-test.md).
  *
  * @complexity O(1) — a fixed field list.
  */
@@ -254,7 +259,7 @@ function buildSaveExternalMcpServerInputFromFormParams(
     ...(url !== undefined ? { url } : {}),
     args: optionalStringField(params, "args") ?? "",
     allowedToolNames: optionalStringField(params, "allowedToolNames") ?? "",
-    writeAllowedToolNames: "",
+    writeAllowedToolNames: optionalStringField(params, "writeAllowedToolNames") ?? "",
     ...(env !== undefined ? { env } : {}),
     ...(oauth !== undefined ? { oauth } : {}),
     principalId,

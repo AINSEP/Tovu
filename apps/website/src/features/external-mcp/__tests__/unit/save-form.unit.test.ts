@@ -61,6 +61,22 @@ test("mergeExternalMcpSavePrefill: unset input fields fall back to the existing 
   assert.equal(result.authMode, "api_key");
 });
 
+test("mergeExternalMcpSavePrefill: an existing row's write grants prefill writeAllowedToolNames — an update's form does not start from a blank that would read as 'no write access'", () => {
+  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ writeAllowedToolNames: ["tool_a"] }));
+  assert.equal(result.writeAllowedToolNames, "tool_a");
+});
+
+test("mergeExternalMcpSavePrefill: a row with no write grants prefills an empty writeAllowedToolNames, not undefined", () => {
+  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ writeAllowedToolNames: [] }));
+  assert.equal(result.writeAllowedToolNames, "");
+});
+
+test("mergeExternalMcpSavePrefill: explicit input writeAllowedToolNames wins over the existing row's value", () => {
+  const input: ExternalMcpSaveInput = { id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_b" };
+  const result = mergeExternalMcpSavePrefill(input, existingView({ writeAllowedToolNames: ["tool_a"] }));
+  assert.equal(result.writeAllowedToolNames, "tool_b");
+});
+
 test("mergeExternalMcpSavePrefill: a null existing OAuth field falls back to unset (undefined), not null", () => {
   const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView());
   assert.equal(result.oauthProviderId, undefined);
@@ -97,16 +113,16 @@ function fieldNames(input: ExternalMcpSaveInput, isUpdate: boolean): string[] {
   return buildExternalMcpSaveFormFields(input, isUpdate).map((f) => f.name);
 }
 
-test("stdio, create: id, label, command, args, allowedToolNames, env — in that order, no oauth fields", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "env"]);
+test("stdio, create: id, label, command, args, allowedToolNames, writeAllowedToolNames, env — in that order, no oauth fields", () => {
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
 });
 
 test("stdio, update: id field is omitted", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "env"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
 });
 
 test("streamable_http transport: url field instead of command/args, and no env field", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames"]);
 });
 
 test("oauth + stdio: oauth core fields, then the stdio-only token-env field, then the endpoint fields", () => {
@@ -116,6 +132,7 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
     "command",
     "args",
     "allowedToolNames",
+    "writeAllowedToolNames",
     "env",
     "oauthProviderId",
     "oauthGrant",
@@ -132,7 +149,7 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
 test("oauth + streamable_http: no oauthTokenEnvName field (stdio-only)", () => {
   const names = fieldNames({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false);
   assert.ok(!names.includes("oauthTokenEnvName"));
-  assert.deepEqual(names, ["id", "label", "url", "allowedToolNames", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
+  assert.deepEqual(names, ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
 });
 
 test("a provided value pre-fills the field; an omitted value leaves no `value` key at all", () => {
@@ -141,6 +158,17 @@ test("a provided value pre-fills the field; an omitted value leaves no `value` k
   const command = fields.find((f) => f.name === "command") as { value?: string };
   assert.equal(label.value, "My Server");
   assert.equal("value" in command, false);
+});
+
+test("writeAllowedToolNames: a provided value pre-fills the field; an omitted value leaves no `value` key", () => {
+  const withValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_a" }, false).find(
+    (f) => f.name === "writeAllowedToolNames",
+  ) as { value?: string };
+  const withoutValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio" }, false).find((f) => f.name === "writeAllowedToolNames") as {
+    value?: string;
+  };
+  assert.equal(withValue.value, "tool_a");
+  assert.equal("value" in withoutValue, false);
 });
 
 test("env field's hint differs between create and update", () => {

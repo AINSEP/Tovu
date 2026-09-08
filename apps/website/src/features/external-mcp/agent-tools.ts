@@ -114,6 +114,11 @@ const SAVE_INPUT_SCHEMA = {
       description:
         "Comma-separated remote tool names this connection may call. Nothing runs unless it is listed here — an empty value is a legitimate, meaningful choice (contributes zero tools), not an oversight to flag back to the human.",
     },
+    writeAllowedToolNames: {
+      type: "string",
+      description:
+        "Comma-separated remote tool names SEPARATELY authorized to write (the remote's own readOnlyHint:false is otherwise refused elsewhere). A name here must also be in allowedToolNames, or the save is rejected. For an UPDATE, call content_read.external_mcp first if you want to preserve an existing connection's write grants — an id that no longer names any row (e.g. recreating one that was deleted) has nothing to prefill from, so leaving this unset there means zero write access, not a carry-over of what used to be granted. An empty value is otherwise a legitimate, meaningful choice (no write access), not an oversight to flag back to the human.",
+    },
     authMode: {
       type: "string",
       enum: [...EXTERNAL_MCP_AUTH_MODES],
