@@ -70,6 +70,29 @@ test("both overlays still carry the surrounding tool-catalog protocol untouched"
   }
 });
 
+// FABRICATED-STAT FIX (2026-09-08): the overlay used to assert "the right tool is in the default
+// top 10 98% of the time and in the top 20 100% of the time" — no reproducible source (see
+// `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §0.1: the cited 130-case eval never
+// measured top-20, and its own top-10 result is 25%, not 98%). That report's repaired baseline
+// (real 177-tool composition) measured the true figures: 87% top-10, 94% top-20, n=130. Also fixes
+// the internal tension with this same overlay's own "if it still does not exist, SAY SO" guidance a
+// few sentences later — a "100% of the time" guarantee and a real not-found path cannot both be true.
+test("both overlays state the true measured accuracy (87% top-10 / 94% top-20), not the fabricated 98%/100% figure", () => {
+  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
+    assert.equal(
+      overlay.includes(
+        "search again with a higher limit (up to 25) or different phrasing before concluding no " +
+          "tool exists: on a 130-case blind set the right tool is in the default top 10 87% of the " +
+          "time and in the top 20 94% of the time, so a miss at either cutoff is common enough to " +
+          "be worth a retry, not proof the tool is absent.",
+      ),
+      true,
+    );
+    assert.equal(overlay.includes("98%"), false);
+    assert.equal(overlay.includes("100% of the time"), false);
+  }
+});
+
 // Finding 2 (SEC-assistant-env-isolation-2026-09-07): ASSISTANT_DISALLOWED_TOOLS is the actual,
 // enforced gate (agent-daemon-server.ts forwards it to AgentExecutorRunInput.disallowedTools) —
 // these pin its exact contents against silent drift, since a caller reads this array by reference.

@@ -110,6 +110,29 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
   assert.equal(parsed.hits.length, 1, "expected a 0 limit clamped up to 1, not treated as 'no results'");
 });
 
+// FABRICATED-STAT FIX (2026-09-08): the `limit` description used to assert "the right tool is in
+// the top 10 98% of the time but in the top 20 100% of the time" — a figure with no reproducible
+// source (see `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §0.1: the cited 130-case
+// eval never measured top-20 at all, and its own top-10 result is 25%, not 98%). That report's
+// repaired baseline (`installFirstPartyToolContributors()` wired in, 177 tools, the real shipped
+// composition) measured the true figures: 87% top-10, 94% top-20, n=130. This asserts the exact
+// corrected text so the false "100% of the time" guarantee cannot silently return, and so the
+// description keeps telling the model what to do on a miss rather than asserting a guarantee.
+test("search_tools' limit description states the true measured accuracy (87% top-10 / 94% top-20), not the fabricated 98%/100% figure", () => {
+  const searchTools = META_TOOL_DESCRIPTORS.find((tool) => tool.id === "search_tools");
+  assert.ok(searchTools, "expected a search_tools descriptor in META_TOOL_DESCRIPTORS");
+  const schema = searchTools!.inputSchema as { properties: { limit: { description: string } } };
+  assert.equal(
+    schema.properties.limit.description,
+    "Max hits to return (1-25). Optional, defaults to 10. If none of the returned candidates fit " +
+      "what you need, search again with a HIGHER limit (try 25) and different phrasing before " +
+      "concluding no tool exists — measured on a 130-case blind set, the right tool is in the top " +
+      "10 87% of the time and in the top 20 94% of the time, so a miss at either cutoff is common, " +
+      "not rare. If a retry with different terms still finds nothing, say you could not find a " +
+      "matching tool rather than assuming none exists.",
+  );
+});
+
 test("search_tools with a missing or empty query is a readable error, not an empty result set", async () => {
   const s = surface();
   for (const input of [{}, { query: "" }, { query: "   " }, { query: 42 }, null]) {

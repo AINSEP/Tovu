@@ -167,9 +167,9 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
     "execute_delegated_tool to perform the action. If none of the returned candidates fit, search " +
     "again with a higher limit (up to 25) or different phrasing before concluding no tool exists: " +
-    "on a 130-case blind set the right tool is in the default top 10 98% of the time and in the " +
-    "top 20 100% of the time, so a near-miss is almost always ranked just below the cutoff rather " +
-    "than absent. Do this before reaching for Bash, curl, or " +
+    "on a 130-case blind set the right tool is in the default top 10 87% of the time and in the " +
+    "top 20 94% of the time, so a miss at either cutoff is common enough to be worth a retry, not " +
+    "proof the tool is absent. Do this before reaching for Bash, curl, or " +
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
