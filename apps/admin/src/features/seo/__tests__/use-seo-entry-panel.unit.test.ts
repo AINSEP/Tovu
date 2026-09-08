@@ -74,6 +74,52 @@ describe("useSeoEntryPanel — injected port", () => {
     expect(result.current.notice).toBe("Saved.");
   });
 
+  it("does not let a slower, earlier save's trailing analyze refresh overwrite a newer save's fresher analysis (out-of-order response race)", async () => {
+    const port = createFakeSeoPort({
+      entries: { "entry-1": { meta: metaFixture(), analysis: analysisFixture({ score: 80 }) } },
+    });
+
+    const { result } = renderHook(() => useSeoEntryPanel({ entryId: "entry-1" }, port, "en"));
+    // Let the mount-time `load()` (its own `getSeoEntryAnalyze` call) settle naturally, BEFORE
+    // installing the controllable mocks below — only the two SAVE-triggered analyze calls need
+    // controllable ordering.
+    await waitFor(() => expect(result.current.resolved).not.toBeNull());
+
+    let resolveFirstAnalyze!: (v: { data: SeoEntryAnalysis }) => void;
+    let resolveSecondAnalyze!: (v: { data: SeoEntryAnalysis }) => void;
+    vi.spyOn(port, "getSeoEntryAnalyze")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirstAnalyze = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecondAnalyze = resolve)));
+
+    // First edit+save. `save()` resolves as soon as its PUT does — it never awaits its own
+    // trailing analyze call — so the button re-enables immediately, well before this save's
+    // analyze (the FIRST mocked call above) settles.
+    act(() => result.current.setField("title", "First edit"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // A second, later edit+save runs to completion — including its OWN trailing analyze refresh
+    // (the SECOND mocked call) — before the first save's analyze call ever resolves.
+    act(() => result.current.setField("title", "Second edit"));
+    await act(async () => {
+      await result.current.save();
+    });
+    await act(async () => {
+      resolveSecondAnalyze({ data: analysisFixture({ score: 42 }) });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.analysis?.score).toBe(42));
+
+    // The FIRST save's now-stale analyze call finally settles. It must not resurrect the older score.
+    await act(async () => {
+      resolveFirstAnalyze({ data: analysisFixture({ score: 80 }) });
+      await Promise.resolve();
+    });
+
+    expect(result.current.analysis?.score).toBe(42);
+  });
+
   it("fieldValue falls back to the resolved value until the field is touched", async () => {
     const port = createFakeSeoPort({
       entries: { "entry-1": { meta: metaFixture({ description: "Resolved description" }), analysis: analysisFixture() } },

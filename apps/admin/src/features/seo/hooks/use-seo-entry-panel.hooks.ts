@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { describeApiError, type SeoEntryAnalysis, type SeoEntryMeta, type SeoEntryOverridesPatch } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { overrideOrClear } from "../rules";
 import { t } from "../seo-i18n";
 import { defaultSeoPort } from "./seo-dependencies.hooks";
@@ -55,6 +56,9 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions, port: SeoPort, l
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Stale-settlement guard (2026-09-07 fix, `useSettlementGeneration`) for `save`'s trailing analyze
+  // refresh below — see that call's own comment for why it needs one.
+  const analyzeSettlement = useSettlementGeneration();
 
   function load() {
     setLoadError(null);
@@ -96,9 +100,21 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions, port: SeoPort, l
       setResolved(r.data);
       setTouched({});
       setNotice(t(locale, "Saved."));
+      // `saving` is already cleared by the time this settles (the `finally` below runs the moment
+      // `putSeoEntry` resolves, not after this fire-and-forget call does), so the Save button
+      // re-enables and a SECOND edit+save can complete — including its OWN trailing analyze
+      // refresh — before this one's analyze call resolves. Minted BEFORE the request starts (2026-
+      // 09-07 fix, `useSettlementGeneration`) so a later save's analyze always supersedes an
+      // earlier one's, regardless of which network response happens to land last; otherwise the
+      // slower, now-stale call could overwrite the newer save's analysis with a score/issue list
+      // computed against overrides that save has since replaced.
+      const analyzeGeneration = analyzeSettlement.next();
       port
         .getSeoEntryAnalyze(entryId)
-        .then((analyzeRes) => setAnalysis(analyzeRes.data))
+        .then((analyzeRes) => {
+          if (!analyzeSettlement.isCurrent(analyzeGeneration)) return;
+          setAnalysis(analyzeRes.data);
+        })
         .catch(() => {
           /* analyze refresh is best-effort; the save itself already succeeded */
         });
