@@ -202,3 +202,74 @@ Tovu:
   provision), not something I could or should resolve unilaterally — routing back for that call.
 - Did not restart the daemon (forbidden) — GREEN evidence above is unit/integration-test-level, not a
   live end-to-end run against the restarted process.
+
+## Follow-up status check (same day, after team-lead asked for a precise commit/state report)
+
+Both trees were already clean at the time of this check — `git status --short` on the touched paths
+in both Tovu and Jini returns nothing; everything below was already committed before this message,
+not newly committed in response to it.
+
+**1. Environment isolation — DONE (mechanism), auth explicitly VERIFIED not to silently carry over.**
+Not partial: `prepareClaudeConfigDirIfNeeded`/`prepareClaudeConfigDirForRun` in
+`Jini/packages/daemon/src/agent-executor.ts` are wired unconditionally into `run()` for every
+`def.id === 'claude'` run, `computeChildEnv` sets `CLAUDE_CONFIG_DIR` on the spawned child, and
+cleanup is wired into the existing `cleanupStagedFiles` closure. 8 integration tests + 3 unit tests
+pass, plus the full 978-test `packages/daemon` suite with no regressions.
+
+**Did I prove login still resolves? Yes, and the proof is a real gap, stated plainly, not implied
+away:** I ran `claude auth status` live against this dev machine three ways — real `HOME` (control,
+`loggedIn: true`), real `HOME` with only `CLAUDE_CONFIG_DIR` swapped to a scratch dir
+(`loggedIn: false`), and fake `HOME` plus scratch `CLAUDE_CONFIG_DIR` (`loggedIn: false`). I then
+confirmed via Anthropic's own docs (fetched live, code.claude.com/docs/en/authentication) why:
+"Claude Code... keys the macOS Keychain entry to that directory too, so a session with a different
+CLAUDE_CONFIG_DIR reads a different entry." So on THIS host, isolating `CLAUDE_CONFIG_DIR` with
+nothing else changed **does** break login — I did not assume the fix was safe, I disproved the naive
+version first. I also grepped `agent-daemon-server.ts` and confirmed Tovu passes **no**
+`credentialEnv`/`ANTHROPIC_API_KEY` today, so the assistant currently authenticates purely by
+inheriting the operator's personal Keychain session — exactly the leak Finding 1 describes, and
+exactly what stops working once isolated. The code mitigates the *portable* case (best-effort copies
+a real `.credentials.json` when the source config dir has one — Linux/Windows/Keychain-locked-macOS)
+but does **not** attempt to extract a live macOS Keychain secret itself (out of scope, and conflicts
+with "never read/reproduce credential values"). **Net: the isolation is real and unconditional; on
+this specific machine, the assistant will run unauthenticated the moment the daemon restarts, until
+Tovu is given a dedicated `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` via the already-existing
+`credentialEnv` path.** That is a provisioning decision for the owner/team-lead, not something I
+resolved myself.
+
+**2. Tool restriction — DONE, mechanism and policy both landed.**
+`RuntimeBuildOptions.disallowedTools`/`allowedTools` (agent-runtime) → `claude.ts` `buildArgs` emits
+`--disallowedTools`/`--allowedTools` → `AgentExecutorRunInput.disallowedTools`/`allowedTools`
+(daemon) → Tovu's `ASSISTANT_DISALLOWED_TOOLS` passed unconditionally in `agent-daemon-server.ts`'s
+`agentExecutor.run()` call. Flag names verified against the installed CLI's own `-p --help`; enforcement
+verified live (`--disallowedTools Bash` under `--permission-mode bypassPermissions` actually left the
+spawned session unable to call Bash).
+
+**Was the list derived from actual usage?** Yes — read-only (`file:...?mode=ro`) query of
+`sites/tovu-com/chat.db`'s `ai_chat_messages.events_json`, parsing every `tool_use` block across all
+32 stored admin-chat runs. Observed: `mcp__jini__search_tools`/`describe_tool`/
+`execute_delegated_tool`/`execute_readonly_delegated_tool` (96/62/62/12 calls, plus unprefixed
+variants), `ToolSearch` (44), `Read` (16), Tovu's own catalog (`assistant_ask_choice`, `seo_*`,
+`media_*`, `content_post_search`, `custom_credential_list`, …), and federated `mcp__higgsfield__*`.
+**Zero** occurrences of `Bash`, `Edit`, `Write`, `Task`, any `Cron*`, `EnterWorktree`/`ExitWorktree`,
+`RemoteTrigger`, or `Workflow` — exactly the set now in `ASSISTANT_DISALLOWED_TOOLS`, matching the
+security report's own suggested list. `Read`/`ToolSearch` and Tovu's own tool names were deliberately
+left off the deny list (real observed use).
+
+**3. Packages rebuilt:** `@jini-ai/agent-runtime` and `@jini-ai/daemon` only, each via that package's
+own `npm run build` (never `pnpm -r build`). `tsc --noEmit` clean before and after in both, and in
+Tovu's own root tsconfig. Confirmed Tovu's symlinked `node_modules/@jini-ai/{agent-runtime,daemon}`
+resolve to the rebuilt `dist/` and that the new exports are present in the compiled output.
+
+**4. Daemon restart:** Required, not performed (forbidden by this dispatch's scope). Neither fix is
+live until the agent daemon process restarts and re-`require`s the rebuilt dist. **Do not restart
+before the credential decision in item 1 above is made** — the first restart after this lands will
+otherwise silently drop the assistant's login on this machine.
+
+**5. Commits (already made, both trees clean now):**
+- Jini `fa1afc58edcea9648bd8e0570b5df7e9cf2b00ee` — `packages/agent-runtime/src/{types.ts,defs/claude.ts,defs/__tests__/claude.test.ts}`, `packages/daemon/src/{agent-executor.ts,__tests__/agent-executor.test.ts,__tests__/agent-executor-helpers.test.ts}`.
+- Tovu `d2bb86296d83a90b59a5185c29fdad5cc3078b45` — `apps/website/src/server/inbound/assistant/{assistant-system-overlay.ts,agent-daemon-server.ts}` and their tests, plus this report.
+
+**6. Next action if continuing:** get a decision from the owner on provisioning a dedicated
+`ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN` for the assistant surface (via `credentialEnv`) before
+anyone restarts the agent daemon, since that is the one remaining step between "mechanism landed" and
+"isolation fully closed with no login regression."
