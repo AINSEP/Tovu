@@ -311,6 +311,27 @@ interface RawAdmissionConnection {
   /** Absent for an older daemon build that predates this field — see
    *  {@link AdminFederatedAdmissionEntry.isPreset}'s own doc on why that must NOT default to `false`. */
   readonly isPreset?: boolean;
+  /**
+   * NOT optional here, and {@link flattenAdmissionConnection} reads into it unguarded — deliberately,
+   * unlike `isPreset` above. Proven from `bootstrap.ts`'s OWN construction code, not from a type
+   * declaration (a type declaration is exactly what lied about this shape last time): `attachFederatedMcpTools`
+   * only ever pushes a `reports` entry from inside `if (attached.report) reports.push({ connectionId,
+   * report: attached.report, isPreset })` — there is no code path that pushes an entry with no
+   * `report`. That gate has existed, unchanged, since the very first commit that introduced this
+   * `reports` shape (`e3843594`) — every daemon build in this repo's entire history that can produce a
+   * `reports` entry at all produces one with a real `report`. `isPreset` is optional because it was
+   * added LATER (`333eb70e`, 2026-09-07) and an already-running older daemon process predates it;
+   * `report` has no such history — it is not a "recently added field" case.
+   *
+   * A future entry that somehow arrives without one anyway (corrupt payload, a hand-rolled test double
+   * that skips this constraint) should throw here, not be silently read as "admitted nothing" — the
+   * same "every refusal is reportable, never silent" reasoning `external-mcp-admissions-rules.ts`'s own
+   * header states, and the reason `getExternalMcpAdmissions` does NOT also do `raw.report ?? {...}`
+   * next to its `raw.connections ?? []` guard: `?? []` there defends a shape a REAL test in this repo
+   * already sends (`api-long-tail-endpoints.unit.test.ts`'s shared empty-body fetch stub); no
+   * equivalent real producer of a report-less connection exists to defend against, so adding one would
+   * be a speculative branch with no provable correct behavior, not a fix for anything ever observed.
+   */
   readonly report: {
     readonly admitted: readonly { readonly remoteName: string; readonly writeAuthorized: boolean }[];
     readonly refused: readonly { readonly remoteName: string; readonly reason: AdminToolRefusalReason }[];
@@ -322,6 +343,12 @@ interface RawAdmissionConnection {
 /** Un-nests one {@link RawAdmissionConnection} into the flat {@link AdminFederatedAdmissionEntry}
  *  contract every other reader in this app is written against. `isPreset` is copied only when the
  *  wire actually sent it, never defaulted, for the same reason the type doc above states.
+ *  `raw.report.*` below is read unguarded on purpose: `federation-admissions-route.ts:48` types
+ *  `report` non-optional and `:61` (`res.status(200).json({ connections: deps.reports })`) is a pure
+ *  pass-through of that same typed value, in the same process — the producer's type IS the
+ *  serializer's input, not a second, independently-authored type the wire could drift out of sync
+ *  with (that drift, across a boundary, is what `admitted`/`refused`/etc. being nested under `report`
+ *  in the first place actually was — see {@link RawAdmissionConnection}'s own doc). No guard needed.
  *  @complexity O(1) — copies four already-computed arrays, does not iterate them. */
 function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederatedAdmissionEntry {
   return {

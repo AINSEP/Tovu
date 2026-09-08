@@ -7,7 +7,9 @@ external-mcp-admissions-rules.ts:305 Uncaught TypeError: Cannot read properties 
     at connectionLevelEntry (external-mcp-admissions-rules.ts:305:36)
 ```
 
-Commit: `b0963afd` — `fix(admin): flatten the daemon's report-nested admissions wire shape`.
+Commits: `b0963afd` — `fix(admin): flatten the daemon's report-nested admissions wire shape`; follow-up
+(see "The `raw.report` gap" below) — `docs(admin): prove raw.report is unguarded on purpose, not by
+oversight`.
 
 ## Root cause: none of the three hypotheses, precisely — it's "the type lies," but systemic
 
@@ -85,6 +87,38 @@ enters the client (apps/admin, the browser app). Added:
   that stubs every endpoint with `okJson({})`; that guard does not mask a real server response (C-008
   always sends `{ connections: [...] }` on 200 and a down/unreachable daemon is already a distinguishable
   503, thrown as an `ApiError` before this line ever runs).
+
+## The `raw.report` gap (team-lead follow-up)
+
+`flattenAdmissionConnection` reads `raw.report.admitted` and its three siblings without guarding
+`raw.report` itself — flagged as worth a explicit decision, the same way `raw.connections ?? []` was:
+either prove `report` is genuinely guaranteed from the daemon's own construction code (not from the
+type — the type is what lied last time), or handle a missing one explicitly without silently
+substituting empty arrays.
+
+Traced `bootstrap.ts`'s full history (`git log --follow -p`), not just its current state. The `reports`
+array has been built the same way since the commit that introduced this shape,
+`e3843594` ("attach federated MCP tools" / admissions reporting): `if (attached.report)
+reports.push({ connectionId, report: attached.report, ... })`. That gate is the ONLY place an entry
+ever enters `reports`, in every commit since, including today's. There is no code path, in this
+codebase's entire history, that has ever pushed an entry with no `report` — unlike `isPreset`, which
+was added later (`333eb70e`, today) and is genuinely optional because an already-running older daemon
+process predates it. `report` is not a "recently added field" case; it is core to the shape from its
+first commit.
+
+Decision: **left unguarded, on purpose**, and documented that proof directly on `RawAdmissionConnection
+.report`'s JSDoc so a future reader has the evidence trail rather than rediscovering it. Did NOT add a
+`raw.report ?? {admitted: [], ...}` fallback, for the same reason `?.` at line 305 was wrong the first
+time: no real producer of a report-less connection exists anywhere in this repo to justify the branch,
+and defaulting one in would silently recreate the exact "malformed data read as admitted-nothing"
+collapse this whole fix exists to avoid. The `raw.connections ?? []` guard stayed, because — unlike
+this — a real, currently-passing test in this repo (`api-long-tail-endpoints.unit.test.ts`'s shared
+`okJson({})` stub) already exercises that exact case; there is nothing equivalent for a report-less
+connection to defend against. If one somehow arrives anyway (corrupt payload, a hand-rolled test double
+that skips the constraint), throwing here is the correct fail-loud outcome, not a silent one.
+
+Re-verified after this doc-only change: `api-external-mcp-admissions.unit.test.ts` +
+`api-long-tail-endpoints.unit.test.ts` — 60/60 passing; tsc — 0 errors.
 
 ## Completeness check: is `api.ts` the only place this response enters the client?
 
