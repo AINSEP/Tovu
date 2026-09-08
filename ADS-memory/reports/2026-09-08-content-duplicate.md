@@ -361,3 +361,170 @@ from doing it.
 - `content_duplicate` returns each resource's own view shape (`{ post: … }` vs `{ definition: … }`)
   rather than a normalized envelope. Correct for now — each resource's view is what its own
   follow-up tools take — but worth a decision before the resource count grows much further.
+
+## Follow-up (2026-09-08, new session) — default copy name: numeric suffix, never `Copy of`
+
+Programmer. Bootstrap confirmed: `AI-Dev-Shop/agents/programmer/skills.md` (v1.7.1) loaded before any
+work. Different task from the section above (which built the tool itself) — this changes its DEFAULT
+name from `Copy of X` to a numeric suffix, per the owner's follow-up ruling: `Copy of Copy of X` on a
+second copy, and untranslatable. Verified each of the 4 claimed edit sites before touching it, per the
+dispatch's own "trust but verify" framing — all 4 were exactly as described.
+
+### The shared collision-search module
+
+New: `apps/website/src/features/content-duplication/derive-available-name.ts`. Two exports:
+
+- `deriveAvailableName({ base }, { isTaken, withSuffix?, onExhausted? })` — the bounded suffix-search
+  LOOP, generalized from `features/forms/duplicate-slug.ts`'s `deriveAvailableFormSlug`
+  (try `base`, then `withSuffix(base, 2)`, `withSuffix(base, 3)`, … until free). `duplicate-slug.ts`
+  now DELEGATES to this for its own hyphenated, length-capped slug search — folding
+  `RESERVED_SLUGS`/`SLUG_PATTERN` into the injected `isTaken` (both mean "skip, try the next suffix",
+  which is exactly what returning `true` from `isTaken` already does) and its own message into
+  `onExhausted`. One collision loop in the codebase, not two — the dispatch's explicit instruction.
+  `duplicate-slug.test.ts` (9 cases, including the exact exhaustion-message regex) was NOT in the
+  dispatch's list of tests to update, and needed no changes: same behavior, same error text, verified
+  by running it unchanged. 9/9 green.
+- `deriveDuplicateName({ sourceName }, { isTaken })` — layers the trailing-number rule on top: a
+  trailing integer is read as an existing copy counter (and stripped before searching) ONLY when the
+  stripped base itself already exists as a title in the resource. `Landing 2` -> `Landing 3` only if
+  `Landing` exists; `Blog 2024` with no `Blog` row -> `Blog 2024 2`. Direct unit tests added
+  (`content-duplication/__tests__/derive-available-name.test.ts`, 10/10) cover both branches plus the
+  loop's own default/custom-suffix/exhaustion/onExhausted behavior — not just indirect coverage
+  through the three resource tests.
+
+### Applied to all three resources
+
+- **post/page** (`tool-registrations.ts`'s new `deriveDefaultDuplicateTitle`): one `postRepo.list()`
+  scan, titles compared WITHIN the same `kind` (a post and a page may legitimately share a title).
+  Slug is untouched — `createPost` still derives it from the (now numbered) title itself, so
+  `"Landing sample — xai 2"` yields `landing-sample-xai-2` with no second derivation, exactly as the
+  dispatch specified.
+- **form** (`deriveDefaultDuplicateFormName`): one `formDefinitionRepo.list()` scan. The slug line
+  itself is UNCHANGED — it already took `name` and derived a slug from it; feeding it the new numbered
+  name (`"Contact Us 2"`) instead of `"Copy of Contact Us"` was the whole fix, so `contact-us-2` falls
+  out with zero new slug logic.
+- **media** (`resolveDuplicateTitle` in `duplicate-asset.ts`): one `mediaRepo.list()` scan, skipped
+  entirely when an explicit title override is given. The trickier edit: the old `filename:
+  \`copy-of-${source.slug}\`` seed (used only to bootstrap `uploadMedia`'s OWN internal slug
+  derivation, immediately overwritten by `applyCopiedMetadata`'s real title write) could NOT simply
+  become the resolved title — `uploadMedia`'s `deriveTitleFromFilename` strips anything matching
+  `\.[^./\\]+$` (a period anywhere near the end, not just a real extension: e.g. `"Report v1.2 2"` would
+  lose `".2 2"`), and a numbered duplicate title CAN legitimately contain a period (a source titled
+  `"Logo v1.2"`). `applyCopiedMetadata`'s own pre-existing doc comment already named this exact hazard
+  for why `title` bypasses `filename` — I kept that discipline and extended it to the seed too: the
+  seed stays `${source.slug}-copy` (slug-derived, guaranteed dot-free per `MEDIA_SLUG_FORMAT_PATTERN`),
+  never the resolved title. Media's slug is therefore reworded away from `copy-of-` but NOT mirrored to
+  the numbered title the way forms' is — `MediaRecord`'s own doc states title/slug are independent
+  fields by design, and nothing in the dispatch named media's slug specifically. Stated here as the
+  recorded judgment call it is, not slipped in.
+
+### Scale-bounded O(n) `list()` scan — row counts, read live 2026-09-08
+
+No `findByTitle` on `PostRepoPort`, `FormDefinitionRepoPort`, or `MediaRepoPort` (confirmed by reading
+all three port interfaces directly, including the one in the separate `Jini` repo for media) — only
+`findById`/`findBySlug`/`list`. Adding a port method to three domains was out of scope. Current live
+scale (`sites/tovu-com/content.db`, queried read-only): **78 pages, 64 posts, 3 forms, 17 media rows**
+— the dispatch's own cited counts (17/3/43) were already stale by the time this task started, from the
+first agent's own live runs adding rows; the numbers above are what this task's code comments cite.
+Revisit if any of these grows into the thousands — each duplicate call does exactly ONE `list()` scan
+(not one per suffix candidate), held as a `Set` in memory for the search loop.
+
+### Tests updated (the 3 named in the dispatch, each verified RED against the old assertion first by reading the pre-edit code, not by re-running an already-passing test)
+
+- `post/__tests__/content-duplicate.post-page.test.ts` — the `'Copy of <title>'` assertion now expects
+  `"Landing sample — xai 2"` / `landing-sample-xai-2`; added a same-source-twice test proving `... 3`.
+- `forms/__tests__/content-duplicate.form.test.ts` — same shape; the existing "disambiguates the second
+  slug" test now asserts BOTH name and slug increment (`Contact Us 2`/`contact-us-2`, then
+  `Contact Us 3`/`contact-us-3`) instead of only the old slug-only suffix behavior.
+- `media/__tests__/content-duplicate.media.test.ts` — `` `Copy of ${source.title}` `` ->
+  `` `${source.title} 2` ``; added a same-asset-twice test proving `... 3`.
+
+### Live verification — through the assistant, read back from the DB, not the chat's claim
+
+Local CLI still reports `Not logged in · Please run /login` (same as the prior session) — switched the
+dock to **API · BYOK (Google Gemini · gemini-3.8-flash)**, ran two duplicate requests, then **switched
+back to Local CLI afterwards** (re-verified `active` before finishing).
+
+> **`Duplicate the Landing sample — xai page. Don't give it a name.`**
+
+The assistant found `content_duplicate` via `search_tools`, described it, and called it. Reply:
+
+```
+Duplicated Landing sample — xai as a draft:
+Title: Landing sample — xai 2
+Slug: landing-sample-xai-2
+ID: 386d060b-47d0-4d7f-8919-056283fa002f
+Status: Draft
+```
+
+Read back read-only (`file:…?mode=ro`):
+
+```
+386d060b-…|Landing sample — xai 2|landing-sample-xai-2|draft|page|html
+```
+
+Sent again — **same source, no name** — a second time:
+
+> **`Duplicate the Landing sample — xai page again. Still don't give it a name.`**
+
+```
+Title: Landing sample — xai 3
+Slug: landing-sample-xai-3
+ID: 7b42dba9-b192-4b48-bf05-822648146dcf
+```
+
+Read back read-only, matching exactly, alongside the source and the unrelated `Landing sample — gold`
+page (proves the collision scan is per-title, not fooled by a shared prefix):
+
+```
+98cd394b-…|Landing sample — gold|sample-gold|published
+4f220108-…|Landing sample — xai|/|published
+386d060b-…|Landing sample — xai 2|landing-sample-xai-2|draft
+7b42dba9-…|Landing sample — xai 3|landing-sample-xai-3|draft
+```
+
+Two more real draft rows now exist in the live DB from this run (`... 2` and `... 3`, both pages) —
+left in place rather than deleted, same as the prior session's live-run rows; delete from Pages
+whenever convenient.
+
+### Evidence
+
+- Root `npx tsc -p tsconfig.json --noEmit` — **exit 0**, checked directly (not through a pipe), both
+  before and after the live run (no code changed in between).
+- `npm run check:boundaries` — **19 errors** (unchanged baseline). Total warning count moved 191 -> 193
+  in this same run, but neither `derive-available-name.ts` nor any of the 4 edited files appears in ANY
+  reported line (grepped the full output for each touched path) — the two extra warnings are shared-tree
+  noise from concurrent agents' work, per `feedback_repo_wide_check_measures_the_tree`, not this task's.
+- Per-file test runs, `node --test` from repo root with `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json`:
+  `content-duplication/derive-available-name` 10/10 (new) · `forms/duplicate-slug` 9/9 (unchanged,
+  confirming no behavior drift) · `post/content-duplicate.post-page` 12/12 · `forms/content-duplicate.form`
+  10/10 · `media/content-duplicate.media` 14/14 · plus a 25-file, single-invocation regression sweep
+  across every `features/{post,forms,media,pages,content-duplication}/__tests__` file that could
+  plausibly be touched by the import changes (excluding only the known-hanging
+  `serve-command*.integration.test.ts`, none of which live in these directories) — **334/334 green,
+  0 failures**.
+- No `serve-command*.integration.test.ts` was run. No unscoped test run — every invocation named exact
+  file paths.
+- Live DB inspected read-only only; the two new rows were written by the assistant itself, through the
+  tool, which is the point.
+
+### Commit
+
+`6c13c606` — the shared module, the four edit sites, the three updated tests, and the new direct
+unit-test file, all in one commit (this is a single cohesive naming-policy change, not several
+independent slices).
+
+### Deviations from the dispatch — both judgment calls, stated plainly
+
+1. **Media's slug is reworded away from `copy-of-` but not mirrored to the numbered title.** See "the
+   trickier edit" above for the period/extension-stripping hazard that made mirroring unsafe without a
+   Tovu-side slugify duplicate; `MediaRecord`'s own doc backs treating title/slug as independent for
+   this resource specifically.
+2. **Row counts in the code comments (78/64/3/17) differ from the dispatch's own cited numbers
+   (17/3/43)** — the dispatch's counts were already stale (first agent's live runs added rows before
+   this task started); comments cite what was actually true when written, per this file's own
+   discipline elsewhere.
+
+Nothing else deviates: the trailing-number rule, the reuse-the-loop instruction, the
+slug-follows-title-automatically post/page behavior, and the derive-from-the-new-name forms behavior
+are all implemented exactly as specified in the dispatch.
