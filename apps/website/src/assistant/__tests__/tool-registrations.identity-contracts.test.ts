@@ -112,10 +112,21 @@ async function buildHarness(): Promise<Harness> {
 
 const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.map((tool) => tool.name));
 
+// identity_user_list/identity_role_list/identity_policy_list (2026-09-08) each collapse into their
+// own content_read.identity_* card (assistant/content-read-tool.ts) — none of the three merges with
+// a `_get` counterpart (identity has no get-by-id tool for any of the three), so each is a 1:1 id
+// swap, not a merge. Captured here so `wired(deps, ...)` keeps working for callers that ask for
+// either the old ids (still true for every mutation) or the new collapsed ones.
+const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
+  "content_read.identity_user",
+  "content_read.identity_role",
+  "content_read.identity_policy",
+]);
+
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id))
+      .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
 }
@@ -144,7 +155,10 @@ function asOwner(ownerPrincipalId: string, input: Record<string, unknown>): Tool
 test("every wired registration publishes the inputSchema and description from its catalog entry, not a second copy", async () => {
   const { deps } = await buildHarness();
 
+  // The 3 collapsed content_read.identity_* ids excluded — see COLLAPSED_IDENTITY_CONTENT_READ_IDS's
+  // own comment for why identityAgentToolCatalog has nothing to cross-check them against.
   for (const [id, registration] of identityRegistrations(deps)) {
+    if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -227,7 +241,7 @@ async function userReturningResults(harness: Harness): Promise<Array<{ toolId: s
     { toolId: "identity_user_update_email", payload: await wired(deps, "identity_user_update_email").handler(asOwner(ownerPrincipalId, { principalId, email: "c@d.test" })) },
     { toolId: "identity_user_disable", payload: await wired(deps, "identity_user_disable").handler(asOwner(ownerPrincipalId, { principalId })) },
     { toolId: "identity_user_enable", payload: await wired(deps, "identity_user_enable").handler(asOwner(ownerPrincipalId, { principalId })) },
-    { toolId: "identity_user_list", payload: await wired(deps, "identity_user_list").handler(asOwner(ownerPrincipalId, {})) },
+    { toolId: "identity_user_list", payload: await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {})) },
   ];
 }
 
@@ -272,7 +286,7 @@ test("a user view carries exactly the keys the model needs, and email only when 
 test("a role view exposes isBuiltin — the flag that predicts whether rename/delete will be refused", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const { roles } = (await wired(deps, "identity_role_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const { roles } = (await wired(deps, "content_read.identity_role").handler(asOwner(ownerPrincipalId, {}))) as {
     roles: Array<Record<string, unknown>>;
   };
 
@@ -303,7 +317,7 @@ test("a policy view carries exactly the keys the model needs, with description o
 test("identity_policy_list surfaces the built-in seeded policies plus a freshly created custom one", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const before = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const before = (await wired(deps, "content_read.identity_policy").handler(asOwner(ownerPrincipalId, {}))) as {
     policies: Array<{ id: string; isBuiltin: boolean }>;
   };
   assert.ok(before.policies.length >= 4, "the seed provides at least four built-in policies");
@@ -312,7 +326,7 @@ test("identity_policy_list surfaces the built-in seeded policies plus a freshly 
   const { policy: created } = (await wired(deps, "identity_policy_create").handler(asOwner(ownerPrincipalId, { name: "Custom" }))) as {
     policy: { id: string };
   };
-  const after = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const after = (await wired(deps, "content_read.identity_policy").handler(asOwner(ownerPrincipalId, {}))) as {
     policies: Array<{ id: string; isBuiltin: boolean }>;
   };
   assert.ok(after.policies.some((policy) => policy.id === created.id && policy.isBuiltin === false));
@@ -326,7 +340,7 @@ test("identity_user_list caps its fan-out and SAYS so, rather than silently retu
     await repos.users.save({ principalId: `bulk-${i}`, workspaceId: WORKSPACE_ID, username: `bulk-${i}`, passwordHash: "hash" });
   }
 
-  const result = (await wired(deps, "identity_user_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const result = (await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {}))) as {
     users: unknown[];
     truncated?: boolean;
     totalCount?: number;
@@ -340,7 +354,7 @@ test("identity_user_list caps its fan-out and SAYS so, rather than silently retu
 test("an untruncated list carries no truncated/totalCount keys — the signal means something only when it is present", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const result = (await wired(deps, "identity_user_list").handler(asOwner(ownerPrincipalId, {}))) as Record<string, unknown>;
+  const result = (await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {}))) as Record<string, unknown>;
 
   assert.deepEqual(Object.keys(result), ["users"]);
 });
@@ -352,7 +366,11 @@ test("an untruncated list carries no truncated/totalCount keys — the signal me
 test("the identity catalog and the wiring layer's independent classification agree for all fifteen wired tools", async () => {
   const { deps } = await buildHarness();
 
+  // The 3 collapsed content_read.identity_* ids are excluded: their catalog entry lives in
+  // assistant/content-read-tool.ts, not identityAgentToolCatalog, so catalogEntry(id) has nothing to
+  // cross-check them against here — see COLLAPSED_IDENTITY_CONTENT_READ_IDS's own comment.
   for (const id of identityRegistrations(deps).keys()) {
+    if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -413,7 +431,7 @@ test("END TO END: create a user, assign it a role, and see the assignment show u
   assert.deepEqual(assigned.assigned, { principalId: user.principalId, roleId: role.id });
 
   // 4. "Show up elsewhere" — the assignment is durable and visible through a DIFFERENT tool.
-  const { users } = (await wired(deps, "identity_user_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const { users } = (await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {}))) as {
     users: Array<{ principalId: string; username: string; roleIds: string[]; email?: string }>;
   };
   const listed = users.find((candidate) => candidate.principalId === user.principalId);
@@ -422,7 +440,7 @@ test("END TO END: create a user, assign it a role, and see the assignment show u
   assert.equal(listed.email, "ada@example.test");
 
   // 5. And the role itself is discoverable, which is how a model would have found it without step 1.
-  const { roles } = (await wired(deps, "identity_role_list").handler(asOwner(ownerPrincipalId, {}))) as { roles: Array<{ id: string; name: string }> };
+  const { roles } = (await wired(deps, "content_read.identity_role").handler(asOwner(ownerPrincipalId, {}))) as { roles: Array<{ id: string; name: string }> };
   assert.ok(roles.some((candidate) => candidate.id === role.id && candidate.name === "Content Editor"));
 });
 
@@ -438,7 +456,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
   assert.equal(policy.name, "Reviewer Bundle");
 
   // 2. It shows up through the read tool a model would use to discover it.
-  const { policies } = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+  const { policies } = (await wired(deps, "content_read.identity_policy").handler(asOwner(ownerPrincipalId, {}))) as {
     policies: Array<{ id: string; name: string }>;
   };
   assert.ok(policies.some((candidate) => candidate.id === policy.id && candidate.name === "Reviewer Bundle"));
@@ -502,7 +520,7 @@ test("disable then enable round-trips, and the status change is visible through 
   const disabled = (await wired(deps, "identity_user_disable").handler(asOwner(ownerPrincipalId, { principalId: user.principalId }))) as { user: { status: string } };
   assert.equal(disabled.user.status, "disabled");
 
-  const afterDisable = (await wired(deps, "identity_user_list").handler(asOwner(ownerPrincipalId, {}))) as { users: Array<{ principalId: string; status: string }> };
+  const afterDisable = (await wired(deps, "content_read.identity_user").handler(asOwner(ownerPrincipalId, {}))) as { users: Array<{ principalId: string; status: string }> };
   assert.equal(afterDisable.users.find((candidate) => candidate.principalId === user.principalId)?.status, "disabled");
 
   const enabled = (await wired(deps, "identity_user_enable").handler(asOwner(ownerPrincipalId, { principalId: user.principalId }))) as { user: { status: string } };
@@ -535,7 +553,7 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
   const deleted = (await wired(deps, "identity_role_delete").handler(asOwner(ownerPrincipalId, { roleId: spare.id }))) as { deleted: { roleId: string } };
   assert.deepEqual(deleted.deleted, { roleId: spare.id }, "a void-returning transition must still acknowledge what it did");
 
-  const { roles } = (await wired(deps, "identity_role_list").handler(asOwner(ownerPrincipalId, {}))) as { roles: Array<{ id: string }> };
+  const { roles } = (await wired(deps, "content_read.identity_role").handler(asOwner(ownerPrincipalId, {}))) as { roles: Array<{ id: string }> };
   assert.equal(roles.some((candidate) => candidate.id === spare.id), false);
 });
 

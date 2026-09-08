@@ -161,9 +161,27 @@ const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.
 function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id))
+      .filter(
+        (registration) =>
+          IDENTITY_TOOL_IDS.has(registration.descriptor.id) || Object.values(IDENTITY_COLLAPSED_ID).includes(registration.descriptor.id),
+      )
       .map((registration) => [registration.descriptor.id, registration]),
   );
+}
+
+// identity_user_list/identity_role_list/identity_policy_list (2026-09-08) each collapse into their
+// own content_read.identity_* card (assistant/content-read-tool.ts) — a 1:1 id swap, not a merge
+// (identity has no get-by-id tool for any of the three). `TOOL_INPUTS`/`declaredPermissions` below
+// stay keyed by the OLD id (that is where identityAgentToolCatalog's own permission declaration
+// still lives, and the collapsed card copies it verbatim) — only the id actually CALLED changes.
+const IDENTITY_COLLAPSED_ID: Readonly<Record<string, string>> = {
+  identity_user_list: "content_read.identity_user",
+  identity_role_list: "content_read.identity_role",
+  identity_policy_list: "content_read.identity_policy",
+};
+
+function identityWiredId(toolId: string): string {
+  return IDENTITY_COLLAPSED_ID[toolId] ?? toolId;
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -230,8 +248,12 @@ test("every wired identity tool has an input fixture here — wiring one without
   const { deps } = await buildHarness();
   const wiredIds = [...identityRegistrations(deps).keys()].sort();
 
-  assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).sort());
-  assert.deepEqual(wiredIds, identityAgentToolCatalog.map((tool) => tool.name).sort(), "every catalog entry must be wired, and nothing else");
+  assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).map(identityWiredId).sort());
+  assert.deepEqual(
+    wiredIds,
+    identityAgentToolCatalog.map((tool) => identityWiredId(tool.name)).sort(),
+    "every catalog entry must be wired (under its collapsed id where one applies), and nothing else",
+  );
   assert.equal(wiredIds.length, 15);
 });
 
@@ -246,7 +268,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const caller = await addPrincipal(repos, "ungranted-caller");
 
     await assert.rejects(
-      () => wired(deps, toolId).handler(executionContext(caller, TOOL_INPUTS[toolId])),
+      () => wired(deps, identityWiredId(toolId)).handler(executionContext(caller, TOOL_INPUTS[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof IdentityForbiddenError, `expected IdentityForbiddenError, got ${String(error)}`);
         assert.match((error as Error).message, new RegExp(caller));
@@ -261,7 +283,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const caller = await addPrincipal(repos, "ungranted-caller");
 
     const before = await stateFingerprint(repos);
-    await wired(deps, toolId)
+    await wired(deps, identityWiredId(toolId))
       .handler(executionContext(caller, TOOL_INPUTS[toolId]))
       .catch(() => undefined);
 
@@ -274,7 +296,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     const caller = await addPrincipal(repos, "granted-caller");
     await grant(repos, caller, declaredPermissions(toolId));
 
-    const error = await wired(deps, toolId)
+    const error = await wired(deps, identityWiredId(toolId))
       .handler(executionContext(caller, TOOL_INPUTS[toolId]))
       .then(() => null, (e: unknown) => e);
 
@@ -307,7 +329,7 @@ for (const toolId of OR_GATED_TOOL_IDS) {
       const caller = await addPrincipal(repos, `caller-${permission}`);
       await grant(repos, caller, [permission]);
 
-      const error = await wired(deps, toolId)
+      const error = await wired(deps, identityWiredId(toolId))
         .handler(executionContext(caller, TOOL_INPUTS[toolId]))
         .then(() => null, (e: unknown) => e);
 
@@ -474,7 +496,10 @@ test("identity_policy_list/create/update/delete/attach are wired, but identity_p
   const wiredIds = [...identityRegistrations(deps).keys()];
 
   for (const toolId of ["identity_policy_list", "identity_policy_create", "identity_policy_update", "identity_policy_delete", "identity_policy_attach"]) {
-    assert.ok(wiredIds.includes(toolId), `${toolId} should be wired — it mirrors an already-wired role transition's risk profile`);
+    assert.ok(
+      wiredIds.includes(identityWiredId(toolId)),
+      `${toolId} should be wired — it mirrors an already-wired role transition's risk profile`,
+    );
   }
   assert.equal(
     wiredIds.some((id) => /write.?permission/i.test(id)),
