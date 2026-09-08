@@ -80,10 +80,16 @@
  * than reporting a false success — an upload whose bytes were saved but whose type failed to record
  * is a real failure, not one to paper over.
  */
+import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMediaRegistrations, mediaDerivedRisk, sniffContentType, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
-import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
-import type { ToolRegistration } from "@jini-ai/cms/core";
+import {
+  resolveConfirmationDecision,
+  SURFACE_EXCHANGE_ID_PARAM,
+  type AssistantSurfaceDeps,
+  type SurfaceExchange,
+} from "../../contracts/core/tool-surface-exchanges.js";
+import { requireInputRecord, requireString, requireToolPermission, type ToolHandler, type ToolRegistration } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { getLatestTransformDefinition } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
@@ -202,21 +208,128 @@ function buildRecordUploadContentType(
   };
 }
 
+const MEDIA_TRASH_TOOL_ID = "media_trash_asset";
+
+/** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
+ *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
+function mediaTrashConfirmationUri(exchangeId: string): UIResourceUri {
+  return `ui://tovu/media-trash-asset/${exchangeId}` as UIResourceUri;
+}
+
+/**
+ * Renders `media_trash_asset`'s confirmation dialog. Jini's `buildConfirmationSurface` owns HOW the
+ * dialog behaves; this only decides WHAT it says.
+ *
+ * @complexity O(1).
+ */
+function buildMediaTrashConfirmationResource(spec: { asset: { title: string; slug: string }; exchangeId: string }): UIResource {
+  const { asset, exchangeId } = spec;
+  return buildConfirmationSurface({
+    uri: mediaTrashConfirmationUri(exchangeId),
+    title: "Trash this media asset?",
+    description: "The asset will be moved to the trash — the first step of the deletion ladder. There is no purge tool an agent can call.",
+    details: [
+      { label: "Title", value: asset.title },
+      { label: "Slug", value: asset.slug },
+    ],
+    danger: true,
+    confirm: {
+      label: "Trash asset",
+      toolName: MEDIA_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+    },
+    cancel: {
+      label: "Cancel",
+      toolName: MEDIA_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
+    },
+    app: { appName: "tovu-media-trash-asset", appVersion: "1" },
+    preferredFrameSize: ["100%", "320px"],
+  });
+}
+
+/**
+ * Wraps the Jini-provided `media_trash_asset` handler with the shared MCP-UI confirmation gate
+ * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md) — entirely in THIS shim,
+ * with no change to `@jini-ai/cms/media`'s own source. `@jini-ai/cms` is a host-agnostic package
+ * with no access to `contracts/core/tool-surface-exchanges.ts` (a Tovu-only module — Jini packages
+ * only ever get reached INTO by Tovu, never the reverse), so the gate could not live there;
+ * wrapping the returned registration here is the same seam this file already uses for
+ * `resolvePublicUrls`/`recordUploadContentType` above, just applied to a handler instead of a hook.
+ *
+ * The ORIGINAL handler still owns authorize+trash atomically, completely unchanged — it is called
+ * exactly once, only after a human confirms (`trashMedia`'s own input carries no
+ * `expectedVersion`/optimistic-concurrency field, confirmed by reading `media-service.ts` in full,
+ * so there is nothing to re-check for staleness at that point). This wrapper performs its OWN
+ * `media.delete` pre-check — the SAME permission the original handler checks again internally,
+ * redundant but harmless — so a denied principal never sees a dialog raised for them, matching
+ * every other tool in this family.
+ */
+function buildMediaTrashConfirmationHandler(routeDeps: MediaToolDeps, surfaces: AssistantSurfaceDeps, originalHandler: ToolHandler): ToolHandler {
+  return async (ctx) => {
+    const mediaId = requireString(requireInputRecord(ctx.input), "mediaId");
+    await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "media.delete", entityType: "media", entityId: mediaId });
+
+    const existing = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
+    if (!existing) throw new Error(`media asset '${mediaId}' was not found`);
+
+    if (!ctx.emitSurface) {
+      throw new Error(
+        "media_trash_asset: this execution context has no interactive confirmation channel " +
+          "(no emitSurface), so a destructive trash cannot be gated here. Nothing was trashed."
+      );
+    }
+
+    const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MEDIA_TRASH_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+    const ui = buildMediaTrashConfirmationResource({ asset: { title: existing.title, slug: existing.slug }, exchangeId: exchange.id });
+
+    const closeOnAbort = () => exchange.close();
+    ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+    try {
+      const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+      if (!outcome.confirmed) {
+        if (outcome.reason === "declined") {
+          return { trashed: false, cancelled: true, mediaId };
+        }
+        return {
+          trashed: false,
+          cancelled: false,
+          reason: outcome.reason,
+          note:
+            outcome.reason === "expired"
+              ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
+              : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
+        };
+      }
+
+      const result = (await originalHandler(ctx)) as Record<string, unknown>;
+      return { trashed: true, cancelled: false, ...result };
+    } finally {
+      ctx.signal.removeEventListener("abort", closeOnAbort);
+    }
+  };
+}
+
 /**
  * `buildMediaRegistrations` wired with this host's real `resolvePublicUrls`
  * ({@link resolveMediaPublicUrls}) and `recordUploadContentType`
- * ({@link buildRecordUploadContentType}) implementations — this is what `contributeMediaTools` below
- * registers, in place of passing `buildMediaRegistrations` straight through.
+ * ({@link buildRecordUploadContentType}) implementations, plus `media_trash_asset`'s confirmation
+ * gate ({@link buildMediaTrashConfirmationHandler}) wrapped over the Jini-provided handler — this is
+ * what `contributeMediaTools` below registers, in place of passing `buildMediaRegistrations` straight
+ * through.
  */
-function buildMediaRegistrationsForTovu(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps,
-  _surfaces: AssistantSurfaceDeps
-): ToolRegistration[] {
-  return buildMediaRegistrations({
+function buildMediaRegistrationsForTovu(routeDeps: MediaToolDeps & MediaPublicUrlDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  const registrations = buildMediaRegistrations({
     ...routeDeps,
     resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
   });
+
+  return registrations.map((registration) =>
+    registration.descriptor.id === MEDIA_TRASH_TOOL_ID
+      ? { ...registration, handler: buildMediaTrashConfirmationHandler(routeDeps, surfaces, registration.handler) }
+      : registration
+  );
 }
 
 /**
