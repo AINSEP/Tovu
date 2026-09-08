@@ -391,8 +391,14 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by
- *  both halves of the fold/strip pair below so the two can never disagree about the boundary. */
-const KEYWORD_MARKER = " — also known as: ";
+ *  both halves of the fold/strip pair below so the two can never disagree about the boundary.
+ *  Exported (2026-09-08) for `content-read-tool.ts`'s own card-description builder: a merged
+ *  `content_read.<resource>` card composes ITS OWN single marker boundary from several retired
+ *  tools' plain descriptions plus their combined keyword/doc2query tails (see that file's header)
+ *  — reusing this constant keeps that boundary byte-identical to the one `indexedDescriptionFor`
+ *  itself would draw, so `stripSearchKeywords` cuts a card's description in exactly the right place
+ *  without either file having to know the other's marker text separately. */
+export const KEYWORD_MARKER = " — also known as: ";
 
 /**
  * Folds a tool's keywords into the text that gets INDEXED.

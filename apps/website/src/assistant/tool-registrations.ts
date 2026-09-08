@@ -160,6 +160,7 @@ import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-ch
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
+import { deriveContentReadRegistrations } from "./content-read-tool.js";
 import { listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
@@ -690,5 +691,11 @@ export function buildAssistantToolRegistrations(
     }
   }
 
-  return registrations;
+  // `content_read` collapse (2026-09-08, ADS-memory/reports/2026-09-08-parent-tool-read-eval.md,
+  // Addendum arm D1) — the FINAL step, after every domain above has contributed: replaces the 36
+  // Tier-1 read tools (list-a-collection / get-a-row-by-id, spread across ~20 domains) with 29
+  // `content_read.<resource>` cards, all dispatching through one shared handler factory. See
+  // `content-read-tool.ts`'s own header for why this runs here as a post-processing pass rather than
+  // as one more `ToolContributor` in the loop above (it needs to see what that loop already built).
+  return deriveContentReadRegistrations(registrations);
 }
