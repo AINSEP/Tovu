@@ -158,6 +158,17 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "theme_trash_file",
   "redirects_tombstone",
   "webhooks_delete_subscription",
+  // `media_trash_asset` — sixth and last of the same family, added a beat after the five above in
+  // the same build. Holds up the identical shape (its shim in `features/media/tool-registrations.ts`
+  // opens a `SurfaceExchangeStore` exchange via `resolveConfirmationDecision`, same as the rest).
+  // Missing from this list for one commit: the tool still registered, its dialog still rendered
+  // correctly with real asset data, and every direct-handler test still passed — none of that
+  // exercises this route, so nothing caught it until a live click through the real endpoint returned
+  // 403 TOOL_NOT_ALLOWLISTED for both Trash and Cancel (ADS-memory/reports/
+  // 2026-09-08-delete-confirmation-build.md's verification section). "Registers" and "the confirm
+  // click works" are different claims — only a request that reaches this allowlist proves the second
+  // one; see `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts` for that proof.
+  "media_trash_asset",
 ]);
 
 /**
