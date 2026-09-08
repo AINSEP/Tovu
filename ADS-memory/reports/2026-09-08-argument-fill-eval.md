@@ -432,3 +432,147 @@ Claude-family one. Tovu is BYOK; a GPT or Gemini caller is untested.
    model — is the experiment that would convert §3's upper bound into a point estimate.
 4. **The shipped cards' own residual fill surface is unmeasured** (§0): `content_read.content_post`'s
    required `kind`, and the id-presence get/list dispatch on the 7 merged cards.
+
+---
+
+# Addendum (2026-09-08, same day): the peer's top-1 result, verified — and the destructive question, priced
+
+Written after the coordinator relayed `2026-09-08-content-delete-eval.md`'s cards-vs-fat top-1 result
+and asked three things: verify rather than inherit it, keep restricted and whole-set views separate,
+and price "wrong resource, harmless" against "wrong resource, destructive" if this eval can.
+`uptime` at run: 1-minute load 115.10 on 8 cores. All arms are deterministic FTS5 scoring or offline
+file scoring; nothing is timing-sensitive.
+
+## 1. The 50-point top-1 claim: verified, with one qualification their table does not show
+
+I re-ran `tool-search-parent-tool-delete.eval.ts` and its restricted table reproduces **exactly**:
+baseline 25/63/75/75, A-thin 13/13/13/50, A-concat 13/100/100/100, cards-strict 25/63/75/75,
+cards-LENIENT 63/100/100/100 (top-1/5/10/20, n=8).
+
+I then rebuilt both arms independently — same family, same mechanical `indexedDescriptionFor` text —
+and ran **the paired test their table omits**. It reports each arm against BASELINE; it never tests
+the two arms the claim is actually about against each other:
+
+```
+top-1   cards-LENIENT 4/8   fat-concat 0/8   discordant: lenient-only=4 fat-only=0   McNemar exact p=0.1250
+top-5   cards-LENIENT 7/8   fat-concat 7/8   discordant: lenient-only=0 fat-only=0   p=1.0000
+top-10  cards-LENIENT 8/8   fat-concat 8/8   discordant: lenient-only=0 fat-only=0   p=1.0000
+top-20  cards-LENIENT 8/8   fat-concat 8/8   discordant: lenient-only=0 fat-only=0   p=1.0000
+```
+
+**Direction and magnitude confirmed** — cards ahead at top-1 by ~50 points under identical lenient
+scoring, and the one-document/one-slot mechanism is the right explanation. My absolute numbers are
+4/8 and 0/8 rather than their 5/8 and 1/8 because I counted only family hits while their scoring also
+credits a surviving non-family `alsoAcceptable` id; the **gap** is the same size either way.
+
+Two qualifications the claim needs carried with it:
+
+- **It is not significant. `p=0.1250`, four discordant pairs all one-directional.** At n=8 the exact
+  test cannot reach p<0.05 unless six or more discordant pairs fall one way. This is a directional
+  signal, exactly as the peer said — but "50 points" and "p=0.125" should travel together, because
+  the first number reads as decisive on its own and three unlabelled figures in this investigation
+  have already been mis-quoted onward.
+- **The gap exists at top-1 and nowhere else. At top-5, top-10 and top-20 the two arms are identical
+  case-for-case — zero discordant pairs in either direction.** So the entire claim rests on rank #1,
+  which makes it wholly dependent on the 2026-08-24 "takes the first matching result" finding being
+  true of the deployed agent. If that behaviour does not hold, the two designs are indistinguishable
+  at every cutoff measured.
+
+## 2. On "every fat-entry number is flattered by an unknown-but-larger-than-15-point leniency margin"
+
+**This inference has the sign backwards, and the correction is the point of this whole eval.**
+
+The leniency margin is the set of cases where *some* member of the family ranks but the *right* one
+does not. The argument that it flatters the fat entry assumes those extra hits fail to become correct
+calls — that the fat entry ranks, and then the model fills `resource` wrongly. **Whether they convert
+is precisely what §2 and §4 measure, and they convert at ~100%**: 34/34 for `content_read`, 8/8 for
+`content_delete`, 20/20 on a set built to break it (§3). A fat entry that ranks does get called with
+the right resource. So its leniently-scored retrieval numbers are **not** inflated by leniency — they
+are approximately its end-to-end recall.
+
+Under the card design those same cases are genuine misses: the right card did not rank, and the model
+cannot call a card it was not shown. Strict scoring is correct for cards. So the leniency margin is a
+real **fat-design advantage**, not a hidden fat-design cost.
+
+**But the conclusion the coordinator was reaching for is right, for a different reason.** Every
+retrieval table in both reports scores **recall only** — "did the right thing rank?" — and never
+"did the wrong thing rank and get used?". That is where the fat design's real cost lives, and it is
+invisible to all of them: for the read family, 72 false fills in 75 out-of-scope mutation requests
+(§3). So the honest restatement is: **the published fat-entry numbers are not flattered by leniency;
+they are flattered by being recall-only.** For `content_delete` even that correction is nil — its
+precision cost is 1/122, identical in all three shapes — so for the delete family the fat entry's
+numbers really are honest.
+
+## 3. Pricing the destructive question — the answer is "no measurable difference", under a set built to find one
+
+The peer's stakes argument is that a wrong `resource` is strictly worse on delete than on read: on
+read it returns confident plausible wrong data, on delete it destroys the wrong thing. The premise is
+obviously true. The question this eval can answer is whether the *rate* differs by design.
+
+§4's held-out delete evidence was n=8 and hit a ceiling — **0/8 wrong has a Wilson upper bound of
+32%**, which is far too loose for a destructive operation, and those 8 queries are well-separated
+("delete that old logo image"). So I built a set to break it.
+
+**`development/evals/tool-search-argument-fill-adversarial.ts` — 20 delete-family queries, 16 of them
+BAIT**: the most lexically salient noun in the query is a *different* family resource from the one the
+request targets, so a model matching on salience deletes the wrong thing. *"that blog post about the
+summer sale has a photo we no longer have the rights to, take the photo down"* → `media_asset`, bait
+`content_post`. *"remove the forwarding for /old-blog but keep the article it points at"* → `redirect`,
+bait `content_post`. *"take out that one remark, not the block that displays remarks"* → `comment`,
+bait `widget_instance`. Four controls where salience and target agree.
+
+| arm | bait cases (n=16) | control (n=4) | all 20 |
+|---|---|---|---|
+| J — fat, bare-noun enum | 16/16 **100%** [81-100] | 4/4 100% [51-100] | 20/20 **100%** [84-100] |
+| K — fat, verb-carrying enum | 16/16 **100%** [81-100] | 4/4 100% [51-100] | 20/20 **100%** [84-100] |
+| L — 8 cards | 16/16 **100%** [81-100] | 4/4 100% [51-100] | 20/20 **100%** [84-100] |
+
+**Zero traps sprung, in any shape. Not one wrong resource across 60 destructive decisions.** McNemar
+J vs L: `L-only=0, J-only=0, p=1.0000` at every scope.
+
+**Disclosed, and load-bearing: I authored these 20 queries with the 8 resources in front of me,
+choosing them to be confusable.** That breaks blindness — in the only direction that cannot flatter
+anything. An adversarial set can lower a measured accuracy, never raise it, so this is a **lower bound
+on accuracy**, which is the bound a destructive operation actually needs. The honest limit on the
+other side is that my traps may simply not be good enough; a stronger adversary might find real
+confusions, and the arms answer all 20 in one batch with the full resource list visible, which is
+easier than an agentic turn.
+
+**So the answer to the peer's question is: yes, this eval can separate harmless from destructive wrong
+fills, and the destructive rate is the same in every shape and indistinguishable from zero — ≤16%
+(Wilson, n=20, 0 errors) and identical across fat-noun, fat-verb and cards.** The stakes asymmetry is
+real as a premise and does **not** convert into a measurable error-rate difference between the
+designs.
+
+**What that means for the recommendation, stated plainly:** the peer's case for cards on a destructive
+family should rest on **confirmation-flow and human visibility** — making resource selection explicit
+*before* a confirmation gate, so a reviewer of the catalog and a human at the dialog both see which
+resource is in play — and **not** on a predicted destructive-error rate, because there isn't a
+measurable one. That is still a good argument; it is just an argument about what humans see, not about
+what the model gets right. I would not weaken their recommendation on this evidence, but I would
+change the reason attached to it, because a reason that does not survive measurement will be
+challenged later by exactly the kind of re-measurement that produced this report.
+
+There is also a counter-consideration on the top-1 result worth putting on the record, offered as an
+inference and not a measurement: for a **destructive** family, the fat entry's low top-1
+("always present, rarely first" — 13% top-1, 100% top-5) means an agent that grabs the first matching
+result grabs *something other than a delete*. On a destructive verb that is the safe direction to
+fail. The top-1 advantage cards hold is unambiguously good for a read family and is at least arguable
+for a delete family.
+
+## 4. Restricted vs whole-set — confirmed separate throughout
+
+Every table in this report is labelled with its own denominator and never blends the two: `n=34`
+in-scope and `n=96` out-of-scope for `content_read`; `n=8` and `n=122` for `content_delete`; `n=20` for
+the adversarial set. The one whole-set table (`n=130`) is a composite of "fully correct per case" and
+is labelled as such. Retrieval figures quoted from prior reports (D1-strict 85% top-10, C2 97%) are
+quoted with "on the affected cases" attached. No figure here is a blend.
+
+## 5. What this addendum changed
+
+- **Added** `development/evals/tool-search-argument-fill-adversarial.ts` and arms J/K/L, plus the
+  independent re-derivation of the peer's top-1 comparison. No production file touched; root
+  `npx tsc -p tsconfig.json --noEmit` clean.
+- **Corrects nothing in §§0-9 above.** §7's stated weakness — that the in-scope ceiling came from
+  well-separated queries and might not survive genuinely ambiguous ones — is now tested for the delete
+  family and survives. It remains untested for the read family's 29 resources.

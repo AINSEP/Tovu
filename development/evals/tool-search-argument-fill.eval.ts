@@ -160,18 +160,28 @@ const DELETE_ARMS = [
   { id: "H", file: "afill-answers-H.txt", label: "H  content_delete as 8 cards" },
 ] as const;
 
+/** The same three delete shapes on the hand-authored ADVERSARIAL set — see
+ *  `tool-search-argument-fill-adversarial.ts` for why breaking blindness is safe in that direction. */
+const ADVERSARIAL_ARMS = [
+  { id: "J", file: "afill-answers-J.txt", label: "J  content_delete, BARE-NOUN enum (adversarial)" },
+  { id: "K", file: "afill-answers-K.txt", label: "K  content_delete, VERB-CARRYING enum (adversarial)" },
+  { id: "L", file: "afill-answers-L.txt", label: "L  content_delete as 8 cards (adversarial)" },
+] as const;
+
 function main(): void {
   const dir = process.argv[2];
   if (!dir) throw new Error("usage: tsx tool-search-argument-fill.eval.ts <fixture-dir> [read|delete]");
-  const family = (process.argv[3] ?? "read") as "read" | "delete";
-  const key = JSON.parse(readFileSync(join(dir, family === "delete" ? "afill-delete-key.json" : "afill-key.json"), "utf8")) as Key;
+  const family = (process.argv[3] ?? "read") as "read" | "delete" | "adversarial";
+  const KEY_FILE = { read: "afill-key.json", delete: "afill-delete-key.json", adversarial: "afill-adversarial-key.json" } as const;
+  const key = JSON.parse(readFileSync(join(dir, KEY_FILE[family]), "utf8")) as Key;
   const caseNos = key.cases.map((c) => c.caseNo);
   const byNo = new Map(key.cases.map((c) => [c.caseNo, c]));
   const inScopeNos = key.cases.filter((c) => c.acceptableResources.length > 0).map((c) => c.caseNo);
   const outScopeNos = key.cases.filter((c) => c.acceptableResources.length === 0).map((c) => c.caseNo);
 
-  const armSet: readonly { id: string; file: string; label: string }[] = family === "delete" ? DELETE_ARMS : ARMS;
-  const baselineArm = family === "delete" ? "H" : "C";
+  const armSet: readonly { id: string; file: string; label: string }[] =
+    family === "delete" ? DELETE_ARMS : family === "adversarial" ? ADVERSARIAL_ARMS : ARMS;
+  const baselineArm = family === "delete" ? "H" : family === "adversarial" ? "L" : "C";
 
   const results = new Map<string, Map<number, Verdict>>();
   const present: string[] = [];
@@ -309,6 +319,31 @@ function main(): void {
   console.log(`    can it ever abstain?            no — BM25 always ranks something; every out-of-scope case is a forced fill`);
   console.log(`\n    In-scope cases BM25 gets wrong but every live arm gets right (${lexMisses.length}):`);
   for (const c of lexMisses) console.log(`      want=${c.acceptableResources.join("|").padEnd(26)} "${c.query.slice(0, 68)}"`);
+  }
+
+  if (family === "adversarial") {
+    const bait = key.cases.filter((c) => (c as KeyCase & { bait: string | null }).bait !== null).map((c) => c.caseNo);
+    const control = key.cases.filter((c) => (c as KeyCase & { bait: string | null }).bait === null).map((c) => c.caseNo);
+    console.log(`\n  ADVERSARIAL SPLIT — bait cases carry a salient sibling resource the request does NOT target\n`);
+    console.log(`  ${"arm".padEnd(48)}${`bait n=${bait.length}`.padEnd(23)}${`control n=${control.length}`.padEnd(23)}`);
+    for (const arm of armSet) {
+      if (!results.has(arm.id)) continue;
+      console.log(`  ${arm.label.padEnd(48)}${pct(count(arm.id, bait, "CORRECT"), bait.length)}${pct(count(arm.id, control, "CORRECT"), control.length)}`);
+    }
+    for (const arm of armSet) {
+      if (!results.has(arm.id)) continue;
+      const answers = parseAnswers(join(dir, arm.file), caseNos);
+      const sprung = key.cases.filter((c) => {
+        const v = results.get(arm.id)!.get(c.caseNo)!;
+        if (v === "CORRECT" || v === "CORRECT_ABSTAIN") return false;
+        return true;
+      });
+      console.log(`\n  Arm ${arm.id} — ${sprung.length} wrong of ${key.cases.length}${sprung.length ? ":" : " (no trap sprung)"}`);
+      for (const c of sprung) {
+        const b = (c as KeyCase & { bait: string | null }).bait;
+        console.log(`    ${String(c.caseNo).padStart(3)} got=${answers.get(c.caseNo)!.padEnd(34)} want=${c.expect.padEnd(26)} bait=${b ?? "(control)"}`);
+      }
+    }
   }
 
   // ---- The failure register: every case where an arm returned confident, plausible, WRONG data ---

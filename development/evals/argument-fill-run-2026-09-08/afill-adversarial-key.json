@@ -1,0 +1,276 @@
+{
+  "resources": [
+    "collection_content_type",
+    "comment",
+    "content_post",
+    "media_asset",
+    "redirect",
+    "theme_file",
+    "webhook_subscription",
+    "widget_instance"
+  ],
+  "hand_authored": true,
+  "cases": [
+    {
+      "caseNo": 1,
+      "sourceIndex": 0,
+      "query": "that blog post about the summer sale has a photo in it we no longer have the rights to, take the photo down",
+      "expect": "media_asset",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "media_asset"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 2,
+      "sourceIndex": 1,
+      "query": "the header image sitting in our theme folder is stale, drop it",
+      "expect": "theme_file",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "theme_file"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "media_asset"
+    },
+    {
+      "caseNo": 3,
+      "sourceIndex": 2,
+      "query": "someone left a nasty note under the pricing article, get rid of it",
+      "expect": "comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "comment"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 4,
+      "sourceIndex": 3,
+      "query": "we killed the old /pricing-2023 url forwarding rule, remove it",
+      "expect": "redirect",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "redirect"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 5,
+      "sourceIndex": 4,
+      "query": "the newsletter signup block sitting in the sidebar is obsolete, remove the block itself",
+      "expect": "widget_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_instance"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 6,
+      "sourceIndex": 5,
+      "query": "we stopped using the Event record type entirely, tear the whole type down",
+      "expect": "collection_content_type",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "collection_content_type"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 7,
+      "sourceIndex": 6,
+      "query": "the slack notifier we set up for form submissions keeps firing, unhook it",
+      "expect": "webhook_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "webhook_subscription"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "comment"
+    },
+    {
+      "caseNo": 8,
+      "sourceIndex": 7,
+      "query": "delete the picture file the theme ships for its default avatar",
+      "expect": "theme_file",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "theme_file"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "media_asset"
+    },
+    {
+      "caseNo": 9,
+      "sourceIndex": 8,
+      "query": "that photo is in our library twice, remove the duplicate library entry",
+      "expect": "media_asset",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "media_asset"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "theme_file"
+    },
+    {
+      "caseNo": 10,
+      "sourceIndex": 9,
+      "query": "the spam remark on the about page needs removing, the page itself is fine",
+      "expect": "comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "comment"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 11,
+      "sourceIndex": 10,
+      "query": "our zapier connection is dead, delete the subscription for it",
+      "expect": "webhook_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "webhook_subscription"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "redirect"
+    },
+    {
+      "caseNo": 12,
+      "sourceIndex": 11,
+      "query": "the old announcement page should go, but leave the forwarding rule we set up for it",
+      "expect": "content_post",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "content_post"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "redirect"
+    },
+    {
+      "caseNo": 13,
+      "sourceIndex": 12,
+      "query": "remove the forwarding for /old-blog but keep the article it points at",
+      "expect": "redirect",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "redirect"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 14,
+      "sourceIndex": 13,
+      "query": "get rid of the recipe record type, we already moved the recipes somewhere else",
+      "expect": "collection_content_type",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "collection_content_type"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "content_post"
+    },
+    {
+      "caseNo": 15,
+      "sourceIndex": 14,
+      "query": "the sidebar block showing recent remarks should be removed, the remarks themselves stay",
+      "expect": "widget_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_instance"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "comment"
+    },
+    {
+      "caseNo": 16,
+      "sourceIndex": 15,
+      "query": "take out that one remark, not the block that displays remarks",
+      "expect": "comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "comment"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": "widget_instance"
+    },
+    {
+      "caseNo": 17,
+      "sourceIndex": 16,
+      "query": "delete that old logo image we don't use anymore",
+      "expect": "media_asset",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "media_asset"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": null
+    },
+    {
+      "caseNo": 18,
+      "sourceIndex": 17,
+      "query": "remove that spam remark from the site",
+      "expect": "comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "comment"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": null
+    },
+    {
+      "caseNo": 19,
+      "sourceIndex": 18,
+      "query": "take down the spring sale article, we're done with it",
+      "expect": "content_post",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "content_post"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": null
+    },
+    {
+      "caseNo": 20,
+      "sourceIndex": 19,
+      "query": "we don't use that slack hookup anymore, remove it",
+      "expect": "webhook_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "webhook_subscription"
+      ],
+      "acceptableShippedIds": [],
+      "truthKind": "mutation",
+      "bait": null
+    }
+  ],
+  "affectedCount": 20
+}

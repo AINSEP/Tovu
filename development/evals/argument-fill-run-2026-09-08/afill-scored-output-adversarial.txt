@@ -1,0 +1,68 @@
+
+================================================================================================================
+ARGUMENT-FILL — does the model pass the resource that actually serves the request?
+================================================================================================================
+
+  cases                  20   (in-scope for content_read: 20, out-of-scope: 0)
+  resources              8   (verified identical to the shipped card set)
+  arms scored            J, K, L
+
+  ON THE 20 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
+
+  arm                                         correct                WRONG resource         abstained              invalid                
+  J  content_delete, BARE-NOUN enum (adversarial)20/20 100% [84-100]    0/20 0% [0-16]         0/20 0% [0-16]         0/20 0% [0-16]         
+  K  content_delete, VERB-CARRYING enum (adversarial)20/20 100% [84-100]    0/20 0% [0-16]         0/20 0% [0-16]         0/20 0% [0-16]         
+  L  content_delete as 8 cards (adversarial)  20/20 100% [84-100]    0/20 0% [0-16]         0/20 0% [0-16]         0/20 0% [0-16]         
+
+  ON THE 0 OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain
+
+  arm                                         correctly abstained    FALSE FILL             invalid                
+  J  content_delete, BARE-NOUN enum (adversarial)—                      —                      —                      
+  K  content_delete, VERB-CARRYING enum (adversarial)—                      —                      —                      
+  L  content_delete as 8 cards (adversarial)  —                      —                      —                      
+
+  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own
+  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same
+  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a
+  MUTATION request is the tool being reached for when the operator wanted something changed.
+
+  arm                                         abstain, read n=0      abstain, mutation n=0  
+  J  content_delete, BARE-NOUN enum (adversarial)—                      —                      
+  K  content_delete, VERB-CARRYING enum (adversarial)—                      —                      
+  L  content_delete as 8 cards (adversarial)  —                      —                      
+
+  WHOLE SET, n=20 — every case scored, abstention counted as correct only where it is
+
+  arm                                         fully correct          confidently WRONG      
+  J  content_delete, BARE-NOUN enum (adversarial)20/20 100% [84-100]    0/20 0% [0-16]         
+  K  content_delete, VERB-CARRYING enum (adversarial)20/20 100% [84-100]    0/20 0% [0-16]         
+  L  content_delete as 8 cards (adversarial)  20/20 100% [84-100]    0/20 0% [0-16]         
+
+  PAIRED McNemar exact vs. the card arm, "fully correct" per case:
+
+    J vs L, in-scope            L-only=0   J-only=0   p=1.0000
+    J vs L, out-of-scope        L-only=0   J-only=0   p=1.0000
+    J vs L, whole set           L-only=0   J-only=0   p=1.0000
+    K vs L, in-scope            L-only=0   K-only=0   p=1.0000
+    K vs L, out-of-scope        L-only=0   K-only=0   p=1.0000
+    K vs L, whole set           L-only=0   K-only=0   p=1.0000
+
+  ADVERSARIAL SPLIT — bait cases carry a salient sibling resource the request does NOT target
+
+  arm                                             bait n=16              control n=4            
+  J  content_delete, BARE-NOUN enum (adversarial) 16/16 100% [81-100]    4/4 100% [51-100]      
+  K  content_delete, VERB-CARRYING enum (adversarial)16/16 100% [81-100]    4/4 100% [51-100]      
+  L  content_delete as 8 cards (adversarial)      16/16 100% [81-100]    4/4 100% [51-100]      
+
+  Arm J — 0 wrong of 20 (no trap sprung)
+
+  Arm K — 0 wrong of 20 (no trap sprung)
+
+  Arm L — 0 wrong of 20 (no trap sprung)
+
+  Arm J — 0 case(s) returning a confidently wrong resource:
+
+  Arm K — 0 case(s) returning a confidently wrong resource:
+
+  Arm L — 0 case(s) returning a confidently wrong resource:
+
