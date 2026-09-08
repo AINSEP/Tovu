@@ -29,7 +29,9 @@ import { FEDERATION_ADMISSIONS_PATH, registerFederationAdmissionsRoute } from ".
 
 const TOKEN = "test-daemon-token";
 
-function buildApp(reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport }[]): express.Express {
+function buildApp(
+  reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[],
+): express.Express {
   const app = express();
   // Same ordering as `agent-daemon-server.ts`: the gate mounts first, before any route — including
   // this one, which is deliberately never added to `exemptPaths`.
@@ -75,13 +77,27 @@ test("rejects a request with the wrong bearer token — 401", async (t) => {
 });
 
 test("with the correct bearer token, serves exactly the report snapshot handed to it at registration — no live daemon needed to observe the boot capture", async (t) => {
-  const reports = [{ connectionId: "higgsfield", report: SAMPLE_REPORT }];
+  const reports = [{ connectionId: "higgsfield", report: SAMPLE_REPORT, isPreset: false }];
   const baseUrl = await startTestServer(buildApp(reports), t);
 
   const res = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { connections: reports });
+});
+
+test("isPreset rides along unmodified for both a preset and a roster connection — this route never reshapes the snapshot", async (t) => {
+  const reports = [
+    { connectionId: "supabase-preset", report: SAMPLE_REPORT, isPreset: true },
+    { connectionId: "higgsfield", report: SAMPLE_REPORT, isPreset: false },
+  ];
+  const baseUrl = await startTestServer(buildApp(reports), t);
+
+  const res = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
+
+  const body = (await res.json()) as { connections: { connectionId: string; isPreset: boolean }[] };
+  assert.equal(body.connections.find((c) => c.connectionId === "supabase-preset")?.isPreset, true);
+  assert.equal(body.connections.find((c) => c.connectionId === "higgsfield")?.isPreset, false);
 });
 
 test("an empty snapshot (no connections reached admission) is served as an empty list, not an error", async (t) => {

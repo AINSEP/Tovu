@@ -1051,6 +1051,30 @@ test("attachFederatedMcpTools returns one report per connection that reached adm
   assert.equal(result.reports[0]?.report.refused.find((entry) => entry.remoteName === "execute_sql")?.reason, "not-in-operator-allowlist");
 });
 
+// `isPreset` (2026-09-07): the admin admissions banner needs to tell "no roster card because this
+// is a preset, by design" apart from "no roster card because the operator deleted it" — see
+// `AttachFederatedToolsResult.reports`'s own doc. `connections` stands in for the preset list (it
+// replaces `resolveRegisteredPresets`'s result) and `extraConnections` is the operator roster, so
+// this asserts the tag survives from whichever list a connection actually came from.
+test("tags each report with whether it came from a preset or the operator's roster", async () => {
+  const registry = fakeRegistry();
+  const { logger } = collectingLogger();
+  const rosterConfig: FederatedMcpConnectionConfig = { ...CONFIG, connectionId: "roster-connection" };
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: CONFIG, launch: { command: "unused", args: [], env: {} } }],
+    extraConnections: [{ config: rosterConfig, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => sessionFor(),
+  });
+
+  assert.equal(result.reports.length, 2);
+  assert.equal(result.reports.find((r) => r.connectionId === "supabase")?.isPreset, true);
+  assert.equal(result.reports.find((r) => r.connectionId === "roster-connection")?.isPreset, false);
+});
+
 test("a connection that fails before admission (bad handshake) contributes no report entry at all", async () => {
   const registry = fakeRegistry();
   const { logger } = collectingLogger();

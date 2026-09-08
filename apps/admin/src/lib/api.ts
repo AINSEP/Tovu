@@ -259,6 +259,19 @@ export interface AdminFederatedAdmissionEntry {
   allowlistedButAbsent: string[];
   /** Names write-authorized but not also allowlisted — a write grant that can never take effect. */
   writeAllowedButNotAllowlisted: string[];
+  /**
+   * Whether this connection came from a first-party plugin preset (`mcp-federation/presets.ts`)
+   * rather than this workspace's editable roster — `AttachFederatedToolsResult.reports`'s own field,
+   * relayed verbatim through two passthrough hops. `external-mcp-admissions-rules.ts` reads this to
+   * tell "no roster card because this is a preset, by design" apart from "no roster card because the
+   * operator deleted it" — both used to look identical (no roster card either way), which is why a
+   * genuinely-deleted-but-still-live connection was silently reported as agreeing instead of as
+   * drift (2026-09-07). Optional, not defaulted at this type's boundary: an older daemon build that
+   * predates this field omits it, and `!entry.isPreset` already reads `undefined` the same as
+   * `false` — the safe direction, since it means "warn about a live connection" rather than "stay
+   * silent about one that might not be a preset".
+   */
+  isPreset?: boolean;
 }
 
 /** `GET .../mcp-servers/admissions`'s response shape (C-008). A down daemon is a 503 — see

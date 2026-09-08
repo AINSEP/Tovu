@@ -143,7 +143,13 @@ describe("describeAdmissionDrift", () => {
 
   it("treats a connection with no matching roster card as having saved nothing rather than throwing", () => {
     const drifted = describeAdmissionDrift(
-      { connections: [entry({ connectionId: "env-preset", refused: [{ remoteName: "x", reason: "remote-declares-destructive" }] })] },
+      {
+        // `isPreset: true` — a genuine env preset, not the "operator deleted the card" case the
+        // block below this `describe` exercises. Without it this fixture would now (correctly,
+        // 2026-09-07) resolve as `removed-but-still-running` instead, which is a different property
+        // than the one this test names.
+        connections: [entry({ connectionId: "env-preset", isPreset: true, refused: [{ remoteName: "x", reason: "remote-declares-destructive" }] })],
+      },
       {},
     );
 
@@ -274,5 +280,79 @@ describe("ADM-001 — the reverse direction", () => {
     );
 
     expect(drifted).toEqual([]);
+  });
+});
+
+/**
+ * A gap ADM-001 left open (2026-09-07): it fixed `live − saved`, but "no roster card" was still
+ * read as one thing — an env preset, silent by design. That is right for a REAL preset and wrong
+ * for a roster connection the operator just deleted: `external-mcp/delete.ts` only removes the DB
+ * row, and `trust.ts` R5 freezes the admitted set at connect, so the daemon keeps the deleted
+ * server's session open and its tools callable until the next restart — exactly the case the banner
+ * exists to surface, and it said nothing.
+ *
+ * `AdminFederatedAdmissionEntry.isPreset` (threaded from `mcp-federation/bootstrap.ts`, which is the
+ * one place that still has the preset list and the roster list separate) is what makes the two cases
+ * distinguishable. The preset case (`isPreset: true`) MUST keep behaving exactly as ADM-001 left it —
+ * that is the negative control below, and the line it protects is the SAME assertion as
+ * `describeConnectionDrift`'s own "an env preset is not an empty allowlist" test above, now exercised
+ * through the public `describeAdmissionDrift` entry point with the flag set.
+ */
+describe("a deleted roster connection is not a preset", () => {
+  it("reports a live connection with no roster card AND isPreset:false as removed-but-still-running", () => {
+    const drifted = describeAdmissionDrift(
+      {
+        connections: [
+          entry({ connectionId: "old-server", isPreset: false, admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
+        ],
+      },
+      // Empty roster: the operator deleted "old-server"'s card entirely, so there is no entry for it
+      // here at all — not even a disabled one.
+      {},
+    );
+
+    expect(drifted).toHaveLength(1);
+    expect(drifted[0]?.connectionId).toBe("old-server");
+    expect(drifted[0]?.liveToolCount).toBe(1);
+    expect(drifted[0]?.entries.map((row) => [row.kind, row.remoteName])).toEqual([["removed-but-still-running", null]]);
+  });
+
+  it("still says nothing for a REAL preset with no roster card and isPreset:true — ADM-001 must not regress", () => {
+    const drifted = describeAdmissionDrift(
+      {
+        connections: [
+          entry({ connectionId: "supabase-preset", isPreset: true, admitted: [{ remoteName: "list_tables", writeAuthorized: false }] }),
+        ],
+      },
+      {},
+    );
+
+    expect(drifted).toEqual([]);
+  });
+
+  it("a whole-connection removal supersedes per-tool rows, the same way not-running/disabled-but-running already do", () => {
+    // Two admitted tools plus a routine refusal — none of that should survive alongside the one
+    // connection-level row once the whole card is gone, matching `describeLiveConnection`'s own
+    // "a whole-connection disagreement supersedes the per-tool rows" rule for its other two kinds.
+    const drifted = describeAdmissionDrift(
+      {
+        connections: [
+          entry({
+            connectionId: "old-server",
+            isPreset: false,
+            admitted: [
+              { remoteName: "list_tables", writeAuthorized: false },
+              { remoteName: "get_advisors", writeAuthorized: false },
+            ],
+            refused: [{ remoteName: "execute_sql", reason: "not-in-operator-allowlist" }],
+          }),
+        ],
+      },
+      {},
+    );
+
+    expect(drifted).toHaveLength(1);
+    expect(drifted[0]?.entries).toHaveLength(1);
+    expect(drifted[0]?.entries[0]?.kind).toBe("removed-but-still-running");
   });
 });

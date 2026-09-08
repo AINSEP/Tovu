@@ -42,9 +42,10 @@ export interface FederationAdmissionsRouteDeps {
    * The snapshot `attachFederatedMcpTools` returned at boot — `AttachFederatedToolsResult.reports`
    * verbatim, one entry per connection that reached admission. A connection that failed before
    * admission (bad spawn, timed-out handshake, native-id collision) contributes no entry, matching
-   * that field's own contract.
+   * that field's own contract. `isPreset` rides along unmodified — this route is a pure serializer,
+   * never a reshape point, so a field this file does not itself read still reaches every caller.
    */
-  readonly reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport }[];
+  readonly reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[];
 }
 
 /**

@@ -72,7 +72,20 @@ export interface AttachFederatedToolsResult {
    * whoever happens to be tailing the daemon's terminal at boot. See the write-tools implementation
    * outline, C-009.
    */
-  readonly reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport }[];
+  readonly reports: readonly {
+    readonly connectionId: string;
+    readonly report: FederatedAdmissionReport;
+    /**
+     * Whether this connection came from `presets.ts`'s registry rather than the operator-editable
+     * roster (`extraConnections` below). Threaded through so a consumer — today, the admin admissions
+     * banner (`external-mcp-admissions-rules.ts`) — can tell "no roster card because this is a preset,
+     * by design" apart from "no roster card because the operator just deleted it". Both looked
+     * identical before this field existed (`connectionId` absent from the roster either way), which
+     * is exactly why a genuinely-deleted-but-still-live roster connection was silently reported as
+     * agreeing instead of as drift (2026-09-07, the follow-on ADM-001 left open).
+     */
+    readonly isPreset: boolean;
+  }[];
 }
 
 /**
@@ -114,20 +127,36 @@ export interface AttachFederatedMcpToolsParams {
   env?: NodeJS.ProcessEnv;
 }
 
+/** One connection paired with where it came from — the signal `attachFederatedMcpTools`'s `reports`
+ *  now carries as `isPreset`, computed here rather than downstream because this is the one place
+ *  that still has the two lists (presets, roster) separate before they are merged into a single
+ *  loop. */
+interface OriginTaggedConnection {
+  readonly connection: ResolvedFederatedConnection;
+  readonly isPreset: boolean;
+}
+
 /** Resolves the defaulted inputs `attachFederatedMcpTools` needs — `logger`, `connect`, and the
- *  merged connection list (presets or an injected override, plus any extra roster connections).
- *  Split out purely to keep that function under the shop complexity ceiling; behavior is
- *  unchanged. */
+ *  merged connection list (presets or an injected override, plus any extra roster connections),
+ *  each tagged with its origin. Split out purely to keep that function under the shop complexity
+ *  ceiling.
+ *
+ *  `params.connections` (an injected override, used throughout this file's own tests) stands in for
+ *  the preset list, not the roster — it replaces `resolveRegisteredPresets`'s result, and
+ *  `extraConnections` is documented on {@link AttachFederatedMcpToolsParams} as specifically the
+ *  operator-editable roster. So the origin tag is exactly which of the two arrays a connection came
+ *  from, unchanged from before this field existed. */
 function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
   logger: FederationLogger;
   connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
-  connections: readonly ResolvedFederatedConnection[];
+  connections: readonly OriginTaggedConnection[];
 } {
   const logger = params.logger ?? consoleLogger;
   const connect = params.connect ?? defaultConnect;
+  const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
   const connections = [
-    ...(params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger)),
-    ...(params.extraConnections ?? []),
+    ...presetConnections.map((connection): OriginTaggedConnection => ({ connection, isPreset: true })),
+    ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
   ];
   return { logger, connect, connections };
 }
@@ -139,13 +168,13 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
 
   const registeredToolIds: string[] = [];
   const sessions: McpSessionPort[] = [];
-  const reports: { connectionId: string; report: FederatedAdmissionReport }[] = [];
+  const reports: { connectionId: string; report: FederatedAdmissionReport; isPreset: boolean }[] = [];
 
-  for (const connection of connections) {
+  for (const { connection, isPreset } of connections) {
     const attached = await attachOneFederatedConnection({ connection, registry: params.registry, deps: params.deps, connect, logger });
     registeredToolIds.push(...attached.registeredToolIds);
     if (attached.session) sessions.push(attached.session);
-    if (attached.report) reports.push({ connectionId: connection.config.connectionId, report: attached.report });
+    if (attached.report) reports.push({ connectionId: connection.config.connectionId, report: attached.report, isPreset });
   }
 
   return { registeredToolIds, sessions, reports };

@@ -75,7 +75,7 @@ function harness() {
 async function withStandInDaemon(
   t: import("node:test").TestContext,
   daemonPort: number,
-  reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport }[],
+  reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[],
 ): Promise<void> {
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
@@ -113,6 +113,7 @@ test("a live daemon's real report is relayed verbatim", async (t) => {
   const reports = [
     {
       connectionId: "higgsfield",
+      isPreset: false,
       report: {
         admitted: [
           {
@@ -138,6 +139,27 @@ test("a live daemon's real report is relayed verbatim", async (t) => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body, { connections: reports });
+});
+
+test("isPreset survives this proxy hop for both a preset and a roster connection", async (t) => {
+  // The admin-facing route (`admissions.ts`) treats `connections` as `unknown` and re-serializes it
+  // verbatim — this pins that the daemon's `isPreset` tag is not lost or defaulted anywhere in that
+  // proxy, which is exactly the hop `describeAdmissionDrift` depends on to tell a real preset apart
+  // from a roster connection the operator deleted (see `external-mcp-admissions-rules.ts`).
+  const { buildApp, daemonPort } = await harness();
+  const bareReport = { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } satisfies FederatedAdmissionReport;
+  const reports = [
+    { connectionId: "supabase-preset", isPreset: true, report: bareReport },
+    { connectionId: "higgsfield", isPreset: false, report: bareReport },
+  ];
+  await withStandInDaemon(t, daemonPort, reports);
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+
+  const response = await req(baseUrl, cookie);
+  const body = (await response.json()) as { connections: { connectionId: string; isPreset: boolean }[] };
+
+  assert.equal(body.connections.find((c) => c.connectionId === "supabase-preset")?.isPreset, true);
+  assert.equal(body.connections.find((c) => c.connectionId === "higgsfield")?.isPreset, false);
 });
 
 test("no daemon listening at all — 503 with a distinguishable code, never an empty connections list", async (t) => {

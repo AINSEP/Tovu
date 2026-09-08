@@ -46,7 +46,13 @@ export type AdmissionDriftKind =
   // could produce a row before, because the comparison only ever ran `saved − live`.
   | "still-live-after-removal"
   | "not-running"
-  | "disabled-but-running";
+  | "disabled-but-running"
+  // A fourth reverse-direction case ADM-001 deliberately left silent, and shouldn't have
+  // (2026-09-07): a roster card the OPERATOR DELETED, as opposed to an env preset that never had
+  // one. Both looked identical to this file — no roster card either way — until each live
+  // connection's report started carrying `isPreset`. See {@link removedButStillRunningEntry}. Fixed
+  // by the same restart as the other three.
+  | "removed-but-still-running";
 
 /** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
@@ -146,6 +152,12 @@ const INERT_WRITE_GRANT_KEY =
 const STILL_LIVE_KEY = "The assistant is still running this tool, but it's no longer on the allowlist. Restart the assistant to unload it.";
 const NOT_RUNNING_KEY = "The assistant isn't running this server at all. Restart the assistant to load it.";
 const DISABLED_BUT_RUNNING_KEY = "This server is switched off, but the assistant is still running it. Restart the assistant to unload it.";
+
+/** The follow-on ADM-001 left open (2026-09-07), same English-only choice for the same reason. Says
+ *  "removed", not "deleted" or "not configured", to match what the operator actually did — clicked
+ *  the card's own remove button — rather than a database term they never see. */
+const REMOVED_BUT_STILL_RUNNING_KEY =
+  "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.";
 
 /** The gate refusals worth showing, in the daemon's own order. */
 function refusalEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntry[] {
@@ -328,7 +340,10 @@ function connectionLevelEntry(
  *   be asked, and returns `[]` deliberately: the caller renders that as its own sentence, and
  *   inventing "not running" rows out of a failed read would put a wrong diagnosis under a right one.
  * @param savedById - Each roster card's saved intent, keyed by its id. A connection the daemon
- *   reports that is absent here is an env preset, not an empty roster entry.
+ *   reports that is absent here is EITHER an env preset (no roster card by design) OR a roster
+ *   connection the operator just deleted — {@link describeLiveConnection} tells the two apart via
+ *   the entry's own `isPreset`, not via this map, because this map cannot: a deleted card leaves
+ *   nothing behind for it to distinguish.
  * @complexity O(c · t).
  * @overallScore 100
  */
@@ -347,16 +362,62 @@ export function describeAdmissionDrift(
   ].filter((connection): connection is AdmissionDriftConnection => connection !== null);
 }
 
+/**
+ * A live connection with NO roster card that is also NOT a registered preset — the operator deleted
+ * its saved config while the daemon still holds a working session for it. `external-mcp/delete.ts`
+ * only removes the DB row and `trust.ts` R5 freezes the admitted set at connect, so deletion has no
+ * effect on what is running until the next restart, and until `isPreset` existed this looked
+ * identical to a preset with no card by design (`describeConnectionDrift(entry, undefined)`'s own
+ * silent case) and was reported the same way: nothing, even though the assistant kept the removed
+ * server's tools live and callable.
+ *
+ * Supersedes the per-tool rows for the same reason {@link connectionLevelEntry}'s two arms do —
+ * which of a removed server's tools are still loaded is noise next to the one fact that matters, a
+ * server the operator removed is still running — so this never runs {@link describeConnectionDrift}
+ * for the same entry.
+ *
+ * @complexity O(1).
+ */
+function removedButStillRunningEntry(entry: AdminFederatedAdmissionEntry): AdmissionDriftConnection {
+  return {
+    connectionId: entry.connectionId,
+    liveToolCount: entry.admitted.length,
+    notLoaded: [],
+    savedToolCount: 0,
+    entries: [
+      {
+        connectionId: entry.connectionId,
+        remoteName: null,
+        kind: "removed-but-still-running",
+        messageKey: REMOVED_BUT_STILL_RUNNING_KEY,
+        messageVars: {},
+      },
+    ],
+  };
+}
+
 /** One LIVE connection's row. A whole-connection disagreement supersedes the per-tool rows: telling
  *  an operator which of a switched-off server's tools are still loaded, one line each, buries the
  *  one thing they need to read — that the server they turned off is still running. Split out of
- *  {@link describeAdmissionDrift} to keep that function under the shop complexity ceiling. */
+ *  {@link describeAdmissionDrift} to keep that function under the shop complexity ceiling.
+ *
+ *  A connection with no roster card takes one of two readings, distinguished by `entry.isPreset`
+ *  rather than inferred from the card's absence alone (2026-09-07): a real preset (`isPreset: true`)
+ *  has no card BY DESIGN and stays silent, same as ADM-001 left it; anything else with no card is a
+ *  roster connection the operator deleted, and gets its own whole-connection row via
+ *  {@link removedButStillRunningEntry}. `!entry.isPreset` (not `entry.isPreset === false`) so an
+ *  older daemon build that predates this field is read as "not a preset" — the fail-loud direction,
+ *  since it surfaces a possibly-real orphaned connection instead of silently assuming it away. */
 function describeLiveConnection(
   entry: AdminFederatedAdmissionEntry,
   saved: SavedConnectionIntent | undefined,
 ): AdmissionDriftConnection | null {
-  const connectionLevel = saved ? connectionLevelEntry(entry.connectionId, saved, entry) : null;
-  return connectionLevel ?? describeConnectionDrift(entry, saved?.allowedToolNames);
+  if (saved) {
+    const connectionLevel = connectionLevelEntry(entry.connectionId, saved, entry);
+    return connectionLevel ?? describeConnectionDrift(entry, saved.allowedToolNames);
+  }
+  if (!entry.isPreset) return removedButStillRunningEntry(entry);
+  return describeConnectionDrift(entry, undefined);
 }
 
 /**
