@@ -86,7 +86,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("theme_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -102,15 +102,23 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 const WIRED_THEMES_TOOL_IDS = [
-  "theme_list",
+  "content_read.theme",
+  "theme_edit_file",
   "theme_list_files",
   "theme_read_file",
-  "theme_write_file",
-  "theme_edit_file",
   "theme_rename_file",
-  "theme_trash_file",
   "theme_restore_trashed_file",
+  "theme_trash_file",
+  "theme_write_file",
 ];
+
+/** The same tools as they appear in `themeAgentToolCatalog`, THIS domain's own static catalog.
+ *  It still carries `theme_list`: the 2026-09-08 `content_read` collapse
+ *  (assistant/content-read-tool.ts) rewrites only the FINAL wired registration list, replacing that
+ *  entry with `content_read.theme` — it does not touch any domain's own catalog. So assertions
+ *  about the WIRED set use `WIRED_THEMES_TOOL_IDS` above and assertions about the CATALOG use this
+ *  one; collapsing them back into a single list would make one of the two silently wrong. */
+const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "content_read.theme" ? "theme_list" : id));
 
 // Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
@@ -169,13 +177,19 @@ test("an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unkn
 test("every wired themes registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of themesRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.theme") continue;
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
 });
 
 test("each catalog entry's declared risk matches what this layer derives from its handler", () => {
-  for (const id of WIRED_THEMES_TOOL_IDS) {
+  for (const id of CATALOGUED_THEMES_TOOL_IDS) {
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -207,7 +221,7 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
   const before = fs.readFileSync(path.join(themesDir, "plain", "tokens.json"), "utf8");
 
   const calls: Array<[string, Record<string, unknown>]> = [
-    ["theme_list", {}],
+    ["content_read.theme", {}],
     ["theme_list_files", { themeId: "plain" }],
     ["theme_read_file", { themeId: "plain", path: "tokens.json" }],
     ["theme_write_file", { themeId: "plain", path: "tokens.json", content: "{}" }],
@@ -237,7 +251,7 @@ test("each themes tool checks exactly the permission its catalog entry declares"
 
 test("theme_list returns every discovered theme with id/name/tier/status/errors, and never leaks the server's filesystem path", async () => {
   const { deps } = fakeRouteDeps();
-  const result = (await wired(deps, "theme_list").handler(executionContext({}))) as { themes: Array<Record<string, unknown>> };
+  const result = (await wired(deps, "content_read.theme").handler(executionContext({}))) as { themes: Array<Record<string, unknown>> };
 
   assert.deepEqual(result.themes.map((t) => t.id).sort(), ["hb", "plain"]);
   for (const theme of result.themes) {
@@ -250,10 +264,10 @@ test("theme_list returns every discovered theme with id/name/tier/status/errors,
 
 test("theme_list filters by tier and by status", async () => {
   const { deps } = fakeRouteDeps();
-  const byTier = (await wired(deps, "theme_list").handler(executionContext({ tier: "handlebars" }))) as { themes: Array<{ id: string }> };
+  const byTier = (await wired(deps, "content_read.theme").handler(executionContext({ tier: "handlebars" }))) as { themes: Array<{ id: string }> };
   assert.deepEqual(byTier.themes.map((t) => t.id), ["hb"]);
 
-  const byStatus = (await wired(deps, "theme_list").handler(executionContext({ status: "invalid" }))) as { themes: unknown[] };
+  const byStatus = (await wired(deps, "content_read.theme").handler(executionContext({ status: "invalid" }))) as { themes: unknown[] };
   assert.deepEqual(byStatus.themes, []);
 });
 
@@ -381,7 +395,7 @@ test("an invalid write is reflected in the live theme list too — theme_list im
   const { deps } = fakeRouteDeps();
   await wired(deps, "theme_write_file").handler(executionContext({ themeId: "hb", path: "templates/home.hbs", content: "{{{post.title}}}" }));
 
-  const listed = (await wired(deps, "theme_list").handler(executionContext({ status: "invalid" }))) as { themes: Array<{ id: string; errors: string[] }> };
+  const listed = (await wired(deps, "content_read.theme").handler(executionContext({ status: "invalid" }))) as { themes: Array<{ id: string; errors: string[] }> };
   assert.deepEqual(listed.themes.map((t) => t.id), ["hb"]);
   assert.ok(listed.themes[0].errors.some((e) => /disallowed raw output/.test(e)), JSON.stringify(listed.themes[0].errors));
 });
@@ -393,7 +407,7 @@ test("an invalid write is reflected in the live theme list too — theme_list im
 test("list -> list_files -> read -> write -> re-read stays consistent across the whole sequence", async () => {
   const { deps } = fakeRouteDeps();
 
-  const listed = (await wired(deps, "theme_list").handler(executionContext({ tier: "handlebars" }))) as { themes: Array<{ id: string }> };
+  const listed = (await wired(deps, "content_read.theme").handler(executionContext({ tier: "handlebars" }))) as { themes: Array<{ id: string }> };
   const themeId = listed.themes[0].id;
 
   const files = (await wired(deps, "theme_list_files").handler(executionContext({ themeId }))) as { files: string[] };

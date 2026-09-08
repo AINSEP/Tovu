@@ -112,7 +112,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function seoRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("seo_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -127,7 +127,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-const ALL_SEO_TOOL_IDS = ["seo_get_entry_meta", "seo_analyze_entry", "seo_set_entry_overrides", "seo_get_settings", "seo_set_settings", "seo_regenerate_sitemap"];
+const ALL_SEO_TOOL_IDS = ["content_read.seo_entry_meta", "seo_analyze_entry", "seo_set_entry_overrides", "seo_get_settings", "seo_set_settings", "seo_regenerate_sitemap"];
 
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness — every entry wired, nothing withheld
@@ -146,6 +146,12 @@ test("exactly the 6 SEO catalog entries are registered — nothing withheld in t
 test("every wired SEO registration publishes its catalog entry's inputSchema and description verbatim", async () => {
   const { deps } = await fakeRouteDeps();
   for (const [id, registration] of seoRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.seo_entry_meta") continue;
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
@@ -165,6 +171,12 @@ test("requiresConfirmation is unset on every wired SEO tool", async () => {
 test("the independent risk classification agrees with the catalog for every wired SEO tool", async () => {
   const { deps } = await fakeRouteDeps();
   for (const id of seoRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.seo_entry_meta") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -192,7 +204,7 @@ test("seo_get_entry_meta: calls authorize() with 'admin.seo.manage' and the run'
   const { deps, authorizeCalls } = await fakeRouteDeps();
   authorizeCalls.length = 0;
 
-  await wired(deps, "seo_get_entry_meta").handler(executionContext({ entryId: "post-1" }));
+  await wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" }));
 
   assert.ok(authorizeCalls.length >= 1);
   assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
@@ -204,7 +216,7 @@ test("seo_get_entry_meta: a denied principal is rejected", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
 
   await assert.rejects(
-    () => wired(deps, "seo_get_entry_meta").handler(executionContext({ entryId: "post-1" })),
+    () => wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" })),
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.match((error as Error).message, /is not authorized for/);
@@ -276,7 +288,7 @@ test("seo_set_entry_overrides: rejects an unregistered field the same way the ch
 test("seo_get_entry_meta: an unknown entryId propagates SeoEntryNotFoundError unwrapped", async () => {
   const { deps } = await fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "seo_get_entry_meta").handler(executionContext({ entryId: "no-such-entry" })),
+    () => wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "no-such-entry" })),
     /was not found/,
   );
 });
@@ -299,7 +311,7 @@ test("workflow: set entry overrides, get entry meta to confirm the override is r
     executionContext({ entryId: "post-1", title: "Custom Title", description: "A hand-written description." }),
   );
 
-  const meta = (await wired(deps, "seo_get_entry_meta").handler(executionContext({ entryId: "post-1" }))) as {
+  const meta = (await wired(deps, "content_read.seo_entry_meta").handler(executionContext({ entryId: "post-1" }))) as {
     meta: { title: string; description?: string };
   };
   assert.equal(meta.meta.title, "Custom Title");

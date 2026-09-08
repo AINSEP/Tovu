@@ -74,7 +74,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function webhooksRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("webhooks_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -90,11 +90,11 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 const ALL_WEBHOOKS_TOOL_IDS = [
-  "webhooks_list_subscriptions",
-  "webhooks_get_deliveries",
+  "content_read.webhook_subscription",
   "webhooks_create_subscription",
-  "webhooks_pause_subscription",
   "webhooks_delete_subscription",
+  "webhooks_get_deliveries",
+  "webhooks_pause_subscription",
 ];
 
 // ---------------------------------------------------------------------------
@@ -121,6 +121,12 @@ test("no tool id across the whole assistant tool set implies a subscription can 
 test("every wired webhooks registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of webhooksRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.webhook_subscription") continue;
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
@@ -140,6 +146,12 @@ test("requiresConfirmation is unset on every wired webhooks tool", () => {
 test("the independent risk classification agrees with the catalog for every wired webhooks tool", () => {
   const { deps } = fakeRouteDeps();
   for (const id of webhooksRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.webhook_subscription") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -164,7 +176,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired webhooks re
 // ---------------------------------------------------------------------------
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
-  webhooks_list_subscriptions: {},
+  "content_read.webhook_subscription": {},
   webhooks_create_subscription: { label: "My Endpoint", targetUrl: "https://example.test/hooks", topics: ["post.published"] },
 };
 
@@ -236,7 +248,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(created.subscription.status, "active");
   assert.equal(created.subscription.secretVersion, 1);
 
-  const afterCreateList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
+  const afterCreateList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string; lastDelivery: unknown }>;
   };
   assert.equal(afterCreateList.subscriptions.length, 1);
@@ -249,7 +261,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   };
   assert.equal(paused.subscription.status, "paused");
 
-  const afterPauseList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
+  const afterPauseList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterPauseList.subscriptions[0].status, "paused", "list reflects the pause");
@@ -265,7 +277,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(removed.subscription.status, "disabled");
   assert.ok(removed.subscription.disabledAt);
 
-  const afterRemoveList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
+  const afterRemoveList = (await wired(deps, "content_read.webhook_subscription").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterRemoveList.subscriptions.length, 1, "soft-delete keeps the row, for audit durability");

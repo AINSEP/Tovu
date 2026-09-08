@@ -340,8 +340,8 @@ test("tombstonedAt appears only when set, so an active type's payload carries no
   assert.equal(tombstoned.contentType.status, "tombstone");
 });
 
-test("collections_content_type_list returns every content type as the same model-facing view, regardless of status", async () => {
-  const registration = wiredRegistration("collections_content_type_list", existingRecipe("deprecated"));
+test("content_read.collection_content_type returns every content type as the same model-facing view, regardless of status", async () => {
+  const registration = wiredRegistration("content_read.collection_content_type", existingRecipe("deprecated"));
 
   const output = (await registration.handler(executionContext({}))) as { contentTypes: Array<Record<string, unknown>> };
 
@@ -351,8 +351,8 @@ test("collections_content_type_list returns every content type as the same model
   assert.equal("workspaceId" in output.contentTypes[0], false, "same drop as every other content-type view — the agent cannot change its own workspace");
 });
 
-test("collections_content_type_list returns an empty list rather than an error when the workspace has none", async () => {
-  const registration = wiredRegistration("collections_content_type_list");
+test("content_read.collection_content_type returns an empty list rather than an error when the workspace has none", async () => {
+  const registration = wiredRegistration("content_read.collection_content_type");
   const output = (await registration.handler(executionContext({}))) as { contentTypes: unknown[] };
   assert.deepEqual(output.contentTypes, []);
 });

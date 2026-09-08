@@ -116,7 +116,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 function mediaRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((r) => r.descriptor.id.startsWith("media_"))
+      .filter((r) => r.descriptor.id.startsWith("media_") || r.descriptor.id === "content_read.media_asset")
       .map((r) => [r.descriptor.id, r]),
   );
 }
@@ -142,7 +142,7 @@ async function seedAsset(deps: RouteDeps): Promise<{ id: string }> {
 test("exactly the four safe media-service.ts operations are wired — no invented purge or transform-registry tool", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...mediaRegistrations(deps).keys()].sort(), [
-    "media_list_assets",
+    "content_read.media_asset",
     "media_trash_asset",
     "media_update_metadata",
     "media_upload_asset",
@@ -168,6 +168,12 @@ test("no wired media tool is named or described for a hard purge/force-delete", 
 test("every wired Media registration publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of mediaRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.media_asset") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -216,7 +222,7 @@ test("base64 that decodes to zero bytes is rejected as an empty upload, with the
 test("a tool result is an explicit model-facing view: workspaceId/timestamps dropped, id kept for the next call's mediaId", async () => {
   const { deps } = fakeRouteDeps();
   const { id } = await seedAsset(deps);
-  const media = (await wired("media_list_assets", deps).handler(executionContext({}))) as { media: Array<Record<string, unknown>> };
+  const media = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as { media: Array<Record<string, unknown>> };
   const found = media.media.find((m) => m.id === id);
   assert.ok(found);
   assert.deepEqual(Object.keys(found).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "status", "title", "version"]);
@@ -249,7 +255,7 @@ test("media_list_assets' publicUrl matches media_upload_asset's for the same ass
     executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
   )) as { media: { id: string; publicUrl: string | null } };
 
-  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+  const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; publicUrl: string | null }>;
   };
   const found = listed.media.find((m) => m.id === uploaded.media.id);
@@ -270,7 +276,7 @@ test("media_list_assets' publicUrl is the byte-passthrough /original URL for a v
   // own "record what the bytes actually are" write, just supplied by the test instead of a sniffer.
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: uploaded.media.sha256, contentType: "video/mp4" });
 
-  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+  const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; publicUrl: string | null }>;
   };
   const found = listed.media.find((m) => m.id === uploaded.media.id);
@@ -284,7 +290,7 @@ test("a trashed asset's publicUrl is null, never a link a visitor would 404 on",
   const { id } = await seedAsset(deps);
   await wired("media_trash_asset", deps).handler(executionContext({ mediaId: id }));
 
-  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+  const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; publicUrl: string | null; status: string }>;
   };
   const found = listed.media.find((m) => m.id === id);
@@ -317,6 +323,12 @@ test("media_update_metadata never touches the write-once sha256 — there is no 
 test("the real Media catalog and tool-registrations' independent classification agree for all four wired tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of mediaRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.media_asset") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -331,6 +343,12 @@ test("a Media catalog entry cannot downgrade its own risk — declaring sideEffe
 test("no wired Media tool carries a confirmation-requiring actor-class rule", () => {
   const { deps } = fakeRouteDeps();
   for (const id of mediaRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.media_asset") continue;
     assert.notEqual(catalogEntry(id).actorClassRule, "confirmer-must-equal-own-delegatedBy");
   }
 });
@@ -367,7 +385,7 @@ test("workflow: upload, update its metadata, then trash it — list reflects the
   assert.equal(trashed.media.version, 3, "version must have advanced again from the update's version 2");
 
   // Step 4: list must show a SINGLE asset whose state reflects every step of the chain, not just the last.
-  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+  const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; title: string; caption: string; alt: string; status: string; version: number }>;
   };
   assert.equal(listed.media.length, 1);
@@ -384,14 +402,14 @@ test("workflow: upload, update its metadata, then trash it — list reflects the
 // ---------------------------------------------------------------------------
 
 const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>> = {
-  media_list_assets: () => ({}),
+  "content_read.media_asset": () => ({}),
   media_upload_asset: () => ({ filename: "b.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
   media_update_metadata: (id) => ({ mediaId: id, title: "Renamed" }),
   media_trash_asset: (id) => ({ mediaId: id }),
 };
 
 const EXPECTED_PERMISSIONS: Record<string, string> = {
-  media_list_assets: "media.read",
+  "content_read.media_asset": "media.read",
   media_upload_asset: "media.upload",
   media_update_metadata: "media.update",
   media_trash_asset: "media.delete",
@@ -413,7 +431,12 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
     assert.equal(authorizeCalls.length, 1, "exactly one authorization evaluation");
     assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
-    assert.equal(authorizeCalls[0].permission, catalogEntry(toolId).authorization.permission);
+    // A `content_read.*` card is catalogued in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so this cross-check has nothing to resolve for it. The
+    // card's own expectation is still asserted independently just below/above.
+    if (!toolId.startsWith("content_read.")) {
+      assert.equal(authorizeCalls[0].permission, catalogEntry(toolId).authorization.permission);
+    }
     assert.equal(authorizeCalls[0].permission, EXPECTED_PERMISSIONS[toolId]);
     assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
     assert.equal(authorizeCalls[0].entityType, "media");

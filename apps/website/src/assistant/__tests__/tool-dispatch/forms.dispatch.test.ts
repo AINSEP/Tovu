@@ -112,7 +112,7 @@ test("forms_list_definitions resolves a form by name to its id, closing the loop
   assert.equal(createResult.status, "completed");
   const created = (createResult.output as { definition: { id: string } }).definition;
 
-  const listResult = await toolExecutor.execute(ownerPrincipal, run, "forms_list_definitions", {});
+  const listResult = await toolExecutor.execute(ownerPrincipal, run, "content_read.form_definition", {});
   assert.equal(listResult.status, "completed", `list should succeed, got: ${JSON.stringify(listResult)}`);
   const definitions = (listResult.output as { definitions: { id: string; name: string; slug: string; status: string }[] }).definitions;
   const found = definitions.find((d) => d.slug === "lookup-target-form");
@@ -143,7 +143,7 @@ test("forms_list_definitions through the real ToolExecutor refuses a principal w
     createdAt: routeDeps.clock.nowIso(),
   });
 
-  const result = await toolExecutor.execute({ id: "bare-principal-forms-list-canary" }, run, "forms_list_definitions", {});
+  const result = await toolExecutor.execute({ id: "bare-principal-forms-list-canary" }, run, "content_read.form_definition", {});
   assert.equal(result.status, "failed", `an unauthorized principal must not succeed, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /is not authorized for/);
 });

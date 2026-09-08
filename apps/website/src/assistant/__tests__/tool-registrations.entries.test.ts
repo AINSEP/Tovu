@@ -97,7 +97,7 @@ function catalogEntry(toolId: string): EntriesAgentToolDefinition {
 }
 
 function entriesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("collections_entry_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -116,7 +116,7 @@ test("exactly the 5 Entries operations are wired — the entire catalog, no dele
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...entriesRegistrations(deps).keys()].sort(),
-    ["collections_entry_create", "collections_entry_list", "collections_entry_publish", "collections_entry_unpublish", "collections_entry_update"],
+    ["collections_entry_create", "collections_entry_publish", "collections_entry_unpublish", "collections_entry_update", "content_read.collection_entry"],
   );
   assert.equal(entriesAgentToolCatalog.length, 5, "sanity: no catalog entry is silently excluded");
 });
@@ -128,6 +128,12 @@ test("exactly the 5 Entries operations are wired — the entire catalog, no dele
 test("every wired Entries registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of entriesRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.collection_entry") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -148,6 +154,12 @@ test("requiresConfirmation is unset on every wired Entries tool", () => {
 test("the independent risk classification agrees with the catalog for all 5 wired Entries tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of entriesRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.collection_entry") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -175,7 +187,7 @@ test("collections_entry_list: calls authorize() with admin.collections.read, inl
   const { deps, authorizeCalls } = fakeRouteDeps();
   authorizeCalls.length = 0;
 
-  await wired("collections_entry_list", deps).handler(executionContext(undefined));
+  await wired("content_read.collection_entry", deps).handler(executionContext(undefined));
 
   assert.equal(authorizeCalls.length, 1);
   assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
@@ -184,7 +196,7 @@ test("collections_entry_list: calls authorize() with admin.collections.read, inl
 
 test("collections_entry_list: a denied principal is rejected", async () => {
   const { deps } = fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("collections_entry_list", deps).handler(executionContext(undefined)), /is not authorized for 'admin\.collections\.read'/);
+  await assert.rejects(() => wired("content_read.collection_entry", deps).handler(executionContext(undefined)), /is not authorized for 'admin\.collections\.read'/);
 });
 
 test("collections_entry_create: calls authorize() with admin.collections.manage (createEntry's own self-enforced check)", async () => {
@@ -295,7 +307,7 @@ test("workflow: create an entry, update it, publish it, then unpublish it — ve
   assert.equal(unpublished.entry.title, "My Updated Article", "the title from step 2 must still be intact after two lifecycle transitions");
 
   // Cross-check via the read tool: the list must reflect the SAME final state.
-  const listed = (await wired("collections_entry_list", deps).handler(executionContext({ type: CONTENT_TYPE_KEY }))) as {
+  const listed = (await wired("content_read.collection_entry", deps).handler(executionContext({ type: CONTENT_TYPE_KEY }))) as {
     items: Array<{ id: string; status: string; version: number }>;
   };
   const row = listed.items.find((item) => item.id === entryId);
