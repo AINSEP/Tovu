@@ -3,6 +3,7 @@ import path from "node:path";
 import { createApp } from "../../server/runtime/composition/app.js";
 import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
+import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
@@ -139,6 +140,56 @@ function warnIfLegacyEnvVarsIgnored(): void {
 }
 
 /**
+ * Pins this process's `TOVU_SITE_DIR` to the site directory `tovu serve <dir>` was actually given,
+ * so every `siteDir()`-derived path in THIS process and in the agent daemon it spawns resolves to
+ * the same place.
+ *
+ * THE DIVERGENCE THIS CLOSES (2026-09-07 audit, claim #5). `runServeCommand` overrides `uploadsDir`,
+ * `themesDir` and the content-db path explicitly, but it set no `TOVU_SITE_DIR`, so everything else
+ * this process derives from `siteDir()` — `chat.db`, `ops/database-journal.db`, `features/skills`,
+ * `features/agent-plugins`, and `chat-attachment-directory.ts`'s staging root — still resolved
+ * against `<process.cwd()>/sites/tovu-com`, an unrelated directory whenever this command runs from
+ * outside it. The daemon child did NOT share that fate: `daemon-supervisor.ts`'s
+ * `buildDaemonSpawnEnvOverrides` sets `TOVU_SITE_DIR: input.siteDir` on the child when the parent
+ * has none, and `startAssistantDaemon` below passes `target`. So the two processes disagreed, by
+ * construction, on every one of those paths. Measured, before this function existed, for
+ * `tovu serve /tmp/client-a`:
+ *
+ *     API  reads   : <repo>/sites/tovu-com/uploads/chat-attachments
+ *     daemon writes: /tmp/client-a/uploads/chat-attachments
+ *
+ * — the admin's attachment read-back route (`registerAdminChatAttachmentReadRoute`) looking in a
+ * directory the daemon never writes.
+ *
+ * Set unconditionally, overwriting an operator's own `TOVU_SITE_DIR` when one is present: `<dir>` is
+ * an explicit argument naming the site this invocation serves, and it already wins for `content.db`,
+ * `uploads/` and `themes/`. Leaving one path family pointed somewhere else would be the same
+ * split-brain in a quieter form. `buildDaemonSpawnEnvOverrides`'s own "only when the parent has
+ * none" guard then leaves the child alone, because the parent now has one — the same value.
+ *
+ * Same mechanism (and same reason) as `ensureAgentDaemonToken()`: written into THIS
+ * process's env so the `spawn()`ed child inherits it, rather than threaded through a second
+ * argument every call site in between would have to carry.
+ *
+ * @param target - the already-resolved absolute install-dir target (`resolveInstallDirTarget`).
+ * @param env - defaults to `process.env`; injectable so this is directly testable without mutating
+ *   the test runner's own environment.
+ * @complexity O(1) — one assignment.
+ */
+export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv = process.env): void {
+  env.TOVU_SITE_DIR = target;
+  // The SECOND half of the same fact, for the same inheritance reason (2026-09-07 audit, claim #4):
+  // this boot's site was pinned by an explicit argument, so the Sites switcher's write paths must
+  // refuse. The API learns that from its own `siteBinding` override below; the agent daemon — a
+  // separate process that rebuilds its own `RouteDeps` through `createSqliteRouteDepsForWorkspace`,
+  // and the process where `sites_duplicate_site` actually EXECUTES — falls back to
+  // `describeSiteBinding()` and would otherwise reconstruct the binding as switchable, duplicating
+  // under whatever `<process.cwd()>/sites` happens to be while the HTTP routes refuse the identical
+  // request. See `SITE_BINDING_NOT_SWITCHABLE_ENV`'s own doc.
+  env[SITE_BINDING_NOT_SWITCHABLE_ENV] = "1";
+}
+
+/**
  * Run `tovu serve <dir> [--port]`: validate/guard/migrate/stamp/resolve the install dir
  * (`bootSiteDir`), wire the existing composition root's `overrides` branch, and bind a listener.
  *
@@ -189,6 +240,9 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   warnIfLegacyEnvVarsIgnored();
 
   const target = resolveInstallDirTarget(input.dir);
+  // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
+  // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
+  pinServedSiteDirIntoEnv(target);
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   const port = resolveServePort(input, bootResult.config);
 
