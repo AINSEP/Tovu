@@ -180,14 +180,19 @@ test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired
   // own dedicated block further down, the same split `tool-registrations.comments.test.ts` uses
   // between its shared mutation loop and `comments_list_moderation_queue`'s own tests.
   const wiredIds = [...registrationsById().keys()]
-    .filter((id) => id.startsWith("collections_content_type_") && id !== "collections_content_type_list")
+    .filter((id) => id.startsWith("collections_content_type_") && id !== "content_read.collection_content_type")
     .sort();
   assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).sort());
   assert.equal(wiredIds.length, 5);
 });
 
-test("collections_content_type_list is wired alongside the five mutations — the 6th of 7 catalog entries", () => {
-  const wiredIds = [...registrationsById().keys()].filter((id) => id.startsWith("collections_content_type_"));
+test("content_read.collection_content_type is wired alongside the five mutations — the 6th of 7 catalog entries", () => {
+  // The read entry ships under `content_read.collection_content_type` since the 2026-09-08 collapse
+  // (assistant/content-read-tool.ts), so a bare `collections_content_type_` prefix no longer reaches
+  // it — it would count 5 and silently look like the read tool was never wired at all.
+  const wiredIds = [...registrationsById().keys()].filter(
+    (id) => id.startsWith("collections_content_type_") || id === "content_read.collection_content_type",
+  );
   assert.equal(wiredIds.length, 6);
 });
 
@@ -260,12 +265,16 @@ test("all five wired tools declare admin.collections.manage — the mutating per
 // ---------------------------------------------------------------------------
 
 test("collections_content_type_list declares admin.collections.read — the read permission, never the mutating one", () => {
+  // Deliberately the ORIGINAL id: `permissionFor` reads contentTypesAgentToolCatalog, this domain's
+  // own static catalog, which the 2026-09-08 `content_read` collapse does not rewrite — only the
+  // final wired list is. That the SHIPPED card actually enforces this same permission at runtime is
+  // asserted separately by the `content_read.collection_content_type` authorize() test just below.
   assert.equal(permissionFor("collections_content_type_list"), "admin.collections.read");
 });
 
-test("collections_content_type_list: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo", async () => {
+test("content_read.collection_content_type: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo", async () => {
   const { deps, authorizeCalls, order } = fakeRouteDeps({ allow: true });
-  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await wired.handler(executionContext({}));
@@ -277,9 +286,9 @@ test("collections_content_type_list: calls authorize() with 'admin.collections.r
   assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
 });
 
-test("collections_content_type_list: a denied principal is rejected and the repo is never read", async () => {
+test("content_read.collection_content_type: a denied principal is rejected and the repo is never read", async () => {
   const { deps, order } = fakeRouteDeps({ allow: false });
-  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await assert.rejects(
@@ -293,9 +302,9 @@ test("collections_content_type_list: a denied principal is rejected and the repo
   assert.equal(order.includes("repo.listByWorkspace"), false, "the permission gate must run ahead of the read, not alongside it");
 });
 
-test("collections_content_type_list: a populated input is refused — this tool accepts no arguments", async () => {
+test("content_read.collection_content_type: a populated input is refused — this tool accepts no arguments", async () => {
   const { deps } = fakeRouteDeps({ allow: true });
-  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await assert.rejects(() => wired.handler(executionContext({ unexpected: true })), /accepts no input/);

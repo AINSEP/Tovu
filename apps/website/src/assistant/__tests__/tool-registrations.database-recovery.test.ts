@@ -176,8 +176,16 @@ async function seedRestorePoint(
   return id;
 }
 
-const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set(getDatabaseAgentToolCatalog().map((tool) => tool.name));
-const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set(recoveryAgentToolCatalog.map((tool) => tool.name));
+// Each domain's own catalog still lists its Tier-1 read tools under their ORIGINAL ids — the
+// 2026-09-08 `content_read` collapse (assistant/content-read-tool.ts) rewrites only the final WIRED
+// registration list, never a domain catalog. So the id sets these registration filters use must
+// carry the `content_read.<resource>` cards explicitly, or the collapsed replacements are filtered
+// straight back out and every lookup below reports the tool as simply "not wired".
+const DATABASE_READ_CARD_IDS = ["content_read.database_pending_migration", "content_read.database_restore_point"];
+const RECOVERY_READ_CARD_IDS = ["content_read.backup_restore_point"];
+
+const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set([...getDatabaseAgentToolCatalog().map((tool) => tool.name), ...DATABASE_READ_CARD_IDS]);
+const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set([...recoveryAgentToolCatalog.map((tool) => tool.name), ...RECOVERY_READ_CARD_IDS]);
 
 function allRegistrations(deps: RouteDeps): ToolRegistration[] {
   return buildAssistantToolRegistrations(deps);
@@ -213,8 +221,18 @@ function recoveryCatalogEntry(toolId: string): RecoveryAgentToolDefinition {
   return entry;
 }
 
+/** Each read card's single member tool, so a card's expected permission is resolved from the SAME
+ *  catalog entry the collapse itself copied it from rather than re-declared as a second literal
+ *  here (which could then drift from what `content-read-tool.ts` actually ships). */
+const READ_CARD_MEMBER_ID: Readonly<Record<string, string>> = {
+  "content_read.database_pending_migration": "database_list_pending_migrations",
+  "content_read.database_restore_point": "database_list_restore_points",
+  "content_read.backup_restore_point": "backup_list_restore_points",
+};
+
 function permissionOf(toolId: string): string {
-  return (DATABASE_TOOL_IDS.has(toolId) ? databaseCatalogEntry(toolId) : recoveryCatalogEntry(toolId)).authorization.permission;
+  const id = READ_CARD_MEMBER_ID[toolId] ?? toolId;
+  return (DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)).authorization.permission;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,10 +245,10 @@ test("database: exactly the 7 wireable entries are registered", () => {
     [...databaseRegistrations(deps).keys()].sort(),
     [
       "backup_create_restore_point",
+      "content_read.database_pending_migration",
+      "content_read.database_restore_point",
       "database_get_health",
       "database_get_schema_state",
-      "database_list_pending_migrations",
-      "database_list_restore_points",
       "database_plan_migrate_forward",
       "database_query_timeline",
     ],
@@ -245,8 +263,8 @@ test("recovery: exactly the 5 wireable entries are registered, PLUS backup_creat
     [
       "backup_create_restore_point", // Database's wiring; recoveryRegistrations() filters by id membership in recoveryAgentToolCatalog, and this id is catalogued (but not wired) there too.
       "backup_get_capabilities",
-      "backup_list_restore_points",
       "backup_plan_restore",
+      "content_read.backup_restore_point",
       "recovery_get_status",
       "recovery_resolve_deep_link",
     ],
@@ -326,6 +344,11 @@ test("backup_create_restore_point is registered exactly ONCE across the whole as
 test("every wired database/recovery registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of databaseRegistrations(deps)) {
+    // A `content_read.*` card is catalogued in assistant/content-read-tool.ts, not in this
+    // domain's own catalog, so there is no entry here to compare against. Its schema and
+    // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
+    // `buildDomainRegistrations` call at construction time.
+    if (id.startsWith("content_read.")) continue;
     assert.deepEqual(registration.descriptor.inputSchema, databaseCatalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, databaseCatalogEntry(id).description);
   }
@@ -335,6 +358,11 @@ test("every wired database/recovery registration publishes its catalog entry's i
     // catalog entry for this id is never wired at all (see the collision test), so it publishes no
     // schema for `tool-registrations.ts` to have copied in the first place.
     if (id === "backup_create_restore_point") continue;
+    // A `content_read.*` card is catalogued in assistant/content-read-tool.ts, not in this
+    // domain's own catalog, so there is no entry here to compare against. Its schema and
+    // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
+    // `buildDomainRegistrations` call at construction time.
+    if (id.startsWith("content_read.")) continue;
     assert.deepEqual(registration.descriptor.inputSchema, recoveryCatalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, recoveryCatalogEntry(id).description);
   }
@@ -354,6 +382,11 @@ test("requiresConfirmation is unset on every wired database/recovery tool — no
 test("the independent risk classification agrees with the catalog for every wired database/recovery tool", () => {
   const { deps } = fakeRouteDeps();
   for (const id of combinedRegistrations(deps).keys()) {
+    // A `content_read.*` card is catalogued in assistant/content-read-tool.ts, not in this
+    // domain's own catalog, so there is no entry here to compare against. Its schema and
+    // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
+    // `buildDomainRegistrations` call at construction time.
+    if (id.startsWith("content_read.")) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id)));
   }
 });
@@ -379,13 +412,13 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired database/re
 
 const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>> = {
   database_query_timeline: () => ({}),
-  database_list_restore_points: () => ({}),
+  "content_read.database_restore_point": () => ({}),
   database_plan_migrate_forward: () => ({}),
   database_get_health: () => ({}),
   database_get_schema_state: () => ({}),
-  database_list_pending_migrations: () => ({}),
+  "content_read.database_pending_migration": () => ({}),
   backup_create_restore_point: () => ({}),
-  backup_list_restore_points: () => ({}),
+  "content_read.backup_restore_point": () => ({}),
   backup_get_capabilities: () => ({}),
   backup_plan_restore: (id) => ({ restorePointId: id }),
   recovery_get_status: () => ({}),
@@ -512,13 +545,13 @@ test("database_list_pending_migrations returns exactly what routeDeps.databaseIn
   const { deps, repos } = fakeRouteDeps();
   const expected = await repos.databaseIntrospection.listPendingMigrations();
 
-  const result = await wired(combinedRegistrations(deps), "database_list_pending_migrations").handler(executionContext({}));
+  const result = await wired(combinedRegistrations(deps), "content_read.database_pending_migration").handler(executionContext({}));
 
   assert.deepEqual(result, expected);
 });
 
 test("database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools", async () => {
-  for (const toolId of ["database_get_health", "database_get_schema_state", "database_list_pending_migrations"]) {
+  for (const toolId of ["database_get_health", "database_get_schema_state", "content_read.database_pending_migration"]) {
     const { deps } = fakeRouteDeps();
     await assert.rejects(
       () => wired(combinedRegistrations(deps), toolId).handler(executionContext({ unexpected: true })),
@@ -550,7 +583,7 @@ test("workflow (Database only): database_plan_migrate_forward's reported cost cl
   assert.equal(created.restorePoint.costClass, "cheap");
 
   // Step 3: the id minted in step 2 must actually show up in this fresh list call.
-  const listed = (await wired(registrations, "database_list_restore_points").handler(executionContext({}))) as {
+  const listed = (await wired(registrations, "content_read.database_restore_point").handler(executionContext({}))) as {
     items: Array<{ id: string }>;
   };
   assert.ok(
@@ -571,7 +604,7 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
   // Step 2 (Recovery): the SAME shared restore-points list must show it — "sibling faces" of one
   // persisted record (ADR-045 §1) — and step 3 below consumes the id THIS call returned, not the
   // id step 1 returned directly, proving the chain actually flows through Recovery's own tool.
-  const listed = (await wired(registrations, "backup_list_restore_points").handler(executionContext({}))) as {
+  const listed = (await wired(registrations, "content_read.backup_restore_point").handler(executionContext({}))) as {
     items: Array<{ id: string }>;
   };
   const targetId = listed.items.find((item) => item.id === created.restorePoint.id)?.id;
