@@ -171,47 +171,142 @@ worth a second look on its own terms independent of this fix — HyDE-via-prompt
 strongest arm pre-fix (98/130 found@10) and n=130 dilutes any single suspicious case, but I did not
 independently re-verify each of the 32 newly-hit cases by hand; flagging rather than asserting.
 
-## Genuine failures unmasked — not fixed here, per instructions
+**Three suites showed no change — stated explicitly as a result, not a null, so it does not later read
+as "the migration didn't work there":** `tool-search-canary-significance.eval.ts`,
+`tool-search-doc2query-canary.eval.ts`, and `tool-search-rerank-ceiling.eval.ts` (all n=20, all sharing
+the same byte-identical `HELD_OUT_CASES` list per their own header comments). The fix is live in all
+three — `currentToolIdFor` is imported and called in every one of them — but this particular 20-case
+subset happens to contain only 2 of its 20 `expect` values from the retired-36 set
+(`media_list_assets`, `seo_get_entry_meta`), and for both of those specific queries the live retrieval
+did not rank the correct card within the cutoffs these three suites measure, either before or after
+resolution. That is a genuine (pre-existing) retrieval gap on those two queries, not evidence the
+re-key is inert — `tool-search-hyde-canary.eval.ts` and `tool-search-hierarchical-canary.eval.ts`,
+which measure the SAME 20-case set at different cutoffs/mechanisms, both DID move (see table above).
 
-**Findings 1 and 2 below were observed while `tool-search-caller2-score-captures.ts` was still
-re-keyed (before the coordinator's ruling and the revert documented further down).** They describe real
-retrieval behavior seen during that run, not an artifact of the (now-reverted) re-keying itself, so
-they are recorded as-is rather than discarded — but this suite's LIVE state today is the reverted one
-(20%, raw ids), not the 60% state these two items were observed against.
+## Domain routing — answered, and two follow-ups
 
-1. **`tool-search-caller2-score-captures.ts`: `integrations_list_subscriptions` does not resolve, and
-   is NOT part of the collapse.** The captured case `integrations-list` has `expectedToolId:
-   "integrations_list_subscriptions"` in the immutable 2026-08-05 capture file. The real tool was
-   renamed to `webhooks_list_subscriptions` (domain `integrations` -> `webhooks`) at some point BEFORE
-   the collapse — `currentToolIdFor` only knows about the 36 retired-by-collapse ids, not this earlier
-   rename, so it passes the id through unchanged and it never resolves against the live catalog. This
-   case scores a permanent miss for a reason unrelated to anything this dispatch touches. Not fixed
-   (would mean editing the historical capture file, which I was told not to do, or hand-patching the
-   scorer for one case, which is a different kind of fix than ground-truth re-keying).
+**Coordinator's own answer, reproduced here so it lives beside the finding it explains:** shipped, but
+label-only. `sourceForToolId` at `apps/website/src/assistant/tool-catalog-query.ts:36-39` does the
+`id.split("_")[0]` bucketing and seeds the live FTS index at line 78, so all 29 `content_read` cards
+really do carry `source: "content"` in production — but `source` is a plain column, never a MATCH or
+rank term in the `fts5(id, description)` / `bm25(6.0, 1.0)` index (`@jini-ai/sqlite`'s
+`tool-catalog.ts`), so retrieval itself is unaffected. Neither a live regression nor experimental-only.
 
-2. **Nine other genuine misses in `tool-search-caller2-score-captures.ts`** (of the 25 real captured
+**Follow-up 1 — does anything actually consume `source`? Yes, the model sees it; no live code path
+groups or filters by it.**
+- The model sees it directly, unfiltered, in both meta-tools:
+  `apps/website/src/assistant/byok-tool-surface.ts:130` (the `search_tools` description text itself
+  states the return shape as `{id, description, source, score}`), `byok-tool-surface.ts:274-286`
+  (`runSearchTools` returns `ok({ hits })`, `hits` straight from `catalog.search()`, `source` included
+  unmodified), and `byok-tool-surface.ts:291-304` (`runDescribeTool` returns `ok(entry)`, `entry` from
+  `catalog.describe()`, same unmodified `source` field). So every collapsed card the model sees now
+  says `source: "content"` where it used to say `workspace`/`widgets`/`backup`/etc. — visible, real,
+  but nothing beyond a JSON field the model may or may not reason about (unmeasurable per the 2026-08-24
+  report's own finding, already cited in this report's §0.3-equivalent discussion above).
+- The one place that WOULD consume it programmatically —
+  `apps/admin/src/features/plugins/tool-catalog-composer-source.ts:106` (`keywords: [hit.source]`,
+  feeding the admin chat composer's "/" and "+" capability-menu fuzzy match) — is dead code. That
+  file's own header states it was **deliberately unwired 2026-08-21** (an owner decision, cited with
+  its own reasoning), and `AssistantDock.hooks.tsx:575` carries a doc-comment confirming the same.
+  Control grep: `grep -rn "createToolCatalogComposerCapabilitySource" apps/admin/src --include="*.ts"
+  --include="*.tsx" | grep -v __tests__` returns exactly 2 lines — the function's own definition and
+  that one doc-comment — and zero live import/call sites. A second, broader control grep for `\.source\b`
+  across all of `apps/website/src` and `apps/admin/src` (excluding tests) returned ~100 hits, confirming
+  the pattern reliably matches real code (ruling out a silent-zero false negative) — of those, exactly
+  one (the line above) is about a tool-catalog search hit; every other hit is an unrelated domain
+  concept also spelled `source` (media blob sha256 provenance, theme `build.source`, redirect capture
+  source, newsletter subscription source, plugin discovery source, etc.).
+- **Net:** real, minor legibility loss to the model (29 distinct source labels collapsed to 1, visible
+  in every `search_tools`/`describe_tool` response); zero functional/product impact, since the one
+  consumer that would have turned that into a UI-visible grouping problem is already inert.
+
+**Follow-up 2 — sweep for other unswept renames in eval fixtures/ground truth (scope: fixtures only, no
+product code touched or swept).** Methodology, built to survive both cautions raised: (a) never trust a
+grep's silence alone — cross-checked every extraction against a second, independent count (raw
+substring occurrences) and hand-explained every discrepancy rather than accepting the delta silently;
+(b) built the "known-good" id set from a LIVE run of the real composition
+(`buildEvalToolRegistry`, 170 tools) plus `RETIRED_READ_TOOL_TO_CARD`'s 36 keys, not from
+`git log -S`, so no rename-tracing/pathspec trap applies here at all.
+
+Swept: `tool-search-heldout-v2.ts` (130 cases — already verified 0 unresolvable via the live
+`tool-search-heldout-v2.eval.ts` integrity check, not re-derived), the 5 byte-identical 20-case
+`HELD_OUT_CASES` copies (`tool-search-canary-significance.eval.ts`, `-doc2query-canary.eval.ts`,
+`-hyde-canary.eval.ts`, `-rerank-ceiling.eval.ts`, `-hierarchical-canary.eval.ts` — confirmed
+byte-identical: every one extracted exactly 47 distinct referenced ids, 0 unresolvable), 
+`tool-search-quality.eval.ts`'s own `CASES`+`HELD_OUT_CASES` (52 distinct ids, 0 unresolvable),
+`tool-search-caller2-compliance-captures-2026-08-05.ts`'s 25 `expectedToolId` values (1 unresolvable —
+see below), and the generated `argument-fill-run-2026-09-08/afill-key.json` +
+`afill-delete-key.json` (130 distinct ids each, 0 unresolvable — both already post-collapse artifacts).
+
+**Result: exactly one unswept rename found, and it is the one already known** —
+`integrations_list_subscriptions` in `tool-search-caller2-compliance-captures-2026-08-05.ts` (line 94).
+No new instance surfaced. Given its own file is a dated capture (category C, never re-keyed per the
+coordinator's ruling), there is nothing to fix here even though it is a confirmed stale ground-truth
+id — reported, not touched, consistent with "fix only the fixture ground truth" (this one lives in a
+capture, not a fixture). See the next section for why one pre-collapse rename going unswept is worth
+someone asking about more broadly.
+
+## Finding: a second, older, unswept rename — `integrations_list_subscriptions` -> `webhooks_list_subscriptions`
+
+Called out as its own finding, not a footnote, per the coordinator's instruction: this is a SEPARATE,
+OLDER instance of the exact same class of decay the collapse produced, from a rename nobody swept.
+
+`tool-search-caller2-compliance-captures-2026-08-05.ts:94` — the captured case `integrations-list` —
+has `expectedToolId: "integrations_list_subscriptions"`. That id does not exist in the live 170-tool
+catalog. It is also NOT one of the 36 collapse-retired ids (`currentToolIdFor` returns it unchanged,
+confirmed directly). The real tool was renamed at the domain level, `integrations` -> `webhooks`
+(current id: `webhooks_list_subscriptions`), at some point BEFORE the 2026-09-08 collapse — this capture
+was already stale on the day the collapse shipped, for a completely unrelated, earlier reason. It has
+been scoring a permanent false miss in `tool-search-caller2-score-captures.ts` for however long that
+rename has been live, invisible the whole time because nothing checked this suite's ground truth against
+the catalog until today.
+
+**Not fixed** — the id lives in a dated capture (category C above), which the coordinator's ruling
+places off-limits even for a scoring-site resolution, so this is reported and left exactly as found,
+identically to how the 2026-09-08 collapse instance was handled.
+
+**Why this matters beyond this one id, per the coordinator's own framing:** one rename nobody swept
+found this way means others plausibly exist and have not been looked for. The rename sweep in the
+"Domain routing" section above covered every ground-truth fixture reachable from `development/evals/`
+and found no OTHER instance — but that sweep is bounded to what currently exists as literal
+`expect`/`expectedToolId`/`alsoAcceptable` string values in this directory. It cannot see a rename that
+happened, then was ALSO later swept correctly (nothing left to find) versus one that has not yet
+produced a visible symptom because the suite that would show it hasn't been run or audited recently.
+Whether other pre-collapse renames are lurking elsewhere (product code, other test suites, other eval
+directories not part of this dispatch) is exactly the open question the coordinator flagged — worth
+someone asking later, not concluded here.
+
+## Other genuine failures unmasked — not fixed here, per instructions
+
+**Both findings below were observed while `tool-search-caller2-score-captures.ts` was still re-keyed
+(before the coordinator's ruling and the revert documented earlier).** They describe real retrieval
+behavior seen during that run, not an artifact of the (now-reverted) re-keying itself, so they are
+recorded as-is rather than discarded — but this suite's LIVE state today is the reverted one (20%, raw
+ids), not the 60% state these two items were observed against.
+
+1. **Nine other genuine misses in `tool-search-caller2-score-captures.ts`** (of the 25 real captured
    queries): `recipes-list`, `content-list`, `content-update` (model never called `search_tools` at
    all), `identity-user-list`, `members-list`, `redirects-list`, `seo-entry-meta`, `widgets-list`,
    `workspace-get`. Each now compares correctly (both sides resolved) and still misses — the model's
    real captured query ranked the wrong tool/card, not a scoring artifact. Genuine retrieval quality
    findings, not mine to fix.
 
-3. **Hierarchical/domain-routing accuracy genuinely degraded by the shipped collapse — not a false
-   miss, a real cost.** `tool-search-all-approaches-v2.eval.ts`'s domain-routing metric: **30% (39/130)
-   domain top-1**, down from the pre-collapse structure this metric implicitly assumed (`domainOf`
-   splits on `_`, so all 29 `content_read.*` cards now bucket under one domain, `"content"`, instead of
-   their 29 original domains). `tool-search-hierarchical-canary.eval.ts`'s narrower 20-case version only
-   moved 11/20 -> 12/20 because few of its 20 cases have their `expect` inside the collapse set. This is
-   a real, disclosed consequence of the shipped `content_read` collapse on a metric the parent-tool-read
-   investigation's own top-1/top-5/top-10 numbers do not cover (those measure whether the right TOOL
-   ranks, not whether a naive domain-first two-stage design would still route correctly). Not a
-   regression to fix — the hierarchical-search approach was never adopted — but worth knowing if anyone
-   revisits domain-routing as a design.
+2. **Hierarchical/domain-routing accuracy genuinely degraded by the shipped collapse — not a false
+   miss, a real cost, and now fully characterized in "Domain routing — answered, and two follow-ups"
+   above (the coordinator's shipped-but-label-only ruling, what consumes `source`, and the rename
+   sweep).** Restated briefly here for the list: `tool-search-all-approaches-v2.eval.ts`'s
+   domain-routing metric is **30% (39/130) domain top-1**, because `domainOf`/`sourceForToolId` splits
+   on `_`, so all 29 `content_read.*` cards now bucket under one domain, `"content"`, instead of their
+   29 original domains. `tool-search-hierarchical-canary.eval.ts`'s narrower 20-case version only moved
+   11/20 -> 12/20 because few of its 20 cases have their `expect` inside the collapse set. Not a
+   regression to fix — retrieval itself is unaffected (`source` is not a rank/MATCH term) and the
+   consumer that would have turned it into a UI problem is dead code — but a real, disclosed metric
+   change worth knowing if domain-routing is ever revisited as a design.
 
-4. Every other suite's remaining top-1/top-5/top-10 gap after this fix (e.g.
+3. Every other suite's remaining top-1/top-5/top-10 gap after this fix (e.g.
    `tool-search-heldout-v2.eval.ts`'s shipped-keywords arm still misses 13% at found@10) is the same
    genuine retrieval-quality signal the parent-tool-read-eval report already characterized (D1-SHIPPED
-   matches BASELINE case-for-case) — nothing new surfaced by this pass beyond items 1-3 above.
+   matches BASELINE case-for-case) — nothing new surfaced by this pass beyond the findings above.
 
 ## Was this suite ever a meaningful eval? — the finding the coordinator asked for
 
@@ -291,7 +386,12 @@ that no longer exist. Options, not a recommendation:
 - Did not expand coverage: no new eval cases added anywhere.
 - Did not change any product code (`content-read-tool.ts`, `tool-registrations.ts`, etc.) — read-only
   as a dependency, never edited.
-- Did not fix the `integrations_list_subscriptions` stale-rename ground truth (finding 1 above) or the
-  9 genuine retrieval misses (finding 2) — flagged, not silently patched.
+- Did not fix the `integrations_list_subscriptions` stale-rename ground truth (its own finding, "A
+  second, older, unswept rename" above — it lives in a dated capture, which is out of bounds even for
+  a scoring-site resolution) or the 9 genuine retrieval misses (finding 1 in "Other genuine failures
+  unmasked") — flagged, not silently patched.
+- Swept eval fixtures/ground truth for other unswept renames (scope: `development/evals/` only, no
+  product code) — found none beyond the one already known. Did not sweep product code, other test
+  suites, or eval directories outside this dispatch, per explicit scope instruction.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
