@@ -85,11 +85,20 @@ async function getFreePort(): Promise<number> {
  * `timeoutMs` is a safety net, not an expectation: every caller below drives the CLI down a path
  * that terminates on its own. It exists so that a regression which leaves `tovu serve` running
  * cannot wedge this synchronous spawn — and with it the whole file — indefinitely. Defaults to
- * 30s rather than `undefined` (which `spawnSync` treats as "no timeout" — a hard, synchronous
- * `waitpid` on the whole test process that nothing else can preempt); the one call site that
- * genuinely needs more room for a real boot passes `60_000` explicitly.
+ * `30_000 * loadFactor()` rather than a flat value or `undefined` (which `spawnSync` treats as "no
+ * timeout" — a hard, synchronous `waitpid` on the whole test process that nothing else can
+ * preempt): `tovu init`, this function's most common caller, normally finishes in well under a
+ * second, so 30s is generous at rest, but a FLAT 30s is not safe on this shared, contended
+ * machine — the 2026-09-07 verification run measured a 1-minute load average of 139 on 8 cores
+ * (~17x, from other concurrently active agents mid-run) and that alone killed a healthy `tovu
+ * init` via this timeout at ~30.1s with a null status and empty stderr, a false failure
+ * indistinguishable in its symptoms from a real one. `loadFactor()` already scales every HTTP wait
+ * in this file for exactly this reason — DO NOT flatten this back to a bare number, it reintroduces
+ * that false failure. The one call site that already passes `60_000` explicitly is a real boot, not
+ * a fast-exit validation path — it deliberately stays unscaled, since it already carries more room
+ * than the scaled default at rest and needs a stable ceiling more than proportional headroom.
  */
-function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000): { status: number | null; stdout: string; stderr: string } {
+function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000 * loadFactor()): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, timeout: timeoutMs });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }

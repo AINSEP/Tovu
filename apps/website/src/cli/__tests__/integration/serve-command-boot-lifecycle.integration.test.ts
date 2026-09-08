@@ -84,9 +84,15 @@ function fetchTimeoutSignal(baseMs = 10000): AbortSignal {
 
 /**
  * `timeoutMs` bounds the underlying `spawnSync`, which otherwise defaults to no timeout at all — a
- * hard, synchronous `waitpid` on the whole test process that nothing else can preempt.
+ * hard, synchronous `waitpid` on the whole test process that nothing else can preempt. Scaled by
+ * `loadFactor()`, the same as every HTTP wait in this file: a flat 30s is not safe on this shared,
+ * contended machine — the 2026-09-07 verification run measured a 1-minute load average of 139 on 8
+ * cores (~17x, from other concurrently active agents) and that alone killed a healthy `tovu init`
+ * at ~30.1s with a null status and empty stderr, a false failure indistinguishable in its symptoms
+ * from a real one. `tovu init` normally finishes in well under a second at rest, so 30s is already
+ * generous unscaled — DO NOT flatten this back to a bare number, it reintroduces that false failure.
  */
-function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000): { status: number | null; stderr: string } {
+function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000 * loadFactor()): { status: number | null; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], {
     encoding: "utf8",
     env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
