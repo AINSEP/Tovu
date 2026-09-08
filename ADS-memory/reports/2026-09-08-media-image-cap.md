@@ -84,7 +84,7 @@ No grid restructuring, no layout-system change, no other rule touched — confir
   above, not a unit test. No test file changed or added.
 
 ## Commit
-`945b4622` — `fix(admin): cap media grid card width, remove unbounded wide-screen stretch`
+`a79b8991` — `fix(admin): cap media grid card width, remove unbounded wide-screen stretch`
 
 ## Scope
 Single file: `apps/admin/src/styles/media.css`. Dev server was not restarted (API
