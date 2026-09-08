@@ -9,6 +9,7 @@ import path from "node:path";
 import test, { after } from "node:test";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
+import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 
 const require = createRequire(import.meta.url);
 
@@ -71,10 +72,27 @@ function loadFactor(): number {
   return Math.min(Math.max(ratio, 1), 6);
 }
 
-function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}): { status: number | null; stderr: string } {
+/** Same rationale as `serve-command.integration.test.ts`'s own `FETCH_POLL_TIMEOUT_MS`: a server
+ *  that accepts a connection but never answers must not be able to wedge a single bare `fetch()`
+ *  forever and starve this loop's own deadline re-check. Flat, not `loadFactor()`-scaled — the
+ *  outer deadline already accounts for load. */
+const FETCH_POLL_TIMEOUT_MS = 2000;
+
+/** Bounds a single, non-retried fetch made after `waitForHttpReady` already proved the server is
+ *  up, scaled by {@link loadFactor} like every other post-boot timing assumption in this file. */
+function fetchTimeoutSignal(baseMs = 10000): AbortSignal {
+  return AbortSignal.timeout(baseMs * loadFactor());
+}
+
+/**
+ * `timeoutMs` bounds the underlying `spawnSync`, which otherwise defaults to no timeout at all — a
+ * hard, synchronous `waitpid` on the whole test process that nothing else can preempt.
+ */
+function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000): { status: number | null; stderr: string } {
   const result = require("node:child_process").spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], {
     encoding: "utf8",
     env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
+    timeout: timeoutMs,
   });
   return { status: result.status, stderr: result.stderr };
 }
@@ -97,7 +115,7 @@ async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStre
   while (Date.now() < deadline) {
     if (exited) throw new Error(`server process exited early (code ${exitCode}) before becoming ready`);
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/`);
+      const res = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(FETCH_POLL_TIMEOUT_MS) });
       void res.text();
       return;
     } catch {
@@ -237,6 +255,7 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ username, password }),
+      signal: fetchTimeoutSignal(),
     });
     assert.equal(loginRes.status, 200, `admin login must succeed against the seeded owner account (status ${loginRes.status})`);
     const cookie = sessionCookieFrom(loginRes.headers.get("set-cookie"));
@@ -250,6 +269,7 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
       method: "PATCH",
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ enabled: true }),
+      signal: fetchTimeoutSignal(),
     });
 
     const deadline = Date.now() + 10_000 * loadFactor();
@@ -269,7 +289,9 @@ test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK res
       `the plugin's bare '@tovu/sdk' import resolved to the PLANTED local node_modules/@tovu/sdk instead of the runtime's real SDK build — registerPluginSdkResolver() was not registered before this import() could run (observed: ${JSON.stringify(observed)})`
     );
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });

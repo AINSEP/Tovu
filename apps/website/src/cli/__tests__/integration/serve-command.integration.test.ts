@@ -11,6 +11,7 @@ import test, { after } from "node:test";
 import Database from "better-sqlite3";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
+import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 
 const require = createRequire(import.meta.url);
 
@@ -83,9 +84,12 @@ async function getFreePort(): Promise<number> {
 /**
  * `timeoutMs` is a safety net, not an expectation: every caller below drives the CLI down a path
  * that terminates on its own. It exists so that a regression which leaves `tovu serve` running
- * cannot wedge this synchronous spawn — and with it the whole file — indefinitely.
+ * cannot wedge this synchronous spawn — and with it the whole file — indefinitely. Defaults to
+ * 30s rather than `undefined` (which `spawnSync` treats as "no timeout" — a hard, synchronous
+ * `waitpid` on the whole test process that nothing else can preempt); the one call site that
+ * genuinely needs more room for a real boot passes `60_000` explicitly.
  */
-function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs?: number): { status: number | null; stdout: string; stderr: string } {
+function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, timeout: timeoutMs });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -117,6 +121,25 @@ function loadFactor(): number {
   return Math.min(Math.max(ratio, 1), 6); // never shorter than base, never more than 6x
 }
 
+/**
+ * Per-attempt cap for the polling loops below (`waitForHttpReady`, and the daemon-readiness loop
+ * later in this file): a server that accepts the TCP connection but never answers otherwise wedges
+ * a single bare `fetch()` forever, which starves the loop's own `Date.now() < deadline` re-check.
+ * Flat rather than `loadFactor()`-scaled — the outer deadline already accounts for machine load, so
+ * this only needs to be short enough that the loop actually gets to retry on schedule.
+ */
+const FETCH_POLL_TIMEOUT_MS = 2000;
+
+/**
+ * Bounds a single, non-retried fetch (an assertion made after `waitForHttpReady` already proved
+ * the server is up) the same way `FETCH_POLL_TIMEOUT_MS` bounds a polling attempt — scaled by
+ * {@link loadFactor} like every other post-boot timing assumption in this file, so a busier machine
+ * gets proportionally more room instead of a false failure.
+ */
+function fetchTimeoutSignal(baseMs = 10000): AbortSignal {
+  return AbortSignal.timeout(baseMs * loadFactor());
+}
+
 async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStreams, timeoutMs = 20000): Promise<void> {
   const factor = loadFactor();
   const deadline = Date.now() + timeoutMs * factor;
@@ -129,7 +152,7 @@ async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStre
   while (Date.now() < deadline) {
     if (exited) throw new Error(`server process exited early (code ${exitCode}) before becoming ready`);
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/`);
+      const res = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(FETCH_POLL_TIMEOUT_MS) });
       void res.text();
       return;
     } catch {
@@ -184,7 +207,7 @@ test("behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected
       assert.match(result.stderr, /^tovu: VALIDATION:/m, `--port ${badPort}`);
     }
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -217,7 +240,7 @@ test("behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is A
       }
     }
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -231,7 +254,7 @@ test("AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 
     assert.equal(result.status, 3);
     assert.match(result.stderr, /^tovu: SITE_DIR_INVALID:/m);
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -248,7 +271,7 @@ test("AC-06: serve against a site with a newer schemaVersion than the runtime ex
     assert.equal(result.status, 4);
     assert.match(result.stderr, /^tovu: SITE_NEWER_THAN_RUNTIME:/m);
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -264,7 +287,7 @@ test("AC-09: serve against a site whose content.db has zero workspace rows exits
     assert.equal(result.status, 5);
     assert.match(result.stderr, /^tovu: SITE_CORRUPT:/m);
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -280,7 +303,7 @@ test("EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bo
     assert.match(result.stderr, new RegExp(String(port)));
   } finally {
     await new Promise<void>((resolve) => blocker.close(() => resolve()));
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -296,11 +319,13 @@ test("BR-02/AC-11: --port flag takes precedence over config.json.port", async ()
   const child = spawnServe([dir, "--port", String(flagPort)]);
   try {
     await waitForHttpReady(flagPort, child);
-    const res = await fetch(`http://127.0.0.1:${flagPort}/`);
+    const res = await fetch(`http://127.0.0.1:${flagPort}/`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200, "the --port flag's value must be the one actually bound, not config.json.port");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
 
@@ -315,11 +340,13 @@ test("BR-02/AC-11: config.json.port is used when no --port flag is given", async
   const child = spawnServe([dir]);
   try {
     await waitForHttpReady(configPort, child);
-    const res = await fetch(`http://127.0.0.1:${configPort}/`);
+    const res = await fetch(`http://127.0.0.1:${configPort}/`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200, "config.json.port must be honored when --port is absent");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
 
@@ -335,7 +362,7 @@ test("BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an expl
   });
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200, "EC-08: the DIR's real seeded site must be served — if TOVU_CONTENT_DB had been mistakenly used, its nonexistent/unseeded db would not have this seeded post");
 
     const exitCode = await stopGracefully(child);
@@ -343,7 +370,7 @@ test("BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an expl
     assert.match(stderrBuf, /TOVU_CONTENT_DB/, "EC-08: a warning naming the ignored env var must be logged");
   } finally {
     if (!child.killed) child.kill("SIGKILL");
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -363,11 +390,13 @@ test("B1: serve against a site whose content.db has 2 workspace rows succeeds (b
   const child = spawnServe([dir, "--port", String(port)]);
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200, "B1: serving must succeed and reach the original (oldest) workspace's seeded content, not crash");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
 
@@ -387,11 +416,13 @@ test("B1: --workspace <id> selects a non-default workspace explicitly", async ()
   const child = spawnServe([dir, "--port", String(port), "--workspace", "ws-second"]);
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 404, "--workspace ws-second must select the new, still-empty workspace, not the original seeded one");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
 
@@ -402,7 +433,7 @@ test("--workspace <id> naming no existing workspace is rejected as VALIDATION (e
     assert.equal(result.status, 2, `stderr: ${result.stderr}`);
     assert.match(result.stderr, /^tovu: VALIDATION:/m);
   } finally {
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -413,15 +444,17 @@ test("CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than
   const child = spawnServe([dir, "--port", String(port)], {}, foreignCwd);
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     const body = await res.text();
     assert.equal(res.status, 200);
     assert.doesNotMatch(body, /No themes installed/, "CR-R04: built-in themes must resolve package-relative, not against the foreign cwd tovu was launched from");
     assert.ok(!fs.existsSync(path.join(foreignCwd, "themes")), "no themes/ dir should ever be created in the launching cwd");
     assert.ok(!fs.existsSync(path.join(foreignCwd, "uploads")), "CR-R01: uploads must resolve against the install dir, not leak an uploads/ dir into the launching cwd");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
     fs.rmSync(foreignCwd, { recursive: true, force: true });
   }
 });
@@ -432,13 +465,15 @@ test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu ser
   const child = spawnServe([dir, "--port", String(port)]);
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200);
     const body = await res.text();
     assert.match(body, /Welcome to Tovu|welcome/i);
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
 
@@ -484,7 +519,9 @@ test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint
   try {
     await waitForHttpReady(firstBootPort, firstBoot);
   } finally {
-    await stopGracefully(firstBoot);
+    if (firstBoot.exitCode === null && !firstBoot.killed) {
+      await stopGracefully(firstBoot);
+    }
   }
 
   // Corrupts the identity state the same way a first-boot seed interrupted partway through would:
@@ -528,7 +565,7 @@ test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint
     );
   } finally {
     if (!exited) await stopGracefully(secondBoot);
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -545,7 +582,7 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   });
   try {
     await waitForHttpReady(port, child);
-    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`, { signal: fetchTimeoutSignal() });
     assert.equal(res.status, 200);
 
     const factor = loadFactor();
@@ -559,9 +596,11 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
       `the spawned tovu serve process must export at least one span to the OTLP collector configured via OTEL_EXPORTER_OTLP_ENDPOINT within ${Math.round((10_000 * factor) / 1000)}s`
     );
   } finally {
-    await stopGracefully(child);
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
     await collector.close();
-    fs.rmSync(parent, { recursive: true, force: true });
+    removeFixtureTree(parent);
   }
 });
 
@@ -583,7 +622,7 @@ test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawn
     let res: Response | undefined;
     while (Date.now() < deadline) {
       try {
-        res = await fetch(`http://127.0.0.1:${daemonPort}/api/runs`);
+        res = await fetch(`http://127.0.0.1:${daemonPort}/api/runs`, { signal: AbortSignal.timeout(FETCH_POLL_TIMEOUT_MS) });
         break;
       } catch {
         await new Promise((resolve) => setTimeout(resolve, 150));
@@ -598,7 +637,9 @@ test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawn
     const body = (await res.json()) as { code?: string };
     assert.equal(body.code, "UNAUTHENTICATED");
   } finally {
-    await stopGracefully(child);
-    fs.rmSync(parent, { recursive: true, force: true });
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
   }
 });
