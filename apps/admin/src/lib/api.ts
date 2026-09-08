@@ -2201,8 +2201,21 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`),
   // SPEC-047 — writes the bespoke-HTML body, and births the html row on first call. A DIFFERENT
   // endpoint from `updatePost` on purpose: the body and the title/slug/status go through two
-  // separate server-side write paths, and only this one offers compare-and-set (a 409 rather than a
-  // silent overwrite when someone else edited the page since this editor loaded it).
+  // separate server-side write paths.
+  //
+  // **This route takes no `expectedVersion`, and its server-side compare-and-set does NOT protect a
+  // second editor** — corrected 2026-09-07; this comment used to claim the opposite ("only this one
+  // offers compare-and-set, a 409 rather than a silent overwrite when someone else edited the page
+  // since this editor loaded it"), and `routes/admin/pages/update-html.ts`'s own header still says
+  // something similar. What the route actually does is `read()` then `write()` inside ONE request
+  // (`PagesHtmlDocumentStore`, CIC-1), so the version it conditions on is one it captured
+  // microseconds earlier — it serializes two writes racing inside the server, and can never see the
+  // version the CLIENT loaded. It also BUMPS `version` on every successful write.
+  //
+  // `updatePost` above is the only one of the two that accepts a client-supplied `expectedVersion`,
+  // which is why `usePageEditor.save` writes metadata FIRST and only reaches this route once that
+  // guard has passed. Reordering those two calls, or adding a body-only save path, silently removes
+  // the protection — see `writePage` in `use-page-editor.hooks.ts`.
   updatePageHtml: (id: string, html: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}/html`, {
       method: "PUT",
