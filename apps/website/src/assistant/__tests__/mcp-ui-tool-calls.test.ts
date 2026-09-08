@@ -71,6 +71,19 @@ test("external_mcp_reauth_prompt is on the allowlist — it holds up the same he
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_reauth_prompt"));
 });
 
+// 2026-09-08 — `external_mcp_save` (`features/external-mcp/tool-registrations.ts`) holds up the SAME
+// held-open-exchange shape `content_post_delete`/`media_trash_asset` do: its handler opens a
+// `SurfaceExchangeStore` exchange and parks on the human's "Add server"/Cancel click before writing
+// anything. Found missing by a live product test (ADS-memory/reports/
+// 2026-09-08-dock-recovery-product-test.md): the assistant's own proposed connection-recovery flow
+// rendered the form correctly, then every submission 403'd with TOOL_NOT_ALLOWLISTED — the exact
+// gap `media_trash_asset` shipped with for one commit, this time on the tool the report calls "the
+// one path available through the audited tools".
+test("external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test)", () => {
+  assert.equal(isMcpUiToolCallAllowed("external_mcp_save"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_save"));
+});
+
 // ---------------------------------------------------------------------------
 // The closed-set property
 // ---------------------------------------------------------------------------
@@ -82,11 +95,23 @@ test("external_mcp_reauth_prompt is on the allowlist — it holds up the same he
 // remote execution reachable by any HTML an agent's tool result can render (see this module's own
 // header). The two tests below are the ones that fail in those cases.
 
-/** Exactly what this endpoint will forward to. Adding an entry must be a deliberate edit HERE too. */
+/**
+ * Exactly what this endpoint will forward to. Adding an entry must be a deliberate edit HERE too.
+ *
+ * This list was stale from the moment the 2026-09-08 delete-confirmation family
+ * (`comments_trash_comment`/`widgets_trash_instance`/`theme_trash_file`/`redirects_tombstone`/
+ * `webhooks_delete_subscription`/`media_trash_asset`) landed in `MCP_UI_REDEEMABLE_TOOL_IDS` without
+ * a matching edit here — this closed-set test was RED against the real production allowlist before
+ * this comment was written (six entries under-counted), an instance of the exact "fix lands in one
+ * arm, leaves the sibling assertion behind" defect class `external_mcp_save`'s own gap belongs to.
+ * Brought current in the same pass that adds `external_mcp_save`, rather than left red for an
+ * unrelated-looking reason.
+ */
 const EXPECTED_ALLOWLIST = [
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",
+  "comments_trash_comment",
   "content_post_delete",
   "content_post_search",
   "custom_credential_create",
@@ -95,7 +120,13 @@ const EXPECTED_ALLOWLIST = [
   "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
   "external_mcp_reauth_prompt",
+  "external_mcp_save",
+  "media_trash_asset",
+  "redirects_tombstone",
   "source_control_execute_commit",
+  "theme_trash_file",
+  "webhooks_delete_subscription",
+  "widgets_trash_instance",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {
@@ -129,6 +160,11 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
     "external_mcp_reauth_prompts",
     "not_external_mcp_reauth_prompt",
     "EXTERNAL_MCP_REAUTH_PROMPT",
+    "external_mcp_saved",
+    "external_mcp_sav",
+    "not_external_mcp_save",
+    "EXTERNAL_MCP_SAVE",
+    "external-mcp-save",
     // Shapes a caller controls that must never be treated as a match.
     "",
     " ",

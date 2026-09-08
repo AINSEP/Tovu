@@ -169,6 +169,20 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // click works" are different claims — only a request that reaches this allowlist proves the second
   // one; see `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts` for that proof.
   "media_trash_asset",
+  // 2026-09-08 — `external_mcp_save` (`features/external-mcp/tool-registrations.ts`) holds up the
+  // SAME held-open-exchange shape `content_post_delete`/`media_trash_asset` do: its handler opens a
+  // `SurfaceExchangeStore` exchange and parks on the human's "Add server"/Cancel click before writing
+  // anything. Missing since the domain was wired (`ADS-memory/reports/
+  // 2026-09-07-assistant-tool-coverage-audit.md`'s Gap #1) — a plain gap, not a deliberate exclusion,
+  // the identical shape `assistant_ask_choice`'s own comment above describes. Caught only by a live
+  // click through the real admin dock while attempting to recover a deleted external MCP connection
+  // (ADS-memory/reports/2026-09-08-dock-recovery-product-test.md): the assistant's own proposed
+  // recovery path — "recreate the config, then re-authorize" — rendered the confirmation form
+  // correctly with real prefilled data, then every submission (including Cancel) 403'd with
+  // TOOL_NOT_ALLOWLISTED before ever reaching `saveExternalMcpServer`, exactly as `media_trash_asset`
+  // did for one commit. See `mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts` for the
+  // real round trip this entry makes possible.
+  "external_mcp_save",
 ]);
 
 /**
