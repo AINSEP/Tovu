@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -32,22 +32,36 @@ import { buildExecutionCredentialAad } from "../../../apps/website/src/assistant
  */
 
 const REAL_MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../../apps/website/src/platform/db/drizzle");
-const NEWEST_MIGRATION_TAG = "0058_keen_mauler";
-const NEWEST_MIGRATION_ADDS = { table: "posts", column: "autosave_json" };
+
+/**
+ * The repo's real migrations journal, read fresh on every call.
+ *
+ * Deliberately NOT a pinned `NEWEST_MIGRATION_TAG`/`NEWEST_MIGRATION_ADDS` pair. Such a constant is
+ * stale the day the next migration lands, and its staleness surfaces as this file failing for a
+ * reason that has nothing to do with what it verifies — which is exactly what happened between
+ * `0058_keen_mauler` (pinned) and `0060_fast_human_cannonball` (actual). Nothing below names a
+ * migration, a table, or a column: the fixture withholds "the last entry, whatever it is", and the
+ * assertions are stated against the journal's own length and a whole-schema fingerprint instead.
+ *
+ * @complexity O(n) in journal size — one file read plus a parse.
+ */
+function readMigrationJournal(): { entries: Array<{ tag: string }> } {
+  const journal = JSON.parse(fs.readFileSync(path.join(REAL_MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
+    entries: Array<{ tag: string }>;
+  };
+  assert.ok(
+    journal.entries.length >= 2,
+    "this fixture withholds the newest migration, so the journal must carry at least two"
+  );
+  return journal;
+}
 
 /** Copies the real migrations folder minus its newest entry — the runtime migrator only reads
  *  `meta/_journal.json` plus the `.sql` file each entry names. */
 function buildMigrationsDirMissingNewest(scratch: string): string {
   const dir = path.join(scratch, "migrations-partial");
   fs.mkdirSync(path.join(dir, "meta"), { recursive: true });
-  const journal = JSON.parse(fs.readFileSync(path.join(REAL_MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
-    entries: Array<{ tag: string }>;
-  };
-  assert.equal(
-    journal.entries[journal.entries.length - 1]!.tag,
-    NEWEST_MIGRATION_TAG,
-    "fixture assumption stale — this repo's newest migration tag changed; update NEWEST_MIGRATION_TAG/NEWEST_MIGRATION_ADDS"
-  );
+  const journal = readMigrationJournal();
   const trimmed = { ...journal, entries: journal.entries.slice(0, -1) };
   fs.writeFileSync(path.join(dir, "meta", "_journal.json"), JSON.stringify(trimmed));
   for (const entry of trimmed.entries) {
@@ -56,11 +70,20 @@ function buildMigrationsDirMissingNewest(scratch: string): string {
   return dir;
 }
 
-function hasColumn(dbPath: string, table: string, column: string): boolean {
+/**
+ * A stable hash over every object in the database's schema (`sqlite_master`'s `type`/`name`/`sql`).
+ *
+ * Replaces a "does table X still lack column Y" check keyed to whatever the newest migration
+ * happened to add. This is both stronger — it catches ANY schema change a stray migration would
+ * make, not one named column — and unable to go stale, since it names nothing.
+ *
+ * @complexity O(n) in schema object count.
+ */
+function schemaFingerprint(dbPath: string): string {
   const raw = new Database(dbPath, { readonly: true });
   try {
-    const cols = raw.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-    return cols.some((c) => c.name === column);
+    const objects = raw.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all();
+    return createHash("sha256").update(JSON.stringify(objects)).digest("hex");
   } finally {
     raw.close();
   }
@@ -248,9 +271,16 @@ test("backfill-execution-credential-aad: --dry-run never applies a pending migra
   sqlite.close();
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
 
-  // --- Precondition: genuinely one migration behind. ---
-  assert.equal(hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column), false);
+  // --- Precondition: genuinely one migration behind. Stated against the journal's own length so it
+  // stays true for every future migration, and so a `buildMigrationsDirMissingNewest` that silently
+  // stopped withholding anything would fail here instead of making the proof below vacuous. ---
   const migrationsBefore = appliedMigrationCount(dbPath);
+  assert.equal(
+    migrationsBefore,
+    readMigrationJournal().entries.length - 1,
+    "fixture must sit exactly one migration behind the repo's journal"
+  );
+  const schemaBefore = schemaFingerprint(dbPath);
   const rowBefore = new Database(dbPath, { readonly: true })
     .prepare("SELECT * FROM admin_execution_credentials WHERE principal_id = ?")
     .get(ADMIN_A);
@@ -261,11 +291,7 @@ test("backfill-execution-credential-aad: --dry-run never applies a pending migra
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 1 total pending/);
 
-  assert.equal(
-    hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column),
-    false,
-    "a --dry-run must never apply a pending migration"
-  );
+  assert.equal(schemaFingerprint(dbPath), schemaBefore, "a --dry-run must never apply a pending migration");
   assert.equal(appliedMigrationCount(dbPath), migrationsBefore, "a --dry-run must never record a new migration as applied");
   const rowAfter = new Database(dbPath, { readonly: true })
     .prepare("SELECT * FROM admin_execution_credentials WHERE principal_id = ?")
