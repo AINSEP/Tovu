@@ -104,8 +104,63 @@ export interface ScanEmbedMarkersResult {
  * authored content is a real fallback that must survive when nothing resolves. The widgets pipeline
  * previously required `<div ...></div>` with nothing between the tags, which is exactly why it could
  * not be used for theme markers; unifying on the permissive form removes that split.
+ *
+ * Carries the `d` (`hasIndices`) flag so {@link scanEmbedMarkers} can read every field back out of
+ * the ORIGINAL html at each capture group's own offsets, rather than out of whatever string was
+ * actually scanned (see {@link maskNonRenderableRegions}) — see that function's doc for why the two
+ * must never be the same string.
  */
-const MARKER_PATTERN = /<([a-z]+)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>([\s\S]*?)<\/\1>/gi;
+const MARKER_PATTERN = /<([a-z]+)((?:\s+[^>]*?)?\sdata-embed-config='([^']*)'(?:\s+[^>]*?)?)\s*>([\s\S]*?)<\/\1>/gid;
+
+/** Every character of `text` replaced by a space, except newlines (left alone so a masked span
+ * cannot change how many lines the surrounding string has). Same length in, same length out. */
+function blank(text: string): string {
+  return text.replace(/[^\n]/g, " ");
+}
+
+/** An HTML comment, open to close, non-greedy so two separate comments never merge into one span. */
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g;
+
+/** A `<script>` or `<style>` element, capturing its tag name (for the backreferenced close) and its
+ * raw-text content — the part a browser never parses as markup. */
+const RAW_TEXT_ELEMENT_PATTERN = /<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+
+/**
+ * Produce a same-length copy of `html` with every HTML comment, and the raw-text content of every
+ * `<script>`/`<style>` element, replaced by space filler. {@link scanEmbedMarkers} runs
+ * {@link MARKER_PATTERN} against this copy — never the original — so a well-formed
+ * `data-embed-config` marker written inside an authoring note (`<!-- ... -->`) or inside a
+ * `<style>` block's CSS comment can never be matched: neither is ever parsed as an element by a
+ * browser, so the scanner must not treat either as one either. A marker outside both is untouched
+ * here and matches exactly as before.
+ *
+ * Same length is load-bearing, not cosmetic: every offset {@link scanEmbedMarkers} reports (and
+ * {@link substituteMarkers}'s index-based splice back into the ORIGINAL html) depends on a masked
+ * span occupying exactly the same positions as what it replaces. Deleting the comment/raw-text
+ * content instead of blanking it would shift every later offset out from under those callers.
+ */
+function maskNonRenderableRegions(html: string): string {
+  const withoutComments = html.replace(HTML_COMMENT_PATTERN, blank);
+  return withoutComments.replace(RAW_TEXT_ELEMENT_PATTERN, (whole, tagName: string, content: string) => {
+    const closingTagLength = tagName.length + 3; // "</" + tagName + ">"
+    const openTagLength = whole.length - content.length - closingTagLength;
+    return whole.slice(0, openTagLength) + blank(content) + whole.slice(openTagLength + content.length);
+  });
+}
+
+/**
+ * One capture group's `[start, end)` offsets from a `d`-flagged match's `indices` array. Throws
+ * rather than returning `undefined` for a group `MARKER_PATTERN` never leaves unmatched — every
+ * group here sits on a mandatory part of the pattern, never inside an optional alternation, so a
+ * missing entry means the pattern changed underneath this function, not a normal runtime path.
+ */
+function requireGroupRange(indices: RegExpIndicesArray, group: number): readonly [number, number] {
+  const range = indices[group];
+  if (!range) {
+    throw new Error(`marker.ts: expected capture group ${group} of MARKER_PATTERN to participate in the match`);
+  }
+  return range;
+}
 
 /**
  * Validate one marker's raw attribute text. Split out from {@link scanEmbedMarkers} so the scan stays
@@ -129,16 +184,36 @@ function parseMarkerConfig(raw: string): { config: Record<string, unknown> } | {
   return { config };
 }
 
-/** Locate and parse every embed marker in `html`. Pure; allocates one result per marker. */
+/**
+ * Locate and parse every embed marker in `html`. Pure; allocates one result per marker.
+ *
+ * Scans {@link maskNonRenderableRegions}'s masked copy so a marker sitting inside an HTML comment or
+ * a `<script>`/`<style>` element's raw text is never matched, but every field on the resulting
+ * {@link EmbedMarker} (`whole`, `tag`, `attrs`, `inner`, the parsed config) is read back out of the
+ * ORIGINAL `html` at that match's own offsets — masking only decides which spans are eligible to be
+ * a marker, it must never change what an eligible marker's own fields report.
+ */
 export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
   const markers: EmbedMarker[] = [];
   const rejected: EmbedMarkerRejection[] = [];
   let occurrence = 0;
 
-  for (const match of html.matchAll(MARKER_PATTERN)) {
+  const masked = maskNonRenderableRegions(html);
+  for (const match of masked.matchAll(MARKER_PATTERN)) {
     occurrence += 1;
-    const [whole, tag, attrs, raw, inner] = match as unknown as [string, string, string, string, string];
-    const index = match.index ?? 0;
+    const indices = (match as RegExpMatchArray & { indices: RegExpIndicesArray }).indices;
+    const [wholeStart, wholeEnd] = requireGroupRange(indices, 0);
+    const tagRange = requireGroupRange(indices, 1);
+    const attrsRange = requireGroupRange(indices, 2);
+    const rawRange = requireGroupRange(indices, 3);
+    const innerRange = requireGroupRange(indices, 4);
+
+    const index = wholeStart;
+    const whole = html.slice(wholeStart, wholeEnd);
+    const tag = html.slice(...tagRange);
+    const attrs = html.slice(...attrsRange);
+    const raw = html.slice(...rawRange);
+    const inner = html.slice(...innerRange);
     const result = parseMarkerConfig(raw);
 
     if ("problem" in result) {
