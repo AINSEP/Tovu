@@ -118,7 +118,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 function membersRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((r) => r.descriptor.id.startsWith("members_"))
+      .filter((r) => r.descriptor.id.startsWith("members_") || r.descriptor.id === "content_read.member")
       .map((r) => [r.descriptor.id, r]),
   );
 }
@@ -137,7 +137,9 @@ test("exactly the 4 designed Members tools are wired — no invented profile/com
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...membersRegistrations(deps).keys()].sort(),
-    ["members_disable", "members_get_by_id", "members_list", "members_request_magic_link"],
+    // members_get_by_id and members_list MERGE into this single card (2026-09-08,
+    // assistant/content-read-tool.ts): one wired tool, dispatching on whether memberId was supplied.
+    ["content_read.member", "members_disable", "members_request_magic_link"],
   );
 });
 
@@ -155,6 +157,12 @@ test("no wired tool exposes updateProfile/compSubscription/setSubscriptionStatus
 test("every wired Members registration publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of membersRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.member") continue;
     assert.ok(registration.descriptor.inputSchema);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -164,6 +172,12 @@ test("every wired Members registration publishes its catalog entry's inputSchema
 test("the real Members catalog and tool-registrations' independent risk classification agree", () => {
   const { deps } = fakeRouteDeps();
   for (const id of membersRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.member") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -189,7 +203,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for every Members registrat
 
 test("members_list: authorize() is called with 'member.manage', no entityId", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps({ seed: [seedMember()] });
-  await wired("members_list", deps).handler(executionContext({}));
+  await wired("content_read.member", deps).handler(executionContext({}));
   assert.equal(authorizeCalls.length, 1);
   assert.equal(authorizeCalls[0].permission, "member.manage");
   assert.equal(authorizeCalls[0].entityType, "member");
@@ -198,23 +212,23 @@ test("members_list: authorize() is called with 'member.manage', no entityId", as
 
 test("members_list: a denied caller is refused and gets no rows back", async () => {
   const { deps } = fakeRouteDeps({ allow: false, seed: [seedMember()] });
-  await assert.rejects(() => wired("members_list", deps).handler(executionContext({})), ForbiddenError);
+  await assert.rejects(() => wired("content_read.member", deps).handler(executionContext({})), ForbiddenError);
 });
 
 test("members_get_by_id: authorize() is called with entityId set to the requested member", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps({ seed: [seedMember()] });
-  await wired("members_get_by_id", deps).handler(executionContext({ memberId: "member-1" }));
+  await wired("content_read.member", deps).handler(executionContext({ memberId: "member-1" }));
   assert.equal(authorizeCalls[0].entityId, "member-1");
 });
 
 test("members_get_by_id: an unknown member id throws MemberNotFoundError, not a silent null", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired("members_get_by_id", deps).handler(executionContext({ memberId: "nope" })), MemberNotFoundError);
+  await assert.rejects(() => wired("content_read.member", deps).handler(executionContext({ memberId: "nope" })), MemberNotFoundError);
 });
 
 test("members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view", async () => {
   const { deps } = fakeRouteDeps({ seed: [seedMember({ name: "Jane Doe", emailVerifiedAt: NOW })] });
-  const result = (await wired("members_get_by_id", deps).handler(executionContext({ memberId: "member-1" }))) as {
+  const result = (await wired("content_read.member", deps).handler(executionContext({ memberId: "member-1" }))) as {
     member: { name?: string; emailVerifiedAt?: string };
   };
   assert.equal(result.member.name, "Jane Doe");
@@ -232,7 +246,7 @@ test("members_list: afterId and limit are threaded through from tool input when 
     return originalList(required);
   }) as typeof memberRepo.list;
 
-  await wired("members_list", deps).handler(executionContext({ afterId: "member-a", limit: 5 }));
+  await wired("content_read.member", deps).handler(executionContext({ afterId: "member-a", limit: 5 }));
   assert.equal(observed.afterId, "member-a");
   assert.equal(observed.limit, 5);
 });
@@ -329,13 +343,13 @@ test("workflow: members_list -> members_get_by_id -> members_disable chains corr
   });
 
   // Step 1: list, as a real caller would to discover a member's id.
-  const listResult = (await wired("members_list", deps).handler(executionContext({}))) as { members: { id: string; email: string }[] };
+  const listResult = (await wired("content_read.member", deps).handler(executionContext({}))) as { members: { id: string; email: string }[] };
   assert.equal(listResult.members.length, 2);
   const target = listResult.members.find((m) => m.email === "b@example.test");
   if (!target) throw new Error("the seeded member must be present in the list");
 
   // Step 2: fetch full details using EXACTLY the id the list call returned.
-  const getResult = (await wired("members_get_by_id", deps).handler(executionContext({ memberId: target.id }))) as { member: { id: string; status: string } };
+  const getResult = (await wired("content_read.member", deps).handler(executionContext({ memberId: target.id }))) as { member: { id: string; status: string } };
   assert.equal(getResult.member.id, "member-b");
   assert.equal(getResult.member.status, "active");
 
@@ -347,7 +361,7 @@ test("workflow: members_list -> members_get_by_id -> members_disable chains corr
 
   // Step 4: confirm end-to-end consistency — a fresh list call shows member-b disabled and
   // member-a untouched.
-  const finalList = (await wired("members_list", deps).handler(executionContext({}))) as { members: { id: string; status: string }[] };
+  const finalList = (await wired("content_read.member", deps).handler(executionContext({}))) as { members: { id: string; status: string }[] };
   const a = finalList.members.find((m) => m.id === "member-a");
   const b = finalList.members.find((m) => m.id === "member-b");
   assert.equal(a?.status, "active", "member-a must be untouched by member-b's disable");

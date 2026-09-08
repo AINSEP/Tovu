@@ -99,7 +99,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function redirectsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("redirects_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -114,7 +114,10 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-const WIRED_REDIRECTS_TOOL_IDS = ["redirects_list", "redirects_get", "redirects_get_hits", "redirects_create", "redirects_update", "redirects_tombstone"];
+// redirects_get and redirects_list MERGE into the single `content_read.redirect` card (2026-09-08,
+// assistant/content-read-tool.ts), which dispatches on whether `id` was supplied — so this list is
+// one entry shorter than the domain catalog it used to mirror one-for-one.
+const WIRED_REDIRECTS_TOOL_IDS = ["content_read.redirect", "redirects_get_hits", "redirects_create", "redirects_update", "redirects_tombstone"];
 
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness — wired vs. declared-but-excluded
@@ -145,6 +148,12 @@ test("no tool id across the whole assistant tool set implies a bulk redirect imp
 test("every wired redirects registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of redirectsRegistrations(deps)) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.redirect") continue;
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
@@ -164,6 +173,12 @@ test("requiresConfirmation is unset on every wired redirects tool", () => {
 test("the independent risk classification agrees with the catalog for every wired redirects tool", () => {
   const { deps } = fakeRouteDeps();
   for (const id of redirectsRegistrations(deps).keys()) {
+    // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
+    // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
+    // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
+    // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
+    // file could not have built its registrations at all had that thrown.
+    if (id === "content_read.redirect") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -188,7 +203,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired redirects r
 // ---------------------------------------------------------------------------
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
-  redirects_list: {},
+  "content_read.redirect": {},
   redirects_create: { matchType: "exact", fromPattern: "/old", toTarget: "/new", statusCode: 301 },
 };
 
@@ -225,7 +240,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
 test("redirects_get: an unknown id propagates RedirectNotFoundError unwrapped", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "redirects_get").handler(executionContext({ id: "no-such-id" })), /was not found/);
+  await assert.rejects(() => wired(deps, "content_read.redirect").handler(executionContext({ id: "no-such-id" })), /was not found/);
 });
 
 test("redirects_create: rejects matchType 'regex' the same way the chokepoint does", async () => {
@@ -249,7 +264,7 @@ test("workflow: create a redirect, update it, tombstone it — state stays consi
   assert.equal(created.rule.status, "active");
   assert.equal(created.rule.toTarget, "/new-page");
 
-  const afterCreateList = (await wired(deps, "redirects_list").handler(executionContext({}))) as { rules: Array<{ id: string }> };
+  const afterCreateList = (await wired(deps, "content_read.redirect").handler(executionContext({}))) as { rules: Array<{ id: string }> };
   assert.equal(afterCreateList.rules.length, 1);
   assert.equal(afterCreateList.rules[0].id, created.rule.id);
 
@@ -262,7 +277,7 @@ test("workflow: create a redirect, update it, tombstone it — state stays consi
   assert.equal(updated.rule.priority, 5);
   assert.equal(updated.rule.fromPattern, "/old-page", "untouched field survives the partial update");
 
-  const fetched = (await wired(deps, "redirects_get").handler(executionContext({ id: created.rule.id }))) as {
+  const fetched = (await wired(deps, "content_read.redirect").handler(executionContext({ id: created.rule.id }))) as {
     rule: { toTarget: string; version: number };
   };
   assert.equal(fetched.rule.toTarget, "/newer-page", "get reflects the update");
@@ -274,10 +289,10 @@ test("workflow: create a redirect, update it, tombstone it — state stays consi
   assert.equal(tombstoned.rule.status, "disabled");
   assert.equal(tombstoned.rule.version, 3);
 
-  const afterTombstoneGet = (await wired(deps, "redirects_get").handler(executionContext({ id: created.rule.id }))) as { rule: { status: string } };
+  const afterTombstoneGet = (await wired(deps, "content_read.redirect").handler(executionContext({ id: created.rule.id }))) as { rule: { status: string } };
   assert.equal(afterTombstoneGet.rule.status, "disabled", "tombstone is reflected on a subsequent get");
 
-  const afterTombstoneActiveList = (await wired(deps, "redirects_list").handler(executionContext({ status: "active" }))) as {
+  const afterTombstoneActiveList = (await wired(deps, "content_read.redirect").handler(executionContext({ status: "active" }))) as {
     rules: unknown[];
   };
   assert.equal(afterTombstoneActiveList.rules.length, 0, "the tombstoned rule no longer appears in the active-only list");

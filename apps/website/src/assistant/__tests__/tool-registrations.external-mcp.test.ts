@@ -71,7 +71,13 @@ function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRe
 function assembledExternalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps as never)
-      .filter((r) => r.descriptor.id.startsWith("external_mcp_"))
+      // `content_read.external_mcp` (2026-09-08, assistant/content-read-tool.ts) is what
+      // `external_mcp_list` becomes on the way through the REAL assembly path — the collapse
+      // rewrites the final wired list only, which is exactly the difference this function exists to
+      // observe. `externalMcpRegistrations` above calls this domain's builder directly and is
+      // therefore UNCOLLAPSED, so it still sees `external_mcp_list`; the two are deliberately not
+      // the same set of ids.
+      .filter((r) => r.descriptor.id.startsWith("external_mcp_") || r.descriptor.id === "content_read.external_mcp")
       .map((r) => [r.descriptor.id, r]),
   );
 }
@@ -143,7 +149,8 @@ test("exactly the 5 external-mcp operations are wired — list, save, test_conne
 test("the same 5 ids are reachable through the REAL production assembly path (installFirstPartyToolContributors's own seam)", () => {
   const { deps } = fakeDeps();
   assert.deepEqual([...assembledExternalMcpRegistrations(deps).keys()].sort(), [
-    "external_mcp_list",
+    // `external_mcp_list` collapsed into this card — see assembledExternalMcpRegistrations' own note.
+    "content_read.external_mcp",
     "external_mcp_oauth_connect",
     "external_mcp_oauth_poll_device",
     // Pre-existing sibling tool (`assistant/external-mcp-reauth-tool.ts`, DOMAIN_SLICES) — a
