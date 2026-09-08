@@ -33,7 +33,9 @@
  */
 import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { resetDuplicateResourceHandlersForTests } from "../../apps/website/src/assistant/duplicate-resource-registry.js";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
+import { resetToolContributorsForTests } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
@@ -240,7 +242,7 @@ function pct(hits: number, n: number): string {
 function run(): void {
   installFirstPartyToolContributors();
   const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
   const all = registry.list() as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -377,7 +379,7 @@ const RESOURCE_KEY_ARTIFACTS =
 
 function runAddendum(): void {
   const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
   const all = registry.list() as readonly Descriptor[];
   const n = HELD_OUT_V2.length;
 
@@ -500,3 +502,65 @@ function runAddendum(): void {
 }
 
 runAddendum();
+
+/* ========================================================================================
+ * SECOND ADDENDUM (2026-09-08, same day): the REAL shipped catalog.
+ *
+ * Everything above this point measures a SYNTHETIC arm — a filtered/rebuilt registry array, never
+ * registered into anything that ships. This section measures the opposite: `buildAssistantToolRegistrations`
+ * run completely unmodified, exactly as every real composition root calls it. The `content_read`
+ * collapse it now includes (`assistant/content-read-tool.ts`'s `deriveContentReadRegistrations`,
+ * shipped in the same change as this section) is not re-implemented here in any form — this section
+ * imports nothing from that file and does not need to; it only reads whatever
+ * `buildAssistantToolRegistrations` already returns.
+ * ====================================================================================== */
+
+const TIER1_CLEAN_SET = new Set(TIER1_CLEAN);
+
+/** Redirects a case's ground truth to `content_read.<resource>` when that id was one of the 36
+ *  collapsed — using the SAME `resourceKeyOf` the shipped collapse itself is keyed by, not a
+ *  second, hand-maintained mapping. An id NOT in the collapsed set passes through unchanged. */
+function realCatalogAcceptable(c: EvalCase): ReadonlySet<string> {
+  const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+  return new Set<string>(ids.map((id) => (TIER1_CLEAN_SET.has(id) ? `content_read.${resourceKeyOf(id)}` : id)));
+}
+
+function runRealCatalog(): void {
+  resetToolContributorsForTests();
+  resetDuplicateResourceHandlersForTests();
+  installFirstPartyToolContributors();
+  const registry = createToolRegistry();
+  const registrations = buildAssistantToolRegistrations(fakeRouteDeps());
+  for (const r of registrations) registry.register(r);
+  const n = HELD_OUT_V2.length;
+
+  const cardIds = registrations.map((r) => r.descriptor.id).filter((id) => id.startsWith("content_read."));
+  const stillPresent = TIER1_CLEAN.filter((id) => registry.has(id));
+
+  console.log(`\n\n${"=".repeat(110)}\nSECOND ADDENDUM — the REAL shipped catalog (buildAssistantToolRegistrations, unmodified)\n${"=".repeat(110)}\n`);
+  console.log(`  wired tools, real catalog        ${registry.list().length}`);
+  console.log(`  content_read.* cards actually built  ${cardIds.length} of 29 expected`);
+  console.log(`  Tier-1 ids still present (should be 0) ${stillPresent.length}${stillPresent.length ? " -> " + stillPresent.join(", ") : ""}`);
+
+  const realQuery = buildToolCatalogQuery(registry);
+  const realVecs = hitVectors((q, l) => realQuery.search(q, l), realCatalogAcceptable);
+
+  console.log(`\n  Retrieval on the REAL shipped catalog, n=${n}   (± is the 95% CI half-width)\n`);
+  console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
+  console.log(`  ${"REAL SHIPPED CATALOG".padEnd(34)}${CUTOFFS.map((k) => pct(realVecs[k].filter(Boolean).length, n)).join("")}`);
+
+  const affectedIdx = HELD_OUT_V2.map((c, i) => [c, i] as const)
+    .filter(([c]) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => TIER1_CLEAN_SET.has(id)))
+    .map(([, i]) => i);
+  const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
+  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 36-tool collapse set\n`);
+  console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
+  console.log(`  ${"REAL SHIPPED CATALOG".padEnd(34)}${CUTOFFS.map((k) => pct(restrict(realVecs[k]), affectedIdx.length)).join("")}`);
+
+  const misses = affectedIdx.filter((i) => !realVecs[10][i]).map((i) => HELD_OUT_V2[i]!);
+  console.log(`\n  Cases still missing at top-10 on the real catalog (${misses.length} of ${affectedIdx.length}):\n`);
+  for (const m of misses) console.log(`    ${m.expect.padEnd(34)} "${m.query}"`);
+  console.log("");
+}
+
+runRealCatalog();

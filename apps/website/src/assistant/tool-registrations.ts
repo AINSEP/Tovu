@@ -659,6 +659,15 @@ const REAL_VENDOR_CREDENTIAL_PORT: VendorCredentialPort = {
 export function buildAssistantToolRegistrations(
   routeDeps: AssistantToolRegistryDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`/`indexedDescriptionFor`'s
+   *  own `includeDoc2query`. `includeContentReadCollapse: false` returns every domain's raw
+   *  registrations BEFORE the `content_read` collapse below — the ONLY way to reconstruct the
+   *  pre-collapse tool set now that this function performs the real collapse unconditionally by
+   *  default, needed by `development/evals/tool-search-parent-tool-read.eval.ts`'s own earlier,
+   *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
+   *  against the now-real thing. Every real caller (the two production composition roots) leaves
+   *  this at its default. */
+  options: { readonly includeContentReadCollapse?: boolean } = {},
 ): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
@@ -697,5 +706,6 @@ export function buildAssistantToolRegistrations(
   // `content_read.<resource>` cards, all dispatching through one shared handler factory. See
   // `content-read-tool.ts`'s own header for why this runs here as a post-processing pass rather than
   // as one more `ToolContributor` in the loop above (it needs to see what that loop already built).
+  if (options.includeContentReadCollapse === false) return registrations;
   return deriveContentReadRegistrations(registrations);
 }
