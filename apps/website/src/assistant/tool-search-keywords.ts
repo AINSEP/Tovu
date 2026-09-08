@@ -267,8 +267,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // make the live tool unfindable while looking fully wired.
   content_duplicate:
     "copy duplicate clone replicate reuse make a copy of this page make a copy of this post " +
-    "copy this form duplicate a form copy a page copy a post " +
-    "same content new name new title starting point template based on existing existing page existing post existing form",
+    "copy this form duplicate a form copy a page copy a post copy this image copy a media asset " +
+    "duplicate an image reuse this picture same image different alt text " +
+    "same content new name new title starting point template based on existing existing page existing post existing form existing media",
   collections_entry_publish: "publish live go public release draft entry post article",
   collections_entry_unpublish: "unpublish hide draft retract take down entry post",
   collections_entry_create: "entry create new record item content add",

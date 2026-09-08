@@ -45,7 +45,7 @@ test("the retired content_post_duplicate key is gone — a keyword entry for a t
 
 test("content_duplicate's keywords name every resource it actually supports, so 'copy that form' reaches it", () => {
   const keywords = TOOL_SEARCH_KEYWORDS["content_duplicate"]!;
-  for (const resource of ["post", "page", "form"]) {
+  for (const resource of ["post", "page", "form", "media"]) {
     assert.match(keywords, new RegExp(`\\b${resource}\\b`), `expected content_duplicate's keywords to mention '${resource}'`);
   }
 });

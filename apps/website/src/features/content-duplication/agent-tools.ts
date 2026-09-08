@@ -36,15 +36,16 @@ export const contentDuplicationAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_duplicate",
     description:
-      "Creates a copy of an existing resource — a post, a page, a form, and (as more resource types are wired) " +
-      "other content this workspace holds. The tool for 'copy X and name it Y', 'duplicate this page', or 'use " +
-      "this as a starting point for a new one'. One call: reads the source, then creates a new one with a fresh " +
-      "id, never touching the source. " +
-      "resource names WHICH kind of thing to copy — currently 'post', 'page', or 'form'. An unrecognized resource " +
-      "is rejected with the exact list of resources this workspace currently supports; if what you need is not on " +
-      "that list, this tool cannot copy it yet and no spelling of it will work. " +
+      "Creates a copy of an existing resource — a post, a page, a form, a media asset, and (as more resource " +
+      "types are wired) other content this workspace holds. The tool for 'copy X and name it Y', 'duplicate this " +
+      "page', or 'use this as a starting point for a new one'. One call: reads the source, then creates a new one " +
+      "with a fresh id, never touching the source. " +
+      "resource names WHICH kind of thing to copy — currently 'post', 'page', 'form', or 'media'. An unrecognized " +
+      "resource is rejected with the exact list of resources this workspace currently supports; if what you need " +
+      "is not on that list, this tool cannot copy it yet and no spelling of it will work. " +
       "id is the source resource's own id (for post/page, as returned by content_post_list/content_post_get; for " +
-      "form, as returned by forms_list_definitions). " +
+      "form, as returned by forms_list_definitions; for media, as returned by media_list_assets — a media slug " +
+      "works there too). " +
       "overrides carries optional fields for the copy — title, slug, status — and not every resource type honors " +
       "every field; a resource rejects an override it cannot honor rather than ignoring it. " +
       "For post/page: title defaults to 'Copy of <source title>'; slug defaults to a fresh one derived from that " +
@@ -54,6 +55,14 @@ export const contentDuplicationAgentToolCatalog: AgentToolDefinition[] = [
       "derived from it; every field and the notify config are copied; status is NOT accepted (a form is " +
       "active/disabled, not draft/published — the copy inherits the source's own state, so a copy of a disabled " +
       "form is disabled; use forms_set_definition_status to change it). " +
+      "For media: you get a NEW LIBRARY ENTRY POINTING AT THE SAME FILE, not a second copy of the file. The copy " +
+      "has its own id, slug, title, alt text, caption, credit, width/height, CSS class and HTML attributes — all " +
+      "seeded from the source and independently editable afterwards — but the underlying image or video bytes are " +
+      "shared, because media storage is content-addressed and identical bytes are always one stored object. " +
+      "Deleting one of the two does not break the other. Use it when you want the same picture described or sized " +
+      "differently in a different place; it will NOT give you a separate file to alter independently. A trashed " +
+      "asset is refused rather than copied, and status is NOT accepted (media is active/trashed; a copy is always " +
+      "created active — use media_trash_asset afterwards). " +
       "Permission to duplicate is resolved from the RESOURCE you named, not one flat grant for this whole tool: " +
       "being able to copy a post does not by itself mean you can copy a resource of a different type. " +
       "Each resource type's own detailed behavior (for post/page: widget-embed handling, bespoke-HTML pages) is " +
