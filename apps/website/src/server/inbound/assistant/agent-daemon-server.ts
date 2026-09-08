@@ -559,6 +559,23 @@ const agentExecutor = createAgentExecutor({
   lifecycle,
   mcpJsonInjection: resolveMcpJsonInjection(daemonUrl),
   promptAugmenter: assistantPromptAugmenter,
+  // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
+  // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
+  // reasoning. Short version: `@jini-ai/daemon`'s Finding-1 fix (2026-09-07) staged an isolated,
+  // mkdtemp'd `CLAUDE_CONFIG_DIR` for every spawned `claude` run to stop it reading the operator's
+  // real `~/.claude` (skills, plugins, memory index, a 40-tool personal grant). On macOS that
+  // isolated dir reports `loggedIn: false` — Claude Code keys its Keychain entry to
+  // `CLAUDE_CONFIG_DIR` — and this assistant's default Local CLI runtime supplies no
+  // `credentialEnv` (no `ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN`; the operator has declined
+  // `claude setup-token`), so an isolated child always ran unauthenticated and every Local CLI run
+  // failed with "Not logged in · Please run /login". Leaving this flag off knowingly REOPENS that
+  // personal-config leak so the default runtime can log in at all — the tool-restriction gate below
+  // (`ASSISTANT_DISALLOWED_TOOLS`) is a separate mechanism and stays fully enforced either way (see
+  // its own test, `__tests__/agent-executor.test.ts`'s "still applies disallowedTools ... when
+  // CLAUDE_CONFIG_DIR isolation is left at its default" in the daemon package). Flip this back to
+  // `true` once a host-provisioned `credentialEnv` exists for this runtime (outranks Keychain login
+  // in Claude Code's own auth precedence, so an isolated child would still authenticate).
+  claudeConfigDirIsolationEnabled: false,
 });
 
 /** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
