@@ -241,9 +241,9 @@ export interface AdminExternalMcpProbeResult {
 
 /**
  * One connection's live admission accounting from the RUNNING agent daemon — a subset of
- * `mcp-federation/trust.ts`'s `FederatedAdmissionReport`, mirrored per connection the way
- * `GET .../mcp-servers/admissions` proxies it from the daemon's own `GET /api/federation/admissions`
- * (`src/server/routes/admin/external-mcp/admissions.ts`, C-008).
+ * `mcp-federation/trust.ts`'s `FederatedAdmissionReport`, FLATTENED per connection by
+ * {@link api.getExternalMcpAdmissions} (see {@link RawAdmissionConnection} for why that flattening
+ * step exists and is not optional).
  *
  * `admitted` intentionally carries only what a drift banner needs (a name and whether it is
  * write-authorized), not the full `AdmittedFederatedTool` the daemon holds (which also carries a
@@ -274,11 +274,64 @@ export interface AdminFederatedAdmissionEntry {
   isPreset?: boolean;
 }
 
-/** `GET .../mcp-servers/admissions`'s response shape (C-008). A down daemon is a 503 — see
+/** `GET .../mcp-servers/admissions`'s response shape (C-008), AFTER {@link api.getExternalMcpAdmissions}
+ *  has flattened it — see {@link RawAdmissionConnection}. A down daemon is a 503 — see
  *  {@link api.getExternalMcpAdmissions}'s own doc — never an empty `connections` array, so "the
  *  assistant is not running" and "it is running with nothing admitted" stay distinguishable. */
 export interface AdminExternalMcpAdmissionsSnapshot {
   connections: AdminFederatedAdmissionEntry[];
+}
+
+/**
+ * The wire shape `GET .../mcp-servers/admissions` (C-008) actually sends, BEFORE
+ * {@link api.getExternalMcpAdmissions} normalizes it into {@link AdminFederatedAdmissionEntry} — one
+ * entry per connection, exactly `federation-admissions-route.ts`'s own
+ * `FederationAdmissionsRouteDeps.reports` shape, serialized untouched: that daemon route "is a pure
+ * serializer, never a reshape point" by its own header, and `admin-http/routes/external-mcp/
+ * admissions.ts` (C-008's own proxy) deliberately treats the body as `unknown` and relays it
+ * VERBATIM too — proven by `admin-external-mcp-admissions-routes.test.ts`'s "a live daemon's real
+ * report is relayed verbatim" test, which this type must keep matching rather than the other way
+ * around.
+ *
+ * So every admission field arrives nested one level deeper than {@link AdminFederatedAdmissionEntry}
+ * declares — under `report`, not on the entry itself. Before `getExternalMcpAdmissions` normalized
+ * this (ADM-003, 2026-09-08), `entry.admitted` (and every sibling field) was `undefined` for EVERY
+ * connection the daemon ever reported, which is what crashed `<ExternalMcpSettingsPanel>`:
+ * `external-mcp-admissions-rules.ts`'s several reads of it (`connectionLevelEntry`,
+ * `liveOnlyEntries`, `describeConnectionDrift`, `removedButStillRunningEntry`) all assumed the flat
+ * shape and none of them were guarded, because that file's contract — matching what
+ * `AdminFederatedAdmissionEntry` has always declared — was never wrong; only this one wire hop
+ * silently violated it. This type documents the wire's REAL shape so that hop can close the gap
+ * itself, instead of every downstream reader growing a defensive `?.` that would collapse a real
+ * empty admitted set and a missing one into the same silent zero (see that function's own doc on
+ * why `savedAllowedToolNames === undefined` is load-bearing, not a default).
+ */
+interface RawAdmissionConnection {
+  readonly connectionId: string;
+  /** Absent for an older daemon build that predates this field — see
+   *  {@link AdminFederatedAdmissionEntry.isPreset}'s own doc on why that must NOT default to `false`. */
+  readonly isPreset?: boolean;
+  readonly report: {
+    readonly admitted: readonly { readonly remoteName: string; readonly writeAuthorized: boolean }[];
+    readonly refused: readonly { readonly remoteName: string; readonly reason: AdminToolRefusalReason }[];
+    readonly allowlistedButAbsent: readonly string[];
+    readonly writeAllowedButNotAllowlisted: readonly string[];
+  };
+}
+
+/** Un-nests one {@link RawAdmissionConnection} into the flat {@link AdminFederatedAdmissionEntry}
+ *  contract every other reader in this app is written against. `isPreset` is copied only when the
+ *  wire actually sent it, never defaulted, for the same reason the type doc above states.
+ *  @complexity O(1) — copies four already-computed arrays, does not iterate them. */
+function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederatedAdmissionEntry {
+  return {
+    connectionId: raw.connectionId,
+    admitted: raw.report.admitted as { remoteName: string; writeAuthorized: boolean }[],
+    refused: raw.report.refused as { remoteName: string; reason: AdminToolRefusalReason }[],
+    allowlistedButAbsent: raw.report.allowlistedButAbsent as string[],
+    writeAllowedButNotAllowlisted: raw.report.writeAllowedButNotAllowlisted as string[],
+    ...(raw.isPreset !== undefined ? { isPreset: raw.isPreset } : {}),
+  };
 }
 
 /** One required-for-production env var's presence — never its value. Mirrors
@@ -2540,8 +2593,15 @@ export const api = {
    * silently empty `connections` array — a caller must not read "cannot reach the daemon" as "the
    * daemon is running with nothing admitted".
    */
-  getExternalMcpAdmissions: () =>
-    request<AdminExternalMcpAdmissionsSnapshot>(`/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`),
+  getExternalMcpAdmissions: async (): Promise<AdminExternalMcpAdmissionsSnapshot> => {
+    const raw = await request<{ connections?: RawAdmissionConnection[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`);
+    // `?? []` guards a malformed 200 (no `connections` key at all) — never reachable against the
+    // real C-008 route, which always sends `{ connections: [...] }` on 200 and answers a down/
+    // unreachable daemon with a 503 that `request()` already throws as an `ApiError` before this
+    // line runs (see this function's own doc). Kept anyway: a 200 with a missing `connections` key
+    // is a "we don't know" case, same as the 503 branch, not "the daemon reported zero admissions".
+    return { connections: (raw.connections ?? []).map(flattenAdmissionConnection) };
+  },
   /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
    *  `unlocked` prop. Never carries key material. */
   getComposioConfig: () =>
