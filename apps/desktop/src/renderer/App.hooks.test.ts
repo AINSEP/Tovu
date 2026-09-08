@@ -5,9 +5,13 @@
  * **How this file runs.** `apps/desktop`'s own suite is `node --test "src/**\/*.test.cjs"`, which
  * has no runner for TypeScript at all; that is why every renderer test before this one was a
  * source-text assertion (see `rescan-wiring.test.cjs`'s own header). This file is executed by the
- * second half of the package's `test` script, `node --import tsx --test "src/**\/*.test.ts"`. No new
- * dependency was added for it: Node resolves `tsx` by walking up from this package to the repo
- * root's `node_modules`, the same upward walk `main.cjs` already relies on for `REPO_ROOT`.
+ * second half of the package's `test` script, `node --import tsx --test "src/**\/*.test.ts"`.
+ *
+ * `tsx` is this package's OWN devDependency, declared at the same `^4.19.3` the repo root declares.
+ * It briefly was not: the script worked only because Node resolves a bare specifier by walking up to
+ * the root's `node_modules` — an undeclared dependency on the parent tree, in a package whose own
+ * header calls itself self-contained. Declared here, `require.resolve` answers
+ * `apps/desktop/node_modules/tsx` and the package stands on its own.
  *
  * Co-located `*.test.ts` beside the unit it covers, matching this package's existing `*.test.cjs`
  * convention rather than the repo-wide `__tests__/unit/` layout.
