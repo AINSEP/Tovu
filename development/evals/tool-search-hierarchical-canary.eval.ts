@@ -21,6 +21,7 @@ import Database from "better-sqlite3";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
@@ -110,7 +111,14 @@ function run(): void {
   );
 
   const results = HELD_OUT_CASES.map((c) => {
-    const wantedDomains = new Set<string>([domainOf(c.expect), ...(c.alsoAcceptable ?? []).map(domainOf)]);
+    // Domain buckets below are built from the LIVE registry ids (`domainOf(d.id)`), and every retired
+    // Tier-1 read id now ships as `content_read.<resource>` — whose `domainOf` is "content", not its
+    // old domain. Resolve through `currentToolIdFor` first so `wantedDomains` names a bucket that
+    // still exists. See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8.
+    const wantedDomains = new Set<string>([
+      domainOf(currentToolIdFor(c.expect)),
+      ...(c.alsoAcceptable ?? []).map((id) => domainOf(currentToolIdFor(id))),
+    ]);
     const hits = searchToolCatalog(db, c.query, byDomain.size);
     const index = hits.findIndex((h) => wantedDomains.has(h.id));
     return {

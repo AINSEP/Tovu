@@ -47,6 +47,7 @@
  * Free and deterministic: no model calls, no network, at scoring time.
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -109,7 +110,9 @@ function scoreConfig(rank: (c: EvalCase) => readonly string[], meta: ReadonlyMap
   const vecs = { 1: [], 3: [], 5: [], 10: [] } as Record<Cutoff, boolean[]>;
   const missClass: Record<ToolClass, number> = { real: 0, "distractor-new": 0, "distractor-near": 0 };
   for (const c of HELD_OUT_V2) {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const ids = rank(c);
     for (const k of CUTOFFS) vecs[k].push(ids.slice(0, k).some((id) => acceptable.has(id)));
     const top1 = ids[0];

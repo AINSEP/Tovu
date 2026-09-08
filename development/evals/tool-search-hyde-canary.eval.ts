@@ -20,6 +20,7 @@
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 
@@ -80,7 +81,9 @@ function fakeRouteDeps(): RouteDeps {
 
 function score(catalog: ReturnType<typeof buildToolCatalogQuery>, cases: readonly EvalCase[], useHyde: boolean) {
   return cases.map((c) => {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const searchText = useHyde ? (HYDE_EXPANSIONS[c.query] ?? c.query) : c.query;
     const hits = catalog.search(searchText, SEARCH_LIMIT);
     const index = hits.findIndex((h) => acceptable.has(h.id));

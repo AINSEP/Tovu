@@ -14,6 +14,7 @@
  * Run: `npx tsx development/evals/tool-search-export-corpus.ts <out.json>`
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -63,11 +64,15 @@ const tools = registry.list().map((d) => {
   };
 });
 
+// `expect`/`alsoAcceptable` are resolved through `currentToolIdFor` before export so a downstream
+// (external, sandboxed) consumer scoring against `tools` above — which already reflects the shipped
+// `content_read` collapse — does not have to know about the retired-id mapping itself. See
+// `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8.
 const cases = HELD_OUT_V2.map((c) => ({
   query: c.query,
   hyde: HYDE_PROMPT_EXPANSIONS_V2[c.query] ?? null,
-  expect: c.expect,
-  alsoAcceptable: c.alsoAcceptable ?? [],
+  expect: currentToolIdFor(c.expect),
+  alsoAcceptable: (c.alsoAcceptable ?? []).map(currentToolIdFor),
 }));
 
 const missing = cases.filter((c) => c.hyde === null);

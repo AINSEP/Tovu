@@ -28,6 +28,7 @@ import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 
 interface EvalCase {
   readonly query: string;
@@ -89,7 +90,9 @@ function sourceForToolId(id: string): string {
 
 function score(db: Database.Database, cases: readonly EvalCase[]) {
   return cases.map((c) => {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const hits = searchToolCatalog(db, c.query, 10);
     const index = hits.findIndex((h) => acceptable.has(h.id));
     return { query: c.query, expect: c.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };

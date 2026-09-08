@@ -29,6 +29,7 @@
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -89,7 +90,10 @@ type Cutoff = (typeof CUTOFFS)[number];
 function hitVectors(rank: (c: EvalCase) => readonly string[]): Record<Cutoff, boolean[]> {
   const out = { 1: [], 3: [], 5: [], 10: [] } as Record<Cutoff, boolean[]>;
   for (const c of HELD_OUT_V2) {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8: retired Tier-1 read ids re-key
+    // onto their `content_read.<resource>` card, so ground truth must resolve through it before
+    // comparison or a correct retrieval scores as a false miss.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const ids = rank(c);
     for (const k of CUTOFFS) out[k].push(ids.slice(0, k).some((id) => acceptable.has(id)));
   }
@@ -219,7 +223,7 @@ function run(): void {
   const recallAt = (rank: (c: EvalCase) => readonly string[], k: number): number => {
     let hits = 0;
     for (const c of HELD_OUT_V2) {
-      const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+      const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
       if (rank(c).slice(0, k).some((id) => acceptable.has(id))) hits++;
     }
     return hits;
@@ -267,7 +271,7 @@ function run(): void {
     for (const { c } of missed) {
       const got = rank(c).slice(0, 5);
       console.log(`    "${c.query}"`);
-      console.log(`       want    ${c.expect}   [registered: ${registered.has(c.expect) ? "YES — callable, just not surfaced" : "NO — genuinely absent"}]`);
+      console.log(`       want    ${c.expect}   [registered: ${registered.has(currentToolIdFor(c.expect)) ? "YES — callable, just not surfaced" : "NO — genuinely absent"}]`);
       console.log(`       got     ${got.join(", ")}`);
     }
   };

@@ -30,6 +30,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
@@ -165,7 +166,9 @@ interface CaseResult {
 
 function score(catalog: ReturnType<typeof buildToolCatalogQuery>, cases: readonly EvalCase[]): CaseResult[] {
   return cases.map((testCase) => {
-    const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])].map(currentToolIdFor));
     const hits = catalog.search(testCase.query, SEARCH_LIMIT);
     const index = hits.findIndex((hit) => acceptable.has(hit.id));
     return { query: testCase.query, expect: testCase.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };
@@ -198,7 +201,7 @@ function run(): void {
   const heldOut = score(catalog, HELD_OUT_CASES);
 
   const results: CaseResult[] = CASES.map((testCase) => {
-    const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])]);
+    const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])].map(currentToolIdFor));
     const hits = catalog.search(testCase.query, SEARCH_LIMIT);
     const index = hits.findIndex((hit) => acceptable.has(hit.id));
     return {

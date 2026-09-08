@@ -19,6 +19,7 @@
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
@@ -84,7 +85,9 @@ function sourceForToolId(id: string): string {
 
 function top1Vector(hitFn: (c: EvalCase) => string | null): boolean[] {
   return HELD_OUT_CASES.map((c) => {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const top = hitFn(c);
     return top !== null && acceptable.has(top);
   });
@@ -98,7 +101,7 @@ function top1Vector(hitFn: (c: EvalCase) => string | null): boolean[] {
  */
 function foundVector(rankFn: (c: EvalCase) => readonly string[]): boolean[] {
   return HELD_OUT_CASES.map((c) => {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     return rankFn(c).some((id) => acceptable.has(id));
   });
 }

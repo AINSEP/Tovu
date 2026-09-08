@@ -34,6 +34,7 @@
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -118,7 +119,11 @@ type Cutoff = (typeof CUTOFFS)[number];
 function hitVectors(rank: (c: EvalCase) => readonly string[]): Record<Cutoff, boolean[]> {
   const out = { 1: [], 3: [], 5: [], 10: [] } as Record<Cutoff, boolean[]>;
   for (const c of HELD_OUT_V2) {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // Ground truth re-keys through `currentToolIdFor`: a retired Tier-1 read tool id (e.g.
+    // `workspace_get`) now ships as its `content_read.<resource>` card. Scoring the RAW retired id
+    // against the live catalog would manufacture a false miss for a retrieval that is actually
+    // correct — see `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const ids = rank(c);
     for (const k of CUTOFFS) out[k].push(ids.slice(0, k).some((id) => acceptable.has(id)));
   }
@@ -138,7 +143,7 @@ function run(): void {
   // ---- rather than the data bug it actually is. Surface it instead.
   const badIds: string[] = [];
   for (const c of HELD_OUT_V2) {
-    for (const id of [c.expect, ...(c.alsoAcceptable ?? [])]) {
+    for (const id of [c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor)) {
       if (!realIds.has(id)) badIds.push(`${id} (case: "${c.query}")`);
     }
   }

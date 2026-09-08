@@ -17,6 +17,7 @@
  */
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
@@ -82,7 +83,9 @@ function run(): void {
   const catalog = buildToolCatalogQuery(registry);
 
   const results = HELD_OUT_CASES.map((c) => {
-    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
+    // re-key onto their `content_read.<resource>` card.
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const hits = catalog.search(c.query, SEARCH_LIMIT);
     const index = hits.findIndex((h) => acceptable.has(h.id));
     return { query: c.query, expect: c.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };
