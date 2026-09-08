@@ -488,10 +488,18 @@ const TOOL_REGISTRATION_TEST_FROM = "^apps/website/src/assistant/__tests__/tool-
 // imports `contributeCommentsTools` from `comments/tool-registrations.ts` to verify one domain's
 // real registration output end-to-end (the rest of the file drives all 25 domains generically via
 // `installFirstPartyToolContributors()`, which is not itself a deep import of any one module).
+// `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts` (2026-09-08, delete-confirmation
+// build verification — ADS-memory/reports/2026-09-08-delete-confirmation-build.md) is the identical
+// shape as the two `mcp-ui-tool-calls-route.*.test.ts` files above: a route integration test that
+// needs `buildMediaRegistrationsForTovu` (`features/media/tool-registrations.ts`) wired for real, to
+// prove `media_trash_asset`'s confirm/cancel click actually reaches the MCP-UI redemption allowlist
+// — the exact hop that shipped broken for one commit (missing from `MCP_UI_REDEEMABLE_TOOL_IDS`)
+// with every handler-level test still green, because none of them go through this route either.
 const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
   "^apps/website/src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.media-trash-asset\\.integration\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
 ];
 
