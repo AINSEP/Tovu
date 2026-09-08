@@ -190,20 +190,39 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
+// newsletter_get_campaign/newsletter_list_campaigns merge into content_read.newsletter_campaign,
+// and newsletter_list_lists collapses 1:1 into content_read.newsletter_list (2026-09-08, see
+// assistant/content-read-tool.ts). newsletter_list_subscriptions/newsletter_list_send_log are Tier 2
+// (need a required parent-scoping filter) and are DELIBERATELY untouched by that collapse.
+const NEWSLETTER_COLLAPSED_ID: Readonly<Record<string, string>> = {
+  newsletter_get_campaign: "content_read.newsletter_campaign",
+  newsletter_list_campaigns: "content_read.newsletter_campaign",
+  newsletter_list_lists: "content_read.newsletter_list",
+};
+
+function newsletterWiredId(toolId: string): string {
+  return NEWSLETTER_COLLAPSED_ID[toolId] ?? toolId;
+}
+
 function newsletterRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((r) => r.descriptor.id.startsWith("newsletter_"))
+      .filter((r) => r.descriptor.id.startsWith("newsletter_") || Object.values(NEWSLETTER_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
-  const found = newsletterRegistrations(deps).get(toolId);
+  const resolvedId = newsletterWiredId(toolId);
+  const found = newsletterRegistrations(deps).get(resolvedId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
 
+// The 14 DESIGNED tools, keyed by their OLD id — still the source for permission declarations
+// (catalogEntry) and for authorize()-loop coverage below. `newsletterWiredId` maps the 3 collapsed
+// ones (newsletter_get_campaign/newsletter_list_campaigns/newsletter_list_lists) onto their new,
+// shared or 1:1 content_read id when actually calling `wired(...)`.
 const EXPECTED_TOOL_IDS = [
   "newsletter_archive_list",
   "newsletter_cancel_campaign",
@@ -221,6 +240,10 @@ const EXPECTED_TOOL_IDS = [
   "newsletter_update_campaign",
 ].sort();
 
+// The distinct ids actually WIRED after the collapse: 14 designed tools minus the 3 collapsed minus
+// 1 for the merge (get+list share one id) plus the 1 list-only card = 12.
+const EXPECTED_WIRED_IDS = [...new Set(EXPECTED_TOOL_IDS.map(newsletterWiredId))].sort();
+
 const WITHHELD_TOOL_IDS = [
   "newsletter_send_campaign",
   "newsletter_send_test_campaign",
@@ -235,8 +258,9 @@ const WITHHELD_TOOL_IDS = [
 
 test("exactly the 14 designed Newsletter tools are wired", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...newsletterRegistrations(deps).keys()].sort(), EXPECTED_TOOL_IDS);
-  assert.equal(EXPECTED_TOOL_IDS.length, 14);
+  assert.deepEqual([...newsletterRegistrations(deps).keys()].sort(), EXPECTED_WIRED_IDS);
+  assert.equal(EXPECTED_TOOL_IDS.length, 14, "14 catalog entries");
+  assert.equal(EXPECTED_WIRED_IDS.length, 13, "13 distinct wired ids: 14 minus the get+list merge (-1)");
 });
 
 test("none of the 5 withheld send/schedule/resume/import operations are wired OR even catalogued", () => {
@@ -264,7 +288,10 @@ test("no wired tool description implies it can send/schedule/resume a real campa
 
 test("every wired Newsletter registration publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
+  // Collapsed content_read.* ids excluded: their catalog entry lives in assistant/content-read-tool.ts,
+  // not newsletterAgentToolCatalog — already cross-checked against ITS OWN catalog at construction time.
   for (const [id, registration] of newsletterRegistrations(deps)) {
+    if (id.startsWith("content_read.")) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -274,6 +301,7 @@ test("every wired Newsletter registration publishes its catalog entry's inputSch
 test("the real Newsletter catalog and tool-registrations' independent risk classification agree", () => {
   const { deps } = fakeRouteDeps();
   for (const id of newsletterRegistrations(deps).keys()) {
+    if (id.startsWith("content_read.")) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -319,7 +347,10 @@ function toolInputs(fixtures: { listId: string; campaignId: string; subscription
 test("every wired Newsletter tool has an input fixture — a newly wired tool must be added here", () => {
   const { deps } = fakeRouteDeps();
   const fixtures = { listId: "list-1", campaignId: "campaign-1", subscriptionId: "subscription-1" };
-  assert.deepEqual([...newsletterRegistrations(deps).keys()].sort(), Object.keys(toolInputs(fixtures)).sort());
+  assert.deepEqual(
+    [...newsletterRegistrations(deps).keys()].sort(),
+    [...new Set(Object.keys(toolInputs(fixtures)).map(newsletterWiredId))].sort(),
+  );
 });
 
 for (const toolId of EXPECTED_TOOL_IDS) {
@@ -331,7 +362,7 @@ for (const toolId of EXPECTED_TOOL_IDS) {
     authorizeCalls.length = 0;
 
     const fixtures = { listId: "list-1", campaignId: "campaign-1", subscriptionId: "subscription-1" };
-    await wired(toolId, deps)
+    await wired(newsletterWiredId(toolId), deps)
       .handler(executionContext(toolInputs(fixtures)[toolId]))
       .catch(() => undefined); // a domain-level rejection past the gate is not this test's concern
 
@@ -353,7 +384,7 @@ for (const toolId of EXPECTED_TOOL_IDS) {
 
     const fixtures = { listId: "list-1", campaignId: "campaign-1", subscriptionId: "subscription-1" };
     await assert.rejects(
-      () => wired(toolId, deps).handler(executionContext(toolInputs(fixtures)[toolId])),
+      () => wired(newsletterWiredId(toolId), deps).handler(executionContext(toolInputs(fixtures)[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof ForbiddenError, `expected ForbiddenError, got ${String(error)}`);
         assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
@@ -369,7 +400,7 @@ for (const toolId of EXPECTED_TOOL_IDS) {
 
 test("newsletter_get_campaign: an unknown campaign id throws NewsletterCampaignNotFoundError", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired("newsletter_get_campaign", deps).handler(executionContext({ campaignId: "nope" })), NewsletterCampaignNotFoundError);
+  await assert.rejects(() => wired("content_read.newsletter_campaign", deps).handler(executionContext({ campaignId: "nope" })), NewsletterCampaignNotFoundError);
 });
 
 test("newsletter_remove_subscription: a subscriptionId belonging to a different list is refused as not-found, not cross-list removed", async () => {
@@ -432,7 +463,7 @@ test("workflow: newsletter_create_list -> newsletter_create_campaign -> newslett
   assert.equal(updateResult.campaign.version, 2, "editing must bump the optimistic-concurrency version");
 
   // Step 4: re-read via get_campaign and confirm it reflects step 3's write, not stale state.
-  const getResult = (await wired("newsletter_get_campaign", deps).handler(executionContext({ campaignId: createResult.campaign.id }))) as {
+  const getResult = (await wired("content_read.newsletter_campaign", deps).handler(executionContext({ campaignId: createResult.campaign.id }))) as {
     campaign: { subject: string; version: number };
   };
   assert.equal(getResult.campaign.subject, "Q3 roadmap (revised)");
