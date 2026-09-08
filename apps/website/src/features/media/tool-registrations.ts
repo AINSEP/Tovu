@@ -317,8 +317,13 @@ function buildMediaTrashConfirmationHandler(routeDeps: MediaToolDeps, surfaces: 
  * gate ({@link buildMediaTrashConfirmationHandler}) wrapped over the Jini-provided handler — this is
  * what `contributeMediaTools` below registers, in place of passing `buildMediaRegistrations` straight
  * through.
+ *
+ * Exported (2026-09-08) so a test can call it directly with a fake `MediaToolDeps &
+ * MediaPublicUrlDeps` and a real `SurfaceExchangeStore`, mirroring every sibling domain's own
+ * `build<Domain>Registrations` export (`buildWidgetsRegistrations`, `buildRedirectsRegistrations`,
+ * ...) — `media/__tests__/agent-tools.trash-confirmation.test.ts` is what needed it.
  */
-function buildMediaRegistrationsForTovu(routeDeps: MediaToolDeps & MediaPublicUrlDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildMediaRegistrationsForTovu(routeDeps: MediaToolDeps & MediaPublicUrlDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const registrations = buildMediaRegistrations({
     ...routeDeps,
     resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
