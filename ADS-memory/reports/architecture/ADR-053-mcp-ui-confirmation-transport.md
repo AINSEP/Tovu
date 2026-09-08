@@ -1,6 +1,6 @@
 # ADR-053: MCP-UI Confirmation Transport — Browser as Host, Side-Channel Delivery, Stopgap Until Built
 
-- Status: **DRAFT — not accepted. Written by a dispatched recon/design agent for human review, per explicit instruction not to self-approve. Do not add to ADR-INDEX.md until a human accepts it.**
+- Status: **Accepted** 2026-09-08 (owner sign-off — Leona). Added to `ADR-INDEX.md`.
 - Date: 2026-08-03
 - Author: Claude Sonnet 5 (dispatched software-architect recon)
 - Supersedes: nothing formally (no prior ADR ever authorized MCP-UI as a mechanism — see Context). Extends ADR-049 (assistant transport/tool-registry choice) into the one capability ADR-049 explicitly deferred ("in-page DOM agent control... not designed here" — a sibling problem, not this one, but same deferral pattern).
@@ -106,3 +106,63 @@ gains React. `packages/ui/src/features/mcp-ui/index.ts`'s header already forbids
 build-time assertion would be the durable version of this addendum.
 
 **Verified after:** Tovu root `npm run typecheck` clean; `apps/admin` `npm run typecheck` clean.
+
+---
+
+## Status note, 2026-09-08
+
+Recorded at acceptance time, from reading today's code — not a rewrite of the Decision/Context
+above, which stay as written on 2026-08-03.
+
+- **Decision 1 (browser as host) — SHIPPED.** `apps/admin/src/components/AssistantDock/AssistantDock.tsx`
+  imports and wires `@jini-ai/ui/mcp-ui`'s `McpUiHost`/`useMcpUiHost` via
+  `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, ...)` (event name is literally `"mcp-ui"`, confirmed
+  at `apps/admin/src/lib/assistant-transport.ts:154` — not the `mcp_ui_resource_offered` example name
+  this ADR sketched; naming detail, not a different mechanism). `@jini-ai/ui` is now a pinned npm
+  dependency (`^0.3.4`, both root and `apps/admin/package.json`) rather than the `file:../Jini/...`
+  path Addendum A described — the dependency direction and React-free-server property Addendum A
+  verified still hold.
+- **Decision 2 (`delete-confirmation-ui.ts` replaced, not patched) — SHIPPED.** It now imports
+  `buildConfirmationSurface` from `@jini-ai/ui/mcp-ui/surfaces`; its own header states outright "the
+  confirmation token is gone (ADR-055 Decision 2/3)." The same builder is now used by 7+ feature areas
+  (`comments`, `post`, `custom-credentials`, `redirects`, `theme`, `webhooks`, `media`
+  `tool-registrations.ts`), all sharing one `resolveConfirmationDecision` helper
+  (`contracts/core/tool-surface-exchanges.ts:340`) — this generalized far past Posts/Pages.
+- **Decision 3 (new redemption endpoint) — SUPERSEDED, not built as decided here.** ADR-055 (accepted
+  the same day, commit `fc035beb`) replaced the token mint/redeem-endpoint shape entirely with a single
+  held-open call: the handler parks on `ToolExecutionContext.emitSurface` +
+  `SurfaceExchangeStore`/`resolveConfirmationDecision` and answers its own call when the human responds
+  — "one held-open call, not a mint call plus a redeem call." `content_post_delete`'s own
+  `tool-registrations.ts:697-699` comment names this explicitly: "(superseding ADR-053 Decision 3, the
+  token-redemption shape this handler used to implement)." No separate admin-session-authenticated
+  redemption endpoint exists or was built.
+- **Decision 4 (fork point in the daemon, dual output, new wire event kind) — SHIPPED IN SPIRIT.**
+  `content_post_delete`'s tool-call return value (`agent-tools.ts:500-543`) is now plain data —
+  `{ deleted, cancelled, post }` / `{ deleted: false, cancelled: false, reason }` — and structurally
+  never carries a UI resource. The resource travels via `ToolExecutionContext.emitSurface` (ADR-055
+  Decision 7) onto the `kind:'ext'` channel exactly as this ADR proposed, landing in the browser through
+  `registerExtEventRenderer`, confirmed additive, zero change to `ChatPane`'s own source or the
+  `AgentEvent` type. The concrete wire event name shipped as `"mcp-ui"`, not `mcp_ui_resource_offered`.
+- **Decision 5 (fix `okResult()` in parallel) — NOT shipped as a hardening fix, and the specific
+  leak this ADR traced can no longer occur through `content_post_delete` (Decision 2 means it never
+  returns a resource-bearing payload), but the generic wrapper itself is unchanged against the failure
+  mode.** Read `node_modules/@jini-ai/mcp/dist/server/tool-protocol.js:63-105` (pinned `@jini-ai/mcp
+  ^0.3.1`): `okResult()` now passes a well-formed content envelope through verbatim if every block is
+  `type:'text'` or `type:'image'` — but a `type:'resource'` block is not in that allowlist, so a
+  `{content:[textBlock, uiResource]}` payload still falls to the generic branch and is
+  `JSON.stringify`'d whole, unchanged from what this ADR documented. No tool in the current tree
+  triggers it (all 7+ gated tools route resources through `emitSurface` instead of their own return
+  value), so there is no live leak today — but the generic risk Decision 5 named is still open in the
+  dependency as pinned.
+- **Decision 6 (stopgap: exclude `content_post_delete` from the wired surface) — NO LONGER IN FORCE.**
+  `apps/website/src/assistant/tool-registrations.ts:632` states outright: "`content_post_delete`
+  (ADR-055 Decision 2) is now a shipped, non-env-gated tool that parks." It is live on the wired
+  agent-tool surface today, gated by the working mechanism above rather than excluded.
+
+**Net:** the central decision this ADR records — the browser becomes the real MCP-UI host — is intact
+and shipped; nothing in today's code contradicts it. Decisions 1, 2, 4, and 6's resolution have shipped;
+Decision 3 was explicitly superseded (by an already-accepted ADR-055, not by this note); Decision 5's
+underlying dependency is unfixed but currently unreachable by any shipped tool. Commits: `61edab4b`
+(original wire-protocol build), `89420ed5`, `6dbbd30e`, `ba002973`, `f04f8e0e`, `be2fb111`, `47c8c84e`
+(2026-09-08 generalization to comments/post/custom-credentials/redirects/theme/webhooks/media), and
+`fc035beb` (ADR-055 acceptance, the same day).
