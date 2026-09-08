@@ -104,7 +104,15 @@ export async function processOutbox(
       const message = err instanceof Error ? err.message : "unknown outbox error";
       const nextStatus: Extract<OutboxRecord["status"], "pending" | "failed"> =
         row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
-      const nextAttemptAt = addMsToIso(now, computeOutboxBackoffMs(row.attempts, { random }));
+      // Anchored to the clock read HERE, not to the batch's own `now` above (2026-09-07 audit,
+      // claim #6). `now` is the instant `claimPending` was called; every row after the first is
+      // marked some time later, so a batch that takes longer to reach this row than the backoff it
+      // computes would schedule a retry already in the past — the row is then re-claimed on the
+      // very next tick with no backoff at all, precisely when a slow, failing handler is the reason
+      // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
+      // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
+      // because the correct anchor costs one clock read, not because it was observed in the wild.
+      const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random }));
       await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
     }
   }

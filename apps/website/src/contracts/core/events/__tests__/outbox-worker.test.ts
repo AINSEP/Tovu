@@ -215,3 +215,34 @@ test("processOutbox stops retrying and permanently excludes a row once MAX_OUTBO
   assert.equal(farFuture.length, 0);
 });
 
+
+// ---------------------------------------------------------------------------
+// 2026-09-07 audit claim #6 — the retry time must be measured from the FAILURE, not from the
+// instant the batch was claimed. Every other test in this file holds the clock fixed for the whole
+// call, which cannot tell the two apart; this one advances it while delivery is in flight.
+// ---------------------------------------------------------------------------
+
+test("processOutbox schedules the retry from the failure instant — a slow batch never leaves nextAttemptAt in the past", async () => {
+  const outbox = new InMemoryOutbox();
+  await outbox.enqueue({
+    id: "evt-slow",
+    name: "fail.event",
+    occurredAt: "2026-02-21T12:00:00.000Z",
+    workspaceId: "workspace-1",
+    payload: {},
+  });
+
+  // The clock advances by an hour between `claimPending` and the failure being recorded — far more
+  // than the ~15s minimum backoff, so a retry anchored to the batch's own start instant lands
+  // BEFORE the row is even marked, and the next tick re-claims it with no backoff at all.
+  const instants = ["2026-02-21T12:00:00.000Z", "2026-02-21T13:00:00.000Z"];
+  let read = 0;
+  const clock = { nowIso: () => instants[Math.min(read++, instants.length - 1)]! };
+  await processOutbox({ outbox, bus: alwaysFailingBus(), clock }, { random: () => 0 });
+
+  const dueImmediately = await outbox.claimPending(10, "2026-02-21T13:00:00.000Z");
+  assert.equal(dueImmediately.length, 0, "a just-failed row must not be immediately due again");
+
+  const dueAfterBackoff = await outbox.claimPending(10, "2026-02-21T13:01:00.000Z");
+  assert.equal(dueAfterBackoff.length, 1, "and it must become due once the backoff measured from the failure elapses");
+});
