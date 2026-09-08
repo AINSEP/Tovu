@@ -47,7 +47,8 @@
  * Every mutating entry's underlying function calls `requireWidgetPermission` as its own first line
  * (REQ-40/41 — "the SAME check applies whether the caller is a human route or an AI tool route"),
  * so `ToolPolicy.authorize` stays a pass-through exactly as it does for Forms/Identity/content-types
- * (ADR-021 §2 "one evaluator"). The two read tools (`widgets_list_regions`/`widgets_get_region`) have
+ * (ADR-021 §2 "one evaluator"). The two read tools (`widgets_get_region`/`widgets_list_regions`, both published as the single
+ * `content_read.widget_region` card since 2026-09-08) have
  * no such service-layer wrapper to delegate to — `regions-list.ts`/`region-get.ts` gate inline via
  * `requireWidgetsPermissionOrRespond` instead — so this catalog's wiring layer performs that same
  * inline `widgets.read` check itself for those two, mirroring the HTTP route exactly.
@@ -81,7 +82,7 @@ const WIDGET_TYPE_KEYS = Object.values(WIDGET_TYPE_REGISTRATIONS).map((registrat
 
 const WIDGET_INSTANCE_ID_SCHEMA = {
   type: "string",
-  description: "The widget instance's entry id, as returned by widgets_create_instance or widgets_list_instances.",
+  description: "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance.",
 } as const;
 
 const HOST_ENTRY_ID_SCHEMA = {
@@ -97,7 +98,7 @@ const BASE_VERSION_SCHEMA = {
 const REGION_KEY_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "A theme-declared widget region key (e.g. 'header', 'footer', 'sidebar'). Call widgets_list_regions to see which are currently bound.",
+  description: "A theme-declared widget region key (e.g. 'header', 'footer', 'sidebar'). Call content_read.widget_region to see which are currently bound.",
 } as const;
 
 /** One placement in a region's ordered list, as published to the model. */
@@ -108,7 +109,7 @@ const PLACEMENT_SCHEMA = {
   properties: {
     placementId: {
       type: "string",
-      description: "Stable id for this placement slot. Omit when adding a NEW placement — one is minted automatically. Supply an EXISTING placementId (from widgets_get_region) to keep editing the same slot rather than creating a new one.",
+      description: "Stable id for this placement slot. Omit when adding a NEW placement — one is minted automatically. Supply an EXISTING placementId (from content_read.widget_region) to keep editing the same slot rather than creating a new one.",
     },
     widgetEntryId: WIDGET_INSTANCE_ID_SCHEMA,
     enabled: { type: "boolean", description: "Whether this placement renders. A disabled placement stays in the list but is skipped at render time." },
@@ -121,7 +122,7 @@ const PLACEMENT_SCHEMA = {
  * why `purge` is the one exclusion).
  *
  * Ordered read-first, matching `identity/agent-tools.ts`'s convention: a model needs a
- * `widgetInstanceId` before it can update, trash, place, or embed one, and `widgets_list_instances`
+ * `widgetInstanceId` before it can update, trash, place, or embed one, and `content_read.widget_instance`
  * (or `widgets_create_instance`'s own result) is how it learns one.
  */
 export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
@@ -256,7 +257,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Replaces a bound region's WHOLE placement list in one atomic, version-guarded write (never a partial patch). " +
       "Every widgetEntryId referenced must be an existing, active widget instance in this workspace — a nonexistent, " +
-      "trashed, or purged target is rejected before anything is written. Call widgets_get_region first to see the " +
+      "trashed, or purged target is rejected before anything is written. Call content_read.widget_region first to see the " +
       "current baseVersion and existing placements to preserve.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "widgets.place" },

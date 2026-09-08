@@ -160,8 +160,8 @@ const SUBMISSION_ID_SCHEMA = {
   description: "The submission's id, as returned by forms_list_submissions.",
 } as const;
 
-/** `forms_list_definitions`'s input — it takes no arguments at all, matching how
- * `identity_user_list`/`identity_role_list`/`menus_list_menus` are this codebase's convention for a
+/** `content_read.form_definition`'s input — it takes no arguments at all, matching how
+ * `content_read.identity_user`/`content_read.identity_role`/`content_read.menu` are this codebase's convention for a
  * small, bounded catalog: one unfiltered list IS the domain's "search", not a separate capability. */
 const NO_INPUT_SCHEMA = {
   type: "object",

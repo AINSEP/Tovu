@@ -142,7 +142,7 @@ const POST_KIND_SCHEMA = {
 const POST_ID_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "The post/page's id, as returned by content_post_create or content_post_list.",
+  description: "The post/page's id, as returned by content_post_create, or by content_read.content_post called WITHOUT an id (its listing mode).",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -335,9 +335,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "page.navigate). Searches titles, slugs, and the body text of every post and page in the workspace, ranked best " +
       "match first. Drafts are included; trashed items are never returned. " +
       "Returns SUMMARIES ONLY — id, kind, title, slug, status, updatedAt, a short body snippet, and a relevance score. " +
-      "It deliberately does NOT return bodyJson: call content_post_get with the id once you have picked a result. " +
-      "PREFER THIS OVER content_post_list for finding things — content_post_list has no query and returns the full body " +
-      "of every row, which will flood your context on a site with real content. Use content_post_list only when you " +
+      "It deliberately does NOT return bodyJson: call content_read.content_post WITH the id once you have picked a result. " +
+      "PREFER THIS OVER content_read.content_post's listing mode for finding things — listing has no query and returns the full body " +
+      "of every row, which will flood your context on a site with real content. Use that listing mode only when you " +
       "genuinely need the complete inventory of one kind. " +
       "Scores are relative within one result set (higher is better) and are not comparable across different queries; " +
       "an empty result means no post or page contains any of your terms, so try fewer or more general words.",
@@ -359,7 +359,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         kind: {
           ...POST_KIND_SCHEMA,
-          description: `${POST_KIND_SCHEMA.description} Omit to search posts AND pages together — unlike content_post_list, this tool does not require a kind.`,
+          description: `${POST_KIND_SCHEMA.description} Omit to search posts AND pages together — unlike content_read.content_post's listing mode, this tool does not require a kind.`,
         },
         status: {
           type: "string",
@@ -411,7 +411,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "null for a draft/unpublished row, since it has no live link yet. " +
       "Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
       "'post' is rejected as not-found (mirrors pages/get-by-id.ts's explicit guard) — but with kind:'post', a row whose actual " +
-      "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Use content_post_list first " +
+      "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Call this same tool WITHOUT an id first (its listing mode) " +
       "if you are not certain which kind an id belongs to.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
@@ -457,11 +457,11 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "patch (the underlying updatePost function itself has no partial-update path; this mirrors the admin editor's own save " +
       "button, which always sends the complete record). This is also how a post/page is published or unpublished: set status to " +
       "'published'/'draft'. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
-      "content_post_get's identical disclosed asymmetry — not rejected the other way around), if slug is malformed/reserved/taken " +
+      "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if slug is malformed/reserved/taken " +
       "by another row, or if bodyJson is not a JSON object. " +
       "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +
-      "human made in the admin editor between your read and your write. Pass the 'version' from the content_post_get / " +
-      "content_post_list row you based your edit on. If it no longer matches, the call is rejected with VERSION_CONFLICT and " +
+      "human made in the admin editor between your read and your write. Pass the 'version' from the content_read.content_post " +
+      "row you based your edit on. If it no longer matches, the call is rejected with VERSION_CONFLICT and " +
       "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
@@ -510,7 +510,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "The delete is a SOFT delete: the row is marked as trashed (it disappears from every posts/pages list, from get-by-id, " +
       "and from the public site) but is retained and can be restored by reverting the resulting change set. Rejected if the " +
       "row does not exist, is already trashed, or if kind:'page' is given for an actual kind:'post' row (the same disclosed " +
-      "asymmetry content_post_get and content_post_update carry — not rejected the other way around).",
+      "asymmetry content_read.content_post and content_post_update carry — not rejected the other way around).",
     // Genuinely destructive, and classified as its own thing rather than folded into the same
     // bucket as an edit — `tool-registrations.ts`'s independent `postDerivedRisk` derives the
     // identical value from what the handler actually calls, and the two are compared for equality

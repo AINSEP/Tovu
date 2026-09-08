@@ -67,11 +67,11 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-/** A comment's id, as returned by `comments_list_moderation_queue`'s `items[].id`. */
+/** A comment's id, as returned by `content_read.comment_moderation_queue`'s `items[].id`. */
 const COMMENT_ID_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "The comment's id. Get it from comments_list_moderation_queue's items[].id.",
+  description: "The comment's id. Get it from content_read.comment_moderation_queue's items[].id.",
 } as const;
 
 /** `expectedVersion` — every moderation-action tool takes this for optimistic concurrency (mirrors `CommentRecord.version`). */

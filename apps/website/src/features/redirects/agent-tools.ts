@@ -69,7 +69,7 @@ export interface AgentToolDefinition {
 const REDIRECT_ID_PROPERTY = {
   type: "string",
   minLength: 1,
-  description: "A redirect rule's id, as returned by redirects_create or redirects_list.",
+  description: "A redirect rule's id, as returned by redirects_create or content_read.redirect.",
 } as const;
 
 const REDIRECT_ID_SCHEMA = {

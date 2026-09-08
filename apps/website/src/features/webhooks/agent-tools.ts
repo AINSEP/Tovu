@@ -77,7 +77,7 @@ export interface AgentToolDefinition {
 const SUBSCRIPTION_ID_PROPERTY = {
   type: "string",
   minLength: 1,
-  description: "A webhook subscription's id, as returned by webhooks_create_subscription or webhooks_list_subscriptions.",
+  description: "A webhook subscription's id, as returned by webhooks_create_subscription or content_read.webhook_subscription.",
 } as const;
 
 const SUBSCRIPTION_ID_SCHEMA = {

@@ -65,11 +65,12 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-/** A member's id, as returned by `members_list`/`members_get_by_id`. */
+/** A member's id, as returned by `content_read.member` (the single card `members_list` and
+ *  `members_get_by_id` collapsed into on 2026-09-08 — it dispatches on `memberId`'s presence). */
 const MEMBER_ID_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "The member's id. Get it from members_list, or from members_get_by_id's result.",
+  description: "The member's id. Get it from content_read.member — omit memberId to list every member, or supply one to fetch that member.",
 } as const;
 
 /** The input shape shared by `members_get_by_id`/`members_disable` — exactly `{memberId}`. */

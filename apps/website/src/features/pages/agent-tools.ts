@@ -32,7 +32,7 @@ export interface AgentToolDefinition {
 const PAGE_ID_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "The page's id, as returned by content_post_create (kind:'page') or content_post_list (kind:'page').",
+  description: "The page's id, as returned by content_post_create (kind:'page') or content_read.content_post (kind:'page').",
 } as const;
 
 /**

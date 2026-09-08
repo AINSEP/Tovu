@@ -7,7 +7,7 @@
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
  * permission each one carries. Every entry maps 1:1 onto a real, already-shipped admin surface:
- * `plugins_list` mirrors `routes/admin/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
+ * `content_read.plugin` mirrors `routes/admin/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
  * mirrors `routes/admin/plugins/set-enabled.ts` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
  * same underlying `features/plugin-runtime/activation.ts` functions.
  *
@@ -51,7 +51,7 @@
  * How it relates to the project:
  * `assistant/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s; the
  * ADR-014 tool filter consumes the catalog to decide which names a session may see. Actual
- * enforcement is the SAME gate the human admin routes use: `plugins_list`'s inline `authorize()`
+ * enforcement is the SAME gate the human admin routes use: `content_read.plugin`'s inline `authorize()`
  * call and `plugins_set_enabled`'s `executeCommand`-wrapped permission check (ADR-021 §2) — this
  * module declares shape only and performs no I/O.
  *
@@ -80,7 +80,7 @@ export interface AgentToolDefinition {
   inputSchema: Readonly<Record<string, unknown>>;
 }
 
-/** No arguments — `plugins_list` takes none. */
+/** No arguments — `content_read.plugin` takes none. */
 const NO_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -93,7 +93,7 @@ const SET_ENABLED_SCHEMA = {
   additionalProperties: false,
   required: ["pluginId", "enabled"],
   properties: {
-    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by plugins_list." },
+    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by content_read.plugin." },
     enabled: {
       type: "boolean",
       description:
@@ -107,7 +107,7 @@ const UNINSTALL_SCHEMA = {
   additionalProperties: false,
   required: ["pluginId"],
   properties: {
-    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by plugins_list. Must be a site-installed plugin — a built-in has no on-disk artifact to remove and this is refused." },
+    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by content_read.plugin. Must be a site-installed plugin — a built-in has no on-disk artifact to remove and this is refused." },
   },
 } as const;
 
@@ -117,7 +117,7 @@ const UNINSTALL_SCHEMA = {
  *
  * Ordered read-tool-first, matching the house convention (`identity/agent-tools.ts`'s own
  * rationale): a model cannot enable/disable/uninstall a plugin it does not know the id of, and
- * `plugins_list` is the only way to learn one.
+ * `content_read.plugin` is the only way to learn one.
  */
 export const pluginAgentToolCatalog: AgentToolDefinition[] = [
   {

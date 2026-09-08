@@ -25,7 +25,7 @@
  *
  * A later dispatch built `features/database/adapter.sqlite.ts` (`DatabaseIntrospectionPort`,
  * composed into `RouteDeps` as `databaseIntrospection` in both `server/deps.ts` and `server/app.ts`)
- * and wired `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
+ * and wired `database_get_health`/`database_get_schema_state`/`content_read.database_pending_migration`
  * against it — see each entry's own comment below and `tool-registrations.ts`'s handlers.
  *
  * How it relates to the project:

@@ -43,8 +43,8 @@ export const contentDuplicationAgentToolCatalog: AgentToolDefinition[] = [
       "resource names WHICH kind of thing to copy — currently 'post', 'page', 'form', or 'media'. An unrecognized " +
       "resource is rejected with the exact list of resources this workspace currently supports; if what you need " +
       "is not on that list, this tool cannot copy it yet and no spelling of it will work. " +
-      "id is the source resource's own id (for post/page, as returned by content_post_list/content_post_get; for " +
-      "form, as returned by forms_list_definitions; for media, as returned by media_list_assets — a media slug " +
+      "id is the source resource's own id (for post/page, as returned by content_read.content_post; for " +
+      "form, as returned by content_read.form_definition; for media, as returned by content_read.media_asset — a media slug " +
       "works there too). " +
       "overrides carries optional fields for the copy — title, slug, status — and not every resource type honors " +
       "every field; a resource rejects an override it cannot honor rather than ignoring it. " +

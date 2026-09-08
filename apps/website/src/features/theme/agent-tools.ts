@@ -117,7 +117,7 @@ export const THEME_WRITE_PERMISSION = "theme.edit";
 const THEME_ID_PROPERTY = {
   type: "string",
   minLength: 1,
-  description: "A theme's id, exactly as returned by theme_list (it is also the theme's folder name).",
+  description: "A theme's id, exactly as returned by content_read.theme (it is also the theme's folder name).",
 } as const;
 
 const RELATIVE_PATH_PROPERTY = {

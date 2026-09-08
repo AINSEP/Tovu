@@ -13,7 +13,7 @@
  *
  * ## Five tools, not one CRUD tool per field
  *
- * - `external_mcp_list` — read. What is configured, never a secret value.
+ * - `content_read.external_mcp` — read. What is configured, never a secret value.
  * - `external_mcp_save` — the ONE write tool for both "add a new server" and "update an existing
  *   one". Mirrors `saveExternalMcpServer`'s own idempotent-by-id PUT design (`src/assistant/
  *   external-mcp-store.ts`'s own doc: "two routes would be two validators of one contract") — the
@@ -30,7 +30,7 @@
  *   code), and — for the device-code grant specifically, which has no callback of its own — poll it
  *   once per call so completion can be detected without inventing a script the model would loop on
  *   its own. For the browser-redirect grant, completion is detected simply by calling
- *   `external_mcp_list` again and reading `oauth.status`.
+ *   `content_read.external_mcp` again and reading `oauth.status`.
  *
  * ## What no tool here ever accepts as input
  *
@@ -170,7 +170,7 @@ export const externalMcpAgentToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "external_mcp_save",
     description: [
-      "Proposes creating or updating one external MCP server, and shows the human a form to review and confirm before anything is written — THIS NEVER SAVES SILENTLY. Call external_mcp_list first if you are updating an existing id, so the human sees accurate current values rather than blanks for anything you did not restate.",
+      "Proposes creating or updating one external MCP server, and shows the human a form to review and confirm before anything is written — THIS NEVER SAVES SILENTLY. Call content_read.external_mcp first if you are updating an existing id, so the human sees accurate current values rather than blanks for anything you did not restate.",
       "The form the human sees is generated from the fields YOU pass: decide transport and authMode through ordinary conversation before calling this (ask the human, or infer from what they already told you), because the form's shape is fixed once generated and cannot change after the fact.",
       "Never pass a credential, API key, token, or client secret as an argument to this tool — there are no such properties on this schema, and the human types any secret directly into the rendered form, never through you.",
       "Returns one of: { saved: true, server } once the human confirms and the write succeeds; { saved: false, cancelled: true } if the human declines; { saved: false, reason: 'expired' | 'abandoned', note } if nobody answered in time; { saved: false, reason: 'invalid', message, field } if the human's submitted form failed validation (tell them what to fix and call this again).",
@@ -196,7 +196,7 @@ export const externalMcpAgentToolCatalog: readonly AgentToolDefinition[] = [
     description: [
       "Starts an OAuth authorization for an already-saved, OAuth-authenticated server (authMode 'oauth' — save it with external_mcp_save first).",
       "Returns either { kind: 'redirect_required', authorizationUrl, expiresAt } — hand the human this exact URL to open in their own browser and tell them to sign in there; you cannot complete this step for them — or { kind: 'device_code', userCode, verificationUri, verificationUriComplete, expiresAt, intervalSeconds } — tell the human to open verificationUri (or verificationUriComplete directly) and enter userCode.",
-      "Your job ends at handing over that one link or code. For 'redirect_required', detect completion by calling external_mcp_list again after the human says they finished and reading oauth.status ('connected' means it worked). For 'device_code', call external_mcp_oauth_poll_device with the same id — once, not in a tight loop — no sooner than intervalSeconds after this call, and again after each 'pending' response.",
+      "Your job ends at handing over that one link or code. For 'redirect_required', detect completion by calling content_read.external_mcp again after the human says they finished and reading oauth.status ('connected' means it worked). For 'device_code', call external_mcp_oauth_poll_device with the same id — once, not in a tight loop — no sooner than intervalSeconds after this call, and again after each 'pending' response.",
       "Throws if the server does not exist, is not authMode 'oauth', or the provider could not be reached — these are real failures the human needs to know about, not something to retry silently.",
     ].join(" "),
     sideEffects: "mutates-durable-state",

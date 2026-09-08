@@ -62,7 +62,7 @@ const NO_INPUT_SCHEMA = {
 const RESTORE_POINT_ID_SCHEMA = {
   type: "string",
   minLength: 1,
-  description: "A restore point id, as returned by backup_list_restore_points or database_list_restore_points.",
+  description: "A restore point id, as returned by content_read.backup_restore_point or content_read.database_restore_point.",
 } as const;
 
 const PLAN_RESTORE_SCHEMA = {

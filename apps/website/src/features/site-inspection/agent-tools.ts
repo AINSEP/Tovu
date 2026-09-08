@@ -49,7 +49,7 @@ export interface AgentToolDefinition {
 
 /** Visibility floor for both tools — see this file's header for why this is not the gate for
  *  `site_get_profile`. Reused rather than invented: `content.read` is what `pages_read_html` and
- *  `content_post_list` already require. */
+ *  `content_read.content_post` already require. */
 export const SITE_INSPECTION_READ_PERMISSION = "content.read";
 
 const SITE_PROFILE_INPUT_SCHEMA = {
