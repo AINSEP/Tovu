@@ -62,7 +62,12 @@ describe("a content type key that matches nothing", () => {
     );
 
     expect(await screen.findByText('Unknown content type "does-not-exist".')).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /new entry/i })).not.toBeInTheDocument();
+    // `link`, not `button` (2026-09-07): `a44148a1` replaced the nested `<button>`-inside-`<a>`
+    // with a plain `<a class="btn-primary">` and did not update this file. Left as `button` this
+    // assertion still PASSED — vacuously, since no button exists on any screen any more — so it
+    // would have kept passing even if the unknown-content-type branch wrongly rendered the real
+    // New entry link. Its positive twin below caught the same change as a hard failure.
+    expect(screen.queryByRole("link", { name: /new entry/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/no entries yet/i)).not.toBeInTheDocument();
   });
 });
@@ -80,7 +85,8 @@ describe("a real content type", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Recipe" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /new entry/i })).toBeInTheDocument();
+    // See the `link`-vs-`button` note above — this is the assertion `a44148a1` left failing.
+    expect(screen.getByRole("link", { name: /new entry/i })).toBeInTheDocument();
     expect(screen.getByText("No entries yet in Recipe.")).toBeInTheDocument();
   });
 });
