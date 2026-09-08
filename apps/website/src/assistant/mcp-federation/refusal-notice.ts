@@ -1,4 +1,5 @@
 import type { FederatedAdmissionReport, ToolRefusalReason } from "./trust.js";
+import { federatedToolId } from "./trust.js";
 
 /**
  * @file The refusal channel's SECOND sink: the one that reaches the model.
@@ -145,6 +146,31 @@ const EXPLANATION_BY_REASON: Readonly<Record<Exclude<ToolRefusalReason, "not-in-
     "Fix: the administrator should shorten \"Allowed tools\" to the tools that are actually needed, then restart the assistant.",
 };
 
+/**
+ * The one explanation {@link EXPLANATION_BY_REASON} deliberately excludes — see R-B. Needed here
+ * because ATTEMPT-TIME reporting (`../federated-refusal-diagnosis.ts`) is not enumeration: R-B's
+ * "not news" argument only holds for a boot-time list the model reads whether it asked or not. A
+ * model that has actually NAMED this exact tool id in a call has, by doing so, already decided it
+ * wants it — telling it why that specific call failed is never the spam R-B guards against.
+ */
+const NOT_ALLOWLISTED_ATTEMPT_EXPLANATION =
+  "the administrator has not allowed this tool for this connection. Fix: in Settings → External MCP, add it to \"Allowed tools\", then restart the assistant.";
+
+/**
+ * The full per-reason explanation for a caller that already knows WHICH tool was attempted — as
+ * opposed to {@link refusalItems}'s boot-time enumeration, which drops `not-in-operator-allowlist`
+ * per R-B. Every other reason's text is the exact same string {@link EXPLANATION_BY_REASON} gives the
+ * boot prefix, so the two channels can never disagree about WHY a given reason code fired — only
+ * about which reasons are worth mentioning unprompted.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function explainFederatedToolRefusal(reason: ToolRefusalReason): string {
+  if (reason === "not-in-operator-allowlist") return NOT_ALLOWLISTED_ATTEMPT_EXPLANATION;
+  return EXPLANATION_BY_REASON[reason];
+}
+
 const ABSENT_EXPLANATION =
   "the administrator allowed this tool, but the server does not offer a tool by that name — most likely a typo in " +
   "\"Allowed tools\", or the server was started without the feature that provides it.";
@@ -238,6 +264,60 @@ export function summarizeFederatedRefusals(
   snapshot: readonly FederationAdmissionSnapshotEntry[],
 ): readonly FederationRefusalItem[] {
   return snapshot.flatMap((entry) => [...refusalItems(entry), ...driftItems(entry)]);
+}
+
+/** One refused federated tool CALL, resolved by the exact id a caller attempted — the call-time
+ *  counterpart to {@link FederationRefusalItem}, which is one row of the boot-time enumeration.
+ *  Deliberately its own shape rather than a reused `FederationRefusalItem`: this one ALWAYS carries
+ *  an explanation (R-B does not apply to an attempt — see {@link explainFederatedToolRefusal}), and
+ *  it is resolved from one id on demand rather than built by iterating every refusal up front. */
+export interface FederatedToolRefusalLookup {
+  readonly connectionId: string;
+  /** Already sanitized per R-C — safe to render and safe to put in a message a model reads. */
+  readonly remoteName: string;
+  readonly reason: ToolRefusalReason;
+  readonly explanation: string;
+}
+
+/**
+ * Resolves ONE attempted tool id against a boot's admission snapshot, for the caller that actually
+ * tried to run it — the call-time half of "every refusal is reportable, never silent" (R-B only ever
+ * silences the boot-time ENUMERATION of a routine default-deny, never an attempt naming the tool by
+ * id).
+ *
+ * Matches by re-minting {@link federatedToolId} for every refused `(connectionId, remoteName)` pair
+ * rather than parsing `toolId` apart: the mint is the one place that format is defined, and a second,
+ * independent parser is a second place the two could silently drift.
+ *
+ * @param toolId - The exact id a call attempted, e.g. `mcp__higgsfield__tiktok_publish`.
+ * @param snapshot - `AttachFederatedToolsResult.reports`, verbatim — the same shape
+ *   {@link summarizeFederatedRefusals} accepts.
+ * @returns `null` when `toolId` is not a federated id this boot ever refused — either it was
+ *   admitted (a caller reaching this function for an admitted id is a bug one layer up: an admitted
+ *   tool is registered and its call would never throw `unknown tool` in the first place), or it is
+ *   not a federated tool id this boot knows about at all (a native tool, or a genuinely
+ *   unknown/hallucinated one).
+ * @complexity O(c · r) in connections and their refusals — the same bound
+ *   {@link summarizeFederatedRefusals} accepts for the boot-time reduction, run once per failed call
+ *   here rather than once per boot.
+ * @overallScore 100
+ */
+export function findFederatedToolRefusal(
+  toolId: string,
+  snapshot: readonly FederationAdmissionSnapshotEntry[],
+): FederatedToolRefusalLookup | null {
+  for (const entry of snapshot) {
+    for (const refusal of entry.report.refused) {
+      if (federatedToolId(entry.connectionId, refusal.remoteName) !== toolId) continue;
+      return {
+        connectionId: entry.connectionId,
+        remoteName: safeRemoteName(refusal.remoteName),
+        reason: refusal.reason,
+        explanation: explainFederatedToolRefusal(refusal.reason),
+      };
+    }
+  }
+  return null;
 }
 
 /** One rendered bullet. The connection id is operator-authored and pattern-validated by

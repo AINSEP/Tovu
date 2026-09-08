@@ -29,6 +29,10 @@ export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
 // this port for the same reason the line above is — the daemon process reaches this subtree only
 // here. See `mcp-federation/refusal-notice.ts`.
 export { buildFederatedRefusalPrefix } from "./mcp-federation/refusal-notice.js";
+// The CALL-TIME counterpart to `buildFederatedRefusalPrefix` above — see that file's header and
+// `federated-refusal-diagnosis.ts`'s own for why the boot-time prefix and this decorator
+// deliberately disagree about `not-in-operator-allowlist`.
+export { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js";
 export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
 export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store.js";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:

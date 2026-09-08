@@ -118,6 +118,7 @@ import {
   FRONTEND_CONTROL_CAPABILITIES,
   attachFederatedMcpTools,
   buildFederatedRefusalPrefix,
+  withFederatedRefusalDiagnosis,
   type ResolvedFederatedConnection,
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -144,6 +145,7 @@ import {
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
+import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -460,7 +462,12 @@ const frontendControl = createFrontendControl({
     console.error(`[agent-daemon] run ${runId}: could not bind to a frontend surface`, error);
   },
 });
-for (const registration of frontendControl.toolRegistrations) {
+// `withPageNavigateErrorRewrap` (Tovu-side, `assistant/rewrap-page-navigate-error.ts`) rewraps ONLY
+// `page.navigate`'s registration so its "not a published page" refusal (`@jini-ai/agentic`'s
+// `page-executor.ts:414`) cannot be misread as this codebase's own, unrelated
+// `PostRecord.status === "published"` CMS-content concept — see that module's own header for the
+// full rationale. Every other registration passes through unchanged.
+for (const registration of withPageNavigateErrorRewrap(frontendControl.toolRegistrations)) {
   registry.register(registration);
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
@@ -482,11 +489,21 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // The decorator order — and in particular why the read-only gate is innermost — lives in
 // `tool-executor-stack.ts` alongside the composition itself, so it is exercisable by a test that does
 // not have to boot this whole module.
-const toolExecutor = createAssistantToolExecutor({
-  registry,
-  surfaceExchanges,
-  toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
-});
+//
+// Wrapped a second time, OUTERMOST, by `withFederatedRefusalDiagnosis`: a call naming a federated
+// tool id this boot refused would otherwise throw `unknown tool "<id>"` (the id is never registered)
+// straight past every decorator above and into `@jini-ai/http-kit`'s SEC-005 redaction, reaching the
+// model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
+// exactly that throw and, only when the id matches a refusal in `federationAdmissionReports`, returns
+// a real result naming the tool, the server, and the fix instead. See that file's own header.
+const toolExecutor = withFederatedRefusalDiagnosis(
+  createAssistantToolExecutor({
+    registry,
+    surfaceExchanges,
+    toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
+  }),
+  () => federationAdmissionReports,
+);
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -571,6 +588,23 @@ let attachmentStore: AttachmentStore | undefined;
  * withheld." See `mcp-federation/refusal-notice.ts`.
  */
 let federationRefusalPrefix = "";
+
+/**
+ * The SAME boot admission snapshot `federationRefusalPrefix` above is built from, kept around for
+ * `toolExecutor`'s `withFederatedRefusalDiagnosis` wrap below to read at CALL time rather than boot
+ * time. A module-level `let` for the identical reason `federationRefusalPrefix` is one: `toolExecutor`
+ * is constructed at module scope, long before `start()` resolves `attachFederatedMcpTools`, so the
+ * decorator closes over this binding (`() => federationAdmissionReports`) rather than a value that
+ * would forever see the empty pre-boot array. See `federated-refusal-diagnosis.ts`.
+ *
+ * Typed by deriving `attachFederatedMcpTools`'s own return shape (`Awaited<ReturnType<...>>`) rather
+ * than restating it or reusing `refusal-notice.ts`'s deliberately narrower
+ * `FederationAdmissionSnapshotEntry` (which structurally omits `isPreset` on purpose, per that
+ * file's own doc): `registerFederationAdmissionsRoute` below needs the FULL shape, `isPreset`
+ * included, and a narrower annotation here would satisfy the other two readers
+ * (`buildFederatedRefusalPrefix`, `withFederatedRefusalDiagnosis`) while breaking that one.
+ */
+let federationAdmissionReports: Awaited<ReturnType<typeof attachFederatedMcpTools>>["reports"] = [];
 
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
@@ -1052,7 +1086,11 @@ async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedC
 async function start(): Promise<void> {
   registerSupabaseMcpPreset();
 
-  const { reports: federationAdmissionReports } = await attachFederatedMcpTools({
+  // Reassigns the module-scope `let` declared above (not a fresh local `const`): `toolExecutor`'s
+  // `withFederatedRefusalDiagnosis` wrap already closed over that binding before this line ever
+  // runs, and only a reassignment — not a same-named local shadowing it — is visible through that
+  // closure. Same reasoning as `federationRefusalPrefix` a few lines down.
+  federationAdmissionReports = (await attachFederatedMcpTools({
     registry,
     deps: {
       authorize: routeDeps.authorize,
@@ -1073,7 +1111,7 @@ async function start(): Promise<void> {
       onAuthFailed: (connectionId, error) => externalMcpOAuth.reportAuthFailure(connectionId, error),
     },
     extraConnections: await resolveStoredExternalMcpConnections(),
-  });
+  })).reports;
 
   // What this boot actually admitted, over HTTP — see `federation-admissions-route.ts`'s own doc
   // for why this is a one-time snapshot handed in here rather than a live re-read, and
