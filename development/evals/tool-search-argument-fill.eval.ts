@@ -87,11 +87,13 @@ function parseAnswers(path: string, expectedCases: readonly number[]): Map<numbe
 function toResource(answer: string, resources: readonly string[]): { resource: string | null; unknown: boolean } {
   const raw = answer.replace(/^`|`$/g, "").trim();
   if (raw.toUpperCase() === "NONE") return { resource: null, unknown: false };
-  const stripped = raw.startsWith("content_read.")
-    ? raw.slice("content_read.".length)
-    : raw.startsWith("read_")
-      ? raw.slice("read_".length)
-      : raw;
+  // Arms express the SAME choice four ways: a bare key (`widget_instance`), a card id
+  // (`content_read.widget_instance`), or a verb-carrying enum value (`read_widget_instance`,
+  // `delete_content_post`). Normalizing them to the bare key is what makes the arms comparable —
+  // scoring an arm against its own spelling instead would report a 100% invalid rate, which is what
+  // this function's first version did for the delete family.
+  const PREFIXES = ["content_read.", "content_delete.", "read_", "delete_"];
+  const stripped = PREFIXES.reduce((acc, prefix) => (acc.startsWith(prefix) ? acc.slice(prefix.length) : acc), raw);
   return { resource: stripped, unknown: !resources.includes(stripped) };
 }
 
@@ -147,20 +149,33 @@ const ARMS = [
   { id: "C", file: "afill-answers-C.txt", label: "C  29 cards — THE SHIPPED DESIGN" },
   { id: "D", file: "afill-answers-D.txt", label: "D  29 cards, BARE-NOUN ids (verb stripped)" },
   { id: "E", file: "afill-answers-E.txt", label: "E  fat entry, VERB-CARRYING enum" },
+  { id: "A2o", file: "afill-answers-A2opus.txt", label: "A2-opus  = arm A2, replicated on Opus 5" },
+] as const;
+
+/** The same three shapes on the DELETE family — one fat entry with bare-noun enum values, the same
+ *  fat entry with verb-carrying enum values, and 8 `content_delete.<resource>` cards. */
+const DELETE_ARMS = [
+  { id: "F", file: "afill-answers-F.txt", label: "F  content_delete, BARE-NOUN enum" },
+  { id: "G", file: "afill-answers-G.txt", label: "G  content_delete, VERB-CARRYING enum" },
+  { id: "H", file: "afill-answers-H.txt", label: "H  content_delete as 8 cards" },
 ] as const;
 
 function main(): void {
   const dir = process.argv[2];
-  if (!dir) throw new Error("usage: tsx tool-search-argument-fill.eval.ts <fixture-dir>");
-  const key = JSON.parse(readFileSync(join(dir, "afill-key.json"), "utf8")) as Key;
+  if (!dir) throw new Error("usage: tsx tool-search-argument-fill.eval.ts <fixture-dir> [read|delete]");
+  const family = (process.argv[3] ?? "read") as "read" | "delete";
+  const key = JSON.parse(readFileSync(join(dir, family === "delete" ? "afill-delete-key.json" : "afill-key.json"), "utf8")) as Key;
   const caseNos = key.cases.map((c) => c.caseNo);
   const byNo = new Map(key.cases.map((c) => [c.caseNo, c]));
   const inScopeNos = key.cases.filter((c) => c.acceptableResources.length > 0).map((c) => c.caseNo);
   const outScopeNos = key.cases.filter((c) => c.acceptableResources.length === 0).map((c) => c.caseNo);
 
+  const armSet: readonly { id: string; file: string; label: string }[] = family === "delete" ? DELETE_ARMS : ARMS;
+  const baselineArm = family === "delete" ? "H" : "C";
+
   const results = new Map<string, Map<number, Verdict>>();
   const present: string[] = [];
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     const path = join(dir, arm.file);
     if (!existsSync(path)) continue;
     const answers = parseAnswers(path, caseNos);
@@ -181,7 +196,7 @@ function main(): void {
 
   console.log(`  ON THE ${inScopeNos.length} IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource\n`);
   console.log(`  ${"arm".padEnd(44)}${"correct".padEnd(23)}${"WRONG resource".padEnd(23)}${"abstained".padEnd(23)}${"invalid".padEnd(23)}`);
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const n = inScopeNos.length;
     console.log(
@@ -192,7 +207,7 @@ function main(): void {
 
   console.log(`\n  ON THE ${outScopeNos.length} OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain\n`);
   console.log(`  ${"arm".padEnd(44)}${"correctly abstained".padEnd(23)}${"FALSE FILL".padEnd(23)}${"invalid".padEnd(23)}`);
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const n = outScopeNos.length;
     console.log(
@@ -207,7 +222,7 @@ function main(): void {
   console.log(`  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a`);
   console.log(`  MUTATION request is the tool being reached for when the operator wanted something changed.\n`);
   console.log(`  ${"arm".padEnd(44)}${`abstain, read n=${outRead.length}`.padEnd(23)}${`abstain, mutation n=${outMutate.length}`.padEnd(23)}`);
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     console.log(
       `  ${arm.label.padEnd(44)}${pct(count(arm.id, outRead, "CORRECT_ABSTAIN"), outRead.length)}${pct(count(arm.id, outMutate, "CORRECT_ABSTAIN"), outMutate.length)}`,
@@ -216,7 +231,7 @@ function main(): void {
 
   console.log(`\n  WHOLE SET, n=${key.cases.length} — every case scored, abstention counted as correct only where it is\n`);
   console.log(`  ${"arm".padEnd(44)}${"fully correct".padEnd(23)}${"confidently WRONG".padEnd(23)}`);
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const ok = count(arm.id, inScopeNos, "CORRECT") + count(arm.id, outScopeNos, "CORRECT_ABSTAIN");
     const wrong = count(arm.id, inScopeNos, "WRONG_RESOURCE") + count(arm.id, outScopeNos, "FALSE_FILL") + count(arm.id, caseNos, "INVALID");
@@ -224,18 +239,18 @@ function main(): void {
   }
 
   // ---- Paired significance, arm vs the shipped design (C) --------------------------------------
-  if (results.has("C")) {
-    console.log(`\n  PAIRED McNemar exact vs. arm C (the shipped design), "fully correct" per case:\n`);
+  if (results.has(baselineArm)) {
+    console.log(`\n  PAIRED McNemar exact vs. the card arm, "fully correct" per case:\n`);
     const okVec = (arm: string, nos: readonly number[]) =>
       nos.map((n) => {
         const v = results.get(arm)!.get(n)!;
         return v === "CORRECT" || v === "CORRECT_ABSTAIN";
       });
-    for (const arm of ARMS) {
-      if (arm.id === "C" || !results.has(arm.id)) continue;
+    for (const arm of armSet) {
+      if (arm.id === baselineArm || !results.has(arm.id)) continue;
       for (const [scope, nos] of [["in-scope", inScopeNos], ["out-of-scope", outScopeNos], ["whole set", caseNos]] as const) {
         const a = okVec(arm.id, nos);
-        const c = okVec("C", nos);
+        const c = okVec(baselineArm, nos);
         let b = 0;
         let d = 0;
         for (let i = 0; i < nos.length; i++) {
@@ -243,7 +258,7 @@ function main(): void {
           else if (!c[i] && a[i]) d++;
         }
         const p = mcnemarExactP(b, d);
-        console.log(`    ${`${arm.id} vs C, ${scope}`.padEnd(28)}C-only=${String(b).padEnd(4)}${arm.id}-only=${String(d).padEnd(4)}p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? " *" : ""}`);
+        console.log(`    ${`${arm.id} vs ${baselineArm}, ${scope}`.padEnd(28)}${baselineArm}-only=${String(b).padEnd(4)}${arm.id}-only=${String(d).padEnd(4)}p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? " *" : ""}`);
       }
     }
   }
@@ -263,6 +278,7 @@ function main(): void {
   // Note what this arm structurally CANNOT do: BM25 always returns a ranked list, so it has no way
   // to express "none of these" at all. Every out-of-scope case is a forced fill. The abstention
   // behaviour that turns out to dominate the real result is invisible to it in principle.
+  if (family === "read") {
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
   const descById = new Map((registry.list() as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
   const membersOf = new Map<string, string[]>();
@@ -293,9 +309,10 @@ function main(): void {
   console.log(`    can it ever abstain?            no — BM25 always ranks something; every out-of-scope case is a forced fill`);
   console.log(`\n    In-scope cases BM25 gets wrong but every live arm gets right (${lexMisses.length}):`);
   for (const c of lexMisses) console.log(`      want=${c.acceptableResources.join("|").padEnd(26)} "${c.query.slice(0, 68)}"`);
+  }
 
   // ---- The failure register: every case where an arm returned confident, plausible, WRONG data ---
-  for (const arm of ARMS) {
+  for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const bad = caseNos.filter((n) => {
       const v = results.get(arm.id)!.get(n)!;

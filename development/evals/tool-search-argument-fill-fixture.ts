@@ -478,6 +478,167 @@ ${queryBlock}
   writeFileSync(join(outDir, "afill-arm-E-fat-verb-enum.md"), verbPayload);
 
 
+  // ---- The DELETE family: the same three shapes, on a tool whose false fill destroys something ---
+  //
+  // `ADS-memory/reports/2026-09-08-content-delete-eval.md` §2.6 point 3 states the gap this whole
+  // eval exists to close, in its own words: A-concat's 100% "is scored a hit whenever the single
+  // `content_delete` entry ranks, with no requirement that the model would go on to fill the
+  // `resource` argument correctly — a cost this eval, like theirs, defers entirely to
+  // argument-filling and does not measure." These three arms measure it for that family.
+  //
+  // Why it needs its own arms rather than an inference from the read family: a false fill on a READ
+  // returns the wrong rows and wastes a turn. A false fill on a DELETE destroys the wrong thing. The
+  // read family's out-of-scope set is 75 mutation requests aimed at a read tool; the delete family's
+  // is 122 non-delete requests aimed at a delete tool — the direction that actually carries risk.
+  //
+  // Family and card keys are taken verbatim from that report's §1.2 scope calls and §4.1 card list,
+  // NOT re-derived here: the scope calls are its ruling to make, and re-deriving them would silently
+  // re-litigate a decision this measurement is supposed to take as given.
+  const DELETE_FAMILY: readonly (readonly [string, string])[] = [
+    ["content_post", "content_post_delete"],
+    ["media_asset", "media_trash_asset"],
+    ["comment", "comments_trash_comment"],
+    ["widget_instance", "widgets_trash_instance"],
+    ["theme_file", "theme_trash_file"],
+    ["redirect", "redirects_tombstone"],
+    ["collection_content_type", "collections_content_type_tombstone"],
+    ["webhook_subscription", "webhooks_delete_subscription"],
+  ];
+  const missingDelete = DELETE_FAMILY.filter(([, id]) => !preIds.has(id)).map(([, id]) => id);
+  if (missingDelete.length > 0) throw new Error(`delete-family ids absent from the catalog: ${missingDelete.join(", ")}`);
+
+  const deleteKeys = DELETE_FAMILY.map(([key]) => key);
+  const deleteCases = order.map((i, position) => {
+    const c = HELD_OUT_V2[i]!;
+    const truthIds = [c.expect, ...(c.alsoAcceptable ?? [])];
+    return {
+      caseNo: position + 1,
+      query: c.query,
+      expect: c.expect,
+      acceptableResources: [...new Set(DELETE_FAMILY.filter(([, id]) => truthIds.includes(id)).map(([key]) => key))].sort(),
+    };
+  });
+  writeFileSync(
+    join(outDir, "afill-delete-key.json"),
+    JSON.stringify(
+      {
+        shuffleSeed: SHUFFLE_SEED,
+        resources: deleteKeys,
+        cases: deleteCases.map((c) => ({
+          ...c,
+          alsoAcceptable: [],
+          acceptableShippedIds: [],
+          sourceIndex: 0,
+          // Classified from the ground-truth tool's own readOnly flag, exactly as the read family is
+          // — NOT hardcoded to "mutation". Hardcoding it made the split table read "read n=0", which
+          // is false: plenty of the 122 out-of-scope delete cases wanted a read.
+          truthKind: [c.expect].every((id) => readOnlyOf.get(id) === true) ? "read" : "mutation",
+        })),
+        affectedCount: deleteCases.filter((c) => c.acceptableResources.length > 0).length,
+      },
+      null,
+      2,
+    ),
+  );
+
+  const deleteBody = (label: (key: string) => string) =>
+    DELETE_FAMILY.map(([key, id]) => `- ${label(key)}: ${plainOf(id)}`).join("\n");
+  const deleteDescription = (label: (key: string) => string) =>
+    `Deletes, trashes, or tombstones one record this site holds. resource names WHICH kind of thing to ` +
+    `delete. What each resource covers, in that resource's own words:\n${deleteBody(label)}`;
+  const deleteSchema = (values: readonly string[]) =>
+    JSON.stringify(
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["resource", "id"],
+        properties: {
+          resource: { type: "string", enum: values, description: "Which kind of thing to delete." },
+          id: { type: "string", minLength: 1, description: "The record's own id." },
+        },
+      },
+      null,
+      2,
+    );
+
+  const deleteFatPayload = (arm: string, label: (key: string) => string) => `# Task — ${arm}
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call, and with what arguments.
+
+## Available tools
+
+You have exactly one tool, \`content_delete\`.
+
+Description:
+
+${deleteDescription(label)}
+
+inputSchema:
+
+\`\`\`json
+${deleteSchema(deleteKeys.map(label))}
+\`\`\`
+
+## Instructions
+
+- For EACH of the ${deleteCases.length} numbered requests below, output the single \`resource\` value you would pass
+  to \`content_delete\`.
+- The value MUST be one of the enum values in the schema, exactly as written.
+- If \`content_delete\` does not serve the request — the thing being asked for is not one of the
+  resources it deletes — output \`NONE\`. Do not force a value that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across the
+  enum values, and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <resource-or-NONE>
+2 <resource-or-NONE>
+...
+${deleteCases.length} <resource-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
+
+  writeFileSync(join(outDir, "afill-arm-F-delete-fat-noun.md"), deleteFatPayload("arm F (content_delete, bare-noun enum)", (k) => k));
+  writeFileSync(join(outDir, "afill-arm-G-delete-fat-verb.md"), deleteFatPayload("arm G (content_delete, verb-carrying enum)", (k) => `delete_${k}`));
+
+  const deleteCardPayload = `# Task — arm H (content_delete as 8 cards)
+
+You are the tool-calling model behind a website admin assistant. A site administrator types a request
+in their own words. Your ONLY job is to decide which tool you would call.
+
+## Available tools
+
+${DELETE_FAMILY.map(([key, id]) => `- content_delete.${key}: ${plainOf(id)}`).join("\n")}
+
+## Instructions
+
+- For EACH of the ${deleteCases.length} numbered requests below, output the single tool id you would call.
+- The id MUST be one of the ids listed above, exactly as written.
+- If none of the tools above serves the request — the thing being asked for is not one of them —
+  output \`NONE\`. Do not force a tool that does not fit.
+- Answer every request independently. Do not assume the answers are evenly distributed across tools,
+  and do not assume any particular number of them are \`NONE\`.
+- Output NOTHING but the answer lines, one per request, in this exact format:
+
+\`\`\`
+1 <tool-id-or-NONE>
+2 <tool-id-or-NONE>
+...
+${deleteCases.length} <tool-id-or-NONE>
+\`\`\`
+
+## Requests
+
+${queryBlock}
+`;
+  writeFileSync(join(outDir, "afill-arm-H-delete-cards.md"), deleteCardPayload);
+
+  console.log(`delete family: ${DELETE_FAMILY.length} resources; in-scope cases: ${deleteCases.filter((c) => c.acceptableResources.length > 0).length}`);
   console.log(`resources derived: ${resources.length} (verified identical to the shipped card set)`);
   console.log(`cases: ${cases.length}   in-scope for content_read: ${affected.length}   out-of-scope: ${cases.length - affected.length}`);
   console.log(`fat description words: ${fatDescription.split(/\s+/).filter(Boolean).length}`);

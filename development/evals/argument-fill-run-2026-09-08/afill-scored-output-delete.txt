@@ -1,0 +1,58 @@
+
+================================================================================================================
+ARGUMENT-FILL — does the model pass the resource that actually serves the request?
+================================================================================================================
+
+  cases                  130   (in-scope for content_read: 8, out-of-scope: 122)
+  resources              8   (verified identical to the shipped card set)
+  arms scored            F, G, H
+
+  ON THE 8 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
+
+  arm                                         correct                WRONG resource         abstained              invalid                
+  F  content_delete, BARE-NOUN enum           8/8 100% [68-100]      0/8 0% [0-32]          0/8 0% [0-32]          0/8 0% [0-32]          
+  G  content_delete, VERB-CARRYING enum       8/8 100% [68-100]      0/8 0% [0-32]          0/8 0% [0-32]          0/8 0% [0-32]          
+  H  content_delete as 8 cards                8/8 100% [68-100]      0/8 0% [0-32]          0/8 0% [0-32]          0/8 0% [0-32]          
+
+  ON THE 122 OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain
+
+  arm                                         correctly abstained    FALSE FILL             invalid                
+  F  content_delete, BARE-NOUN enum           121/122 99% [96-100]   1/122 1% [0-4]         0/122 0% [0-3]         
+  G  content_delete, VERB-CARRYING enum       121/122 99% [96-100]   1/122 1% [0-4]         0/122 0% [0-3]         
+  H  content_delete as 8 cards                121/122 99% [96-100]   1/122 1% [0-4]         0/122 0% [0-3]         
+
+  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own
+  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same
+  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a
+  MUTATION request is the tool being reached for when the operator wanted something changed.
+
+  arm                                         abstain, read n=55     abstain, mutation n=67 
+  F  content_delete, BARE-NOUN enum           55/55 100% [93-100]    66/67 99% [92-100]     
+  G  content_delete, VERB-CARRYING enum       55/55 100% [93-100]    66/67 99% [92-100]     
+  H  content_delete as 8 cards                55/55 100% [93-100]    66/67 99% [92-100]     
+
+  WHOLE SET, n=130 — every case scored, abstention counted as correct only where it is
+
+  arm                                         fully correct          confidently WRONG      
+  F  content_delete, BARE-NOUN enum           129/130 99% [96-100]   1/130 1% [0-4]         
+  G  content_delete, VERB-CARRYING enum       129/130 99% [96-100]   1/130 1% [0-4]         
+  H  content_delete as 8 cards                129/130 99% [96-100]   1/130 1% [0-4]         
+
+  PAIRED McNemar exact vs. the card arm, "fully correct" per case:
+
+    F vs H, in-scope            H-only=0   F-only=0   p=1.0000
+    F vs H, out-of-scope        H-only=0   F-only=0   p=1.0000
+    F vs H, whole set           H-only=0   F-only=0   p=1.0000
+    G vs H, in-scope            H-only=0   G-only=0   p=1.0000
+    G vs H, out-of-scope        H-only=0   G-only=0   p=1.0000
+    G vs H, whole set           H-only=0   G-only=0   p=1.0000
+
+  Arm F — 1 case(s) returning a confidently wrong resource:
+     75 FALSE_FILL      got=webhook_subscription               want=(abstain)                "stop sending that slack ping for now we're getting spammed"
+
+  Arm G — 1 case(s) returning a confidently wrong resource:
+     75 FALSE_FILL      got=delete_webhook_subscription        want=(abstain)                "stop sending that slack ping for now we're getting spammed"
+
+  Arm H — 1 case(s) returning a confidently wrong resource:
+     75 FALSE_FILL      got=content_delete.webhook_subscription want=(abstain)                "stop sending that slack ping for now we're getting spammed"
+

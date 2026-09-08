@@ -5,7 +5,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
 
   cases                  130   (in-scope for content_read: 34, out-of-scope: 96)
   resources              29   (verified identical to the shipped card set)
-  arms scored            A, A2, B, C, D, E
+  arms scored            A, A2, B, C, D, E, A2o
 
   ON THE 34 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
 
@@ -16,6 +16,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   C  29 cards — THE SHIPPED DESIGN            34/34 100% [90-100]    0/34 0% [0-10]         0/34 0% [0-10]         0/34 0% [0-10]         
   D  29 cards, BARE-NOUN ids (verb stripped)  34/34 100% [90-100]    0/34 0% [0-10]         0/34 0% [0-10]         0/34 0% [0-10]         
   E  fat entry, VERB-CARRYING enum            34/34 100% [90-100]    0/34 0% [0-10]         0/34 0% [0-10]         0/34 0% [0-10]         
+  A2-opus  = arm A2, replicated on Opus 5     34/34 100% [90-100]    0/34 0% [0-10]         0/34 0% [0-10]         0/34 0% [0-10]         
 
   ON THE 96 OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain
 
@@ -26,6 +27,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   C  29 cards — THE SHIPPED DESIGN            85/96 89% [81-93]      11/96 11% [7-19]       0/96 0% [0-4]          
   D  29 cards, BARE-NOUN ids (verb stripped)  86/96 90% [82-94]      10/96 10% [6-18]       0/96 0% [0-4]          
   E  fat entry, VERB-CARRYING enum            91/96 95% [88-98]      5/96 5% [2-12]         0/96 0% [0-4]          
+  A2-opus  = arm A2, replicated on Opus 5     10/96 10% [6-18]       86/96 90% [82-94]      0/96 0% [0-4]          
 
   OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own
   declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same
@@ -39,6 +41,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   C  29 cards — THE SHIPPED DESIGN            10/21 48% [28-68]      75/75 100% [95-100]    
   D  29 cards, BARE-NOUN ids (verb stripped)  11/21 52% [32-72]      75/75 100% [95-100]    
   E  fat entry, VERB-CARRYING enum            16/21 76% [55-89]      75/75 100% [95-100]    
+  A2-opus  = arm A2, replicated on Opus 5     6/21 29% [14-50]       4/75 5% [2-13]         
 
   WHOLE SET, n=130 — every case scored, abstention counted as correct only where it is
 
@@ -49,8 +52,9 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   C  29 cards — THE SHIPPED DESIGN            119/130 92% [85-95]    11/130 8% [5-15]       
   D  29 cards, BARE-NOUN ids (verb stripped)  120/130 92% [86-96]    10/130 8% [4-14]       
   E  fat entry, VERB-CARRYING enum            125/130 96% [91-98]    5/130 4% [2-9]         
+  A2-opus  = arm A2, replicated on Opus 5     44/130 34% [26-42]     86/130 66% [58-74]     
 
-  PAIRED McNemar exact vs. arm C (the shipped design), "fully correct" per case:
+  PAIRED McNemar exact vs. the card arm, "fully correct" per case:
 
     A vs C, in-scope            C-only=1   A-only=0   p=1.0000
     A vs C, out-of-scope        C-only=58  A-only=4   p=2.6e-13 *
@@ -67,6 +71,9 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
     E vs C, in-scope            C-only=0   E-only=0   p=1.0000
     E vs C, out-of-scope        C-only=0   E-only=6   p=0.0313 *
     E vs C, whole set           C-only=0   E-only=6   p=0.0313 *
+    A2o vs C, in-scope          C-only=0   A2o-only=0   p=1.0000
+    A2o vs C, out-of-scope      C-only=76  A2o-only=1   p=1.0e-21 *
+    A2o vs C, whole set         C-only=76  A2o-only=1   p=1.0e-21 *
 
   DETERMINISTIC LEXICAL BOUND — BM25 over the 29 resource documents alone, no other tools competing
   (this is the model of the fill decision that the "15-point scoring asymmetry" implicitly assumed)
@@ -246,4 +253,47 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
      53 FALSE_FILL      got=read_webhook_subscription          want=(abstain)                "did that zapier hookup actually go through the last few times "
      58 FALSE_FILL      got=read_newsletter_campaign           want=(abstain)                "did that email actually reach everyone or did some bounce"
     122 FALSE_FILL      got=read_backup_restore_point          want=(abstain)                "how expensive would it be to snapshot this site"
+
+  Arm A2o — 86 case(s) returning a confidently wrong resource:
+      1 FALSE_FILL      got=widget_instance                    want=(abstain)                "change the settings on that recent-posts widget, show 10 inste"
+      2 FALSE_FILL      got=backup_restore_point               want=(abstain)                "if we went back to last week's version what would we actually "
+      3 FALSE_FILL      got=comment_moderation_queue           want=(abstain)                "that comment is fine just let it thru already"
+      4 FALSE_FILL      got=menu                               want=(abstain)                "we need a whole new menu just for the footer links"
+      5 FALSE_FILL      got=identity_role                      want=(abstain)                "we made an access level by mistake nobody's using it get rid o"
+      6 FALSE_FILL      got=collection_entry                   want=(abstain)                "that banana bread recipe is ready, put it live"
+      7 FALSE_FILL      got=media_asset                        want=(abstain)                "that photo needs a description for screen readers and the capt"
+      9 FALSE_FILL      got=webhook_subscription               want=(abstain)                "whenever someone submits the contact form i want it to ping ou"
+     14 FALSE_FILL      got=collection_entry                   want=(abstain)                "add a new recipe for banana bread"
+     16 FALSE_FILL      got=redirect                           want=(abstain)                "turn off that old redirect we don't need people bounced there "
+     21 FALSE_FILL      got=newsletter_list                    want=(abstain)                "take that person off the vip list they asked to leave"
+     22 FALSE_FILL      got=newsletter_list                    want=(abstain)                "add this one person to our vip mailing list"
+     23 FALSE_FILL      got=widget_instance                    want=(abstain)                "drop that instagram widget right into the middle of this blog "
+     24 FALSE_FILL      got=database_pending_migration         want=(abstain)                "i heard our site's backend might not match what it's supposed "
+     25 FALSE_FILL      got=identity_policy                    want=(abstain)                "we don't need that permission bundle anymore and nobody's usin"
+     28 FALSE_FILL      got=form_definition                    want=(abstain)                "who has filled out the contact form this week i need to follow"
+     30 FALSE_FILL      got=newsletter_list                    want=(abstain)                "we don't use that old mailing list anymore put it away"
+     31 FALSE_FILL      got=backup_restore_point               want=(abstain)                "before i mess with the site's data can we just make sure we ha"
+     32 FALSE_FILL      got=newsletter_campaign                want=(abstain)                "change the subject line on that draft email we're working on"
+     36 FALSE_FILL      got=member                             want=(abstain)                "kick that member out they've been harassing other users"
+     37 FALSE_FILL      got=identity_policy                    want=(abstain)                "set up a permission bundle just for people who only handle the"
+     38 FALSE_FILL      got=content_post                       want=(abstain)                "rewrite the whole about page here's the new text"
+     39 FALSE_FILL      got=seo_entry_meta                     want=(abstain)                "is our pricing page actually optimized for google or are we mi"
+     43 FALSE_FILL      got=collection_content_type            want=(abstain)                "get rid of that events thing completely, we're never using it "
+     44 FALSE_FILL      got=database_pending_migration         want=(abstain)                "is anything currently wrong or stuck with our site's backups o"
+     46 FALSE_FILL      got=identity_role                      want=(abstain)                "we need a new kind of access level, something between editor a"
+     47 FALSE_FILL      got=identity_policy                    want=(abstain)                "give just this one person the newsletter permissions directly "
+     48 FALSE_FILL      got=taxonomy                           want=(abstain)                "put the holiday tag on this blog post"
+     50 FALSE_FILL      got=identity_user                      want=(abstain)                "our old marketing guy quit cut off his access to the dashboard"
+     51 FALSE_FILL      got=widget_region                      want=(abstain)                "put the recent-posts widget and the newsletter one both in the"
+     52 FALSE_FILL      got=collection_content_type            want=(abstain)                "actually bring the events thing back, we changed our mind"
+     53 FALSE_FILL      got=webhook_subscription               want=(abstain)                "did that zapier hookup actually go through the last few times "
+     54 FALSE_FILL      got=workspace                          want=(abstain)                "we just rebranded, the site's name and address still say the o"
+     57 FALSE_FILL      got=form_definition                    want=(abstain)                "add a phone number field to the quote request form"
+     58 FALSE_FILL      got=newsletter_campaign                want=(abstain)                "did that email actually reach everyone or did some bounce"
+     60 FALSE_FILL      got=redirect                           want=(abstain)                "that old-link-to-new-link thing needs to point somewhere else "
+     61 FALSE_FILL      got=content_post                       want=(abstain)                "swap which widgets show up in which spot inside that post with"
+     64 FALSE_FILL      got=redirect                           want=(abstain)                "is anybody actualy still using that old link we set up"
+     67 FALSE_FILL      got=content_post                       want=(abstain)                "we need a new blog post announcing the holiday hours"
+     68 FALSE_FILL      got=newsletter_list                    want=(abstain)                "who's actually signed up for our vip list"
+    … 46 more
 
