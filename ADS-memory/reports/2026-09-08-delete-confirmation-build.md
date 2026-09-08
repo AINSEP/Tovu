@@ -136,11 +136,46 @@ to `MCP_UI_REDEEMABLE_TOOL_IDS`, write RED-first tests modeled on
 - `MCP_UI_REDEEMABLE_TOOL_IDS` now carries: `content_post_delete` (pre-existing),
   `comments_trash_comment`, `widgets_trash_instance`.
 
+## Step 2 progress — theme, redirects, webhooks domains COMPLETE
+
+### `theme_trash_file`
+- No pre-dialog entity read: the dialog is built directly from the model's own `themeId`/`path`
+  input — that IS the whole truth a human needs to consent to (no DB row to look up). All existing
+  validation (theme lookup, already-trashed check, identity-lock, generated-readonly check) now runs
+  once, after confirmation, in the same place it always ran — nothing to re-validate for staleness
+  since it was never validated before the dialog existed in the first place.
+- Rewrote `assistant/__tests__/tool-registrations.themes-trash-restore.test.ts`: every setup call site
+  goes through a new `trashFile()` helper; added a dedicated confirmation-gate section. Full
+  regression (this file + `tool-registrations.themes.test.ts`): 46/46 pass.
+
+### `redirects_tombstone`
+- Pre-dialog read via `redirectRepo.findById`. `tombstoneRedirect` is idempotent (disabling twice is
+  a no-op), so no staleness re-check needed.
+- New file `redirects/__tests__/agent-tools.tombstone-confirmation.test.ts` (11 tests). One workflow
+  call site in `tool-registrations.redirects.test.ts` updated via a `tombstoneRule()` helper. Full
+  regression: 24/24 pass.
+
+### `webhooks_delete_subscription`
+- Pre-dialog read via `webhookSubscriptionRepo.findById`; dialog carries an UNCONDITIONAL warning
+  (this tool is classified `deletes-durable-state` precisely because no un-disable path exists
+  anywhere in the domain). `deleteSubscription` performs its own fresh existence lookup at write time
+  (no `expectedVersion` anywhere in its input — verified by reading it in full), so no separate
+  staleness re-check needed.
+- New file `webhooks/__tests__/agent-tools.delete-confirmation.test.ts` (11 tests). One workflow call
+  site in `tool-registrations.webhooks.test.ts` updated via a `deleteSubscriptionConfirmed()` helper.
+  Full regression: 24/24 pass.
+
+### All 6 Tovu-side domains (comments, widgets, theme, redirects, webhooks + pre-existing post)
+- `MCP_UI_REDEEMABLE_TOOL_IDS` now carries: `content_post_delete`, `comments_trash_comment`,
+  `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone`, `webhooks_delete_subscription`.
+- `npx tsc -p tsconfig.json --noEmit` from repo root: clean after every domain.
+
 ## Remaining work
 
-- 4 more domains: `theme_trash_file`, `redirects_tombstone`, `webhooks_delete_subscription` (Tovu-side),
-  `media_trash_asset`, `collections_content_type_tombstone` (Jini-side — need a package rebuild after
-  editing, per `reference_jini_dist_rebuild_required_for_tovu`).
+- 2 Jini-side domains: `media_trash_asset`, `collections_content_type_tombstone` — live in
+  `/Users/la/Programming/Jini/packages/cms/src/{media,content-types}/`. Need a Jini package rebuild
+  after editing (per `reference_jini_dist_rebuild_required_for_tovu` — rebuild only the `cms` package,
+  never `pnpm -r build`) before Tovu's symlinked `node_modules` picks up the change.
 - ADR-055 status update (DRAFT → accepted, per Leona, 2026-09-08), add to ADR-INDEX.md, note the
   ADR-053 DRAFT dependency as an open item for Leona (do NOT touch ADR-053 itself).
 - `check:boundaries` baseline re-check (must stay 19).
