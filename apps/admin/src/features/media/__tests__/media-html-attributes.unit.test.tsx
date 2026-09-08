@@ -181,3 +181,27 @@ describe("describeMediaHtmlAttributeError", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Attribute-NAME shape (2026-09-07 stored-XSS fix). Mirrors the identical cases added to
+// `@jini-ai/cms/media`'s `html-attributes.test.ts` — the two copies must agree, or this form shows
+// an operator a hint the server disagrees with.
+// ---------------------------------------------------------------------------
+
+it("isAllowedMediaHtmlAttributeName: rejects a data-/aria- name carrying tag-breaking characters", () => {
+  for (const name of ["data-x><svg/onload", "data-a/onerror", "aria-x<img", "data-x`y", "data-x>", "aria-]"]) {
+    expect(isAllowedMediaHtmlAttributeName(name), `${name} must not be allowed`).toBe(false);
+  }
+});
+
+it("isAllowedMediaHtmlAttributeName: still accepts every well-formed name the field exists for", () => {
+  for (const name of ["data-motion", "aria-label", "DATA-FOO", "loading", "decoding", "poster", "data-x-1"]) {
+    expect(isAllowedMediaHtmlAttributeName(name), `${name} must stay allowed`).toBe(true);
+  }
+});
+
+it("parseMediaHtmlAttributes: an attribute name that would close the tag is rejected, not parsed into the map", () => {
+  const result = parseMediaHtmlAttributes("data-x><svg/onload=alert(1)");
+  expect(result.attributes).toEqual({});
+  expect(result.error).toEqual({ reason: "disallowed-name", attribute: "data-x><svg/onload" });
+});

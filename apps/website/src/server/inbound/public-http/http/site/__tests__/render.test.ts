@@ -2676,3 +2676,47 @@ test("renderHtmlPageBody: an unresolvable slug (typo, no matching entry) degrade
   const out = renderHtmlPageBody(html, new Map([["widget", new Map()]]));
   assert.equal(out, renderWidgetIr({ componentId: "widget-placeholder", props: {} }));
 });
+
+// ---------------------------------------------------------------------------
+// htmlAttributes attribute-NAME injection (2026-09-07 audit, claim #1).
+// `formatHtmlAttributes` interpolates the attribute NAME raw — only the value is escaped — and the
+// allowlist accepted ANY name starting with `data-`/`aria-`, while the tokenizer's name class
+// (`[^\s="']+`) permits `<`, `>` and `/`. A stored `data-x><svg/onload=alert(1)` therefore closed
+// the `<img>` and opened a live `<svg onload>` on the public page: stored XSS.
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: an htmlAttributes name carrying '>' cannot break out of the <img> tag and open a live element (stored XSS)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: "data-x><svg/onload=alert(1)" }]])
+  );
+  assert.doesNotMatch(html, /<svg/i, "an attribute name must never be able to terminate the tag and start a new element");
+  assert.doesNotMatch(html, /onload/i, "no event handler may reach the emitted markup");
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: an htmlAttributes name outside the [a-z][a-z0-9-]* shape is rejected wholesale, not emitted raw", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  for (const payload of ['data-a/onerror="alert(1)"', 'aria-x<img', 'data-"x"="y"', "data-x`y=1"]) {
+    const html = renderDocNode(
+      doc,
+      undefined,
+      new Map([["public", 3]]),
+      new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: payload }]])
+    );
+    assert.equal(
+      html,
+      '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">',
+      `payload ${JSON.stringify(payload)} must fail closed`
+    );
+  }
+});

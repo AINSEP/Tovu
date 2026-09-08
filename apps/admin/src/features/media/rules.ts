@@ -134,15 +134,33 @@ export const MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES = [
   "poster",
 ] as const;
 
-/** Whether `name` is on the allowlist — an exact match against
- *  {@link MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES}, or a `data-`/`aria-` prefix (both open-ended
+/**
+ * The shape EVERY accepted attribute name must have, checked before allowlist membership
+ * (2026-09-07 stored-XSS fix; keep identical in `@jini-ai/cms/media`'s `html-attributes.ts` — see
+ * that file's copy of this comment for the full incident).
+ *
+ * The `data-`/`aria-` families below are open-ended by design — no fixed suffix list — so the
+ * prefix check alone accepted whatever characters {@link HTML_ATTRIBUTE_TOKEN}'s name class
+ * (`[^\s="']+`, which excludes only whitespace, `=` and quotes) let through. `<`, `>` and `/` are
+ * all legal in that class, and the server renderer templating a name into ` name="value"` escapes
+ * only the VALUE — so a stored `data-x><svg/onload=alert(1)` closed the `<img>` and opened a live
+ * `<svg onload>` on the public page. Constraining the NAME to the characters a real HTML attribute
+ * name can contain is what makes "the value is escaped" sufficient.
+ */
+const MEDIA_HTML_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+/** Whether `name` is on the allowlist — a well-formed attribute name
+ *  ({@link MEDIA_HTML_ATTRIBUTE_NAME_PATTERN}) that is either an exact match against
+ *  {@link MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES} or carries a `data-`/`aria-` prefix (both open-ended
  *  families with no fixed suffix list). Case-insensitive: HTML attribute names are themselves
  *  case-insensitive, and an operator typing `DATA-FOO` should not slip past a lowercase-only check.
  *
- * @complexity O(1) — one prefix check, one fixed-length array lookup.
+ * @complexity O(n) in the name's length (one anchored regex test), then O(1) — one prefix check,
+ * one fixed-length array lookup.
  */
 export function isAllowedMediaHtmlAttributeName(name: string): boolean {
   const lower = name.toLowerCase();
+  if (!MEDIA_HTML_ATTRIBUTE_NAME_PATTERN.test(lower)) return false;
   if (lower.startsWith("data-") || lower.startsWith("aria-")) return true;
   return (MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES as readonly string[]).includes(lower);
 }
