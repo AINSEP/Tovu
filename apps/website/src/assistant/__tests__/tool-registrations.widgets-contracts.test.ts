@@ -83,10 +83,16 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
+// widgets_get_instance/widgets_list_instances merge into content_read.widget_instance, and
+// widgets_get_region/widgets_list_regions merge into content_read.widget_region (2026-09-08, see
+// assistant/content-read-tool.ts). Neither collapsed id starts with "widgets_", so it is listed
+// here explicitly rather than by prefix.
+const WIDGETS_COLLAPSED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(["content_read.widget_instance", "content_read.widget_region"]);
+
 function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((r) => r.descriptor.id.startsWith("widgets_"))
+      .filter((r) => r.descriptor.id.startsWith("widgets_") || WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
@@ -142,14 +148,15 @@ async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: nu
 
 test("exactly the 12 safe widgets operations are wired — no invented purge/force-delete tool", () => {
   const { deps } = fakeRouteDeps();
+  // widgets_get_instance/widgets_list_instances -> content_read.widget_instance,
+  // widgets_get_region/widgets_list_regions -> content_read.widget_region (2026-09-08 collapse) —
+  // still 12 wired ids, 2 of them merged pairs under their new name.
   assert.deepEqual([...widgetsRegistrations(deps).keys()].sort(), [
+    "content_read.widget_instance",
+    "content_read.widget_region",
     "widgets_bind_region",
     "widgets_create_instance",
-    "widgets_get_instance",
-    "widgets_get_region",
     "widgets_insert_embed",
-    "widgets_list_instances",
-    "widgets_list_regions",
     "widgets_remove_embed",
     "widgets_reorder_embeds",
     "widgets_set_region_placements",
@@ -179,7 +186,10 @@ test("no wired widgets tool is named or claims a purge/force-delete of a widget 
 
 test("every wired Widgets registration publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
+  // Collapsed content_read.* ids excluded: their catalog entry lives in assistant/content-read-tool.ts,
+  // not widgetsAgentToolCatalog — already cross-checked against ITS OWN catalog at construction time.
   for (const [id, registration] of widgetsRegistrations(deps)) {
+    if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -249,7 +259,7 @@ test("widgets_get_instance folds in the where-used disclosure, sourced from the 
     executionContext({ regionKey: "footer", baseVersion: bound.area.version, placements: [{ widgetEntryId: instance.id, enabled: true }] }),
   );
 
-  const read = (await wired("widgets_get_instance", deps).handler(executionContext({ widgetInstanceId: instance.id }))) as {
+  const read = (await wired("content_read.widget_instance", deps).handler(executionContext({ widgetInstanceId: instance.id }))) as {
     whereUsed: { count: number; references: Array<{ kind: string }> };
   };
   assert.equal(read.whereUsed.count, 1);
@@ -263,6 +273,7 @@ test("widgets_get_instance folds in the where-used disclosure, sourced from the 
 test("the real Widgets catalog and tool-registrations' independent classification agree for all 12 wired tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of widgetsRegistrations(deps).keys()) {
+    if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -277,6 +288,7 @@ test("a Widgets catalog entry cannot downgrade its own risk — declaring sideEf
 test("no wired Widgets tool carries a confirmation-requiring actor-class rule", () => {
   const { deps } = fakeRouteDeps();
   for (const id of widgetsRegistrations(deps).keys()) {
+    if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
     assert.notEqual(catalogEntry(id).actorClassRule, "confirmer-must-equal-own-delegatedBy");
   }
 });
@@ -310,7 +322,7 @@ test("workflow: create a widget instance, bind a region, place the widget into i
 
   // Step 4: read the region back — the placement must resolve with the SAME widget instance's own
   // title/type, and must not be flagged broken (it is active and really is a 'text' widget).
-  const region = (await wired("widgets_get_region", deps).handler(executionContext({ regionKey: "header" }))) as {
+  const region = (await wired("content_read.widget_region", deps).handler(executionContext({ regionKey: "header" }))) as {
     area: { version: number };
     placements: Array<{ placementId: string; widgetEntryId: string; widgetTitle: string | null; widgetType: string | null; broken: boolean; enabled: boolean }>;
   };
@@ -331,7 +343,7 @@ test("workflow: create a widget instance, bind a region, place the widget into i
   };
   assert.equal(trashed.instance.status, "trash");
 
-  const diagnosis = (await wired("widgets_get_instance", deps).handler(executionContext({ widgetInstanceId: created.instance.id }))) as {
+  const diagnosis = (await wired("content_read.widget_instance", deps).handler(executionContext({ widgetInstanceId: created.instance.id }))) as {
     whereUsed: { count: number };
   };
   assert.equal(diagnosis.whereUsed.count, 1, "the region placement from step 3 still counts as a reference even after the instance is trashed");

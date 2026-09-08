@@ -77,16 +77,33 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 
 const WIDGETS_TOOL_IDS: ReadonlySet<string> = new Set(widgetsAgentToolCatalog.map((tool) => tool.name));
 
+// widgets_get_instance/widgets_list_instances -> content_read.widget_instance,
+// widgets_get_region/widgets_list_regions -> content_read.widget_region (2026-09-08 collapse, see
+// assistant/content-read-tool.ts). `EXPECTED_PERMISSIONS`/`toolInputs`/`catalogEntry` below stay
+// keyed by the OLD id (that is where widgetsAgentToolCatalog's own permission declaration still
+// lives, and the collapsed card copies it verbatim) — only the id actually CALLED changes.
+const WIDGETS_COLLAPSED_ID: Readonly<Record<string, string>> = {
+  widgets_get_instance: "content_read.widget_instance",
+  widgets_list_instances: "content_read.widget_instance",
+  widgets_get_region: "content_read.widget_region",
+  widgets_list_regions: "content_read.widget_region",
+};
+
+function widgetsWiredId(toolId: string): string {
+  return WIDGETS_COLLAPSED_ID[toolId] ?? toolId;
+}
+
 function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
   return new Map(
     buildAssistantToolRegistrations(deps)
-      .filter((r) => WIDGETS_TOOL_IDS.has(r.descriptor.id))
+      .filter((r) => WIDGETS_TOOL_IDS.has(r.descriptor.id) || Object.values(WIDGETS_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
-  const found = widgetsRegistrations(deps).get(toolId);
+  const resolvedId = widgetsWiredId(toolId);
+  const found = widgetsRegistrations(deps).get(resolvedId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -146,8 +163,15 @@ async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string;
 test("every wired widgets tool has an input fixture here — wiring one without adding it fails rather than going untested", async () => {
   const { deps } = fakeRouteDeps();
   const wiredIds = [...widgetsRegistrations(deps).keys()].sort();
-  assert.deepEqual(wiredIds, widgetsAgentToolCatalog.map((tool) => tool.name).sort());
-  assert.equal(wiredIds.length, 12);
+  assert.deepEqual(
+    wiredIds,
+    [...new Set(widgetsAgentToolCatalog.map((tool) => widgetsWiredId(tool.name)))].sort(),
+    "every catalog entry must be wired (under its collapsed id where one applies), and nothing else",
+  );
+  // 10, not 12: the 2026-09-08 collapse merges widgets_get_instance/widgets_list_instances into one
+  // wired id (content_read.widget_instance) and widgets_get_region/widgets_list_regions into another
+  // (content_read.widget_region) — same 12 catalog entries, 10 distinct WIRED ids.
+  assert.equal(wiredIds.length, 10);
 });
 
 // ---------------------------------------------------------------------------
@@ -198,7 +222,7 @@ for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
     const fixture = await seedFixture(deps);
     authorizeCalls.length = 0;
 
-    await wired(toolId, deps).handler(executionContext(toolInputs(fixture)[toolId]));
+    await wired(widgetsWiredId(toolId), deps).handler(executionContext(toolInputs(fixture)[toolId]));
 
     const matching = authorizeCalls.filter((call) => call.permission === EXPECTED_PERMISSIONS[toolId]);
     assert.ok(matching.length >= 1, `expected at least one authorize() call for '${EXPECTED_PERMISSIONS[toolId]}', got calls: ${JSON.stringify(authorizeCalls)}`);
@@ -223,7 +247,7 @@ for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
     }
 
     await assert.rejects(
-      () => wired(toolId, deps).handler(executionContext(toolInputs(fixture)[toolId])),
+      () => wired(widgetsWiredId(toolId), deps).handler(executionContext(toolInputs(fixture)[toolId])),
       (error: unknown) => {
         assert.ok(error instanceof WidgetForbiddenError, `expected WidgetForbiddenError, got ${String(error)}`);
         return true;
