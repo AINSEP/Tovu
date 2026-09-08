@@ -156,6 +156,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "comments_trash_comment",
   "widgets_trash_instance",
   "theme_trash_file",
+  "redirects_tombstone",
 ]);
 
 /**
