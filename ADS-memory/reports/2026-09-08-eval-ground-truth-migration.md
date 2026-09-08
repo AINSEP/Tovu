@@ -8,6 +8,11 @@
 > live-scored suite. Everything else in this report stands unchanged. The per-suite score table below
 > still shows my original (now-reverted) numbers for that one suite, with the reversion called out
 > inline rather than rewritten, so the record of what was measured and why it changed stays intact.
+>
+> **2026-09-08, later still — QUARANTINED per coordinator ruling.** A fresh re-capture (the
+> retire-and-recapture option from "Revision" below) needs owner-authorized live-CLI spend and was NOT
+> run. Instead `tool-search-caller2-score-captures.ts` was changed to stop printing a headline
+> percentage at all and print a loud quarantine notice in its place — see the "Quarantine" section.
 
 # 2026-09-08 — Eval ground truth migration: retired read-tool ids re-key onto their `content_read` card
 
@@ -101,7 +106,7 @@ completeness:**
 | 7 | `tool-search-hyde-canary.eval.ts` | `score()` |
 | 8 | `tool-search-rerank-ceiling.eval.ts` | inline acceptable-set |
 | 9 | `tool-search-hierarchical-canary.eval.ts` | `wantedDomains` (domain-routing, see judgment call) |
-| 10 | `tool-search-caller2-score-captures.ts` | acceptable-set built from the historical capture's `expectedToolId` — **REVERTED, see "Revision" below** |
+| 10 | `tool-search-caller2-score-captures.ts` | acceptable-set built from the historical capture's `expectedToolId` — **REVERTED, then QUARANTINED, see "Revision" and "Quarantine" below** |
 | 11 | `tool-search-quality.eval.ts` | `score()` (shared) + a second hand-inlined duplicate of it |
 | 12 | `tool-search-export-corpus.ts` | `expect`/`alsoAcceptable` resolved before writing the external JSON export |
 
@@ -157,7 +162,7 @@ deleted immediately after the run.
 | `tool-search-hyde-canary.eval.ts` (n=20) | raw top-1 45% (9) -> HyDE top-1 55% (11), found 80%->100% | raw top-1 45% (9, unchanged) -> HyDE top-1 **65%** (13), found 80%->100% |
 | `tool-search-rerank-ceiling.eval.ts` (n=20) | top-1 45% (9); recall@10 ceiling 80% (16); 4/20 unreachable | **unchanged**: top-1 45% (9); ceiling 80% (16); 4/20 unreachable |
 | `tool-search-scaling-curve.eval.ts` (sizes 131/250/500/1000) | shipped-kw top-1 stable 39-44%; HyDE top-1 stable 59-61% | shipped-kw top-1 stable **55-58%**; HyDE top-1 stable **77-80%** — same shape, all four sizes |
-| `tool-search-caller2-score-captures.ts` (n=25, real captured queries) | top-1 **20%** (5/25) | **REVERTED — back to top-1 20% (5/25)**, see "Revision" section below; the 60%/88%/92% figures below were this file's numbers before the coordinator's ruling, kept for the record |
+| `tool-search-caller2-score-captures.ts` (n=25, real captured queries) | top-1 **20%** (5/25) | **REVERTED, then QUARANTINED — no percentage printed at all**, see "Revision" and "Quarantine" sections below; the 60%/88%/92% figures below were this file's numbers before the coordinator's ruling, kept for the record only, not reproducible from the file as it stands now |
 | `tool-search-quality.eval.ts` (n=25 primary / n=20 held-out) | primary top-1 84% (21/25), found 88% (22/25); held-out top-1 45% (9/20), found 80% (16/20) | primary top-1 **96%** (24/25), found **100%** (25/25); held-out **unchanged** 45%/80% — no false miss in this held-out subset |
 | `tool-search-export-corpus.ts` | exports 170 tools/130 cases; **0 checked for resolvability by this file itself** (downstream consumer's problem) | exports 170 tools/130 cases; **0/130 `expect` ids unresolvable against the exported `tools` list** (verified directly: previously would have been 36) |
 
@@ -361,6 +366,38 @@ that no longer exist. Options, not a recommendation:
    either archive it or replace it with a fresh capture run against the current catalog (the harness
    that produces captures, `tool-search-caller2-compliance-harness.ts`, is untouched and still works —
    it just costs ~16 minutes of live local-CLI time per run).
+
+## Quarantine — coordinator's ruling on the design problem above
+
+The coordinator ruled option 3 in principle (retire and re-capture) but explicitly declined to run the
+harness tonight — a fresh capture is ~16 minutes of real billed local-CLI API calls Leona has not
+authorized, and today's load (>300 for stretches) would freeze today's contention into the fixture. That
+spend is queued in a batch of decisions for her, not made here. Option 1 (leave it silently frozen at
+20%) was ruled out as the worst choice: an unlabelled 20% sitting in this repo's output is exactly how a
+fabricated tool-search accuracy figure survived unnoticed for a month elsewhere in this codebase
+(`2026-09-08-parent-tool-read-eval.md` §0.1) — a number nobody knows is stale gets quoted as if it
+weren't.
+
+**What was done instead: quarantine the suite so its output cannot be misread as a measurement**, per
+the coordinator's explicit instruction. `tool-search-caller2-score-captures.ts` now:
+- Carries a loud `@file` header stating the quarantine, the date (2026-09-08), the 72% figure, why a
+  capture going stale is a data problem rather than a scorer bug, and what unblocks it (a fresh capture,
+  owner-authorized).
+- Prints a banner at the START of its run pointing to the notice at the end, before the per-case detail.
+- Tags every per-case line whose `expectedToolId` is a collapse-retired id with `[STALE: collapse-
+  retired id]` (computed live via `RETIRED_READ_TOOL_TO_CARD.has()` — a membership check for the
+  warning label only, never used to resolve/re-key the `acceptable` set the score is computed from, so
+  this does not reintroduce the reverted re-key).
+- **No longer prints a top-1/top-3/top-5/found@10 percentage table at all.** Removed the aggregate
+  `hits`/`CUTOFFS` computation entirely rather than compute-then-suppress. In its place, a QUARANTINE
+  NOTICE block computes and states the live `retiredCount`/`retiredPct` (not hardcoded — re-derives 18
+  of 25, 72%, from `RETIRED_READ_TOOL_TO_CARD` and the capture data on every run, so it cannot silently
+  drift stale itself) and says explicitly: "Do NOT quote a number from this run as a retrieval
+  measurement." Verified by running it fresh: the printed output contains no `X/25 (Y%)`-shaped line
+  anywhere — a number that isn't printed cannot be misquoted.
+
+The capture file itself, `tool-search-caller2-compliance-captures-2026-08-05.ts`, remains completely
+untouched — the quarantine lives entirely in the scorer's presentation, not in the frozen data.
 
 ## Verification
 
