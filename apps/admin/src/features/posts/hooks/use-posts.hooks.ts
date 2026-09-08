@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
@@ -43,6 +44,17 @@ import type { PostsListPort } from "./posts-list-port.hooks";
  * `setPosts` on success rather than resetting to `null` first, unchanged from before this pass, is
  * what keeps the table rendered across a background refresh instead of flashing back to a loading
  * state on every agent write.
+ *
+ * `settlement` (2026-09-07 fix, `useSettlementGeneration` — same shape `use-pages.hooks.ts`'s twin
+ * `load` got the same day, and `use-sites.hooks.ts`'s `activate`/`use-themes.hooks.ts`'s
+ * `activate`/`download` before it): giving `load` a SECOND trigger (the content-refresh
+ * subscription, above) means two `listPosts()` calls can be in flight at once with no ordering
+ * guarantee on their responses — two assistant writes landing back to back each publish their own
+ * refresh notification. Without this guard, whichever request happened to resolve LAST won
+ * regardless of which one was issued last, so a slower, earlier (now-stale) response could
+ * overwrite the newer list an operator is already looking at. Minted synchronously at the top of
+ * `load`, before the request starts, so two calls issued in the same tick each observe the other's
+ * claim; checked before `setPosts` so a superseded response is dropped instead of applied.
  */
 
 export interface PostsController {
@@ -94,17 +106,32 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+  const settlement = useSettlementGeneration();
 
   const load = useCallback(() => {
+    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
+    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
+    // see the other's claim.
+    const generation = settlement.next();
     port
       .listPosts()
-      .then((r) => setPosts(r.posts.map((entry) => entry.post)))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load posts"));
-    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
-    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-    // nothing about when this callback's identity changes.
+      .then((r) => {
+        // Superseded by a newer `load()` started after this one (mount vs. a content-refresh
+        // notification, or two notifications back to back) — that later call owns `posts` now, and
+        // applying this stale result would let whichever request happens to settle LAST win
+        // regardless of which one was issued last. See this hook's own header.
+        if (!settlement.isCurrent(generation)) return;
+        setPosts(r.posts.map((entry) => entry.post));
+      })
+      .catch((e) => {
+        if (!settlement.isCurrent(generation)) return;
+        setError(e instanceof Error ? e.message : "failed to load posts");
+      });
+    // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: both are
+    // function-scoped values ESLint's exhaustive-deps rule can see, referentially stable in
+    // production, so this changes nothing about when this callback's identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port]);
+  }, [port, settlement]);
 
   useEffect(() => {
     load();

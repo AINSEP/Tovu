@@ -281,6 +281,40 @@ describe("usePosts — content refresh bus", () => {
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
+
+  it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+
+    // Two assistant writes land back to back, each publishing its own content-refresh
+    // notification — two overlapping `listPosts()` calls with no ordering guarantee on responses.
+    let resolveFirst!: (v: { posts: { post: AdminPost }[] }) => void;
+    let resolveSecond!: (v: { posts: { post: AdminPost }[] }) => void;
+    vi.spyOn(port, "listPosts")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    act(() => {
+      publishContentRefresh();
+      publishContentRefresh();
+    });
+
+    // The SECOND (more recent) request settles first, with the newer list.
+    await act(async () => {
+      resolveSecond({ posts: [{ post: POST }, { post: TRANSLATED_POST }] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.posts).toEqual([POST, TRANSLATED_POST]));
+
+    // The FIRST (now-stale) request finally settles. It must not resurrect the older list.
+    await act(async () => {
+      resolveFirst({ posts: [{ post: POST }] });
+      await Promise.resolve();
+    });
+
+    expect(result.current.posts).toEqual([POST, TRANSLATED_POST]);
+  });
 });
 
 // `usePostRowMenuHandleMap` used to be a `useMemo` inline in `Posts.tsx`'s own component body
