@@ -3,8 +3,8 @@
 ARGUMENT-FILL — does the model pass the resource that actually serves the request?
 ================================================================================================================
 
-  cases                  130   (in-scope for content_read: 8, out-of-scope: 122)
-  resources              8   (verified identical to the shipped card set)
+  cases                  130   (scored 130: in-scope 8, out-of-scope 122)
+  resources              8
   arms scored            F, G, H
 
   ON THE 8 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
@@ -31,7 +31,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   G  content_delete, VERB-CARRYING enum       55/55 100% [93-100]    66/67 99% [92-100]     
   H  content_delete as 8 cards                55/55 100% [93-100]    66/67 99% [92-100]     
 
-  WHOLE SET, n=130 — every case scored, abstention counted as correct only where it is
+  SCORED SET, n=130 — abstention counted as correct only where it is
 
   arm                                         fully correct          confidently WRONG      
   F  content_delete, BARE-NOUN enum           129/130 99% [96-100]   1/130 1% [0-4]         
@@ -42,10 +42,10 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
 
     F vs H, in-scope            H-only=0   F-only=0   p=1.0000
     F vs H, out-of-scope        H-only=0   F-only=0   p=1.0000
-    F vs H, whole set           H-only=0   F-only=0   p=1.0000
+    F vs H, scored set          H-only=0   F-only=0   p=1.0000
     G vs H, in-scope            H-only=0   G-only=0   p=1.0000
     G vs H, out-of-scope        H-only=0   G-only=0   p=1.0000
-    G vs H, whole set           H-only=0   G-only=0   p=1.0000
+    G vs H, scored set          H-only=0   G-only=0   p=1.0000
 
   Arm F — 1 case(s) returning a confidently wrong resource:
      75 FALSE_FILL      got=webhook_subscription               want=(abstain)                "stop sending that slack ping for now we're getting spammed"

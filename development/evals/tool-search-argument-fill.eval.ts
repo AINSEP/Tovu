@@ -92,7 +92,7 @@ function toResource(answer: string, resources: readonly string[]): { resource: s
   // `delete_content_post`). Normalizing them to the bare key is what makes the arms comparable —
   // scoring an arm against its own spelling instead would report a 100% invalid rate, which is what
   // this function's first version did for the delete family.
-  const PREFIXES = ["content_read.", "content_delete.", "read_", "delete_"];
+  const PREFIXES = ["content_read.", "content_delete.", "content_duplicate.", "read_", "delete_", "duplicate_"];
   const stripped = PREFIXES.reduce((acc, prefix) => (acc.startsWith(prefix) ? acc.slice(prefix.length) : acc), raw);
   return { resource: stripped, unknown: !resources.includes(stripped) };
 }
@@ -168,20 +168,39 @@ const ADVERSARIAL_ARMS = [
   { id: "L", file: "afill-answers-L.txt", label: "L  content_delete as 8 cards (adversarial)" },
 ] as const;
 
+/** The SHIPPED `content_duplicate` schema against the §3 verb-carrying-enum fix, same 156 cases. */
+const DUPLICATE_ARMS = [
+  { id: "M", file: "afill-answers-M.txt", label: "M  content_duplicate — THE SHIPPED SCHEMA (free string)" },
+  { id: "N", file: "afill-answers-N.txt", label: "N  content_duplicate, verb-carrying enum (the fix)" },
+] as const;
+
 function main(): void {
   const dir = process.argv[2];
   if (!dir) throw new Error("usage: tsx tool-search-argument-fill.eval.ts <fixture-dir> [read|delete]");
-  const family = (process.argv[3] ?? "read") as "read" | "delete" | "adversarial";
-  const KEY_FILE = { read: "afill-key.json", delete: "afill-delete-key.json", adversarial: "afill-adversarial-key.json" } as const;
+  const family = (process.argv[3] ?? "read") as "read" | "delete" | "adversarial" | "duplicate";
+  const KEY_FILE = {
+    read: "afill-key.json",
+    delete: "afill-delete-key.json",
+    adversarial: "afill-adversarial-key.json",
+    duplicate: "afill-duplicate-key.json",
+  } as const;
   const key = JSON.parse(readFileSync(join(dir, KEY_FILE[family]), "utf8")) as Key;
   const caseNos = key.cases.map((c) => c.caseNo);
   const byNo = new Map(key.cases.map((c) => [c.caseNo, c]));
-  const inScopeNos = key.cases.filter((c) => c.acceptableResources.length > 0).map((c) => c.caseNo);
-  const outScopeNos = key.cases.filter((c) => c.acceptableResources.length === 0).map((c) => c.caseNo);
+  /** Cases deliberately excluded from scoring. The `duplicate` family carries an AMBIGUOUS bucket —
+   *  queries readable either way — and scoring them would let the author choose the result by choosing
+   *  a reading. They are reported separately instead, and must not sit in any denominator. */
+  const unscored = new Set(key.cases.filter((c) => (c as KeyCase & { bucket?: string }).bucket === "ambiguous").map((c) => c.caseNo));
+  const scoredCases = key.cases.filter((c) => !unscored.has(c.caseNo));
+  const inScopeNos = scoredCases.filter((c) => c.acceptableResources.length > 0).map((c) => c.caseNo);
+  const outScopeNos = scoredCases.filter((c) => c.acceptableResources.length === 0).map((c) => c.caseNo);
 
-  const armSet: readonly { id: string; file: string; label: string }[] =
-    family === "delete" ? DELETE_ARMS : family === "adversarial" ? ADVERSARIAL_ARMS : ARMS;
-  const baselineArm = family === "delete" ? "H" : family === "adversarial" ? "L" : "C";
+  const ARM_SETS = { read: ARMS, delete: DELETE_ARMS, adversarial: ADVERSARIAL_ARMS, duplicate: DUPLICATE_ARMS } as const;
+  const BASELINE_ARM = { read: "C", delete: "H", adversarial: "L", duplicate: "M" } as const;
+  const armSet: readonly { id: string; file: string; label: string }[] = ARM_SETS[family];
+  const baselineArm: string = BASELINE_ARM[family];
+
+  const scoredNos = scoredCases.map((c) => c.caseNo);
 
   const results = new Map<string, Map<number, Verdict>>();
   const present: string[] = [];
@@ -198,8 +217,8 @@ function main(): void {
 
   const bar = "=".repeat(112);
   console.log(`\n${bar}\nARGUMENT-FILL — does the model pass the resource that actually serves the request?\n${bar}\n`);
-  console.log(`  cases                  ${key.cases.length}   (in-scope for content_read: ${inScopeNos.length}, out-of-scope: ${outScopeNos.length})`);
-  console.log(`  resources              ${key.resources.length}   (verified identical to the shipped card set)`);
+  console.log(`  cases                  ${key.cases.length}   (scored ${scoredNos.length}: in-scope ${inScopeNos.length}, out-of-scope ${outScopeNos.length}${unscored.size > 0 ? `; ${unscored.size} unscored` : ""})`);
+  console.log(`  resources              ${key.resources.length}${family === "read" ? "   (verified identical to the shipped card set)" : ""}`);
   console.log(`  arms scored            ${present.join(", ")}\n`);
 
   const count = (arm: string, nos: readonly number[], v: Verdict) => nos.filter((n) => results.get(arm)!.get(n) === v).length;
@@ -225,8 +244,8 @@ function main(): void {
     );
   }
 
-  const outRead = key.cases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "read").map((c) => c.caseNo);
-  const outMutate = key.cases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "mutation").map((c) => c.caseNo);
+  const outRead = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "read").map((c) => c.caseNo);
+  const outMutate = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "mutation").map((c) => c.caseNo);
   console.log(`\n  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own`);
   console.log(`  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same`);
   console.log(`  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a`);
@@ -239,13 +258,13 @@ function main(): void {
     );
   }
 
-  console.log(`\n  WHOLE SET, n=${key.cases.length} — every case scored, abstention counted as correct only where it is\n`);
+  console.log(`\n  SCORED SET, n=${scoredNos.length}${unscored.size > 0 ? ` (${unscored.size} ambiguous cases excluded, reported below)` : ""} — abstention counted as correct only where it is\n`);
   console.log(`  ${"arm".padEnd(44)}${"fully correct".padEnd(23)}${"confidently WRONG".padEnd(23)}`);
   for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const ok = count(arm.id, inScopeNos, "CORRECT") + count(arm.id, outScopeNos, "CORRECT_ABSTAIN");
-    const wrong = count(arm.id, inScopeNos, "WRONG_RESOURCE") + count(arm.id, outScopeNos, "FALSE_FILL") + count(arm.id, caseNos, "INVALID");
-    console.log(`  ${arm.label.padEnd(44)}${pct(ok, key.cases.length)}${pct(wrong, key.cases.length)}`);
+    const wrong = count(arm.id, inScopeNos, "WRONG_RESOURCE") + count(arm.id, outScopeNos, "FALSE_FILL") + count(arm.id, scoredNos, "INVALID");
+    console.log(`  ${arm.label.padEnd(44)}${pct(ok, scoredNos.length)}${pct(wrong, scoredNos.length)}`);
   }
 
   // ---- Paired significance, arm vs the shipped design (C) --------------------------------------
@@ -258,7 +277,7 @@ function main(): void {
       });
     for (const arm of armSet) {
       if (arm.id === baselineArm || !results.has(arm.id)) continue;
-      for (const [scope, nos] of [["in-scope", inScopeNos], ["out-of-scope", outScopeNos], ["whole set", caseNos]] as const) {
+      for (const [scope, nos] of [["in-scope", inScopeNos], ["out-of-scope", outScopeNos], ["scored set", scoredNos]] as const) {
         const a = okVec(arm.id, nos);
         const c = okVec(baselineArm, nos);
         let b = 0;
@@ -343,6 +362,32 @@ function main(): void {
         const b = (c as KeyCase & { bait: string | null }).bait;
         console.log(`    ${String(c.caseNo).padStart(3)} got=${answers.get(c.caseNo)!.padEnd(34)} want=${c.expect.padEnd(26)} bait=${b ?? "(control)"}`);
       }
+    }
+  }
+
+  if (family === "duplicate") {
+    type Bucketed = KeyCase & { bucket: string; reallyWants: string | null };
+    const of = (b: string) => key.cases.filter((c) => (c as Bucketed).bucket === b).map((c) => c.caseNo);
+    const blind = of("blind-negative");
+    const near = of("near-miss");
+    const pos = of("positive");
+    const amb = of("ambiguous");
+    console.log(`\n  BY CASE SOURCE — the negatives that matter most are the BLIND ones (held-out set, authored by`);
+    console.log(`  another agent before content_duplicate existed, naming it zero times). Near-misses are hand-`);
+    console.log(`  authored and disclosed. The ambiguous set is reported below, never scored.\n`);
+    console.log(`  ${"arm".padEnd(56)}${`positives n=${pos.length}`.padEnd(23)}${`blind neg n=${blind.length}`.padEnd(23)}${`near-miss neg n=${near.length}`.padEnd(23)}`);
+    for (const arm of armSet) {
+      if (!results.has(arm.id)) continue;
+      console.log(
+        `  ${arm.label.padEnd(56)}${pct(count(arm.id, pos, "CORRECT"), pos.length)}` +
+          `${pct(count(arm.id, blind, "CORRECT_ABSTAIN"), blind.length)}${pct(count(arm.id, near, "CORRECT_ABSTAIN"), near.length)}`,
+      );
+    }
+    for (const arm of armSet) {
+      if (!results.has(arm.id)) continue;
+      const answers = parseAnswers(join(dir, arm.file), caseNos);
+      console.log(`\n  Arm ${arm.id} — the 4 AMBIGUOUS cases (reported, NOT scored):`);
+      for (const n of amb) console.log(`    got=${answers.get(n)!.padEnd(22)} "${byNo.get(n)!.query}"`);
     }
   }
 

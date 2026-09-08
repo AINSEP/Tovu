@@ -576,3 +576,126 @@ quoted with "on the affected cases" attached. No figure here is a blend.
 - **Corrects nothing in §§0-9 above.** §7's stated weakness — that the in-scope ceiling came from
   well-separated queries and might not survive genuinely ambiguous ones — is now tested for the delete
   family and survives. It remains untested for the read family's 29 resources.
+
+---
+
+# Addendum 2 (2026-09-08): `content_duplicate` measured — **my §6 flag was wrong. Do not rename it.**
+
+Requested by the coordinator as the actionable finding in the report. It is not actionable, because
+the predicted defect is not there. `uptime` at run: 1-minute load 39.79 on 8 cores; all scoring is
+offline and deterministic.
+
+Eval: `development/evals/tool-search-argument-fill-duplicate.ts`, arms M/N, scored by
+`... argument-fill.eval.ts <dir> duplicate`.
+
+## What was predicted, and what my own report already said against it
+
+§6 flagged `content_duplicate` because it ships the shape arm A2 measured failing: a single
+parameterized tool whose `resource` values are **bare nouns** (`post`/`page`/`form`/`media`), which on
+the read family produced 72 false fills in 75 out-of-scope mutation requests. But §4 of the same
+report found the **delete** family showed no over-trigger in any shape, and reasoned that a *marked*
+verb is protective while the generic `read` is not. **`duplicate` is a marked verb, so my own §6
+prediction contradicted my own §4 mechanism.** This measurement settles it in favour of §4.
+
+## Construction — the negatives are not mine
+
+The dominant risk in an over-trigger measurement is that the author writes negatives that happen to
+look non-duplicate to them. Avoided: **the 130 held-out queries are the ordinary negative set,
+verbatim.** They were authored blind by another agent before `content_duplicate` existed and name it
+zero times — the fixture asserts this and refuses to build otherwise. Three smaller sets are
+hand-authored and disclosed: 10 positives (no blind source exists; without them an arm that abstains
+on everything scores perfectly), 12 near-miss negatives (copy-adjacent with a defensible non-copy
+reading — *"back this page up before i start editing it"*, *"i want that same photo but cropped
+differently"*, *"we've got two identical posts up, get rid of one"*), and 4 **ambiguous** cases that
+are **reported and never scored** — scoring those would let me choose the result by choosing a
+reading. 156 cases, 152 scored, one deterministic shuffle.
+
+Both arms carry the **shipped description byte-identical** (stripped, as `search_tools` returns it,
+552 words) and the **shipped `inputSchema`**, pulled from the live catalog rather than reconstructed;
+the fixture throws if `resource` has acquired an enum, so it cannot silently measure a stale shape.
+The only difference between arms is the `resource` property:
+
+- **M** — the real shipped schema: `{type: "string", minLength: 1}`, free string, no enum.
+- **N** — the §3 fix: `enum: ["duplicate_post","duplicate_page","duplicate_form","duplicate_media"]`.
+
+N deliberately does **not** get rewritten prose. The shipped description names 'post'/'page'/'form'/
+'media' in a dozen places that are not enum values ("For post/page: title defaults…"), and a blanket
+substitution would mangle it. Leaving the prose alone makes arm N *harder* than a real implementation,
+not easier.
+
+## Results
+
+| arm | positives (n=10) | **blind negatives (n=130)** | near-miss negatives (n=12) | all out-of-scope (n=142) |
+|---|---|---|---|---|
+| **M — THE SHIPPED SCHEMA** | 10/10 **100%** [72-100] | **130/130 100%** [97-100] | 12/12 **100%** [76-100] | **142/142 100%** [97-100] |
+| N — verb-carrying enum (the fix) | 10/10 100% [72-100] | 130/130 100% [97-100] | 12/12 100% [76-100] | 142/142 100% [97-100] |
+
+Paired McNemar, N vs M: **zero discordant pairs at every scope, `p=1.0000`** in-scope, out-of-scope
+and on the scored set. The two arms did not differ on a single case.
+
+**Zero false fills. The shipped tool does not over-trigger, and the proposed fix changes nothing.**
+
+The 4 ambiguous cases, reported not scored — both arms answered identically:
+
+```
+NONE   "the about page and the team page have the same text, fix that"
+page   "we need a second version of this page for the french site"
+NONE   "reuse the contact form"
+page   "i want another page like my landing page"
+```
+
+That is good judgment rather than over-triggering: it filled on the two that genuinely read as copy
+requests and declined the two that do not.
+
+## Recommendation: **no change to `content_duplicate`.** The proposed rename is withdrawn.
+
+§6 said the tool "was not measured, and the fixture generalises to it for the cost of one more arm".
+It has now been measured and there is nothing to fix. Concretely:
+
+- **Do not rename the `resource` values.** Arm N is identical to arm M on all 152 scored cases. The
+  rename would be a **breaking change to a shipped wire contract** — `content_duplicate`'s own header
+  documents that an unrecognized `resource` is rejected at call time against the live registry, so
+  renaming the accepted values would break any caller that learned `post` from the current
+  description — bought for **zero measured benefit**.
+- **The free-string `resource` is fine as shipped.** Arm B in §2 already found a free string costs
+  nothing when the description enumerates the values (zero invalid strings in 130 answers); arm M
+  confirms it on the real tool.
+- The §3 verb-labelling finding **stands** — it is just specific to a *generic* verb. It should be
+  applied to any future fat tool over a **generic** verb (`read`, `list`, `find`, `get`), and it is
+  not a general rule about parameterized tools.
+
+## The coordinator's upper-bound caveat — and why it cuts the other way here
+
+The caveat is right and worth stating: these arms strip the 140+ competing tools, so `content_duplicate`
+is the model's only option, which can only *inflate* an over-trigger rate. With `content_post_update`
+and `media_trash_asset` on the table a real agent has better answers still.
+
+**For §3's alarm that caveat weakened the result. Here it strengthens the all-clear**, because the
+measurement is already at the floor: the upper bound on over-trigger is **0/142, Wilson [0-3%]**, and
+competing tools can only push a rate down. There is no inflated number for Leona to act on — the
+number is zero under conditions chosen to make it as large as possible.
+
+## Honest limits
+
+- **Positives are n=10** (Wilson [72-100]) and hand-authored. The 100% there is weak evidence; the
+  strong evidence is the 130 blind negatives at [97-100].
+- **The 12 near-misses are mine.** A better adversary might find confusions I did not. Per §3's
+  adversarial arm, an author-built trap set can only lower a measured accuracy — so 12/12 is a lower
+  bound, not a ceiling.
+- **Retrieval is not measured here**, deliberately. Whether `content_duplicate` *ranks* for a
+  non-duplicate request is a separate question, unaffected by this result and unmeasured.
+- Sonnet only for this family; the §2 Opus replicate covers the read family, not this one.
+
+## What Addendum 2 changed
+
+- **Added** `development/evals/tool-search-argument-fill-duplicate.ts` and arms M/N.
+- **Fixed two scoring defects of my own**, found while adding this family: the 4 ambiguous cases were
+  sitting in the scored out-of-scope denominator despite the stated rule that they are reported and
+  never scored (they now are excluded, and the header reports `scored 152 … 4 unscored`); and
+  `toResource` did not strip `duplicate_`/`content_duplicate.` prefixes, which scored arm N as 10/10
+  INVALID on its first run. Both are fixed and every family was re-scored — **the read, delete and
+  adversarial numbers in §§2-4 and Addendum 1 are unchanged.**
+- **`content_duplicate` itself is untouched**, as instructed — `git status` on
+  `features/content-duplication/` and `duplicate-resource-registry.ts` is clean. Root
+  `npx tsc -p tsconfig.json --noEmit` clean.
+- **§6's third bullet and §9's item 2 are withdrawn**, superseded by this addendum.

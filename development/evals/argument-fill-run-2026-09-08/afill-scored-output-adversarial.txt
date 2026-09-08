@@ -3,8 +3,8 @@
 ARGUMENT-FILL — does the model pass the resource that actually serves the request?
 ================================================================================================================
 
-  cases                  20   (in-scope for content_read: 20, out-of-scope: 0)
-  resources              8   (verified identical to the shipped card set)
+  cases                  20   (scored 20: in-scope 20, out-of-scope 0)
+  resources              8
   arms scored            J, K, L
 
   ON THE 20 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
@@ -31,7 +31,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   K  content_delete, VERB-CARRYING enum (adversarial)—                      —                      
   L  content_delete as 8 cards (adversarial)  —                      —                      
 
-  WHOLE SET, n=20 — every case scored, abstention counted as correct only where it is
+  SCORED SET, n=20 — abstention counted as correct only where it is
 
   arm                                         fully correct          confidently WRONG      
   J  content_delete, BARE-NOUN enum (adversarial)20/20 100% [84-100]    0/20 0% [0-16]         
@@ -42,10 +42,10 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
 
     J vs L, in-scope            L-only=0   J-only=0   p=1.0000
     J vs L, out-of-scope        L-only=0   J-only=0   p=1.0000
-    J vs L, whole set           L-only=0   J-only=0   p=1.0000
+    J vs L, scored set          L-only=0   J-only=0   p=1.0000
     K vs L, in-scope            L-only=0   K-only=0   p=1.0000
     K vs L, out-of-scope        L-only=0   K-only=0   p=1.0000
-    K vs L, whole set           L-only=0   K-only=0   p=1.0000
+    K vs L, scored set          L-only=0   K-only=0   p=1.0000
 
   ADVERSARIAL SPLIT — bait cases carry a salient sibling resource the request does NOT target
 

@@ -1,0 +1,70 @@
+
+================================================================================================================
+ARGUMENT-FILL — does the model pass the resource that actually serves the request?
+================================================================================================================
+
+  cases                  156   (scored 152: in-scope 10, out-of-scope 142; 4 unscored)
+  resources              4
+  arms scored            M, N
+
+  ON THE 10 IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource
+
+  arm                                         correct                WRONG resource         abstained              invalid                
+  M  content_duplicate — THE SHIPPED SCHEMA (free string)10/10 100% [72-100]    0/10 0% [0-28]         0/10 0% [0-28]         0/10 0% [0-28]         
+  N  content_duplicate, verb-carrying enum (the fix)10/10 100% [72-100]    0/10 0% [0-28]         0/10 0% [0-28]         0/10 0% [0-28]         
+
+  ON THE 142 OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain
+
+  arm                                         correctly abstained    FALSE FILL             invalid                
+  M  content_duplicate — THE SHIPPED SCHEMA (free string)142/142 100% [97-100]  0/142 0% [0-3]         0/142 0% [0-3]         
+  N  content_duplicate, verb-carrying enum (the fix)142/142 100% [97-100]  0/142 0% [0-3]         0/142 0% [0-3]         
+
+  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own
+  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same
+  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a
+  MUTATION request is the tool being reached for when the operator wanted something changed.
+
+  arm                                         abstain, read n=0      abstain, mutation n=142
+  M  content_duplicate — THE SHIPPED SCHEMA (free string)—                      142/142 100% [97-100]  
+  N  content_duplicate, verb-carrying enum (the fix)—                      142/142 100% [97-100]  
+
+  SCORED SET, n=152 (4 ambiguous cases excluded, reported below) — abstention counted as correct only where it is
+
+  arm                                         fully correct          confidently WRONG      
+  M  content_duplicate — THE SHIPPED SCHEMA (free string)152/152 100% [98-100]  0/152 0% [0-2]         
+  N  content_duplicate, verb-carrying enum (the fix)152/152 100% [98-100]  0/152 0% [0-2]         
+
+  PAIRED McNemar exact vs. the card arm, "fully correct" per case:
+
+    N vs M, in-scope            M-only=0   N-only=0   p=1.0000
+    N vs M, out-of-scope        M-only=0   N-only=0   p=1.0000
+    N vs M, scored set          M-only=0   N-only=0   p=1.0000
+
+  BY CASE SOURCE — the negatives that matter most are the BLIND ones (held-out set, authored by
+  another agent before content_duplicate existed, naming it zero times). Near-misses are hand-
+  authored and disclosed. The ambiguous set is reported below, never scored.
+
+  arm                                                     positives n=10         blind neg n=130        near-miss neg n=12     
+  M  content_duplicate — THE SHIPPED SCHEMA (free string) 10/10 100% [72-100]    130/130 100% [97-100]  12/12 100% [76-100]    
+  N  content_duplicate, verb-carrying enum (the fix)      10/10 100% [72-100]    130/130 100% [97-100]  12/12 100% [76-100]    
+
+  Arm M — the 4 AMBIGUOUS cases (reported, NOT scored):
+    got=NONE                   "the about page and the team page have the same text, fix that"
+    got=page                   "we need a second version of this page for the french site"
+    got=NONE                   "reuse the contact form"
+    got=page                   "i want another page like my landing page"
+
+  Arm N — the 4 AMBIGUOUS cases (reported, NOT scored):
+    got=NONE                   "the about page and the team page have the same text, fix that"
+    got=duplicate_page         "we need a second version of this page for the french site"
+    got=NONE                   "reuse the contact form"
+    got=duplicate_page         "i want another page like my landing page"
+
+  Arm M — 2 case(s) returning a confidently wrong resource:
+     20 FALSE_FILL      got=page                               want=(abstain)                "we need a second version of this page for the french site"
+     91 FALSE_FILL      got=page                               want=(abstain)                "i want another page like my landing page"
+
+  Arm N — 2 case(s) returning a confidently wrong resource:
+     20 FALSE_FILL      got=duplicate_page                     want=(abstain)                "we need a second version of this page for the french site"
+     91 FALSE_FILL      got=duplicate_page                     want=(abstain)                "i want another page like my landing page"
+

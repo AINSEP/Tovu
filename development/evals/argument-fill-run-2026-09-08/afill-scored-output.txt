@@ -3,7 +3,7 @@
 ARGUMENT-FILL — does the model pass the resource that actually serves the request?
 ================================================================================================================
 
-  cases                  130   (in-scope for content_read: 34, out-of-scope: 96)
+  cases                  130   (scored 130: in-scope 34, out-of-scope 96)
   resources              29   (verified identical to the shipped card set)
   arms scored            A, A2, B, C, D, E, A2o
 
@@ -43,7 +43,7 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
   E  fat entry, VERB-CARRYING enum            16/21 76% [55-89]      75/75 100% [95-100]    
   A2-opus  = arm A2, replicated on Opus 5     6/21 29% [14-50]       4/75 5% [2-13]         
 
-  WHOLE SET, n=130 — every case scored, abstention counted as correct only where it is
+  SCORED SET, n=130 — abstention counted as correct only where it is
 
   arm                                         fully correct          confidently WRONG      
   A  fat entry, closed enum (pre-committed)   64/130 49% [41-58]     65/130 50% [42-58]     
@@ -58,22 +58,22 @@ ARGUMENT-FILL — does the model pass the resource that actually serves the requ
 
     A vs C, in-scope            C-only=1   A-only=0   p=1.0000
     A vs C, out-of-scope        C-only=58  A-only=4   p=2.6e-13 *
-    A vs C, whole set           C-only=59  A-only=4   p=1.4e-13 *
+    A vs C, scored set          C-only=59  A-only=4   p=1.4e-13 *
     A2 vs C, in-scope           C-only=0   A2-only=0   p=1.0000
     A2 vs C, out-of-scope       C-only=74  A2-only=1   p=4.0e-21 *
-    A2 vs C, whole set          C-only=74  A2-only=1   p=4.0e-21 *
+    A2 vs C, scored set         C-only=74  A2-only=1   p=4.0e-21 *
     B vs C, in-scope            C-only=0   B-only=0   p=1.0000
     B vs C, out-of-scope        C-only=74  B-only=2   p=7.7e-20 *
-    B vs C, whole set           C-only=74  B-only=2   p=7.7e-20 *
+    B vs C, scored set          C-only=74  B-only=2   p=7.7e-20 *
     D vs C, in-scope            C-only=0   D-only=0   p=1.0000
     D vs C, out-of-scope        C-only=0   D-only=1   p=1.0000
-    D vs C, whole set           C-only=0   D-only=1   p=1.0000
+    D vs C, scored set          C-only=0   D-only=1   p=1.0000
     E vs C, in-scope            C-only=0   E-only=0   p=1.0000
     E vs C, out-of-scope        C-only=0   E-only=6   p=0.0313 *
-    E vs C, whole set           C-only=0   E-only=6   p=0.0313 *
+    E vs C, scored set          C-only=0   E-only=6   p=0.0313 *
     A2o vs C, in-scope          C-only=0   A2o-only=0   p=1.0000
     A2o vs C, out-of-scope      C-only=76  A2o-only=1   p=1.0e-21 *
-    A2o vs C, whole set         C-only=76  A2o-only=1   p=1.0e-21 *
+    A2o vs C, scored set        C-only=76  A2o-only=1   p=1.0e-21 *
 
   DETERMINISTIC LEXICAL BOUND — BM25 over the 29 resource documents alone, no other tools competing
   (this is the model of the fill decision that the "15-point scoring asymmetry" implicitly assumed)
