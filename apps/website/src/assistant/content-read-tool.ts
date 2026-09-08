@@ -187,21 +187,43 @@ function contentReadToolId(resource: string): string {
 const EMPTY_SCHEMA: Readonly<Record<string, unknown>> = {};
 
 /**
+ * Whether EVERY member tool a card names is actually present in this composition's built
+ * registration set.
+ *
+ * A narrow/partial composition is ordinary, not an error: many existing tests build an isolated
+ * registry holding only ONE domain's contributor (`resetToolContributorsForTests()` plus a single
+ * `registerToolContributor(contribute<Domain>Tools())`) and call `buildAssistantToolRegistrations`
+ * directly to exercise that domain alone. Such a composition legitimately has no
+ * `backup_list_restore_points` at all when it is testing Post, say — that is not catalog drift, it
+ * is the test's own deliberate scope. A card whose members are not all present is simply left
+ * un-collapsed for that composition: its member tool(s) pass through under their ORIGINAL id(s),
+ * completely unaffected by this file, exactly as they did before this file existed. Only the one
+ * real production composition (`installFirstPartyToolContributors()`, all ~30 domains) ever has
+ * every member of every card present, so only there do all 29 cards actually get built — which is
+ * the composition the measured retrieval numbers describe.
+ *
+ * @complexity O(1) per member, O(m) per card (m <= 2).
+ */
+function cardIsAvailable(byId: ReadonlyMap<string, ToolRegistration>, card: ContentReadCard): boolean {
+  return (!card.get || byId.has(card.get.toolId)) && (!card.list || byId.has(card.list.toolId));
+}
+
+/**
  * Looks up one already-built source registration by its ORIGINAL tool id.
  *
- * @throws {Error} If `toolId` is absent from `sourceRegistrations` — a config drift between this
- * file's {@link CONTENT_READ_CARDS} table and what the source domains actually wired (their catalog
- * renamed or retired the id), not a caller-input problem, so a plain `Error` rather than
- * `ToolInputError`: this can only fire at composition time, never mid-call.
+ * Callers only ever pass a `toolId` a prior {@link cardIsAvailable} check already confirmed is
+ * present, so an absent id here is a genuine internal-invariant break — the two checks disagreeing
+ * — not a normal "this composition doesn't include that domain" case.
+ *
+ * @throws {Error} If `toolId` is absent from `sourceRegistrations` despite `cardIsAvailable` having
+ * confirmed it. This can only fire from a bug in this file, never from a caller's input or from a
+ * narrow test composition.
  * @complexity O(1) against the pre-indexed map the caller builds once.
  */
 function sourceRegistration(byId: ReadonlyMap<string, ToolRegistration>, toolId: string): ToolRegistration {
   const found = byId.get(toolId);
   if (!found) {
-    throw new Error(
-      `content-read-tool.ts: expected source tool '${toolId}' was not found in the built registration set — ` +
-        "its domain's catalog id may have changed; update CONTENT_READ_CARDS to match.",
-    );
+    throw new Error(`content-read-tool.ts: internal error — '${toolId}' passed cardIsAvailable but is missing from byId`);
   }
   return found;
 }
@@ -307,10 +329,11 @@ function unionInputSchema(
  *
  * @param sourceRegistrations Every domain's own registrations, exactly as `buildAssistantToolRegistrations`'s
  * main loop assembled them, before this collapse.
- * @returns The same list with the 36 Tier-1 ids removed and the 29 content_read cards appended.
- * @throws {Error} If `CONTENT_READ_CARDS` names a source tool id that is not actually present in
- * `sourceRegistrations` (a config/catalog-drift error, not a caller-input one), or if
- * `buildDomainRegistrations`'s own build-time gates refuse (see that function's own throws).
+ * @returns The same list with each FULLY-AVAILABLE card's member ids removed and that card appended
+ * in their place. A card whose member(s) are not all present in `sourceRegistrations` (see
+ * {@link cardIsAvailable}) is skipped entirely — its members pass through unchanged.
+ * @throws {Error} If `buildDomainRegistrations`'s own build-time gates refuse (see that function's
+ * own throws) — never for a missing member, which {@link cardIsAvailable} filters out first.
  * @complexity O(t) in total tool count — one pass to index, one pass over the 29 cards, one filter.
  * @overallScore 100
  */
@@ -319,8 +342,11 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
   const retiredIds = new Set<string>();
   const catalog = new Map<string, WirableToolDefinition>();
   const handlers: Record<string, ToolHandler> = {};
+  const derivedRisk = new Map<string, AgentToolSideEffect>();
 
   for (const card of CONTENT_READ_CARDS) {
+    if (!cardIsAvailable(byId, card)) continue;
+
     const id = contentReadToolId(card.resource);
     const memberIds: string[] = [];
     let handler: ToolHandler;
@@ -367,18 +393,15 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       inputSchema,
     });
     handlers[id] = handler;
+    derivedRisk.set(id, "none");
   }
-
-  const derivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>(
-    CONTENT_READ_CARDS.map((card) => [contentReadToolId(card.resource), "none"]),
-  );
 
   const collapsed = buildDomainRegistrations({
     domain: "content-read",
     catalogModule: "assistant/content-read-tool.ts",
     catalog,
     handlers,
-    derivedRisk,
+    derivedRisk: derivedRisk as DerivedRiskByToolId,
   });
 
   return [...sourceRegistrations.filter((registration) => !retiredIds.has(registration.descriptor.id)), ...collapsed];

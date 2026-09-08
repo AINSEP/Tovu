@@ -83,7 +83,15 @@ function catalogEntry(toolId: string): PostAgentToolDefinition {
 }
 
 function postRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("content_post_")).map((r) => [r.descriptor.id, r]));
+  // `content_read.content_post` (2026-09-08) is the collapsed replacement for content_post_get/
+  // content_post_list — see assistant/content-read-tool.ts. Captured here alongside every other
+  // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
+  // old ids (still true for create/delete/search/update, never collapsed) or the new merged one.
+  return new Map(
+    buildAssistantToolRegistrations(deps)
+      .filter((r) => r.descriptor.id.startsWith("content_post_") || r.descriptor.id === "content_read.content_post")
+      .map((r) => [r.descriptor.id, r]),
+  );
 }
 
 function wired(toolId: string, deps: RouteDeps): ToolRegistration {
@@ -121,15 +129,17 @@ const RICH_DOC = {
 
 test("exactly the 6 Posts/Pages operations are wired — the entire catalog", () => {
   const { deps } = fakeRouteDeps();
+  // content_post_get/content_post_list (2026-09-08) collapse into content_read.content_post — see
+  // assistant/content-read-tool.ts. The 6-entry STATIC catalog (postAgentToolCatalog) is unchanged;
+  // only the WIRED aggregate id set differs, by exactly that swap.
   assert.deepEqual(
     [...postRegistrations(deps).keys()].sort(),
     [
       "content_post_create",
       "content_post_delete",
-      "content_post_get",
-      "content_post_list",
       "content_post_search",
       "content_post_update",
+      "content_read.content_post",
     ],
   );
   assert.equal(postAgentToolCatalog.length, 6, "sanity: no catalog entry is silently excluded");
@@ -173,7 +183,15 @@ test("the delete tool's description tells the model the SAME call reports the ou
 
 test("every wired Posts/Pages registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
+  // `content_read.content_post` (2026-09-08) is excluded from this loop: its catalog entry lives in
+  // assistant/content-read-tool.ts, not postAgentToolCatalog, so `catalogEntry(id)` (a lookup against
+  // POST's OWN static catalog) has nothing to cross-check it against here. That is not a coverage
+  // gap — content-read-tool.ts's own `deriveContentReadRegistrations` already runs the IDENTICAL
+  // `buildDomainRegistrations` cross-check against ITS OWN locally-built catalog at construction
+  // time, and this test suite would have failed to build `postRegistrations(deps)` at all had that
+  // thrown (see the shared-shell tests above, which construct it too).
   for (const [id, registration] of postRegistrations(deps)) {
+    if (id === "content_read.content_post") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -202,7 +220,13 @@ test("content_post_create's and content_post_update's published bodyJson schema 
 
 test("the independent risk classification agrees with the catalog for all 6 wired Posts/Pages tools", () => {
   const { deps } = fakeRouteDeps();
+  // `content_read.content_post` excluded — see the identical exclusion note above. Its own risk
+  // classification was already cross-checked, against ITS OWN catalog, inside
+  // `deriveContentReadRegistrations` at construction time (the same `assertToolIsWirable` gate
+  // `assertRiskMetadataIsWirable` wraps here); `assertRiskMetadataIsWirable`'s own global risk map is
+  // built from `DOMAIN_SLICES`/`listToolContributors()` and never learns content_read's ids.
   for (const id of postRegistrations(deps).keys()) {
+    if (id === "content_read.content_post") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -237,7 +261,7 @@ test("content_post_delete cannot downgrade itself to 'none' either", () => {
 test("no OTHER Posts/Pages tool may claim the destructive classification", () => {
   const { deps } = fakeRouteDeps();
   for (const id of postRegistrations(deps).keys()) {
-    if (id === "content_post_delete") continue;
+    if (id === "content_post_delete" || id === "content_read.content_post") continue;
     assert.notEqual(catalogEntry(id).sideEffects, "deletes-durable-state", `${id} is not a delete`);
   }
 });
@@ -276,7 +300,7 @@ test("content_post_list: calls authorize() with content.read, inline (listAdminP
   const { deps, authorizeCalls } = fakeRouteDeps();
   authorizeCalls.length = 0;
 
-  await wired("content_post_list", deps).handler(executionContext({ kind: "post" }));
+  await wired("content_read.content_post", deps).handler(executionContext({ kind: "post" }));
 
   assert.equal(authorizeCalls.length, 1);
   assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
@@ -285,7 +309,7 @@ test("content_post_list: calls authorize() with content.read, inline (listAdminP
 
 test("content_post_list: a denied principal is rejected", async () => {
   const { deps } = fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("content_post_list", deps).handler(executionContext({ kind: "post" })), /is not authorized for 'content\.read'/);
+  await assert.rejects(() => wired("content_read.content_post", deps).handler(executionContext({ kind: "post" })), /is not authorized for 'content\.read'/);
 });
 
 test("content_post_get: calls authorize() with content.read, inline", async () => {
@@ -293,7 +317,7 @@ test("content_post_get: calls authorize() with content.read, inline", async () =
   await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
   authorizeCalls.length = 0;
 
-  await wired("content_post_get", deps).handler(executionContext({ id: "p1", kind: "post" }));
+  await wired("content_read.content_post", deps).handler(executionContext({ id: "p1", kind: "post" }));
 
   assert.equal(authorizeCalls.length, 1);
   assert.equal(authorizeCalls[0].permission, "content.read");
@@ -301,7 +325,7 @@ test("content_post_get: calls authorize() with content.read, inline", async () =
 
 test("content_post_get: a denied principal is rejected", async () => {
   const { deps } = fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("content_post_get", deps).handler(executionContext({ id: "nonexistent", kind: "post" })), /is not authorized for 'content\.read'/);
+  await assert.rejects(() => wired("content_read.content_post", deps).handler(executionContext({ id: "nonexistent", kind: "post" })), /is not authorized for 'content\.read'/);
 });
 
 test("content_post_create: calls authorize() with content.write via executeCommand", async () => {
@@ -372,14 +396,14 @@ test("content_post_get: kind:'page' rejects a row whose actual kind is 'post' (t
   const { deps, postRepo } = fakeRouteDeps();
   await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
 
-  await assert.rejects(() => wired("content_post_get", deps).handler(executionContext({ id: "p1", kind: "page" })), /page 'p1' was not found/);
+  await assert.rejects(() => wired("content_read.content_post", deps).handler(executionContext({ id: "p1", kind: "page" })), /page 'p1' was not found/);
 });
 
 test("content_post_get: kind:'post' still returns a row whose actual kind is 'page' (the disclosed, posts/get-by-id.ts-mirroring legacy laxity)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await postRepo.save({ id: "pg1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "page", updatedAt: NOW, version: 1 });
 
-  const out = (await wired("content_post_get", deps).handler(executionContext({ id: "pg1", kind: "post" }))) as { post: { id: string; kind: string } };
+  const out = (await wired("content_read.content_post", deps).handler(executionContext({ id: "pg1", kind: "post" }))) as { post: { id: string; kind: string } };
   assert.equal(out.post.id, "pg1");
   assert.equal(out.post.kind, "page", "the legacy lookup does not filter by the requested kind");
 });
@@ -422,7 +446,7 @@ test("workflow (post): create a post, give it a real TipTap body, publish it, th
 
   // Step 4: list — the published post must appear in a FRESH read, proving state actually
   // persisted rather than the tool merely reporting success.
-  const listed = (await wired("content_post_list", deps).handler(executionContext({ kind: "post" }))) as {
+  const listed = (await wired("content_read.content_post", deps).handler(executionContext({ kind: "post" }))) as {
     posts: Array<{ id: string; status: string; version: number; bodyJson: unknown }>;
   };
   const row = listed.posts.find((p) => p.id === postId);
@@ -458,7 +482,7 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
   assert.equal(published.post.version, 3);
 
   // Step 4a: list(kind:'page') — the published page must appear.
-  const pages = (await wired("content_post_list", deps).handler(executionContext({ kind: "page" }))) as {
+  const pages = (await wired("content_read.content_post", deps).handler(executionContext({ kind: "page" }))) as {
     posts: Array<{ id: string; status: string }>;
   };
   const pageRow = pages.posts.find((p) => p.id === pageId);
@@ -466,7 +490,7 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
   assert.equal(pageRow.status, "published");
 
   // Step 4b: list(kind:'post') — a page must never surface on the post list (PostKind's own doc).
-  const posts = (await wired("content_post_list", deps).handler(executionContext({ kind: "post" }))) as {
+  const posts = (await wired("content_read.content_post", deps).handler(executionContext({ kind: "post" }))) as {
     posts: Array<{ id: string }>;
   };
   assert.equal(
@@ -477,7 +501,7 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
 
   // Step 5: content_post_get(kind:'page') cross-check — confirms the same row is independently
   // readable by id, not just present in the list projection.
-  const fetched = (await wired("content_post_get", deps).handler(executionContext({ id: pageId, kind: "page" }))) as { post: { id: string; status: string } };
+  const fetched = (await wired("content_read.content_post", deps).handler(executionContext({ id: pageId, kind: "page" }))) as { post: { id: string; status: string } };
   assert.equal(fetched.post.id, pageId);
   assert.equal(fetched.post.status, "published");
 });
