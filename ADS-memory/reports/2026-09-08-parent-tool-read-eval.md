@@ -791,3 +791,162 @@ reported.
 `0c0befe4` live model-facing strings · `6c26e0ab` 12 suites · `15a86368` forms/content-types/database
 ·  `3d14b025` merged get/list pairs + external-mcp · `2c55296a` last three suites incl. the split id ·
 `a2fa0bfc` the `content-read-tool` contract test · `f7e44b4e` the tool descriptions.
+
+---
+
+# Addendum 2 (2026-09-08): arm C2 — the missing control. **This OVERTURNS §3's mechanism claim.**
+
+Eval: `development/evals/tool-search-fat-concat-arm.eval.ts`. `uptime` at run: 1-min load 7.06 on 8
+cores (15-min average 29.11 — the machine had been heavily loaded; this eval is deterministic
+in-memory FTS5 scoring with no timing-sensitive assertion).
+
+## The confound, stated plainly
+
+§3 compared arm C (**one** catalog entry, **hand-authored** `RICH_DESCRIPTION`) against arm D1 (**29**
+cards, **mechanically built** from each tool's real `indexedDescriptionFor` output) and attributed the
+whole 85% → 59% gap to **document granularity**. Those two arms differ in *two* variables, not one:
+entry count **and** text provenance. The attribution was never established by that data. The
+coordinator caught this; it is a real methodological error in my report, not a quibble.
+
+Arm C2 removes the confound: **one** catalog entry whose description is the mechanical concatenation of
+exactly the same 36 tools' folded text that D1 chunks across 29 cards. Same words, same source, same
+total vocabulary. The only remaining variable is one document versus 29.
+
+**I recorded a prediction before running it** (scratchpad, pre-measurement): C2 would land at or below
+arm C's 59% top-10, because BM25 length normalization at |D|/avgdl ≈ 36 gives a fat document roughly
+6.5% of a short document's per-term contribution. I also predicted C2 would fall *below* arm C, since
+the mechanical concatenation is far longer than 250 hand-picked words — which would have meant the
+hand-authoring *flattered* arm C rather than handicapping it.
+
+**That prediction was wrong, in exactly the direction I said would overturn the ruling.**
+
+## Results
+
+Baseline here requires `includeContentReadCollapse: false` — see §"What shipped underneath this" below.
+
+### Restricted to the 34 affected cases
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| BASELINE (uncollapsed) | 22/34 65% ±16 | 26/34 76% ±14 | 29/34 **85%** ±12 | 33/34 97% ±6 |
+| D1 — 29 cards, mechanical text | 22/34 65% ±16 | 29/34 85% ±12 | 29/34 **85%** ±12 | 33/34 97% ±6 |
+| D1-SHIPPED — the real catalog | 22/34 65% ±16 | 29/34 85% ±12 | 29/34 **85%** ±12 | 33/34 97% ±6 |
+| D1 LENIENT — any card counts | 25/34 74% ±15 | 34/34 100% ±0 | 34/34 **100%** ±0 | 34/34 100% ±0 |
+| **C2 — ONE fat entry, same text** | 13/34 **38%** ±16 | 30/34 88% ±11 | 33/34 **97%** ±6 | 34/34 **100%** ±0 |
+
+### Whole set, n=130
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| BASELINE (uncollapsed) | 57% ±9 | 83% ±6 | 87% ±6 | 94% ±4 |
+| D1 — 29 cards | 55% ±9 | 85% ±6 | 87% ±6 | 95% ±4 |
+| D1-SHIPPED | 55% ±9 | 85% ±6 | 87% ±6 | 95% ±4 |
+| D1 LENIENT | 57% ±9 | 88% ±5 | 91% ±5 | 95% ±4 |
+| **C2 — ONE fat entry** | 52% ±9 | 85% ±6 | **91%** ±5 | 95% ±4 |
+
+### Paired McNemar, whole set
+
+| comparison | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| D1 vs baseline | -3/+0 p=0.2500 | -1/+3 p=0.6250 | -0/+0 p=1.0000 | -0/+1 p=1.0000 |
+| C2 vs baseline | -12/+5 p=0.1435 | -3/+5 p=0.7266 | -3/+8 p=0.2266 | -0/+2 p=0.5000 |
+| C2 vs D1 | -11/+7 p=0.4807 | -4/+4 p=1.0000 | -3/+8 p=0.2266 | -0/+1 p=1.0000 |
+| C2 vs D1-LENIENT | -13/+6 p=0.1671 | -5/+0 p=0.0625 | -3/+3 p=1.0000 | -0/+0 p=1.0000 |
+
+Document lengths, measured rather than assumed: avgdl across the 141 surviving tools is **145 words**;
+the median D1 card is **96 words** (0.7× avgdl); the C2 fat entry is **3,643 words** (25.1× avgdl). The
+length penalty I calculated is real and the fat entry absorbs it — **and still reaches 97% top-10.**
+
+## What this overturns, in those words
+
+**§3's mechanism claim is overturned.** Document granularity does **not** explain the 85% → 59% gap.
+With the same real text, one fat entry scores **97% top-10 and 100% top-20** on the affected cases —
+better than baseline, not 26 points worse. The gap §3 reported was caused by **my hand-authored
+`RICH_DESCRIPTION` being worse than the tools' own shipped descriptions**, which is a text-quality
+artifact of my own construction, not a property of collapsing.
+
+The sentence in §3's addendum — *"The same words, differently chunked, is the entire difference.
+Nothing was added"* — is **false**. They were not the same words. That is the error.
+
+**Consequently the top-5 claim is also retracted.** I attributed D1's +9 at top-5 to `_get`/`_list`
+cards no longer competing with each other. C2 gets the same +12 (76% → 88%) with **no merging at all**,
+so the gain comes from removing 36 near-duplicate documents from the index, not from merging pairs.
+
+**And the headline NO-GO in §4 does not survive on the evidence that produced it.** That ruling rested
+on the 59% number. The honest restatement: **at n=130, one fat entry, 29 cards, and no collapse at all
+are statistically indistinguishable at every cutoff.** Not one comparison in this addendum reaches
+p<0.05. The only significant result in this entire investigation was arm C versus baseline — and arm C
+is now known to be confounded.
+
+## What survives, narrowed
+
+One granularity effect is real and consistent, and it is **top-1 only**: C2 38% against D1's 65% and
+baseline's 65% on the affected cases, and 52% vs 55%/57% on the whole set. Direction is consistent
+across both views. It is *not* statistically significant (C2 vs D1 top-1: p=0.4807), so it is a signal,
+not a proof.
+
+The mechanism for it is the one I originally described, just confined to first place: a single document
+can occupy only one rank slot, so where a query has an obvious specific answer the fat entry gets
+crowded out of #1 while still appearing by #10. **"Always present, rarely first"** is the fat entry's
+signature — visible directly in the numbers (38% top-1 → 97% top-10, a 59-point spread; baseline's
+spread is 20 points).
+
+Top-1 matters more here than the p-value suggests, because of
+`2026-08-24-capability-discovery-retrieval-is-not-the-problem.md`: that report found the agent forms a
+plan early and takes a result matching it rather than reading down the list. For an agent that behaves
+that way, rank #1 is worth more than rank #7.
+
+## The scoring asymmetry, quantified
+
+C2 is scored a hit whenever its single entry ranks. D1 requires the **correct** card — ranking
+`content_read.newsletter_campaign` for a media query is a miss. That is not symmetric, so I measured
+the spread: **D1-LENIENT** (any `content_read.*` card counts) scores **100% top-10** against strict
+D1's 85%. **The asymmetry is worth 15 points**, and it favours C2 in every table above.
+
+Neither scoring is "the true one" — they measure different things, and the honest reading is that
+**both designs relocate the same disambiguation rather than eliminating it**. D1 asks the model to pick
+the right card at retrieval time (strict scoring counts that; 15 points). C2 asks it to pick the right
+`resource` argument after retrieval (unmeasured here, and not free either). C2's apparent 97% is
+therefore an upper bound in the same way arm C's RICH text was — just in the opposite direction.
+
+## Reconciliation with the peer's `content_delete` result
+
+No reconciliation is needed and my proposed one was also wrong. I predicted fat-concat viability would
+scale inversely with collapse-set size (workable at n=8, not at n=36). C2 collapses 36 tools and
+reaches 97% top-10, essentially matching the delete eval's 100% at n=8. **Collapse-set size is not the
+variable.** The two results agree; both say a mechanically-concatenated fat entry retrieves fine.
+
+## What shipped underneath this
+
+While this was running, the D1 design **shipped** (`a2fa0bfc`), citing this report's Addendum arm D1:
+`buildAssistantToolRegistrations` now performs the collapse unconditionally, replacing the 36 read
+tools with 29 `content_read.<resource>` cards behind one shared handler. The `includeContentReadCollapse:
+false` seam exists to reconstruct the pre-collapse set.
+
+Two things follow:
+
+1. **The shipped design is safe, and this addendum's D1-SHIPPED arm confirms it directly** — the real
+   catalog scores identically to my synthetic D1 at every cutoff (65/85/85/97 on the affected cases),
+   and its 29 card keys are an exact match for the blind rule's output (`0` mismatches). Nothing needs
+   reverting.
+2. **But it shipped on a justification that this addendum retracts.** The argument for 29 cards over
+   one entry is now *top-1 precision alone* (65% vs 38%, not significant), not the 26-point top-10
+   recovery §3 claimed. That is a much weaker case, and the owner should know the code is right for a
+   reason other than the one recorded when it merged.
+
+I would still choose the 29 cards, for the top-1 reason plus the fact that a card naming its resource
+gives the model something to reason about that a `resource` enum inside one schema does not. But that is
+a judgment call on a non-significant signal, not the settled measurement §3 presented.
+
+## Corrections to this report, consolidated
+
+| Claim | Location | Status |
+|---|---|---|
+| Granularity explains 85% → 59% | §3 addendum, "The mechanism, corrected" | **RETRACTED** — confounded by hand-authored text |
+| "The same words, differently chunked, is the entire difference" | §3 addendum | **FALSE** — they were not the same words |
+| D1's +9 at top-5 comes from `_get`/`_list` merging | §3 addendum, "Does it recover baseline?" | **RETRACTED** — C2 gets +12 without merging |
+| NO-GO on one parameterized tool | §4 | **NOT SUPPORTED** by the corrected data; no arm differs significantly |
+| id column's 6× weight is not the mechanism (arm D2) | §3 addendum | **STANDS** — independent of this confound |
+| The 98%/100% figure in `byok-tool-surface.ts` is unsourced; real values 87%/94% | §0.1 | **STANDS** — reconfirmed here |
+| Evals omitted `installFirstPartyToolContributors()` | §1 | **STANDS** — fixed repo-wide in `e8245891` |
+| Honest collapse set is 36 clean / 6 conditional / 14 never | §2 | **STANDS** — unaffected |
