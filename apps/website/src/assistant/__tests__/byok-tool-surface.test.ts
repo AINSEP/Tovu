@@ -126,19 +126,20 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
 // prompt text should only ever describe the behavior to take on a miss. The second assertion below
 // guards that reasoning directly: it fails the moment anyone adds a percentage back to this string,
 // not just when they restore the specific old one.
-test("search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists", () => {
+// Deliberately NOT a full-string pin (superseded an earlier version of this test that was one):
+// pinning the entire paragraph recreates the same trap in the test layer that this fix removes
+// from the prompt text — a maintainer reworking the retry guidance would have to fight a
+// brittle test unrelated to the property that actually matters. These assert the specific,
+// load-bearing phrases the behavior depends on instead.
+test("search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
   const searchTools = META_TOOL_DESCRIPTORS.find((tool) => tool.id === "search_tools");
   assert.ok(searchTools, "expected a search_tools descriptor in META_TOOL_DESCRIPTORS");
   const schema = searchTools!.inputSchema as { properties: { limit: { description: string } } };
-  assert.equal(
-    schema.properties.limit.description,
-    "Max hits to return (1-25). Optional, defaults to 10. If none of the returned candidates fit " +
-      "what you need, search again with a HIGHER limit (try 25) and different phrasing before " +
-      "concluding no tool exists — a differently-worded or wider search often surfaces a tool the " +
-      "default cutoff missed, so a miss at the default limit is weak evidence, not proof that no " +
-      "matching tool exists. If a retry with different terms still finds nothing, say you could not " +
-      "find a matching tool rather than assuming none exists.",
-  );
+  const description = schema.properties.limit.description;
+  assert.match(description, /search again with a HIGHER limit/);
+  assert.match(description, /different phrasing/);
+  assert.match(description, /weak evidence, not proof/);
+  assert.match(description, /say you could not find a matching tool rather than assuming none exists/);
 });
 
 test("search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today", () => {

@@ -85,17 +85,20 @@ test("both overlays still carry the surrounding tool-catalog protocol untouched"
 // back to this text, not just the specific old one. It also removes a standing internal
 // contradiction: a "100% of the time" guarantee sat a few sentences before this same overlay's own
 // "if it still does not exist, SAY SO" guidance — both cannot be true at once.
-test("both overlays tell the model a miss at the default cutoff is weak evidence, not proof no tool exists, and name no coverage percentage", () => {
+// Deliberately NOT a full-string pin (superseded an earlier version of this test that was one):
+// pinning the entire sentence recreates the same trap in the test layer that this fix removes
+// from the prompt text — a maintainer reworking the retry guidance would have to fight a
+// brittle test unrelated to the property that actually matters. These assert the specific,
+// load-bearing phrases the behavior depends on instead.
+test("both overlays tell the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
   for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
-    assert.equal(
-      overlay.includes(
-        "search again with a higher limit (up to 25) or different phrasing before concluding no " +
-          "tool exists: a differently-worded or wider search often surfaces a tool the default " +
-          "cutoff missed, so a miss at the default limit is weak evidence, not proof that no " +
-          "matching tool exists.",
-      ),
-      true,
-    );
+    assert.match(overlay, /search again with a higher limit \(up to 25\) or different phrasing/);
+    assert.match(overlay, /weak evidence, not proof that no matching tool exists/);
+  }
+});
+
+test("neither overlay names a coverage percentage — a hardcoded retrieval number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today", () => {
+  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
     assert.doesNotMatch(overlay, /\d+%/);
   }
 });
