@@ -35,6 +35,7 @@ import {
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see
@@ -113,9 +114,9 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function mediaRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function mediaRegistrations(deps: RouteDeps, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps)
+    buildAssistantToolRegistrations(deps, surfaces)
       .filter((r) => r.descriptor.id.startsWith("media_") || r.descriptor.id === "content_read.media_asset")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -125,6 +126,32 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
   const found = mediaRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+/**
+ * `media_trash_asset` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
+ * 2026-09-08-delete-confirmation-build.md) rather than trashing synchronously — this helper raises
+ * it and immediately confirms, standing in for the human's click, for tests (like most of this file's
+ * own) that only need a trashed asset to exist and are not themselves certifying the confirmation
+ * gate (that is `media/__tests__/agent-tools.trash-confirmation.test.ts`'s job). Mirrors
+ * `widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts`'s identical
+ * `trashInstance` helper.
+ */
+async function trashAsset(deps: RouteDeps, mediaId: string): Promise<unknown> {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const trashTool = mediaRegistrations(deps, { surfaceExchanges }).get("media_trash_asset");
+  assert.ok(trashTool, "expected 'media_trash_asset' to be wired");
+  const emitted: unknown[] = [];
+  const pending = trashTool.handler({
+    ...executionContext({ mediaId }),
+    emitSurface: async (s) => void emitted.push(s),
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id");
+  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "media_trash_asset", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  return pending;
 }
 
 /** Seeds an asset through the real upload tool, so tests operate on genuine domain output. */
@@ -288,7 +315,7 @@ test("a trashed asset's publicUrl is null, never a link a visitor would 404 on",
   const { deps } = fakeRouteDeps();
   await seedPublicTransform(deps);
   const { id } = await seedAsset(deps);
-  await wired("media_trash_asset", deps).handler(executionContext({ mediaId: id }));
+  await trashAsset(deps, id);
 
   const listed = (await wired("content_read.media_asset", deps).handler(executionContext({}))) as {
     media: Array<{ id: string; publicUrl: string | null; status: string }>;
@@ -303,7 +330,7 @@ test("media_trash_asset is a status flip, and is the ONLY delete-adjacent tool",
   const { deps, mediaRepo } = fakeRouteDeps();
   const { id } = await seedAsset(deps);
 
-  const out = (await wired("media_trash_asset", deps).handler(executionContext({ mediaId: id }))) as { media: { status: string } };
+  const out = (await trashAsset(deps, id)) as { media: { status: string } };
   assert.equal(out.media.status, "trashed");
 
   const stored = await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
@@ -378,7 +405,7 @@ test("workflow: upload, update its metadata, then trash it — list reflects the
   assert.equal(updated.media.version, 2, "version must have advanced from the upload's version 1");
 
   // Step 3: trash it, chaining off the SAME id again.
-  const trashed = (await wired("media_trash_asset", deps).handler(executionContext({ mediaId: uploaded.media.id }))) as {
+  const trashed = (await trashAsset(deps, uploaded.media.id)) as {
     media: { status: string; version: number };
   };
   assert.equal(trashed.media.status, "trashed");
@@ -422,7 +449,22 @@ test("every wired Media tool has a known input fixture and expected permission �
 });
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
-  test(`${toolId}: calls authorize() with the catalog's declared permission and the run's principal`, async () => {
+  test(`${toolId}: calls authorize() with the catalog's declared permission and the run's principal`, async (t) => {
+    // `media_trash_asset` now raises a confirmation dialog before writing (2026-09-08,
+    // ADS-memory/reports/2026-09-08-delete-confirmation-build.md) — its shim checks `media.delete`
+    // BEFORE opening the dialog (unlike widgets' read/write split), so `authorize()` genuinely would
+    // be called once here, but this generic loop calls the handler with no `emitSurface` at all, and
+    // the handler throws "no interactive confirmation channel" right after that check succeeds,
+    // failing this test for a reason unrelated to what it is pinning. The SAME authorization
+    // ordering (permission checked pre-dialog, denied principal never sees one) is certified
+    // directly by `media/__tests__/agent-tools.trash-confirmation.test.ts`, mirroring the exclusion
+    // `tool-registrations.post.test.ts`/`tool-registrations.widgets-authorization.test.ts` already
+    // carry for `content_post_delete`/`widgets_trash_instance`.
+    if (toolId === "media_trash_asset") {
+      t.skip("confirmation-gated — see media/__tests__/agent-tools.trash-confirmation.test.ts");
+      return;
+    }
+
     const { deps, authorizeCalls } = fakeRouteDeps();
     const { id } = await seedAsset(deps);
     authorizeCalls.length = 0;
