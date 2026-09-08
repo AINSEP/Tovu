@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
@@ -190,5 +190,59 @@ describe("addressing the configured servers", () => {
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     expect(await findElements(driver)).toContain("mcp-server-higgsfield-remove");
+  });
+});
+
+/**
+ * @file (continued) `ExternalMcpRemoveConfirmDialog` must be drivable through the SAME real
+ * `page.*` verbs as everything else on this panel — an assistant that can `page.click` the card's
+ * own `-remove` handle has to be able to finish (or abandon) the confirmation it opens, rather
+ * than deadlocking on a dialog it cannot see. Driven through `executePageCapability` +
+ * `createDomPageDriver`, not `userEvent`, matching this file's own module doc.
+ */
+describe("Remove confirmation dialog is agent-pressable", () => {
+  function renderOneServer() {
+    return renderPanel([{ id: "higgsfield", fields: { id: "higgsfield", command: "npx" } }]);
+  }
+
+  it("page.click on <cardHandle>-remove opens the dialog and publishes its confirm/cancel controls", async () => {
+    const { container } = renderOneServer();
+    await screen.findAllByTestId("source-config-item-card");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
+    await driver.settle?.();
+
+    const afterOpen = await findElements(driver);
+    expect(afterOpen).toContain("mcp-server-higgsfield-remove-confirm");
+    expect(afterOpen).toContain("mcp-server-higgsfield-remove-cancel");
+  });
+
+  it("page.click on <cardHandle>-remove-confirm actually removes the connection", async () => {
+    const { container } = renderOneServer();
+    await screen.findAllByTestId("source-config-item-card");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
+    await driver.settle?.();
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-confirm" });
+
+    await waitFor(() => expect(screen.queryAllByTestId("source-config-item-card")).toHaveLength(0));
+  });
+
+  it("page.click on <cardHandle>-remove-cancel leaves the connection untouched", async () => {
+    const { container } = renderOneServer();
+    await screen.findAllByTestId("source-config-item-card");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove" });
+    await driver.settle?.();
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-remove-cancel" });
+    await driver.settle?.();
+
+    expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
+    expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
   });
 });
