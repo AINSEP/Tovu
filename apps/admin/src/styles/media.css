@@ -13,22 +13,36 @@
 
 /* `auto-fill`, not a fixed count — the grid finds however many cards fit the viewport on its own,
    which is what "fewer columns" than the old 4-column table actually buys: a narrow viewport
-   collapses to 1-2 cards per row without a breakpoint rule of its own, and a wide one fills out
-   without a hardcoded ceiling.
+   collapses to 1-2 cards per row without a breakpoint rule of its own.
 
    Card min-width doubled 180px -> 360px (owner ask, 2026-09-07 — "make the media card roughly
    twice as big", thumbnails especially video were hard to read). The bare `minmax(360px, 1fr)`
    this would naively become breaks a narrow viewport: `auto-fill` still lays out a full 360px
    TRACK even when only one fits, and a track wider than the viewport overflows it (checked live at
    375px — a bare 360px minimum overflows the page horizontally the instant the container is
-   narrower than 360px plus this container's own padding). `minmax(min(360px, 100%), 1fr)` caps the
+   narrower than 360px plus this container's own padding). `minmax(min(360px, 100%), ...)` caps the
    minimum at the container's own width, so the single column at a narrow viewport shrinks to fit
-   instead of forcing an overflow — same doubled size everywhere it fits, safe everywhere it
-   doesn't. Verified in the running admin at 375px and 1280px (see the media-admin-ui report's
-   screenshots) — one column at 375px, several at desktop, no horizontal scroll either width. */
+   instead of forcing an overflow.
+
+   Max side capped at the SAME 360px floor (owner ask, 2026-09-08 — "images are unnecessarily large
+   on a wide display, cap them at half their current maximum size"). The `1fr` this replaces had no
+   ceiling by design (see the removed line above) — the grid's own "maximize tracks" step still
+   distributes leftover row space to a non-flex max (up to its own value) before any `fr` track gets
+   a look-in, so measured live at 1920px this stretched cards to 433px and, near the worst-case
+   auto-fill bracket (~1620-1860px container), as far as ~454px — roughly a fifth to a third over
+   the 360px floor, worse than "half again" on a common desktop width. `1fr`'s only actual job was
+   removing the ceiling for that stretch; swapping it for the same 360px the minimum already uses
+   removes the ceiling-less growth entirely and (per the CSS minmax spec, an inverted range folds to
+   a fixed track at the minimum) is the same result a literal "half of 433-454px" cap would produce,
+   since half of that range sits below the 360px floor either way. Narrow-viewport behavior is
+   unchanged: the "maximize tracks" step still fills a non-flex track's available leftover space up
+   to its max, so a sub-360px single column still grows to fill the container exactly as before —
+   only the wide-viewport overshoot past 360px is gone. Verified in the running admin at 375px,
+   1280px, 1920px, and 3840px — one column at 375px, several at desktop, no horizontal scroll at any
+   width, and cards hold at 360px instead of stretching past it. */
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 360px));
   gap: var(--space-4);
 }
 
