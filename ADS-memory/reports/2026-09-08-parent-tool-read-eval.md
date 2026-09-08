@@ -624,3 +624,170 @@ change to either file: 29 registered descriptors sharing one handler is entirely
 schema change is only required if one insists the *index* hold a single tool id, which buys nothing.
 The rest of §5 — that the design preserves 29 vocabulary chunks and therefore concedes the substance —
 holds, and is restated above.
+
+---
+
+# Ship report (2026-09-08, later the same day): finishing the `content_read` rollout
+
+Written by the agent that took over after the implementing agent rotated out without a handoff.
+Everything below was re-verified from the tree, not inherited.
+
+## 1. Verdict on the shipped derivation — the 85% IS ours to claim
+
+`content-read-tool.ts`'s `CONTENT_READ_CARDS` was checked by *running* the eval's own
+`resourceKeyOf` (strip the `list`/`get`/`by`/`id` verb tokens, singularize, dedupe) over the eval's
+own `TIER1_CLEAN`, then diffing the 29 resulting keys against the 29 shipped card ids:
+
+```
+ids: 36  cards: 29  merged: 7
+merged: content_post, member, menu, newsletter_campaign, redirect, widget_instance, widget_region
+diff derived vs shipped: EXACT MATCH
+```
+
+All 7 merges are `_get`/`_list` pairs over one resource, exactly as the addendum describes. The
+shipped catalog is the catalog that was measured, so the 85% top-10 / 87% whole-set figures apply.
+
+**Correction to the addendum's `RESOURCE_KEY_ARTIFACTS` note.** It claimed
+`newsletter_list_lists -> "newsletter"` — that the blind strip eats the noun. It does not. The tokens
+are `["newsletter", "list", "lists"]`; only the exact-match verb token `"list"` is dropped, and
+`"lists"` singularizes to `"list"` and is kept, yielding **`newsletter_list`**. The prose described
+the effect informally and was simply wrong about the function's output. Since the shipped collapse
+transcribes these keys literally, a reader comparing the two would have found a card
+(`content_read.newsletter_list`) the comment said should not exist. The note is corrected in place.
+
+**Ruling on the card-derivation wart:** left as `content_read.newsletter_list`, deliberately, not by
+inheritance. `newsletter_list_lists` does list newsletter's mailing lists, so "newsletter list" is an
+accurate noun phrase rather than a leftover verb token, and it collides with nothing
+(`content_read.newsletter_campaign` is a separate card). No hand-fix, so no eval re-run was owed.
+
+## 2. Ruling on `includeContentReadCollapse` — KEEP, and now pinned by a test
+
+It is correct, and its doc comment is accurate: the two production composition roots
+(`agent-daemon-server.ts:364`, `byok-tool-surface.ts:434`) both leave it at its default, which is
+precisely why it reads as dead code. A comment cannot stop a deletion, and deleting it fails
+**silently** in the way that matters most: the eval's "baseline" arm would quietly become the
+already-collapsed catalog and keep printing a plausible number while comparing the shipped design
+against itself.
+
+So it is now pinned by `apps/website/src/assistant/__tests__/content-read-tool.test.ts` — the first
+tests `content-read-tool.ts` has had at all — asserting over the REAL composition that exactly the 29
+cards ship, that none of the 36 retired ids survive, that the collapse is a net -7, and that
+`includeContentReadCollapse: false` returns all 36 originals and ZERO cards. Verified RED by
+simulating the option's deletion: the net-delta assertion reads 0 instead of 7 and 29 cards leak into
+the arm that must contain none.
+
+## 3. The sweep — what the collapse actually stranded
+
+The three follow-up commits covered post, identity, widgets; a fourth covered newsletter. That was
+about 15% of the work. Running **every** suite that builds the collapsed catalog and names a retired
+id found **22 of 29 files failing, 130 tests**. All 22 are now migrated (final run: **695 pass, 10
+fail**, every one of the 10 pre-existing and unrelated — see §5).
+
+Three classes of stranded reference the collapse left behind, in ascending order of how badly a grep
+handles them:
+
+1. **Live model-facing strings.** `assistant-system-overlay.ts`'s base system prompt named
+   `custom_credential_list`; `rewrap-page-navigate-error.ts`'s `page.navigate` refusal told the caller
+   to use `content_post_get` / `content_post_list`. Both steered a model at ids
+   `execute_delegated_tool` now rejects. The latter's regression test asserted all three ids as one
+   **alternation**, which stays green while any member matches — it would have tolerated both retired
+   ids indefinitely because `content_post_search` survived beside them. Split into three assertions
+   including a `doesNotMatch`, verified RED against the pre-fix string.
+
+2. **Tool DESCRIPTIONS — the largest class, and the one a sweep classifies wrongly.** ~30 of them
+   across 19 domains still read "as returned by `plugins_list`", "exactly as returned by
+   `theme_list`", "Use `content_post_list` first if you are not certain which kind an id belongs to".
+   A `description` is shipped to the model verbatim, so it is model-facing *regardless of which layer
+   the file lives in* — my own first pass classified these as domain-layer prose the collapse
+   legitimately leaves alone, and that was wrong. They were found by **running a live turn and reading
+   the description the server actually handed the model**, not by grepping.
+
+3. **A tool id that exists only as two concatenated string literals.** `assistant-byok-routes.test.ts`
+   splits it across two streamed argument fragments on purpose, to cover the adapter's incremental
+   `arguments` reassembly:
+
+   ```js
+   openAiToolCallArgsChunk(0, '{"toolId":"workspace_'),
+   openAiToolCallArgsChunk(0, 'get","input":{}}'),
+   ```
+
+   No search for a quoted tool id can ever match this — including the exhaustive one this task ran.
+   Found only by running the suite. Repointed keeping the split, and therefore the coverage, intact.
+
+**The governing distinction**, which every migration decision here turns on: the 36 ids still EXIST as
+domain catalog entries and handlers. The collapse rewrites only the FINAL wired registration list. So
+an assertion about a domain's own static catalog must KEEP the original id, and one about the wired
+list must use the card. `tool-registrations.themes.test.ts` asserted both from a single shared list
+and now carries `CATALOGUED_THEMES_TOOL_IDS` (`theme_list`) beside `WIRED_THEMES_TOOL_IDS`
+(`content_read.theme`); folding them back together would make one of the two silently wrong.
+`tool-registrations.external-mcp.test.ts` is the same hazard at file scale — it asserts through both
+an uncollapsed domain builder and the real assembly path, and an earlier blanket rewrite of it was
+reverted for flattening that difference.
+
+Two mechanical traps worth recording: fixture and permission maps key tools as **unquoted
+identifiers**, so a quoted-only sweep misses them silently (and `content_read.<resource>` contains a
+dot, so those keys must become quoted); and where a **merged** get/list pair collapses, rewriting both
+members to the same id produces a duplicate object key whose second entry silently overwrites the
+first — plus prose that contradicts itself ("PREFER THIS OVER `content_read.content_post` —
+`content_read.content_post` has no query" one clause after "call `content_read.content_post` with the
+id"). Six files were reverted from the mechanical pass and rewritten by hand to describe one tool with
+two modes.
+
+## 4. Live verification (§ milestone 3)
+
+**The admin UI could not be used.** `apps/admin/src/features/plugins/agent-plugin-source-catalog.ts`
+is in git `UU` state with literal `<<<<<<< Updated upstream` markers in it, so Vite fails to transform
+it and `https://localhost:5173/admin` renders only the esbuild error overlay. That file belongs to
+another session and this task was explicitly instructed not to touch it, so it was left exactly as
+found; the runtime dock was never switched, and therefore needed no switching back.
+
+Verified against the **running API on :3000** instead, which is a separate process and healthy. A
+scripted stub provider stands in for the model, but **every tool decision is made from the live
+server's own `search_tools` ranking** — the stub reads the search result and picks from it:
+
+```
+[turn 1] model -> search_tools({ query: "show me my forms" })
+[turn 1 result] content_read cards returned by LIVE search_tools: content_read.form_definition, ...
+[turn 2] model -> execute_delegated_tool({ toolId: "content_read.form_definition" })
+HTTP 200   tool_result isError=false   {"definitions":[ ...3 rows... ]}
+```
+
+Cross-checked against the live DB read-only (`file:sites/tovu-com/content.db?mode=ro`), never the
+turn's own claim — `select id, name, slug, status from form_definitions` returns exactly the 3 rows
+the tool returned, same UUIDs, same slugs.
+
+The merged card was exercised too: `"list my recent posts"` ranked `content_read.content_post`, and
+calling it with `{kind:"post"}` and no `id` dispatched to the **list** arm and returned the 1 matching
+row. That live run is also what exposed class (2) above — the card description handed to the model
+still said "Use `content_post_list` first". After the fix, a re-run returns **zero** retired ids
+anywhere in the model-facing text.
+
+## 5. Remaining failures — all pre-existing, none from this collapse
+
+- `tool-registrations.contracts.test.ts` (4): `content_duplicate` / `content-duplication` missing from
+  `CATALOGS_BY_DOMAIN`. From `31f83205`.
+- `tool-contribution-registry.test.ts` (1): `content-duplication` and `external-mcp` missing from the
+  expected installed-domain list. From `31f83205` / `0af1c873`. `content-read` correctly does NOT
+  appear there — it is a post-processing pass, not a registered contributor.
+- `tool-registrations.authorization.test.ts` (5): `authorize()` now reports
+  `entityType: 'content-type'` and the expected object omits it. These are MUTATION tools the collapse
+  never touches, and `content-read-tool.ts` contains no reference to `entityType`.
+
+One measurement trap found while triaging: `assistant-byok-routes.test.ts` needs
+`env -u TOVU_ADMIN_PASSWORD` or `loginAsOwner` 401s and 12 of its 13 tests fail for reasons unrelated
+to any of this. Its real collapse-caused failure count was **1**, not the 12 a first batch run
+reported.
+
+## 6. Gates
+
+- Root `npx tsc -p tsconfig.json --noEmit`: clean (0 lines), re-run after each milestone.
+- `npm run check:boundaries`: **19 errors — the documented baseline, unchanged**; zero violation lines
+  name `content-read` or `content_read`.
+- Scoped test runs only, one file at a time, from the repo root. No `serve-command*.integration` suite
+  was run.
+
+## 7. Commits
+
+`0c0befe4` live model-facing strings · `6c26e0ab` 12 suites · `15a86368` forms/content-types/database
+·  `3d14b025` merged get/list pairs + external-mcp · `2c55296a` last three suites incl. the split id ·
+`a2fa0bfc` the `content-read-tool` contract test · `f7e44b4e` the tool descriptions.
