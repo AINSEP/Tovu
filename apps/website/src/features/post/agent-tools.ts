@@ -306,13 +306,19 @@ const TIPTAP_DOC_SCHEMA = {
 
 /**
  * The Posts + Pages domain's fixed agent-tool catalog: 3 reads (`content_post_search`/
- * `content_post_list`/`content_post_get`) plus 4 writes (`content_post_create`/`content_post_update`/
- * `content_post_delete`, each mapping 1:1 onto `post.ts`, and `content_post_duplicate` — a compound
- * read-then-create with no single `post.ts` function of its own, see its own entry for the design
- * rationale, `ADS-memory/reports/2026-09-07-page-tool-gap.md`) — see this file's header for the 2
- * remaining deliberate absences (no separate publish/unpublish, no partial update), the retired
- * no-delete-tool note, and the disclosed `kind`-guard asymmetry every one of `content_post_get`/
- * `content_post_update`/`content_post_delete`/`content_post_duplicate` shares.
+ * `content_post_list`/`content_post_get`) plus the 3 writes `post.ts` actually exposes
+ * (`content_post_create`/`content_post_update`/`content_post_delete`) — see this file's header for
+ * the 2 remaining deliberate absences (no separate publish/unpublish, no partial update), the
+ * retired no-delete-tool note, and the disclosed `kind`-guard asymmetry every one of
+ * `content_post_get`/`content_post_update`/`content_post_delete` shares.
+ *
+ * NO `content_post_duplicate` here (2026-09-07 dispatch, then the owner's follow-up redesign,
+ * `ADS-memory/reports/2026-09-07-page-tool-gap.md`/`-page-duplicate-tool.md`): a bespoke tool per
+ * resource was rejected in favor of ONE cross-resource `content_duplicate` tool
+ * (`features/content-duplication/agent-tools.ts`), generic over `resource`. This domain's own
+ * `"post"`/`"page"` copy capability now lives at `tool-registrations.ts`'s
+ * `duplicatePostOrPage`/`contributePostDuplicateHandlers`, wired into `content_duplicate` through
+ * `assistant/duplicate-resource-registry.ts` rather than published as its own catalog entry here.
  *
  * Ordered read-first and destructive-last, matching `widgets/agent-tools.ts`'s/
  * `identity/agent-tools.ts`'s convention: a model needs a `postId` before it can update or delete
@@ -487,50 +493,6 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
             "update is rejected with VERSION_CONFLICT (nothing written) if anyone saved in the meantime. Send it whenever you " +
             "have a version to send.",
         },
-      },
-    },
-  },
-  {
-    name: "content_post_duplicate",
-    description:
-      "Creates a new post/page as a copy of an existing one — the tool for 'copy X and name it Y', 'duplicate this " +
-      "page', or 'use this post as a starting point for a new one'. One atomic call: reads the source row, then " +
-      "creates a new row with a fresh id (never touching the source). " +
-      "The COPY's kind always matches the SOURCE row's actual kind (kind is immutable once created — see " +
-      "content_post_create's own note) — the `kind` you pass here is only which row you mean, exactly like " +
-      "content_post_get/content_post_update's identical disclosed asymmetry: with kind:'page', a row whose actual " +
-      "kind is 'post' is rejected as not-found; with kind:'post', a row whose actual kind is 'page' is still copied " +
-      "(and the copy is itself a page). Use content_post_list first if you are not certain which kind an id belongs to. " +
-      "title defaults to 'Copy of <source title>'; slug defaults to a fresh one derived from that title (same " +
-      "collision disambiguation content_post_create runs) — pass slug explicitly to request one instead, and it is " +
-      "rejected exactly like content_post_create's explicit slug (malformed, reserved, or already taken). " +
-      "status ALWAYS defaults to 'draft', even when the source is published — a copy must never silently go live; " +
-      "pass status:'published' explicitly if that is genuinely intended. " +
-      "WIDGET EMBEDS: if the source's body contains any widgetEmbed node, the copy gets its OWN fresh placement id " +
-      "for every one of them (never the source's) while continuing to reference the SAME underlying widget instance " +
-      "— editing that shared widget's content still affects both, exactly like placing the same widget in two " +
-      "regions does today, but neither page's embed LIST can ever be edited through the other's id. " +
-      "BESPOKE-HTML PAGES: if the source page's body is bespoke HTML (written via pages_write_html, not a TipTap " +
-      "document), its HTML is copied onto the new page the same way pages_write_html would write it. If this " +
-      "workspace has no HTML-body store wired for duplication, the call is REJECTED before anything is written, " +
-      "with an explanation — an HTML page's content is never silently dropped or left un-copied.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "content.write" },
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["id", "kind"],
-      properties: {
-        id: POST_ID_SCHEMA,
-        kind: POST_KIND_SCHEMA,
-        title: { type: "string", maxLength: MAX_TITLE_LENGTH, description: `Optional. Defaults to 'Copy of <source title>'. Up to ${MAX_TITLE_LENGTH} characters.` },
-        slug: {
-          type: "string",
-          pattern: SLUG_FORMAT_PATTERN.source,
-          maxLength: MAX_SLUG_LENGTH,
-          description: `Optional explicit URL slug (lowercase letters, numbers, dashes; max ${MAX_SLUG_LENGTH} characters; cannot be 'admin' or 'api'). Omit to derive one from the (possibly defaulted) title.`,
-        },
-        status: { type: "string", enum: ["draft", "published"], description: "Optional. Defaults to 'draft' regardless of the source row's own status — a copy never silently goes live." },
       },
     },
   },

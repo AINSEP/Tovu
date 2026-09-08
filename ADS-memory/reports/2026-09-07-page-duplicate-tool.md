@@ -169,3 +169,49 @@ project's own documented gap on this point.
 - The `features/external-mcp` root-`tsc` break is another agent's in-progress work, not mine to fix.
 
 Commit sha(s): recorded after this report — see the reply message.
+
+---
+
+## HANDOFF: generic `content_duplicate` — STOPPED MID-FLIGHT (2026-09-07 21:28)
+
+F-PAGECOPY was stood down on context size (~450k) before it could commit. **Its work is UNCOMMITTED
+but intact on disk.** Do not `git clean`, `git stash`, or `git checkout` these paths.
+
+### Untracked, on disk, not committed
+- `apps/website/src/assistant/duplicate-resource-registry.ts` (6786 b) — the per-resource handler
+  registry. Modeled on `tool-contribution-registry.ts`: module-level ordered list,
+  `register*`/`list*`/`reset*ForTests`, last-registration-wins by key.
+- `apps/website/src/features/content-duplication/agent-tools.ts` (5707 b)
+- `apps/website/src/features/content-duplication/tool-registrations.ts` (6507 b)
+
+### Modified, uncommitted, and INTERLEAVED with two other agents' work
+`assistant/index.ts`, `assistant/tool-registrations.ts`, `features/post/agent-tools.ts`,
+`features/post/tool-registrations.ts`, `server/runtime/composition/tool-catalog-manifest.ts`
+— these also carry F-ISOLATE's and F-WIRETOOLS's in-flight edits. **Do not commit them as one unit.**
+
+### The load-bearing design decision it recorded (preserve this)
+A resource feature must NOT import `registerDuplicateResourceHandler` itself. `features/post`
+reaches in with a TYPE-ONLY import of `DuplicateResourceHandlerContributor` and returns plain data;
+the actual `registerDuplicateResourceHandler(...)` calls live at the composition root in
+`tool-catalog-manifest.ts`'s `installFirstPartyToolContributors`. Reason, from that file's own
+history: a real `features/post -> assistant` VALUE edge previously created an
+`[assistant, features/post]` module cycle and had to be removed by injecting the dependency. A naive
+"each resource registers itself" design reopens exactly that cycle.
+
+### What is NOT known
+Whether posts/pages handlers were migrated onto the registry, whether permission-resolves-from-
+resource was started (no precedent in the codebase — all ~182 tools use one static permission per
+tool id), and whether the third resource (form or media) was attempted. It never reported.
+
+### Next action for a fresh agent
+Read the three untracked files, determine what compiles, and finish the generic tool: posts + pages
+handlers on the registry, permission resolved per resource, an enumerating error for unsupported
+types, then ONE more resource (form or media) to prove the seam. Widgets are explicitly out of scope
+— a widget carries both `placementId` and `widgetEntryId` and is intended to be shared across
+documents, so "copy a widget" needs an owner decision first.
+
+Already shipped and NOT to be redone (commit `71daa2bf`): `content_post_duplicate` with correct
+widgetEmbed deep-copy (`features/post/duplicate-embeds.ts` mints a fresh `placementId`, keeps
+`widgetEntryId`), the HTML-page path via `pagesHtmlStore`, `adminUrl` on
+`content_post_get`/`_list`/`_create`, and the `page.navigate` error rewrap. Fold that tool into the
+generic surface; do not leave both.

@@ -73,7 +73,7 @@ import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import {
   postAgentToolCatalog,
   type AgentToolDefinition as PostAgentToolDefinition,
@@ -152,12 +152,12 @@ export interface PostToolDeps {
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
   /**
-   * OPTIONAL — `content_post_duplicate`'s only dependency the rest of this domain does not already
-   * need. Kept optional (rather than required, like `PagesToolDeps.pagesHtmlStore`) so every
-   * existing `PostToolDeps` test double that predates this field keeps compiling unchanged; a real
-   * production caller always has one (see this field's type doc above). When absent, duplicating an
-   * HTML-format page is refused with an explicit, actionable error rather than silently dropping
-   * the page's body — see `content_post_duplicate`'s handler.
+   * OPTIONAL — `content_duplicate`'s `"post"`/`"page"` resource handlers
+   * ({@link duplicatePostOrPage}) are the only consumers in this domain that need it. Kept optional
+   * (rather than required, like `PagesToolDeps.pagesHtmlStore`) so every existing `PostToolDeps` test
+   * double that predates this field keeps compiling unchanged; a real production caller always has
+   * one (see this field's type doc above). When absent, duplicating an HTML-format page is refused
+   * with an explicit, actionable error rather than silently dropping the page's body.
    */
   pagesHtmlStore?: DuplicatePagesHtmlStoreFactory;
 }
@@ -194,12 +194,11 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
   //    classification here is the strictly worse of the outcomes, which is the conservative
   //    direction (ADR-055 Decision 2 — one held-open call, not a mint call plus a redeem call).
   ["content_post_delete", "deletes-durable-state"],
-  // -> getAdminPostById (post.ts, read only) then executeCommand -> createPost (post.ts):
-  //    postRepo.save() of a NEW row + change-set record, plus (on an HTML-format source) a
-  //    pagesHtmlStore.ensureHtmlFormat() write onto that same new row. The SOURCE row is never
-  //    written — only read.
-  ["content_post_duplicate", "mutates-durable-state"],
 ]);
+// NOTE: no "content_post_duplicate" entry — duplication is no longer this domain's own bespoke
+// tool. See `duplicatePostOrPage`/`contributePostDuplicateHandlers` below: this domain contributes
+// its "post"/"page" copy capability to the cross-resource `content_duplicate` tool
+// (`features/content-duplication/`) instead, via `assistant/duplicate-resource-registry.ts`.
 
 /**
  * The only Posts/Pages rejection worth decorating with the published schema: `bodyJson`/`title`/
@@ -395,8 +394,10 @@ function resolveAdminUrl(post: PostRecord): string {
 
 /**
  * {@link toPostToolView} plus {@link resolvePublicUrl}/{@link resolveAdminUrl} — the shape
- * `content_post_get`/`content_post_list`/`content_post_create`/`content_post_duplicate` return to
- * the model (see this file's header, "`publicUrl`", and {@link resolveAdminUrl}'s own doc).
+ * `content_post_get`/`content_post_list`/`content_post_create` return to the model (see this file's
+ * header, "`publicUrl`", and {@link resolveAdminUrl}'s own doc). Also used by
+ * {@link duplicatePostOrPage} (`content_duplicate`'s `"post"`/`"page"` resource handlers) to shape
+ * its own response identically.
  */
 function toPostToolViewWithPublicUrl(routeDeps: PostToolDeps, post: PostRecord): PostToolViewWithPublicUrl {
   return { ...toPostToolView(post), publicUrl: resolvePublicUrl(routeDeps, post), adminUrl: resolveAdminUrl(post) };
@@ -610,127 +611,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
-      });
-    },
-
-    /**
-     * Reads a source post/page, then creates a new row from it — the first-class "copy this page"
-     * tool (`ADS-memory/reports/2026-09-07-page-tool-gap.md`, superseding the compose-it-yourself
-     * fallback that report's own §2 evaluated and rejected: it has no atomicity, and nothing stops
-     * it from walking into the widgetEmbed trap below).
-     *
-     * Two permission checks, mirroring `content_post_delete`'s identical shape rather than
-     * `content_post_create`'s (which has no existing row to read at all): an upfront `content.read`
-     * check gates LEARNING anything about the source row (its title/bodyJson would otherwise leak to
-     * a caller with no write access, since the read below happens before `executeCommand`'s own gate
-     * ever runs); `executeCommand`'s `content.write` permission gates the actual creation, exactly
-     * like `content_post_create`.
-     *
-     * The new row's `kind` is always the SOURCE's real `kind`, never the caller's `kind` input — kind
-     * is immutable once created (`PostKind`'s own doc), so a copy can only ever be the same kind as
-     * what it copies. `kind` here plays exactly the disambiguation role it plays in
-     * `content_post_get`/`content_post_update`: kind:'page' guards (a mismatched actual kind:'post'
-     * row 404s), kind:'post' does not (see `agent-tools.ts`'s disclosed asymmetry).
-     */
-    content_post_duplicate: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      return withSchemaOnRejection({ toolId: "content_post_duplicate", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
-        const sourceId = requireString(input, "id");
-        const kind = requirePostKind(input);
-
-        await requireToolPermission(routeDeps, {
-          principalId: ctx.principal.id,
-          permission: "content.read",
-          entityType: "post",
-          entityId: sourceId,
-        });
-
-        const { post: source } = await getAdminPostById({
-          deps: { repo: routeDeps.postRepo },
-          input: { workspaceId: routeDeps.workspaceId, id: sourceId },
-        });
-        // Disclosed asymmetry (agent-tools.ts's own header, mirrored verbatim from content_post_get):
-        // kind:"page" guards a mismatched actual kind:"post" row as not-found; kind:"post" does not
-        // guard the other way.
-        if (kind === "page" && source.kind !== "page") {
-          throw new PostNotFoundError(`page '${sourceId}' was not found`);
-        }
-
-        const title = optionalString(input, "title") ?? `Copy of ${source.title}`;
-        const slug = optionalString(input, "slug");
-        const status = optionalPostStatus(input) ?? "draft";
-
-        // Resolved BEFORE the new row is created, not after: an HTML page whose body genuinely
-        // cannot be copied must fail loudly with NOTHING written — never an orphaned draft row left
-        // behind for the operator to notice and clean up (see agent-tools.ts's own tool doc).
-        let sourceHtml: string | undefined;
-        let bodyJsonForCreate: JsonObject | undefined;
-        if (source.bodyFormat === "html") {
-          if (!routeDeps.pagesHtmlStore) {
-            throw new Error(
-              `content_post_duplicate: '${sourceId}' is a bespoke-HTML page, and this workspace has no HTML-body ` +
-                "store wired for duplication. Nothing was copied — its content is never silently dropped."
-            );
-          }
-          sourceHtml = await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: sourceId }).read();
-        } else {
-          // The one piece of real design work this tool exists for — see duplicate-embeds.ts's own
-          // header for why widgetEntryId is kept and placementId is regenerated, never the reverse.
-          bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements(source.bodyJson, () => routeDeps.idGen.newId());
-        }
-
-        const newId = routeDeps.idGen.newId();
-
-        const { result } = await executeCommand<{ post: PostRecord }>({
-          deps: postCommandDeps(routeDeps),
-          command: {
-            workspaceId: routeDeps.workspaceId,
-            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
-            permission: "content.write",
-          },
-          mutation: {
-            entityType: "post",
-            entityId: newId,
-            operation: "create",
-            captureInverse: async () => null,
-            execute: () =>
-              createPost({
-                deps: {
-                  repo: routeDeps.postRepo,
-                  clock: routeDeps.clock,
-                  beforeSaveHook: routeDeps.pluginBeforeSaveHook,
-                  outbox: routeDeps.outbox,
-                },
-                // kind is the SOURCE's real kind (see this handler's own doc), never the caller's
-                // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new
-                // row is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below,
-                // exactly like pages_write_html's own first-write sequence.
-                input: { workspaceId: routeDeps.workspaceId, id: newId, title, kind: source.kind, slug, bodyJson: bodyJsonForCreate, status },
-              }),
-            captureEntityVersion: (r) => r.post.version,
-          },
-        });
-
-        let finalPost = result.post;
-        if (sourceHtml !== undefined) {
-          // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
-          // `result.post` is stale after this (still "doc" format, version 1); re-read to return the
-          // row's real, post-conversion state.
-          await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
-          const { post: reread } = await getAdminPostById({
-            deps: { repo: routeDeps.postRepo },
-            input: { workspaceId: routeDeps.workspaceId, id: newId },
-          });
-          finalPost = reread;
-        }
-
-        // Mirrors content_post_create's identical inline processOutbox call — only fires an event
-        // when this copy was itself created directly as `status: "published"` (the default is
-        // "draft", so the common case enqueues nothing).
-        await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
-
-        return { post: toPostToolViewWithPublicUrl(routeDeps, finalPost) };
       });
     },
 
@@ -959,6 +839,174 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     handlers,
     derivedRisk: postDerivedRisk,
   });
+}
+
+/**
+ * Shared implementation behind `content_duplicate`'s `"post"` and `"page"` resource contributors
+ * (see {@link contributePostDuplicateHandlers} below).
+ *
+ * This used to be `content_post_duplicate`'s own bespoke tool handler
+ * (`ADS-memory/reports/2026-09-07-page-duplicate-tool.md`) — the owner's follow-up correction
+ * (`ADS-memory/reports/2026-09-07-page-tool-gap.md`'s cross-resource redesign: "one tool per verb,
+ * generic over resource" rather than one `*_duplicate` tool per resource) folded it behind
+ * `content_duplicate` instead. The logic itself — including the widgetEmbed placement regeneration
+ * and the bespoke-HTML fail-loudly path — is UNCHANGED; only how a caller reaches it moved.
+ *
+ * `guardKind` plays the disclosed-asymmetry disambiguation role `kind` played on the old bespoke
+ * tool, and plays it identically for the `"post"`/`"page"` resource ids `content_duplicate` exposes:
+ * `"page"` guards a mismatched actual `kind:"post"` source as not-found; `"post"` does not guard the
+ * other way (`agent-tools.ts`'s own header). It is NOT the created row's own kind — that is always
+ * the SOURCE's real kind, since kind is immutable once created.
+ *
+ * @complexity O(n) in the copied body's size (one `copyBodyJsonWithFreshEmbedPlacements` walk) plus
+ * O(1) repo/command-gateway calls.
+ */
+async function duplicatePostOrPage(
+  routeDeps: PostToolDeps,
+  guardKind: PostKind,
+  input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } }
+): Promise<Record<string, unknown>> {
+  const sourceId = input.id;
+
+  // Upfront content.read check, mirroring content_post_delete's identical shape: gates LEARNING
+  // anything about the source row (its title/bodyJson would otherwise leak to a caller with no read
+  // access, since this read happens before executeCommand's own content.write gate below ever
+  // runs). `content_duplicate`'s own handler ALSO checks this resource's declared permission
+  // (content.write) before calling here at all — see `contributePostDuplicateHandlers` below — so
+  // this is a second, narrower gate on top of that outer one, not a replacement for it.
+  await requireToolPermission(routeDeps, {
+    principalId: input.principalId,
+    permission: "content.read",
+    entityType: "post",
+    entityId: sourceId,
+  });
+
+  const { post: source } = await getAdminPostById({
+    deps: { repo: routeDeps.postRepo },
+    input: { workspaceId: routeDeps.workspaceId, id: sourceId },
+  });
+  // Disclosed asymmetry (agent-tools.ts's own header, mirrored verbatim from content_post_get):
+  // guardKind "page" guards a mismatched actual kind:"post" row as not-found; "post" does not guard
+  // the other way.
+  if (guardKind === "page" && source.kind !== "page") {
+    throw new PostNotFoundError(`page '${sourceId}' was not found`);
+  }
+
+  const overrideStatus = input.overrides.status;
+  if (overrideStatus !== undefined && overrideStatus !== "draft" && overrideStatus !== "published") {
+    throw new PostValidationError("status must be 'draft' or 'published'");
+  }
+
+  const title = input.overrides.title ?? `Copy of ${source.title}`;
+  const slug = input.overrides.slug;
+  const status: PostStatus = overrideStatus ?? "draft";
+
+  // Resolved BEFORE the new row is created, not after: an HTML page whose body genuinely cannot be
+  // copied must fail loudly with NOTHING written — never an orphaned draft row left behind for the
+  // operator to notice and clean up (see agent-tools.ts's own tool doc, and
+  // features/content-duplication/agent-tools.ts's `content_duplicate` catalog entry).
+  let sourceHtml: string | undefined;
+  let bodyJsonForCreate: JsonObject | undefined;
+  if (source.bodyFormat === "html") {
+    if (!routeDeps.pagesHtmlStore) {
+      throw new Error(
+        `content_duplicate: '${sourceId}' is a bespoke-HTML page, and this workspace has no HTML-body ` +
+          "store wired for duplication. Nothing was copied — its content is never silently dropped."
+      );
+    }
+    sourceHtml = await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: sourceId }).read();
+  } else {
+    // The one piece of real design work this tool exists for — see duplicate-embeds.ts's own header
+    // for why widgetEntryId is kept and placementId is regenerated, never the reverse.
+    bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements(source.bodyJson, () => routeDeps.idGen.newId());
+  }
+
+  const newId = routeDeps.idGen.newId();
+
+  const { result } = await executeCommand<{ post: PostRecord }>({
+    deps: postCommandDeps(routeDeps),
+    command: {
+      workspaceId: routeDeps.workspaceId,
+      actor: { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND },
+      summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
+      permission: "content.write",
+    },
+    mutation: {
+      entityType: "post",
+      entityId: newId,
+      operation: "create",
+      captureInverse: async () => null,
+      execute: () =>
+        createPost({
+          deps: {
+            repo: routeDeps.postRepo,
+            clock: routeDeps.clock,
+            beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+            outbox: routeDeps.outbox,
+          },
+          // kind is the SOURCE's real kind (see this function's own doc), never the caller's
+          // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new row
+          // is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below, exactly
+          // like pages_write_html's own first-write sequence.
+          input: { workspaceId: routeDeps.workspaceId, id: newId, title, kind: source.kind, slug, bodyJson: bodyJsonForCreate, status },
+        }),
+      captureEntityVersion: (r) => r.post.version,
+    },
+  });
+
+  let finalPost = result.post;
+  if (sourceHtml !== undefined) {
+    // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
+    // `result.post` is stale after this (still "doc" format, version 1); re-read to return the row's
+    // real, post-conversion state.
+    await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
+    const { post: reread } = await getAdminPostById({
+      deps: { repo: routeDeps.postRepo },
+      input: { workspaceId: routeDeps.workspaceId, id: newId },
+    });
+    finalPost = reread;
+  }
+
+  // Mirrors content_post_create's identical inline processOutbox call — only fires an event when
+  // this copy was itself created directly as `status: "published"` (the default is "draft", so the
+  // common case enqueues nothing).
+  await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
+
+  return { post: toPostToolViewWithPublicUrl(routeDeps, finalPost) };
+}
+
+/**
+ * `content_duplicate`'s resource contributors for `"post"` and `"page"` — see
+ * `assistant/duplicate-resource-registry.ts` for the contract each entry satisfies. Both resolve to
+ * `content.write`, the SAME permission `content_post_create`/`content_post_update` already declare
+ * in this domain's own catalog (`agent-tools.ts`) — no new permission invented for the generic tool,
+ * per the owner's explicit instruction to resolve each resource's permission from what it already
+ * declares.
+ *
+ * Called from the composition root (`server/runtime/composition/tool-catalog-manifest.ts`'s
+ * `installFirstPartyToolContributors`), NOT from within this domain — see
+ * `duplicate-resource-registry.ts`'s own header for why a `features/post -> assistant` VALUE edge to
+ * call `registerDuplicateResourceHandler` directly from here would reopen the exact module cycle
+ * this domain's own `contributePostTools` history already fought to close. This function only
+ * returns data; it imports the registry's TYPE, never its register function.
+ */
+export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContributor[] {
+  return [
+    {
+      resource: "post",
+      build: (routeDeps) => ({
+        permission: "content.write",
+        duplicate: (input) => duplicatePostOrPage(routeDeps, "post", input),
+      }),
+    },
+    {
+      resource: "page",
+      build: (routeDeps) => ({
+        permission: "content.write",
+        duplicate: (input) => duplicatePostOrPage(routeDeps, "page", input),
+      }),
+    },
+  ];
 }
 
 // 2026-08-17: Post was briefly converted to the tool-contribution registry (`contributePostTools`,
