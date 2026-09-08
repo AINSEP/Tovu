@@ -92,6 +92,7 @@ import {
   updatePost,
   DEFAULT_POST_LIST_LIMIT,
   MAX_POST_LIST_LIMIT,
+  ROOT_SLUG,
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
@@ -105,8 +106,31 @@ import {
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
 import { searchAdminPosts, type PostSearchPort } from "./search.js";
+import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
 
 const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
+
+/**
+ * Structural mirror of `features/pages/html-document-store.sqlite.ts`'s
+ * `PagesHtmlDocumentStorePort`/`PagesHtmlDocumentStoreFactory` — declared locally rather than
+ * imported. Importing the real type would add a `features/post -> features/pages` value-import
+ * edge on top of the existing `features/pages -> features/post` one (`pages/tool-registrations.ts`
+ * already imports `PostRepoPort` as `import type` from this domain), closing a module cycle
+ * `check:architecture` would flag. Same Option-B-style injection this file's own `contributePostTools`
+ * history already documents for `listPublishedPosts`/`extractGitHubLogin` (see that function's
+ * trailing comment): depend on the shape, wire the real implementation only at the composition root.
+ *
+ * `server/routes/types.ts`'s `RouteDeps.pagesHtmlStore` already carries a real
+ * `PagesHtmlDocumentStoreFactory`, and every `PostToolDeps` this repo actually constructs in
+ * production is built from (or assignable from) that same `RouteDeps` object — so no composition-root
+ * change is needed to wire this field; it is already present on the object that flows through.
+ */
+export interface DuplicatePagesHtmlStore {
+  ensureHtmlFormat(seedHtml: string): Promise<void>;
+  read(): Promise<string>;
+  write(html: string): Promise<void>;
+}
+export type DuplicatePagesHtmlStoreFactory = (scope: { workspaceId: string; postId: string }) => DuplicatePagesHtmlStore;
 
 /**
  * The exact slice of the route-deps bag Posts/Pages' tool handlers read. Declared structurally
@@ -127,6 +151,15 @@ export interface PostToolDeps {
   postRepo: PostRepoPort;
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /**
+   * OPTIONAL — `content_post_duplicate`'s only dependency the rest of this domain does not already
+   * need. Kept optional (rather than required, like `PagesToolDeps.pagesHtmlStore`) so every
+   * existing `PostToolDeps` test double that predates this field keeps compiling unchanged; a real
+   * production caller always has one (see this field's type doc above). When absent, duplicating an
+   * HTML-format page is refused with an explicit, actionable error rather than silently dropping
+   * the page's body — see `content_post_duplicate`'s handler.
+   */
+  pagesHtmlStore?: DuplicatePagesHtmlStoreFactory;
 }
 
 /**
@@ -161,6 +194,11 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
   //    classification here is the strictly worse of the outcomes, which is the conservative
   //    direction (ADR-055 Decision 2 — one held-open call, not a mint call plus a redeem call).
   ["content_post_delete", "deletes-durable-state"],
+  // -> getAdminPostById (post.ts, read only) then executeCommand -> createPost (post.ts):
+  //    postRepo.save() of a NEW row + change-set record, plus (on an HTML-format source) a
+  //    pagesHtmlStore.ensureHtmlFormat() write onto that same new row. The SOURCE row is never
+  //    written — only read.
+  ["content_post_duplicate", "mutates-durable-state"],
 ]);
 
 /**
@@ -291,10 +329,12 @@ function toPostToolView(post: PostRecord): PostToolView {
   };
 }
 
-/** {@link PostToolView} plus the resolved public path — see this file's header ("`publicUrl`") for
- *  why this is a separate type rather than a field added to the base shape. */
+/** {@link PostToolView} plus the resolved public path and the in-admin edit path — see this file's
+ *  header ("`publicUrl`") for why these are a separate type rather than fields added to the base
+ *  shape, and {@link resolveAdminUrl}'s own doc for `adminUrl`. */
 interface PostToolViewWithPublicUrl extends PostToolView {
   publicUrl: string | null;
+  adminUrl: string;
 }
 
 /**
@@ -319,12 +359,47 @@ function resolvePublicUrl(routeDeps: PostToolDeps, post: PostRecord): string | n
 }
 
 /**
- * {@link toPostToolView} plus {@link resolvePublicUrl} — the shape `content_post_get`/
- * `content_post_list`/`content_post_create` return to the model (see this file's header,
- * "`publicUrl`").
+ * Resolves the in-admin EDIT path for `post` — "where do I go to change this", as opposed to
+ * {@link resolvePublicUrl}'s "where does a visitor see this". Added 2026-09-07
+ * (`ADS-memory/reports/2026-09-07-page-tool-gap.md` §3) for the identical reason `publicUrl` was
+ * added on 2026-08-30 (this file's header): the assistant had no tool that told it where a
+ * post/page it just read or created is actually reachable, this time in the admin UI rather than
+ * on the live site — the fallback was `assistant_admin_screen_link`, which needs the caller to
+ * already know the right path shape.
+ *
+ * Re-implemented here rather than imported, mirroring the SAME cross-app boundary
+ * `apps/admin/src/features/pages/rules.ts`'s own `pagePublicPath` already crosses in the opposite
+ * direction (that file's own doc: "re-implemented here... because apps/admin is a separately
+ * deployed SPA package with no dependency on apps/website's server source") — this server has none
+ * on `apps/admin` either.
+ *
+ * Two real routes, both confirmed by reading `apps/admin/src/features/*` directly:
+ * - `kind: "post"` -> `/admin/posts/{id}` — ALWAYS by id. `apps/admin/src/features/posts/rules.ts`'s
+ *   own `buildPostAutosaveDraft` doc: "`PostEditor` is reached only via `/admin/posts/{id}`" (no
+ *   slug-based route exists for a Post).
+ * - `kind: "page"` -> `/admin/pages/{handle}`, mirroring `apps/admin/src/features/pages/rules.ts`'s
+ *   `pageAdminPath` exactly: prefers `slug`, falling back to `id` only when the slug cannot be a
+ *   path segment at all (today, only the literal root slug `ROOT_SLUG`/`"/"`, gated to `kind: "page"`
+ *   — every other slug is `SLUG_FORMAT_PATTERN`-validated and can never contain `/`).
+ * Both prefixed with `/admin`, `@jini-ai/admin/core`'s own `DEFAULT_ADMIN_BASE`
+ * (`apps/admin/src/lib/router.ts`'s `ADMIN_BASE`) — the real, browser-visible admin URL, not the
+ * SPA-router-relative path `pageAdminPath` itself returns before `adminHref()` prefixes it.
+ *
+ * @complexity O(1).
+ */
+function resolveAdminUrl(post: PostRecord): string {
+  if (post.kind === "post") return `/admin/posts/${post.id}`;
+  const handle = post.slug === ROOT_SLUG ? post.id : post.slug;
+  return `/admin/pages/${handle}`;
+}
+
+/**
+ * {@link toPostToolView} plus {@link resolvePublicUrl}/{@link resolveAdminUrl} — the shape
+ * `content_post_get`/`content_post_list`/`content_post_create`/`content_post_duplicate` return to
+ * the model (see this file's header, "`publicUrl`", and {@link resolveAdminUrl}'s own doc).
  */
 function toPostToolViewWithPublicUrl(routeDeps: PostToolDeps, post: PostRecord): PostToolViewWithPublicUrl {
-  return { ...toPostToolView(post), publicUrl: resolvePublicUrl(routeDeps, post) };
+  return { ...toPostToolView(post), publicUrl: resolvePublicUrl(routeDeps, post), adminUrl: resolveAdminUrl(post) };
 }
 
 /**
@@ -535,6 +610,127 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
+      });
+    },
+
+    /**
+     * Reads a source post/page, then creates a new row from it — the first-class "copy this page"
+     * tool (`ADS-memory/reports/2026-09-07-page-tool-gap.md`, superseding the compose-it-yourself
+     * fallback that report's own §2 evaluated and rejected: it has no atomicity, and nothing stops
+     * it from walking into the widgetEmbed trap below).
+     *
+     * Two permission checks, mirroring `content_post_delete`'s identical shape rather than
+     * `content_post_create`'s (which has no existing row to read at all): an upfront `content.read`
+     * check gates LEARNING anything about the source row (its title/bodyJson would otherwise leak to
+     * a caller with no write access, since the read below happens before `executeCommand`'s own gate
+     * ever runs); `executeCommand`'s `content.write` permission gates the actual creation, exactly
+     * like `content_post_create`.
+     *
+     * The new row's `kind` is always the SOURCE's real `kind`, never the caller's `kind` input — kind
+     * is immutable once created (`PostKind`'s own doc), so a copy can only ever be the same kind as
+     * what it copies. `kind` here plays exactly the disambiguation role it plays in
+     * `content_post_get`/`content_post_update`: kind:'page' guards (a mismatched actual kind:'post'
+     * row 404s), kind:'post' does not (see `agent-tools.ts`'s disclosed asymmetry).
+     */
+    content_post_duplicate: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      return withSchemaOnRejection({ toolId: "content_post_duplicate", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
+        const sourceId = requireString(input, "id");
+        const kind = requirePostKind(input);
+
+        await requireToolPermission(routeDeps, {
+          principalId: ctx.principal.id,
+          permission: "content.read",
+          entityType: "post",
+          entityId: sourceId,
+        });
+
+        const { post: source } = await getAdminPostById({
+          deps: { repo: routeDeps.postRepo },
+          input: { workspaceId: routeDeps.workspaceId, id: sourceId },
+        });
+        // Disclosed asymmetry (agent-tools.ts's own header, mirrored verbatim from content_post_get):
+        // kind:"page" guards a mismatched actual kind:"post" row as not-found; kind:"post" does not
+        // guard the other way.
+        if (kind === "page" && source.kind !== "page") {
+          throw new PostNotFoundError(`page '${sourceId}' was not found`);
+        }
+
+        const title = optionalString(input, "title") ?? `Copy of ${source.title}`;
+        const slug = optionalString(input, "slug");
+        const status = optionalPostStatus(input) ?? "draft";
+
+        // Resolved BEFORE the new row is created, not after: an HTML page whose body genuinely
+        // cannot be copied must fail loudly with NOTHING written — never an orphaned draft row left
+        // behind for the operator to notice and clean up (see agent-tools.ts's own tool doc).
+        let sourceHtml: string | undefined;
+        let bodyJsonForCreate: JsonObject | undefined;
+        if (source.bodyFormat === "html") {
+          if (!routeDeps.pagesHtmlStore) {
+            throw new Error(
+              `content_post_duplicate: '${sourceId}' is a bespoke-HTML page, and this workspace has no HTML-body ` +
+                "store wired for duplication. Nothing was copied — its content is never silently dropped."
+            );
+          }
+          sourceHtml = await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: sourceId }).read();
+        } else {
+          // The one piece of real design work this tool exists for — see duplicate-embeds.ts's own
+          // header for why widgetEntryId is kept and placementId is regenerated, never the reverse.
+          bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements(source.bodyJson, () => routeDeps.idGen.newId());
+        }
+
+        const newId = routeDeps.idGen.newId();
+
+        const { result } = await executeCommand<{ post: PostRecord }>({
+          deps: postCommandDeps(routeDeps),
+          command: {
+            workspaceId: routeDeps.workspaceId,
+            actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+            summary: `Agent duplicate ${source.kind} '${source.title}' as '${title}'`,
+            permission: "content.write",
+          },
+          mutation: {
+            entityType: "post",
+            entityId: newId,
+            operation: "create",
+            captureInverse: async () => null,
+            execute: () =>
+              createPost({
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                  outbox: routeDeps.outbox,
+                },
+                // kind is the SOURCE's real kind (see this handler's own doc), never the caller's
+                // disambiguation input. bodyJson is omitted (undefined) on the HTML branch — the new
+                // row is born as an ordinary empty "doc" row and converted by ensureHtmlFormat below,
+                // exactly like pages_write_html's own first-write sequence.
+                input: { workspaceId: routeDeps.workspaceId, id: newId, title, kind: source.kind, slug, bodyJson: bodyJsonForCreate, status },
+              }),
+            captureEntityVersion: (r) => r.post.version,
+          },
+        });
+
+        let finalPost = result.post;
+        if (sourceHtml !== undefined) {
+          // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
+          // `result.post` is stale after this (still "doc" format, version 1); re-read to return the
+          // row's real, post-conversion state.
+          await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
+          const { post: reread } = await getAdminPostById({
+            deps: { repo: routeDeps.postRepo },
+            input: { workspaceId: routeDeps.workspaceId, id: newId },
+          });
+          finalPost = reread;
+        }
+
+        // Mirrors content_post_create's identical inline processOutbox call — only fires an event
+        // when this copy was itself created directly as `status: "published"` (the default is
+        // "draft", so the common case enqueues nothing).
+        await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
+
+        return { post: toPostToolViewWithPublicUrl(routeDeps, finalPost) };
       });
     },
 

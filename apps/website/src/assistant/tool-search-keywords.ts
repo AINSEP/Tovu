@@ -204,12 +204,19 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   database_query_timeline: "database history log timeline events audit trail what happened ledger",
 
   // --- content / collections --------------------------------------------------------------------------
-  content_post_search: "post posts blog article articles find search title lookup",
-  content_post_list: "post posts blog articles list all recent",
-  content_post_create: "post blog article write new create draft",
+  content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",
+  content_post_list: "post posts blog articles list all recent copy duplicate clone",
+  content_post_create: "post blog article write new create draft copy duplicate clone",
   content_post_update: "post blog article edit change update publish draft",
   content_post_delete: "post blog article delete remove trash",
-  content_post_get: "post page article lookup find fetch read single one by id details specific",
+  content_post_get: "post page article lookup find fetch read single one by id details specific copy duplicate clone",
+  // 2026-09-07 — added the same day as the tool itself (page-tool-gap dispatch). Phrased from the
+  // operator's own words for the failing production request ("copy Landing sample — xai and name it
+  // 'Landing Page'"), not from this catalog's own nouns — see this file's header on why vocabulary
+  // absent from a tool's description is functionally a tool that cannot be found.
+  content_post_duplicate:
+    "copy duplicate clone replicate reuse make a copy of this page make a copy of this post " +
+    "same content new name new title starting point template based on existing existing page existing post",
   collections_entry_publish: "publish live go public release draft entry post article",
   collections_entry_unpublish: "unpublish hide draft retract take down entry post",
   collections_entry_create: "entry create new record item content add",
