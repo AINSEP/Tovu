@@ -67,7 +67,47 @@ Verb-matched by the broadened grep (§0.1.2) but excluded on inspection — kept
 
 ### 1.4 Total: **10 wired + 1 deliberately-unwired = 11**, matching the dispatch's count by coincidence of arithmetic, not by list accuracy — `workspace_delete` was miscounted as wired.
 
-## 2. Retrieval eval — IN PROGRESS
+## 2. Retrieval eval
+
+Eval: `development/evals/tool-search-parent-tool-delete.eval.ts` (added by this pass, measurement-only, mirrors `tool-search-parent-tool-read.eval.ts`'s structure and helpers line-for-line where the shape is shared). Run: `npx tsx development/evals/tool-search-parent-tool-delete.eval.ts` — free, deterministic, no model calls, no network.
+
+`uptime` at run time: `load averages: 10.49 25.69 43.84` on 8 cores — elevated, same as at dispatch start. Per the read eval's own precedent (and confirmed again here — the harness is pure in-memory SQLite FTS5 scoring, no wall-clock assertions), load does not affect the result.
+
+### 2.1 Pre-check: harness installs the first-party contributors — confirmed
+
+`installFirstPartyToolContributors()` is called (line 197 of the eval), and the observed catalog size is **170** wired tools, not 9. This is *not* 177 (the read report's own baseline) because that number predates the `content_read` collapse, which has since shipped unconditionally by default (`tool-registrations.ts:703-710`, dated 2026-09-08 — the same day as this dispatch): the collapse replaces 36 Tier-1 read tools with 29 `content_read.<resource>` cards, netting 177 − 36 + 29 = **170**. This eval's baseline deliberately measures against `buildAssistantToolRegistrations(fakeRouteDeps())` at **default options** (collapse included) — i.e. the real current catalog, not a pre-collapse hypothetical — since that is what a delete-family collapse would actually be layered on top of.
+
+All 10 verified delete-family ids (§1.1) resolve in this catalog: `delete-family ids NOT in catalog: 0`.
+
+**Side effect, disclosed, out of scope to fix here:** 38 of the 130 held-out cases now report an unresolvable `expect`/`alsoAcceptable` id, because `tool-search-heldout-v2.ts` was authored before the `content_read` collapse and still names pre-collapse ids like `collections_content_type_list` or `backup_list_restore_points` as ground truth. Those 38 cases score as a permanent miss in **every** arm below, baseline included, uniformly deflating every whole-set percentage by the same amount — it does not bias the comparison between arms, and none of the 38 affected ids overlap the delete family. This is a real, separate maintenance gap in the shared held-out fixture (the read collapse shipped without updating its own eval oracle) and is noted here rather than patched, since `tool-search-heldout-v2.ts` is a shared fixture other evals/agents also read.
+
+### 2.2 Held-out coverage of the delete family
+
+9 of the 10 wired delete tools have a direct held-out case; **`theme_trash_file` has zero coverage** in `tool-search-heldout-v2.ts` (verified by grep — no case names it in `expect` or `alsoAcceptable`). It is still included in every arm measured below (excluding it would understate the collapse's real footprint), but no case can confirm or refute its retrieval behavior. Flagged as an open gap in the held-out set, not fixed here for the same reason as §2.1.
+
+### 2.3 Results, n=130 held-out, restricted to the 10 cases whose ground truth touches the delete family
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| **BASELINE (real catalog, 170 tools, shipped)** | 3/10 **30%** ±28 | 7/10 **70%** ±28 | 8/10 **80%** ±25 | 8/10 **80%** ±25 |
+| A — one fat `content_delete`, thin desc | 1/10 10% ±19 | 1/10 **10%** ±19 | 3/10 **30%** ±28 | 4/10 40% ±30 |
+| A — one fat `content_delete`, RICH desc (self-graded, see §2.4) | 6/10 60% ±30 | 9/10 90% ±19 | 9/10 90% ±19 | 9/10 90% ±19 |
+| **B — 10 resource-keyed thin cards, one shared handler** | 3/10 **30%** ±28 | 7/10 **70%** ±28 | 8/10 **80%** ±25 | 8/10 **80%** ±25 |
+
+Whole-set (n=130) numbers and the paired McNemar tests are in the eval's own stdout; the restricted view above is the one that answers the actual question, per the read report's own methodology note (§3 of that report).
+
+**Arm B is not merely "close to baseline" — it is baseline, case-for-case.** The McNemar table shows **zero discordant pairs at every cutoff** (`base-only=0 arm-only=0` at top-1/5/10/20). This is not a small effect that happened to wash out; it is a structural identity, and the eval demonstrates why: the card-grouping table shows **10 tools group into 10 cards, 0 merges** (`content_delete.collection_content_type`, `.comment`, `.content_post`, `.identity_policy`, `.identity_role`, `.media_asset`, `.redirect`, `.theme_file`, `.webhook_subscription`, `.widget_instance` — one card per tool, verified in the eval's own printed table). Per the read report's own §"the mechanism, corrected" finding, BM25 document-length normalization is what makes granularity the whole story, not vocabulary or id weight — and here granularity does not change at all, because **the delete family has no `_get`/`_list` pairs to merge** (unlike the read family, where 7 pairs collapsing from 2 documents to 1 is exactly what produced the read collapse's own +9-point top-5 gain). Two cases still miss at top-10 under Arm B (`comments_trash_comment`, `widgets_trash_instance`) — and they are the **same two cases baseline already misses**, confirmed by the zero-discordant-pairs result, so they are pre-existing vocabulary gaps, not collapse damage.
+
+Arm A (one fat entry) reproduces the read eval's finding on a smaller sample: catastrophic with a thin description (80% → 30% top-10, and a worse 70% → 10% at top-5), largely recovered by a RICH description that inlines the deleted tools' own vocabulary.
+
+### 2.4 The RICH arm is self-graded — same disclosed caveat as the read report
+
+`RICH_DESCRIPTION` was authored with the 10 affected queries in context (phrases like "get rid of", "nobody's using it", "we don't use that... anymore" are visibly lifted from them). Per `tool-search-heldout-v2.ts`'s own documented protocol, a self-graded arm is an upper bound, not a blind estimate. Unlike the read family (where even a rigged-in-its-favor RICH arm still plateaued 22 points below baseline), here RICH arm scores *at or above* baseline on this 10-case sample — but n=10 with a ±19-28 point CI half-width is a small enough sample that "at or above baseline" is not a strong claim either way; it is not the basis for any recommendation below. **Arm B needs no such caveat**: its card text is mechanically `indexedDescriptionFor` on each surviving tool's own live description — zero words authored for this eval, same discipline as the read report's D1/D2/D3 arms.
+
+### 2.5 What this pass changed
+
+- **Added** `development/evals/tool-search-parent-tool-delete.eval.ts` — measurement-only, same guarantees as the read eval's own file (nothing registered into the shipping catalog, `tool-catalog-manifest.ts` untouched).
+- **Changed nothing else.** `tool-search-heldout-v2.ts`'s stale post-collapse ids (§2.1) and its missing `theme_trash_file` coverage (§2.2) are left as-is, flagged for whoever owns that shared fixture next.
 
 ## 3. Confirmation-flow design — PENDING
 
