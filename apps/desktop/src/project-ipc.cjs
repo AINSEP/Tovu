@@ -166,6 +166,43 @@ async function handleCreate(input, deps) {
 }
 
 /**
+ * The exact operator-facing refusal when a SECOND copy of this app still has this site open.
+ * Exported so tests assert on the real string rather than a paraphrase of it.
+ *
+ * @complexity O(n) in foreign row count.
+ */
+function foreignServerMessage(siteDir, foreign) {
+  const pids = foreign.map((row) => row.pid).join(", ");
+  return (
+    `Another copy of Tovu still has this site open (process ${pids}). Close that window first. ` +
+    `Deleting now would erase ${siteDir} out from under a server that is still writing to its database.`
+  );
+}
+
+/**
+ * Crash-safety rows naming a LIVE `tovu serve` for `siteDir` that belongs to some process OTHER
+ * than the one this instance is holding — i.e. a second copy of this app with the same site open.
+ *
+ * `openSites` cannot answer this: it is this process's own in-memory map, so a sibling instance's
+ * child is invisible to it. The on-disk registry is the only thing that sees both, and it is
+ * already written to see them — `recordSiteOpened`'s "refuse-not-replace" rule (D-07) exists
+ * precisely so a sibling's row survives this instance opening the same site.
+ *
+ * `isLiveServeRow` is the registry's own identity proof (pid alive AND its live argv still names
+ * this site dir and port), so a pid the OS recycled to something unrelated can never make this
+ * refuse. Stale rows therefore cannot wedge a delete.
+ *
+ * @param ownPid this instance's own child's pid, excluded — its row is not foreign.
+ * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
+ *   zero or one).
+ */
+function liveForeignServers(deps, siteDir, ownPid) {
+  return deps
+    .readRegistry(deps.registryPath)
+    .sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
+}
+
+/**
  * Stops the project if it is running, untracks it, and — ONLY for a directory this app itself
  * created — erases its install directory.
  *
@@ -216,6 +253,27 @@ async function deleteProject(id, deps) {
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
+  const erasesFiles = mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot });
+
+  // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
+  // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
+  // of the app, and nothing prevents one — `main.cjs` calls no `requestSingleInstanceLock`, and
+  // `site-registry.cjs` is written throughout on the premise that two instances can run at once.
+  // Instance A deleting a site instance B has open recursively erased the directory out from under
+  // B's live `tovu serve`, which went on writing into unlinked files.
+  //
+  // Refusing the whole operation rather than untracking-without-erasing: `deleteErasesFiles` is what
+  // the confirm overlay showed the operator, and this function's own contract is that the overlay
+  // never promises a consequence it will not deliver. A quiet downgrade to "card removed, folder
+  // kept" would break that in the direction they cannot see.
+  //
+  // The non-erasing arm is deliberately NOT gated. There it means "take this card off my Projects
+  // screen"; a sibling instance keeping its own copy running is not endangered by that.
+  if (erasesFiles) {
+    const foreign = liveForeignServers(deps, id, openEntry?.server.pid);
+    if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
+  }
+
   if (openEntry !== undefined) {
     await openEntry.server.stop();
     deps.openSites.delete(id);
@@ -228,7 +286,7 @@ async function deleteProject(id, deps) {
   }
 
   untrackProject(deps.projectsPath, id);
-  if (mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot })) {
+  if (erasesFiles) {
     await fsp.rm(id, { recursive: true, force: true });
   }
 }
@@ -346,6 +404,11 @@ function rescanProjects(deps) {
  * @param {Function} deps.openSiteServer `main.cjs`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
  * @param {Function} deps.recordSiteClosed `site-registry.cjs`'s crash-safety row remover.
+ * @param {Function} deps.readRegistry `site-registry.cjs`'s crash-safety registry reader, used by
+ *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
+ *   this process's own memory, cannot.
+ * @param {Function} deps.isLiveServeRow `site-registry.cjs`'s "is this row's pid still its own live
+ *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — six registrations.
  */
@@ -360,6 +423,7 @@ function registerProjectIpcHandlers(deps) {
 
 module.exports = {
   RUNNER_PROJECT_CHANNELS,
+  foreignServerMessage,
   buildProjectRecord,
   handleList,
   handleCreate,

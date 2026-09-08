@@ -26,6 +26,7 @@ const { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, wri
 const { classifySiteDir } = require("./site-dir-store.cjs");
 const { createKeyedSerializer } = require("./keyed-serializer.cjs");
 const { createSiteSupervisor } = require("./site-supervisor.cjs");
+const { readRegistry, writeRegistry, isLiveServeRow } = require("./site-registry.cjs");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
@@ -56,6 +57,11 @@ function baseDeps(overrides = {}) {
     readSiteName: (siteDir) => path.basename(siteDir),
     classifySiteDir: () => "empty",
     recordSiteClosed: () => {},
+    // The REAL registry reader and identity proof, pointed at a per-test temp path that does not
+    // exist yet — so every test that is not about a sibling app instance sees an empty registry and
+    // behaves exactly as it did before the D-08 guard existed.
+    readRegistry,
+    isLiveServeRow,
     serializer: { run: (_key, fn) => fn() },
     ctx: {},
     ...overrides,
@@ -594,4 +600,84 @@ test("registerProjectIpcHandlers registers the rescan channel and it returns the
   registerProjectIpcHandlers({ ...deps, ipcMain: { handle: (c, h) => registered.set(c, h) }, dialog: {}, shell: {} });
   const records = await registered.get(RUNNER_PROJECT_CHANNELS.rescan)({});
   assert.deepEqual(records.map((r) => r.id), [alpha]);
+});
+
+// D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
+// against nothing else. `main.cjs` calls no `requestSingleInstanceLock`, and `site-registry.cjs` is
+// written throughout on the premise that two instances can run at once — its `recordSiteOpened`
+// deliberately RETAINS a sibling's row for the same site. Instance A deleting a site instance B has
+// open recursively erased the directory out from under B's live `tovu serve`.
+
+/** Registry state as a second app instance would have left it: a row for `siteDir` under a pid this
+ *  process is not holding. */
+function seedForeignRegistryRow(deps, siteDir, pid = 999_001) {
+  writeRegistry(deps.registryPath, {
+    sites: [{ siteDir, port: 41234, workspaceId: "ws-foreign", pid, updatedAt: Date.now() }],
+  });
+}
+
+test("handleDelete refuses to erase a directory a SECOND app instance still has open", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "site-shared"), "site-shared", { "content.db": "real bytes" });
+  const deps = baseDeps({ isLiveServeRow: () => true });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-shared" });
+  seedForeignRegistryRow(deps, siteDir);
+
+  await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
+
+  // The load-bearing half: refused BEFORE any side effect, not partway through one.
+  assert.equal(fs.existsSync(siteDir), true, "the directory must survive — a live server is still writing to it");
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true);
+  assert.equal(readTrackedProjects(deps.projectsPath).length, 1, "the project must stay tracked, since nothing was deleted");
+});
+
+test("handleDelete does not stop its OWN server when it refuses", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "site-shared-open"), "site-shared-open", {});
+  let stopped = false;
+  const deps = baseDeps({ isLiveServeRow: () => true });
+  deps.openSites.set(siteDir, { server: { pid: 4242, stop: async () => { stopped = true; } } });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-shared-open" });
+  seedForeignRegistryRow(deps, siteDir);
+
+  await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
+  assert.equal(stopped, false, "a refused delete must leave this instance's own site running too");
+  assert.equal(deps.openSites.has(siteDir), true);
+});
+
+test("this instance's OWN registry row never counts as a foreign server", async () => {
+  // Narrowed by pid, exactly as `recordSiteClosed` is: our own child writes a row for this site dir,
+  // and reading it back as "someone else has it open" would make every delete of a running project
+  // impossible.
+  const siteDir = writeSite(path.join(tempDir(), "site-own"), "site-own", {});
+  const deps = baseDeps({ isLiveServeRow: () => true });
+  deps.openSites.set(siteDir, { server: { pid: 777, stop: async () => {} } });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-own" });
+  seedForeignRegistryRow(deps, siteDir, 777);
+
+  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  assert.equal(fs.existsSync(siteDir), false);
+});
+
+test("a STALE registry row does not wedge a delete", async () => {
+  // The registry's own identity proof is what decides. A pid that is dead, or that the OS recycled
+  // to something unrelated, must never be able to make a delete impossible.
+  const siteDir = writeSite(path.join(tempDir(), "site-stale"), "site-stale", {});
+  const deps = baseDeps({ isLiveServeRow: () => false });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.created, { siteId: "site-stale" });
+  seedForeignRegistryRow(deps, siteDir);
+
+  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  assert.equal(fs.existsSync(siteDir), false);
+});
+
+test("REMOVING an adopted project is not gated by a sibling instance — it erases nothing", async () => {
+  // The non-erasing arm means "take this card off my Projects screen". A second instance keeping
+  // its own copy running is not endangered by that, so refusing would block a harmless action.
+  const siteDir = writeSite(path.join(tempDir(), "site-adopted"), "site-adopted", { "content.db": "real bytes" });
+  const deps = baseDeps({ isLiveServeRow: () => true });
+  trackProject(deps.projectsPath, siteDir, PROJECT_ORIGIN.adopted, { siteId: "site-adopted" });
+  seedForeignRegistryRow(deps, siteDir);
+
+  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  assert.deepEqual(readTrackedProjects(deps.projectsPath), [], "the card is gone");
+  assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "and every byte stays");
 });

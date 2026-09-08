@@ -105,7 +105,7 @@ const { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } = requi
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
 const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
-const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
+const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
 const { createShutdownTracker } = require("./src/shutdown-tracker.cjs");
@@ -1050,6 +1050,11 @@ app
         classifySiteDir: classifySiteDirSafely,
         openSiteServer,
         recordSiteClosed,
+        // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
+        // `openSites` above is this process's own memory and cannot (D-08). See
+        // `project-ipc.cjs`'s `liveForeignServers`.
+        readRegistry,
+        isLiveServeRow,
         projectScanRoots: PROJECT_SCAN_ROOTS,
         // A thunk, not the list: read fresh on every scan, so a site opened during this session is
         // found by a later rescan instead of being frozen out by a snapshot taken at boot.
