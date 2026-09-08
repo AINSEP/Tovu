@@ -33,6 +33,7 @@
  */
 import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
@@ -330,3 +331,172 @@ function run(): void {
 }
 
 run();
+
+/* ========================================================================================
+ * ADDENDUM (2026-09-08): the one-tool / many-index-entries design.
+ *
+ * ONE executable tool id (`content_read`), but one SHORT indexed catalog document per RESOURCE,
+ * each carrying only that resource's own vocabulary, all resolving to the same tool. This is the
+ * counter-argument §5 of the report raised against its own NO-GO, measured here.
+ *
+ * HONESTY CONSTRAINT: every card is built mechanically from what already ships — the member tools'
+ * own descriptions folded through `indexedDescriptionFor` (which is byte-identical to what the live
+ * index holds for them today, keywords and doc2query included). No word is authored here, and the
+ * eval queries were not consulted while writing it. The resource key is derived by a blind rule:
+ * strip the read verbs from the tool id, singularize, dedupe. That rule misfires in exactly one
+ * documented place, left in place rather than hand-corrected — see RESOURCE_KEY_ARTIFACTS.
+ * ====================================================================================== */
+
+/** Verb/addressing tokens stripped from a tool id to leave its resource. Blind list, written before
+ *  looking at what it produces: these are the read verbs and the id-addressing words, nothing else. */
+const VERB_TOKENS = new Set(["list", "get", "by", "id"]);
+
+/** Crude singularization — trailing "s" off tokens longer than 3 chars. Deliberately naive; a
+ *  smarter rule would be a place to smuggle in judgment. */
+function singularize(token: string): string {
+  return token.length > 3 && token.endsWith("s") ? token.slice(0, -1) : token;
+}
+
+/** `media_list_assets` -> `media_asset`; `content_post_get` and `content_post_list` -> `content_post`. */
+function resourceKeyOf(toolId: string): string {
+  const seen: string[] = [];
+  for (const raw of toolId.split("_")) {
+    if (VERB_TOKENS.has(raw)) continue;
+    const t = singularize(raw);
+    if (!seen.includes(t)) seen.push(t);
+  }
+  return seen.join("_");
+}
+
+/** Known misfires of the blind rule, disclosed rather than hand-fixed. */
+const RESOURCE_KEY_ARTIFACTS =
+  `newsletter_list_lists -> "newsletter": "list" is BOTH the read verb and this tool's noun (mailing ` +
+  `lists), so the blind strip removes the noun too. The description still carries the vocabulary; only ` +
+  `the 6x-weighted id column loses it. Left uncorrected — hand-fixing it is exactly the tuning this arm ` +
+  `exists to avoid.`;
+
+function runAddendum(): void {
+  const registry = createToolRegistry();
+  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  const all = registry.list() as readonly Descriptor[];
+  const n = HELD_OUT_V2.length;
+
+  const collapsed = new Set(TIER1_CLEAN);
+  const survivors = all.filter((d) => !collapsed.has(d.id));
+  const byId = new Map(all.map((d) => [d.id, d]));
+
+  // ---- Group the 36 collapsed tools into resource cards. A card's indexed text is the member
+  // ---- tools' OWN live indexed text, concatenated — no authored vocabulary.
+  const cards = new Map<string, string[]>();
+  for (const id of TIER1_CLEAN) {
+    const key = resourceKeyOf(id);
+    cards.set(key, [...(cards.get(key) ?? []), id]);
+  }
+  const cardList = [...cards.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const memberSetOf = new Map(cardList.map(([key, ids]) => [key, new Set(ids)]));
+
+  function cardDescription(ids: readonly string[]): string {
+    return ids.map((id) => indexedDescriptionFor(id, byId.get(id)?.description ?? "")).join(" ");
+  }
+
+  /** Hit iff a ranked card's member tools intersect this case's acceptable ids. Ranking a card for
+   *  the WRONG resource is not a hit — the model would call `content_read` with the wrong resource. */
+  function acceptableCardsFor(c: EvalCase): ReadonlySet<string> {
+    const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
+    const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+    for (const [key, members] of memberSetOf) if (ids.some((id) => members.has(id))) out.add(cardIdFor(key));
+    return out;
+  }
+
+  let cardIdFor: (key: string) => string = (k) => k;
+
+  const armDefs = [
+    {
+      name: "D1 resource-keyed cards",
+      id: (key: string) => `content_read.${key}`,
+      note: "id column keeps the resource nouns",
+    },
+    {
+      name: "D2 opaque-keyed cards",
+      id: (key: string) => `content_read.r${String(cardList.findIndex(([k]) => k === key) + 1).padStart(2, "0")}`,
+      note: "id column is an opaque handle",
+    },
+    {
+      name: "D3 id-preserving (limit case)",
+      id: (key: string) => cards.get(key)!.join(" "),
+      note: "index untouched; only execution collapses",
+    },
+  ] as const;
+
+  const baseline = buildToolCatalogQuery(registry);
+  const baseVecs = hitVectors((q, l) => baseline.search(q, l), baselineAcceptable);
+
+  const armResults: { name: string; note: string; vecs: Record<Cutoff, boolean[]> }[] = [];
+  for (const arm of armDefs) {
+    cardIdFor = arm.id;
+    const list = [
+      ...survivors,
+      ...cardList.map(([key, ids]) => ({ id: arm.id(key), description: cardDescription(ids), inputSchema: { type: "object" } })),
+    ];
+    const catalog = buildToolCatalogQuery({ list: () => list as never });
+    armResults.push({ name: arm.name, note: arm.note, vecs: hitVectors((q, l) => catalog.search(q, l), acceptableCardsFor) });
+  }
+
+  // ---- Re-derive the two reference arms so every number in the addendum comes from one run.
+  cardIdFor = (k) => k;
+  const richList = [...survivors, { id: "content_read", description: RICH_DESCRIPTION, inputSchema: { type: "object" } }];
+  const richVecs = hitVectors(
+    (q, l) => buildToolCatalogQuery({ list: () => richList as never }).search(q, l),
+    collapsedAcceptable(collapsed),
+  );
+
+  console.log(`\n\n${"=".repeat(110)}\nADDENDUM — one tool, one index card per resource\n${"=".repeat(110)}\n`);
+  console.log(`  36 collapsed tools -> ${cardList.length} resource cards (${TIER1_CLEAN.length - cardList.length} merged by the blind rule)`);
+  console.log(`  index schema: fts5(id, description), ranked bm25(6.0, 1.0) -- the id column is weighted 6x\n`);
+  for (const [key, ids] of cardList) console.log(`    ${`content_read.${key}`.padEnd(40)} <- ${ids.join(", ")}`);
+  console.log(`\n  Blind-rule artifact: ${RESOURCE_KEY_ARTIFACTS}\n`);
+
+  const affectedIdx = HELD_OUT_V2.map((c, i) => [c, i] as const)
+    .filter(([c]) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => collapsed.has(id)))
+    .map(([, i]) => i);
+
+  const rows = [
+    { name: "BASELINE (177 tools, shipped)", note: "", vecs: baseVecs },
+    { name: "C  one card, RICH desc (prior)", note: "self-graded upper bound", vecs: richVecs },
+    ...armResults,
+  ];
+
+  console.log(`  Whole set, n=${n}\n`);
+  console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
+  for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
+
+  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 36-tool collapse set\n`);
+  console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
+  const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
+  for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(restrict(r.vecs[k]), affectedIdx.length)).join("")}`);
+
+  console.log(`\n  PAIRED McNemar exact test vs. the shipped baseline, whole set:\n`);
+  for (const r of rows.slice(1)) {
+    const cells = CUTOFFS.map((k) => {
+      let b = 0;
+      let c = 0;
+      for (let i = 0; i < n; i++) {
+        const x = baseVecs[k][i]!;
+        const y = r.vecs[k][i]!;
+        if (x && !y) b++;
+        else if (!x && y) c++;
+      }
+      const p = mcnemarExactP(b, c);
+      return `top-${k}: -${b}/+${c} p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? "*" : ""}`.padEnd(34);
+    });
+    console.log(`  ${r.name.padEnd(32)}${cells.join("")}`);
+  }
+
+  const best = armResults[0]!;
+  const misses = affectedIdx.filter((i) => !best.vecs[10][i]).map((i) => HELD_OUT_V2[i]!);
+  console.log(`\n  Cases still missing at top-10 under "${best.name}" (${misses.length} of ${affectedIdx.length}):\n`);
+  for (const m of misses) console.log(`    ${m.expect.padEnd(34)} "${m.query}"`);
+  console.log("");
+}
+
+runAddendum();

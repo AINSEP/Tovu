@@ -441,3 +441,186 @@ plain as "what themes do we have available".
    variant worth measuring next, and it is a cheap follow-up to this eval — the arms are already
    parameterised over a descriptor list.
 4. **Selection cost is unmeasured** (§0.3) and needs a live model run, not a free eval.
+
+---
+
+# Addendum (2026-09-08, same day): one tool, one index card per resource
+
+Measured at the owner's request: the design §5 raised as the strongest argument against this report's
+own NO-GO. **It works.** Retrieval returns to baseline, within noise, at every cutoff.
+
+`uptime` at run time: `load averages: 6.94 6.46 7.61` on 8 cores. Same caveat as before — the eval is
+deterministic in-memory FTS5 scoring with no timing-sensitive assertion.
+
+## The mechanism, corrected
+
+Before running this I predicted the answer would hinge on the **id column's weight**. The tool-catalog
+index is `fts5(id, description)` ranked `bm25(tool_catalog_fts, 6.0, 1.0)` (read directly from
+`@jini-ai/sqlite/src/db/tool-catalog/tool-catalog.ts:58-63, 134`) — **the id is weighted 6× the
+description**, which looked like a clean explanation for why the one-long-description arm plateaued:
+collapsing 36 ids into the single token pair "content read" throws away 36 resources' worth of
+6×-weighted vocabulary.
+
+**That prediction was wrong**, and the eval was built to be able to say so. Arm D2 gives every card an
+opaque id (`content_read.r01` … `content_read.r29`) carrying no resource nouns at all, and it scores
+identically to D1, which keeps the nouns. The id weight is not the mechanism.
+
+The mechanism is **document granularity**. BM25 normalizes by document length, and a query can only be
+served by whichever document ranks — one long document listing 29 resources has low term density for
+any single resource and occupies one rank slot for all of them, while 29 short documents each have high
+term density for their own. This is why the RICH arm plateaued at 59% and why splitting the identical
+total vocabulary across 29 cards restores 85%. **The same words, differently chunked, is the entire
+difference.** Nothing was added.
+
+## Construction — and why this arm is not self-graded
+
+The report's earlier RICH arm was written with the 130 queries in context and was declared an upper
+bound for that reason. This arm is built mechanically and the eval queries were never consulted:
+
+- **Card membership** comes from a blind rule on tool-id morphology: strip the tokens `list`, `get`,
+  `by`, `id`; singularize (drop a trailing `s` from tokens longer than 3); dedupe; join. That rule is
+  in the eval as `resourceKeyOf`, written before its output was inspected.
+- **Card text** is `indexedDescriptionFor(toolId, descriptor.description)` for each member tool,
+  concatenated. That function is the live production folder — the text is **byte-identical to what the
+  shipped index holds for those tools today**, keywords and doc2query included. Zero words are authored
+  by me in this arm.
+- The 36 Tier-1 tools group into **29 cards**; 7 merge, all of them a `_get`/`_list` pair over the same
+  resource (`content_post`, `member`, `menu`, `newsletter_campaign`, `redirect`, `widget_instance`,
+  `widget_region`).
+
+**One disclosed deviation — a misfire left uncorrected.** `newsletter_list_lists` → `newsletter`: the
+token `list` is both the read verb and this tool's own noun (mailing lists), so the blind strip removes
+the noun. The description still carries the vocabulary; only the id column loses it. I left it wrong
+rather than hand-fixing it, because hand-fixing is precisely the tuning this arm exists to avoid. If
+anything it costs the arm a fraction of a point.
+
+## Results
+
+29 cards replace the 36 Tier-1 tools; the 14 Tier-3 tools and all 141 other tools are untouched. A card
+is a hit **only for its own resource** — ranking `content_read.newsletter_campaign` for a media query is
+scored a miss, since the model would call `content_read` with the wrong `resource`.
+
+### Whole set, n=130
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| **BASELINE (177 tools, shipped)** | 75/130 **58%** ±8 | 108/130 **83%** ±6 | 113/130 **87%** ±6 | 122/130 **94%** ±4 |
+| C — one card, RICH desc (prior arm) | 59/130 45% ±9 | 98/130 75% ±7 | 106/130 82% ±7 | 119/130 92% ±5 |
+| **D1 — resource-keyed cards** | 72/130 **55%** ±9 | 110/130 **85%** ±6 | 113/130 **87%** ±6 | 123/130 **95%** ±4 |
+| D2 — opaque-keyed cards | 73/130 56% ±9 | 109/130 84% ±6 | 113/130 87% ±6 | 123/130 95% ±4 |
+| D3 — id-preserving (limit case) | 73/130 56% ±9 | 110/130 85% ±6 | 114/130 88% ±6 | 123/130 95% ±4 |
+
+### Restricted to the 34 cases whose ground truth is inside the 36-tool collapse set
+
+Note the restricted set here is **34**, not the 41 in §3 — §3's restricted view was over Tier 1 **+**
+Tier 2 (42 tools); this addendum measures Tier 1 alone (36 tools), per the report's own recommendation
+to exclude Tier 2. All rows below are on the same 34 cases, so they compare like with like.
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| **BASELINE** | 22/34 **65%** ±16 | 26/34 **76%** ±14 | 29/34 **85%** ±12 | 33/34 **97%** ±6 |
+| C — one card, RICH desc (prior arm) | 8/34 24% ±14 | 17/34 50% ±17 | 20/34 **59%** ±17 | 28/34 82% ±13 |
+| **D1 — resource-keyed cards** | 22/34 **65%** ±16 | 29/34 **85%** ±12 | 29/34 **85%** ±12 | 33/34 **97%** ±6 |
+| D2 — opaque-keyed cards | 22/34 65% ±16 | 28/34 82% ±13 | 29/34 85% ±12 | 33/34 97% ±6 |
+| D3 — id-preserving (limit case) | 22/34 65% ±16 | 29/34 85% ±12 | 30/34 88% ±11 | 33/34 97% ±6 |
+
+### Paired McNemar exact test vs. baseline, whole set (`-b/+c` = baseline-only / arm-only wins)
+
+| configuration | top-1 | top-5 | top-10 | top-20 |
+|---|---|---|---|---|
+| C — one card, RICH desc | -21/+5 **p=0.0025\*** | -11/+1 **p=0.0063\*** | -10/+3 p=0.0923 | -5/+2 p=0.4531 |
+| **D1 — resource-keyed cards** | -3/+0 p=0.2500 | -1/+3 p=0.6250 | **-0/+0 p=1.0000** | -0/+1 p=1.0000 |
+| D2 — opaque-keyed cards | -2/+0 p=0.5000 | -1/+2 p=1.0000 | -0/+0 p=1.0000 | -0/+1 p=1.0000 |
+| D3 — id-preserving | -3/+1 p=0.6250 | -1/+3 p=0.6250 | -0/+1 p=1.0000 | -0/+1 p=1.0000 |
+
+## Does it recover baseline? Yes — plainly
+
+**Yes.** At top-10 on the whole set, D1 and baseline are *identical case-for-case*: zero discordant
+pairs in either direction. At top-20 D1 is one case ahead. On the 34 affected cases D1 matches baseline
+at top-1, top-10 and top-20, and is **9 points ahead at top-5** (85% vs 76%) — a real, if
+non-significant, gain from merging each resource's `_get` and `_list` cards, which stop competing with
+each other for the same query.
+
+The only cutoff where D1 trails is top-1 (55% vs 58%, 3 discordant cases, p=0.25) — inside noise, and
+mechanically explained: where a merged card serves both "list all posts" and "get this post", it can
+rank #1 for only one of the two.
+
+Five cases still miss at top-10 under D1 — `collections_entry_list`, `webhooks_list_subscriptions`,
+`redirects_get`, `seo_get_entry_meta`, `workspace_get`. Baseline misses five as well. These are
+pre-existing vocabulary gaps, not collapse damage.
+
+So: the counter-argument in §5 was correct and this report's NO-GO **does not apply to this design**.
+The NO-GO stands for the design that was actually proposed — one parameterized tool with one catalog
+entry — and that remains a 59%-vs-85% loss.
+
+## What it would cost to ship
+
+Concretely, reading `@jini-ai/sqlite/src/db/tool-catalog/tool-catalog.ts`:
+
+**Not a rewrite, not a join, not a new table. One added column, and one honest question about what
+`search_tools` returns.**
+
+The blocking fact is that `id` is the single key: `getToolCatalogEntry` is
+`SELECT … FROM tool_catalog WHERE id = ?`, and `searchToolCatalog` returns `tc.id`, which is what
+`describe_tool` and `execute_delegated_tool` are handed. Two ways out:
+
+**Option A — no schema change at all (recommended if this is done).** Register 29 thin descriptors
+whose ids *are* the card keys (`content_read.media_asset`, …), each dispatching into one shared
+handler. Nothing in `@jini-ai/sqlite` changes; nothing in `tool-catalog-query.ts` changes;
+`execute_delegated_tool` resolves the resource by splitting the id. Cost is a `content_read` handler
+plus a resource registry modelled on `duplicate-resource-registry.ts` — entirely inside
+`apps/website/src/`. This is what D1 literally measures, so its 85%/87% numbers are that option's
+numbers, not an approximation of them.
+
+**Option B — one tool id in the index.** Add a `tool_id` column to `tool_catalog`, make `id` the card
+key, return `tc.tool_id` from `searchToolCatalog`, add the field to `ToolCatalogEntry`, add it to the
+`reseedToolCatalog` INSERT, and teach `describe_tool` to accept a card key. That is roughly a dozen
+lines across four functions in one file — but it is a **cross-package change to a symlinked
+`@jini-ai/*` package** that requires a `dist` rebuild for Tovu to see it, and it introduces a new
+result-deduplication question (two cards for one tool both ranking now return the same `tool_id`
+twice). Also note `sourceForToolId` in `tool-catalog-query.ts:36-39` splits on the `_` prefix; every
+card would report source `content`.
+
+## Is the cost worth the prize? No — and the §5 concession stands
+
+**Restating it, as asked:** if 29 distinct chunks of retrievable vocabulary must be preserved anyway —
+and this addendum is the proof that they must, since collapsing them into one chunk costs 26 points of
+top-10 accuracy — then the remaining prize is a **smaller executable surface and one shared handler,
+for the benefit of human readers of the registry**. It is not better retrieval: D1 matches baseline, it
+does not beat it. And it is not a smaller discovery surface either: `search_tools` still returns 29
+distinct entries with 29 distinct descriptions, so **the model's view is unchanged in size**. Per §3 of
+`2026-09-07-assistant-tool-coverage-audit.md`, the model never sees the catalog anyway, so there was
+never a context prize to win here.
+
+Against that prize:
+
+- **Option A costs little and delivers all of it.** If the owner wants one read handler instead of 36,
+  Option A is a same-package refactor with a measured zero-cost retrieval profile. That is a legitimate
+  thing to want — 36 handlers doing structurally identical work is real duplication, and the
+  `_get`/`_list` merge is a genuine small win (+9 points at top-5).
+- **Option B costs a cross-package schema change and delivers only cosmetics** — that `search_tools`
+  reports `content_read` instead of `content_read.media_asset`. Nobody benefits from that except a
+  human reading the registry, and the audit's §4 objection applies at full strength: a permission that
+  is visible today at the catalog level moves inside a registry lookup.
+
+**Recommendation, unchanged in substance and now sharpened:**
+
+| design | retrieval | verdict |
+|---|---|---|
+| One parameterized tool, one catalog entry (the original proposal) | 59% vs 85% top-10 | **NO-GO** |
+| One handler, 29 index cards, no schema change (Option A) | 85% vs 85% top-10 | **GO, if handler dedup is wanted for its own sake** |
+| One handler, 29 index cards, `tool_id` column (Option B) | same as A | **NO — cost without a prize** |
+
+The conditions from §4 that still bind on Option A: per-resource permission map modelled on
+`duplicate-resource-registry.ts` (the set spans a dozen-plus permissions); Tier 1 only, never Tier 2;
+and re-run this eval as the merge gate.
+
+## Correction to §5 of this report
+
+§5 said "It requires the FTS index to hold entries that are not tool ids, and
+`getToolCatalogEntry`/`describe` are keyed by id today — a real change to `tool-catalog-query.ts` and
+`@jini-ai/sqlite`'s schema, not a configuration flag." **That is wrong for Option A**, which needs no
+change to either file: 29 registered descriptors sharing one handler is entirely expressible today. The
+schema change is only required if one insists the *index* hold a single tool id, which buys nothing.
+The rest of §5 — that the design preserves 29 vocabulary chunks and therefore concedes the substance —
+holds, and is restated above.
