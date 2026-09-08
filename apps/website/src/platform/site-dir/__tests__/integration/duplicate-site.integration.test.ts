@@ -463,3 +463,63 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// 2026-09-07 audit claim #4 — private chat attachments follow a duplicate.
+//
+// `chat.db` (the conversation rows) is deliberately left behind: this file's own header and
+// `layout.ts`'s `PORTABLE_ENTRY_NAMES` doc both call conversation history the thing a duplicate
+// handed to a different client must not carry. But the BYTES those conversations attached live at
+// `<site>/uploads/chat-attachments` (`chat-attachment-directory.ts`), inside the one directory the
+// copy takes wholesale — so the history was withheld while its attachments were handed over.
+// ---------------------------------------------------------------------------
+
+test("a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/", () => {
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+
+    fs.writeFileSync(path.join(source.dir, "uploads", "public-media.txt"), "media library bytes");
+    const attachments = path.join(source.dir, "uploads", "chat-attachments");
+    fs.mkdirSync(path.join(attachments, "batch-1"), { recursive: true });
+    fs.writeFileSync(path.join(attachments, "batch-1", "private-contract.pdf"), "confidential");
+    fs.writeFileSync(path.join(attachments, "batch-1", "private-contract.pdf.json"), '{"owner":"user-1"}');
+
+    const targetDir = path.join(parent, "client-b");
+    duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+
+    assert.equal(
+      fs.readFileSync(path.join(targetDir, "uploads", "public-media.txt"), "utf8"),
+      "media library bytes",
+      "the media library must still be carried — this is uploads/'s whole purpose"
+    );
+    assert.equal(
+      fs.existsSync(path.join(targetDir, "uploads", "chat-attachments")),
+      false,
+      "staged chat attachments are private to the source site's conversations, which are themselves not copied"
+    );
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried", () => {
+  const parent = mkTempParent();
+  try {
+    const source = initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    const nested = path.join(source.dir, "uploads", "media", "chat-attachments");
+    fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(path.join(nested, "screenshot.png"), "a real media asset in a folder named that");
+
+    const targetDir = path.join(parent, "client-b");
+    duplicateSite({ sourceDir: source.dir, targetDir, name: "Client B Copy" });
+
+    assert.equal(
+      fs.readFileSync(path.join(targetDir, "uploads", "media", "chat-attachments", "screenshot.png"), "utf8"),
+      "a real media asset in a folder named that",
+      "only the staging directory the daemon actually writes is excluded, not every path segment spelled that way"
+    );
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});

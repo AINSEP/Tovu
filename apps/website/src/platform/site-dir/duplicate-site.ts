@@ -5,7 +5,7 @@ import path from "node:path";
 import { duplicateContentDb } from "./duplicate-content-db.js";
 import { InternalError, SiteDirInvalidError } from "./errors.js";
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
-import { CONTENT_DB_FILENAME, isPortableSiteEntry } from "./layout.js";
+import { CHAT_ATTACHMENTS_ENTRY_NAME, CONTENT_DB_FILENAME, isPortableSiteEntry, UPLOADS_ENTRY_NAME } from "./layout.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
@@ -79,6 +79,10 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * entries neither file has ever heard of, is left behind; see `layout.ts`'s own header for why
  * that direction is deliberate rather than a hardcoded `uploads`/`themes` shortlist.
  *
+ * One carve-out INSIDE a portable entry: `uploads/chat-attachments` is skipped — see
+ * `layout.ts`'s {@link CHAT_ATTACHMENTS_ENTRY_NAME} for why the conversation bytes must not follow
+ * a duplicate when the conversations themselves already do not.
+ *
  * @param onBeforeFirstWrite - invoked once, immediately before the FIRST entry is copied, and not
  *   at all when the source has no portable entries. `fs.cpSync` is not atomic: it creates the
  *   destination directory and copies into it incrementally, so from that call onward `target` may
@@ -110,7 +114,16 @@ function copyPortableEntries(source: string, target: string, onBeforeFirstWrite:
       onBeforeFirstWrite();
       announced = true;
     }
-    fs.cpSync(path.join(source, entry.name), path.join(target, entry.name), { recursive: true });
+    const from = path.join(source, entry.name);
+    // `uploads/` is the only portable entry with a carve-out inside it — see
+    // {@link CHAT_ATTACHMENTS_ENTRY_NAME}. `fs.cpSync`'s `filter` receives absolute SOURCE paths and
+    // does not descend into a directory it rejects, so excluding the staging directory itself is
+    // enough; nothing below it is ever visited.
+    const excluded = entry.name === UPLOADS_ENTRY_NAME ? path.join(from, CHAT_ATTACHMENTS_ENTRY_NAME) : null;
+    fs.cpSync(from, path.join(target, entry.name), {
+      recursive: true,
+      ...(excluded === null ? {} : { filter: (src: string) => src !== excluded }),
+    });
   }
 }
 
@@ -139,8 +152,8 @@ export interface DuplicateSiteResult {
  * Create a full working copy of an existing site directory under a new identity (SPEC-003 sibling
  * operation to `initSite`) — the content database, with the chat/session tables emptied and
  * everything else (including plugin tables and their rows) kept, plus exactly the top-level
- * directories `layout.ts` calls portable (`uploads/`, `themes/`,
- * `plugins/`, `overrides/`, `skills/`, `agent-plugins/`). The source's chat database, database
+ * directories `layout.ts` calls portable (`uploads/` minus its `chat-attachments` staging
+ * directory, `themes/`, `plugins/`, `overrides/`, `skills/`, `agent-plugins/`). The source's chat database, database
  * backups, restore-point snapshots, operational journals and publish output are NOT carried over,
  * nor is any top-level entry `layout.ts` has not classified.
  *

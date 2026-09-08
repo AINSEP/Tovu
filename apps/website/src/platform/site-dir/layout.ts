@@ -65,6 +65,8 @@ export const CONTENT_DB_FILENAME = "content.db";
  * the site-folder model actually defines:
  *
  * - `uploads` — the site's own media payload (`deps.ts`'s `uploadsDir()`, `initSite`'s `SUBDIRS`).
+ *   Carried MINUS its `chat-attachments` staging directory — the one carve-out inside a portable
+ *   entry; see {@link CHAT_ATTACHMENTS_ENTRY_NAME} for why.
  * - `themes` — the site's themes, seeded by `initSite` and thereafter edited in place
  *   (`deps.ts`'s `siteThemesDir()`); themes are COPIED into a site, never inherited from the
  *   product tree, so a duplicate without them has no theme at all.
@@ -89,6 +91,35 @@ const PORTABLE_ENTRY_NAMES: ReadonlySet<string> = new Set([
   "skills",
   "agent-plugins",
 ]);
+
+/**
+ * The ONE path inside a portable entry that a duplicate must still leave behind:
+ * `uploads/chat-attachments`, where the agent daemon stages a conversation's uploaded bytes
+ * (`server/inbound/assistant/chat-attachment-directory.ts`'s default —
+ * `<dirname of content.db>/uploads/chat-attachments`).
+ *
+ * WHY AN EXCEPTION AT ALL, when this file's whole design is a top-level allowlist: `uploads` is
+ * portable because it holds the site's MEDIA LIBRARY, which a duplicate genuinely needs. Chat
+ * attachments merely share that root for historical reasons; they belong to the source site's own
+ * conversations — and those conversations are already, deliberately, not copied (`chat.db` is off
+ * {@link PORTABLE_ENTRY_NAMES}, for exactly the "a duplicate handed to a different client must not
+ * carry it" reason). Withholding the history while shipping the files attached to it was an
+ * asymmetry, not a decision.
+ *
+ * Name-scoped to the `uploads` root, deliberately: a media asset that happens to live in a folder
+ * an operator named `chat-attachments` deeper in the tree is ordinary media and is still carried.
+ *
+ * Expressed as a name here rather than by calling `resolveChatAttachmentUploadDirectory()`: that
+ * resolver lives in `server/` and reads the composition root, which `site-dir` domain logic must
+ * not import (INV-06). The consequence is disclosed rather than assumed away — an operator who has
+ * relocated staging with `TOVU_CHAT_ATTACHMENTS_DIR` to a DIFFERENT name inside `uploads/` is
+ * outside this rule, exactly as they are outside every other default this file encodes.
+ */
+export const CHAT_ATTACHMENTS_ENTRY_NAME = "chat-attachments";
+
+/** The portable entry {@link CHAT_ATTACHMENTS_ENTRY_NAME} sits under. Named so the one call site
+ *  that has to special-case it cannot drift from the allowlist entry it refers to. */
+export const UPLOADS_ENTRY_NAME = "uploads";
 
 /**
  * True for a top-level site-directory entry a duplicate is allowed to carry verbatim.
