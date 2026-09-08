@@ -164,4 +164,45 @@ judgment call for whoever runs it.
 - If the direct-row restore is used: nothing further — config and OAuth connection both come back,
   modulo the small refresh-token-staleness risk in §5.
 - If the form-based restore is used instead: the owner needs the plaintext OAuth client secret
-  (not recoverable from anything I found) and must re-run the OAuth authorize flow.
+  and must re-run the OAuth authorize flow. **Correction below: there may be no such secret to
+  need at all.**
+
+## Addendum (same session, later pass) — empirical decrypt verification + corrections to a peer's relayed info
+
+A peer (`tovu-c9`) relayed a screenshot of the card confirming label/id/URL/allowed-tools, and
+separately asked two things this report already answered from direct SQL reads, not DOM: whether
+the delete was soft or hard (§2: **hard**, confirmed both in code and by the live table being
+empty), and the authoritative `write_allowed_tool_names` value (§4/§6 table: confirmed directly
+from two independent backups 10.5h apart with an unchanged `write_grants_updated_at`, not from any
+rendered DOM).
+
+New this pass — I went one step further than static code-reading on the OAuth question and
+**empirically verified decryption**, since that was flagged as the deciding conditional:
+
+- Found the live root key: present in the repo's `.env` (`TOVU_INTEGRATIONS_ROOT_KEY`, 64 hex
+  chars = 32 bytes, matching `ROOT_KEY_LENGTH_BYTES`). **I did not print its value anywhere.** No
+  root-key *file* exists yet at `~/.tovu/integrations-root-key.hex` — the running app resolves the
+  key from this env var, not the file fallback, so I did not touch `EnvOrFileKeyring`'s
+  file-generation path (doing so would have written a bogus, unrelated key file — avoided).
+- Reimplemented `AesGcmSecretSealer.open()`'s exact HKDF + AES-256-GCM scheme in a standalone,
+  throwaway script (no app code imported, nothing written anywhere) and fed it the backup's own
+  `oauth_sealed_{key_id,ciphertext,nonce,alg}` values plus the row's AAD
+  (`external-mcp-oauth:v1:workspace-local:higgsfield`).
+- **Result: decryption succeeded — the auth tag verified under the live `.env` root key.** This
+  confirms, empirically rather than by inference, that a direct-row restore recovers a live,
+  working OAuth connection.
+- The decrypted plaintext's shape (values withheld, only key names logged): top-level keys
+  `tokens`, `schemaVersion`; `tokens` sub-keys `accessToken`, `refreshToken`, `tokenType`,
+  `scopes`, `expiresAt`. **`clientSecret` is absent from this blob entirely** — Higgsfield's OAuth
+  connection was never storing one (consistent with a public/PKCE-style client using
+  `dynamic client registration` semantics, or simply never having been given one). This corrects
+  §5/§6 above: there is no lost client secret to worry about. The tokens themselves are intact and
+  decrypt cleanly.
+
+**Revised verdict: fully recoverable, full stop.** A direct-row restore from
+`pre-chat-split-content-20260907-211456.db` brings back config, tool allowlists (both read and
+write), and a working OAuth session with valid tokens — verified, not inferred. The only remaining
+caveat is §5's timing one: the access token's stated expiry (`2026-09-09T02:05:26Z`) is still in the
+future, but if the refresh token was silently rotated in the ~12h between this backup and the
+deletion, that specific field could be stale — that would surface later as one `needs_reauth`, not
+as this restore failing today.
