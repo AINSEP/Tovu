@@ -1143,11 +1143,28 @@ export function buildCreateProjectInput(input: {
   };
 }
 
+/**
+ * The typed website name reduced to a compact identifier — shown back to the operator as the
+ * workspace preview, and read by {@link computeCanCreate} as "a name has been entered".
+ *
+ * Unicode-aware by necessity, not by preference. The original `[^a-z0-9]+` deleted every character
+ * of a name written in any non-Latin script, so the slug came back empty and `computeCanCreate`
+ * refused to enable "Create website": there was no name an operator could type in Japanese, Hindi,
+ * Greek, Cyrillic or Arabic that this form would accept at all. It also mangled accented Latin
+ * names — `Café Münster` was previewed back as `caf-m-nster`.
+ *
+ * `\p{M}` is in the keep-set alongside letters and numbers because several scripts write their
+ * vowels as combining marks rather than letters; without it `हिन्दी` splits into separator-joined
+ * fragments. Anything else still collapses to a separator, so a name with no letters or digits in
+ * it (`"!!!"`, whitespace) still yields `''` — the signal the create gate depends on.
+ *
+ * @complexity O(n) in name length.
+ */
 export function siteSlug(name: string): string {
   return name
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, '-')
     .replace(/^-+|-+$/g, '');
 }
 

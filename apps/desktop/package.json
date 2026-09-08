@@ -12,7 +12,7 @@
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json",
-    "test": "node --test \"src/**/*.test.cjs\""
+    "test": "node --test \"src/**/*.test.cjs\" && node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@jini-ai/chat": "^0.3.4"
