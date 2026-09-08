@@ -1885,6 +1885,28 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
  *  Exported (browser-file-scope-only otherwise) purely so `api-build-fetch-init.unit.test.ts` can
  *  assert this merge order directly — no in-repo caller currently overrides `Content-Type` itself, so
  *  that branch would otherwise be unreachable through the public `api` surface. */
+/**
+ * The Fetch standard's ceiling on the combined body size of all in-flight `keepalive` requests
+ * (64 KiB). A `fetch` whose keepalive body exceeds it rejects rather than being sent.
+ */
+export const KEEPALIVE_MAX_BODY_BYTES = 64 * 1024;
+
+/**
+ * Whether `body` is small enough to ride a `keepalive` fetch — measured in BYTES, not characters:
+ * the ceiling is on the encoded payload, and a body of astral-plane characters is up to four bytes
+ * each, so a `length` check would wave through a body four times over the limit.
+ *
+ * Conservative on purpose. The ceiling is shared across every in-flight keepalive request, so a
+ * body at exactly the limit can still be refused when something else is in flight; being under it
+ * is necessary, not sufficient. That is acceptable here because the fallback is an ordinary fetch,
+ * which is what this path did before keepalive existed.
+ *
+ * @complexity Time O(n) in body length; space O(n) for the encoded copy.
+ */
+export function bodyFitsKeepalive(body: string): boolean {
+  return new TextEncoder().encode(body).length <= KEEPALIVE_MAX_BODY_BYTES;
+}
+
 export function buildFetchInit(init: RequestInit = {}): RequestInit {
   return {
     credentials: "same-origin",
@@ -2112,6 +2134,14 @@ export const api = {
   // (a real Save/Publish happened) since `baseVersion` was captured, so the caller's own in-memory
   // edit is no longer the current basis and this tick was correctly dropped rather than clobbering
   // the newer save.
+  //
+  // `options.keepalive` (2026-09-07) is the UNLOAD-SAFE transport, requested only by the autosave
+  // hook's exit flush (`pagehide` / `visibilitychange`→hidden). An ordinary `fetch` started from
+  // one of those events is cancelled when the browser tears the document down, so the newest edit
+  // — the one still sitting in the debounce window, which is exactly what those listeners exist to
+  // rescue — was the one most likely to be dropped. It is opt-in rather than always-on because
+  // `keepalive` carries a 64 KiB body ceiling an ordinary request does not; see
+  // {@link bodyFitsKeepalive} for what happens to a body over it.
   putAutosave: (
     id: string,
     draft: { bodyFormat: "doc"; bodyJson: Record<string, unknown>; title: string; slug: string; baseVersion: number } | {
@@ -2120,12 +2150,20 @@ export const api = {
       title: string;
       slug: string;
       baseVersion: number;
-    }
-  ) =>
-    request<{ applied: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
+    },
+    options: { keepalive?: boolean } = {}
+  ) => {
+    const body = JSON.stringify(draft);
+    return request<{ applied: boolean }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`, {
       method: "PUT",
-      body: JSON.stringify(draft),
-    }),
+      body,
+      // Silently dropped rather than sent for an oversized body: `fetch` REJECTS outright when a
+      // keepalive body exceeds the ceiling, which would turn a request that had at least a chance
+      // of completing into one that provably never leaves. A plain fetch on the way out is the
+      // pre-2026-09-07 behavior, i.e. no worse than before for the pages this cannot cover.
+      ...(options.keepalive === true && bodyFitsKeepalive(body) ? { keepalive: true } : {}),
+    });
+  },
   // The recovery-banner check on editor mount — reads whatever standing draft is currently parked,
   // or `null` when there is nothing to offer.
   getAutosave: (id: string) =>

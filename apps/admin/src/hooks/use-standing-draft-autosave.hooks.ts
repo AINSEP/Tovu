@@ -70,7 +70,21 @@ export interface StandingDraftAutosaveSnapshot {
 /** What this hook needs from the outside world — see this file's header for why it is declared
  *  here rather than imported from either feature's own port. */
 export interface StandingDraftAutosavePort {
-  putAutosave(id: string, draft: StandingDraftAutosaveInput): Promise<{ applied: boolean }>;
+  /**
+   * `options.keepalive` (2026-09-07) asks for an UNLOAD-SAFE transport, and is set only by the exit
+   * flush below. An ordinary `fetch` started from `pagehide` or `visibilitychange`→hidden is
+   * cancelled when the browser tears the document down — so the newest edit, the one still sitting
+   * in the debounce window, was precisely the one those listeners could not actually rescue.
+   *
+   * Opt-in rather than always-on because `keepalive` carries a 64 KiB body ceiling an ordinary
+   * request does not; an implementation that cannot honour it may ignore it (the parameter is
+   * optional), which is exactly the behavior this path had before.
+   */
+  putAutosave(
+    id: string,
+    draft: StandingDraftAutosaveInput,
+    options?: { keepalive?: boolean }
+  ): Promise<{ applied: boolean }>;
   getAutosave(id: string): Promise<{ autosave: StandingDraftAutosaveSnapshot | null }>;
   discardAutosave(id: string): Promise<{ ok: boolean }>;
 }
@@ -251,9 +265,9 @@ export function useStandingDraftAutosave(deps: {
   /** The one place `putAutosave` is called. Its `{ applied }` answer is acted on here rather than
    *  discarded — see this file's STALE BASIS note. @complexity Time/space: O(1) plus the request. */
   const writeAutosave = useCallback(
-    (id: string, draft: StandingDraftAutosaveInput) =>
+    (id: string, draft: StandingDraftAutosaveInput, keepalive: boolean) =>
       enqueue(async () => {
-        const result = await port.putAutosave(id, draft);
+        const result = await port.putAutosave(id, draft, { keepalive });
         if (!result.applied) {
           markStaleBasis(id, draft);
           return;
@@ -292,7 +306,8 @@ export function useStandingDraftAutosave(deps: {
         idleTimerRef.current = null;
         firstPendingAtRef.current = null;
         pendingDraftRef.current = null;
-        writeAutosave(entryId, draft);
+        // Not an exit: the page is still here, so an ordinary fetch (no 64 KiB ceiling) is right.
+        writeAutosave(entryId, draft, false);
       }, delay);
     },
     [enabled, entryId, liftStaleGate, writeAutosave]
@@ -311,12 +326,15 @@ export function useStandingDraftAutosave(deps: {
    *
    * @complexity Time/space: O(1) — one ref read and at most one enqueued request.
    */
-  const flushPendingAutosave = useCallback(() => {
-    const draft = pendingDraftRef.current;
-    if (draft === null || !entryId) return;
-    clearPendingTimer();
-    writeAutosave(entryId, draft);
-  }, [clearPendingTimer, entryId, writeAutosave]);
+  const flushPendingAutosave = useCallback(
+    (keepalive: boolean) => {
+      const draft = pendingDraftRef.current;
+      if (draft === null || !entryId) return;
+      clearPendingTimer();
+      writeAutosave(entryId, draft, keepalive);
+    },
+    [clearPendingTimer, entryId, writeAutosave]
+  );
 
   // Flush, do not cancel, when this editor goes away. An in-app navigation (the "Posts"/"Pages"
   // back link, or any router move) unmounts the hook while a debounced tick is still pending, and
@@ -325,7 +343,9 @@ export function useStandingDraftAutosave(deps: {
   // second later, and no PUT was ever issued. The SPA outlives the unmount, so the request started
   // here completes normally. Re-running on an `entryId` change is correct too: the cleanup closes
   // over the OUTGOING entry, so switching entries parks the one being left behind.
-  useEffect(() => flushPendingAutosave, [flushPendingAutosave]);
+  // `keepalive: false` — an unmount is an in-app navigation, not a page teardown. The SPA outlives
+  // it, so the request started here completes normally and must not pay keepalive's body ceiling.
+  useEffect(() => () => flushPendingAutosave(false), [flushPendingAutosave]);
 
   // The exits React never sees. `pagehide` covers a tab close, a reload and a same-tab navigation;
   // `visibilitychange` covers a tab switch or the OS backgrounding the browser, where `pagehide`
@@ -336,15 +356,19 @@ export function useStandingDraftAutosave(deps: {
   // events (a close fires blur AND pagehide) cost one write, not three.
   useEffect(() => {
     if (!enabled || !entryId) return;
+    // Wrapped rather than passed straight to `addEventListener`: a listener is called WITH the
+    // Event, which would arrive as `flushPendingAutosave`'s `keepalive` argument — a truthy object,
+    // so every flush would silently request keepalive whether or not it is an exit.
+    const onExit = () => flushPendingAutosave(true);
     const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flushPendingAutosave();
+      if (document.visibilityState === "hidden") flushPendingAutosave(true);
     };
-    window.addEventListener("pagehide", flushPendingAutosave);
-    window.addEventListener("blur", flushPendingAutosave);
+    window.addEventListener("pagehide", onExit);
+    window.addEventListener("blur", onExit);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      window.removeEventListener("pagehide", flushPendingAutosave);
-      window.removeEventListener("blur", flushPendingAutosave);
+      window.removeEventListener("pagehide", onExit);
+      window.removeEventListener("blur", onExit);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [enabled, entryId, flushPendingAutosave]);

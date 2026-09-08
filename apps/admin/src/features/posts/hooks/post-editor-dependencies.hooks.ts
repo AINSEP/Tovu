@@ -18,7 +18,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   listPosts: () => api.listPosts(),
   uploadMedia: (input) => api.uploadMedia(input),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft) => api.putAutosave(id, draft),
+  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
   getAutosave: (id) => api.getAutosave(id),
   discardAutosave: (id) => api.discardAutosave(id),
 };

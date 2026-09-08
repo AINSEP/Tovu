@@ -540,3 +540,83 @@ function hideDocument(): () => void {
     if (original) Object.defineProperty(Document.prototype, "visibilityState", original);
   };
 }
+
+/**
+ * REGRESSION (2026-09-07 audit claim #3): the exit flush must use an unload-safe transport.
+ *
+ * `pagehide` / `visibilitychange`→hidden are the last events a page reliably gets. An ordinary
+ * `fetch` started from one of them is cancelled when the browser tears the document down, so the
+ * very write these listeners exist to make — the newest edit, still sitting in the debounce window
+ * — was the one most likely to be dropped. `fetch(..., { keepalive: true })` is what survives; the
+ * flush that runs on UNMOUNT must NOT ask for it, because the SPA is still alive there and
+ * `keepalive` carries a 64 KiB body ceiling an ordinary request does not.
+ */
+describe("exit flushes use an unload-safe transport", () => {
+  // Own timer setup: this block sits outside the `useStandingDraftAutosave` describe above and so
+  // does not inherit its `beforeEach`.
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Every `putAutosave` call's options bag, in call order — `createFakePort` records only drafts. */
+  function portRecordingOptions() {
+    const optionsSeen: Array<{ keepalive?: boolean } | undefined> = [];
+    const port = createFakePort({
+      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput, options?: { keepalive?: boolean }) => {
+        optionsSeen.push(options);
+        return { applied: true };
+      }),
+    });
+    return { port, optionsSeen };
+  }
+
+  it("asks for keepalive on pagehide — the tab-close / reload case", async () => {
+    const { port, optionsSeen } = portRecordingOptions();
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => {
+      window.dispatchEvent(new Event("pagehide"));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(optionsSeen).toEqual([{ keepalive: true }]);
+  });
+
+  it("asks for keepalive when the document becomes hidden", async () => {
+    const { port, optionsSeen } = portRecordingOptions();
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    const restore = hideDocument();
+    try {
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(optionsSeen).toEqual([{ keepalive: true }]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("does NOT ask for keepalive on unmount — the SPA is still alive, and keepalive caps the body", async () => {
+    const { port, optionsSeen } = portRecordingOptions();
+    const { result, unmount } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    unmount();
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    expect(optionsSeen).toEqual([{ keepalive: false }]);
+  });
+
+  it("does NOT ask for keepalive on an ordinary debounced tick", async () => {
+    const { port, optionsSeen } = portRecordingOptions();
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
+
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(3001));
+
+    expect(optionsSeen).toEqual([{ keepalive: false }]);
+  });
+});

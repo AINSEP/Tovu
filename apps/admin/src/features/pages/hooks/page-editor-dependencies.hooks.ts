@@ -26,7 +26,7 @@ export const defaultPageEditorPort: PageEditorPort = {
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePage: (id) => api.deletePage(id),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft) => api.putAutosave(id, draft),
+  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
   getAutosave: (id) => api.getAutosave(id),
   discardAutosave: (id) => api.discardAutosave(id),
 };
