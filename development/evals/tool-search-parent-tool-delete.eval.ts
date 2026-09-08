@@ -315,6 +315,21 @@ function run(): void {
   const vecsB = hitVectors((q, l) => catalogB.search(q, l), acceptableCardsFor);
   results.push({ name: `B: ${cardList.length} resource-keyed cards`, vecs: vecsB });
 
+  // ---- B-LENIENT: any content_delete.* card counts, not just the correct resource's own — mirrors
+  // ---- the read eval's D1-LENIENT, which quantified the strict-vs-lenient scoring asymmetry a single
+  // ---- fat entry benefits from (a fat entry is scored a hit whenever it ranks at all; a card design
+  // ---- is scored a hit only when the CORRECT card ranks). Measuring both on the same B index lets the
+  // ---- asymmetry be quantified on this family's own numbers instead of assumed from the read eval's.
+  const allCardIds = new Set(cardList.map(([key]) => `content_delete.${key}`));
+  function acceptableCardsForLenient(c: EvalCase): ReadonlySet<string> {
+    const ids = caseIds(c);
+    const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
+    if (ids.some((id) => collapsed.has(id))) for (const cardId of allCardIds) out.add(cardId);
+    return out;
+  }
+  const vecsBLenient = hitVectors((q, l) => catalogB.search(q, l), acceptableCardsForLenient);
+  results.push({ name: `B-LENIENT: any of ${cardList.length} cards counts`, vecs: vecsBLenient });
+
   for (const r of results) console.log(`  ${r.name.padEnd(34)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
 
   console.log(`\n  Card grouping (${DELETE_FAMILY.length} tools -> ${cardList.length} cards, ${DELETE_FAMILY.length - cardList.length} merged):\n`);
