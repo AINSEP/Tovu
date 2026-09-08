@@ -108,6 +108,7 @@ const { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, cla
 const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed } = require("./src/site-registry.cjs");
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
+const { createShutdownTracker } = require("./src/shutdown-tracker.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
@@ -230,6 +231,10 @@ const openSites = createSiteSupervisor({
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
 const serializer = createKeyedSerializer();
+
+/** Teardowns a window's `closed` handler has STARTED but not finished, so `before-quit` below can
+ *  wait for them — see `shutdown-tracker.cjs`'s own header for the leak this closes (D-09). */
+const pendingTeardowns = createShutdownTracker();
 
 /** Guards `before-quit` against re-entering once the graceful multi-site shutdown is already under
  *  way — mirrors the single-site shell's own prior `shuttingDown` variable. */
@@ -565,15 +570,33 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
 
   openSites.set(siteDir, { server, window });
   window.on("closed", () => {
-    openSites.delete(siteDir);
-    recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
+    // Only when the current entry is still THIS window's (D-09). `site-supervisor.cjs` removes an
+    // entry whose child died, and the operator can re-open the same site from "Open Recent" while
+    // this dead window is still on screen — a second `tovu serve`, a second window, a REPLACEMENT
+    // entry under the same key. Deleting by site dir alone then dropped that healthy replacement
+    // the moment the old window was closed: `before-quit` no longer stopped it, the Projects screen
+    // reported the site as stopped, and "Start" spawned a THIRD child over the same `content.db`.
+    // The supervisor's own `handleExit` guards by entry identity for exactly this reason; this is
+    // its missing sibling.
+    if (openSites.get(siteDir)?.window === window) openSites.delete(siteDir);
     // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
     // later — the other half of the accumulation fix above. Best-effort and awaited before
     // `server.stop()` so the request actually reaches the child before BR-07's graceful SIGTERM
     // drain tears it down; a failed or no-op logout (nothing left to revoke) never blocks the close.
-    void endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
-      .catch(() => {})
-      .finally(() => void server.stop());
+    //
+    // TRACKED, and the crash-safety row is dropped only at the END of it. The row exists so the
+    // next launch can reap a child this process left running, so it must outlive the child, not the
+    // window: dropping it up front — as this did — meant a hard kill during the stop left a
+    // `tovu serve` that `reconcileOrphans` could never find. `before-quit` waits on the tracked
+    // promise, which is what stops `app.quit()` racing an unfinished `server.stop()` when this is
+    // the last window (see `shutdown-tracker.cjs`).
+    pendingTeardowns.track(
+      endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
+        .catch(() => {})
+        .then(() => server.stop())
+        .catch(() => {})
+        .finally(() => recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid })),
+    );
   });
   return window;
 }
@@ -1077,11 +1100,17 @@ app
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
-  if (openSites.size === 0 || shuttingDown) return;
+  // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
+  // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
+  // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned
+  // `detached`, so it outlives the app. See `shutdown-tracker.cjs`'s own header.
+  if ((openSites.size === 0 && pendingTeardowns.size === 0) || shuttingDown) return;
   event.preventDefault();
   shuttingDown = true;
   const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));
-  Promise.all(stops).finally(() => app.quit());
+  Promise.all(stops)
+    .then(() => pendingTeardowns.drain())
+    .finally(() => app.quit());
 });
 
 app.on("window-all-closed", () => {
