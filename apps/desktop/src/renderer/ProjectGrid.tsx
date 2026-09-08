@@ -6,7 +6,7 @@
  * just a line-count split.
  */
 import { useDeleteConfirmation } from './App.hooks.js';
-import { databaseLabel, deleteActionCopy, isCardOpenable, type DeleteActionCopy } from './ProjectGrid.hooks.js';
+import { databaseLabel, deleteActionCopy, isCardOpenKey, isCardOpenable, type DeleteActionCopy } from './ProjectGrid.hooks.js';
 import { STATUS_LABEL } from './project-status.js';
 import type { ProjectRecord } from '../contracts/project.js';
 
@@ -104,10 +104,12 @@ function ProjectCard({
       onKeyDown={
         openable
           ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onOpen(project.id);
-              }
+              // `isCardOpenKey`, not an inline key check: it also refuses a keydown that started on
+              // a descendant. See its own doc — an unguarded card handler swallowed the delete
+              // button's keyboard activation and opened the project instead.
+              if (!isCardOpenKey(event)) return;
+              event.preventDefault();
+              onOpen(project.id);
             }
           : undefined
       }

@@ -23,6 +23,34 @@ export function isCardOpenable(project: ProjectRecord, confirming: boolean): boo
 }
 
 /**
+ * Whether a keydown that reached the card should open the project.
+ *
+ * The `event.target !== event.currentTarget` half is the whole reason this is a function rather
+ * than an inline condition. The card is a keyboard-activated open target, and it is also the
+ * ANCESTOR of the delete button; a keydown on that button bubbles to the card, where an unguarded
+ * handler called `preventDefault()` — cancelling the very click the browser was about to synthesize
+ * from the key — and then opened the project. Keyboard users therefore could not reach the delete
+ * confirmation at all: Enter or Space on a focused delete button opened the project instead.
+ *
+ * `CardConfirmOverlay` already carried the sibling of this guard (`onKeyDown` stopPropagation
+ * alongside its `onClick` one) and its own comment states this exact mechanism; the delete button
+ * was given only the `onClick` half. Guarding at the card instead of at each descendant fixes both
+ * arms and any control added later, which is why the check lives here and not on the button.
+ *
+ * @param event the keydown, narrowed to the three fields this decision reads — so a test can call
+ *   it with plain objects and no DOM.
+ * @complexity O(1) time, O(1) space.
+ */
+export function isCardOpenKey(event: {
+  key: string;
+  target: EventTarget | null;
+  currentTarget: EventTarget | null;
+}): boolean {
+  if (event.target !== event.currentTarget) return false;
+  return event.key === 'Enter' || event.key === ' ';
+}
+
+/**
  * The human-readable name for whichever database a project was provisioned against. A `custom`
  * provider carries its own operator-supplied `label`; the fallback names the category rather than
  * leaving the card's metadata row blank.
