@@ -101,6 +101,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // exactly as it did before canvas styling existed, so no test here has to wait on a theme fetch.
     canvasStyling: { status: "ready", styling: {} },
     save: vi.fn(),
+    saveConflict: null,
+    saveOverwritingConflict: vi.fn(),
+    dismissSaveConflict: vi.fn(),
     remove: vi.fn(),
     confirmingDelete: false,
     setConfirmingDelete: vi.fn(),
@@ -266,6 +269,49 @@ describe("standing-draft autosave stale-basis notice", () => {
     const region = container.querySelector('[data-agent-element="page-autosave-stale"]');
     expect(region).not.toBeNull();
     expect(region!.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+/**
+ * The version-conflict banner (2026-09-07, audit claim #1). The refusal itself is proven in
+ * `use-page-editor.unit.test.ts`; this covers the SINK — that the controller's `saveConflict`
+ * actually reaches a rendered banner and that its two buttons are wired to the two controller
+ * actions, rather than to nothing.
+ */
+describe("version-conflict banner", () => {
+  const CONFLICT = { expectedVersion: 1, currentVersion: 2, attemptedStatus: undefined } as const;
+
+  it("states that the work was not saved, is still in the editor, and that saving again replaces theirs", () => {
+    renderEditor({ saveConflict: { ...CONFLICT } });
+    const notice = screen.getByText(/someone else saved this while you were editing/i);
+    expect(notice).toHaveTextContent(/version 1/);
+    expect(notice).toHaveTextContent(/version 2/);
+    expect(notice).toHaveTextContent(/were NOT saved/);
+    expect(notice).toHaveTextContent(/still here in the editor/i);
+    expect(notice).toHaveTextContent(/will replace their version/i);
+  });
+
+  it("renders nothing at all when there is no conflict", () => {
+    const { container } = renderEditor();
+    expect(container.querySelector('[data-agent-element="page-version-conflict"]')).toBeNull();
+  });
+
+  it('"Save anyway" calls saveOverwritingConflict, and nothing else', async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ saveConflict: { ...CONFLICT } });
+    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    expect(ctrl.saveOverwritingConflict).toHaveBeenCalledTimes(1);
+    expect(ctrl.dismissSaveConflict).not.toHaveBeenCalled();
+    expect(ctrl.save).not.toHaveBeenCalled();
+  });
+
+  it('"Keep editing" dismisses without writing anything', async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ saveConflict: { ...CONFLICT } });
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(ctrl.dismissSaveConflict).toHaveBeenCalledTimes(1);
+    expect(ctrl.saveOverwritingConflict).not.toHaveBeenCalled();
+    expect(ctrl.save).not.toHaveBeenCalled();
   });
 });
 

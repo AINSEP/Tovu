@@ -12,7 +12,15 @@ import {
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
-import { buildPageAutosaveDraft, buildPageSavePlan, pageAcceptsHtmlBody, pageSaveSuccessMessage } from "../rules";
+import {
+  buildPageAutosaveDraft,
+  buildPageSavePlan,
+  pageAcceptsHtmlBody,
+  pageSaveSuccessMessage,
+  readPageVersionConflict,
+  type PageSaveConflict,
+  type PageSavePlan,
+} from "../rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
@@ -144,6 +152,22 @@ export interface PageEditorController {
    */
   canvasStyling: ThemeCanvasStylingState;
   save: (nextStatus?: "draft" | "published") => Promise<void>;
+  /**
+   * Non-null once the server has REFUSED an explicit Save/Publish because another operator's save
+   * moved the row's `version` out from under this editor (2026-09-07). The caller renders it as a
+   * banner offering the two things an operator can actually do — {@link saveOverwritingConflict} or
+   * {@link dismissSaveConflict} — with the wording in `rules.ts`'s `pageVersionConflictMessage`.
+   *
+   * Distinct from {@link autosaveStaleBasis} below, which is the BACKGROUND autosave hitting the
+   * same wall: this one is a save the operator pressed and watched fail.
+   */
+  saveConflict: PageSaveConflict | null;
+  /** Re-reads the current row and re-runs the rejected save against it, replaying the original
+   *  draft/publish intent. The only way past a {@link saveConflict}, and deliberately explicit: the
+   *  plain Save button keeps failing until the operator chooses to replace the other version. */
+  saveOverwritingConflict: () => Promise<void>;
+  /** Hides the {@link saveConflict} banner without writing anything. */
+  dismissSaveConflict: () => void;
   remove: () => Promise<void>;
   confirmingDelete: boolean;
   setConfirmingDelete: (value: boolean) => void;
@@ -237,6 +261,61 @@ function applySavedPage(
   setters.setMessage(pageSaveSuccessMessage(t, locale, canSaveHtml));
 }
 
+/**
+ * The two writes a Page save makes, in the order that makes the version guard real.
+ *
+ * **Metadata first, body second — reversed 2026-09-07, deliberately.** It used to be body first,
+ * on the reasoning that "if the metadata write fails on a slug conflict, the operator's actual
+ * content is already safe". That ordering is exactly what made a concurrency guard impossible:
+ * `PUT /pages/:id/html` (`routes/admin/pages/update-html.ts`) reads the row and writes it back
+ * inside ONE request, so the version its compare-and-set conditions on is one it captured
+ * microseconds earlier — never the version this editor loaded — and it bumps `version` on the way
+ * through. Writing it first therefore both clobbered the other operator's body AND invalidated the
+ * basis the metadata write was about to claim. `updatePost` is the only one of the two that accepts
+ * a client-supplied `expectedVersion`, so it has to go first for its 409 to mean anything.
+ *
+ * What the old ordering bought is not lost: the working copy is still in the editor either way, and
+ * since 2026-09-06 a standing draft is parked server-side (`useStandingDraftAutosave`) — neither of
+ * which existed when "body first" was chosen.
+ *
+ * @returns The final stored row: the body write's response when it fired, the metadata write's
+ *   otherwise. Reading the earlier one would hand the caller a `version` already one behind.
+ * @complexity Time O(1) plus one or two requests; space O(1).
+ */
+async function writePage(
+  port: PageEditorPort,
+  pageId: string,
+  plan: PageSavePlan,
+  html: string,
+): Promise<AdminPost> {
+  const { post: updated } = await port.updatePost({ id: pageId }, plan.updatePostPayload);
+  if (!plan.canSaveHtml) return updated;
+  const { post: withBody } = await port.updatePageHtml(pageId, html);
+  return withBody;
+}
+
+/** `runSave`'s own catch arm, named out of its body for the same complexity-ceiling reason
+ *  {@link applySavedPage} above documents.
+ *
+ *  The version conflict is NOT folded into the generic error line. The two need opposite reactions
+ *  from the operator (a slug collision or a network blip: fix it and press Save again; this:
+ *  pressing Save again replaces somebody's page), and the whole point of the route's distinct `code`
+ *  is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
+function applySaveFailure(
+  e: unknown,
+  attemptedStatus: "draft" | "published" | undefined,
+  setters: { setSaveConflict: (value: PageSaveConflict) => void; setError: (value: string) => void },
+  t: (locale: string, key: string) => string,
+  locale: string,
+): void {
+  const conflict = readPageVersionConflict(e, attemptedStatus);
+  if (conflict) {
+    setters.setSaveConflict(conflict);
+    return;
+  }
+  setters.setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
+}
+
 export interface PageEditorDependencies {
   port: PageEditorPort;
   /** Separate from `port` because it reaches a different surface entirely — a theme's static asset
@@ -291,6 +370,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // A save the server refused because this editor's basis version had already been superseded
+  // (2026-09-07). Distinct from `error`: `error` means "try again", this means "trying again
+  // replaces somebody else's page" — see `applySaveFailure`.
+  const [saveConflict, setSaveConflict] = useState<PageSaveConflict | null>(null);
   // Stale-settlement guard for `save()` (2026-09-05 sweep, extracted into `useSettlementGeneration`
   // 2026-09-06) — `saving` (state) already disables both the Save and Publish buttons, but that
   // alone cannot stop an overlapping second call (a same-tick double-invocation, or any caller
@@ -416,12 +499,20 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     return () => observer.disconnect();
   }, [frameNode]);
 
-  const save = useCallback(
-    async (nextStatus?: "draft" | "published") => {
-      // Save is only reachable once `page` has loaded — `PageEditor.tsx` shows a loading notice
-      // and renders no Save/Publish button until then — but the guard keeps `page.id` below sound
-      // without a non-null assertion, and mirrors `usePostEditor`'s identical `remove` guard.
-      if (!page) return;
+  /**
+   * Persists the working copy against a specific basis row — the version-guarded core both
+   * {@link save} and `saveOverwritingConflict` run through.
+   *
+   * `basis` is the row whose `version` this write claims AND whose `bodyFormat`/`bodyJson`
+   * `buildPageSavePlan` reads. Threading it as a parameter rather than closing over `page` is what
+   * lets the explicit-overwrite path re-run against a freshly re-read row without waiting for a
+   * `setPage` to commit — the same shape `usePostEditor`'s `runSave(statusOverride, expectedVersion)`
+   * uses, one step wider because a Page's save plan needs the whole row, not just its version.
+   *
+   * @complexity Time O(1) plus one or two requests; space O(1).
+   */
+  const runSave = useCallback(
+    async (nextStatus: "draft" | "published" | undefined, basis: AdminPost) => {
       // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
       // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
       // see the other's claim.
@@ -429,32 +520,24 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       setSaving(true);
       setError(null);
       setMessage(null);
-      // `updatePageHtml` is the bespoke-HTML writer (`routes/admin/pages/update-html.ts`) and its
-      // FIRST call on a still-`doc`-format Page converts it to `html` format and drops `body_json`
-      // — see that route's own doc comment. This editor has no way to render a doc-format body (it
-      // always loads `html` as `""` for that format), so calling it unconditionally would silently
-      // replace a real Tiptap page's content with an empty string on every ordinary Save/Publish.
+      setSaveConflict(null);
       // What to send each route, and whether `updatePageHtml` fires at all, is `buildPageSavePlan`'s
       // decision (`../rules.ts`) — see that function's own doc, and `pageAcceptsHtmlBody`'s, for the
-      // full reasoning (moved there verbatim under the 2026-08-12 complexity-ceiling pass, and
-      // widened 2026-09-06 so a brand-new Page's hand-authored HTML is savable at all).
-      const plan = buildPageSavePlan(page, { title, slug, status, templateChoice, html }, nextStatus);
+      // full reasoning (moved there verbatim under the 2026-08-12 complexity-ceiling pass, widened
+      // 2026-09-06 so a brand-new Page's hand-authored HTML is savable at all, and given the
+      // optimistic-concurrency basis 2026-09-07).
+      //
+      // `updatePost` needs a round-tripped `bodyJson` for every Page the HTML route does NOT fire
+      // for: `features/post/post.ts`'s `updatePost` requires it to be a JSON object for any Page not
+      // already in `html` format. It is meaningless for an html-format row (no Tiptap document
+      // exists) so the server skips the check there, but a doc-format row's `bodyJson` IS its real
+      // content. This editor has no way to EDIT that document, so round-tripping the loaded value
+      // unchanged satisfies the requirement without touching it — the alternative (omitting it)
+      // throws "bodyJson must be a JSON object" and leaves title/slug/status stuck un-editable for
+      // every doc-format Page.
+      const plan = buildPageSavePlan(basis, { title, slug, status, templateChoice, html }, nextStatus);
       try {
-        // Two writes, in this order, because they are two different server-side paths and only the
-        // second one can create the html row. Body first: if the metadata write fails on a slug
-        // conflict, the operator's actual content is already safe.
-        if (plan.canSaveHtml) {
-          await port.updatePageHtml(page.id, html);
-        }
-        // `updatePost` (`features/post/post.ts`'s own `updatePost`) requires `bodyJson` to be a JSON
-        // object for any Page NOT already in `html` format — it's meaningless for an html-format row
-        // (no Tiptap document exists) so the server skips the check there, but a doc-format row's
-        // `bodyJson` IS its real content and the check is real. This editor has no way to EDIT that
-        // document, but `page.bodyJson` is already the value loaded from the server, so round-tripping
-        // it unchanged satisfies the requirement without touching the real content — the alternative
-        // (omitting it) throws "bodyJson must be a JSON object" and leaves title/slug/status stuck
-        // un-editable for every doc-format Page, which is worse than a no-op round-trip.
-        const { post: updated } = await port.updatePost({ id: page.id }, plan.updatePostPayload);
+        const updated = await writePage(port, basis.id, plan, html);
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
@@ -473,7 +556,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         void autosave.clearStandingDraft();
       } catch (e) {
         if (!settlement.isCurrent(generation)) return;
-        setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
+        applySaveFailure(e, nextStatus, { setSaveConflict, setError }, t, locale);
       } finally {
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
@@ -481,8 +564,49 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         if (settlement.isCurrent(generation)) setSaving(false);
       }
     },
-    [page, html, title, slug, status, templateChoice, locale, port, t, autosave.clearStandingDraft]
+    [html, title, slug, status, templateChoice, locale, port, t, settlement, autosave.clearStandingDraft]
   );
+
+  /**
+   * Persists the working copy against the version this editor loaded — see {@link runSave}.
+   *
+   * Save is only reachable once `page` has loaded — `PageEditor.tsx` shows a loading notice and
+   * renders no Save/Publish button until then — but the guard keeps `page.id` sound without a
+   * non-null assertion, and mirrors `usePostEditor`'s identical `remove` guard.
+   */
+  const save = useCallback(
+    async (nextStatus?: "draft" | "published") => {
+      if (!page) return;
+      await runSave(nextStatus, page);
+    },
+    [page, runSave]
+  );
+
+  /**
+   * The operator's explicit overwrite after a conflict — see
+   * {@link PageEditorController.saveOverwritingConflict}.
+   *
+   * Re-reads the row purely for its current `version` and body format: the response's title/slug/
+   * body are deliberately NOT applied to the working copy, because doing so is exactly the "your
+   * typed work disappeared" outcome this whole path exists to avoid. `attemptedStatus` replays the
+   * ORIGINAL intent, so a rejected Publish retries as a publish rather than quietly downgrading to
+   * a draft. Mirrors `usePostEditor`'s `saveOverwritingConflict` verbatim.
+   */
+  const saveOverwritingConflict = useCallback(async () => {
+    if (!page) return;
+    const attemptedStatus = saveConflict?.attemptedStatus;
+    const fresh = await port.getPage(page.id).then(({ post }) => post, () => null);
+    if (!fresh) {
+      setError(t(locale, "could not re-read the current version — your changes are still here, try again"));
+      return;
+    }
+    setPage(fresh);
+    await runSave(attemptedStatus, fresh);
+  }, [page, port, runSave, saveConflict, t, locale]);
+
+  /** Hides the conflict banner without saving — see
+   *  {@link PageEditorController.dismissSaveConflict}. */
+  const dismissSaveConflict = useCallback(() => setSaveConflict(null), []);
 
   const remove = useCallback(async () => {
     if (!page) return;
@@ -598,6 +722,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     templatePreviewUrl,
     canvasStyling,
     save,
+    saveConflict,
+    saveOverwritingConflict,
+    dismissSaveConflict,
     remove,
     confirmingDelete,
     setConfirmingDelete,

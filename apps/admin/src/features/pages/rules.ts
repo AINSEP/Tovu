@@ -4,7 +4,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import type { AdminPost } from "../../lib/api";
+import { ApiError, type AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import type {
   StandingDraftAutosaveInput,
@@ -197,16 +197,28 @@ export interface PageSavePlan {
     status: "draft" | "published";
     templateChoice: string | null;
     bodyJson?: Record<string, unknown>;
+    /** The optimistic-concurrency basis — the `version` this editor loaded, NOT a writable field.
+     *  The server compares it and answers `409 VERSION_CONFLICT` when a newer save has superseded
+     *  it. See {@link buildPageSavePlan} for why this write, not the HTML one, carries it. */
+    expectedVersion: number;
   };
 }
 
-/** The subset of a loaded `AdminPost` {@link buildPageSavePlan} actually reads — kept narrow
+/** The subset of a loaded `AdminPost` {@link pageAcceptsHtmlBody} actually reads — kept narrow
  *  rather than importing the full `AdminPost` type, so a test can pass a bare literal. Field types
  *  mirror `AdminPost`'s own exactly (`bodyFormat` optional, `bodyJson` a plain record) so a real
  *  `AdminPost` is always assignable here without a cast. */
 export interface SavablePage {
   bodyFormat?: "doc" | "html";
   bodyJson: Record<string, unknown>;
+}
+
+/** {@link SavablePage} plus the row's `version` — the optimistic-concurrency basis both
+ *  {@link buildPageSavePlan} and {@link buildPageAutosaveDraft} capture. Separate from
+ *  {@link SavablePage} because {@link pageAcceptsHtmlBody} genuinely does not need it and should
+ *  not force a caller to supply one. */
+export interface VersionedSavablePage extends SavablePage {
+  version: number;
 }
 
 /** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
@@ -267,7 +279,7 @@ export function pageAcceptsHtmlBody(page: SavablePage, html: string): boolean {
  * @complexity Time/space: O(1).
  */
 export function buildPageSavePlan(
-  page: SavablePage,
+  page: VersionedSavablePage,
   form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string },
   nextStatus?: "draft" | "published"
 ): PageSavePlan {
@@ -281,17 +293,16 @@ export function buildPageSavePlan(
       slug: form.slug,
       status: statusToWrite,
       templateChoice: form.templateChoice,
+      // The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
+      // routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
+      // reads the row and writes it back inside one request (`routes/admin/pages/update-html.ts`),
+      // so the version it conditions on is one it captured microseconds earlier and can never be
+      // the version THIS editor loaded. That is why `save` now writes metadata first and only
+      // reaches the body once this guard has passed — see `save`'s own doc.
+      expectedVersion: page.version,
       ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }),
     },
   };
-}
-
-/** The subset {@link buildPageAutosaveDraft} reads — {@link SavablePage} plus `version`, which the
- *  draft's `baseVersion` is captured from (see `PostRepoPort.writeAutosave`'s own server-side doc
- *  for why that field matters: it's what lets a stale autosave be rejected rather than silently
- *  clobbering a newer real save). */
-interface AutosavablePage extends SavablePage {
-  version: number;
 }
 
 /**
@@ -303,7 +314,7 @@ interface AutosavablePage extends SavablePage {
  * @complexity Time/space: O(1).
  */
 export function buildPageAutosaveDraft(
-  page: AutosavablePage,
+  page: VersionedSavablePage,
   form: { title: string; slug: string; html: string }
 ): StandingDraftAutosaveInput {
   if (pageAcceptsHtmlBody(page, form.html)) {
@@ -353,6 +364,79 @@ export function pageAutosaveStaleBasisMessage(staleBasis: StandingDraftStaleBasi
     "so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are " +
     "still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want " +
     "to keep first."
+  );
+}
+
+/**
+ * The server's machine-readable `code` for "the version you were editing has been superseded"
+ * (`server/inbound/admin-http/routes/posts/update.ts`'s `sendPostUpdateError`). Named here rather
+ * than string-matched at the call site because that route returns TWO different 409s from the same
+ * `PostConflictError` hierarchy: a slug-uniqueness collision (fix the slug and resend) and this one
+ * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
+ * `code`, which is exactly what makes them tellable apart.
+ *
+ * Feature-local and character-identical to `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE`
+ * — the same no-cross-feature-import boundary {@link isAutosaveDraftStale} already documents. Pages
+ * and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two constants describe the
+ * same wire value on purpose.
+ */
+export const PAGE_VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
+
+/** A rejected save whose basis version had already been superseded — {@link readPageVersionConflict}'s
+ *  output, and the editor's own conflict state. Mirrors `posts/rules.ts`'s `PostSaveConflict`. */
+export interface PageSaveConflict {
+  /** The version the editor believed it was editing. `null` only if the server omitted it. */
+  expectedVersion: number | null;
+  /** The version actually stored now — what the other operator's save produced. `null` only if the
+   *  server omitted it. */
+  currentVersion: number | null;
+  /** The `nextStatus` the rejected save was attempting, carried so an explicit retry re-runs the
+   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
+  attemptedStatus: "draft" | "published" | undefined;
+}
+
+/**
+ * Classifies a caught save error: the version conflict, or `null` for everything else (including
+ * the slug-uniqueness 409, which is the same status from the same error class and must NOT take
+ * this branch — that is the trap this function exists to close).
+ *
+ * Reads both versions out of the response `details` rather than parsing the message prose, and
+ * tolerates their absence (`null`) rather than throwing: an older server that returns the code
+ * without the detail bag must still produce a conflict the editor reacts to, since misreading a
+ * conflict as an ordinary error is what loses an operator's work.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function readPageVersionConflict(
+  e: unknown,
+  attemptedStatus: "draft" | "published" | undefined
+): PageSaveConflict | null {
+  if (!(e instanceof ApiError) || e.status !== 409 || e.code !== PAGE_VERSION_CONFLICT_CODE) return null;
+  const details = (e.body?.details ?? {}) as Record<string, unknown>;
+  return {
+    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
+    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
+    attemptedStatus,
+  };
+}
+
+/**
+ * The conflict banner's own message. NOT run through `t()`, for the same reason
+ * {@link pageAutosaveStaleBasisMessage} just above is not — it interpolates two runtime values.
+ *
+ * States the two things an operator has to know and cannot infer: that their work was NOT saved but
+ * is still in front of them, and that saving again overwrites the other person rather than merging.
+ * Deliberately does not promise a merge, a diff, or a way to see what changed — none of those exist
+ * here, and the recovery this screen genuinely offers is "your text is still in the editor".
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pageVersionConflictMessage(conflict: PageSaveConflict): string {
+  const basis = conflict.expectedVersion === null ? "the version you loaded" : `version ${conflict.expectedVersion}`;
+  const current = conflict.currentVersion === null ? "a newer version" : `version ${conflict.currentVersion}`;
+  return (
+    `Someone else saved this while you were editing — you were working from ${basis}, and ${current} is now stored. ` +
+    "Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
   );
 }
 

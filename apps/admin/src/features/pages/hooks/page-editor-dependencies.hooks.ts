@@ -1,6 +1,7 @@
-import { api, type AdminPost } from "@/lib/api";
+import { api, ApiError, type AdminPost } from "@/lib/api";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
+import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 
 /**
  * @file The only place under `features/pages/hooks` that reaches `lib/api` for these five routes —
@@ -54,8 +55,10 @@ export interface FakePageEditorPortOptions {
 export function createFakePageEditorPort(options: FakePageEditorPortOptions): PageEditorPort & {
   /** The page as currently held by the fake, after any writes made through the port. */
   readonly current: AdminPost;
-  /** Every `updatePost` patch this fake received, in call order. */
-  readonly updatePostCalls: Array<Partial<AdminPost>>;
+  /** Every `updatePost` patch this fake received, in call order — the assertion surface for "did
+   *  the editor actually SEND the basis version", which `current` alone cannot show (a patch the
+   *  fake applied and a patch it merely received look identical in the stored row). */
+  readonly updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }>;
   /** Every `updatePageHtml` body this fake received, in call order. */
   readonly updatePageHtmlCalls: string[];
   /** Whether `deletePage` has been called at least once. A getter, not a plain field — a plain
@@ -72,7 +75,7 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
   simulateConcurrentSave(title?: string): void;
 } {
   let page = { ...options.page };
-  const updatePostCalls: Array<Partial<AdminPost>> = [];
+  const updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }> = [];
   const updatePageHtmlCalls: string[] = [];
   let deleteCalled = false;
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
@@ -119,14 +122,35 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     async updatePageHtml(id, html) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       updatePageHtmlCalls.push(html);
-      page = { ...page, bodyFormat: "html", bodyJson: {}, bodyHtml: html };
+      // `version` is bumped because the real writer bumps it: `PagesHtmlDocumentStore.write()`
+      // (`apps/website/src/features/pages/html-document-store.sqlite.ts`) sets `version: version + 1`
+      // on every successful body write. The fake used to leave it alone, which made a save that
+      // wrote BOTH routes look — to any test — like it had only consumed one version step. That
+      // hid the ordering bug this fake now models: with the body written first, the basis the
+      // editor loaded is already stale by the time the metadata write claims it.
+      page = { ...page, bodyFormat: "html", bodyJson: {}, bodyHtml: html, version: page.version + 1 };
       return { post: page };
     },
 
     async updatePost({ id }, patch) {
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       updatePostCalls.push(patch);
-      page = { ...page, ...patch };
+      // The real route's optimistic-concurrency guard, modeled rather than stubbed: the same opt-in
+      // strict-equality compare `updatePost` runs server-side, rejecting with the same `ApiError`
+      // shape `lib/api.ts` builds from a `409 VERSION_CONFLICT` body. Mirrors
+      // `createFakePostEditorPort`'s identical block, and is modeled here so a hook test reaches a
+      // conflict by actually BEING stale (`simulateConcurrentSave`) rather than by seeding a canned
+      // rejection that would pass just as happily if the editor never sent a version at all.
+      const { expectedVersion, ...fields } = patch;
+      if (expectedVersion !== undefined && expectedVersion !== page.version) {
+        throw new ApiError(
+          `page '${page.id}' was modified by another save (expected version ${expectedVersion}, current version ${page.version})`,
+          409,
+          PAGE_VERSION_CONFLICT_CODE,
+          { details: { expectedVersion, currentVersion: page.version } }
+        );
+      }
+      page = { ...page, ...fields, version: page.version + 1 };
       return { post: page };
     },
 

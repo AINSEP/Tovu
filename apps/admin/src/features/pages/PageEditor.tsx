@@ -20,6 +20,8 @@ import {
   pageAutosaveStaleBasisMessage,
   pageEditorSurface,
   pagePublicPath,
+  pageVersionConflictMessage,
+  type PageSaveConflict,
 } from "./rules";
 
 /**
@@ -273,6 +275,64 @@ function PageAutosaveRecoveryBanner({
 }
 
 /**
+ * The VERSION-CONFLICT banner (2026-09-07) — an EXPLICIT Save/Publish the server rejected, with a
+ * way past it. Mirrors `features/posts/PostEditor.tsx`'s `PostVersionConflictBanner`.
+ *
+ * Distinct from `PageAutosaveStaleBanner` below, which reports the same collision hitting the
+ * BACKGROUND autosave: that one is a state the operator never asked for and gets no buttons, this
+ * one is a button they pressed and watched fail, so it owes them an answer. `pageVersionConflict
+ * Message` (`rules.ts`) owns the wording so this component stays markup only.
+ *
+ * "Save anyway" is the only way past the conflict, and that is on purpose: the plain Save button
+ * keeps failing until the operator explicitly chooses to replace the other version. Copy is
+ * hardcoded English, matching every other string in this file — `PageEditor.tsx` is out of the
+ * pages dictionary's declared scope (see `pages-i18n.ts`'s own header).
+ */
+function PageVersionConflictBanner({
+  saveConflict,
+  onSaveAnyway,
+  onDismiss,
+}: {
+  saveConflict: PageSaveConflict;
+  onSaveAnyway: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      className="notice error"
+      {...agentHandle("page-version-conflict", {
+        role: "region",
+        label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
+      })}
+    >
+      <p>{pageVersionConflictMessage(saveConflict)}</p>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onSaveAnyway}
+        {...agentHandle("page-version-conflict-overwrite", {
+          role: "button",
+          label: "Save these changes anyway, replacing the version the other operator saved",
+        })}
+      >
+        Save anyway
+      </button>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onDismiss}
+        {...agentHandle("page-version-conflict-dismiss", {
+          role: "button",
+          label: "Hide this notice and keep editing without saving",
+        })}
+      >
+        Keep editing
+      </button>
+    </div>
+  );
+}
+
+/**
  * Standing-draft autosave — the STALE-BASIS notice (2026-09-06). The counterpart to
  * `PageAutosaveRecoveryBanner` above and not a duplicate of it: that banner offers work found parked
  * from a PREVIOUS session, this reports that background autosaving has STOPPED for the session
@@ -440,6 +500,9 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     templatePreviewUrl,
     canvasStyling,
     save,
+    saveConflict,
+    saveOverwritingConflict,
+    dismissSaveConflict,
     remove,
     confirmingDelete,
     setConfirmingDelete,
@@ -467,6 +530,13 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         />
       ) : null}
       {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} /> : null}
+      {saveConflict ? (
+        <PageVersionConflictBanner
+          saveConflict={saveConflict}
+          onSaveAnyway={() => void saveOverwritingConflict()}
+          onDismiss={dismissSaveConflict}
+        />
+      ) : null}
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.

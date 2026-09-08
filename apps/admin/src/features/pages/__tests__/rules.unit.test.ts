@@ -368,32 +368,32 @@ describe("buildPageSavePlan", () => {
   const FORM = { title: "About", slug: "about", status: "draft" as const, templateChoice: null, html: "<p>body</p>" };
 
   it("omits bodyJson whenever the HTML route will fire — updatePageHtml converts the row first, so the server no longer demands one", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] } }, FORM);
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(true);
     expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
   });
 
   it("round-trips bodyJson whenever the HTML route will not fire", () => {
     const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
-    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson }, FORM);
+    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(false);
     expect(plan.updatePostPayload.bodyJson).toEqual(bodyJson);
   });
 
   it("saves the HTML authored into a brand-new page — the 2026-09-06 fix", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson: { type: "doc", content: [] } }, FORM);
+    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(true);
     expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
   });
 
   it("prefers nextStatus over the form's own status, and writes it to both fields", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {} }, FORM, "published");
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {}, version: 7 }, FORM, "published");
     expect(plan.statusToWrite).toBe("published");
     expect(plan.updatePostPayload.status).toBe("published");
   });
 
   it("falls back to the form's status when no nextStatus is given", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {} }, { ...FORM, status: "published" });
+    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {}, version: 7 }, { ...FORM, status: "published" });
     expect(plan.statusToWrite).toBe("published");
   });
 });

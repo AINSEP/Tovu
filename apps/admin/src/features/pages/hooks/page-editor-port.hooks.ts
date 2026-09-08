@@ -38,9 +38,19 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
     activeThemeApiVersion: 2 | undefined;
   }>;
   updatePageHtml(id: string, html: string): Promise<{ post: AdminPost }>;
+  /**
+   * `expectedVersion` (2026-09-07) is the optimistic-concurrency basis, NOT a field of the page:
+   * the `AdminPost.version` this editor loaded, which the server compares and rejects with
+   * `409 VERSION_CONFLICT` when a newer save has superseded it. Same optional, purely additive
+   * extension `PostEditorPort` already declares — one shared kind-blind route (`PUT /posts/:id`)
+   * serves both editors. Omitting it is exactly the last-write-wins behavior this method has always
+   * had; `usePageEditor` always sends it once the row has loaded.
+   */
   updatePost(
     target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">>
+    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+      expectedVersion?: number;
+    }
   ): Promise<{ post: AdminPost }>;
   deletePage(id: string): Promise<{ post: AdminPost }>;
   /**

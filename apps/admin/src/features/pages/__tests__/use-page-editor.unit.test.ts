@@ -183,8 +183,20 @@ describe("save() on a doc-format Page (the F01 regression)", () => {
   });
 });
 
-describe("save() on an html-format Page (existing behavior, must not regress)", () => {
-  it("still calls the HTML writer before the metadata write", async () => {
+describe("save() on an html-format Page", () => {
+  /**
+   * ORDER REVERSED 2026-09-07 (audit claim #1), and this assertion reversed with it. It used to
+   * read "still calls the HTML writer BEFORE the metadata write", pinning an ordering chosen so a
+   * slug-conflict failure would leave the body already safe.
+   *
+   * That ordering is what made a concurrency guard impossible. `PUT /pages/:id/html` reads the row
+   * and writes it back inside one request and bumps `version` on the way through, so writing it
+   * first both clobbered a concurrent editor's body and invalidated the basis the metadata write
+   * was about to claim. Only `updatePost` accepts a client-supplied `expectedVersion`, so it has to
+   * go first for its 409 to mean anything — see `writePage`'s own doc in `use-page-editor.hooks.ts`
+   * and the `save() guards against a concurrent save` block at the end of this file.
+   */
+  it("calls the metadata writer before the HTML writer, so the version guard runs first", async () => {
     const { result } = await mountLoaded("landing", HTML_PAGE);
     expect(result.current.html).toBe("<p>hello</p>");
 
@@ -206,8 +218,8 @@ describe("save() on an html-format Page (existing behavior, must not regress)", 
     const metaIndex = fetchMock.mock.calls.findIndex(
       (call) => String(call[0]).includes("/posts/pg-html") && (call[1] as RequestInit | undefined)?.method === "PUT"
     );
-    expect(htmlIndex).toBeGreaterThanOrEqual(0);
-    expect(metaIndex).toBeGreaterThan(htmlIndex);
+    expect(metaIndex).toBeGreaterThanOrEqual(0);
+    expect(htmlIndex).toBeGreaterThan(metaIndex);
     expect(result.current.message).toBe("Saved");
   });
 });
@@ -667,8 +679,13 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
   });
 
   /** The notice must not linger once autosaving actually works again — an operator staring at a
-   *  false "autosaving has paused" would stop trusting the true one. A real Save re-bases this
-   *  editor onto the row the server hands back, and the next tick is accepted on that basis. */
+   *  false "autosaving has paused" would stop trusting the true one. A save that lands re-bases this
+   *  editor onto the row the server hands back, and the next tick is accepted on that basis.
+   *
+   *  It goes through `saveOverwritingConflict` rather than a plain `save()` as of 2026-09-07: this
+   *  editor is stale by construction here, so a plain Save is now REFUSED (`saveConflict`) instead
+   *  of silently overwriting — which is the whole point of audit claim #1's fix. The explicit
+   *  overwrite is the path that still lands, and re-basing is the property this test owns. */
   it("autosaveStaleBasis clears once a write is accepted again, rather than sticking for the session", async () => {
     vi.useFakeTimers();
     try {
@@ -684,6 +701,13 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
 
       await act(async () => {
         await result.current.save();
+      });
+      // The plain Save was refused, exactly as intended — nothing was written over the other
+      // operator's row, and the operator is told so rather than left believing it saved.
+      expect(result.current.saveConflict).not.toBeNull();
+
+      await act(async () => {
+        await result.current.saveOverwritingConflict();
       });
       act(() => result.current.setHtml("<p>typed again, now on the current version</p>"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
@@ -1154,5 +1178,105 @@ describe("HTML authoring into a newly created (doc-format, empty-document) Page"
     expect(result.current.message).toBe(
       "en:Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet."
     );
+  });
+});
+
+/**
+ * REGRESSION (2026-09-07 audit claim #1): a Page save must not silently overwrite another
+ * operator's save.
+ *
+ * Before this, `save` issued two unguarded writes — `PUT /pages/:id/html` then `PUT /posts/:id` —
+ * with no `expectedVersion` on either. `features/posts` gained that guard on 2026-09-06 and Pages
+ * did not, and the body route cannot supply one on its own: `routes/admin/pages/update-html.ts`
+ * reads the row and writes it back inside ONE request, so the version its compare-and-set conditions
+ * on is one it captured microseconds earlier — never the version this editor loaded. Two editors
+ * open on the same page therefore each wrote whatever they had, last one wins, no error either way.
+ *
+ * The fake port models both halves of the real server (`page-editor-dependencies.hooks.ts`): the
+ * body write bumps `version` exactly as `PagesHtmlDocumentStore.write` does, and the metadata write
+ * honours `expectedVersion` with the same `409 VERSION_CONFLICT` `ApiError` shape.
+ */
+describe("save() guards against a concurrent save", () => {
+  function conflictDeps(page: unknown) {
+    const port = createFakePageEditorPort({ page: page as Parameters<typeof createFakePageEditorPort>[0]["page"] });
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+  }
+
+  it("sends the loaded version as the basis of the metadata write", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setTitle("Renamed"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(deps.port.updatePostCalls).toEqual([
+      expect.objectContaining({ title: "Renamed", expectedVersion: HTML_PAGE.version }),
+    ]);
+  });
+
+  it("refuses the whole save — body included — once another operator has saved", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    // Another operator's save lands while this editor sits on the version it loaded.
+    deps.port.simulateConcurrentSave();
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    // The heart of it: their body survives. Writing the HTML before discovering the conflict is
+    // exactly the silent overwrite this guard exists to prevent.
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+    expect(result.current.saveConflict).not.toBeNull();
+    expect(result.current.saveConflict?.currentVersion).toBe(HTML_PAGE.version + 1);
+    // Not folded into the generic error line — the two need opposite reactions from the operator.
+    expect(result.current.error).toBeNull();
+    // The operator's own text is untouched and still in front of them.
+    expect(result.current.html).toBe("<p>mine</p>");
+  });
+
+  it("saveOverwritingConflict() replays the original intent against the fresh version", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => {
+      await result.current.save("published");
+    });
+    expect(result.current.saveConflict?.attemptedStatus).toBe("published");
+
+    await act(async () => {
+      await result.current.saveOverwritingConflict();
+    });
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<p>mine</p>"]);
+    // The replay keeps the Publish intent rather than quietly downgrading it to a draft save.
+    expect(deps.port.current.status).toBe("published");
+  });
+
+  it("dismissSaveConflict() hides the banner without writing anything", async () => {
+    const deps = conflictDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<p>mine</p>"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => {
+      await result.current.save();
+    });
+
+    act(() => result.current.dismissSaveConflict());
+
+    expect(result.current.saveConflict).toBeNull();
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
   });
 });
