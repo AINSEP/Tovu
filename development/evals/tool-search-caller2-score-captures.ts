@@ -1,5 +1,4 @@
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
-import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry";
 import { CALLER2_COMPLIANCE_CAPTURES_20260805 } from "./tool-search-caller2-compliance-captures-2026-08-05.js";
@@ -38,12 +37,12 @@ const hits: Record<number, number> = { 1: 0, 3: 0, 5: 0, 10: 0 };
 console.log(`Scoring ${n} real captured queries (first search_tools call per case, or miss if none)\n`);
 for (const capture of CALLER2_COMPLIANCE_CAPTURES_20260805) {
   const heldOutCase = HELD_OUT_V2.find((c) => c.query === capture.operatorQuery);
-  // The capture file is an immutable historical record (raw ids as captured 2026-08-05) — resolve
-  // through `currentToolIdFor` here, at scoring time, rather than editing that file. See
-  // `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8.
-  const acceptable = new Set<string>(
-    [capture.expectedToolId, ...(heldOutCase?.alsoAcceptable ?? [])].map(currentToolIdFor),
-  );
+  // NOT re-keyed through `currentToolIdFor` — reverted 2026-09-08. This suite scores a FROZEN
+  // 2026-08-05 capture's `expectedToolId` against the LIVE (now-collapsed) catalog. Resolving those
+  // ids is a live design decision (how should a historical capture be interpreted against a changed
+  // catalog?), not a mechanical ground-truth re-key, so it is left to the coordinator rather than
+  // decided here. See `ADS-memory/reports/2026-09-08-eval-ground-truth-migration.md`.
+  const acceptable = new Set<string>([capture.expectedToolId, ...(heldOutCase?.alsoAcceptable ?? [])]);
   const queryToScore = capture.capturedQueries[0];
   const ranks = queryToScore ? catalog.search(queryToScore, 10).map((h) => h.id) : [];
   const rank1 = acceptable.has(ranks[0] ?? "__none__");

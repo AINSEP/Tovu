@@ -1,3 +1,14 @@
+> **2026-09-08, later same session — REVISED per coordinator ruling.** The coordinator sharpened the
+> triage from two categories to three and ruled explicitly: **dated captures / historical records are
+> never re-keyed, even at the scoring site** — a capture is evidence of what was measured on a given
+> day against the catalog as it then stood, and reinterpreting its ids against today's catalog is a
+> live design decision, not a mechanical ground-truth fix. `tool-search-caller2-score-captures.ts` was
+> REVERTED (see "File categorization" and "Revision" sections below) because, on reflection, it is
+> exactly this case: it treats a frozen 2026-08-05 capture's `expectedToolId` as ground truth for a
+> live-scored suite. Everything else in this report stands unchanged. The per-suite score table below
+> still shows my original (now-reverted) numbers for that one suite, with the reversion called out
+> inline rather than rewritten, so the record of what was measured and why it changed stays intact.
+
 # 2026-09-08 — Eval ground truth migration: retired read-tool ids re-key onto their `content_read` card
 
 Programmer(Execution). Dispatched by team-lead per §8 of
@@ -33,6 +44,50 @@ explicitly). Re-keying those maps would delete the vocabulary the measured retri
 — the opposite of what re-keying ground truth is supposed to fix. Grepped both files after finishing to
 confirm neither was modified: `git status` shows no changes to either.
 
+## File categorization — three ways, per the coordinator's ruling
+
+Named explicitly so the next person does not re-triage from scratch.
+
+**A. Live ground-truth fixtures — re-keyed through `currentToolIdFor()` at scoring time:**
+- `development/evals/tool-search-heldout-v2.eval.ts` (scores `tool-search-heldout-v2.ts`'s
+  `HELD_OUT_V2`, the live 130-case fixture)
+- `development/evals/tool-search-all-approaches-v2.eval.ts` (same fixture)
+- `development/evals/tool-search-doc2query-adoption.eval.ts` (same fixture)
+- `development/evals/tool-search-scaling-curve.eval.ts` (same fixture)
+- `development/evals/tool-search-canary-significance.eval.ts` (own inline 20-case `HELD_OUT_CASES`)
+- `development/evals/tool-search-doc2query-canary.eval.ts` (own inline 20-case copy)
+- `development/evals/tool-search-hyde-canary.eval.ts` (own inline 20-case copy)
+- `development/evals/tool-search-rerank-ceiling.eval.ts` (own inline 20-case copy)
+- `development/evals/tool-search-hierarchical-canary.eval.ts` (own inline 20-case copy)
+- `development/evals/tool-search-quality.eval.ts` (own inline `CASES` + `HELD_OUT_CASES`)
+- `development/evals/tool-search-export-corpus.ts` (re-exports `HELD_OUT_V2` resolved, for external
+  sandboxed consumers — a regeneratable export of a live fixture, not a frozen record of a past
+  measurement, so it belongs here rather than in category C)
+
+**B. Vocabulary keys — never touched, keyed by retired member id ON PURPOSE:**
+- `apps/website/src/assistant/tool-search-keywords.ts`
+- `apps/website/src/assistant/tool-search-doc2query.ts`
+
+**C. Dated captures / historical records — never re-keyed, in either the data or the scorer that
+consumes it as ground truth:**
+- `development/evals/tool-search-caller2-compliance-captures-2026-08-05.ts` — the raw capture data
+  itself. Never edited, at any point in this pass.
+- `development/evals/tool-search-caller2-score-captures.ts` — the scorer that treats the above
+  capture's `expectedToolId` as ground truth. **Initially re-keyed here (at the scoring site, not the
+  data file), then REVERTED** once the coordinator ruled that a suite scoring a frozen capture against
+  today's catalog is a design decision to escalate, not a mechanical fix to make. See "Revision" below.
+
+**Not a fixture, vocabulary key, or capture — out of scope for a different reason, listed for
+completeness:**
+- `tool-search-parent-tool-read.eval.ts` (source of the mapping itself)
+- `tool-search-fat-concat-arm.eval.ts` (separate research artifact, own resolution already)
+- `tool-search-parent-tool-delete.eval.ts` (different domain, other agents' territory this session)
+- `tool-search-argument-fill-fixture.ts` + `development/evals/argument-fill-run-2026-09-08/*.json`
+  (separate, later investigation — argument-filling, not retrieval rank)
+- `tool-search-caller2-compliance-harness.ts` (capture-taking mechanism, does no scoring of its own)
+- `tool-search-distractors.ts` (one prose mention, not a scored ground-truth id)
+- `tool-search-eval-registry.ts` (shared composition infra)
+
 ## Suites changed — 12 files
 
 | # | File | What changed |
@@ -46,7 +101,7 @@ confirm neither was modified: `git status` shows no changes to either.
 | 7 | `tool-search-hyde-canary.eval.ts` | `score()` |
 | 8 | `tool-search-rerank-ceiling.eval.ts` | inline acceptable-set |
 | 9 | `tool-search-hierarchical-canary.eval.ts` | `wantedDomains` (domain-routing, see judgment call) |
-| 10 | `tool-search-caller2-score-captures.ts` | acceptable-set built from the historical capture's `expectedToolId` |
+| 10 | `tool-search-caller2-score-captures.ts` | acceptable-set built from the historical capture's `expectedToolId` — **REVERTED, see "Revision" below** |
 | 11 | `tool-search-quality.eval.ts` | `score()` (shared) + a second hand-inlined duplicate of it |
 | 12 | `tool-search-export-corpus.ts` | `expect`/`alsoAcceptable` resolved before writing the external JSON export |
 
@@ -102,7 +157,7 @@ deleted immediately after the run.
 | `tool-search-hyde-canary.eval.ts` (n=20) | raw top-1 45% (9) -> HyDE top-1 55% (11), found 80%->100% | raw top-1 45% (9, unchanged) -> HyDE top-1 **65%** (13), found 80%->100% |
 | `tool-search-rerank-ceiling.eval.ts` (n=20) | top-1 45% (9); recall@10 ceiling 80% (16); 4/20 unreachable | **unchanged**: top-1 45% (9); ceiling 80% (16); 4/20 unreachable |
 | `tool-search-scaling-curve.eval.ts` (sizes 131/250/500/1000) | shipped-kw top-1 stable 39-44%; HyDE top-1 stable 59-61% | shipped-kw top-1 stable **55-58%**; HyDE top-1 stable **77-80%** — same shape, all four sizes |
-| `tool-search-caller2-score-captures.ts` (n=25, real captured queries) | top-1 **20%** (5/25) | top-1 **60%** (15/25), top-3 88% (22), found@10 92% (23) |
+| `tool-search-caller2-score-captures.ts` (n=25, real captured queries) | top-1 **20%** (5/25) | **REVERTED — back to top-1 20% (5/25)**, see "Revision" section below; the 60%/88%/92% figures below were this file's numbers before the coordinator's ruling, kept for the record |
 | `tool-search-quality.eval.ts` (n=25 primary / n=20 held-out) | primary top-1 84% (21/25), found 88% (22/25); held-out top-1 45% (9/20), found 80% (16/20) | primary top-1 **96%** (24/25), found **100%** (25/25); held-out **unchanged** 45%/80% — no false miss in this held-out subset |
 | `tool-search-export-corpus.ts` | exports 170 tools/130 cases; **0 checked for resolvability by this file itself** (downstream consumer's problem) | exports 170 tools/130 cases; **0/130 `expect` ids unresolvable against the exported `tools` list** (verified directly: previously would have been 36) |
 
@@ -117,6 +172,12 @@ strongest arm pre-fix (98/130 found@10) and n=130 dilutes any single suspicious 
 independently re-verify each of the 32 newly-hit cases by hand; flagging rather than asserting.
 
 ## Genuine failures unmasked — not fixed here, per instructions
+
+**Findings 1 and 2 below were observed while `tool-search-caller2-score-captures.ts` was still
+re-keyed (before the coordinator's ruling and the revert documented further down).** They describe real
+retrieval behavior seen during that run, not an artifact of the (now-reverted) re-keying itself, so
+they are recorded as-is rather than discarded — but this suite's LIVE state today is the reverted one
+(20%, raw ids), not the 60% state these two items were observed against.
 
 1. **`tool-search-caller2-score-captures.ts`: `integrations_list_subscriptions` does not resolve, and
    is NOT part of the collapse.** The captured case `integrations-list` has `expectedToolId:
@@ -151,6 +212,60 @@ independently re-verify each of the 32 newly-hit cases by hand; flagging rather 
    `tool-search-heldout-v2.eval.ts`'s shipped-keywords arm still misses 13% at found@10) is the same
    genuine retrieval-quality signal the parent-tool-read-eval report already characterized (D1-SHIPPED
    matches BASELINE case-for-case) — nothing new surfaced by this pass beyond items 1-3 above.
+
+## Was this suite ever a meaningful eval? — the finding the coordinator asked for
+
+**`tool-search-caller2-score-captures.ts`: 18 of its 25 cases (72%) have ground truth that is a
+retired-collapse id.** Counted directly against the capture file, not estimated:
+`backup_list_restore_points, collections_entry_list, comments_list_moderation_queue,
+content_post_list, forms_list_definitions, identity_user_list, media_list_assets, members_list,
+menus_list_menus, newsletter_list_campaigns, plugins_list, redirects_list, seo_get_entry_meta,
+settings_list_definitions, taxonomy_list, theme_list, widgets_list_instances, workspace_get`. Not
+literally "entirely retired ids," but overwhelmingly dominated by them — meaning this suite's pre-fix
+20% (5/25) was measuring almost nothing about real retrieval quality; 18 of its 20 misses were
+guaranteed misses by construction the moment the collapse shipped, regardless of what the live agent
+actually did. Whatever this suite is meant to answer, it answered close to nothing for the three weeks
+between the collapse shipping and either this fix or the coordinator's revert landing.
+
+No other suite touched in this pass comes close to that proportion — `tool-search-heldout-v2.ts`'s
+130-case fixture is 26% retired-id ground truth (34/130, the Tier-1-only figure from
+`ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §3's addendum), and the five 20-case canary
+sets sit even lower (2 of 20 for the ones checked directly above). `tool-search-caller2-score-captures.ts`
+is the one outlier worth naming.
+
+## Revision — `tool-search-caller2-score-captures.ts` reverted
+
+After sending the first version of this report, the coordinator ruled: dated captures and historical
+records are never re-keyed, **including at the scoring site** — resolving a frozen capture's ids
+against today's catalog is a live design decision (how should a one-time historical measurement be
+interpreted once the thing it measured has structurally changed?), not a mechanical ground-truth fix,
+and it belongs to the coordinator to decide, not to this dispatch.
+
+`tool-search-caller2-score-captures.ts` is exactly that case: it scores
+`tool-search-caller2-compliance-captures-2026-08-05.ts`'s `expectedToolId` (a frozen 2026-08-05
+capture) against the live, now-collapsed catalog. My original fix resolved `capture.expectedToolId`
+and the matched held-out case's `alsoAcceptable` through `currentToolIdFor` at the point where the
+`acceptable` set is built — the capture FILE itself was never edited, only the scorer's
+interpretation of it. On reflection this is still squarely inside the rule: the capture is "also being
+used as live ground truth by a running suite," which the coordinator named as the design-problem case
+rather than the re-key case.
+
+**Reverted.** Removed the `currentToolIdFor` import and the `.map(currentToolIdFor)` call; restored
+the original `new Set<string>([capture.expectedToolId, ...(heldOutCase?.alsoAcceptable ?? [])])`.
+Re-ran fresh: **top-1 5/25 (20%)** — confirmed byte-for-byte the same output as this suite produced
+before this whole pass touched it, i.e. a clean revert, not a partial one.
+
+**The design problem, for the coordinator to decide:** as things stand, this suite will keep scoring
+~20% indefinitely — not because retrieval is bad, but because 72% of its ground truth points at ids
+that no longer exist. Options, not a recommendation:
+1. Leave it frozen and 20% forever, as an honest (if increasingly useless) record of 2026-08-05.
+2. Re-key it after all, accepting that the "measurement" becomes "did 2026-08-05's captured queries,
+   scored against TODAY's catalog, still find the right thing" — a hybrid that is neither a pure
+   historical record nor a pure live eval.
+3. Treat it as retired/superseded now that the catalog it measured no longer exists in that shape, and
+   either archive it or replace it with a fresh capture run against the current catalog (the harness
+   that produces captures, `tool-search-caller2-compliance-harness.ts`, is untouched and still works —
+   it just costs ~16 minutes of live local-CLI time per run).
 
 ## Verification
 
