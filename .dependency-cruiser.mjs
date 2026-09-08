@@ -495,11 +495,19 @@ const TOOL_REGISTRATION_TEST_FROM = "^apps/website/src/assistant/__tests__/tool-
 // prove `media_trash_asset`'s confirm/cancel click actually reaches the MCP-UI redemption allowlist
 // — the exact hop that shipped broken for one commit (missing from `MCP_UI_REDEEMABLE_TOOL_IDS`)
 // with every handler-level test still green, because none of them go through this route either.
+// `mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts` (2026-09-08, same build)
+// is the SAME shape again, one file covering the five sibling tools `media_trash_asset` shipped
+// alongside (`comments_trash_comment`/`widgets_trash_instance`/`theme_trash_file`/
+// `redirects_tombstone`/`webhooks_delete_subscription`): it needs each domain's real
+// `build<Domain>Registrations` wired for real to prove the allowlist entry actually works through
+// this route, not just that the tool is declared somewhere in source — the same class of gap
+// `media_trash_asset` shipped with for one commit, just not yet exploited for these five.
 const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
   "^apps/website/src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.media-trash-asset\\.integration\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.delete-confirmation-family\\.integration\\.test\\.ts$",
   "^apps/website/src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
 ];
 
