@@ -20,13 +20,13 @@ import type { RouteDeps } from "../routes/types.js";
  * — the admin dock's "API · BYOK" execution mode, 2026-08-04.
  *
  * The property under test that matters most: a BYOK-mode turn can call a REAL admin tool
- * (`workspace_get`, from the identical `buildAssistantToolRegistrations` catalog the daemon uses)
+ * (`content_read.workspace`, from the identical `buildAssistantToolRegistrations` catalog the daemon uses)
  * and get a REAL result back — not a stub, not a mocked tool executor. Only the outbound call to
  * Anthropic is mocked (mirrors `site-assistant-routes.test.ts`'s identical posture for Google: no
  * live external dependency in a scoped test run, but everything on Tovu's own side of that boundary
  * is exercised for real).
  *
- * Auth uses an explicit permission grant (`workspace.manage`, `workspace_get`'s own catalog entry —
+ * Auth uses an explicit permission grant (`workspace.manage`, the permission `content_read.workspace` inherits from `workspace_get`'s own catalog entry —
  * `@jini-ai/cms/workspace`'s `agent-tools.ts`) rather than the seeded dev owner, so this test does
  * not silently depend on exactly which permissions that seed happens to carry.
  */
@@ -314,11 +314,11 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
 
   const providerUrl = await stubProvider(t, (callCount) => {
     if (callCount === 1) {
-      // First turn: the model reaches `workspace_get` the only way a BYOK turn now offers — through
+      // First turn: the model reaches `content_read.workspace` (the collapsed `workspace_get`) the only way a BYOK turn now offers — through
       // the meta-tool set (`byok-tool-surface.ts`'s `META_TOOL_DESCRIPTORS`), which is what the
       // route publishes instead of all 131 real descriptors. The real tool id is an ARGUMENT now,
       // not the tool name.
-      return sseBody(messageStart(), toolUseBlock(0, "toolu_1", "execute_delegated_tool", { toolId: "workspace_get", input: {} }), messageDelta("tool_use"), messageStop());
+      return sseBody(messageStart(), toolUseBlock(0, "toolu_1", "execute_delegated_tool", { toolId: "content_read.workspace", input: {} }), messageDelta("tool_use"), messageStop());
     }
     // Second turn (after the REAL tool result is appended to the conversation): the model replies
     // in plain text. The assertion below on the SECOND call's request body is what proves the tool
@@ -335,12 +335,12 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   const toolUseFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_use");
   assert.ok(toolUseFrame, "expected a tool_use event on the wire");
   assert.equal(toolUseFrame!.payload.name, "execute_delegated_tool");
-  assert.equal((toolUseFrame!.payload.input as { toolId?: string }).toolId, "workspace_get");
+  assert.equal((toolUseFrame!.payload.input as { toolId?: string }).toolId, "content_read.workspace");
 
   const toolResultFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
   assert.ok(toolResultFrame, "expected a tool_result event on the wire");
   assert.equal(toolResultFrame!.payload.isError, false);
-  // The REAL `workspace_get` handler's output — proves this round-tripped through
+  // The REAL `workspace_get` handler's output, reached under its collapsed `content_read.workspace` id — proves this round-tripped through
   // `toolExecutor.execute` against the real workspace repo, not a stub. `deps.workspaceId` is this
   // test's own seeded workspace id, which only the real handler could have echoed back.
   const resultContent = String(toolResultFrame!.payload.content);
@@ -520,8 +520,8 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
       // `arguments` reassembly now that there are real arguments to reassemble.
       return sseBody(
         openAiToolCallStartChunk(0, "call_1", "execute_delegated_tool"),
-        openAiToolCallArgsChunk(0, '{"toolId":"workspace_'),
-        openAiToolCallArgsChunk(0, 'get","input":{}}'),
+        openAiToolCallArgsChunk(0, '{"toolId":"content_read.'),
+        openAiToolCallArgsChunk(0, 'workspace","input":{}}'),
         openAiFinishChunk("tool_calls"),
         openAiDone(),
       );
@@ -581,7 +581,7 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
 
   const providerUrl = await stubProvider(t, (callCount) => {
     if (callCount === 1) {
-      return sseBody(functionCallCandidate("execute_delegated_tool", { toolId: "workspace_get", input: {} }, "call_1"), textCandidate("", "STOP"));
+      return sseBody(functionCallCandidate("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }, "call_1"), textCandidate("", "STOP"));
     }
     return sseBody(textCandidate("This workspace is named Tovu Dev.", "STOP"));
   });

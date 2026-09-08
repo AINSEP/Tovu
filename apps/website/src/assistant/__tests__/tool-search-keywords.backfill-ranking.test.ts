@@ -57,16 +57,16 @@ const CASES: readonly RankingCase[] = [
   // Recovery's `database_list_restore_points` and the older Database-adjacent `backup_list_restore_points`
   // are a documented, deliberate near-duplicate pair (see `tool-registrations.ts`'s own header: "a
   // tool cannot be wired without a risk entry" collision note) — both legitimately answer this phrasing.
-  { query: "what backups do we have", expect: "database_list_restore_points", alsoAcceptable: ["backup_list_restore_points"] },
+  { query: "what backups do we have", expect: "content_read.database_restore_point", alsoAcceptable: ["content_read.backup_restore_point"] },
   { query: "show me the history of database changes", expect: "database_query_timeline" },
   { query: "remove this custom role", expect: "identity_role_delete" },
-  { query: "what access policies exist", expect: "identity_policy_list" },
+  { query: "what access policies exist", expect: "content_read.identity_policy" },
   { query: "make a new mailing list", expect: "newsletter_create_list" },
   { query: "they never got the confirmation email, send it again", expect: "newsletter_resend_confirmation" },
   { query: "build me a landing page", expect: "pages_write_html" },
   { query: "show me the html source of this page", expect: "pages_read_html" },
   { query: "is there a migration stuck in progress", expect: "recovery_get_status" },
-  { query: "look up this one redirect rule", expect: "redirects_get" },
+  { query: "look up this one redirect rule", expect: "content_read.redirect" },
   { query: "what are our current seo defaults", expect: "seo_get_settings" },
   { query: "change my admin theme to dark mode", expect: "settings_set_ui_preference" },
   { query: "give me an overview of the whole site", expect: "site_get_profile" },

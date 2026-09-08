@@ -324,26 +324,31 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   // And specifically includes the registry-contributed domains, not just parity on whatever
   // DOMAIN_SLICES already provided — a parity check that passed vacuously (both empty) would not
   // prove anything about THIS seam.
+  // Several of these probes name `content_read.<resource>` cards: the 2026-09-08 collapse
+  // (assistant/content-read-tool.ts) replaces each domain's Tier-1 read tool with one in the FINAL
+  // wired list, which is exactly the list this test builds. The probe still proves the same thing —
+  // that domain contributed through the registry seam — because a card only exists at all when its
+  // member tool was contributed.
   assert.ok(daemonIds.includes("comments_approve_comment"));
-  assert.ok(daemonIds.includes("newsletter_list_campaigns"));
+  assert.ok(daemonIds.includes("content_read.newsletter_campaign"));
   // Stage 2 batch 1's four converted domains — same proof, extended to cover them too.
   assert.ok(daemonIds.some((id) => id.startsWith("identity_")));
-  assert.ok(daemonIds.includes("members_list"));
-  assert.ok(daemonIds.includes("redirects_list"));
-  assert.ok(daemonIds.includes("taxonomy_list"));
+  assert.ok(daemonIds.includes("content_read.member"));
+  assert.ok(daemonIds.includes("content_read.redirect"));
+  assert.ok(daemonIds.includes("content_read.taxonomy"));
   // Stage 2 batch 2's converted domains (both worker groups) — same proof, extended to cover them too.
-  assert.ok(daemonIds.includes("widgets_list_instances"));
-  assert.ok(daemonIds.includes("collections_content_type_list"));
+  assert.ok(daemonIds.includes("content_read.widget_instance"));
+  assert.ok(daemonIds.includes("content_read.collection_content_type"));
   assert.ok(daemonIds.some((id) => id.startsWith("forms_")));
-  assert.ok(daemonIds.includes("menus_list_menus"));
-  assert.ok(daemonIds.includes("backup_list_restore_points"));
-  assert.ok(daemonIds.includes("plugins_list"));
-  assert.ok(daemonIds.includes("collections_entry_list"));
-  assert.ok(daemonIds.includes("webhooks_list_subscriptions"));
-  assert.ok(daemonIds.includes("workspace_get"));
+  assert.ok(daemonIds.includes("content_read.menu"));
+  assert.ok(daemonIds.includes("content_read.backup_restore_point"));
+  assert.ok(daemonIds.includes("content_read.plugin"));
+  assert.ok(daemonIds.includes("content_read.collection_entry"));
+  assert.ok(daemonIds.includes("content_read.webhook_subscription"));
+  assert.ok(daemonIds.includes("content_read.workspace"));
   assert.ok(daemonIds.includes("pages_read_html"));
-  assert.ok(daemonIds.includes("seo_get_entry_meta"));
+  assert.ok(daemonIds.includes("content_read.seo_entry_meta"));
   // `media`, converted in a later, separate pass this session (retried after `widgets`'s own
   // conversion above had merged) — same proof, extended to cover it too.
-  assert.ok(daemonIds.includes("media_list_assets"));
+  assert.ok(daemonIds.includes("content_read.media_asset"));
 });
