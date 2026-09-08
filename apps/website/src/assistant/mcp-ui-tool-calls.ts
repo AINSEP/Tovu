@@ -155,6 +155,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // out of scope for this family (see that report's §1.2).
   "comments_trash_comment",
   "widgets_trash_instance",
+  "theme_trash_file",
 ]);
 
 /**
