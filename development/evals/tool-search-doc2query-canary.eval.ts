@@ -24,9 +24,8 @@
  * a blind subagent pass costs the same either way.
  */
 import Database from "better-sqlite3";
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 
@@ -107,8 +106,7 @@ function summarize(label: string, results: ReturnType<typeof score>) {
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const descriptors = registry.list();
 
   const db = new Database(":memory:");

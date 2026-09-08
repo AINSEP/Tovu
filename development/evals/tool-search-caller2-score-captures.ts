@@ -1,7 +1,6 @@
-import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry";
 import { CALLER2_COMPLIANCE_CAPTURES_20260805 } from "./tool-search-caller2-compliance-captures-2026-08-05.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 
@@ -28,8 +27,7 @@ function fakeRouteDeps(): RouteDeps {
   return deps as unknown as RouteDeps;
 }
 
-const registry = createToolRegistry();
-for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+const registry = buildEvalToolRegistry(fakeRouteDeps());
 const catalog = buildToolCatalogQuery(registry);
 
 const CUTOFFS = [1, 3, 5, 10] as const;

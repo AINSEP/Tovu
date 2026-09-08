@@ -46,8 +46,7 @@
  * Run: `npx tsx development/evals/tool-search-scaling-curve.eval.ts`
  * Free and deterministic: no model calls, no network, at scoring time.
  */
-import { createToolRegistry } from "@jini-ai/core";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -204,8 +203,7 @@ function buildDoc2QueryIndex(
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const realDescriptors = registry.list();
   const n = HELD_OUT_V2.length;
 

@@ -15,9 +15,8 @@
  * that eval's own "found" column, isolated and framed as an upper bound rather than a headline
  * number, per the brief's request to measure this BEFORE any reranker gets built.
  */
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
@@ -79,8 +78,7 @@ function fakeRouteDeps(): RouteDeps {
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const catalog = buildToolCatalogQuery(registry);
 
   const results = HELD_OUT_CASES.map((c) => {

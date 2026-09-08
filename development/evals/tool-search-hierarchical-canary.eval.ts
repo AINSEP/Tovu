@@ -18,10 +18,9 @@
  * (`tool-catalog-query.ts`'s `sourceForToolId`): the prefix before the first `_`.
  */
 import Database from "better-sqlite3";
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
@@ -84,8 +83,7 @@ function fakeRouteDeps(): RouteDeps {
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const descriptors = registry.list();
 
   // Group by domain, concatenating each tool's ALREADY-INDEXED text (keywords folded in) — the

@@ -18,9 +18,8 @@
  * See that file's header for full provenance. This is the one canary in this set that did NOT need
  * a redo — it was built blind from the start, unlike canary 1.
  */
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 
@@ -99,8 +98,7 @@ function summarize(label: string, results: ReturnType<typeof score>) {
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const catalogWithKeywords = buildToolCatalogQuery(registry);
   const catalogNoKeywords = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
 

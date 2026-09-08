@@ -17,9 +17,8 @@
  *
  * Run: `npx tsx development/evals/tool-search-canary-significance.eval.ts`
  */
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
@@ -130,8 +129,7 @@ function mcnemarExactP(b: number, c: number): number {
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
 
   const shipped = buildToolCatalogQuery(registry); // keywords baseline, raw query
   const baselineVec = top1Vector((c) => shipped.search(c.query, 10)[0]?.id ?? null);

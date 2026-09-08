@@ -27,9 +27,8 @@
  *
  * Run: `npx tsx development/evals/tool-search-doc2query-adoption.eval.ts`
  */
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
@@ -138,8 +137,7 @@ function rateRow(label: string, vecs: Record<Cutoff, boolean[]>, n: number): voi
 }
 
 function run(): void {
-  const registry = createToolRegistry();
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  const registry = buildEvalToolRegistry(fakeRouteDeps());
   const descriptors = registry.list();
   const n = HELD_OUT_V2.length;
 

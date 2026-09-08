@@ -79,13 +79,12 @@ import express from "express";
 import type { AdapterContext, RunStartHandler } from "@jini-ai/http-kit";
 import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/http-kit";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
-import { createToolRegistry } from "@jini-ai/core";
+import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/contracts/core/rate-limit/rate-limit.js";
 import { createSurfaceExchangeStore } from "../../apps/website/src/contracts/core/tool-surface-exchanges.js";
-import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
 
@@ -192,10 +191,7 @@ async function main(): Promise<void> {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const surfaceExchanges = createSurfaceExchangeStore();
 
-  const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter } as any, { surfaceExchanges })) {
-    registry.register(registration);
-  }
+  const registry = buildEvalToolRegistry({ ...routeDeps, magicLinkPerEmailLimiter } as any, { surfaceExchanges });
   const catalog = buildToolCatalogQuery(registry);
 
   const captured: CapturedSearch[] = [];
