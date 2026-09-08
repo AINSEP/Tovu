@@ -370,12 +370,22 @@ function resourceKeyOf(toolId: string): string {
   return seen.join("_");
 }
 
-/** Known misfires of the blind rule, disclosed rather than hand-fixed. */
+/** Known misfires of the blind rule, disclosed rather than hand-fixed.
+ *
+ *  CORRECTED 2026-09-08: this note previously claimed `newsletter_list_lists -> "newsletter"`, i.e.
+ *  that the blind strip ate the noun outright. Running `resourceKeyOf` on that id actually yields
+ *  `"newsletter_list"`: the tokens are `["newsletter", "list", "lists"]`, only the EXACT-match verb
+ *  token `"list"` is dropped, and `"lists"` then singularizes to `"list"` and is kept. The old prose
+ *  described the effect informally and was simply wrong about the function's output — worth stating
+ *  because the shipped collapse (`apps/website/src/assistant/content-read-tool.ts`) transcribes
+ *  these keys literally, so a reader comparing the two would otherwise find a card
+ *  (`content_read.newsletter_list`) that this comment says should not exist. */
 const RESOURCE_KEY_ARTIFACTS =
-  `newsletter_list_lists -> "newsletter": "list" is BOTH the read verb and this tool's noun (mailing ` +
-  `lists), so the blind strip removes the noun too. The description still carries the vocabulary; only ` +
-  `the 6x-weighted id column loses it. Left uncorrected — hand-fixing it is exactly the tuning this arm ` +
-  `exists to avoid.`;
+  `newsletter_list_lists -> "newsletter_list": "list" is BOTH the read verb and this tool's noun ` +
+  `(mailing lists), so the blind strip removes the verb occurrence and keeps only the singularized ` +
+  `plural. The key still reads correctly by coincidence — newsletter_list_lists DOES list ` +
+  `newsletter's mailing lists — and it collides with nothing. Left uncorrected — hand-fixing it is ` +
+  `exactly the tuning this arm exists to avoid.`;
 
 function runAddendum(): void {
   const registry = createToolRegistry();

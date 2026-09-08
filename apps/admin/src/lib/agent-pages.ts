@@ -30,7 +30,7 @@ import { navigate } from "./router";
  * Detail routes (`/posts/:id`, `/collections/:key/:entryId`, …) are deliberately absent unless a
  * panel names one with a param-free pattern (see `widgets`' `/regions` in `panels.tsx`): most need
  * an id an agent has to look up first, and the tool for that is the content catalog
- * (`content_post_list` and friends), not a navigation allowlist that would have to enumerate every
+ * (`content_read.content_post` and friends), not a navigation allowlist that would have to enumerate every
  * row in the database.
  */
 

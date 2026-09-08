@@ -159,7 +159,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "form, or card live in the admin UI) — and equally for any outbound call to an external " +
     "service this site holds a saved credential for: DNS and registrar records, hosting and " +
     "deployment providers, and every other third-party API reachable with a stored token. Those " +
-    "are NOT infrastructure work outside this catalog's scope; custom_credential_list, " +
+    "are NOT infrastructure work outside this catalog's scope; content_read.custom_credential, " +
     "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
     "is made with the site's own audited credential rather than a shell. For any such request: call " +
     "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +

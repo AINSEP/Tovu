@@ -44,10 +44,24 @@ test("rewraps the exact 'not a published page' refusal into a disambiguated mess
   assert.match((rewrapped as Error).message, /"pricing"/, "must still name what the caller asked for");
   assert.match((rewrapped as Error).message, /admin screen/i, "must say this is about admin-SPA screen ids, not CMS content");
   assert.match((rewrapped as Error).message, /posts, pages, settings/, "must still carry the real available-screens list");
+  // Named individually, not as one alternation: an alternation stays green while ANY member
+  // matches, so it would have silently tolerated the two ids the 2026-09-08 `content_read`
+  // collapse retired (`content_post_get`/`content_post_list` -> `content_read.content_post`)
+  // for as long as `content_post_search` survived beside them.
   assert.match(
     (rewrapped as Error).message,
-    /content_post_search|content_post_get|content_post_list/,
-    "must steer the caller toward the tool that actually answers a CMS-page request",
+    /content_post_search/,
+    "must steer the caller toward the search tool that actually answers a CMS-page request",
+  );
+  assert.match(
+    (rewrapped as Error).message,
+    /content_read\.content_post\b/,
+    "must name the shipped read card, not a tool id the catalog no longer registers",
+  );
+  assert.doesNotMatch(
+    (rewrapped as Error).message,
+    /content_post_get|content_post_list/,
+    "must not steer the caller at an id the `content_read` collapse retired",
   );
 });
 
