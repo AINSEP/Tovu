@@ -17,7 +17,12 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  * unconditionally" read tool group, **all dispatching through {@link dispatchByIdPresence} — the
  * one shared handler factory** — rather than 29 hand-written handlers. No schema change to
  * `@jini-ai/sqlite` or `tool-catalog-query.ts`: the id itself carries the resource, exactly as D1
- * measured (85%/87% top-10, matching baseline case-for-case at that cutoff).
+ * measured — it matched the pre-collapse baseline case-for-case at top-10, on both the whole set and
+ * the affected subset. The numbers themselves are deliberately NOT restated here: they move whenever
+ * the catalog changes (the shipped top-20 already moved the baseline's own figure), and a bare
+ * percentage in a comment is exactly the rot that produced the fabricated tool-search accuracy claim
+ * `37a78494` had to strip out of two shipping files. Read them from the eval, which recomputes them:
+ * `development/evals/tool-search-parent-tool-read.eval.ts`, and the Addendum's Results tables.
  *
  * ## Why this lives in `assistant/`, not `features/content-read/`
  *
@@ -179,6 +184,47 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
 /** `content_read.<resource>` — the card id a caller/model actually names. */
 function contentReadToolId(resource: string): string {
   return `content_read.${resource}`;
+}
+
+/**
+ * **The single authority for "what id serves this capability now."** Every retired Tier-1 read tool
+ * id -> the `content_read.<resource>` card that took over for it, derived from
+ * {@link CONTENT_READ_CARDS} itself rather than hand-listed, so it cannot drift from what actually
+ * ships.
+ *
+ * Exists because the collapse invalidated ground truth in several retrieval eval suites at once: a
+ * suite whose expected id is `comments_list_moderation_queue` scores a retrieval that correctly
+ * returned `content_read.comment_moderation_queue` as a MISS, manufacturing a regression that is not
+ * real. The capability did not go away — only its id changed — so the honest fix is to resolve
+ * expected ids through here.
+ *
+ * Deliberately ONE export rather than a mapping table copied into each suite: nine private copies is
+ * nine things to forget the next time a tool id is retired, and stranded references surviving a
+ * retirement is the exact failure this whole exercise exists to clean up.
+ *
+ * NOTE this is a *read-side* alias map only. It does NOT belong in `TOOL_SEARCH_KEYWORDS` /
+ * `DOC2QUERY` lookups: those are keyed by the MEMBER id on purpose, because {@link cardDescription}
+ * folds each member's own vocabulary into the card's indexed text by that key. Re-keying them onto
+ * card ids would delete that vocabulary from the index — which is precisely the vocabulary the
+ * measured retrieval parity depends on.
+ */
+export const RETIRED_READ_TOOL_TO_CARD: ReadonlyMap<string, string> = new Map(
+  CONTENT_READ_CARDS.flatMap((card) => {
+    const cardId = contentReadToolId(card.resource);
+    return [card.get?.toolId, card.list?.toolId]
+      .filter((memberId): memberId is string => memberId !== undefined)
+      .map((memberId) => [memberId, cardId] as const);
+  }),
+);
+
+/**
+ * Resolves a possibly-retired read tool id to the id that actually ships today; any other id is
+ * returned unchanged, so a caller can pass every expected id through it unconditionally.
+ *
+ * @complexity O(1).
+ */
+export function currentToolIdFor(toolId: string): string {
+  return RETIRED_READ_TOOL_TO_CARD.get(toolId) ?? toolId;
 }
 
 /** Every wired tool in this codebase publishes a real `inputSchema` (`buildDomainRegistrations`

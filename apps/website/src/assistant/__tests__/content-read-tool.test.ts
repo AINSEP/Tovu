@@ -25,6 +25,8 @@ import test from "node:test";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { RETIRED_READ_TOOL_TO_CARD, currentToolIdFor } from "../content-read-tool.js";
+import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 
 installFirstPartyToolContributors();
@@ -138,4 +140,37 @@ test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalo
   // the shipped design against itself while still printing a plausible number.
   const leakedCards = [...raw].filter((id) => id.startsWith("content_read."));
   assert.deepEqual(leakedCards, [], "the pre-collapse arm must contain NO content_read card");
+});
+
+test("RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once", () => {
+  assert.deepEqual([...RETIRED_READ_TOOL_TO_CARD.keys()].sort(), [...RETIRED_TIER1_IDS].sort());
+  assert.deepEqual([...new Set(RETIRED_READ_TOOL_TO_CARD.values())].sort(), [...EXPECTED_CARD_IDS].sort());
+  assert.equal(currentToolIdFor("members_get_by_id"), "content_read.member");
+  assert.equal(currentToolIdFor("members_list"), "content_read.member", "both members of a merged pair resolve to the one card");
+  assert.equal(currentToolIdFor("content_post_search"), "content_post_search", "a tool the collapse never touched passes through unchanged");
+});
+
+test("every retired member's SEARCH VOCABULARY survives into its card's indexed description", () => {
+  // The property the measured retrieval parity actually rests on, and the one most likely to be
+  // destroyed by a well-meant cleanup. `TOOL_SEARCH_KEYWORDS`/`DOC2QUERY` are keyed by the MEMBER id
+  // (`workspace_get`, not `content_read.workspace`) BY DESIGN: `cardDescription` folds each member's
+  // own vocabulary into the card's indexed text through that key. Those keys look like stranded
+  // references to a retired id — they are the opposite, and re-keying them onto the card ids would
+  // silently drop every one of these words from the FTS index with no error anywhere.
+  const byId = new Map(buildAssistantToolRegistrations(createRouteDeps()).map((r) => [r.descriptor.id, r]));
+
+  const checked: string[] = [];
+  for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
+    const keywords = TOOL_SEARCH_KEYWORDS[memberId];
+    if (!keywords) continue;
+    const description = byId.get(cardId)?.descriptor.description ?? "";
+    for (const term of keywords.split(/\s+/).filter(Boolean)) {
+      assert.ok(
+        description.includes(term),
+        `'${memberId}' contributes the search term '${term}', but '${cardId}' does not carry it — its vocabulary was dropped from the index`,
+      );
+    }
+    checked.push(memberId);
+  }
+  assert.ok(checked.length >= 30, `expected nearly every retired id to contribute keywords, got ${checked.length}`);
 });

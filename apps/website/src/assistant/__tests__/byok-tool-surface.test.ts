@@ -167,11 +167,11 @@ test("a query that matches nothing reports that it matched nothing, rather than 
 
 test("describe_tool returns a real tool's input schema, and refuses an unknown id with a next step", async () => {
   const s = surface();
-  const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get" }));
+  const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
   assert.notEqual(found.isError, true);
-  assert.match(found.content, /workspace_get/);
+  assert.match(found.content, /content_read\.workspace/);
 
-  const missing = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get_but_invented" }));
+  const missing = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
   assert.equal(missing.isError, true);
   assert.match(missing.content, /No tool with id/);
   assert.match(missing.content, /search_tools/, "an error the model can act on should name the tool that fixes it");
@@ -201,28 +201,28 @@ test("execute_delegated_tool accepts a JSON-ENCODED input string — the observe
   // Reaches the executor (so the id resolves and the string was parsed into a real object); the
   // handler then fails on its own terms against these fake deps. What matters is that it is NOT
   // rejected at the argument-shape gate — that is the regression this guards.
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: '{"unused":true}' }));
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: '{"unused":true}' }));
   assert.doesNotMatch(result.content, /must be a JSON object/, "a JSON-encoded object string must be parsed, not refused");
 });
 
 test("execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong", async () => {
   const s = surface();
-  const plain = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: "just some prose" }));
+  const plain = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: "just some prose" }));
   assert.equal(plain.isError, true);
   assert.match(plain.content, /must be a JSON object/);
 
-  const array = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: [1, 2] }));
+  const array = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1, 2] }));
   assert.equal(array.isError, true);
   assert.match(array.content, /an array/);
 });
 
 test("execute_delegated_tool treats an empty-string input the same as omitted — no input, not a parse error", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: "" }));
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: "" }));
   assert.doesNotMatch(result.content, /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
 });
 
 test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: 42 }));
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: 42 }));
   assert.equal(result.isError, true);
   assert.match(result.content, /not number\./);
 });
@@ -240,7 +240,7 @@ test("execute_delegated_tool refuses a non-object, non-array, non-string input (
 test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
   const deniedDeps = { ...fakeRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
   const s = createByokToolSurface(deniedDeps);
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: {} }));
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }));
   assert.equal(result.isError, true);
   assert.match(result.content, /not authorized/);
 });
@@ -249,17 +249,17 @@ test("execute_delegated_tool maps an already-aborted signal to a readable 'cance
   const controller = new AbortController();
   controller.abort();
   const s = surface();
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: {} }), controller.signal);
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }), controller.signal);
   assert.equal(result.isError, true);
   assert.match(result.content, /was cancelled/);
 });
 
 test("a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed", async () => {
-  // The most likely model mistake by far: it saw `workspace_get` in a search hit and called it
+  // The most likely model mistake by far: it saw `content_read.workspace` in a search hit and called it
   // directly, because the meta-set is the only thing it was actually offered.
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("workspace_get", {}));
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("content_read.workspace", {}));
   assert.equal(result.isError, true);
-  assert.match(result.content, /execute_delegated_tool with toolId: "workspace_get"/);
+  assert.match(result.content, /execute_delegated_tool with toolId: "content_read\.workspace"/);
 });
 
 // ---------------------------------------------------------------------------
@@ -343,7 +343,7 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
   // `searchToolsAuditDetail` redaction, 80145322) — `queryLength` is its value-free stand-in.
   // `deepEqual` against this exact key set fails if a raw `query` field is ever reintroduced
   // alongside `queryLength`, so no separate substring check is needed (and one would be unsound
-  // here anyway: several ranked hit ids, e.g. "workspace_get", legitimately contain "workspace").
+  // here anyway: several ranked hit ids, e.g. "content_read.workspace", legitimately contain "workspace").
   assert.deepEqual(JSON.parse(String(event.detail)), { queryLength: "workspace".length, limit: 5, resultIds: hits.map((h) => h.id), resultCount: hits.length });
 });
 
@@ -351,12 +351,12 @@ test("a describe_tool call through executeMetaTool is recorded with the requeste
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" } });
 
-  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get" }));
-  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get_but_invented" }));
+  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
+  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
 
   assert.equal(sink.events.length, 2);
-  assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { id: "workspace_get", found: true });
-  assert.deepEqual(JSON.parse(String(sink.events[1].detail)), { id: "workspace_get_but_invented", found: false });
+  assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { id: "content_read.workspace", found: true });
+  assert.deepEqual(JSON.parse(String(sink.events[1].detail)), { id: "content_read.workspace_but_invented", found: false });
 });
 
 test("without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing", async () => {
