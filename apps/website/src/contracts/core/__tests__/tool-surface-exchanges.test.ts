@@ -8,7 +8,9 @@ import {
   DEFAULT_SURFACE_MAX_LIFETIME_MS,
   askOnce,
   askThenReport,
+  classifyConfirmationAnswer,
   createSurfaceExchangeStore,
+  resolveConfirmationDecision,
 } from "../tool-surface-exchanges.js";
 
 /**
@@ -391,6 +393,69 @@ test("newExchangeId can be injected so caller controls generated exchange IDs", 
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
   assert.equal(exchange.id, "custom-id-123");
   assert.equal(store.size(), 1);
+});
+
+// ---------------------------------------------------------------------------
+// classifyConfirmationAnswer / resolveConfirmationDecision — the shared fail-closed
+// confirm/cancel classification extracted from `content_post_delete` and its 3 forks (see this
+// module's own doc on `ConfirmationOutcome`).
+// ---------------------------------------------------------------------------
+
+test("classifyConfirmationAnswer: an explicit decision:'confirm' is confirmed", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "received", params: { decision: "confirm" } }), { confirmed: true });
+});
+
+test("classifyConfirmationAnswer: a missing 'decision' field is declined, not confirmed — fail closed", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "received", params: {} }), { confirmed: false, reason: "declined" });
+});
+
+test("classifyConfirmationAnswer: a non-string 'decision' is declined, not confirmed — fail closed", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "received", params: { decision: true } }), {
+    confirmed: false,
+    reason: "declined",
+  });
+});
+
+test("classifyConfirmationAnswer: an unrecognised 'decision' string is declined, not confirmed", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "received", params: { decision: "yes" } }), {
+    confirmed: false,
+    reason: "declined",
+  });
+});
+
+test("classifyConfirmationAnswer: an explicit cancel is declined", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "received", params: { decision: "cancel" } }), {
+    confirmed: false,
+    reason: "declined",
+  });
+});
+
+test("classifyConfirmationAnswer: expired/abandoned pass their status through as the reason", () => {
+  assert.deepEqual(classifyConfirmationAnswer({ status: "expired" }), { confirmed: false, reason: "expired" });
+  assert.deepEqual(classifyConfirmationAnswer({ status: "abandoned" }), { confirmed: false, reason: "abandoned" });
+});
+
+test("resolveConfirmationDecision: asks once, then classifies the answer, and closes the exchange either way", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+
+  const asked = resolveConfirmationDecision(exchange, FORM);
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { decision: "confirm" } });
+
+  assert.deepEqual(await asked, { confirmed: true });
+  assert.equal(store.size(), 0, "askOnce's own close-on-settle discipline must still apply");
+});
+
+test("resolveConfirmationDecision: a declined answer classifies as declined, same as a direct classifyConfirmationAnswer call", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+
+  const asked = resolveConfirmationDecision(exchange, FORM);
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} });
+
+  assert.deepEqual(await asked, { confirmed: false, reason: "declined" });
 });
 
 test("the deadlines are ordered so the exchange, not the transport, gives up first", () => {

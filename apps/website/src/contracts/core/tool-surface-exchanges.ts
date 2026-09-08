@@ -286,6 +286,61 @@ export async function askThenReport<T>(
   }
 }
 
+/**
+ * Whether the human confirmed, declined, or never answered at all — the fail-closed classification
+ * every confirm/cancel-shaped tool call needs (a delete, a commit, a publish, ...). Extracted after
+ * this exact logic had been copy-pasted at least 4 times (`features/post/tool-registrations.ts`'s
+ * `resolveDeleteDecision`, then `features/custom-credentials`, `features/source-control`, and
+ * `features/deployments/publish-agent-tools.ts`, each self-described as mirroring the first), with
+ * the SAME "fail closed, never read a missing/malformed decision as consent" fix required at every
+ * site (see `classifyConfirmationAnswer`'s own doc).
+ *
+ * `"declined"` covers an explicit non-`"confirm"` decision — a real Cancel click, and equally a
+ * missing, non-string, or unrecognised `decision` field, all fail-closed to the same outcome.
+ * `"expired"`/`"abandoned"` mirror {@link SurfaceMessage}'s own non-`"received"` statuses one-for-one
+ * (ADR-055 Decision 6: no-answer is a result, not a thrown error).
+ */
+export type ConfirmationOutcome = { confirmed: true } | { confirmed: false; reason: "declined" | "expired" | "abandoned" };
+
+/**
+ * Classifies an already-received {@link SurfaceMessage} as confirmed or not.
+ *
+ * Pure and synchronous on purpose: a caller that already holds an `answer` from somewhere other than
+ * a fresh {@link askOnce} call — `askThenReport`'s own `handle` callback, for instance, which receives
+ * the message directly because a second `exchange.send()` still needs to happen afterward — can
+ * classify it without a second round trip. {@link resolveConfirmationDecision} below is the `askOnce`
+ * convenience built on top of this for callers that do not need that.
+ *
+ * Fail-closed is the entire contract: only a `params.decision` field that is literally the string
+ * `"confirm"` proceeds. A missing field, a non-string value, or any other string must never be read
+ * as consent for a destructive or externally-visible action.
+ *
+ * @complexity O(1).
+ */
+export function classifyConfirmationAnswer(answer: SurfaceMessage): ConfirmationOutcome {
+  if (answer.status !== "received") {
+    return { confirmed: false, reason: answer.status };
+  }
+  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "";
+  if (decision !== "confirm") {
+    return { confirmed: false, reason: "declined" };
+  }
+  return { confirmed: true };
+}
+
+/**
+ * {@link askOnce} plus {@link classifyConfirmationAnswer} — the whole "ask, then fail-closed classify"
+ * sequence every confirm/cancel-shaped delete/commit/publish tool repeats. A caller still owns its own
+ * domain-specific result shape for each branch (see e.g. `features/post/tool-registrations.ts`'s own
+ * `resolveDeleteDecision`) — this only shares the parked-ask-and-classify mechanics, not the result,
+ * so each site's `deleted`/`committed`/`published`/... wording stays exactly what it was.
+ *
+ * @complexity O(1) plus whatever {@link askOnce} costs.
+ */
+export async function resolveConfirmationDecision(exchange: SurfaceExchange, emission: SurfaceEmission): Promise<ConfirmationOutcome> {
+  return classifyConfirmationAnswer(await askOnce(exchange, emission));
+}
+
 interface Registered {
   binding: SurfaceExchangeBinding;
   /** Hands one inbound message to a waiting receiver, or queues it. */

@@ -15,7 +15,7 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 
-import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { resolveConfirmationDecision, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
 import { listSourceControlCredentials } from "./store.js";
@@ -289,32 +289,24 @@ async function resolveCommitDecision(
   owner: string,
   repo: string
 ): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
-  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  if (outcome.confirmed) return { confirmed: true };
 
-  if (answer.status !== "received") {
-    return {
-      confirmed: false,
-      result: {
-        committed: false,
-        cancelled: false,
-        reason: answer.status,
-        note:
-          answer.status === "expired"
-            ? "The user did not respond to the commit confirmation dialog before it expired. Nothing was committed."
-            : "The confirmation dialog was closed because the run ended. Nothing was committed.",
-      },
-    };
-  }
-
-  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
-  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
-  // otherwise unrecognised value must never be read as consent for a real commit push.
-  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "";
-  if (decision !== "confirm") {
+  if (outcome.reason === "declined") {
     return { confirmed: false, result: { committed: false, cancelled: true, owner, repo } };
   }
-
-  return { confirmed: true };
+  return {
+    confirmed: false,
+    result: {
+      committed: false,
+      cancelled: false,
+      reason: outcome.reason,
+      note:
+        outcome.reason === "expired"
+          ? "The user did not respond to the commit confirmation dialog before it expired. Nothing was committed."
+          : "The confirmation dialog was closed because the run ended. Nothing was committed.",
+    },
+  };
 }
 
 /**

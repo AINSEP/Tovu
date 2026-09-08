@@ -106,7 +106,7 @@ import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js
 
 import type { ToolContributor } from "#src/assistant/index";
 
-import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
+import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`
@@ -1203,19 +1203,20 @@ function mapPublishOutcomeToToolResult(
  * makes the transcript replace the dialog with the truth in place rather than opening a second card.
  */
 async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: PublishConfirmationContext): Promise<{ result: unknown; outcome?: SurfaceEmission }> {
-  if (answer.status !== "received") {
-    return { result: buildNoAnswerToolResult(answer.status) };
-  }
-
-  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
-  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
-  // otherwise unrecognised value must never be read as consent for a live publish.
-  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "";
-  if (decision !== "confirm") {
-    // No outcome surface for a cancel: the confirmation's own script already reports
-    // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth for a
-    // cancel (unlike a publish, nothing async happens afterward that could still fail).
-    return { result: { published: false, cancelled: true, target: ctx.target, projectName: ctx.projectName } };
+  // Fail-closed classification shared with `features/post/tool-registrations.ts`'s own
+  // `resolveDeleteDecision` and its other forks (`contracts/core/tool-surface-exchanges.ts`'s
+  // `classifyConfirmationAnswer`) — used directly here, not via `resolveConfirmationDecision`,
+  // because `askThenReport` already delivered `answer` to this function; there is no second
+  // `askOnce` round trip to share.
+  const confirmation = classifyConfirmationAnswer(answer);
+  if (!confirmation.confirmed) {
+    if (confirmation.reason === "declined") {
+      // No outcome surface for a cancel: the confirmation's own script already reports
+      // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth for a
+      // cancel (unlike a publish, nothing async happens afterward that could still fail).
+      return { result: { published: false, cancelled: true, target: ctx.target, projectName: ctx.projectName } };
+    }
+    return { result: buildNoAnswerToolResult(confirmation.reason) };
   }
 
   if (getPublishRunSnapshot().status === "running") {

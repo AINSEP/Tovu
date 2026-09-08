@@ -13,7 +13,7 @@ import {
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
+import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
 // can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
@@ -257,24 +257,19 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
  * Waits for the human's answer to a DELETE-through-credential confirmation dialog and turns it into
  * either "go ahead" or the exact not-confirmed result the tool call should return (ADR-055 Decision
  * 6: no-answer is a result, not a thrown error) — mirrors `features/post/tool-registrations.ts`'s own
- * `resolveDeleteDecision` exactly, adapted to this domain's `CredentialedRequestDeclinedResult` shape.
+ * `resolveDeleteDecision` exactly, adapted to this domain's `CredentialedRequestDeclinedResult` shape
+ * — via the shared `resolveConfirmationDecision` (`contracts/core/tool-surface-exchanges.ts`), which
+ * carries the ask-and-fail-closed-classify mechanics common to this and 3 sibling copies; only the
+ * result shape below is this domain's own.
  */
 async function resolveMakeRequestDeleteDecision(exchange: SurfaceExchange, ui: UIResource): Promise<{ confirmed: true } | { confirmed: false; result: CredentialedRequestDeclinedResult }> {
-  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  if (outcome.confirmed) return { confirmed: true };
 
-  if (answer.status !== "received") {
-    return { confirmed: false, result: { executed: false, cancelled: false, reason: answer.status } };
-  }
-
-  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
-  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
-  // otherwise unrecognised value must never be read as consent for a live outbound DELETE.
-  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "";
-  if (decision !== "confirm") {
+  if (outcome.reason === "declined") {
     return { confirmed: false, result: { executed: false, cancelled: true } };
   }
-
-  return { confirmed: true };
+  return { confirmed: false, result: { executed: false, cancelled: false, reason: outcome.reason } };
 }
 
 /** The exact keys `custom_credential_set_username` accepts — nothing else, ever. This is the

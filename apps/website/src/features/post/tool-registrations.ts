@@ -68,7 +68,7 @@ import {
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError } from "@jini-ai/core";
-import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { resolveConfirmationDecision, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
@@ -422,38 +422,35 @@ async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: Post
  * Waits for the human's answer to `content_post_delete`'s confirmation dialog and turns it into
  * either "go ahead" or the exact not-confirmed result the tool call should return (ADR-055
  * Decision 6: no-answer is a result, not a thrown error).
+ *
+ * The ask-and-fail-closed-classify mechanics are shared (`resolveConfirmationDecision`, extracted
+ * from this function plus its 3 forks in custom-credentials/source-control/deployments — see that
+ * function's own doc); this wrapper only supplies this domain's own `deleted`/`cancelled`/`post`
+ * result shape, unchanged from before the extraction.
  */
 async function resolveDeleteDecision(
   exchange: SurfaceExchange,
   ui: UIResource,
   existing: PostRecord
 ): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
-  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  if (outcome.confirmed) return { confirmed: true };
 
-  if (answer.status !== "received") {
-    return {
-      confirmed: false,
-      result: {
-        deleted: false,
-        cancelled: false,
-        reason: answer.status,
-        note:
-          answer.status === "expired"
-            ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
-            : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
-      },
-    };
-  }
-
-  // Fail closed: only an explicit `decision === "confirm"` proceeds. A missing, non-string, or
-  // otherwise unrecognised value must never be read as consent for a destructive action — see this
-  // function's own header (ADR-055 Decision 6) and the regression test this line fixes.
-  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "";
-  if (decision !== "confirm") {
+  if (outcome.reason === "declined") {
     return { confirmed: false, result: { deleted: false, cancelled: true, post: toPostToolView(existing) } };
   }
-
-  return { confirmed: true };
+  return {
+    confirmed: false,
+    result: {
+      deleted: false,
+      cancelled: false,
+      reason: outcome.reason,
+      note:
+        outcome.reason === "expired"
+          ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
+          : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
+    },
+  };
 }
 
 /**
