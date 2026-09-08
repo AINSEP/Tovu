@@ -157,6 +157,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "widgets_trash_instance",
   "theme_trash_file",
   "redirects_tombstone",
+  "webhooks_delete_subscription",
 ]);
 
 /**

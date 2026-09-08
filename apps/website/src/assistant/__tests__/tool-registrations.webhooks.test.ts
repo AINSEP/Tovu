@@ -17,6 +17,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import type { UIResource } from "../index.js";
 import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../features/webhooks/agent-tools.js";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
@@ -81,6 +83,29 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
   const found = webhooksRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+/**
+ * `webhooks_delete_subscription` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
+ * 2026-09-08-delete-confirmation-build.md) rather than deleting synchronously. `wired()`/
+ * `webhooksRegistrations()` above build a FRESH `buildAssistantToolRegistrations` (and so a fresh,
+ * unshared `SurfaceExchangeStore`) on every call — this helper builds against ONE explicit store so
+ * the raise-then-confirm round trip lands on the same exchange, standing in for the human's click in
+ * this workflow test (the confirmation gate itself is certified by
+ * `webhooks/__tests__/agent-tools.delete-confirmation.test.ts`).
+ */
+async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
+  const emitted: unknown[] = [];
+  const pending = deleteTool.handler({ ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setImmediate(resolve));
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id");
+  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "webhooks_delete_subscription", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  return pending as Promise<{ subscription: { status: string; disabledAt: string | null } }>;
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -271,9 +296,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   };
   assert.deepEqual(deliveries.deliveries, [], "no deliveries have fired yet");
 
-  const removed = (await wired(deps, "webhooks_delete_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
-    subscription: { status: string; disabledAt: string | null };
-  };
+  const removed = await deleteSubscriptionConfirmed(deps, created.subscription.id);
   assert.equal(removed.subscription.status, "disabled");
   assert.ok(removed.subscription.disabledAt);
 
