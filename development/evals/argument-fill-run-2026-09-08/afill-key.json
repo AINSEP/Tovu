@@ -1,0 +1,1704 @@
+{
+  "shuffleSeed": 20260908,
+  "resources": [
+    "backup_restore_point",
+    "collection_content_type",
+    "collection_entry",
+    "comment_moderation_queue",
+    "content_post",
+    "custom_credential",
+    "database_pending_migration",
+    "database_restore_point",
+    "deployment",
+    "external_mcp",
+    "form_definition",
+    "identity_policy",
+    "identity_role",
+    "identity_user",
+    "media_asset",
+    "member",
+    "menu",
+    "newsletter_campaign",
+    "newsletter_list",
+    "plugin",
+    "redirect",
+    "seo_entry_meta",
+    "setting_definition",
+    "taxonomy",
+    "theme",
+    "webhook_subscription",
+    "widget_instance",
+    "widget_region",
+    "workspace"
+  ],
+  "cases": [
+    {
+      "caseNo": 1,
+      "sourceIndex": 121,
+      "query": "change the settings on that recent-posts widget, show 10 instead of 5",
+      "expect": "widgets_update_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_update_instance"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 2,
+      "sourceIndex": 3,
+      "query": "if we went back to last week's version what would we actually lose",
+      "expect": "backup_plan_restore",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "backup_plan_restore"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 3,
+      "sourceIndex": 18,
+      "query": "that comment is fine just let it thru already",
+      "expect": "comments_approve_comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_approve_comment"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 4,
+      "sourceIndex": 70,
+      "query": "we need a whole new menu just for the footer links",
+      "expect": "menus_create_menu",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "menus_create_menu"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 5,
+      "sourceIndex": 50,
+      "query": "we made an access level by mistake nobody's using it get rid of it",
+      "expect": "identity_role_delete",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_role_delete"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 6,
+      "sourceIndex": 13,
+      "query": "that banana bread recipe is ready, put it live",
+      "expect": "collections_entry_publish",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_entry_publish"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 7,
+      "sourceIndex": 62,
+      "query": "that photo needs a description for screen readers and the caption underneath is wrong too",
+      "expect": "media_update_metadata",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "media_update_metadata"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 8,
+      "sourceIndex": 101,
+      "query": "googles search console says our sitemap is stale can you refresh it",
+      "expect": "seo_regenerate_sitemap",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "seo_regenerate_sitemap"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 9,
+      "sourceIndex": 57,
+      "query": "whenever someone submits the contact form i want it to ping our slack",
+      "expect": "webhooks_create_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "webhooks_create_subscription"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 10,
+      "sourceIndex": 23,
+      "query": "give me every single page on the site, drafts too",
+      "expect": "content_post_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "content_post"
+      ],
+      "acceptableShippedIds": [
+        "content_read.content_post"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 11,
+      "sourceIndex": 116,
+      "query": "what widgets have we built for the sidebar and stuff",
+      "expect": "widgets_list_instances",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_instance"
+      ],
+      "acceptableShippedIds": [
+        "content_read.widget_instance"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 12,
+      "sourceIndex": 73,
+      "query": "what email blasts have we sent out or got queued up",
+      "expect": "newsletter_list_campaigns",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "newsletter_campaign"
+      ],
+      "acceptableShippedIds": [
+        "content_read.newsletter_campaign"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 13,
+      "sourceIndex": 24,
+      "query": "pull up the full text of our about page so i can read through it",
+      "expect": "content_post_get",
+      "alsoAcceptable": [
+        "content_post_search"
+      ],
+      "acceptableResources": [
+        "content_post"
+      ],
+      "acceptableShippedIds": [
+        "content_post_search",
+        "content_read.content_post"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 14,
+      "sourceIndex": 11,
+      "query": "add a new recipe for banana bread",
+      "expect": "collections_entry_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_entry_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 15,
+      "sourceIndex": 75,
+      "query": "what different mailing lists do we have set up",
+      "expect": "newsletter_list_lists",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "newsletter_list"
+      ],
+      "acceptableShippedIds": [
+        "content_read.newsletter_list"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 16,
+      "sourceIndex": 95,
+      "query": "turn off that old redirect we don't need people bounced there anymore",
+      "expect": "redirects_tombstone",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "redirects_tombstone"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 17,
+      "sourceIndex": 4,
+      "query": "what kinds of content can we even create on this site",
+      "expect": "collections_content_type_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "collection_content_type"
+      ],
+      "acceptableShippedIds": [
+        "content_read.collection_content_type"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 18,
+      "sourceIndex": 105,
+      "query": "switch my own dashboard into dark mode",
+      "expect": "settings_set_ui_preference",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "settings_set_ui_preference"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 19,
+      "sourceIndex": 41,
+      "query": "what admin permission levels do we have to choose from",
+      "expect": "identity_role_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "identity_role"
+      ],
+      "acceptableShippedIds": [
+        "content_read.identity_role"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 20,
+      "sourceIndex": 30,
+      "query": "is everything running okay on the backend, any storage issues",
+      "expect": "database_get_health",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "database_get_health"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 21,
+      "sourceIndex": 85,
+      "query": "take that person off the vip list they asked to leave",
+      "expect": "newsletter_remove_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_remove_subscription"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 22,
+      "sourceIndex": 84,
+      "query": "add this one person to our vip mailing list",
+      "expect": "newsletter_create_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_create_subscription"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 23,
+      "sourceIndex": 125,
+      "query": "drop that instagram widget right into the middle of this blog post",
+      "expect": "widgets_insert_embed",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_insert_embed"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 24,
+      "sourceIndex": 31,
+      "query": "i heard our site's backend might not match what it's supposed to look like right now",
+      "expect": "database_get_schema_state",
+      "alsoAcceptable": [
+        "database_get_health"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "database_get_health",
+        "database_get_schema_state"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 25,
+      "sourceIndex": 53,
+      "query": "we don't need that permission bundle anymore and nobody's using it",
+      "expect": "identity_policy_delete",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_policy_delete"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 26,
+      "sourceIndex": 69,
+      "query": "show me everything that's currently in the header menu",
+      "expect": "menus_get_menu",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "menu"
+      ],
+      "acceptableShippedIds": [
+        "content_read.menu"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 27,
+      "sourceIndex": 100,
+      "query": "stop google from indexing our staging pages site-wide",
+      "expect": "seo_set_settings",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "seo_set_settings"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 28,
+      "sourceIndex": 38,
+      "query": "who has filled out the contact form this week i need to follow up with them",
+      "expect": "forms_list_submissions",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "forms_list_submissions"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 29,
+      "sourceIndex": 104,
+      "query": "i changed a setting at some level but the site isn't reflecting it can you show me every layer of that value",
+      "expect": "settings_get_raw",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "settings_get_raw"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 30,
+      "sourceIndex": 83,
+      "query": "we don't use that old mailing list anymore put it away",
+      "expect": "newsletter_archive_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_archive_list"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 31,
+      "sourceIndex": 0,
+      "query": "before i mess with the site's data can we just make sure we have a copy of everything right now",
+      "expect": "backup_create_restore_point",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "backup_create_restore_point"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 32,
+      "sourceIndex": 79,
+      "query": "change the subject line on that draft email we're working on",
+      "expect": "newsletter_update_campaign",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_update_campaign"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 33,
+      "sourceIndex": 17,
+      "query": "make people wait for approval before their comment shows up",
+      "expect": "comments_update_settings",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_update_settings"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 34,
+      "sourceIndex": 42,
+      "query": "what are all the custom permission sets we've built here",
+      "expect": "identity_policy_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "identity_policy"
+      ],
+      "acceptableShippedIds": [
+        "content_read.identity_policy"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 35,
+      "sourceIndex": 32,
+      "query": "are there any updates queued up that still need to run on our site",
+      "expect": "database_list_pending_migrations",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "database_pending_migration"
+      ],
+      "acceptableShippedIds": [
+        "content_read.database_pending_migration"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 36,
+      "sourceIndex": 66,
+      "query": "kick that member out they've been harassing other users",
+      "expect": "members_disable",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "members_disable"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 37,
+      "sourceIndex": 51,
+      "query": "set up a permission bundle just for people who only handle the newsletter",
+      "expect": "identity_policy_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_policy_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 38,
+      "sourceIndex": 26,
+      "query": "rewrite the whole about page here's the new text",
+      "expect": "content_post_update",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "content_post_update"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 39,
+      "sourceIndex": 97,
+      "query": "is our pricing page actually optimized for google or are we missing something",
+      "expect": "seo_analyze_entry",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "seo_analyze_entry"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 40,
+      "sourceIndex": 64,
+      "query": "how many people have signed up as members on our site",
+      "expect": "members_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "member"
+      ],
+      "acceptableShippedIds": [
+        "content_read.member"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 41,
+      "sourceIndex": 112,
+      "query": "what themes do we have available for the site and are any of them broken",
+      "expect": "theme_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "theme"
+      ],
+      "acceptableShippedIds": [
+        "content_read.theme"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 42,
+      "sourceIndex": 87,
+      "query": "what add-ons or extensions do we have installed on the site",
+      "expect": "plugins_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "plugin"
+      ],
+      "acceptableShippedIds": [
+        "content_read.plugin"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 43,
+      "sourceIndex": 9,
+      "query": "get rid of that events thing completely, we're never using it again",
+      "expect": "collections_content_type_tombstone",
+      "alsoAcceptable": [
+        "collections_content_type_deprecate"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_content_type_deprecate",
+        "collections_content_type_tombstone"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 44,
+      "sourceIndex": 89,
+      "query": "is anything currently wrong or stuck with our site's backups or updates",
+      "expect": "recovery_get_status",
+      "alsoAcceptable": [
+        "database_get_health"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "database_get_health",
+        "recovery_get_status"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 45,
+      "sourceIndex": 102,
+      "query": "what site settings even exist that we could tweak",
+      "expect": "settings_list_definitions",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "setting_definition"
+      ],
+      "acceptableShippedIds": [
+        "content_read.setting_definition"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 46,
+      "sourceIndex": 47,
+      "query": "we need a new kind of access level, something between editor and admin",
+      "expect": "identity_role_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_role_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 47,
+      "sourceIndex": 54,
+      "query": "give just this one person the newsletter permissions directly don't bother making a whole access level for it",
+      "expect": "identity_policy_attach",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_policy_attach"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 48,
+      "sourceIndex": 110,
+      "query": "put the holiday tag on this blog post",
+      "expect": "taxonomy_assign_terms",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "taxonomy_assign_terms"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 49,
+      "sourceIndex": 29,
+      "query": "what points in time can we roll the site back to",
+      "expect": "database_list_restore_points",
+      "alsoAcceptable": [
+        "backup_list_restore_points"
+      ],
+      "acceptableResources": [
+        "backup_restore_point",
+        "database_restore_point"
+      ],
+      "acceptableShippedIds": [
+        "content_read.backup_restore_point",
+        "content_read.database_restore_point"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 50,
+      "sourceIndex": 45,
+      "query": "our old marketing guy quit cut off his access to the dashboard asap",
+      "expect": "identity_user_disable",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_user_disable"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 51,
+      "sourceIndex": 124,
+      "query": "put the recent-posts widget and the newsletter one both in the sidebar, in that order",
+      "expect": "widgets_set_region_placements",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_set_region_placements"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 52,
+      "sourceIndex": 8,
+      "query": "actually bring the events thing back, we changed our mind",
+      "expect": "collections_content_type_reactivate",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_content_type_reactivate"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 53,
+      "sourceIndex": 56,
+      "query": "did that zapier hookup actually go through the last few times or is it failing",
+      "expect": "webhooks_get_deliveries",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "webhooks_get_deliveries"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 54,
+      "sourceIndex": 129,
+      "query": "we just rebranded, the site's name and address still say the old company",
+      "expect": "workspace_update",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "workspace_update"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 55,
+      "sourceIndex": 96,
+      "query": "what shows up when someone shares our about page on facebook",
+      "expect": "seo_get_entry_meta",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "seo_entry_meta"
+      ],
+      "acceptableShippedIds": [
+        "content_read.seo_entry_meta"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 56,
+      "sourceIndex": 28,
+      "query": "can you show me a history of everything that's changed on the backend lately",
+      "expect": "database_query_timeline",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "database_query_timeline"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 57,
+      "sourceIndex": 36,
+      "query": "add a phone number field to the quote request form",
+      "expect": "forms_update_definition",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "forms_update_definition"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 58,
+      "sourceIndex": 77,
+      "query": "did that email actually reach everyone or did some bounce",
+      "expect": "newsletter_list_send_log",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_list_send_log"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 59,
+      "sourceIndex": 1,
+      "query": "what snapshots of the site do we have saved from before",
+      "expect": "backup_list_restore_points",
+      "alsoAcceptable": [
+        "database_list_restore_points"
+      ],
+      "acceptableResources": [
+        "backup_restore_point",
+        "database_restore_point"
+      ],
+      "acceptableShippedIds": [
+        "content_read.backup_restore_point",
+        "content_read.database_restore_point"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 60,
+      "sourceIndex": 94,
+      "query": "that old-link-to-new-link thing needs to point somewhere else now",
+      "expect": "redirects_update",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "redirects_update"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 61,
+      "sourceIndex": 127,
+      "query": "swap which widgets show up in which spot inside that post without changing anything else about it",
+      "expect": "widgets_reorder_embeds",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_reorder_embeds"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 62,
+      "sourceIndex": 74,
+      "query": "how'd that last email newsletter do",
+      "expect": "newsletter_get_campaign",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "newsletter_campaign"
+      ],
+      "acceptableShippedIds": [
+        "content_read.newsletter_campaign"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 63,
+      "sourceIndex": 55,
+      "query": "what other systems are hooked up to notify when stuff happens on our site",
+      "expect": "webhooks_list_subscriptions",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "webhook_subscription"
+      ],
+      "acceptableShippedIds": [
+        "content_read.webhook_subscription"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 64,
+      "sourceIndex": 92,
+      "query": "is anybody actualy still using that old link we set up",
+      "expect": "redirects_get_hits",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "redirects_get_hits"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 65,
+      "sourceIndex": 99,
+      "query": "what's our site-wide setup for how we show up in search results",
+      "expect": "seo_get_settings",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "seo_get_settings"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 66,
+      "sourceIndex": 65,
+      "query": "pull up that one member's account info, the guy who emailed asking about his subscription",
+      "expect": "members_get_by_id",
+      "alsoAcceptable": [
+        "members_list"
+      ],
+      "acceptableResources": [
+        "member"
+      ],
+      "acceptableShippedIds": [
+        "content_read.member"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 67,
+      "sourceIndex": 25,
+      "query": "we need a new blog post announcing the holiday hours",
+      "expect": "content_post_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "content_post_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 68,
+      "sourceIndex": 76,
+      "query": "who's actually signed up for our vip list",
+      "expect": "newsletter_list_subscriptions",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_list_subscriptions"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 69,
+      "sourceIndex": 68,
+      "query": "what navigation menus do we have on the site",
+      "expect": "menus_list_menus",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "menu"
+      ],
+      "acceptableShippedIds": [
+        "content_read.menu"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 70,
+      "sourceIndex": 81,
+      "query": "put that email on hold right now, half of it's already gone out and something's wrong",
+      "expect": "newsletter_pause_campaign",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_pause_campaign"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 71,
+      "sourceIndex": 44,
+      "query": "change the email on file for one of our admin logins",
+      "expect": "identity_user_update_email",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_user_update_email"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 72,
+      "sourceIndex": 107,
+      "query": "we want a whole new way to group our products, like by season",
+      "expect": "taxonomy_create_taxonomy",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "taxonomy_create_taxonomy"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 73,
+      "sourceIndex": 109,
+      "query": "that tag is spelled rong fix the name",
+      "expect": "taxonomy_rename_term",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "taxonomy_rename_term"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 74,
+      "sourceIndex": 114,
+      "query": "show me what's inside the homepage template file for our theme",
+      "expect": "theme_read_file",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "theme_read_file"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 75,
+      "sourceIndex": 58,
+      "query": "stop sending that slack ping for now we're getting spammed",
+      "expect": "webhooks_pause_subscription",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "webhooks_pause_subscription"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 76,
+      "sourceIndex": 20,
+      "query": "one of the commenters on my last blog post is being really nasty can you get that off there",
+      "expect": "comments_trash_comment",
+      "alsoAcceptable": [
+        "comments_mark_comment_spam"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_mark_comment_spam",
+        "comments_trash_comment"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 77,
+      "sourceIndex": 126,
+      "query": "take that widget back out of the middle of the post we don't need it there",
+      "expect": "widgets_remove_embed",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_remove_embed"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 78,
+      "sourceIndex": 119,
+      "query": "what's currently sitting in the sidebar slot",
+      "expect": "widgets_get_region",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_region"
+      ],
+      "acceptableShippedIds": [
+        "content_read.widget_region"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 79,
+      "sourceIndex": 122,
+      "query": "get rid of that old newsletter signup widget we dont need it anymroe",
+      "expect": "widgets_trash_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_trash_instance"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 80,
+      "sourceIndex": 82,
+      "query": "make a separate mailing list just for people who bought something",
+      "expect": "newsletter_create_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_create_list"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 81,
+      "sourceIndex": 6,
+      "query": "the recipe thing needs a new field for how many servings it makes",
+      "expect": "collections_content_type_update_fields",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_content_type_update_fields"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 82,
+      "sourceIndex": 39,
+      "query": "pull up the details of that one submission from the guy asking about pricing",
+      "expect": "forms_get_submission",
+      "alsoAcceptable": [
+        "forms_list_submissions"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "forms_get_submission",
+        "forms_list_submissions"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 83,
+      "sourceIndex": 78,
+      "query": "let's draft up an email about our black friday sale",
+      "expect": "newsletter_create_campaign",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_create_campaign"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 84,
+      "sourceIndex": 120,
+      "query": "build me a new widget that shows our latest instagram posts",
+      "expect": "widgets_create_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_create_instance"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 85,
+      "sourceIndex": 93,
+      "query": "we moved our pricing page anyone hitting the old address should land on the new one",
+      "expect": "redirects_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "redirects_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 86,
+      "sourceIndex": 91,
+      "query": "show me where that one old link is supposed to send people",
+      "expect": "redirects_get",
+      "alsoAcceptable": [
+        "redirects_list"
+      ],
+      "acceptableResources": [
+        "redirect"
+      ],
+      "acceptableShippedIds": [
+        "content_read.redirect"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 87,
+      "sourceIndex": 103,
+      "query": "what's actually applied right now for our theme color settings",
+      "expect": "settings_get_effective",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "settings_get_effective"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 88,
+      "sourceIndex": 61,
+      "query": "heres a pic can you put it in our media libary",
+      "expect": "media_upload_asset",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "media_upload_asset"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 89,
+      "sourceIndex": 34,
+      "query": "what contact forms do we have set up on the site",
+      "expect": "forms_list_definitions",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "form_definition"
+      ],
+      "acceptableShippedIds": [
+        "content_read.form_definition"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 90,
+      "sourceIndex": 59,
+      "query": "we don't use that slack hookup anymore remove it",
+      "expect": "webhooks_delete_subscription",
+      "alsoAcceptable": [
+        "webhooks_pause_subscription"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "webhooks_delete_subscription",
+        "webhooks_pause_subscription"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 91,
+      "sourceIndex": 35,
+      "query": "we need a form for people to request a quote, with name email and a message box",
+      "expect": "forms_create_definition",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "forms_create_definition"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 92,
+      "sourceIndex": 71,
+      "query": "add a link to our new pricing page into the main navigation",
+      "expect": "menus_update_menu_tree",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "menus_update_menu_tree"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 93,
+      "sourceIndex": 113,
+      "query": "what files actually make up our current theme",
+      "expect": "theme_list_files",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "theme_list_files"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 94,
+      "sourceIndex": 40,
+      "query": "who has admin access to this dashboard",
+      "expect": "identity_user_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "identity_user"
+      ],
+      "acceptableShippedIds": [
+        "content_read.identity_user"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 95,
+      "sourceIndex": 106,
+      "query": "what categories and tags do we have set up for organizing posts",
+      "expect": "taxonomy_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "taxonomy"
+      ],
+      "acceptableShippedIds": [
+        "content_read.taxonomy"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 96,
+      "sourceIndex": 60,
+      "query": "how many images do we have uploaded to the site",
+      "expect": "media_list_assets",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "media_asset"
+      ],
+      "acceptableShippedIds": [
+        "content_read.media_asset"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 97,
+      "sourceIndex": 7,
+      "query": "we're not doing that events thing anymore, stop letting people add new ones",
+      "expect": "collections_content_type_deprecate",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_content_type_deprecate"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 98,
+      "sourceIndex": 67,
+      "query": "he says he can't log into his account can you resend him the login link",
+      "expect": "members_request_magic_link",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "members_request_magic_link"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 99,
+      "sourceIndex": 86,
+      "query": "she never got the confirmation email to finish signing up can you send it agian",
+      "expect": "newsletter_resend_confirmation",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_resend_confirmation"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 100,
+      "sourceIndex": 14,
+      "query": "pull the banana bread recipe down for now, it's not ready",
+      "expect": "collections_entry_unpublish",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_entry_unpublish"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 101,
+      "sourceIndex": 80,
+      "query": "scrap that scheduled email we're not doing the sale anymore",
+      "expect": "newsletter_cancel_campaign",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "newsletter_cancel_campaign"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 102,
+      "sourceIndex": 22,
+      "query": "i know we wrote something about our shipping policy somewhere but i can't remember where",
+      "expect": "content_post_search",
+      "alsoAcceptable": [
+        "content_post_list"
+      ],
+      "acceptableResources": [
+        "content_post"
+      ],
+      "acceptableShippedIds": [
+        "content_post_search",
+        "content_read.content_post"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 103,
+      "sourceIndex": 21,
+      "query": "actually put that comment back i didn't mean to remove it",
+      "expect": "comments_restore_comment",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_restore_comment"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 104,
+      "sourceIndex": 10,
+      "query": "show me all the recipes we've added so far",
+      "expect": "collections_entry_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "collection_entry"
+      ],
+      "acceptableShippedIds": [
+        "content_read.collection_entry"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 105,
+      "sourceIndex": 5,
+      "query": "we need a whole new kind of listing on the site, like recipes with ingredients and prep time",
+      "expect": "collections_content_type_define",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_content_type_define"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 106,
+      "sourceIndex": 46,
+      "query": "turn that guy's login back on we rehired him",
+      "expect": "identity_user_enable",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_user_enable"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 107,
+      "sourceIndex": 15,
+      "query": "what comments are waiting for me to approve",
+      "expect": "comments_list_moderation_queue",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "comment_moderation_queue"
+      ],
+      "acceptableShippedIds": [
+        "content_read.comment_moderation_queue"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 108,
+      "sourceIndex": 117,
+      "query": "where all is that one widget actually being used on the site",
+      "expect": "widgets_get_instance",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_instance"
+      ],
+      "acceptableShippedIds": [
+        "content_read.widget_instance"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 109,
+      "sourceIndex": 90,
+      "query": "what old links do we have set up to bounce people to new pages",
+      "expect": "redirects_list",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "redirect"
+      ],
+      "acceptableShippedIds": [
+        "content_read.redirect"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 110,
+      "sourceIndex": 37,
+      "query": "turn off the old quote form we don't want people filling it out anymore",
+      "expect": "forms_set_definition_status",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "forms_set_definition_status"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 111,
+      "sourceIndex": 43,
+      "query": "set up a login for our new intern so she can get into the dashboard",
+      "expect": "identity_user_create",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_user_create"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 112,
+      "sourceIndex": 72,
+      "query": "put that footer menu we built into the actual footer spot",
+      "expect": "menus_assign_location",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "menus_assign_location"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 113,
+      "sourceIndex": 48,
+      "query": "give sarah the same access level as our other editors",
+      "expect": "identity_role_assign",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_role_assign"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 114,
+      "sourceIndex": 128,
+      "query": "what's this site actually called and what's its url slug",
+      "expect": "workspace_get",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "workspace"
+      ],
+      "acceptableShippedIds": [
+        "content_read.workspace"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 115,
+      "sourceIndex": 111,
+      "query": "we've got two tags that mean the same thing what happens if we combine them into one",
+      "expect": "taxonomy_plan_merge_term",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "taxonomy_plan_merge_term"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 116,
+      "sourceIndex": 98,
+      "query": "change what shows up in google search results for our about page specifically",
+      "expect": "seo_set_entry_overrides",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "seo_set_entry_overrides"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 117,
+      "sourceIndex": 19,
+      "query": "that comment is obviously spam get it off the page",
+      "expect": "comments_mark_comment_spam",
+      "alsoAcceptable": [
+        "comments_trash_comment"
+      ],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_mark_comment_spam",
+        "comments_trash_comment"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 118,
+      "sourceIndex": 33,
+      "query": "if we ran that pending update right now what would actually happen",
+      "expect": "database_plan_migrate_forward",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "database_plan_migrate_forward"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 119,
+      "sourceIndex": 12,
+      "query": "fix the typo in the banana bread recipe title",
+      "expect": "collections_entry_update",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "collections_entry_update"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 120,
+      "sourceIndex": 49,
+      "query": "call that access level something friendlier than what it's named now",
+      "expect": "identity_role_rename",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_role_rename"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 121,
+      "sourceIndex": 27,
+      "query": "that old post about the spring sale needs to go, we're done with it",
+      "expect": "content_post_delete",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "content_post_delete"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 122,
+      "sourceIndex": 2,
+      "query": "how expensive would it be to snapshot this site",
+      "expect": "backup_get_capabilities",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "backup_get_capabilities"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 123,
+      "sourceIndex": 63,
+      "query": "delete that old logo image we don't use it anymore",
+      "expect": "media_trash_asset",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "media_trash_asset"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 124,
+      "sourceIndex": 123,
+      "query": "our new theme has a spot for a widget that isn't hooked up to anything yet, set it up",
+      "expect": "widgets_bind_region",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "widgets_bind_region"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 125,
+      "sourceIndex": 88,
+      "query": "turn on that extension we installed last week",
+      "expect": "plugins_set_enabled",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "plugins_set_enabled"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 126,
+      "sourceIndex": 115,
+      "query": "change the footer template so it says the right copyright year",
+      "expect": "theme_write_file",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "theme_write_file"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 127,
+      "sourceIndex": 108,
+      "query": "add a new tag called holiday that people can put on posts",
+      "expect": "taxonomy_create_term",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "taxonomy_create_term"
+      ],
+      "truthKind": "mutation"
+    },
+    {
+      "caseNo": 128,
+      "sourceIndex": 16,
+      "query": "how are we set up for handling comments right now, like do people need approval first",
+      "expect": "comments_get_settings",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "comments_get_settings"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 129,
+      "sourceIndex": 118,
+      "query": "what spots on the site can actually hold a widget",
+      "expect": "widgets_list_regions",
+      "alsoAcceptable": [],
+      "acceptableResources": [
+        "widget_region"
+      ],
+      "acceptableShippedIds": [
+        "content_read.widget_region"
+      ],
+      "truthKind": "read"
+    },
+    {
+      "caseNo": 130,
+      "sourceIndex": 52,
+      "query": "that permission bundle's name doesn't make sense anymore fix it",
+      "expect": "identity_policy_update",
+      "alsoAcceptable": [],
+      "acceptableResources": [],
+      "acceptableShippedIds": [
+        "identity_policy_update"
+      ],
+      "truthKind": "mutation"
+    }
+  ],
+  "affectedCount": 34
+}
