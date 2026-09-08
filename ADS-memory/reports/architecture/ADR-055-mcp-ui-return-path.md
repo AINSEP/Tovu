@@ -1,10 +1,11 @@
 # ADR-055: MCP-UI Return Path — One Path, Two Behaviors, and the Removal of the Confirmation Token
 
-- Status: **DRAFT — not accepted.** Written for human review; not self-approved. Do not add to `ADR-INDEX.md` until a human accepts it.
+- Status: **Accepted** 2026-09-08 (owner sign-off — Leona). Added to `ADR-INDEX.md`.
 - Date: 2026-08-04
 - Author: Claude Opus 5 (1M context), Coordinator
 - Relates: **ADR-053** (MCP-UI confirmation transport — browser as host, side-channel delivery). ADR-053's Decisions 1–4 are assumed, not restated. This ADR changes only what happens *after* the human acts on a surface ADR-053 delivered.
 - Supersedes: ADR-053 **Decision 3** (the redemption endpoint as a second, browser-authenticated tool call) and the token mechanism that decision exists to carry. Everything else in ADR-053 stands.
+- **Open item (2026-09-08):** ADR-053 itself remains DRAFT — not accepted — even though this ADR is. Accepting 055 without 053 means the transport mechanism 055 builds on (surfaces delivered browser-side, side-channel) has never itself been formally signed off, only inherited as an assumption (see the Relates line above). Left open rather than resolved here, per instruction — this is Leona's call, not this dispatch's.
 
 ## Context
 
