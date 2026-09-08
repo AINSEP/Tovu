@@ -18,7 +18,7 @@ import { contributeRecoveryTools } from "#src/features/recovery/tool-registratio
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
-import { contributeFormsTools } from "#src/features/forms/tool-registrations";
+import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
 import { contributeMediaTools } from "#src/features/media/tool-registrations";
@@ -215,8 +215,11 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `ADS-memory/reports/2026-09-07-page-duplicate-tool.md`'s follow-up section). This function ALSO
  * populates a second, sibling registry those `ToolContributor` calls above do not touch:
  * `assistant/duplicate-resource-registry.ts`'s per-resource duplicate-handler contributions (today:
- * `contributePostDuplicateHandlers()`, covering `post` and `page`) — see that registry's own header
- * for why it is a separate seam from `ToolContributor`.
+ * `contributePostDuplicateHandlers()` covering `post` and `page`, and `contributeFormsDuplicateHandlers()`
+ * covering `form`) — see that registry's own header for why it is a separate seam from
+ * `ToolContributor`. `form` is the resource that proves the seam: it gates on `admin.forms.manage`
+ * rather than post/page's `content.write`, so the tool's per-resource permission resolution is
+ * load-bearing here rather than decorative.
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
@@ -263,7 +266,7 @@ export function installFirstPartyToolContributors(): void {
   // — a SEPARATE registration from the ToolContributor calls above (see that file's own header for
   // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
   // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
-  for (const contributor of contributePostDuplicateHandlers()) {
+  for (const contributor of [...contributePostDuplicateHandlers(), ...contributeFormsDuplicateHandlers()]) {
     registerDuplicateResourceHandler(contributor);
   }
 }

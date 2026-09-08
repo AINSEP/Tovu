@@ -28,9 +28,11 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import { ToolInputError } from "@jini-ai/core";
+import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { formsAgentToolCatalog } from "./agent-tools.js";
-import { FormFieldValidationError } from "./errors.js";
+import { deriveAvailableFormSlug } from "./duplicate-slug.js";
+import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
@@ -329,6 +331,112 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
     handlers,
     derivedRisk: formsDerivedRisk,
   });
+}
+
+/**
+ * Forms' `"form"` implementation of `content_duplicate` — see
+ * `assistant/duplicate-resource-registry.ts` for the contract, and
+ * `features/post/tool-registrations.ts`'s `duplicatePostOrPage` for the sibling `"post"`/`"page"`
+ * one. This is the resource that proves the generic tool's seam is real rather than a post-shaped
+ * hole with a `resource` parameter bolted on: it gates on `admin.forms.manage`, NOT the
+ * `content.write` post/page use, so a caller permitted to copy a page is not thereby permitted to
+ * copy a form.
+ *
+ * No separate upfront read check, unlike `duplicatePostOrPage`'s `content.read` one: reading a form
+ * definition IS `admin.forms.manage` in this domain (`forms_list_definitions` gates on exactly that
+ * permission), which `content_duplicate`'s own outer gate has already established before this runs.
+ * A second identical check would be the duplicate evaluator ADR-021 §2 forbids.
+ *
+ * What is copied: `name` (defaulting to `"Copy of <source name>"`), every field descriptor, and the
+ * notify config — all deep-copied, so editing the copy can never reach back into the source row.
+ * `slug` is derived (see `duplicate-slug.ts` for why Forms needs derivation where Posts does not).
+ *
+ * @complexity O(f) in the source's field count, plus one repo read per slug candidate tried.
+ */
+async function duplicateFormDefinition(
+  routeDeps: FormsToolDeps,
+  input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } }
+): Promise<Record<string, unknown>> {
+  // Rejected rather than ignored. `content_duplicate`'s `status` override is spelled in post/page's
+  // vocabulary (`draft`/`published`), which a form definition has no equivalent of — its statuses are
+  // `active`/`disabled`, flipped by `forms_set_definition_status`. Silently dropping the field would
+  // leave a caller believing it had set something.
+  if (input.overrides.status !== undefined) {
+    throw new ToolInputError(
+      "content_duplicate: resource 'form' does not support the 'status' override — a form definition is " +
+        "active/disabled, not draft/published. Overrides honored for 'form': title (the copy's name) and " +
+        "slug. The copy inherits the source's own active/disabled state; use forms_set_definition_status " +
+        "to change it afterwards."
+    );
+  }
+
+  const source = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: input.id });
+  if (!source) throw new FormDefinitionNotFoundError(`form definition '${input.id}' was not found`);
+
+  const name = input.overrides.title ?? `Copy of ${source.name}`;
+  const slug =
+    input.overrides.slug ??
+    (await deriveAvailableFormSlug(
+      { name },
+      {
+        isTaken: async (candidate) =>
+          (await routeDeps.formDefinitionRepo.findBySlug({ workspaceId: routeDeps.workspaceId, slug: candidate })) !== null,
+      }
+    ));
+
+  const actor = { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND };
+  const { definition } = await createFormDefinition({
+    deps: formsDeps(routeDeps),
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      actor,
+      name,
+      slug,
+      // Deep-copied, not shared: `fields` and `notify.recipients` are arrays of objects the source
+      // row still owns, and a shallow copy would make an edit to the copy's fields mutate the
+      // source's — the same class of silent shared-state corruption `duplicate-embeds.ts` exists
+      // to prevent on the post side.
+      fields: source.fields.map((field) => ({ ...field })),
+      notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
+    },
+  });
+
+  // `createFormDefinition` always creates `active`. A copy of a DISABLED form must not come back
+  // live — the same "a copy is never more exposed than its source" rule that makes a duplicated
+  // published page default to draft. Two commands rather than one because `createFormDefinition`
+  // takes no status; a failure here surfaces to the caller rather than silently leaving an active
+  // copy, and the copy is a fresh row nothing references yet, so the window is inert.
+  if (source.status === "disabled") {
+    const { definition: disabled } = await setFormDefinitionStatus({
+      deps: formsDeps(routeDeps),
+      input: { workspaceId: routeDeps.workspaceId, actor, formId: definition.id, status: "disabled" },
+    });
+    return { definition: toFormDefinitionView(disabled) };
+  }
+
+  return { definition: toFormDefinitionView(definition) };
+}
+
+/**
+ * `content_duplicate`'s resource contributor for `"form"`, resolving to `admin.forms.manage` — the
+ * SAME permission this domain's own `forms_create_definition`/`forms_update_definition` already
+ * declare. No new permission is invented for the generic tool.
+ *
+ * Called from the composition root (`server/runtime/composition/tool-catalog-manifest.ts`), never
+ * from within this domain: `.dependency-cruiser.mjs`'s
+ * `domain-no-direct-assistant-tool-registration` rule bans any non-type-only `features/** ->
+ * assistant/**` import, so this function returns plain data and imports only the registry's TYPE.
+ */
+export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerContributor[] {
+  return [
+    {
+      resource: "form",
+      build: (routeDeps) => ({
+        permission: "admin.forms.manage",
+        duplicate: (input) => duplicateFormDefinition(routeDeps, input),
+      }),
+    },
+  ];
 }
 
 /**
