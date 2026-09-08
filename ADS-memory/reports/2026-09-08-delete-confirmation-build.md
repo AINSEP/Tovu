@@ -172,13 +172,174 @@ to `MCP_UI_REDEEMABLE_TOOL_IDS`, write RED-first tests modeled on
 
 ## Remaining work
 
-- 2 Jini-side domains: `media_trash_asset`, `collections_content_type_tombstone` — live in
-  `/Users/la/Programming/Jini/packages/cms/src/{media,content-types}/`. Need a Jini package rebuild
-  after editing (per `reference_jini_dist_rebuild_required_for_tovu` — rebuild only the `cms` package,
-  never `pnpm -r build`) before Tovu's symlinked `node_modules` picks up the change.
 - ADR-055 status update (DRAFT → accepted, per Leona, 2026-09-08), add to ADR-INDEX.md, note the
   ADR-053 DRAFT dependency as an open item for Leona (do NOT touch ADR-053 itself).
-- `check:boundaries` baseline re-check (must stay 19).
-- Live admin E2E run via the admin assistant (switch dock to API · BYOK (Gemini)) for at least one
-  confirmed delete, then verify via a read-only DB read (never trust the chat's own claim).
-- Final report to team-lead with the full worklist above.
+- **`media_trash_asset` is NOT closeable as-is — see Verification section below.** It is missing one
+  line (`MCP_UI_REDEEMABLE_TOOL_IDS`) and has 4 stale pre-existing test failures. Not fixed here per
+  the rotation directive ("report it, don't rewrite it") — this is a decision for the coordinator,
+  even though the fix mirrors the other 5 domains exactly.
+
+## Verification (rotation replacement, 2026-09-08 13:11–13:35)
+
+Persona: Programmer (`AI-Dev-Shop/agents/programmer/skills.md` v1.7.1, loaded — confirmed in first
+reply). Scope: verify the 6-tool build above, not redesign it. System load was 135–310 throughout
+(`uptime`) — noted next to every timing-sensitive result below; a few browser-automation stalls were
+load artifacts, not product bugs (see the redirects live-run notes).
+
+### 1–2. `media_trash_asset` verification and registered-tool count
+
+**Correction to the outgoing report's own table**: `media_trash_asset`'s confirmation gate lives at
+`apps/website/src/features/media/tool-registrations.ts` (a Tovu-side shim wrapping the Jini-provided
+handler), **not** in `Jini/packages/cms/src/media/tool-registrations.ts` as the "Remaining work"
+table said. Confirmed by reading commit `31fdf17d`'s diff directly — no Jini file is touched, no Jini
+rebuild is needed or was done.
+
+Built the real catalog (`resetToolContributorsForTests()` + `installFirstPartyToolContributors()` +
+`buildAssistantToolRegistrations(createRouteDeps())`, matching the real composition roots) and
+asserted presence directly, not inferred from `tsc`:
+
+```
+TOTAL_REGISTERED: 170
+media_trash_asset registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: false
+comments_trash_comment registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: true
+widgets_trash_instance registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: true
+theme_trash_file registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: true
+redirects_tombstone registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: true
+webhooks_delete_subscription registered: true | in MCP_UI_REDEEMABLE_TOOL_IDS: true
+```
+
+**All 6 tools register in the catalog** (170 total tool ids — `DERIVED_RISK_BY_TOOL_ID` is fine,
+`mediaDerivedRisk` already carries `media_trash_asset → "mutates-durable-state"` from before this
+build). But `media_trash_asset` is the *only* one of the six missing from
+`MCP_UI_REDEEMABLE_TOOL_IDS` (`apps/website/src/assistant/mcp-ui-tool-calls.ts:36`) — the allowlist
+gating `POST /api/admin/v1/mcp-ui/tool-calls`, the endpoint a human's confirm/cancel click in the
+rendered dialog actually calls. This is exactly the failure mode the dispatch flagged as
+highest-risk, just not the exact mechanism guessed (it doesn't vanish from the catalog — the tool
+registers fine and the dialog renders fine; only the confirm/cancel click fails).
+
+**Live-reproduced, not just statically found.** Via the admin assistant (API · BYOK, Google Gemini
+gemini-3.8-flash), asked to trash a real seeded asset (`woodnest-cabin-booking`,
+`5da45f84-1803-4493-bfd6-ee08bd1dba2c`, tovu-com dev site). The "Trash this media asset?" dialog
+rendered correctly with the real title/slug. Clicking **either** "Trash asset" or "Cancel" fails
+identically:
+
+> Failed: 'media_trash_asset' is not an MCP-UI-redeemable tool
+
+Read-only DB check before and after (`sites/tovu-com/content.db?mode=ro`) confirms zero writes: the
+row stayed `status=active, version=1` both times. So the tool is not just confirm-broken — the whole
+confirmation surface is dead for this one tool; a human cannot even decline cleanly.
+
+**Not fixed** (rotation directive: verify, don't rewrite). The fix is one line — add
+`"media_trash_asset"` to the `MCP_UI_REDEEMABLE_TOOL_IDS` set in
+`apps/website/src/assistant/mcp-ui-tool-calls.ts`, mirroring the other 5 entries exactly — but that is
+a call for the coordinator, not made unilaterally here.
+
+**4 stale pre-existing test failures**, also not fixed, same reason. Unlike the other 5 domains,
+`apps/website/src/assistant/__tests__/tool-registrations.media.test.ts` was never updated for the new
+`emitSurface`-gated handler shape (no `trashFile()`/`tombstoneRule()`-style helper was added). Ran it
+scoped from repo root:
+
+```
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks \
+  apps/website/src/assistant/__tests__/tool-registrations.media.test.ts \
+  apps/website/src/features/media/__tests__/tool-registrations.test.ts \
+  apps/website/src/features/media/__tests__/promote-chat-attachment.test.ts
+→ tests 40, pass 36, fail 4
+```
+
+All 4 failures are in `tool-registrations.media.test.ts`, all the same root cause (handler now throws
+"no interactive confirmation channel (no emitSurface)" when called directly with no dialog):
+- `a trashed asset's publicUrl is null, never a link a visitor would 404 on`
+- `media_trash_asset is a status flip, and is the ONLY delete-adjacent tool`
+- `workflow: upload, update its metadata, then trash it — ...`
+- `media_trash_asset: calls authorize() with the catalog's declared permission and the run's principal`
+
+No dedicated `media/__tests__/agent-tools.trash-confirmation.test.ts` was ever written either (every
+other domain got one). `media_trash_asset` needs the same treatment `widgets`/`comments` got: an
+`emitSurface`-auto-confirm helper threading through these call sites, plus a new dedicated
+confirmation test file.
+
+### 3. Extraction behaviour check (`9dab26bc`)
+
+Read the pre-extraction diffs for all 3 non-post call sites directly (`git show 9dab26bc -- <path>`)
+and traced the mapping by hand against `classifyConfirmationAnswer`'s actual implementation
+(`contracts/core/tool-surface-exchanges.ts:320`): `SurfaceMessage.status` has exactly 3 values
+(`received`/`expired`/`abandoned`), and `ConfirmationOutcome.reason` mirrors the non-`received` two
+one-for-one, with `"declined"` covering the received-but-not-`confirm` case. Every branch in
+`custom-credentials`, `source-control`, and `deployments/publish-agent-tools.ts` maps old→new with
+identical resulting values (reason strings, `note` text derived from `=== "expired"`, result shapes)
+— **confirmed no behaviour change**, not just trusted from the commit message.
+
+### 4. Scoped regression runs (repo root, `node --import tsx --test`)
+
+| suite | result |
+|---|---|
+| post + custom-credentials + source-control + deployments + shared `tool-surface-exchanges` fn | **170/170 pass** |
+| comments + widgets (incl. shape-rejection/region-gaps/contracts/authorization) | **106 pass, 1 skip** (107 total) |
+| theme + redirects + webhooks (incl. trash-restore/tombstone/delete-confirmation) | **94/94 pass** |
+| media (assistant + feature level) | **36 pass, 4 fail** — see above |
+
+Total: 411 tests run, 4 failures, all attributable to the one unfinished domain.
+
+### 5. `check:boundaries`
+
+`npm run check:boundaries` → **19 errors** (matches the required baseline exactly), 193 warnings,
+2250 modules cruised. None of the 19 errors touch any file this build changed.
+
+### 6–7. Live end-to-end run + DB verification
+
+`npx tsc -p tsconfig.json --noEmit` from repo root: **clean, 0 errors** (confirms the outgoing
+report's claim held for the `media_trash_asset` commit too).
+
+Dev servers were already up (`:5173` admin, `:3000` site). Switched the dock to **API · BYOK
+(Gemini)** via "Choose AI runtime". **Correction to the dispatch's own instruction**: pressing
+`Escape` to close the runtime popover instead collapses the *entire* chat dock, not just the
+popover — click elsewhere in the page instead.
+
+First attempt (media, in the same chat thread) reproduced the failure above. Second attempt, still in
+that thread, asked for `redirects_tombstone` on a real seeded redirect (`/old-promo`, id
+`9b5bae37-…`) — under load spikes up to 310, the browser/renderer stalled for several minutes between
+the dialog rendering and my click reaching it, and the exchange had expired by the time the click
+landed (`Failed: that dialog is no longer waiting for an answer`; DB confirmed zero writes,
+`status=active, version=1` unchanged) — a load artifact, not a code defect: the same exchange had
+rendered correctly with the right live data (`/old-promo → /new-promo`, `active`) moments before.
+
+Also observed: Gemini (gemini-3.8-flash) compulsively re-invoked `media_trash_asset` on every
+subsequent turn in that same thread after its first failure, alongside whatever new tool I'd asked
+for — an artifact of a weak model re-reading its own conversation history, not a Tovu bug. Starting a
+**fresh conversation** (the "+ New" button next to the conversation-history icon) fixed it.
+
+**Working, DB-verified confirmed delete** — fresh conversation, single message:
+
+> Tombstone the redirect from "/documentation".
+
+The `redirects_tombstone` dialog rendered immediately with the real row's data (`/documentation` →
+`/docs`, `active`). Clicking **"Disable redirect"** returned `Done.` in the same call, and the
+assistant then reported the redirect id back correctly. Read-only DB check
+(`sites/tovu-com/content.db?mode=ro`) confirms it:
+
+```
+id                                    from_pattern    to_target  status    version
+23415dd8-d948-4616-bffb-dc5dfd24cf09  /documentation  /docs      disabled  2
+```
+
+`status: active → disabled`, `version: 1 → 2`. This is the acceptance-criterion live run — reversible
+via `redirects_update` per the dialog's own copy, left in this state as the verification artifact.
+
+Switched the runtime dock back to **Local CLI** afterward, as instructed. Closed my own browser tab
+(other tabs in the shared session belong to other concurrently-running agents — left untouched).
+
+### What I could not verify
+
+- A clean, load-free live run of `media_trash_asset` after the missing-allowlist fix — not applicable
+  since the fix wasn't applied (rotation directive).
+- Whether the `/old-promo` redirect's failed-due-to-load exchange attempt left any dangling
+  server-side exchange state; DB confirms no *content* write happened, but I did not inspect
+  in-memory exchange-store state (not persisted, not inspectable read-only).
+
+### Context used
+
+Approximately 40–45% of budget at handoff (well under the 250k self-report trigger). Full worklist
+above is what remains: fix `media_trash_asset`'s one-line allowlist gap, update its stale test file
+and add its dedicated confirmation test file (mirroring `widgets`/`comments`), then re-run this same
+verification pass on it.
