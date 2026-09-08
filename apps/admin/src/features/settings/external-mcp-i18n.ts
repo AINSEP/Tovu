@@ -29,6 +29,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
   es: {
+    "may write": "puede escribir",
+    "Restarting…": "Reiniciando…",
     "Writes": "Escribe",
     "Destructive": "Destructivo",
     "The server does not say what this tool does.": "El servidor no indica qué hace esta herramienta.",
@@ -45,6 +47,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "No tienes permiso para reiniciar el asistente. Pide a alguien que sí lo tenga que lo reinicie para que este cambio surta efecto.",
   },
   id: {
+    "may write": "boleh menulis",
+    "Restarting…": "Memulai ulang…",
     "Writes": "Menulis",
     "Destructive": "Destruktif",
     "The server does not say what this tool does.": "Server tidak menyebutkan apa yang dilakukan alat ini.",
@@ -61,6 +65,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Anda tidak memiliki izin untuk memulai ulang asisten. Minta seseorang yang memilikinya untuk memulai ulang agar perubahan ini berlaku.",
   },
   de: {
+    "may write": "darf schreiben",
+    "Restarting…": "Wird neu gestartet…",
     "Writes": "Schreibt",
     "Destructive": "Destruktiv",
     "The server does not say what this tool does.": "Der Server gibt nicht an, was dieses Werkzeug tut.",
@@ -77,6 +83,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Sie haben keine Berechtigung, den Assistenten neu zu starten. Bitten Sie jemanden mit dieser Berechtigung, ihn neu zu starten, damit diese Änderung wirksam wird.",
   },
   "zh-CN": {
+    "may write": "允许写入",
+    "Restarting…": "正在重启…",
     "Writes": "写入",
     "Destructive": "破坏性",
     "The server does not say what this tool does.": "服务器未说明此工具的具体作用。",
@@ -93,6 +101,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "您没有权限重启助手。请拥有该权限的人为您重启，以使此更改生效。",
   },
   "zh-TW": {
+    "may write": "允許寫入",
+    "Restarting…": "正在重新啟動…",
     "Writes": "寫入",
     "Destructive": "破壞性",
     "The server does not say what this tool does.": "伺服器未說明此工具的具體作用。",
@@ -109,6 +119,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "您沒有權限重新啟動助理。請擁有該權限的人為您重新啟動，以使此變更生效。",
   },
   "pt-BR": {
+    "may write": "pode gravar",
+    "Restarting…": "Reiniciando…",
     "Writes": "Escreve",
     "Destructive": "Destrutivo",
     "The server does not say what this tool does.": "O servidor não informa o que esta ferramenta faz.",
@@ -125,6 +137,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Você não tem permissão para reiniciar o assistente. Peça a alguém que tenha para reiniciá-lo para que essa mudança tenha efeito.",
   },
   ru: {
+    "may write": "может записывать",
+    "Restarting…": "Перезапуск…",
     "Writes": "Запись",
     "Destructive": "Деструктивный",
     "The server does not say what this tool does.": "Сервер не сообщает, что делает этот инструмент.",
@@ -141,6 +155,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "У вас нет прав на перезапуск ассистента. Попросите того, у кого они есть, перезапустить его, чтобы это изменение вступило в силу.",
   },
   fa: {
+    "may write": "اجازه نوشتن",
+    "Restarting…": "در حال راه‌اندازی مجدد…",
     "Writes": "می‌نویسد",
     "Destructive": "مخرب",
     "The server does not say what this tool does.": "سرور نمی‌گوید این ابزار چه کاری انجام می‌دهد.",
@@ -157,6 +173,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "شما اجازهٔ راه‌اندازی مجدد دستیار را ندارید. از کسی که این اجازه را دارد بخواهید آن را راه‌اندازی مجدد کند تا این تغییر اعمال شود.",
   },
   ar: {
+    "may write": "يمكنه الكتابة",
+    "Restarting…": "جارٍ إعادة التشغيل…",
     "Writes": "يكتب",
     "Destructive": "مدمِّر",
     "The server does not say what this tool does.": "لا يوضّح الخادم ماذا تفعل هذه الأداة.",
@@ -173,6 +191,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "لا تملك إذنًا لإعادة تشغيل المساعد. اطلب من شخص يملك هذا الإذن أن يعيد تشغيله ليصبح هذا التغيير ساري المفعول.",
   },
   ja: {
+    "may write": "書き込み可",
+    "Restarting…": "再起動中…",
     "Writes": "書き込み",
     "Destructive": "破壊的",
     "The server does not say what this tool does.": "このツールが何を行うか、サーバーは示していません。",
@@ -189,6 +209,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "アシスタントを再起動する権限がありません。権限を持つ人に依頼して再起動してもらうと、この変更が反映されます。",
   },
   ko: {
+    "may write": "쓰기 허용",
+    "Restarting…": "다시 시작하는 중…",
     "Writes": "쓰기",
     "Destructive": "파괴적",
     "The server does not say what this tool does.": "서버가 이 도구가 무엇을 하는지 알려주지 않습니다.",
@@ -205,6 +227,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "어시스턴트를 재시작할 권한이 없습니다. 권한이 있는 사람에게 재시작을 요청하면 이 변경 사항이 적용됩니다.",
   },
   pl: {
+    "may write": "może zapisywać",
+    "Restarting…": "Ponowne uruchamianie…",
     "Writes": "Zapisuje",
     "Destructive": "Destrukcyjne",
     "The server does not say what this tool does.": "Serwer nie podaje, co robi to narzędzie.",
@@ -221,6 +245,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Nie masz uprawnień do ponownego uruchomienia asystenta. Poproś kogoś, kto je ma, aby go zrestartował, aby ta zmiana zaczęła obowiązywać.",
   },
   hu: {
+    "may write": "írhat",
+    "Restarting…": "Újraindítás…",
     "Writes": "Ír",
     "Destructive": "Destruktív",
     "The server does not say what this tool does.": "A szerver nem adja meg, mit csinál ez az eszköz.",
@@ -237,6 +263,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Nincs jogosultságod az asszisztens újraindításához. Kérj meg valakit, akinek van, hogy indítsa újra, hogy ez a változás életbe lépjen.",
   },
   fr: {
+    "may write": "peut écrire",
+    "Restarting…": "Redémarrage…",
     "Writes": "Écrit",
     "Destructive": "Destructeur",
     "The server does not say what this tool does.": "Le serveur n'indique pas ce que fait cet outil.",
@@ -253,6 +281,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Vous n'avez pas la permission de redémarrer l'assistant. Demandez à quelqu'un qui l'a de le redémarrer pour que ce changement prenne effet.",
   },
   uk: {
+    "may write": "може записувати",
+    "Restarting…": "Перезапуск…",
     "Writes": "Записує",
     "Destructive": "Деструктивний",
     "The server does not say what this tool does.": "Сервер не повідомляє, що робить цей інструмент.",
@@ -269,6 +299,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "У вас немає прав для перезапуску асистента. Попросіть когось, хто їх має, перезапустити його, щоб ця зміна набула чинності.",
   },
   tr: {
+    "may write": "yazabilir",
+    "Restarting…": "Yeniden başlatılıyor…",
     "Writes": "Yazıyor",
     "Destructive": "Yıkıcı",
     "The server does not say what this tool does.": "Sunucu bu aracın ne yaptığını belirtmiyor.",
@@ -285,6 +317,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Asistanı yeniden başlatma izniniz yok. Bu değişikliğin etkili olması için izni olan birinden asistanı yeniden başlatmasını isteyin.",
   },
   th: {
+    "may write": "เขียนได้",
+    "Restarting…": "กำลังรีสตาร์ท…",
     "Writes": "เขียนข้อมูล",
     "Destructive": "ทำลายข้อมูล",
     "The server does not say what this tool does.": "เซิร์ฟเวอร์ไม่ได้ระบุว่าเครื่องมือนี้ทำอะไร",
@@ -301,6 +335,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "คุณไม่มีสิทธิ์รีสตาร์ทผู้ช่วย โปรดขอให้ผู้ที่มีสิทธิ์รีสตาร์ทให้ เพื่อให้การเปลี่ยนแปลงนี้มีผล",
   },
   it: {
+    "may write": "può scrivere",
+    "Restarting…": "Riavvio in corso…",
     "Writes": "Scrive",
     "Destructive": "Distruttivo",
     "The server does not say what this tool does.": "Il server non indica cosa fa questo strumento.",
@@ -317,6 +353,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "Non hai il permesso di riavviare l'assistente. Chiedi a qualcuno che lo ha di riavviarlo affinché questa modifica abbia effetto.",
   },
   hi: {
+    "may write": "लिख सकता है",
+    "Restarting…": "पुनः आरंभ हो रहा है…",
     "Writes": "लिखता है",
     "Destructive": "विनाशकारी",
     "The server does not say what this tool does.": "सर्वर यह नहीं बताता कि यह टूल क्या करता है।",
@@ -333,6 +371,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "आपके पास सहायक को पुनः आरंभ करने की अनुमति नहीं है। जिसके पास यह अनुमति है, उससे इसे पुनः आरंभ करने के लिए कहें ताकि यह बदलाव लागू हो सके।",
   },
   ur: {
+    "may write": "لکھ سکتا ہے",
+    "Restarting…": "دوبارہ شروع ہو رہا ہے…",
     "Writes": "لکھتا ہے",
     "Destructive": "تباہ کن",
     "The server does not say what this tool does.": "سرور یہ نہیں بتاتا کہ یہ ٹول کیا کرتا ہے۔",
@@ -349,6 +389,8 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.": "آپ کو اسسٹنٹ دوبارہ شروع کرنے کی اجازت نہیں ہے۔ جس کے پاس یہ اجازت ہے اس سے دوبارہ شروع کرنے کے لیے کہیں تاکہ یہ تبدیلی نافذ ہو سکے۔",
   },
   bn: {
+    "may write": "লিখতে পারে",
+    "Restarting…": "পুনরায় চালু হচ্ছে…",
     "Writes": "লেখে",
     "Destructive": "ধ্বংসাত্মক",
     "The server does not say what this tool does.": "এই টুলটি কী করে তা সার্ভার জানায় না।",

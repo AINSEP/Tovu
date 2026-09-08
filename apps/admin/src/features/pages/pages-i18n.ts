@@ -12,6 +12,8 @@
  */
 export const PAGES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "My Pages": "Mis páginas",
+    "Theme Pages": "Páginas del tema",
     Content: "Contenido",
     Pages: "Páginas",
     Edit: "Editar",
@@ -58,6 +60,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   id: {
+    "My Pages": "Halaman Saya",
+    "Theme Pages": "Halaman Tema",
     Content: "Konten",
     Pages: "Halaman",
     Edit: "Edit",
@@ -104,6 +108,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Buka {title}",
   },
   de: {
+    "My Pages": "Meine Seiten",
+    "Theme Pages": "Design-Seiten",
     Content: "Inhalt",
     Pages: "Seiten",
     Edit: "Bearbeiten",
@@ -150,6 +156,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öffnen",
   },
   "zh-CN": {
+    "My Pages": "我的页面",
+    "Theme Pages": "主题页面",
     Content: "内容",
     Pages: "页面",
     Edit: "编辑",
@@ -196,6 +204,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "打开 {title}",
   },
   "zh-TW": {
+    "My Pages": "我的頁面",
+    "Theme Pages": "佈景主題頁面",
     Content: "內容",
     Pages: "頁面",
     Edit: "編輯",
@@ -242,6 +252,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "開啟 {title}",
   },
   "pt-BR": {
+    "My Pages": "Minhas páginas",
+    "Theme Pages": "Páginas do tema",
     Content: "Conteúdo",
     Pages: "Páginas",
     Edit: "Editar",
@@ -288,6 +300,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   ru: {
+    "My Pages": "Мои страницы",
+    "Theme Pages": "Страницы темы",
     Content: "Контент",
     Pages: "Страницы",
     Edit: "Изменить",
@@ -334,6 +348,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Открыть {title}",
   },
   fa: {
+    "My Pages": "صفحات من",
+    "Theme Pages": "صفحات پوسته",
     Content: "محتوا",
     Pages: "صفحات",
     Edit: "ویرایش",
@@ -380,6 +396,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "باز کردن {title}",
   },
   ar: {
+    "My Pages": "صفحاتي",
+    "Theme Pages": "صفحات القالب",
     Content: "المحتوى",
     Pages: "الصفحات",
     Edit: "تعديل",
@@ -426,6 +444,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "فتح {title}",
   },
   ja: {
+    "My Pages": "マイページ",
+    "Theme Pages": "テーマページ",
     Content: "コンテンツ",
     Pages: "ページ",
     Edit: "編集",
@@ -472,6 +492,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} を開く",
   },
   ko: {
+    "My Pages": "내 페이지",
+    "Theme Pages": "테마 페이지",
     Content: "콘텐츠",
     Pages: "페이지",
     Edit: "편집",
@@ -518,6 +540,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} 열기",
   },
   pl: {
+    "My Pages": "Moje strony",
+    "Theme Pages": "Strony motywu",
     Content: "Treść",
     Pages: "Strony",
     Edit: "Edytuj",
@@ -564,6 +588,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Otwórz {title}",
   },
   hu: {
+    "My Pages": "Saját oldalak",
+    "Theme Pages": "Téma oldalak",
     Content: "Tartalom",
     Pages: "Oldalak",
     Edit: "Szerkesztés",
@@ -610,6 +636,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} megnyitása",
   },
   fr: {
+    "My Pages": "Mes pages",
+    "Theme Pages": "Pages du thème",
     Content: "Contenu",
     Pages: "Pages",
     Edit: "Modifier",
@@ -656,6 +684,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Ouvrir {title}",
   },
   uk: {
+    "My Pages": "Мої сторінки",
+    "Theme Pages": "Сторінки теми",
     Content: "Вміст",
     Pages: "Сторінки",
     Edit: "Редагувати",
@@ -702,6 +732,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Відкрити {title}",
   },
   tr: {
+    "My Pages": "Sayfalarım",
+    "Theme Pages": "Tema sayfaları",
     Content: "İçerik",
     Pages: "Sayfalar",
     Edit: "Düzenle",
@@ -748,6 +780,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öğesini aç",
   },
   th: {
+    "My Pages": "หน้าของฉัน",
+    "Theme Pages": "หน้าของธีม",
     Content: "เนื้อหา",
     Pages: "หน้า",
     Edit: "แก้ไข",
@@ -794,6 +828,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "เปิด {title}",
   },
   it: {
+    "My Pages": "Le mie pagine",
+    "Theme Pages": "Pagine del tema",
     Content: "Contenuti",
     Pages: "Pagine",
     Edit: "Modifica",
@@ -840,6 +876,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Apri {title}",
   },
   hi: {
+    "My Pages": "मेरे पेज",
+    "Theme Pages": "थीम पेज",
     Content: "सामग्री",
     Pages: "पेज",
     Edit: "संपादित करें",
@@ -886,6 +924,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} खोलें",
   },
   ur: {
+    "My Pages": "میرے صفحات",
+    "Theme Pages": "تھیم صفحات",
     Content: "مواد",
     Pages: "صفحات",
     Edit: "ترمیم کریں",
@@ -932,6 +972,8 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} کھولیں",
   },
   bn: {
+    "My Pages": "আমার পেজ",
+    "Theme Pages": "থিম পেজ",
     Content: "কন্টেন্ট",
     Pages: "পেজ",
     Edit: "সম্পাদনা করুন",

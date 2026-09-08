@@ -9,6 +9,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {
+    Enable: "Activar",
+    Disable: "Desactivar",
+    "Inspect package files": "Inspeccionar los archivos del paquete",
     Studio: "Estudio",
     Plugins: "Plugins",
     "Loading plugins…": "Cargando plugins…",
@@ -35,6 +38,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "no se pudo actualizar el plugin",
   },
   id: {
+    Enable: "Aktifkan",
+    Disable: "Nonaktifkan",
+    "Inspect package files": "Periksa berkas paket",
     Studio: "Studio",
     Plugins: "Plugin",
     "Loading plugins…": "Memuat plugin…",
@@ -59,6 +65,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "gagal memperbarui plugin",
   },
   de: {
+    Enable: "Aktivieren",
+    Disable: "Deaktivieren",
+    "Inspect package files": "Paketdateien untersuchen",
     Studio: "Studio",
     Plugins: "Plugins",
     "Loading plugins…": "Plugins werden geladen…",
@@ -83,6 +92,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "Plugin konnte nicht aktualisiert werden",
   },
   "zh-CN": {
+    Enable: "启用",
+    Disable: "禁用",
+    "Inspect package files": "检查软件包文件",
     Studio: "工作室",
     Plugins: "插件",
     "Loading plugins…": "正在加载插件…",
@@ -107,6 +119,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "更新插件失败",
   },
   "zh-TW": {
+    Enable: "啟用",
+    Disable: "停用",
+    "Inspect package files": "檢視套件檔案",
     Studio: "工作室",
     Plugins: "外掛",
     "Loading plugins…": "正在載入外掛…",
@@ -131,6 +146,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "更新外掛失敗",
   },
   "pt-BR": {
+    Enable: "Ativar",
+    Disable: "Desativar",
+    "Inspect package files": "Inspecionar arquivos do pacote",
     Studio: "Estúdio",
     Plugins: "Plugins",
     "Loading plugins…": "Carregando plugins…",
@@ -155,6 +173,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "não foi possível atualizar o plugin",
   },
   ru: {
+    Enable: "Включить",
+    Disable: "Отключить",
+    "Inspect package files": "Просмотреть файлы пакета",
     Studio: "Студия",
     Plugins: "Плагины",
     "Loading plugins…": "Загрузка плагинов…",
@@ -179,6 +200,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "не удалось обновить плагин",
   },
   fa: {
+    Enable: "فعال‌سازی",
+    Disable: "غیرفعال‌سازی",
+    "Inspect package files": "بررسی فایل‌های بسته",
     Studio: "استودیو",
     Plugins: "افزونه‌ها",
     "Loading plugins…": "در حال بارگذاری افزونه‌ها…",
@@ -203,6 +227,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "به‌روزرسانی افزونه ناموفق بود",
   },
   ar: {
+    Enable: "تفعيل",
+    Disable: "تعطيل",
+    "Inspect package files": "فحص ملفات الحزمة",
     Studio: "الاستوديو",
     Plugins: "الإضافات",
     "Loading plugins…": "جارٍ تحميل الإضافات…",
@@ -227,6 +254,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "تعذّر تحديث الإضافة",
   },
   ja: {
+    Enable: "有効にする",
+    Disable: "無効にする",
+    "Inspect package files": "パッケージファイルを確認",
     Studio: "スタジオ",
     Plugins: "プラグイン",
     "Loading plugins…": "プラグインを読み込み中…",
@@ -251,6 +281,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "プラグインの更新に失敗しました",
   },
   ko: {
+    Enable: "사용",
+    Disable: "사용 안 함",
+    "Inspect package files": "패키지 파일 검사",
     Studio: "스튜디오",
     Plugins: "플러그인",
     "Loading plugins…": "플러그인을 불러오는 중…",
@@ -275,6 +308,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "플러그인을 업데이트하지 못했습니다",
   },
   pl: {
+    Enable: "Włącz",
+    Disable: "Wyłącz",
+    "Inspect package files": "Sprawdź pliki pakietu",
     Studio: "Studio",
     Plugins: "Wtyczki",
     "Loading plugins…": "Wczytywanie wtyczek…",
@@ -299,6 +335,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "nie udało się zaktualizować wtyczki",
   },
   hu: {
+    Enable: "Engedélyezés",
+    Disable: "Letiltás",
+    "Inspect package files": "Csomagfájlok megtekintése",
     Studio: "Stúdió",
     Plugins: "Bővítmények",
     "Loading plugins…": "Bővítmények betöltése…",
@@ -323,6 +362,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "a bővítmény frissítése sikertelen",
   },
   fr: {
+    Enable: "Activer",
+    Disable: "Désactiver",
+    "Inspect package files": "Inspecter les fichiers du paquet",
     Studio: "Studio",
     Plugins: "Extensions",
     "Loading plugins…": "Chargement des extensions…",
@@ -347,6 +389,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "échec de la mise à jour de l'extension",
   },
   uk: {
+    Enable: "Увімкнути",
+    Disable: "Вимкнути",
+    "Inspect package files": "Переглянути файли пакета",
     Studio: "Студія",
     Plugins: "Плагіни",
     "Loading plugins…": "Завантаження плагінів…",
@@ -371,6 +416,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "не вдалося оновити плагін",
   },
   tr: {
+    Enable: "Etkinleştir",
+    Disable: "Devre dışı bırak",
+    "Inspect package files": "Paket dosyalarını incele",
     Studio: "Stüdyo",
     Plugins: "Eklentiler",
     "Loading plugins…": "Eklentiler yükleniyor…",
@@ -395,6 +443,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "eklenti güncellenemedi",
   },
   th: {
+    Enable: "เปิดใช้งาน",
+    Disable: "ปิดใช้งาน",
+    "Inspect package files": "ตรวจสอบไฟล์แพ็กเกจ",
     Studio: "สตูดิโอ",
     Plugins: "ปลั๊กอิน",
     "Loading plugins…": "กำลังโหลดปลั๊กอิน…",
@@ -419,6 +470,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "อัปเดตปลั๊กอินไม่สำเร็จ",
   },
   it: {
+    Enable: "Abilita",
+    Disable: "Disabilita",
+    "Inspect package files": "Ispeziona i file del pacchetto",
     Studio: "Studio",
     Plugins: "Plugin",
     "Loading plugins…": "Caricamento plugin…",
@@ -443,6 +497,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "impossibile aggiornare il plugin",
   },
   hi: {
+    Enable: "सक्षम करें",
+    Disable: "अक्षम करें",
+    "Inspect package files": "पैकेज फ़ाइलें देखें",
     Studio: "स्टूडियो",
     Plugins: "प्लगिन",
     "Loading plugins…": "प्लगिन लोड हो रहे हैं…",
@@ -467,6 +524,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "प्लगिन अपडेट नहीं हो सका",
   },
   ur: {
+    Enable: "فعال کریں",
+    Disable: "غیرفعال کریں",
+    "Inspect package files": "پیکیج فائلیں دیکھیں",
     Studio: "اسٹوڈیو",
     Plugins: "پلگ اِنز",
     "Loading plugins…": "پلگ اِنز لوڈ ہو رہے ہیں…",
@@ -491,6 +551,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to update plugin": "پلگ اِن اپ ڈیٹ نہ ہو سکا",
   },
   bn: {
+    Enable: "সক্ষম করুন",
+    Disable: "নিষ্ক্রিয় করুন",
+    "Inspect package files": "প্যাকেজ ফাইল পরীক্ষা করুন",
     Studio: "স্টুডিও",
     Plugins: "প্লাগইন",
     "Loading plugins…": "প্লাগইন লোড হচ্ছে…",

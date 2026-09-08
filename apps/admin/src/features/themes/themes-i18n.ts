@@ -8,6 +8,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "← All themes": "← Todos los temas",
+    Download: "Descargar",
+    "Downloading…": "Descargando…",
     Declarative: "Declarativo",
     Templated: "Basado en plantillas",
     Static: "Estático",
@@ -42,6 +45,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   id: {
+    "← All themes": "← Semua tema",
+    Download: "Unduh",
+    "Downloading…": "Mengunduh…",
     Declarative: "Deklaratif",
     Templated: "Berbasis templat",
     Static: "Statis",
@@ -76,6 +82,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Buka {title}",
   },
   de: {
+    "← All themes": "← Alle Designs",
+    Download: "Herunterladen",
+    "Downloading…": "Wird heruntergeladen…",
     Declarative: "Deklarativ",
     Templated: "Vorlagenbasiert",
     Static: "Statisch",
@@ -110,6 +119,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öffnen",
   },
   "zh-CN": {
+    "← All themes": "← 所有主题",
+    Download: "下载",
+    "Downloading…": "正在下载…",
     Declarative: "声明式",
     Templated: "模板式",
     Static: "静态",
@@ -143,6 +155,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "打开 {title}",
   },
   "zh-TW": {
+    "← All themes": "← 所有佈景主題",
+    Download: "下載",
+    "Downloading…": "正在下載…",
     Declarative: "宣告式",
     Templated: "範本式",
     Static: "靜態",
@@ -176,6 +191,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "開啟 {title}",
   },
   "pt-BR": {
+    "← All themes": "← Todos os temas",
+    Download: "Baixar",
+    "Downloading…": "Baixando…",
     Declarative: "Declarativo",
     Templated: "Baseado em modelo",
     Static: "Estático",
@@ -210,6 +228,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Abrir {title}",
   },
   ru: {
+    "← All themes": "← Все темы",
+    Download: "Скачать",
+    "Downloading…": "Скачивание…",
     Declarative: "Декларативный",
     Templated: "На основе шаблонов",
     Static: "Статический",
@@ -244,6 +265,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Открыть {title}",
   },
   fa: {
+    "← All themes": "← همه پوسته‌ها",
+    Download: "دانلود",
+    "Downloading…": "در حال دانلود…",
     Declarative: "اعلانی",
     Templated: "مبتنی بر قالب",
     Static: "ایستا",
@@ -278,6 +302,9 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "باز کردن {title}",
   },
   ar: {
+    "← All themes": "← جميع القوالب",
+    Download: "تنزيل",
+    "Downloading…": "جارٍ التنزيل…",
     Declarative: "تصريحي",
     Templated: "قائم على القوالب",
     Static: "ثابت",
@@ -312,6 +339,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "فتح {title}",
   },
   ja: {
+    "← All themes": "← すべてのテーマ",
+    Download: "ダウンロード",
+    "Downloading…": "ダウンロード中…",
+    Explore: "閲覧",
     Declarative: "宣言的",
     Templated: "テンプレート",
     Static: "静的",
@@ -343,6 +374,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} を開く",
   },
   ko: {
+    "← All themes": "← 모든 테마",
+    Download: "다운로드",
+    "Downloading…": "다운로드 중…",
+    Explore: "둘러보기",
     Declarative: "선언형",
     Templated: "템플릿 기반",
     Static: "정적",
@@ -374,6 +409,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} 열기",
   },
   pl: {
+    "← All themes": "← Wszystkie motywy",
+    Download: "Pobierz",
+    "Downloading…": "Pobieranie…",
+    Explore: "Przeglądaj",
     Declarative: "Deklaratywny",
     Templated: "Oparty na szablonach",
     Static: "Statyczny",
@@ -405,6 +444,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Otwórz {title}",
   },
   hu: {
+    "← All themes": "← Összes téma",
+    Download: "Letöltés",
+    "Downloading…": "Letöltés…",
+    Explore: "Böngészés",
     Declarative: "Deklaratív",
     Templated: "Sablonalapú",
     Static: "Statikus",
@@ -436,6 +479,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} megnyitása",
   },
   fr: {
+    "← All themes": "← Tous les thèmes",
+    Download: "Télécharger",
+    "Downloading…": "Téléchargement…",
+    Explore: "Explorer",
     Declarative: "Déclaratif",
     Templated: "Basé sur des modèles",
     Static: "Statique",
@@ -467,6 +514,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Ouvrir {title}",
   },
   uk: {
+    "← All themes": "← Усі теми",
+    Download: "Завантажити",
+    "Downloading…": "Завантаження…",
+    Explore: "Огляд",
     Declarative: "Декларативний",
     Templated: "На основі шаблонів",
     Static: "Статичний",
@@ -498,6 +549,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Відкрити {title}",
   },
   tr: {
+    "← All themes": "← Tüm temalar",
+    Download: "İndir",
+    "Downloading…": "İndiriliyor…",
+    Explore: "Keşfet",
     Declarative: "Bildirimsel",
     Templated: "Şablon tabanlı",
     Static: "Statik",
@@ -529,6 +584,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} öğesini aç",
   },
   th: {
+    "← All themes": "← ธีมทั้งหมด",
+    Download: "ดาวน์โหลด",
+    "Downloading…": "กำลังดาวน์โหลด…",
+    Explore: "สำรวจ",
     Declarative: "เชิงประกาศ",
     Templated: "อิงเทมเพลต",
     Static: "แบบคงที่",
@@ -560,6 +619,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "เปิด {title}",
   },
   it: {
+    "← All themes": "← Tutti i temi",
+    Download: "Scarica",
+    "Downloading…": "Download in corso…",
+    Explore: "Esplora",
     Declarative: "Dichiarativo",
     Templated: "Basato su modelli",
     Static: "Statico",
@@ -591,6 +654,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "Apri {title}",
   },
   hi: {
+    "← All themes": "← सभी थीम",
+    Download: "डाउनलोड करें",
+    "Downloading…": "डाउनलोड हो रहा है…",
+    Explore: "एक्सप्लोर करें",
     Declarative: "घोषणात्मक",
     Templated: "टेम्पलेट-आधारित",
     Static: "स्थिर",
@@ -622,6 +689,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} खोलें",
   },
   ur: {
+    "← All themes": "← تمام تھیمز",
+    Download: "ڈاؤن لوڈ کریں",
+    "Downloading…": "ڈاؤن لوڈ ہو رہا ہے…",
+    Explore: "دریافت کریں",
     Declarative: "اعلانی",
     Templated: "ٹیمپلیٹ پر مبنی",
     Static: "جامد",
@@ -653,6 +724,10 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     "Open {title}": "{title} کھولیں",
   },
   bn: {
+    "← All themes": "← সব থিম",
+    Download: "ডাউনলোড করুন",
+    "Downloading…": "ডাউনলোড হচ্ছে…",
+    Explore: "অন্বেষণ করুন",
     Declarative: "ঘোষণামূলক",
     Templated: "টেমপ্লেট-ভিত্তিক",
     Static: "স্ট্যাটিক",
