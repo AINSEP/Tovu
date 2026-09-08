@@ -20,6 +20,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import type { UIResource } from "../index.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
@@ -101,6 +103,32 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
   const found = widgetsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+/**
+ * `widgets_trash_instance` now raises a confirmation dialog (2026-09-08, ADS-memory/reports/
+ * 2026-09-08-delete-confirmation-build.md) rather than trashing synchronously. `wired()`/
+ * `widgetsRegistrations()` above build a FRESH `buildAssistantToolRegistrations` (and so a fresh,
+ * unshared `SurfaceExchangeStore`) on every call, which cannot answer a dialog raised by an earlier
+ * call — this helper builds registrations against ONE explicit store so the raise-then-confirm
+ * round trip lands on the same exchange, standing in for the human's click in this workflow test
+ * (the confirmation gate itself is certified by `widgets/__tests__/agent-tools.trash-confirmation.test.ts`).
+ */
+async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ instance: { status: string } }> {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
+  assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
+  const emitted: unknown[] = [];
+  const pending = trashTool.handler({
+    ...executionContext({ widgetInstanceId }),
+    emitSurface: async (s) => void emitted.push(s),
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id");
+  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "widgets_trash_instance", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  return pending as Promise<{ instance: { status: string } }>;
 }
 
 /** Seeds a 'text' widget instance through the real create tool, so tests operate on genuine domain output. */
@@ -338,9 +366,7 @@ test("workflow: create a widget instance, bind a region, place the widget into i
 
   // Step 5: trashing the placed instance must NOT be blocked by the reference (trash is
   // unconditional) — proving the full chain leaves consistent, inspectable state end to end.
-  const trashed = (await wired("widgets_trash_instance", deps).handler(executionContext({ widgetInstanceId: created.instance.id }))) as {
-    instance: { status: string };
-  };
+  const trashed = await trashInstance(deps, created.instance.id);
   assert.equal(trashed.instance.status, "trash");
 
   const diagnosis = (await wired("content_read.widget_instance", deps).handler(executionContext({ widgetInstanceId: created.instance.id }))) as {

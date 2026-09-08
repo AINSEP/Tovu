@@ -25,9 +25,17 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
 import type { ToolContributor } from "#src/assistant/index";
+import {
+  createSurfaceExchangeStore,
+  resolveConfirmationDecision,
+  SURFACE_EXCHANGE_ID_PARAM,
+  type AssistantSurfaceDeps,
+  type SurfaceExchange,
+} from "../../contracts/core/tool-surface-exchanges.js";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "./ports.js";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
@@ -160,6 +168,54 @@ function buildCommentsModerationHandler(
   };
 }
 
+const COMMENTS_TRASH_TOOL_ID = "comments_trash_comment";
+
+/** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
+ *  `source-control/tool-registrations.ts`'s `commitConfirmationUri` (a comment has an id but the
+ *  dialog is a one-shot per exchange, not a resource with its own stable URL the way a post is). */
+function trashConfirmationUri(exchangeId: string): UIResourceUri {
+  return `ui://tovu/comments-trash-comment/${exchangeId}` as UIResourceUri;
+}
+
+/**
+ * Renders `comments_trash_comment`'s confirmation dialog — Jini's `buildConfirmationSurface` owns
+ * HOW a confirmation dialog behaves; this function only decides WHAT a comment trash should say.
+ * Mirrors `features/post/delete-confirmation-ui.ts`'s `buildDeleteConfirmationResource` shape.
+ *
+ * @complexity O(n) in the rendered body-preview length.
+ */
+function buildTrashConfirmationResource(spec: {
+  comment: { authorName: string; bodyText: string; status: CommentStatus };
+  exchangeId: string;
+}): UIResource {
+  const { comment, exchangeId } = spec;
+  const bodyPreview = comment.bodyText.length > 140 ? `${comment.bodyText.slice(0, 140)}…` : comment.bodyText;
+
+  return buildConfirmationSurface({
+    uri: trashConfirmationUri(exchangeId),
+    title: "Trash this comment?",
+    description: "The comment will be moved to the trash. It can be restored with comments_restore_comment.",
+    details: [
+      { label: "Author", value: comment.authorName },
+      { label: "Comment", value: bodyPreview },
+      { label: "Current status", value: comment.status },
+    ],
+    danger: true,
+    confirm: {
+      label: "Trash comment",
+      toolName: COMMENTS_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+    },
+    cancel: {
+      label: "Cancel",
+      toolName: COMMENTS_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
+    },
+    app: { appName: "tovu-comments-trash-comment", appVersion: "1" },
+    preferredFrameSize: ["100%", "320px"],
+  });
+}
+
 /** Reads the optional patch members of `comments_update_settings`, requiring at least one — mirrors Forms' `requireFormsPatch`'s identical "no accepted-as-no-op empty patch" discipline. */
 function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<CommentsSettings> {
   const patch: Partial<CommentsSettings> = {};
@@ -175,7 +231,10 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
   return patch;
 }
 
-export function buildCommentsRegistrations(routeDeps: CommentsToolDeps): ToolRegistration[] {
+export function buildCommentsRegistrations(
+  routeDeps: CommentsToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     comments_list_moderation_queue: async (ctx) => {
       const input = requireInputRecord(ctx.input);
@@ -226,7 +285,91 @@ export function buildCommentsRegistrations(routeDeps: CommentsToolDeps): ToolReg
 
     comments_approve_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "approve", toStatus: "approved" }),
     comments_mark_comment_spam: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "mark_spam", toStatus: "spam" }),
-    comments_trash_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.delete", action: "trash", toStatus: "trash" }),
+
+    /**
+     * The MCP-UI-gated trash — the second tool (after `content_post_delete`) migrated onto the
+     * shared held-open confirmation exchange (2026-09-08, ADS-memory/reports/
+     * 2026-09-08-delete-confirmation-build.md). Unlike Posts/Pages, this domain's own write path
+     * (`applyModeration`) already carries an optimistic-concurrency check via `expectedVersion`, so
+     * no separate stale-version re-read is needed here — a row that moved between the dialog
+     * opening and the click surfaces as `applyModeration`'s own `conflict` result, thrown the same
+     * way it always was.
+     *
+     * No fallback to the unconfirmed shape when `ctx.emitSurface` is unavailable — mirrors
+     * `content_post_delete`'s identical fail-closed posture (see that handler's own doc).
+     */
+    comments_trash_comment: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const commentId = requireString(input, "commentId");
+      const expectedVersion = requireNumber(input, "expectedVersion");
+
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "comments.delete",
+        entityType: "comment",
+        entityId: commentId,
+      });
+
+      await routeDeps.commentsReady;
+      const existing = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
+      if (!existing) throw new Error(`comment '${commentId}' was not found`);
+
+      if (!ctx.emitSurface) {
+        throw new Error(
+          "comments_trash_comment: this execution context has no interactive confirmation channel " +
+            "(no emitSurface), so a destructive trash cannot be gated here. Nothing was trashed."
+        );
+      }
+
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
+        { toolId: COMMENTS_TRASH_TOOL_ID, principalId: ctx.principal.id },
+        ctx.emitSurface
+      );
+      const ui = buildTrashConfirmationResource({
+        comment: { authorName: existing.authorName, bodyText: existing.bodyText, status: existing.status },
+        exchangeId: exchange.id,
+      });
+
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      try {
+        const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+        if (!outcome.confirmed) {
+          if (outcome.reason === "declined") {
+            return { trashed: false, cancelled: true, commentId };
+          }
+          return {
+            trashed: false,
+            cancelled: false,
+            reason: outcome.reason,
+            note:
+              outcome.reason === "expired"
+                ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
+                : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
+          };
+        }
+
+        const result = await routeDeps.commentWriteService.applyModeration({
+          workspaceId: routeDeps.workspaceId,
+          id: commentId,
+          expectedVersion,
+          action: "trash",
+          toStatus: "trash",
+          actorPrincipalId: ctx.principal.id,
+          note: typeof input.note === "string" ? input.note : null,
+        });
+        if (!result.ok) {
+          throw result.reason === "conflict"
+            ? new Error(`comment was modified concurrently (current version is ${result.currentVersion}) — re-read with comments_list_moderation_queue and retry with the fresh version`)
+            : new Error(`comment '${commentId}' was not found`);
+        }
+
+        return { trashed: true, cancelled: false, moderated: { commentId, toStatus: "trash" } };
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
+    },
+
     comments_restore_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "restore", toStatus: "approved" }),
   };
 

@@ -235,10 +235,15 @@ test("the ToolPolicy layer is a pass-through 'allow' for every Comments registra
 // 3. Authorization (explicit-handler style) — each moderation action
 // ---------------------------------------------------------------------------
 
+// `comments_trash_comment` is deliberately EXCLUDED from this generic loop: unlike the other three
+// moderation transitions, it now raises a human-confirmation dialog (2026-09-08, ADS-memory/reports/
+// 2026-09-08-delete-confirmation-build.md) and so needs its own execution context (`emitSurface`) and
+// its own decision-branching — see `comments/__tests__/agent-tools.trash-confirmation.test.ts`, which
+// certifies exactly the properties this loop certifies for its 3 remaining members, plus the
+// confirmation gate itself.
 const MODERATION_TOOLS: Record<string, { permission: string; toStatus: string }> = {
   comments_approve_comment: { permission: "comments.moderate", toStatus: "approved" },
   comments_mark_comment_spam: { permission: "comments.moderate", toStatus: "spam" },
-  comments_trash_comment: { permission: "comments.delete", toStatus: "trash" },
   comments_restore_comment: { permission: "comments.moderate", toStatus: "approved" },
 };
 

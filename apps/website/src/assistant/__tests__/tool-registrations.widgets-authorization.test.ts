@@ -217,7 +217,20 @@ test("every wired widgets tool declares exactly the permission EXPECTED_PERMISSI
 });
 
 for (const toolId of Object.keys(EXPECTED_PERMISSIONS)) {
-  test(`${toolId}: calls authorize() with its declared permission and the run's principal`, async () => {
+  test(`${toolId}: calls authorize() with its declared permission and the run's principal`, async (t) => {
+    // `widgets_trash_instance` now raises a confirmation dialog before writing (2026-09-08,
+    // ADS-memory/reports/2026-09-08-delete-confirmation-build.md) — its pre-dialog read gates on
+    // `widgets.read` (via `getWidgetInstance`), deferring `widgets.delete` to the CONFIRMED write,
+    // and this generic loop calls the handler with no `emitSurface` at all (it would throw "no
+    // interactive confirmation channel" before ever reaching that write). Its own authorization
+    // ordering — read-gate before the dialog, delete-gate only on confirm — is certified directly by
+    // `widgets/__tests__/agent-tools.trash-confirmation.test.ts`, mirroring the same exclusion
+    // `tool-registrations.post.test.ts` already carries for `content_post_delete`.
+    if (toolId === "widgets_trash_instance") {
+      t.skip("confirmation-gated — see widgets/__tests__/agent-tools.trash-confirmation.test.ts");
+      return;
+    }
+
     const { deps, authorizeCalls } = fakeRouteDeps();
     const fixture = await seedFixture(deps);
     authorizeCalls.length = 0;

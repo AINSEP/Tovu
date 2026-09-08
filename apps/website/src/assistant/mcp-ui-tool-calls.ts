@@ -145,6 +145,16 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // would render correctly and every acknowledgement would 403, leaving the parked call to expire
   // on its own idle deadline instead of ever resolving.
   "external_mcp_reauth_prompt",
+  // 2026-09-08 — narrow-path delete-confirmation build (ADS-memory/reports/
+  // 2026-09-08-delete-confirmation-build.md, executing 2026-09-08-content-delete-eval.md §5's
+  // recommendation): each of these holds up the SAME held-open-exchange shape `content_post_delete`
+  // does — its handler opens a `SurfaceExchangeStore` exchange via the shared
+  // `resolveConfirmationDecision` (`contracts/core/tool-surface-exchanges.ts`) and parks on the
+  // human's confirm/cancel click before performing its own trash/tombstone/delete. Identity's
+  // `identity_role_delete`/`identity_policy_delete` and `workspace_delete` are deliberately absent —
+  // out of scope for this family (see that report's §1.2).
+  "comments_trash_comment",
+  "widgets_trash_instance",
 ]);
 
 /**

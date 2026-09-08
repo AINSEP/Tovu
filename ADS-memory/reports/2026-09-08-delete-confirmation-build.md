@@ -89,6 +89,61 @@ own `delete-confirmation-ui.ts`), wire the handler to open an exchange / resolve
 to `MCP_UI_REDEEMABLE_TOOL_IDS`, write RED-first tests modeled on
 `features/post/__tests__/agent-tools.delete-confirmation.test.ts`.
 
-**Remaining work**: all 7 domains' handler wiring + tests, `MCP_UI_REDEEMABLE_TOOL_IDS` additions,
-ADR-055 status update, `check:boundaries` baseline re-check (must stay 19), live admin E2E run + DB
-read-only verification, final report.
+## Step 2 progress — comments and widgets domains COMPLETE
+
+### `comments_trash_comment`
+- `apps/website/src/features/comments/tool-registrations.ts`: pulled trash out of the shared
+  `buildCommentsModerationHandler` (still used by approve/mark_spam/restore, unchanged) into its own
+  confirmation-gated handler. Pre-dialog: `comments.delete` permission check (matches catalog),
+  `commentRepo.findById` for dialog display. On confirm: `commentWriteService.applyModeration` —
+  self-protecting against staleness via its own `expectedVersion` check, no separate re-read needed
+  (unlike Posts/Pages).
+- `buildCommentsRegistrations` gained `surfaces: AssistantSurfaceDeps` (defaulted), added to
+  `MCP_UI_REDEEMABLE_TOOL_IDS`.
+- RED confirmed first (dialog never raised against the unwired handler — 6 failures), then wired,
+  then GREEN.
+- New file `comments/__tests__/agent-tools.trash-confirmation.test.ts` — 19/19 pass.
+- Updated `assistant/__tests__/tool-registrations.comments.test.ts`: removed `comments_trash_comment`
+  from the generic `MODERATION_TOOLS` loop (its shape genuinely changed — needs `emitSurface` and its
+  own decision branching), with an explanatory comment pointing at the new dedicated file.
+- Full regression: 40/40 pass (new file + updated assistant-level file).
+
+### `widgets_trash_instance`
+- `apps/website/src/features/widgets/tool-registrations.ts`: pre-dialog read via `getWidgetInstance`
+  (gates `widgets.read`, matching `content_post_delete`'s read/write split). On confirm:
+  `trashWidgetInstance` unchanged — it re-derives `expectedVersion` from a FRESH read taken AT CONFIRM
+  TIME, inside itself, so (unlike Posts/Pages) no separate staleness re-check was needed in the new
+  handler; a row that moved while the dialog was open is simply the version it writes against.
+- `buildWidgetsRegistrations` gained `surfaces` (defaulted), added to `MCP_UI_REDEEMABLE_TOOL_IDS`.
+- New file `widgets/__tests__/agent-tools.trash-confirmation.test.ts` — 10/10 pass, including a test
+  proving `widgets.read` is checked pre-dialog and `widgets.delete` only at confirm time.
+- 3 existing test files broke on the behavior change and were updated, not weakened:
+  - `widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts` and
+    `.region-gaps.test.ts`: added a `trashInstance()` helper (raise dialog, auto-confirm) replacing a
+    bare synchronous handler call — these tests only needed a trashed instance to exist, not to
+    certify the gate itself.
+  - `assistant/__tests__/tool-registrations.widgets-contracts.test.ts`: same helper pattern for its
+    one workflow-test call site.
+  - `assistant/__tests__/tool-registrations.widgets-authorization.test.ts`: added a `t.skip(...)` for
+    `widgets_trash_instance` in the generic "calls authorize() with its declared permission" loop
+    (mirrors the existing `content_post_delete` exclusion in `tool-registrations.post.test.ts`) — the
+    sibling "denied principal rejected" test in the same loop still passes unmodified, since
+    `WidgetForbiddenError` is thrown regardless of which permission failed.
+- Full regression: 56 pass, 1 skipped (the documented exclusion above), 0 failures.
+
+### Both domains
+- `npx tsc -p tsconfig.json --noEmit` from repo root: clean after each domain.
+- `MCP_UI_REDEEMABLE_TOOL_IDS` now carries: `content_post_delete` (pre-existing),
+  `comments_trash_comment`, `widgets_trash_instance`.
+
+## Remaining work
+
+- 4 more domains: `theme_trash_file`, `redirects_tombstone`, `webhooks_delete_subscription` (Tovu-side),
+  `media_trash_asset`, `collections_content_type_tombstone` (Jini-side — need a package rebuild after
+  editing, per `reference_jini_dist_rebuild_required_for_tovu`).
+- ADR-055 status update (DRAFT → accepted, per Leona, 2026-09-08), add to ADR-INDEX.md, note the
+  ADR-053 DRAFT dependency as an open item for Leona (do NOT touch ADR-053 itself).
+- `check:boundaries` baseline re-check (must stay 19).
+- Live admin E2E run via the admin assistant (switch dock to API · BYOK (Gemini)) for at least one
+  confirmed delete, then verify via a read-only DB read (never trust the chat's own claim).
+- Final report to team-lead with the full worklist above.

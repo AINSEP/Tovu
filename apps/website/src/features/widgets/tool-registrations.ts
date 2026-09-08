@@ -30,7 +30,15 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
+import {
+  createSurfaceExchangeStore,
+  resolveConfirmationDecision,
+  SURFACE_EXCHANGE_ID_PARAM,
+  type AssistantSurfaceDeps,
+  type SurfaceExchange,
+} from "../../contracts/core/tool-surface-exchanges.js";
 import { toWhereUsedResponse } from "./where-used.js";
 import { widgetsAgentToolCatalog } from "./agent-tools.js";
 import { requireWidgetPermission } from "./authorize-helper.js";
@@ -138,6 +146,51 @@ function toWidgetInstanceToolView(instance: WidgetInstanceEntry): WidgetInstance
   };
 }
 
+const WIDGETS_TRASH_TOOL_ID = "widgets_trash_instance";
+
+/** The `ui://` URI for one trash-confirmation instance — keyed by the exchange id, mirroring
+ *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
+function trashConfirmationUri(exchangeId: string): UIResourceUri {
+  return `ui://tovu/widgets-trash-instance/${exchangeId}` as UIResourceUri;
+}
+
+/**
+ * Renders `widgets_trash_instance`'s confirmation dialog. Mirrors
+ * `features/post/delete-confirmation-ui.ts`'s `buildDeleteConfirmationResource` shape; Jini's
+ * `buildConfirmationSurface` owns HOW the dialog behaves, this only decides WHAT it says.
+ *
+ * @complexity O(1).
+ */
+function buildTrashConfirmationResource(spec: {
+  instance: { title: string; widgetType: string; status: WidgetInstanceEntry["status"] };
+  exchangeId: string;
+}): UIResource {
+  const { instance, exchangeId } = spec;
+  return buildConfirmationSurface({
+    uri: trashConfirmationUri(exchangeId),
+    title: "Trash this widget instance?",
+    description: "The widget instance will be moved to the trash and removed from wherever it is currently placed.",
+    details: [
+      { label: "Title", value: instance.title },
+      { label: "Widget type", value: instance.widgetType },
+      { label: "Current status", value: instance.status },
+    ],
+    danger: true,
+    confirm: {
+      label: "Trash widget",
+      toolName: WIDGETS_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+    },
+    cancel: {
+      label: "Cancel",
+      toolName: WIDGETS_TRASH_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
+    },
+    app: { appName: "tovu-widgets-trash-instance", appVersion: "1" },
+    preferredFrameSize: ["100%", "320px"],
+  });
+}
+
 /** What a Widgets region tool returns to the model — see {@link toWidgetAreaToolView}. `doc`/`workspaceId` are dropped: placements are returned separately, already resolved. */
 interface WidgetAreaToolView {
   id: string;
@@ -164,7 +217,10 @@ async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement:
   };
 }
 
-export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegistration[] {
+export function buildWidgetsRegistrations(
+  routeDeps: WidgetsToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     widgets_list_instances: async (ctx) => {
       const input = isRecord(ctx.input) ? ctx.input : {};
@@ -253,13 +309,67 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       });
     },
 
+    /**
+     * The MCP-UI-gated trash — migrated onto the shared held-open confirmation exchange
+     * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md). The pre-dialog read
+     * gates on `widgets.read` (via `getWidgetInstance`), deferring `widgets.delete` to the confirmed
+     * write — same split `content_post_delete` uses for `content.read`/`content.write`.
+     * `trashWidgetInstance` re-reads the row and derives `expectedVersion` from that fresh read
+     * INSIDE itself, right before writing, so no separate staleness re-check is needed here the way
+     * `content_post_delete`'s own handler needs one — a row that moved while the dialog was open is
+     * simply the version `trashWidgetInstance` writes against.
+     */
     widgets_trash_instance: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const { instance } = await trashWidgetInstance({
-        deps: buildWidgetsDeps(routeDeps),
-        input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId: requireString(input, "widgetInstanceId") },
+      const widgetInstanceId = requireString(requireInputRecord(ctx.input), "widgetInstanceId");
+
+      const { instance } = await getWidgetInstance({
+        deps: { entryRepo: routeDeps.entryRepo, authorize: routeDeps.authorize },
+        input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
       });
-      return { instance: toWidgetInstanceToolView(instance) };
+
+      if (!ctx.emitSurface) {
+        throw new Error(
+          "widgets_trash_instance: this execution context has no interactive confirmation channel " +
+            "(no emitSurface), so a destructive trash cannot be gated here. Nothing was trashed."
+        );
+      }
+
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
+        { toolId: WIDGETS_TRASH_TOOL_ID, principalId: ctx.principal.id },
+        ctx.emitSurface
+      );
+      const ui = buildTrashConfirmationResource({
+        instance: { title: instance.title, widgetType: instance.widgetType, status: instance.status },
+        exchangeId: exchange.id,
+      });
+
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      try {
+        const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+        if (!outcome.confirmed) {
+          if (outcome.reason === "declined") {
+            return { trashed: false, cancelled: true, instance: toWidgetInstanceToolView(instance) };
+          }
+          return {
+            trashed: false,
+            cancelled: false,
+            reason: outcome.reason,
+            note:
+              outcome.reason === "expired"
+                ? "The user did not respond to the confirmation dialog before it expired. Nothing was trashed."
+                : "The confirmation dialog was closed because the run ended. Nothing was trashed.",
+          };
+        }
+
+        const { instance: trashed } = await trashWidgetInstance({
+          deps: buildWidgetsDeps(routeDeps),
+          input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
+        });
+        return { trashed: true, cancelled: false, instance: toWidgetInstanceToolView(trashed) };
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
     },
 
     widgets_bind_region: async (ctx) => {
