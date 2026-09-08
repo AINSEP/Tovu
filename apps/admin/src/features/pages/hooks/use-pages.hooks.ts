@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { PAGES_DICT } from "../pages-i18n";
-import { PAGES_RESOURCE } from "../rules";
+import { buildPageRowMenuHandleMap, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -58,6 +58,23 @@ export interface PagesController {
   /** The raw resolved locale — exposed only because `pageRowMenuItems` (`../rules.ts`) genuinely
    *  needs it, not `t`. */
   locale: string;
+  /** Each page's row-menu agent handle, keyed by page id — looked up by ID, never by render
+   *  position. See {@link usePageRowMenuHandleMap}'s own doc for why. */
+  rowMenuHandleById: Map<string, string>;
+}
+
+/**
+ * `DataTable` sorts internally from `sort` + each column's own comparator — `pages` is passed
+ * through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
+ * built once from `pages`' own stable order and looked up BY ID in each cell, rather than by render
+ * position: `buildPageRowMenuHandleMap`'s own contract derives a handle from each id, not its
+ * position, specifically so a control keeps the same handle even after the table reorders — which
+ * is exactly what re-sorting does. Memoized on `pages` alone so re-sorting or any other unrelated
+ * re-render (`sort`, `locale`) does not rebuild this map and hand `RowMenu` a new handle-string
+ * identity every time. Mirrors `use-posts.hooks.ts`'s `usePostRowMenuHandleMap` verbatim.
+ */
+export function usePageRowMenuHandleMap(pages: AdminPost[] | null): Map<string, string> {
+  return useMemo(() => buildPageRowMenuHandleMap(pages), [pages]);
 }
 
 export interface PagesDependencies {
@@ -106,6 +123,8 @@ export function usePages(deps: PagesDependencies): PagesController {
   }, [load]);
 
   useContentRefreshSubscription(PAGES_RESOURCE, load);
+
+  const rowMenuHandleById = usePageRowMenuHandleMap(pages);
 
   async function createPage() {
     setCreating(true);
@@ -187,6 +206,7 @@ export function usePages(deps: PagesDependencies): PagesController {
     removePage,
     t,
     locale,
+    rowMenuHandleById,
   };
 }
 

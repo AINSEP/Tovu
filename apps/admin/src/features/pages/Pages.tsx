@@ -6,7 +6,6 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { adminHref, navigate } from "../../lib/router";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { TabBar } from "../../components/TabBar";
 import {
   pageRowMenuItems,
@@ -114,6 +113,7 @@ export function Pages(props: PagesProps) {
     removePage,
     t,
     locale,
+    rowMenuHandleById,
   } = usePagesHook();
   const {
     pages: themePages,
@@ -149,15 +149,6 @@ export function Pages(props: PagesProps) {
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so
   // `rows={pages}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
   if (!pages) return null;
-
-  // Page ids are stable and unique, so they disambiguate one row's title/slug/menu handles from
-  // another's — same reasoning as every other list on this workstream (`Posts.tsx`'s identical
-  // `rowMenuHandleById`, computed in its own hook rather than here since this screen has no
-  // equivalent hook-side map yet).
-  const rowHandles = buildAgentListHandles(
-    "pages-row",
-    pages.map((page) => page.id),
-  );
 
   return (
     <div className="page">
@@ -219,10 +210,10 @@ export function Pages(props: PagesProps) {
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
                 // link reads as a slug for every ordinary page and falls back to the id only for that
                 // one. `adminHref` (`lib/router.ts`) turns the bare route path into a real `<a href>`.
-                cell: (page, index) => (
+                cell: (page) => (
                   <a
                     href={adminHref(pageAdminPath(page))}
-                    {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this page's editor" })}
+                    {...agentHandle(`${rowMenuHandleById.get(page.id)}-edit`, { role: "link", label: "Open this page's editor" })}
                   >
                     {page.title}
                   </a>
@@ -235,12 +226,12 @@ export function Pages(props: PagesProps) {
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
-                cell: (page, index) => (
+                cell: (page) => (
                   <a
                     href={siteUrl(pagePublicPath(page.slug))}
                     target="_blank"
                     rel="noreferrer"
-                    {...agentHandle(`${rowHandles[index]}-view-live`, { role: "link", label: "Open this page on the live public site" })}
+                    {...agentHandle(`${rowMenuHandleById.get(page.id)}-view-live`, { role: "link", label: "Open this page on the live public site" })}
                   >
                     {pagePublicPath(page.slug)}
                   </a>
@@ -263,10 +254,10 @@ export function Pages(props: PagesProps) {
               {
                 key: "actions",
                 header: t("More"),
-                cell: (page, index) => (
+                cell: (page) => (
                   <RowMenu
                     triggerLabel={`Actions for "${page.title}"`}
-                    agentHandle={`${rowHandles[index]}-menu`}
+                    agentHandle={`${rowMenuHandleById.get(page.id)}-menu`}
                     items={pageRowMenuItems(
                       page,
                       {

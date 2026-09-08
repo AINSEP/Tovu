@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Pages, pagesListNotice } from "../Pages";
+import { buildPageRowMenuHandleMap } from "../rules";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { navigate } from "@/lib/router";
@@ -55,6 +56,7 @@ const PAGE: AdminPost = {
 const DRAFT_PAGE: AdminPost = { ...PAGE, id: "pg2", title: "Draft Page", slug: "draft-page", status: "draft" };
 
 function controller(overrides: Partial<PagesController> = {}): PagesController {
+  const pages = overrides.pages !== undefined ? overrides.pages : [PAGE];
   return {
     pages: [PAGE],
     error: null,
@@ -70,6 +72,10 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     // as every assertion below already expects.
     t: (key) => key,
     locale: "en",
+    // `Pages.tsx` destructures this from the hook rather than computing it itself (2026-09-07,
+    // audit claim #2), so the fixture has to build it from whatever `pages` this call passes —
+    // mirrors `posts/__tests__/Posts.unit.test.tsx`'s identical fixture line.
+    rowMenuHandleById: buildPageRowMenuHandleMap(pages),
     ...overrides,
   };
 }
@@ -919,5 +925,48 @@ describe("pagesListNotice", () => {
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
     expect(pagesListNotice([], "a later error")).toBeNull();
+  });
+});
+
+/**
+ * REGRESSION (2026-09-07 audit claim #2): per-row agent handles must follow the ROW, not the
+ * render position.
+ *
+ * `DataTable` sorts internally (`sortedTableRows(props.rows, props.columns, props.sort)`, see
+ * `@jini-ai/admin`'s `DataTable.tsx`) and hands each `cell` callback the index into that SORTED
+ * order. `Pages.tsx` built its handle array from the unsorted `pages` prop and looked it up by
+ * that sorted index, so every row whose sort position differed from its array position published
+ * another page's handle — an agent asked to open "Draft Page" clicked "About".
+ *
+ * The fixture below is arranged so the default sort (`DEFAULT_PAGE_SORT`, Updated newest-first)
+ * inverts the array order: `pg1` is first in `pages` but renders second.
+ */
+describe("per-row agent handles survive the table's own sort", () => {
+  const OLDER: AdminPost = { ...PAGE, id: "pg1", title: "About", slug: "about", updatedAt: "2026-08-01T00:00:00.000Z" };
+  const NEWER: AdminPost = { ...PAGE, id: "pg2", title: "Draft Page", slug: "draft-page", updatedAt: "2026-08-09T00:00:00.000Z" };
+
+  /** The `data-agent-element` handle published on the row whose Title cell links to `title`. */
+  function editHandleForTitle(container: HTMLElement, title: string): string | null {
+    const link = within(container).getByRole("link", { name: title });
+    return link.getAttribute("data-agent-element");
+  }
+
+  it("publishes each row's own id-derived handle after the default sort reorders them", () => {
+    const { container } = render(
+      <Pages
+        usePagesHook={() => controller({ pages: [OLDER, NEWER] })}
+        useThemePagesHook={() => themePagesController()}
+      />
+    );
+
+    // Sanity: the default sort really did invert the array order, or this test proves nothing.
+    const titles = within(container)
+      .getAllByRole("link")
+      .map((el) => el.textContent)
+      .filter((text) => text === "About" || text === "Draft Page");
+    expect(titles).toEqual(["Draft Page", "About"]);
+
+    expect(editHandleForTitle(container, "Draft Page")).toBe("pages-row-pg2-edit");
+    expect(editHandleForTitle(container, "About")).toBe("pages-row-pg1-edit");
   });
 });
