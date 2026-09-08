@@ -76,10 +76,27 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   webhooks_pause_subscription: "webhook webhooks pause stop disable suspend integration",
   webhooks_get_deliveries: "webhook webhooks delivery deliveries fired sent failed failure retry retries attempts log history",
 
+  // --- external mcp (agent tool servers) ----------------------------------------------------------------
+  // 2026-09-08 (ADS-memory/reports/2026-09-08-tool-keywords.md) — all five external_mcp_* tools had
+  // no keyword entry at all. Phrased from what an operator asks for when they want to plug in
+  // another AI tool/service (the "connect me to higgsfield" style request), not from the domain's
+  // own "MCP"/"transport"/"authMode" nouns.
+  external_mcp_list: "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai higgsfield",
+  external_mcp_save: "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai higgsfield update edit change existing",
+  external_mcp_test_connection: "test check connection working works verify diagnose troubleshoot external tool server integration mcp",
+  external_mcp_oauth_connect: "connect sign in log in authorize authorization oauth account link external tool server integration mcp",
+  external_mcp_oauth_poll_device: "check status finished done connected ready oauth device code sign in external tool server mcp waiting",
+
   // --- backup / recovery -------------------------------------------------------------------
   backup_create_restore_point: "snapshot snapshots backup backups checkpoint save point restore safety before break",
   backup_list_restore_points: "snapshot snapshots backup backups checkpoint restore points list history",
   backup_plan_restore: "restore rollback revert recover undo snapshot backup",
+  // 2026-09-08 (ADS-memory/reports/2026-09-08-tool-keywords.md) — 22-id keyword-coverage backfill.
+  // backup_execute_restore, like several other entries added in this same batch, is deliberately
+  // UNWIRED (never agent-callable — see its own file header): it exists only to complete the human
+  // restore ceremony's confirmation token. Given an entry anyway, per this dispatch's instruction,
+  // for consistency and so a future wiring change does not also need a keyword backfill.
+  backup_execute_restore: "restore rollback revert recover undo run execute confirm confirmed apply go back to an earlier version snapshot restore point actually do the restore",
   backup_get_capabilities: "backup snapshot restore support capability available",
   recovery_get_status: "backup restore status health check migration in progress warning banner problem",
   recovery_resolve_deep_link: "restore point link verify check database timeline deep link envelope",
@@ -91,6 +108,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   redirects_get_hits: "url link redirect hits traffic clicks visits how many people broken followed",
   redirects_update: "url link redirect change edit update destination target",
   redirects_tombstone: "url link redirect delete remove disable",
+  // Deliberately UNWIRED (never agent-callable, bulk write — see file header); entry added for
+  // consistency, same reasoning as backup_execute_restore above.
+  redirects_import: "url urls link links redirect redirects import bulk upload csv batch add many rules all at once migrate old urls",
 
   // --- identity / access -------------------------------------------------------------------
   identity_role_assign: "admin administrator access permission permissions grant give role promote make elevate someone user",
@@ -170,6 +190,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   taxonomy_list: "tags categories taxonomies topics labels list",
   taxonomy_rename_term: "tag category term rename edit change name",
   taxonomy_plan_merge_term: "tag category term merge combine duplicate preview before",
+  // Deliberately UNWIRED (never agent-callable, token-gated confirmation step — see file header);
+  // entry added for consistency per this dispatch's explicit instruction.
+  taxonomy_execute_merge_term: "tag category term merge combine execute run confirm confirmed apply proceed",
 
   // --- widgets -------------------------------------------------------------------------------------
   widgets_bind_region: "widget sidebar footer region area slot place put add section",
@@ -209,7 +232,21 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   database_list_pending_migrations: "database migration migrations pending upgrade schema",
   database_list_restore_points: "backup snapshot history available recovery points",
   database_plan_migrate_forward: "database migration migrate upgrade schema preview plan dry run what would happen before",
+  // Deliberately UNWIRED (never agent-callable — see file headers); entries added for consistency,
+  // same reasoning as backup_execute_restore above.
+  database_execute_migrate_forward: "database migration migrate run execute apply confirm confirmed upgrade schema forward proceed go ahead",
+  database_get_restore_guidance: "database restore recover rollback revert snapshot earlier version how do i where do i go recovery guidance link help",
   database_query_timeline: "database history log timeline events audit trail what happened ledger",
+
+  // --- sites (site directory) ---------------------------------------------------------------------------
+  // 2026-09-08 (ADS-memory/reports/2026-09-08-tool-keywords.md) — sites_duplicate_site is the one
+  // duplicate/copy tool that already existed with NO "duplicate" keyword at all, which is the direct
+  // cause of a real production miss: an operator asked to "copy Landing sample" and nothing was
+  // found. MUST carry "copy duplicate clone" — see this file's own header on why a keyword miss is a
+  // silent failure mode, not a wrong-result one.
+  sites_duplicate_site:
+    "site sites copy duplicate clone new client starting point template based on existing existing site " +
+    "spin up stand up set up create from a copy of same content",
 
   // --- content / collections --------------------------------------------------------------------------
   content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",
@@ -232,6 +269,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   collections_entry_update: "entry record item content edit change save update field value",
 
   // --- content types (custom fields / schema) -----------------------------------------------------------
+  // Deliberately UNWIRED (never agent-callable, token-gated destructive removal — see file header);
+  // entries added for consistency, same reasoning as backup_execute_restore above.
+  collections_plan_cleanup: "content type content types cleanup clean up purge wipe delete permanently preview plan check what would happen before dry run eligible eligibility tombstoned old unused",
+  collections_execute_cleanup: "content type content types cleanup clean up purge wipe delete permanently erase get rid of remove run execute confirm confirmed tombstoned old unused rows records data",
   collections_content_type_define: "content type custom fields schema model post type kind of content structure define build register new",
   collections_content_type_deprecate: "content type retire stop using disable old outdated no longer need freeze",
   collections_content_type_list: "content types schema models available what content kinds exist fields structure",
@@ -242,10 +283,23 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- workspace / settings ------------------------------------------------------------------------------
   workspace_get: "site name title settings workspace details info about",
   workspace_update: "site name title rename change workspace settings brand",
+  // workspace_create and workspace_delete are deliberately UNWIRED (never agent-callable — creating
+  // or deleting the single addressable workspace row would orphan or break every other domain's
+  // boot-wired workspaceId — see file header). Entries added for consistency, same reasoning as
+  // backup_execute_restore above.
+  workspace_create: "workspace site create new add",
+  workspace_delete: "workspace site delete remove destroy get rid of",
   settings_get_effective: "setting settings configuration config value current",
   settings_list_definitions: "setting settings configuration options available what can",
   settings_get_raw: "setting raw value layer global workspace user default unresolved debug",
   settings_set_ui_preference: "preference language theme accent color notification sounds personal admin ui my settings",
+  // settings_set, settings_clear, settings_reset, and settings_register_definitions are deliberately
+  // UNWIRED (never agent-callable — generic/bulk/schema-level settings access, see file header).
+  // Entries added for consistency, same reasoning as backup_execute_restore above.
+  settings_set: "setting settings set change value update configure raw key",
+  settings_clear: "setting settings clear reset remove value revert back to default delete unset",
+  settings_reset: "setting settings reset all defaults wipe clear everything bulk namespace",
+  settings_register_definitions: "setting settings definition definitions register schema rename change type deprecate add new remove",
 
   // --- plugins -------------------------------------------------------------------------------------------
   plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
@@ -316,6 +370,16 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "call calling request requests curl wget http https api endpoint third-party thirdparty external outside " +
     "service vendor provider dns registrar hosting deployment domain credential token use using saved fetch " +
     "send get post put patch delete hit query invoke run execute",
+  // 2026-09-08 (ADS-memory/reports/2026-09-08-tool-keywords.md) — set_username/set_token/create had
+  // no keyword entry at all, same family as the list/verify/make_request entries above.
+  custom_credential_set_username:
+    "credential username set add fix repair update change login sign in basic auth account name saved " +
+    "api key token 401 unauthorized broken not working",
+  custom_credential_set_token:
+    "credential token api key set update change rotate replace new expired refresh save secret",
+  custom_credential_create:
+    "credential add new create save connect account api key token provider registrar hosting third-party " +
+    "service dns fly.io name.com",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by
