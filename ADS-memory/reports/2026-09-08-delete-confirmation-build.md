@@ -343,3 +343,118 @@ Approximately 40–45% of budget at handoff (well under the 250k self-report tri
 above is what remains: fix `media_trash_asset`'s one-line allowlist gap, update its stale test file
 and add its dedicated confirmation test file (mirroring `widgets`/`comments`), then re-run this same
 verification pass on it.
+
+## Closeout — media_trash_asset fixed (2026-09-08 13:35–14:10, same rotation)
+
+Authorized by team-lead to fix rather than only report, given full context and 45% budget used.
+
+**The lesson, stated plainly, since it is the actual point of this catch:** "it registers" and "it
+works" are different claims, and this build only ever checked the first one for `media_trash_asset`.
+The tool registered in the catalog with no compile error. Its dialog rendered with correct, real
+asset data. Every direct-handler test passed. None of that touches
+`MCP_UI_REDEEMABLE_TOOL_IDS` — only the actual HTTP route a browser's click posts to does — so a
+human clicking either button in a fully-correct-looking dialog got `403 TOOL_NOT_ALLOWLISTED` and
+nothing else in the suite ever knew. The only thing that caught it was a live click through the
+admin assistant. That is now fixed structurally, not just patched: a new test reaches the real route
+and would fail again if this ever regressed (see item 3 below), which no test in this build did
+before today.
+
+### 1. The one-line fix
+
+`apps/website/src/assistant/mcp-ui-tool-calls.ts` — added `"media_trash_asset"` to
+`MCP_UI_REDEEMABLE_TOOL_IDS`, mirroring the other five entries' comment style exactly, with a note
+pointing at the new integration test (item 3) as the proof.
+
+### 2. Stale test file fixed
+
+`apps/website/src/assistant/__tests__/tool-registrations.media.test.ts`: added a `trashAsset()`
+helper (raise the dialog, auto-confirm via a real `SurfaceExchangeStore`), mirroring
+`widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts`'s identical `trashInstance`
+helper. The 4 previously-failing tests (`a trashed asset's publicUrl is null...`, `media_trash_asset
+is a status flip...`, the upload/update/trash workflow test, and the media_trash_asset arm of the
+generic authorize-call loop) now use it. The authorize-call loop test itself is `t.skip`'d for
+`media_trash_asset` specifically (same reasoning `tool-registrations.post.test.ts`/
+`tool-registrations.widgets-authorization.test.ts` already carry for `content_post_delete`/
+`widgets_trash_instance`: the loop calls the handler with no `emitSurface` at all, which is a
+different failure than what it's pinning). File result: 26 pass, 1 skip, 0 fail.
+
+### 3. Dedicated confirmation test file — AND the test that actually catches the allowlist gap
+
+Two new files, because one alone would have repeated the exact mistake:
+
+- `apps/website/src/features/media/__tests__/agent-tools.trash-confirmation.test.ts` (10 tests) —
+  handler-level certification mirroring `widgets/__tests__/agent-tools.trash-confirmation.test.ts`:
+  dialog naming, confirm/cancel/fail-closed/expired, no-emitSurface refusal, `media.delete` checked
+  pre-dialog with a denied principal never seeing one, nonexistent-id refusal, and one media-specific
+  addition — confirming an already-trashed asset is a no-op (`trashMedia`'s own idempotency),
+  reachable now through the confirmation wrapper for the first time. Required exporting
+  `buildMediaRegistrationsForTovu` from `features/media/tool-registrations.ts` (was private) so this
+  file could call it directly with a fake `MediaToolDeps & MediaPublicUrlDeps`, the same
+  `build<Domain>Registrations` pattern every sibling domain already exports.
+- `apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts`
+  (2 tests) — the one that matters. Mirrors
+  `mcp-ui-tool-calls-route.static-publish.integration.test.ts`'s own module doc precisely: builds a
+  real `ToolRegistry`/`ToolExecutor`, opens the dialog for real, then POSTs to the actual
+  `MCP_UI_TOOL_CALLS_PATH` route (`registerMcpUiToolCallsRoute`, the same one
+  `server/modules/assistant.ts` proxies a browser click to) and asserts `res.status === 202`, not
+  just that the handler resolved. **Verified this is load-bearing, not just plausible**: reverted the
+  one-line fix, re-ran this file, got the exact live failure back —
+  `403 {"error":"'media_trash_asset' is not an MCP-UI-redeemable tool","code":"TOOL_NOT_ALLOWLISTED"}`
+  on both tests — then restored the fix and re-ran to confirm green again. This RED/GREEN cycle is
+  the concrete answer to "make at least one test fail if the tool is absent from the allowlist."
+
+Needed one boundaries fix to land cleanly: this new integration test deep-imports
+`features/media/tool-registrations.ts` from `assistant/__tests__/`, which `check:boundaries`
+(promoted to `error` for `features/media`) correctly flags unless exempted. Added the file's path to
+`.dependency-cruiser.mjs`'s `TOOL_REGISTRATION_TEST_FROM_EXTRA` list — the exact mechanism
+`mcp-ui-tool-calls-route.content-search.integration.test.ts` already uses for the identical shape
+("a route integration test that needs a domain's real registrations wired for real"), not a new
+carve-out.
+
+### 4. Re-verification pass on media (repeating the original 6-item pass)
+
+- **Registration + allowlist, rebuilt for real** (not inferred from `tsc`): all 6 tools present in
+  the 170-tool catalog; all 6 now `true` in `MCP_UI_REDEEMABLE_TOOL_IDS` (previously `media_trash_asset`
+  was the one `false`).
+- **Scoped tests, full 6-domain regression from repo root**: **423 tests, 421 pass, 2 skip
+  (both intentional/documented), 0 fail** — up from the prior pass's 419/4-fail (media's 4 failures
+  now fixed, plus this closeout's 12 new tests: 10 handler-level + 2 route-level).
+- **`check:boundaries`: 19 errors — exact baseline**, re-confirmed after the dependency-cruiser
+  exemption above (was briefly 20 with the new integration test unexempted).
+- **`tsc -p tsconfig.json --noEmit`: clean, 0 errors.**
+- **Live click, DB-verified** (the acceptance criterion): fresh conversation, API · BYOK (Gemini),
+  asset `woodnest-cabin-booking` (`5da45f84-1803-4493-bfd6-ee08bd1dba2c`, still `active`/`v1` from the
+  earlier failed attempt in the same dev DB). Sent "Trash the media asset titled
+  \"woodnest-cabin-booking\".", dialog rendered, clicked **Trash asset** — this is the exact click
+  that returned `Failed: 'media_trash_asset' is not an MCP-UI-redeemable tool` before the fix.
+  This time: `Done.` / "The media asset **woodnest-cabin-booking** (`5da45f84-…`) has been moved to
+  the trash." Read-only DB confirms it:
+  ```
+  id                                    title                   status   version
+  5da45f84-1803-4493-bfd6-ee08bd1dba2c  woodnest-cabin-booking  trashed  2
+  ```
+  `status: active → trashed`, `version: 1 → 2`. Switched runtime back to Local CLI afterward, closed
+  my own browser tab.
+
+### ADR-055 status update
+
+`ADS-memory/reports/architecture/ADR-055-mcp-ui-return-path.md`: Status line changed from
+`DRAFT — not accepted` to `Accepted 2026-09-08 (owner sign-off — Leona)`. Added a row to
+`ADS-memory/reports/architecture/ADR-INDEX.md`'s table (near ADR-054/064, its nearest thematic
+neighbors) and updated the file's "Deliberately absent" note to drop 055 from the withheld list
+(053/056/057 remain withheld, unaffected). Per instruction, did **not** touch ADR-053 — left an
+explicit "Open item" note on ADR-055 itself stating that 053 (whose Decisions 1–4 this ADR assumes,
+and whose Decision 3 this ADR supersedes) remains DRAFT, and that resolving that gap is Leona's call.
+
+### What remains (unchanged from before, none of it touched here)
+
+- ADR-053/056/057 stay DRAFT, deliberately absent from the index — untouched, as instructed.
+- The five other domains' route-level allowlist coverage: `comments_trash_comment`,
+  `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone`, `webhooks_delete_subscription`
+  each still only have handler-level confirmation tests, not a
+  `mcp-ui-tool-calls-route.<domain>.integration.test.ts` proving their own `MCP_UI_REDEEMABLE_TOOL_IDS`
+  entry actually works through the real route. I independently confirmed (via the same catalog-build
+  script used above) all five are correctly present in the allowlist today, so there is no live bug —
+  but the *class* of defect this closeout fixed for media (registers + renders + every test green, yet
+  the confirm click 403s) is structurally possible for any of them and would be caught the same way.
+  Flagging as a gap, not fixing — out of the scope authorized here.
