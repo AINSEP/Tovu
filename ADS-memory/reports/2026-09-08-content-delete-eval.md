@@ -1,11 +1,11 @@
-# `content_delete` parent-tool eval + design — IN PROGRESS
+# `content_delete` parent-tool eval + design
 
 Date: 2026-09-08
 Dispatched by: Coordinator (team-lead), measurement + design only, no build.
 Persona: Software Architect (`AI-Dev-Shop/agents/software-architect/skills.md` v2.3.0, loaded).
 Methodology mirrors `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` (the read-family eval) exactly, per dispatch instruction.
 
-**Status: inventory + eval in progress. This file is being written incrementally per dispatch rules.**
+**Status: COMPLETE.** Verified inventory (§1), retrieval eval (§2), confirmation-flow design (§3), build plan (§4), recommendation (§5), open items (§6).
 
 ---
 
@@ -109,8 +109,157 @@ Arm A (one fat entry) reproduces the read eval's finding on a smaller sample: ca
 - **Added** `development/evals/tool-search-parent-tool-delete.eval.ts` — measurement-only, same guarantees as the read eval's own file (nothing registered into the shipping catalog, `tool-catalog-manifest.ts` untouched).
 - **Changed nothing else.** `tool-search-heldout-v2.ts`'s stale post-collapse ids (§2.1) and its missing `theme_trash_file` coverage (§2.2) are left as-is, flagged for whoever owns that shared fixture next.
 
-## 3. Confirmation-flow design — PENDING
+## 3. Confirmation-flow design
 
-## 4. Build plan — PENDING
+### 3.1 Two precedents already in the codebase, and they disagree — verified, not assumed
 
-## 5. Recommendation — PENDING
+**Precedent 1 — token-minted-by-human-in-admin-UI, structurally refused for agent tools.** `taxonomy_execute_merge_term` (`Jini/packages/cms/src/taxonomy/agent-tools.ts:195-199`, unwired at `taxonomy/tool-registrations.ts:104`) needs a confirmation token a human mints through `/merge/confirm` in the admin UI. Its `actorClassRule: "confirmer-must-equal-own-delegatedBy"` is on `registration-kit.ts:130`'s `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` set, and `assertToolIsWirable` (`registration-kit.ts:366-385`) throws at build time for any tool declaring that rule: *"requires a human-confirmation transport this host has not wired — leave it unwired until one exists."* `database_execute_migrate_forward` and `backup_execute_restore` sit unwired for the identical reason. **This mechanism is structurally dead in this codebase and cannot be revived by a `content_delete` design** — any resource contributing a handler that needs a second, token-redeeming call would hit the same build-time refusal.
+
+**Precedent 2 — a single held-open call, no token (ADR-055).** `content_post_delete` is the one delete tool that ships a confirmation flow today, and it works differently: ADR-055 (`ADS-memory/reports/architecture/ADR-055-mcp-ui-return-path.md`, **status: DRAFT — not accepted**, flagged below) explicitly supersedes the token approach ("the confirmation token is removed entirely... a blocking single call replaces 'the model must present a secret it cannot read' with 'the handler awaits an out-of-band human signal'"). The mechanism, read directly from `features/post/tool-registrations.ts:407-475` and `features/post/delete-confirmation-ui.ts`:
+
+1. The tool call itself opens a `SurfaceExchange` (`assistant/tool-registrations.ts:661`'s shared `AssistantSurfaceDeps.surfaceExchanges`, one instance wired at boot in `agent-daemon-server.ts` and passed to every surface-raising domain) and sends a `buildConfirmationSurface` (`@jini-ai/ui/mcp-ui/surfaces`) MCP-UI resource describing the row, keyed by `ui://tovu/content-post-delete/{id}/{version}` — versioned so a row edited since the dialog opened yields a different URI (stale dialogs are never silently treated as current).
+2. The call **parks** — `askOnce`/`askThenReport` (`apps/website/src/contracts/core/tool-surface-exchanges.ts:204,265`) await the human's click, which arrives out-of-band through `mcp-ui-tool-calls-route.ts`, a route the model has no access to (behind the daemon's bearer gate plus the admin-session check).
+3. On `decision === "confirm"` (fail-closed: anything else, including a missing/malformed field, is treated as not-confirmed — `tool-registrations.ts:448-454`), the handler re-checks the entity's version against what the dialog showed (`assertFreshVersion`, :464-475) and only then performs the actual delete.
+4. No-answer (expired TTL, abandoned run) returns an explicit result, not a thrown error (ADR-055 Decision 6).
+
+**Recommendation: generalize precedent 2, never precedent 1.** This is not a stylistic preference — precedent 1 cannot be wired for a new resource at all without either changing `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` (a cross-cutting change to `@jini-ai/cms/core`, out of this dispatch's scope and arguably out of any single feature's scope) or declaring a different `actorClassRule` that isn't gated (which would mean building a NEW, unreviewed confirmation transport rather than reusing the one already shipped and battle-tested).
+
+**ADR-055 status flag, load-bearing for this recommendation:** the ADR this whole mechanism rests on is marked `DRAFT — not accepted... Do not add to ADR-INDEX.md until a human accepted it`. It is nonetheless the shipped, live behavior of `content_post_delete` today (verified against the actual handler code, not just the ADR prose), so "generalize what's shipped" is sound engineering advice regardless of the document's own governance status — but a human should accept ADR-055 formally before this design is used to justify wiring the pattern onto 9 more tools, since right now there is no accepted architectural record for the ONE tool already depending on it.
+
+### 3.2 A third, narrower precedent this family itself already applies: exclusion
+
+`workspace_delete` (§1.2) is the delete family's OWN instance of "no confirmation flow is safe enough — leave it unwired," for a reason distinct from the token problem: whole-scope, irreversible, no per-domain undo. Applying that same test to each of the 10 wired tools:
+
+| id | irreversible? | whole-scope? | verdict |
+|---|---|---|---|
+| `content_post_delete`, `media_trash_asset`, `comments_trash_comment`, `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone` | No — soft, explicitly reversible (comments/theme have an agent-callable restore; post/media/widgets/redirects are reversible "by reverting the change set" or are UNCONDITIONAL soft flips with no purge tool at all) | No — single row | Confirmation is proportionate; exclusion would be over-caution |
+| `webhooks_delete_subscription` | Storage-soft but **no un-disable path exists anywhere in the domain** — classified `deletes-durable-state` specifically because it is "as final as a hard delete" (§1.1) | No — single subscription | Borderline: same finality class as a hard delete, but scoped to one integration, not the whole site. Confirmation, not exclusion — the blast radius doesn't meet `workspace_delete`'s "whole addressable scope" bar |
+| `identity_role_delete`, `identity_policy_delete` | **Yes — hard delete, no undo tool** | No — one role/policy row, and both fail safe (refused while still referenced/assigned) | Confirmation, not exclusion: the fail-safe guard already does real work here (an in-use role/policy cannot be deleted at all), which is a materially different safety property than `workspace_delete`'s "always refuses today, but the guard's precondition can change" concern |
+| `collections_content_type_tombstone` | **Yes — tears down provisioned queryable-field indexes; no un-tombstone tool exists** (verified: `content-types/agent-tools.ts` has `_deprecate`/`_reactivate` as a pair, but tombstone has no reactivate-from-tombstone counterpart) | No — one content type | **Closest call in the family.** It is a schema-level, irreversible teardown, same class of action as the things this codebase's OTHER precedents (database migrations, backup restores, taxonomy merges) all either exclude or gate behind the dead token mechanism. It is not whole-scope like `workspace_delete`, so exclusion is not clearly required — but it is the one tool in this family a reviewer should look at hardest before deciding confirmation is enough. Flagged as a judgment call for the owner, not resolved here. |
+
+**None of the 10 meets `workspace_delete`'s bar for exclusion** (whole-scope + irreversible + no per-domain undo, together). The recommendation below is confirmation for all 10, with `collections_content_type_tombstone` flagged for explicit owner sign-off given its irreversible schema-teardown side effect.
+
+### 3.3 A concrete, verified maintenance gap this design should close
+
+`resolveDeleteDecision`'s shape — park, wait for `decision === "confirm"` fail-closed, branch, re-check freshness — is **already copy-pasted at least once** rather than shared: `custom-credentials/tool-registrations.ts:262` (`resolveMakeRequestDeleteDecision`) declares itself "mirrors `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` exactly, adapted to this domain's shape," and the same self-description appears in `source-control/tool-registrations.ts:310` and `deployments/publish-agent-tools.ts:1211` (verified by grep; not read line-by-line here, out of the delete family's own scope, but the self-documentation is explicit and consistent across all three). **Adding a confirmation flow to the other 9 delete-family tools by copying `resolveDeleteDecision` a 4th through 9th time is the wrong move** — it is exactly the drifted-duplication risk (one copy gets a bugfix, like the `decision !== "confirm"` fail-closed fix documented in the function's own comment, and the others don't). A shared, resource-agnostic version of this function is the concrete deliverable §4 designs.
+
+## 4. Build plan
+
+For a Programmer to execute without re-deriving anything. Follows `duplicate-resource-registry.ts`'s pattern exactly, per the dispatch's own instruction, because it is the one precedent in this codebase for "one generic tool, N resources, per-resource permission resolved at dispatch time, registered at the composition root."
+
+### 4.1 Card list (retrieval layer — §2's Option A, zero measured retrieval cost)
+
+Register 10 thin descriptors, ids `content_delete.<resource>`, each dispatching into one shared handler — the SAME id scheme `content-read-tool.ts` already ships for `content_read.*`, so there is a live pattern to copy rather than invent:
+
+```
+content_delete.content_post           <- content_post_delete
+content_delete.media_asset            <- media_trash_asset
+content_delete.comment                <- comments_trash_comment
+content_delete.widget_instance        <- widgets_trash_instance
+content_delete.theme_file             <- theme_trash_file
+content_delete.redirect               <- redirects_tombstone
+content_delete.collection_content_type <- collections_content_type_tombstone
+content_delete.identity_role          <- identity_role_delete
+content_delete.identity_policy        <- identity_policy_delete
+content_delete.webhook_subscription   <- webhooks_delete_subscription
+```
+
+Card text: `indexedDescriptionFor(oldToolId, oldDescription)` for the one surviving member — no merges exist in this family (§2.3), so this is a rename, not a consolidation, at the index layer. No schema change to `@jini-ai/sqlite` needed (Option A from the read report, unchanged reasoning: `tool_id`/`id` stay the same column).
+
+### 4.2 Handler shape
+
+One new registry, `apps/website/src/assistant/delete-resource-registry.ts`, structurally identical to `duplicate-resource-registry.ts`:
+
+```ts
+export interface DeleteConfirmationSubject {
+  readonly id: string;
+  /** Human-readable fields for the dialog — resource-specific, e.g. title/slug/status for a post,
+   *  filename for a media asset, name for a role. */
+  readonly display: Record<string, string>;
+  /** Present only for resources with an optimistic-concurrency version; omitted ones skip the
+   *  assertFreshVersion-equivalent re-check (mirrors content_post_delete's own use of `version`). */
+  readonly version?: number;
+}
+
+export interface DeleteResourceHandler {
+  readonly permission: string;             // resolved per-resource, never one flat permission (§4.3)
+  readonly noun: string;                   // "post" | "media asset" | "role" | ... — for the dialog copy
+  readonly load: (id: string) => Promise<DeleteConfirmationSubject>;   // throws NotFoundError-equivalent
+  readonly execute: (id: string) => Promise<Record<string, unknown>>; // the resource's OWN existing
+                                                                        // trash/tombstone/delete call —
+                                                                        // e.g. post's `deletePost`, media's
+                                                                        // trash function — UNCHANGED
+}
+
+export interface DeleteResourceHandlerContributor {
+  readonly resource: string;               // "content_post", "media_asset", ... — matches §4.1's card keys
+  readonly build: (routeDeps: AssistantToolRegistryDeps) => DeleteResourceHandler;
+}
+```
+
+`registerDeleteResourceHandler`/`listDeleteResourceHandlers`/`resetDeleteResourceHandlersForTests` — same trio, same "last registration wins" semantics, same reasoning (ADR-006/ADR-009 §3) `duplicate-resource-registry.ts` already documents for why this is a plain module rather than a class or DI container.
+
+**The shared confirmation gate itself** — the piece that closes §3.3's gap — lives beside this registry as a resource-agnostic replacement for `resolveDeleteDecision`:
+
+```ts
+async function resolveContentDeleteDecision(
+  exchange: SurfaceExchange,
+  subject: DeleteConfirmationSubject,
+  handler: DeleteResourceHandler,
+): Promise<{ confirmed: true } | { confirmed: false; result: unknown }>
+```
+
+Built from `content_post_delete`'s own logic (§3.1 steps 1-4), generalized only where the resources actually differ: the dialog copy (title/description/details built from `subject.display`/`handler.noun`, mirroring `delete-confirmation-ui.ts`'s `buildDeleteConfirmationResource` but parameterized instead of Posts/Pages-specific), and the freshness re-check (only runs `if (subject.version !== undefined)`, since not every resource in this family carries an optimistic-concurrency version — `media_trash_asset`, `comments_trash_comment`, `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone` were not verified to have one; a Programmer must check each resource's existing write-service before assuming it does, rather than adding a version field that doesn't exist).
+
+One `content_delete` tool handler, in `assistant/content-delete-tool.ts` (mirroring `assistant/content-read-tool.ts`'s own file), parameterized as `content_delete.<resource>({ id })`: resolves the resource's registered handler, authorizes with `handler.permission`, loads the subject, opens the exchange, calls `resolveContentDeleteDecision`, and on confirmation calls `handler.execute(id)` — never a resource-specific code path inside this file.
+
+### 4.3 Permission resolution per resource — exact map, read from §1.1
+
+| resource key | permission | source |
+|---|---|---|
+| `content_post` | `content.write` | `features/post/agent-tools.ts:522` |
+| `media_asset` | `media.delete` | `Jini/packages/cms/src/media/agent-tools.ts:146` |
+| `comment` | `comments.delete` | `features/comments/agent-tools.ts:188` |
+| `widget_instance` | `widgets.delete` | `features/widgets/agent-tools.ts:232` |
+| `theme_file` | `THEME_WRITE_PERMISSION` | `features/theme/agent-tools.ts:333` |
+| `redirect` | `admin.redirects.manage` | `features/redirects/agent-tools.ts:209` |
+| `collection_content_type` | `admin.collections.manage` | `Jini/packages/cms/src/content-types/agent-tools.ts:203` |
+| `identity_role` | `role.manage` | `Jini/packages/cms/src/identity/agent-tools.ts:273` |
+| `identity_policy` | `role.manage` | `Jini/packages/cms/src/identity/agent-tools.ts:319` |
+| `webhook_subscription` | `admin.integrations.manage` | `features/webhooks/agent-tools.ts:193` |
+
+Matches `duplicate-resource-registry.ts`'s own stated rule exactly: "the SINGLE permission `content_duplicate`'s own handler checks before invoking `duplicate` — resolved from the resource's OWN existing declared permission... never a single flat permission shared by the whole generic tool." Same here: at least 7 distinct permissions across 10 resources, and `content_delete`'s outer authorization gate must look each one up per call, exactly as `content_duplicate` already does.
+
+### 4.4 Composition root wiring
+
+`registerDeleteResourceHandler(...)` calls for all 10 resources live in `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, glued next to the existing `registerDuplicateResourceHandler` calls — same file, same function, same pattern, per the dispatch's explicit "look at `duplicate-resource-registry.ts`" instruction. **Not touched by this dispatch** (build-clearance boundary); listed here so the Programmer knows exactly where the wiring goes.
+
+### 4.5 What does NOT change
+
+- `content_post_delete`'s own existing id, handler, and dialog (`delete-confirmation-ui.ts`) — a Programmer should decide whether to retire it in favor of `content_delete.content_post` or keep both during a transition; not resolved here, since it affects a shipped, human-facing tool name and is a product decision, not an architecture one.
+- Every resource's own underlying delete/trash/tombstone function (`deletePost`, the media trash function, etc.) — `execute` in `DeleteResourceHandler` calls them unchanged.
+- No identity/member/user delete tool is registered anywhere in this plan (§1.3 — none exists to wire).
+
+## 5. Recommendation, with the case against
+
+**GO on the retrieval/catalog-shape question (§2). NO real decision to make there** — Arm B is retrieval-identical to baseline, not just close, because the delete family has no `_get`/`_list` pairs to merge. There is no 22-point tradeoff to weigh the way there was for `content_read`; adopting the `content_delete.<resource>` card scheme costs nothing measurable at the retrieval layer.
+
+**GO, conditionally, on building the shared confirmation gate (§3-4) — but recommend sequencing it AHEAD of, not bundled with, the retrieval-layer rename.** The actual prize here is not smaller/better retrieval (§2 proves there isn't one) and not even primarily "one handler instead of ten" (the read report's own conclusion about `content_read` — that the model's view is unchanged in size, so there's no context prize — applies with equal force here). The real prize is **closing a live safety gap**: 9 of 10 wired destructive tools, including 2 hard deletes and 1 irreversible schema teardown, ship today with **no confirmation of any kind** — a single, unconfirmed model call permanently removes data. That is a materially bigger deal than the retrieval question the dispatch was framed around, and it is fixable with a design this codebase already has proof-of-concept for (ADR-055) and a registry pattern already shipped for a structurally identical problem (`duplicate-resource-registry.ts`).
+
+**The case against, stated fairly:**
+1. **ADR-055 is still DRAFT, not accepted** (§3.1). Building 9 more tools on an unaccepted architectural decision compounds the exposure if a human reviewer later wants to change the mechanism. Get ADR-055 accepted (or revised) before or alongside this work, not after.
+2. **`collections_content_type_tombstone`'s irreversible index teardown (§3.2) deserves explicit owner sign-off**, not a default "confirmation dialog is enough" — it is the one tool in this family whose blast radius rhymes with the things this codebase otherwise excludes entirely.
+3. **This is real new code**, not a config change: a new registry, a new generic handler, a resource-agnostic confirmation-decision function, and 10 call sites wiring resources into it. It is bounded and has a direct precedent to copy, but it is not free, and the retrieval eval alone (§2) does not justify it — the safety argument does.
+4. **A narrower, cheaper alternative exists**: extract `resolveDeleteDecision` into a shared, resource-agnostic function (closing §3.3's duplication) WITHOUT building the full `content_delete.<resource>` catalog/registry layer, and wire it into each of the 9 unconfirmed tools' EXISTING tool ids one at a time. This gets the safety win with less new surface, at the cost of leaving the 10-tools-under-10-names status quo (which §2 shows is retrieval-neutral anyway, so there is little cost to leaving it). **If the owner's priority is closing the confirmation gap fast, this narrower path is the recommended one**; the full `content_delete` registry in §4 is the right shape if the owner also wants the `content_read`-style catalog uniformity for its own sake.
+
+**Bottom line:** retrieval says GO with zero cost either way; the decision that actually matters is whether to build the shared confirmation gate now, and if so, whether to bundle it with the catalog rename (§4's full plan) or ship it narrower (point 4 above) first. Both are legitimate; this report recommends the narrower path first specifically because it captures the entire safety prize without waiting on ADR-055 acceptance or the `collections_content_type_tombstone` sign-off blocking the catalog-rename half.
+
+## 6. What could not be verified
+
+- Whether `media_trash_asset`, `comments_trash_comment`, `widgets_trash_instance`, `theme_trash_file`, or `redirects_tombstone`'s underlying write-services carry an optimistic-concurrency `version` field the way `PostRecord` does — needed to know whether `assertFreshVersion`'s pattern applies to them (§4.2). Not checked here; flagged for the Programmer.
+- Whether any of the 4 `resolveDeleteDecision` copies (§3.3) have drifted from each other in behavior beyond what their own comments disclose — confirmed only that all three declare themselves faithful copies; did not diff them line-by-line.
+- Live-model selection-cost of a `content_delete` parent tool (the August 24 finding the read report cited: the agent sometimes ignores a correctly-ranked tool in favor of one it already has in mind) — same caveat the read report gave, needs a live model run, not a free eval.
+
+---
+
+**Status: COMPLETE.** All five requested deliverables (inventory, eval, confirmation-flow design, build plan, recommendation) are above.
