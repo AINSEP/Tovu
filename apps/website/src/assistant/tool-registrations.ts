@@ -169,6 +169,7 @@ import type { DatabaseToolDeps } from "../features/database/tool-registrations.j
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps, VendorCredentialPort } from "../features/deployments/publish-agent-tools.js";
 import type { EntriesToolDeps } from "../features/entries/tool-registrations.js";
+import type { ExternalMcpToolDeps } from "../features/external-mcp/deps.js";
 // This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
 // `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
 // `features/vendor-credentials` (see its own header for why: doing so closed a real
@@ -272,7 +273,8 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SeoToolDeps &
   SiteEvidenceToolDeps &
   WidgetsToolDeps &
-  ExternalMcpReauthToolDeps;
+  ExternalMcpReauthToolDeps &
+  ExternalMcpToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.

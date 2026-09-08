@@ -295,6 +295,16 @@ const HAND_WRITTEN_RULES = [
       // check:boundaries`, confirmed exactly one new `error` naming this rule and that file, then
       // reverted the probe and re-ran to confirm a clean return to the pre-probe violation count.
       //
+      // `apps/website/src/features/external-mcp/tool-registrations.ts` (2026-09-07, wiring the
+      // `external_mcp_*` catalog) is exempted by name for the same reasoning as
+      // `supabase-mcp-plugin.ts` above, verified the same way (planted, confirmed exactly one new
+      // `error` naming this rule, reverted): it value-imports `saveExternalMcpServer`/
+      // `listExternalMcpServerViews`/`readEnabledExternalMcpConfigs`/`ExternalMcpValidationError`/
+      // `ExternalMcpSecretStoreUnconfiguredError` from the SAME `#src/assistant/index` barrel
+      // `server/inbound/admin-http/routes/external-mcp/{put,probe}.ts` already use for the identical
+      // operations (`features/external-mcp/deps.ts`'s own header names this seam explicitly) — never
+      // `registerToolContributor` itself, which this file does not call anywhere.
+      //
       // `from` narrowed to just `^apps/website/src/features` (2026-08-27, Phase 1 domain-layer consolidation):
       // the seven other top-level alternatives it originally listed (analytics, identity, media,
       // navigation, origin, seo, widgets) each moved to `apps/website/src/features/<name>` one at a time this
@@ -312,6 +322,7 @@ const HAND_WRITTEN_RULES = [
         pathNot: [
           ".*/__tests__/.*",
           "^apps/website/src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
+          "^apps/website/src/features/external-mcp/tool-registrations\\.ts$",
         ],
       },
       to: { path: "^apps/website/src/assistant", dependencyTypesNot: ["type-only"] },

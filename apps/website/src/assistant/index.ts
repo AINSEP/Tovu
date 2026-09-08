@@ -227,6 +227,11 @@ export type {
   ExternalMcpServerRecord,
   ExternalMcpServerView,
   SaveExternalMcpOAuthInput,
+  // Added 2026-09-07 (features/external-mcp/tool-registrations.ts, wiring external_mcp_save): the
+  // OAuth half was already exported above; the top-level save input was not, forcing a deep import
+  // straight into `external-mcp-store.ts` (a `no-deep-imports:assistant` warning) for no reason but
+  // this one missing re-export.
+  SaveExternalMcpServerInput,
   // Added 2026-08-26, same reason as the value export above.
   ExternalMcpServerConfig,
 } from "./external-mcp-store.js";
@@ -281,6 +286,14 @@ export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 // ---------------------------------------------------------------------------------------------
 export { registerToolContributor } from "./tool-contribution-registry.js";
 export type { ToolContributor } from "./tool-contribution-registry.js";
+
+// A SIBLING registry, not a field on `ToolContributor` above: a resource's "how do I copy myself"
+// contribution to `content_duplicate` (`features/content-duplication/`) is a different concern from
+// its "what tools do I expose" contribution — see `duplicate-resource-registry.ts`'s own header for
+// the full rationale, including why the actual `registerDuplicateResourceHandler` calls live at the
+// composition root (`tool-catalog-manifest.ts`) rather than inside each resource feature itself.
+export { registerDuplicateResourceHandler, listDuplicateResourceHandlers, resetDuplicateResourceHandlersForTests } from "./duplicate-resource-registry.js";
+export type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } from "./duplicate-resource-registry.js";
 
 // ---------------------------------------------------------------------------------------------
 // F — Chat History Persistence (composition-root wiring)

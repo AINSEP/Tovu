@@ -1,13 +1,15 @@
-import { registerToolContributor } from "#src/assistant/index";
+import { registerToolContributor, registerDuplicateResourceHandler } from "#src/assistant/index";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
+import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
 import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
+import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
-import { contributePostTools } from "#src/features/post/tool-registrations";
+import { contributePostTools, contributePostDuplicateHandlers } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
@@ -194,14 +196,33 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `feature-no-server-or-framework-imports`) — `assistant/tool-registrations.ts`'s
  * `buildAssistantToolRegistrations` fills it into `enrichedRouteDeps`, the same seam that already
  * supplies `StaticPublishToolDeps.vendorCredentials` for the identical shape of problem.
+ *
+ * `contributeExternalMcpTools()` (2026-09-07) is likewise a NEW domain: `features/external-mcp/
+ * agent-tools.ts`'s 5-tool catalog (list/save/test_connection/oauth_connect/oauth_poll_device) was
+ * fully designed and reviewed but never registered anywhere — no `tool-registrations.ts`, no
+ * manifest entry, confirmed by `ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md`
+ * (Gap #1). Only the narrower `external_mcp_reauth_prompt` (for an already-broken connection)
+ * reached the assistant before this. See `features/external-mcp/tool-registrations.ts`'s own header
+ * for the wiring detail.
+ *
+ * `contributeContentDuplicationTools()` (2026-09-07) is a NEW domain, one tool: `content_duplicate`,
+ * generic over a `resource` parameter rather than one bespoke `*_duplicate` tool per resource (owner
+ * correction to the original per-resource `content_post_duplicate` design — see
+ * `ADS-memory/reports/2026-09-07-page-duplicate-tool.md`'s follow-up section). This function ALSO
+ * populates a second, sibling registry those `ToolContributor` calls above do not touch:
+ * `assistant/duplicate-resource-registry.ts`'s per-resource duplicate-handler contributions (today:
+ * `contributePostDuplicateHandlers()`, covering `post` and `page`) — see that registry's own header
+ * for why it is a separate seam from `ToolContributor`.
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
+  registerToolContributor(contributeContentDuplicationTools());
   registerToolContributor(contributeContentTypesTools());
   registerToolContributor(contributeCustomCredentialsTools());
   registerToolContributor(contributeDatabaseTools());
   registerToolContributor(contributeDeploymentsTools());
   registerToolContributor(contributeEntriesTools());
+  registerToolContributor(contributeExternalMcpTools());
   registerToolContributor(contributeFormsTools());
   registerToolContributor(contributeIdentityTools());
   registerToolContributor(contributeWebhooksTools());
@@ -227,4 +248,12 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeThemesTools());
   registerToolContributor(contributeWidgetsTools());
   registerToolContributor(contributeWorkspaceTools());
+
+  // `content_duplicate`'s per-resource handler registry (`assistant/duplicate-resource-registry.ts`)
+  // — a SEPARATE registration from the ToolContributor calls above (see that file's own header for
+  // why): each resource's "how do I copy myself" contribution, resolved into the cross-resource
+  // `content_duplicate` tool `contributeContentDuplicationTools()` registered above already exposes.
+  for (const contributor of contributePostDuplicateHandlers()) {
+    registerDuplicateResourceHandler(contributor);
+  }
 }

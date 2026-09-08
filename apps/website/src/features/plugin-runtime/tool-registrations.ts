@@ -87,6 +87,14 @@ import {
 } from "./activation.js";
 import { pluginAgentToolCatalog } from "./agent-tools.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
+// `plugins_uninstall` — mirrors `routes/admin/plugins/uninstall.ts`'s own composition exactly (same
+// business-rule module, same deps shape). See `agent-tools.ts`'s header for why this is NOT wrapped
+// in `executeCommand`, matching that route's own deliberate choice. `uninstallPlugin`'s own thrown
+// errors (`PluginNotFoundError`/`PluginNotUninstallableError`/`PluginEnabledError`) are propagated
+// undecorated, same as every other error this domain's `plugins_set_enabled` handler already lets
+// through unreclassified — this file has never used the `ToolInputError`/`withSchemaOnRejection`
+// convention other domains use, and this addition does not introduce it unilaterally.
+import { uninstallPlugin } from "./uninstall.js";
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
@@ -115,6 +123,11 @@ export interface PluginsToolDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** The actual on-disk artifact removal for `plugins_uninstall` — same field name and same
+   *  composition-root binding `routes/admin/plugins/uninstall.ts` already reads
+   *  (`server/runtime/composition/plugin-runtime.ts`'s `onPluginUninstalled`), so this domain adds
+   *  no second implementation of "how a plugin's files actually get removed". */
+  onPluginUninstalled: (pluginId: string) => Promise<void>;
 }
 
 /**
@@ -129,6 +142,10 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   //    (on enable) the injected onEnabled hook, which can run ADR-023 schema DDL against the live
   //    database. Genuinely mutating, not a metadata-only flip.
   ["plugins_set_enabled", "mutates-durable-state"],
+  // -> uninstallPlugin (uninstall.ts): deps.onPluginUninstalled (real filesystem removal) plus
+  //    pluginActivationRepo.deleteActivation() per matching workspace. Durable and irreversible —
+  //    see agent-tools.ts's own description; no revert/change-set capture exists for this operation.
+  ["plugins_uninstall", "mutates-durable-state"],
 ]);
 
 export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegistration[] {
@@ -211,6 +228,31 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegis
       const record = discovery.find((r) => r.id === pluginId);
       if (!record) throw new Error(`plugin '${pluginId}' was not found in the current discovery snapshot`);
       return { plugin: toAdminPluginResponse(record, result.activation) };
+    },
+
+    /**
+     * Mirrors `routes/admin/plugins/uninstall.ts` exactly: same permission, same `uninstallPlugin()`
+     * business-rule module, same `deps.onPluginUninstalled` mechanism binding. NOT wrapped in
+     * `executeCommand` — matching that route's own deliberate choice (`uninstall.ts`'s header: "there
+     * is no meaningful 'restore the prior state' for deleted bytes"), so there is nothing here for a
+     * `captureInverse`/`rollback` pair to capture.
+     */
+    plugins_uninstall: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const pluginId = requireString(input, "pluginId");
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.plugins.enable", entityType: "plugin", entityId: pluginId });
+
+      const discovery = await routeDeps.discoverPlugins();
+      const result = await uninstallPlugin({
+        deps: {
+          repo: routeDeps.pluginActivationRepo,
+          discovery,
+          onUninstall: routeDeps.onPluginUninstalled,
+        },
+        input: { pluginId },
+      });
+
+      return { pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds };
     },
   };
 

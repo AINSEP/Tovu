@@ -12,10 +12,31 @@
  * same underlying `features/plugin-runtime/activation.ts` functions.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is no install/uninstall/upload tool. `features/plugin-runtime` has no admin ROUTE for
- *   either operation at all — `discoverPlugins()` reads whatever is already present on disk
- *   (install dir + built-ins), and nothing in this codebase's admin HTTP surface adds or removes a
- *   plugin's files. A tool cannot be written against an operation the domain has no route for.
+ * - There is no install/upload tool. `features/plugin-runtime` has no admin ROUTE for either
+ *   operation at all — `discoverPlugins()` reads whatever is already present on disk (install dir +
+ *   built-ins), and nothing in this codebase's admin HTTP surface adds a plugin's files. A tool
+ *   cannot be written against an operation the domain has no route for.
+ *   CORRECTED 2026-09-07 (`ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md`): this
+ *   bullet used to also claim "There is no ... uninstall tool. features/plugin-runtime has no admin
+ *   ROUTE for [it] at all" — that was true when originally written, and became false on 2026-08-20
+ *   (Milestone 2) when `DELETE /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
+ *   (`routes/admin/plugins/uninstall.ts`, calling `uninstallPlugin()`) shipped, without this comment
+ *   being updated for it — a confidently wrong claim the audit confirmed is exactly what stopped
+ *   `plugins_uninstall` from being built. `plugins_uninstall` (below) closes that gap; install/upload
+ *   remain genuinely absent at every layer, unlike uninstall.
+ * - `plugins_uninstall` mirrors the route it wires (`uninstall.ts`) exactly: same
+ *   `admin.plugins.enable` permission (no new grant introduced), same two hard preconditions
+ *   (`uninstallPlugin()`'s own — the plugin must be a site-installed, non-built-in record, and must
+ *   be disabled in every workspace first), same files-first-then-activation-rows ordering. NOT
+ *   wrapped in a confirmation dialog the way `content_post_delete`/`deployment_execute_static_publish`
+ *   are: this route itself is deliberately NOT wrapped in the change-set/revert gateway either
+ *   (`uninstall.ts`'s own header — "there is no meaningful 'restore the prior state' for deleted
+ *   bytes"), so there is no existing human-confirmation transport this tool could reuse without
+ *   inventing one, and this pass does not invent one. The description below states the irreversibility
+ *   in plain language instead, the same mitigation `plugins_set_enabled`'s own description already
+ *   uses for its own DDL risk — whether that is sufficient, or this needs the stronger
+ *   actor-class/confirmation gating `backup_execute_restore`/`database_execute_migrate_forward` get,
+ *   is flagged as open in the audit and not decided here.
  * - `plugins_set_enabled` is included, but is NOT the low-risk "flip a flag" operation its own name
  *   suggests: enabling a plugin whose manifest declares a `dataModule` invokes ADR-023's
  *   core-mediated DDL engine (`features/plugins/data-module.ts`) against the LIVE database —
@@ -81,12 +102,21 @@ const SET_ENABLED_SCHEMA = {
   },
 } as const;
 
+const UNINSTALL_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["pluginId"],
+  properties: {
+    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by plugins_list. Must be a site-installed plugin — a built-in has no on-disk artifact to remove and this is refused." },
+  },
+} as const;
+
 /**
- * The Plugins domain's fixed agent-tool catalog — exactly the two operations
- * `routes/admin/plugins/` exposes.
+ * The Plugins domain's fixed agent-tool catalog — the three operations `routes/admin/plugins/`
+ * exposes (list, set-enabled, uninstall — see this file's header for install/upload's absence).
  *
  * Ordered read-tool-first, matching the house convention (`identity/agent-tools.ts`'s own
- * rationale): a model cannot enable/disable a plugin it does not know the id of, and
+ * rationale): a model cannot enable/disable/uninstall a plugin it does not know the id of, and
  * `plugins_list` is the only way to learn one.
  */
 export const pluginAgentToolCatalog: AgentToolDefinition[] = [
@@ -105,5 +135,13 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: SET_ENABLED_SCHEMA,
+  },
+  {
+    name: "plugins_uninstall",
+    description:
+      "PERMANENTLY removes a site-installed plugin: deletes its on-disk artifact, then its activation row in every workspace. This is NOT reversible — there is no revision history or trash to restore it from, unlike theme_trash_file's soft-delete; reinstalling means the operator re-uploading the plugin's files themselves. Refused if the plugin is a built-in (nothing to remove), or if it is currently enabled in ANY workspace (the on-disk artifact is shared across every workspace this instance serves, so uninstalling while another workspace still has it enabled would silently break that workspace) — call plugins_set_enabled with enabled:false everywhere it is on first. Confirm with the human before calling this; it does not raise its own confirmation dialog.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "admin.plugins.enable" },
+    inputSchema: UNINSTALL_SCHEMA,
   },
 ];

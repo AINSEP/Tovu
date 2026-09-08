@@ -79,6 +79,9 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     },
     pluginActivationRepo,
     discoverPlugins: async () => discovery,
+    onPluginUninstalled: async (pluginId: string) => {
+      order.push(`onPluginUninstalled:${pluginId}`);
+    },
   };
 
   return { deps: deps as unknown as RouteDeps, authorizeCalls, order, pluginActivationRepo };
@@ -112,15 +115,16 @@ function catalogEntry(toolId: string): PluginsAgentToolDefinition {
 // 1. The catalog is complete
 // ---------------------------------------------------------------------------
 
-test("exactly the 2 plugin-runtime operations are wired — list and set-enabled, nothing else", () => {
+test("exactly the 3 plugin-runtime operations are wired — list, set-enabled, and uninstall (2026-09-07), nothing else", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...pluginsRegistrations(deps).keys()].sort(), ["plugins_list", "plugins_set_enabled"]);
-  assert.equal(pluginAgentToolCatalog.length, 2, "there is no unwired plugins entry — the whole catalog is wired");
+  assert.deepEqual([...pluginsRegistrations(deps).keys()].sort(), ["plugins_list", "plugins_set_enabled", "plugins_uninstall"]);
+  assert.equal(pluginAgentToolCatalog.length, 3, "there is no unwired plugins entry — the whole catalog is wired");
 });
 
-test("no install/uninstall/upload tool exists — this codebase has no admin route for either operation", () => {
+test("no install/upload tool exists — this codebase has no admin route for either operation (uninstall now DOES, see tool-registrations.plugins-uninstall.test.ts)", () => {
   const { deps } = fakeRouteDeps();
   for (const id of pluginsRegistrations(deps).keys()) {
+    if (id === "plugins_uninstall") continue;
     assert.equal(/install|uninstall|upload|delete/i.test(id), false, `'${id}' must not imply an operation with no backing admin route`);
   }
 });
@@ -182,6 +186,11 @@ test("the ToolPolicy layer is a pass-through 'allow' for both plugins registrati
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   plugins_list: {},
   plugins_set_enabled: { pluginId: VALID_PLUGIN.id, enabled: true },
+  // INVALID_PLUGIN, not VALID_PLUGIN: it is `source: "site"` and never activated anywhere in this
+  // fixture, so an ALLOWED call actually succeeds (VALID_PLUGIN can't be used here — it is
+  // `source: "built-in"`, which uninstallPlugin() always refuses, and this shared loop's
+  // "authorize() is called" test expects the call to complete normally, not throw).
+  plugins_uninstall: { pluginId: INVALID_PLUGIN.id },
 };
 
 test("every wired plugins tool has a known input fixture", () => {

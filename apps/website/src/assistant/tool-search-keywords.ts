@@ -186,7 +186,15 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   widgets_reorder_embeds: "widget embed reorder rearrange change order position swap",
 
   // --- theme ---------------------------------------------------------------------------------------
-  theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file",
+  // "copy duplicate clone" added 2026-09-07 (ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md,
+  // Gap #3): no theme_* tool is named theme_copy_file — copyThemeFile exists as a route-level
+  // primitive (themes/explore.ts's human Explore screen) but is not itself a wired tool. The
+  // compose-it-yourself path (theme_read_file then theme_write_file to a new path) already works —
+  // unlike the page-copy gap, theme files carry no row-scoped placement id a naive copy could
+  // silently orphan — so nothing here needs the primitive itself, only a way for retrieval to find
+  // the write tool when a user asks to "copy"/"duplicate" a theme file. See this file's own header
+  // for why a keyword miss is a silent failure mode, not a wrong-result one.
+  theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone",
   theme_edit_file: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section",
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
@@ -242,6 +250,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- plugins -------------------------------------------------------------------------------------------
   plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
   plugins_list: "plugin plugins extensions installed available list",
+  // Added 2026-09-07 (ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md, Gap #4):
+  // plugins_uninstall is a new tool with no prior entry at all.
+  plugins_uninstall: "plugin plugins uninstall remove delete extension get rid of",
 
   // --- interactive-UI component catalog -----------------------------------------------------------------
   search_components: "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
