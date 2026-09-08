@@ -435,3 +435,91 @@ test("media gate: an unparseable embed marker in a gated Page does NOT gate unre
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// 2026-09-07 audit claim #2 — the gate keys off the RAW URL identifier while the byte lookup
+// resolves an id-OR-slug (`findMediaByIdOrSlug`, added with the editable media slug). Whenever the
+// authored reference and the requested identifier are different spellings of the SAME asset, the
+// reference scan finds nothing, `gating.length === 0`, and the route serves gated bytes to anyone.
+// ---------------------------------------------------------------------------
+
+test("media gate: a members-only VIDEO embedded by id is NOT fetchable anonymously through its slug", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, mp4Bytes("gated-video-by-slug"), "gated-video-by-slug.mp4", "video/mp4");
+    assert.notEqual(media.slug, media.id, "the slug must be a genuinely different spelling for this test to mean anything");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-slug-alias-video",
+          slug: "gated-page-video-slug-alias",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: htmlEmbedBody(media.id),
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const byId = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(byId.status, 404, "control: the id spelling is gated");
+
+    const bySlug = await fetch(`${baseUrl}/m/${media.slug}/original`);
+    assert.equal(bySlug.status, 404, "the slug alias must be gated identically — it resolves to the same bytes");
+    assert.deepEqual(await bySlug.json(), { error: "video rendition not found" });
+  });
+});
+
+test("media gate: a members-only IMAGE embedded by id is NOT fetchable anonymously through its slug", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("gated-image-by-slug"), "gated-image-by-slug.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-slug-alias-image",
+          slug: "gated-page-image-slug-alias",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: htmlEmbedBody(media.id),
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const suffix = `${definition.name}.v${definition.version}/hero.webp`;
+    assert.equal((await fetch(`${baseUrl}/m/${media.id}/${suffix}`)).status, 404, "control: the id spelling is gated");
+
+    const bySlug = await fetch(`${baseUrl}/m/${media.slug}/${suffix}`);
+    assert.equal(bySlug.status, 404, "the slug alias must be gated identically — it resolves to the same bytes");
+  });
+});
+
+test("media gate: an asset a members-only entry embeds BY SLUG is gated when requested by its id (the inverse mismatch — the renderer emits the id)", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, mp4Bytes("slug-authored-embed"), "slug-authored-embed.mp4", "video/mp4");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-slug-authored",
+          slug: "gated-page-slug-authored",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: htmlEmbedBody(media.slug),
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const byId = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(byId.status, 404, "the id is the spelling the renderer emits into <video src> — it must be gated too");
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(`${baseUrl}/m/${media.id}/original`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+    });
+    assert.equal(member.status, 200, "an entitled member must still be able to play a slug-authored embed");
+  });
+});

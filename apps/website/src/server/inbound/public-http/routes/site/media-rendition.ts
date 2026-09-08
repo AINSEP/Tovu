@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
 import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
-import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
+import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
@@ -216,10 +216,19 @@ function isLiveReferrerCandidate(entry: PostRecord): boolean {
  *  is an assumption rather than a finding. */
 type EntryRelation = "referrer" | "opaque" | "irrelevant";
 
-function classifyEntry(entry: PostRecord, assetId: string): EntryRelation {
+/** Whether `scan` references the asset under ANY of its spellings — see {@link resolveAssetAliases}
+ *  for why one asset has more than one. @complexity O(a) in the (at most two) aliases. */
+function referencesAnyAlias(scan: EntryAssetScan, aliases: ReadonlySet<string>): boolean {
+  for (const alias of aliases) {
+    if (scan.ids.has(alias)) return true;
+  }
+  return false;
+}
+
+function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>): EntryRelation {
   if (!isLiveReferrerCandidate(entry)) return "irrelevant";
   const scan = scanEntryAssets(entry);
-  if (scan.ids.has(assetId)) return "referrer";
+  if (referencesAnyAlias(scan, aliases)) return "referrer";
   if (!scan.readable && isGatedEntry(entry)) return "opaque";
   return "irrelevant";
 }
@@ -250,13 +259,47 @@ interface AssetReferenceScan {
  */
 async function scanEntriesForAsset(
   deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId">,
-  assetId: string
+  aliases: ReadonlySet<string>
 ): Promise<AssetReferenceScan> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, assetId) }));
+  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases) }));
   const pick = (want: EntryRelation): PostRecord[] =>
     classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
+}
+
+/**
+ * Every spelling of the SAME asset that could appear either in a request URL or in an entry's
+ * authored body — its opaque `id` and its editable `slug` (2026-09-07 fix for the audit's claim #2).
+ *
+ * THE BUG THIS CLOSES: both public routes here gate on the RAW `:assetId` path segment, while the
+ * byte lookups they guard (`resolveMediaRendition`, `resolveMediaOriginalBlob`) both went through
+ * `findMediaByIdOrSlug` the moment media gained an editable slug. So the two halves keyed off
+ * different identifiers, and the reference scan simply missed — in BOTH directions:
+ *   - a members-only entry embedding an asset BY ID was served anonymously through `/m/{slug}/…`
+ *     (no entry body contains the slug, so `gating.length === 0` and the route allowed);
+ *   - an entry embedding BY SLUG was served anonymously through `/m/{id}/…`, which is precisely
+ *     the URL `render.ts`'s `renderImageTag`/`renderVideoTag` emit for it (they always template the
+ *     RESOLVED record's `id`), i.e. the spelling every visitor's browser actually requests.
+ * Resolving the request's identifier to a record FIRST, then gating on the full alias set, is what
+ * makes the gate and the lookup agree by construction rather than by two call sites happening to
+ * spell the same asset the same way.
+ *
+ * Falls back to the raw value when nothing resolves: that request is a guaranteed 404 from the byte
+ * lookup anyway, and inventing an empty alias set here would make an unknown asset take the
+ * "nothing references it, allow" path for no benefit.
+ *
+ * @complexity O(1) — at most the two indexed lookups `findMediaByIdOrSlug` already performs.
+ */
+async function resolveAssetAliases(
+  deps: Pick<MediaRenditionRouteDeps, "mediaRepo" | "workspaceId">,
+  idOrSlug: string
+): Promise<ReadonlySet<string>> {
+  const media = await findMediaByIdOrSlug({
+    deps: { mediaRepo: deps.mediaRepo },
+    input: { workspaceId: deps.workspaceId, idOrSlug },
+  });
+  return media ? new Set([media.id, media.slug]) : new Set([idOrSlug]);
 }
 
 /** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
@@ -337,7 +380,7 @@ async function resolveMediaAccessDecision(
   req: Request,
   assetId: string
 ): Promise<{ gated: boolean; allowed: boolean }> {
-  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, assetId);
+  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, await resolveAssetAliases(deps, assetId));
   if (referencing.some((entry) => !isGatedEntry(entry))) {
     return { gated: false, allowed: true };
   }
