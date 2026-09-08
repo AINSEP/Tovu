@@ -457,4 +457,81 @@ and whose Decision 3 this ADR supersedes) remains DRAFT, and that resolving that
   script used above) all five are correctly present in the allowlist today, so there is no live bug —
   but the *class* of defect this closeout fixed for media (registers + renders + every test green, yet
   the confirm click 403s) is structurally possible for any of them and would be caught the same way.
-  Flagging as a gap, not fixing — out of the scope authorized here.
+  Flagging as a gap, not fixing — out of the scope authorized here. **CLOSED below**, same-day
+  rotation.
+
+## Route-level allowlist coverage for the 5 remaining tools — CLOSED (2026-09-08, rotation replacement)
+
+Dispatched by team-lead to close the gap the prior closeout flagged and left open. Persona: Programmer
+(`AI-Dev-Shop/agents/programmer/skills.md` v1.7.1, loaded — confirmed in first reply). Scope: add
+route-level allowlist coverage for `comments_trash_comment`, `widgets_trash_instance`,
+`theme_trash_file`, `redirects_tombstone`, `webhooks_delete_subscription` — no live bug, all five
+verified already correctly allowlisted; the point is making a future regression in any one of them
+fail loudly the same way `media_trash_asset`'s did not.
+
+### What was built
+
+One new file:
+`apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts`
+— a single parameterized file rather than five near-copies (per the dispatch's own "prefer if
+cleaner" option), but built so **each of the 10 generated `test()` cases (2 per domain: confirm +
+Cancel) names its own tool id in the test name and asserts only that domain's own real
+`ToolRegistry`/`ToolExecutor`/`registerMcpUiToolCallsRoute` round trip** — never a shared
+alternation-style assertion across ids, per the dispatch's explicit constraint. A `Scenario` config
+per domain (`setup(surfaceExchanges)` returning `{toolExecutor, trashParams, assertConfirmed,
+assertCancelled}`) builds a fresh, isolated tool registry against that domain's own real
+`build<Domain>Registrations` (`buildCommentsRegistrations`, `buildWidgetsRegistrations`,
+`buildThemesRegistrations`, `buildRedirectsRegistrations`, `buildWebhooksRegistrations`) and seeds one
+real entity through the domain's own write path (`commentRepo.create`, `createWidgetInstance`, a temp
+on-disk theme directory via `discoverAllBuiltInThemes`, `createRedirect`, `createSubscription`) —
+mirroring `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts`'s own shape, generalized
+across domains rather than copy-pasted five times. The one subtlety that needed fixing mid-build: the
+`surfaceExchanges` store must be the SAME instance the registrations are built against and the one
+handed to `registerMcpUiToolCallsRoute` — an early draft built registrations against a throwaway store
+per scenario before the real one existed, which would have broken at runtime; fixed by threading
+`surfaceExchanges` into `setup()` as a parameter, built once per test and shared end-to-end.
+
+### RED/GREEN proof (redirects_tombstone deliberately broken)
+
+Removed `"redirects_tombstone"` from `MCP_UI_REDEEMABLE_TOOL_IDS`
+(`apps/website/src/assistant/mcp-ui-tool-calls.ts`), ran only that domain's two generated tests via
+`--test-name-pattern "redirects_tombstone"`:
+
+```
+✖ real round trip: a browser confirmation click for redirects_tombstone is accepted by the allowlist
+✖ SECURITY: a Cancel click for redirects_tombstone also reaches the allowlist and reports the cancellation, not a 403
+  403 !== 202
+  {"error":"'redirects_tombstone' is not an MCP-UI-redeemable tool","code":"TOOL_NOT_ALLOWLISTED"}
+tests 2, pass 0, fail 2
+```
+
+Restored the entry, re-ran the full file:
+
+```
+tests 10, pass 10, fail 0
+```
+
+`git diff apps/website/src/assistant/mcp-ui-tool-calls.ts` after restore: empty — the toggle
+round-tripped byte-identical to HEAD, confirmed before committing.
+
+### Verification
+
+- `npx tsc -p tsconfig.json --noEmit` from repo root: **clean, 0 errors** (both before and after the
+  RED/GREEN toggle).
+- `npm run check:boundaries`: **19 errors — exact baseline**, 193 warnings, 2253 modules cruised; none
+  of the 19 touch the new file. Reused the existing `TOOL_REGISTRATION_TEST_FROM_EXTRA` exemption in
+  `.dependency-cruiser.mjs` (added the new file's path to the same list `ba002973` and the
+  content-search integration test already use) — no new carve-out.
+- Full new file alone: **10/10 pass**.
+- Scoped regression (new file + the 3 pre-existing `mcp-ui-tool-calls-route.*` integration tests + all
+  6 domains' own handler-level confirmation/trash-restore test files): **81/81 pass, 0 fail**
+  (load average 36–107 across the run per `uptime`, no flakiness observed).
+
+### Context used
+
+Approximately 30% of budget at handoff.
+
+### What remains
+
+Nothing outstanding from this dispatch — the gap the prior closeout flagged is now closed for all 6
+tools in the family.
