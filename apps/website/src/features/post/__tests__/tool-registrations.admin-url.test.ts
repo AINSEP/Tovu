@@ -6,17 +6,22 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations, contributePostDuplicateHandlers, type PostToolDeps } from "../tool-registrations.js";
 
 /**
  * @file Regression coverage for the "assistant cannot find its own content's admin edit URL" gap
  * (`ADS-memory/reports/2026-09-07-page-tool-gap.md` §3) — the SAME capability gap `publicUrl`
  * closed on 2026-08-30 (`tool-registrations.public-url.test.ts`), this time for "where do I go to
  * EDIT this" rather than "where does a visitor see it". Certifies that `content_post_get`,
- * `content_post_list`, `content_post_create`, and `content_post_duplicate` all carry an `adminUrl`
- * field — unlike `publicUrl`, never `null`, since a draft is always editable even though it is
- * never publicly reachable.
+ * `content_post_list`, `content_post_create`, and this domain's `content_duplicate` resource
+ * handlers all carry an `adminUrl` field — unlike `publicUrl`, never `null`, since a draft is always
+ * editable even though it is never publicly reachable.
+ *
+ * The last case reaches the copy through the cross-resource `content_duplicate` tool rather than the
+ * retired bespoke `content_post_duplicate`; it asserts exactly what it asserted before.
  */
 
 const WORKSPACE_ID = "ws-admin-url-tools";
@@ -156,12 +161,16 @@ test("content_post_create returns adminUrl for the newly created row", async () 
   assert.equal(result.post.adminUrl, `/admin/posts/${result.post.id}`);
 });
 
-test("content_post_duplicate returns adminUrl for the newly created copy, distinct from the source's own adminUrl", async () => {
+test("content_duplicate's 'page' resource returns adminUrl for the newly created copy, distinct from the source's own adminUrl", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { id: "source-1", slug: "original", kind: "page" });
-  const registrations = registrationsFor(deps);
+  const registrations = new Map(
+    buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
+      listResourceHandlers: contributePostDuplicateHandlers,
+    }).map((r) => [r.descriptor.id, r]),
+  );
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" })) as {
+  const result = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
     post: { adminUrl: string };
   };
 

@@ -3,22 +3,35 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { contributePostDuplicateHandlers, type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 
 /**
- * @file Certifies `content_post_duplicate` — the first-class copy tool built for the
- * "copy Landing sample — xai and name it 'Landing Page'" gap
- * (`ADS-memory/reports/2026-09-07-page-tool-gap.md` / `-page-duplicate-tool.md`).
+ * @file Certifies this domain's `"post"` and `"page"` contributions to the CROSS-RESOURCE
+ * `content_duplicate` tool (`features/content-duplication/`) — the "copy Landing sample — xai and
+ * name it 'Landing Page'" gap (`ADS-memory/reports/2026-09-07-page-tool-gap.md` /
+ * `-page-duplicate-tool.md`).
+ *
+ * Renamed from `tool-registrations.duplicate.test.ts` when the owner's follow-up correction folded
+ * the bespoke `content_post_duplicate` tool into one generic `content_duplicate` over a `resource`
+ * parameter. Every case below is the SAME case it was, re-pointed at the generic tool: the old
+ * `{ id, kind }` input is now `{ resource, id }`, and `{ title, slug, status }` moved under
+ * `overrides`. No assertion was weakened in the move.
  *
  * The load-bearing case in here is the widgetEmbed one: a naive byte-for-byte `bodyJson` copy would
  * carry the source page's `placementId` verbatim onto the new row, which is the "silent shared-state
  * corruption" this whole tool was built to close correctly (see `duplicate-embeds.ts`'s own header).
  * `"source untouched"` is asserted explicitly in that test, not just "copy looks right in isolation".
+ *
+ * The handler contributions are passed to `buildContentDuplicationRegistrations` DIRECTLY rather
+ * than through `assistant/duplicate-resource-registry.ts`'s module-level registry — the same seam
+ * the composition root uses, minus the shared global state a parallel test file could otherwise
+ * pollute.
  */
 
 const WORKSPACE_ID = "ws-duplicate-tools";
@@ -46,10 +59,6 @@ function fakeRouteDeps(overrides: Record<string, unknown> = {}) {
   } as unknown as PostToolDeps;
 
   return { deps, postRepo };
-}
-
-function buildRegistrations(deps: PostToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(buildPostRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -89,13 +98,20 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 }
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
-  return buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildContentDuplicationRegistrations(deps as unknown as AssistantToolRegistryDeps, {
+    listResourceHandlers: contributePostDuplicateHandlers,
+  });
+  return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 
-test("content_post_duplicate is wired", async () => {
+test("content_duplicate is wired, and this domain contributes both 'post' and 'page'", async () => {
   const { deps } = fakeRouteDeps();
   const registrations = registrationsFor(deps);
-  assert.ok(registrations.has("content_post_duplicate"));
+  assert.ok(registrations.has("content_duplicate"));
+  assert.deepEqual(
+    contributePostDuplicateHandlers().map((c) => c.resource).sort(),
+    ["page", "post"],
+  );
 });
 
 test("copies title/slug/status defaults: 'Copy of <title>', derived slug, ALWAYS draft even for a published source", async () => {
@@ -103,7 +119,7 @@ test("copies title/slug/status defaults: 'Copy of <title>', derived slug, ALWAYS
   await seedPost(postRepo, { status: "published" });
   const registrations = registrationsFor(deps);
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" })) as {
+  const result = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
     post: { id: string; title: string; slug: string; status: string; kind: string };
   };
 
@@ -117,17 +133,15 @@ test("copies title/slug/status defaults: 'Copy of <title>', derived slug, ALWAYS
   assert.equal(sourceStillThere?.status, "published", "the source row must be completely untouched");
 });
 
-test("explicit title, slug, and status are honored when supplied", async () => {
+test("explicit title, slug, and status overrides are honored when supplied", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
   const registrations = registrationsFor(deps);
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), {
+  const result = (await call(tool(registrations, "content_duplicate"), {
+    resource: "page",
     id: "source-1",
-    kind: "page",
-    title: "Landing Page",
-    slug: "landing-page",
-    status: "published",
+    overrides: { title: "Landing Page", slug: "landing-page", status: "published" },
   })) as { post: { title: string; slug: string; status: string } };
 
   assert.equal(result.post.title, "Landing Page");
@@ -135,23 +149,23 @@ test("explicit title, slug, and status are honored when supplied", async () => {
   assert.equal(result.post.status, "published");
 });
 
-test("kind:'page' rejects an actual kind:'post' row as not-found (disclosed asymmetry, matching content_post_get)", async () => {
+test("resource:'page' rejects an actual kind:'post' row as not-found (disclosed asymmetry, matching content_post_get)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { kind: "post" });
   const registrations = registrationsFor(deps);
 
   await assert.rejects(
-    call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" }),
+    call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }),
     /was not found/,
   );
 });
 
-test("kind:'post' against an actual kind:'page' row is NOT guarded — the copy is itself a page (asymmetry mirrors content_post_get)", async () => {
+test("resource:'post' against an actual kind:'page' row is NOT guarded — the copy is itself a page (asymmetry mirrors content_post_get)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { kind: "page" });
   const registrations = registrationsFor(deps);
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "post" })) as {
+  const result = (await call(tool(registrations, "content_duplicate"), { resource: "post", id: "source-1" })) as {
     post: { kind: string };
   };
 
@@ -163,7 +177,7 @@ test("duplicating a nonexistent id is rejected as not-found", async () => {
   const registrations = registrationsFor(deps);
 
   await assert.rejects(
-    call(tool(registrations, "content_post_duplicate"), { id: "does-not-exist", kind: "page" }),
+    call(tool(registrations, "content_duplicate"), { resource: "page", id: "does-not-exist" }),
     /was not found/,
   );
 });
@@ -175,7 +189,7 @@ test("an explicit slug already taken by another row is rejected exactly like con
   const registrations = registrationsFor(deps);
 
   await assert.rejects(
-    call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page", slug: "taken-slug" }),
+    call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { slug: "taken-slug" } }),
     /already exists/,
   );
 });
@@ -185,7 +199,7 @@ test("a permission-denied caller cannot duplicate anything", async () => {
   await seedPost(postRepo);
   const registrations = registrationsFor(deps);
 
-  await assert.rejects(call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" }));
+  await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }));
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -201,7 +215,7 @@ test("a widgetEmbed in the source body gets a FRESH placementId on the copy, kee
   await seedPost(postRepo, { bodyJson: sourceBodyJson });
   const registrations = registrationsFor(deps);
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" })) as {
+  const result = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
     post: { id: string; bodyJson: { content: Array<{ attrs: { placementId: string; widgetEntryId: string } }> } };
   };
 
@@ -232,7 +246,7 @@ test("an HTML-format source page's body_html is copied onto the new row when a p
   const depsWithStore = withPagesHtmlStore(deps, postRepo);
   const registrations = registrationsFor(depsWithStore);
 
-  const result = (await call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" })) as {
+  const result = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
     post: { id: string };
   };
 
@@ -251,7 +265,7 @@ test("duplicating an HTML-format page with NO pagesHtmlStore wired fails loudly 
   const rowCountBefore = (await postRepo.list({ workspaceId: WORKSPACE_ID })).length;
 
   await assert.rejects(
-    call(tool(registrations, "content_post_duplicate"), { id: "source-1", kind: "page" }),
+    call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }),
     /html/i,
   );
 

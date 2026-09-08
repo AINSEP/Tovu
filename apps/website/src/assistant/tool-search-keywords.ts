@@ -259,9 +259,16 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // operator's own words for the failing production request ("copy Landing sample — xai and name it
   // 'Landing Page'"), not from this catalog's own nouns — see this file's header on why vocabulary
   // absent from a tool's description is functionally a tool that cannot be found.
-  content_post_duplicate:
+  //
+  // Re-keyed 2026-09-08 from the retired bespoke `content_post_duplicate` to the cross-resource
+  // `content_duplicate` (owner's redesign: one verb, generic over resource). The resource NOUNS
+  // ("form", "page", "post") are carried here deliberately: retrieval matches an operator's "copy
+  // that form" against this one entry, and a stale key naming a tool that no longer exists would
+  // make the live tool unfindable while looking fully wired.
+  content_duplicate:
     "copy duplicate clone replicate reuse make a copy of this page make a copy of this post " +
-    "same content new name new title starting point template based on existing existing page existing post",
+    "copy this form duplicate a form copy a page copy a post " +
+    "same content new name new title starting point template based on existing existing page existing post existing form",
   collections_entry_publish: "publish live go public release draft entry post article",
   collections_entry_unpublish: "unpublish hide draft retract take down entry post",
   collections_entry_create: "entry create new record item content add",

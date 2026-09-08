@@ -17,6 +17,22 @@
  *
  * An unrecognized `resource` fails loudly and enumerates what IS supported — see the handler's own
  * `ToolInputError` — never a generic "not found" or a silent no-op.
+ *
+ * **Why the per-resource handler list is INJECTED rather than read from
+ * `assistant/duplicate-resource-registry.ts` directly:** `.dependency-cruiser.mjs`'s
+ * `domain-no-direct-assistant-tool-registration` rule bans ANY non-type-only import from
+ * `features/**` into `assistant/**` — not merely a `registerToolContributor` call. Calling
+ * `listDuplicateResourceHandlers()` from this file is exactly such a VALUE edge, and it was a real
+ * `check:boundaries` error (20 errors, baseline 19) until this seam replaced it. The composition
+ * root (`server/runtime/composition/tool-catalog-manifest.ts`) — which is already allowed to import
+ * assistant values — passes the registry's own reader in as {@link ContentDuplicationResourceSource}.
+ * Everything this module needs from `assistant/` is now a TYPE, erased at compile time.
+ *
+ * The reader is a FUNCTION, not a pre-read array, deliberately: the manifest registers this
+ * `ToolContributor` before it registers the per-resource handlers, so an array snapshotted at
+ * `contributeContentDuplicationTools()` time would always be empty. Reading through the function at
+ * `build(...)` time — once per real composition, after boot registration has finished — is what makes
+ * the registry's contents visible here at all.
  */
 import {
   buildDomainRegistrations,
@@ -32,10 +48,10 @@ import {
 } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
-import {
-  listDuplicateResourceHandlers,
-  type DuplicateResourceHandler,
-  type ToolContributor,
+import type {
+  DuplicateResourceHandler,
+  DuplicateResourceHandlerContributor,
+  ToolContributor,
 } from "#src/assistant/index";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 
@@ -66,14 +82,31 @@ function readOverrides(input: Record<string, unknown>): { title?: string; slug?:
 }
 
 /**
- * Builds `content_duplicate`'s single registration, resolving every currently-registered
- * `DuplicateResourceHandlerContributor` (`assistant/duplicate-resource-registry.ts`) into a real,
- * deps-bound `DuplicateResourceHandler` ONCE here (registry contents are fixed for the lifetime of
- * one `routeDeps`/build) rather than re-resolving on every call.
+ * Where this tool's per-resource handler contributions come from — see this file's own header for
+ * why they are injected rather than read from `assistant/duplicate-resource-registry.ts` here.
+ *
+ * In production this is that registry's own `listDuplicateResourceHandlers`, supplied by the
+ * composition root. A test supplies a resource's `contribute*DuplicateHandlers()` directly, which
+ * also keeps it off the module-level registry other tests share.
  */
-export function buildContentDuplicationRegistrations(routeDeps: AssistantToolRegistryDeps): ToolRegistration[] {
+export interface ContentDuplicationResourceSource {
+  readonly listResourceHandlers: () => readonly DuplicateResourceHandlerContributor[];
+}
+
+/**
+ * Builds `content_duplicate`'s single registration, resolving every contributed
+ * `DuplicateResourceHandlerContributor` (`assistant/duplicate-resource-registry.ts`) into a real,
+ * deps-bound `DuplicateResourceHandler` ONCE here (the contributor set is fixed for the lifetime of
+ * one `routeDeps`/build) rather than re-resolving on every call.
+ *
+ * @complexity O(r) in the number of registered resources, once per build; O(1) per tool call.
+ */
+export function buildContentDuplicationRegistrations(
+  routeDeps: AssistantToolRegistryDeps,
+  resources: ContentDuplicationResourceSource,
+): ToolRegistration[] {
   const handlersByResource = new Map<string, DuplicateResourceHandler>(
-    listDuplicateResourceHandlers().map((contributor) => [contributor.resource, contributor.build(routeDeps)]),
+    resources.listResourceHandlers().map((contributor) => [contributor.resource, contributor.build(routeDeps)]),
   );
 
   const handlers: Record<string, ToolHandler> = {
@@ -122,10 +155,10 @@ export function buildContentDuplicationRegistrations(routeDeps: AssistantToolReg
  * `assistant/duplicate-resource-registry.ts`'s OWN registration, which is what makes THIS tool have
  * anything to resolve `resource` against in the first place — the manifest calls both.
  */
-export function contributeContentDuplicationTools(): ToolContributor {
+export function contributeContentDuplicationTools(resources: ContentDuplicationResourceSource): ToolContributor {
   return {
     domain: "content-duplication",
-    build: buildContentDuplicationRegistrations,
+    build: (routeDeps) => buildContentDuplicationRegistrations(routeDeps, resources),
     risk: contentDuplicationDerivedRisk,
   };
 }

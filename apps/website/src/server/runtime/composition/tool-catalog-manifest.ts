@@ -1,4 +1,8 @@
-import { registerToolContributor, registerDuplicateResourceHandler } from "#src/assistant/index";
+import {
+  registerToolContributor,
+  registerDuplicateResourceHandler,
+  listDuplicateResourceHandlers,
+} from "#src/assistant/index";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
@@ -216,7 +220,13 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
-  registerToolContributor(contributeContentDuplicationTools());
+  // `listDuplicateResourceHandlers` is injected rather than imported by
+  // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s
+  // `domain-no-direct-assistant-tool-registration` rule bans ANY non-type-only `features/** ->
+  // assistant/**` import, and reading the registry from inside that feature was a real
+  // `check:boundaries` error until this seam replaced it. Passed as the reader FUNCTION, not a
+  // pre-read array — the per-resource handlers below are registered after this line.
+  registerToolContributor(contributeContentDuplicationTools({ listResourceHandlers: listDuplicateResourceHandlers }));
   registerToolContributor(contributeContentTypesTools());
   registerToolContributor(contributeCustomCredentialsTools());
   registerToolContributor(contributeDatabaseTools());
