@@ -114,7 +114,7 @@ test("content_duplicate is wired, and this domain contributes both 'post' and 'p
   );
 });
 
-test("copies title/slug/status defaults: 'Copy of <title>', derived slug, ALWAYS draft even for a published source", async () => {
+test("copies title/slug/status defaults: source title with a numeric suffix, derived slug, ALWAYS draft even for a published source", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { status: "published" });
   const registrations = registrationsFor(deps);
@@ -124,13 +124,30 @@ test("copies title/slug/status defaults: 'Copy of <title>', derived slug, ALWAYS
   };
 
   assert.notEqual(result.post.id, "source-1", "must be a NEW row, never the source's own id");
-  assert.equal(result.post.title, "Copy of Landing sample — xai");
-  assert.equal(result.post.slug, "copy-of-landing-sample-xai");
+  assert.equal(result.post.title, "Landing sample — xai 2", "never 'Copy of <title>' — a numeric suffix instead");
+  assert.equal(result.post.slug, "landing-sample-xai-2", "the slug follows the numbered title, not a separate derivation");
   assert.equal(result.post.status, "draft", "a copy must never silently go live, even from a published source");
   assert.equal(result.post.kind, "page");
 
   const sourceStillThere = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-1" });
   assert.equal(sourceStillThere?.status, "published", "the source row must be completely untouched");
+});
+
+test("copying the same source twice increments the suffix: '... 2', then '... 3'", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const registrations = registrationsFor(deps);
+
+  const first = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
+    post: { title: string; slug: string };
+  };
+  const second = (await call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" })) as {
+    post: { title: string; slug: string };
+  };
+
+  assert.equal(first.post.title, "Landing sample — xai 2");
+  assert.equal(second.post.title, "Landing sample — xai 3");
+  assert.equal(second.post.slug, "landing-sample-xai-3");
 });
 
 test("explicit title, slug, and status overrides are honored when supplied", async () => {

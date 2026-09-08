@@ -107,6 +107,7 @@ import {
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
 import { searchAdminPosts, type PostSearchPort } from "./search.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
+import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
 
@@ -842,6 +843,31 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 }
 
 /**
+ * Derives `content_duplicate`'s default title for a post/page copy — see
+ * `../content-duplication/derive-available-name.ts`'s header for the owner's numeric-suffix ruling
+ * and the trailing-number rule. Only ever called when the caller supplied no explicit
+ * `overrides.title` (see this function's one call site, guarded by `??`).
+ *
+ * Scoped to rows of the SAME `kind` as the source: a post and a page may legitimately share a title,
+ * so a page named "About" must not be blocked by an unrelated post also named "About".
+ *
+ * @complexity One `postRepo.list()` scan (78 pages / 64 posts at current scale, read live
+ * 2026-09-08 — see the shared module's own header for why this is an accepted O(n) scan rather than
+ * a new port method), then {@link deriveDuplicateName}'s own bounded search.
+ */
+async function deriveDefaultDuplicateTitle(routeDeps: PostToolDeps, source: PostRecord): Promise<string> {
+  const existingTitles = new Set(
+    (await routeDeps.postRepo.list({ workspaceId: routeDeps.workspaceId }))
+      .filter((post) => post.kind === source.kind)
+      .map((post) => post.title)
+  );
+  return deriveDuplicateName(
+    { sourceName: source.title },
+    { isTaken: async (candidate) => existingTitles.has(candidate) }
+  );
+}
+
+/**
  * Shared implementation behind `content_duplicate`'s `"post"` and `"page"` resource contributors
  * (see {@link contributePostDuplicateHandlers} below).
  *
@@ -897,7 +923,7 @@ async function duplicatePostOrPage(
     throw new PostValidationError("status must be 'draft' or 'published'");
   }
 
-  const title = input.overrides.title ?? `Copy of ${source.title}`;
+  const title = input.overrides.title ?? (await deriveDefaultDuplicateTitle(routeDeps, source));
   const slug = input.overrides.slug;
   const status: PostStatus = overrideStatus ?? "draft";
 

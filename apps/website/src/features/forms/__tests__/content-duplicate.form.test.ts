@@ -99,7 +99,7 @@ test("'form' is a supported resource of content_duplicate", async () => {
   assert.deepEqual(contributeFormsDuplicateHandlers().map((c) => c.resource), ["form"]);
 });
 
-test("copying a form defaults the name to 'Copy of <source>', derives a free slug, and deep-copies fields and notify", async () => {
+test("copying a form defaults the name to the source's own name with a numeric suffix, derives a matching free slug, and deep-copies fields and notify", async () => {
   const { deps, formDefinitionRepo } = fakeRouteDeps();
   const source = await seedForm(formDefinitionRepo);
 
@@ -108,8 +108,8 @@ test("copying a form defaults the name to 'Copy of <source>', derives a free slu
   };
 
   assert.notEqual(definition.id, "source-form", "must be a NEW row");
-  assert.equal(definition.name, "Copy of Contact Us");
-  assert.equal(definition.slug, "copy-of-contact-us");
+  assert.equal(definition.name, "Contact Us 2", "never 'Copy of <source>' — a numeric suffix instead");
+  assert.equal(definition.slug, "contact-us-2", "the slug is derived from the NEW numbered name");
   assert.match(definition.slug, SLUG_PATTERN);
   assert.deepEqual(definition.fields, source.fields);
   assert.deepEqual(definition.notify, { enabled: true, recipients: ["owner@example.com"] });
@@ -153,7 +153,7 @@ test("an explicit title and slug are honored", async () => {
   assert.equal(definition.slug, "sales-enquiries");
 });
 
-test("copying the same form twice disambiguates the second slug instead of failing on the unique index", async () => {
+test("copying the same form twice increments the name/slug suffix instead of failing on the unique index", async () => {
   const { deps, formDefinitionRepo } = fakeRouteDeps();
   await seedForm(formDefinitionRepo);
   const duplicate = duplicateTool(deps);
@@ -161,8 +161,10 @@ test("copying the same form twice disambiguates the second slug instead of faili
   const first = (await call(duplicate, { resource: "form", id: "source-form" })) as { definition: FormView };
   const second = (await call(duplicate, { resource: "form", id: "source-form" })) as { definition: FormView };
 
-  assert.equal(first.definition.slug, "copy-of-contact-us");
-  assert.equal(second.definition.slug, "copy-of-contact-us-2");
+  assert.equal(first.definition.name, "Contact Us 2");
+  assert.equal(first.definition.slug, "contact-us-2");
+  assert.equal(second.definition.name, "Contact Us 3");
+  assert.equal(second.definition.slug, "contact-us-3");
   assert.notEqual(first.definition.id, second.definition.id);
 });
 

@@ -10,6 +10,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";
+import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 /**
  * @file `content_duplicate`'s `"media"` resource — the third resource, and the only one whose rows
@@ -81,6 +82,31 @@ async function resolveCopyContentType(
 }
 
 /**
+ * Derives `content_duplicate`'s default title for a media copy — see
+ * `../content-duplication/derive-available-name.ts`'s header for the owner's numeric-suffix ruling.
+ * Only ever called when the caller supplied no explicit `overrides.title`; an explicit one wins
+ * outright and this performs no scan at all.
+ *
+ * @complexity O(1) when `overrideTitle` is given. Otherwise one `mediaRepo.list()` scan (17 rows at
+ * current scale, read live 2026-09-08 — see the shared module's own header for why this is an
+ * accepted O(n) scan rather than a new port method), then `deriveDuplicateName`'s own bounded search.
+ */
+async function resolveDuplicateTitle(
+  routeDeps: MediaToolDeps,
+  source: MediaRecord,
+  overrideTitle: string | undefined
+): Promise<string> {
+  if (overrideTitle !== undefined) return overrideTitle;
+  const existingTitles = new Set(
+    (await routeDeps.mediaRepo.list({ workspaceId: routeDeps.workspaceId })).map((asset) => asset.title)
+  );
+  return deriveDuplicateName(
+    { sourceName: source.title },
+    { isTaken: async (candidate) => existingTitles.has(candidate) }
+  );
+}
+
+/**
  * Copies every editorial field `uploadMedia` does not already take, onto the freshly created row.
  *
  * Split out from {@link duplicateMediaAsset} because it is the part that must stay in step with
@@ -89,7 +115,11 @@ async function resolveCopyContentType(
  * accepts `alt`/`caption`/`credit` directly, so only the remainder is applied here.
  *
  * `title` is set through this path rather than via `uploadMedia`'s `filename` because that derivation
- * strips a trailing extension — a title like `"Logo v1.2"` would arrive as `"Logo v1"`.
+ * strips a trailing extension — a title like `"Logo v1.2"` would arrive as `"Logo v1"`. `resolved.title`
+ * is already the FINAL title (default-derived or override, resolved once by
+ * {@link duplicateMediaAsset} before this runs), not recomputed here — recomputing it in two places
+ * is exactly the kind of drift that let `filename`'s own former `"copy-of-…"` seed and this function's
+ * default silently disagree with each other.
  *
  * @complexity O(1) — one repo read plus one write.
  */
@@ -97,15 +127,15 @@ async function applyCopiedMetadata(
   routeDeps: MediaToolDeps,
   created: MediaRecord,
   source: MediaRecord,
-  overrides: { title?: string; slug?: string }
+  resolved: { title: string; slug?: string }
 ): Promise<MediaRecord> {
   const { media } = await updateMediaMetadata({
     deps: { clock: routeDeps.clock, mediaRepo: routeDeps.mediaRepo },
     input: {
       workspaceId: routeDeps.workspaceId,
       id: created.id,
-      title: overrides.title ?? `Copy of ${source.title}`,
-      ...(overrides.slug !== undefined ? { slug: overrides.slug } : {}),
+      title: resolved.title,
+      ...(resolved.slug !== undefined ? { slug: resolved.slug } : {}),
       width: source.width,
       height: source.height,
       cssClass: source.cssClass,
@@ -175,6 +205,11 @@ export async function duplicateMediaAsset(
   const bytes = await routeDeps.blobStore.get({ storageKey: blob.storageKey });
   const contentType = await resolveCopyContentType(routeDeps, source.source.sha256, bytes);
 
+  // Resolved before uploadMedia so BOTH the interim filename seed below and applyCopiedMetadata's
+  // real write use the SAME final title — see resolveDuplicateTitle's own doc for why recomputing it
+  // twice is a drift risk this avoids.
+  const title = await resolveDuplicateTitle(routeDeps, source, input.overrides.title);
+
   // Dedups by (workspaceId, sha256) inside the sha256 lock: the copy REFERENCES the source's bytes
   // rather than duplicating them, and a tombstoned blob is resurrected rather than left to be
   // collected out from under the new row. See this file's header.
@@ -190,8 +225,14 @@ export async function duplicateMediaAsset(
     input: {
       workspaceId: routeDeps.workspaceId,
       bytes,
-      // Only ever a slug/title SEED — the real title is set by `applyCopiedMetadata` below.
-      filename: `copy-of-${source.slug}`,
+      // A slug-shaped SEED only — never the real title (applyCopiedMetadata sets that below) and
+      // deliberately built from `source.slug`, not `title`: `source.slug` is guaranteed dot-free
+      // (media slugs are lowercase letters/digits/dashes only), so appending to it can never trip
+      // uploadMedia's own `deriveTitleFromFilename`, which strips anything that LOOKS like a
+      // trailing file extension (`\.[^./\\]+$` — a bare period anywhere near the end, not just a
+      // real `.ext`). The numbered `title` this function resolves CAN legitimately contain a period
+      // (e.g. a source titled "Logo v1.2"), so it is never itself passed through here.
+      filename: `${source.slug}-copy`,
       contentType,
       alt: source.alt,
       caption: source.caption,
@@ -207,7 +248,7 @@ export async function duplicateMediaAsset(
   // same store and method the HTTP upload route and `media_upload_asset` already write through.
   await routeDeps.mediaContentTypeStore?.set({ workspaceId: routeDeps.workspaceId, sha256: created.source.sha256, contentType });
 
-  const media = await applyCopiedMetadata(routeDeps, created, source, input.overrides);
+  const media = await applyCopiedMetadata(routeDeps, created, source, { title, slug: input.overrides.slug });
   return { media };
 }
 

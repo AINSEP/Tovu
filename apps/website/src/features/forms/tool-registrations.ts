@@ -32,6 +32,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { formsAgentToolCatalog } from "./agent-tools.js";
 import { deriveAvailableFormSlug } from "./duplicate-slug.js";
+import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {
@@ -347,12 +348,36 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
  * permission), which `content_duplicate`'s own outer gate has already established before this runs.
  * A second identical check would be the duplicate evaluator ADR-021 §2 forbids.
  *
- * What is copied: `name` (defaulting to `"Copy of <source name>"`), every field descriptor, and the
- * notify config — all deep-copied, so editing the copy can never reach back into the source row.
- * `slug` is derived (see `duplicate-slug.ts` for why Forms needs derivation where Posts does not).
+ * What is copied: `name` (defaulting to the source's own name with a numeric suffix — see
+ * `../content-duplication/derive-available-name.ts`'s header for the owner's ruling — never
+ * `"Copy of <source name>"`), every field descriptor, and the notify config — all deep-copied, so
+ * editing the copy can never reach back into the source row. `slug` is derived FROM that (possibly
+ * numbered) name (see `duplicate-slug.ts` for why Forms needs derivation where Posts does not), so
+ * `"Contact Us 2"` yields `"contact-us-2"` and the two stay in step.
  *
- * @complexity O(f) in the source's field count, plus one repo read per slug candidate tried.
+ * @complexity O(f) in the source's field count, plus one `formDefinitionRepo.list()` scan for the
+ * default name (skipped entirely when the caller supplies an explicit `overrides.title` — see
+ * {@link deriveDefaultDuplicateFormName}) plus one repo read per slug candidate tried.
  */
+/**
+ * Derives `content_duplicate`'s default name for a form copy — see
+ * `../content-duplication/derive-available-name.ts`'s header for the owner's numeric-suffix ruling.
+ * Only ever called when the caller supplied no explicit `overrides.title`.
+ *
+ * @complexity One `formDefinitionRepo.list()` scan (3 forms at current scale, read live 2026-09-08 —
+ * see the shared module's own header for why this is an accepted O(n) scan rather than a new port
+ * method), then `deriveDuplicateName`'s own bounded search.
+ */
+async function deriveDefaultDuplicateFormName(routeDeps: FormsToolDeps, source: FormDefinitionRecord): Promise<string> {
+  const existingNames = new Set(
+    (await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId })).map((form) => form.name)
+  );
+  return deriveDuplicateName(
+    { sourceName: source.name },
+    { isTaken: async (candidate) => existingNames.has(candidate) }
+  );
+}
+
 async function duplicateFormDefinition(
   routeDeps: FormsToolDeps,
   input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } }
@@ -373,7 +398,7 @@ async function duplicateFormDefinition(
   const source = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: input.id });
   if (!source) throw new FormDefinitionNotFoundError(`form definition '${input.id}' was not found`);
 
-  const name = input.overrides.title ?? `Copy of ${source.name}`;
+  const name = input.overrides.title ?? (await deriveDefaultDuplicateFormName(routeDeps, source));
   const slug =
     input.overrides.slug ??
     (await deriveAvailableFormSlug(

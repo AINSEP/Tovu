@@ -182,13 +182,13 @@ test("the copy gets its OWN rendition rows — renditions are keyed by asset id,
 // Editorial fields.
 // ---------------------------------------------------------------------------------------------
 
-test("every editorial field is carried onto the copy, with the title defaulting to 'Copy of <source>'", async () => {
+test("every editorial field is carried onto the copy, with the title defaulting to the source's own title with a numeric suffix", async () => {
   const { deps } = fakeRouteDeps();
   const source = await seedAsset(deps);
 
   const { media } = (await call(duplicateTool(deps), { resource: "media", id: source.id })) as { media: MediaRecord };
 
-  assert.equal(media.title, `Copy of ${source.title}`);
+  assert.equal(media.title, `${source.title} 2`, "never 'Copy of <source>' — a numeric suffix instead");
   assert.equal(media.alt, "A hero banner");
   assert.equal(media.caption, "Shot on location");
   assert.equal(media.credit, "Jane Doe");
@@ -196,6 +196,17 @@ test("every editorial field is carried onto the copy, with the title defaulting 
   assert.equal(media.height, 630);
   assert.equal(media.cssClass, "rounded shadow");
   assert.equal(media.htmlAttributes, 'loading="lazy"');
+});
+
+test("copying the same asset twice increments the suffix: '... 2', then '... 3'", async () => {
+  const { deps } = fakeRouteDeps();
+  const source = await seedAsset(deps);
+
+  const first = (await call(duplicateTool(deps), { resource: "media", id: source.id })) as { media: MediaRecord };
+  const second = (await call(duplicateTool(deps), { resource: "media", id: source.id })) as { media: MediaRecord };
+
+  assert.equal(first.media.title, `${source.title} 2`);
+  assert.equal(second.media.title, `${source.title} 3`);
 });
 
 test("an explicit title and slug are honored", async () => {

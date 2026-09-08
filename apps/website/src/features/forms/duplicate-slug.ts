@@ -1,4 +1,5 @@
 import { SLUG_PATTERN } from "./write-service.js";
+import { deriveAvailableName, MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
 
 /**
  * @file `content_duplicate`'s `"form"` resource needs a slug for the copy, and Forms — unlike Posts —
@@ -20,6 +21,13 @@ import { SLUG_PATTERN } from "./write-service.js";
  * Deliberately NOT exported as a general-purpose Forms slug helper: `forms_create_definition` still
  * takes an explicit caller-supplied slug, and giving it a silent derivation would change a published
  * tool contract this task has no mandate to change.
+ *
+ * The bounded suffix-search LOOP itself (2026-09-08) is no longer written here — it is
+ * `../content-duplication/derive-available-name.ts`'s `deriveAvailableName`, generalized from this
+ * file's own original loop so the collision-search shape is shared with the NAME derivation every
+ * `content_duplicate` resource now needs, rather than reinvented a second time. This file keeps
+ * everything SLUG-specific: the character class (`slugifyFormName`), the length ceiling and
+ * base-shortening (`withSuffix`), and the reserved-word list (`RESERVED_SLUGS`).
  */
 
 /** The ceiling `SLUG_PATTERN` (`^[a-z0-9][a-z0-9-]{0,63}$`) itself imposes: 1 + 63 characters. */
@@ -42,13 +50,6 @@ const FALLBACK_SLUG = "form";
 const RESERVED_SLUGS = new Set(["new"]);
 
 /**
- * Bound on the suffix search, so a pathological repo (or a buggy `isTaken`) can never spin forever
- * against a live database. Mirrors `createPost`'s own BR-02 bound in spirit; the number is generous
- * enough that reaching it means something is genuinely wrong, not that a workspace has many copies.
- */
-const MAX_SUFFIX_ATTEMPTS = 1000;
-
-/**
  * Converts a form name into the longest `SLUG_PATTERN`-satisfying slug it can, or `""` when the name
  * contains nothing sluggable.
  *
@@ -56,7 +57,8 @@ const MAX_SUFFIX_ATTEMPTS = 1000;
  * derivation — {@link deriveAvailableFormSlug} is where the fallback is applied. Truncation trims any
  * hyphen the cut exposes, since a trailing hyphen is legal under the pattern but reads as a mistake.
  *
- * @param name - The (possibly already "Copy of …") form name to derive from.
+ * @param name - The (possibly already numbered, e.g. "Landing sample — xai 2") form name to derive
+ * from.
  * @returns A slug of at most {@link FORM_SLUG_MAX_LENGTH} characters, or `""`.
  * @complexity O(n) in the name's length.
  */
@@ -94,16 +96,26 @@ export async function deriveAvailableFormSlug(
 ): Promise<string> {
   const base = slugifyFormName(required.name) || FALLBACK_SLUG;
 
-  for (let suffix = 1; suffix <= MAX_SUFFIX_ATTEMPTS; suffix += 1) {
-    const candidate = suffix === 1 ? base : withSuffix(base, suffix);
-    if (RESERVED_SLUGS.has(candidate)) continue;
-    if (!SLUG_PATTERN.test(candidate)) continue;
-    if (!(await options.isTaken(candidate))) return candidate;
-  }
-
-  throw new Error(
-    `no free slug could be derived from '${required.name}' after ${MAX_SUFFIX_ATTEMPTS} attempts — ` +
-      "give the copy an explicit slug"
+  return deriveAvailableName(
+    { base },
+    {
+      withSuffix,
+      // RESERVED_SLUGS/SLUG_PATTERN are "skip this candidate", not "this candidate is taken" — but
+      // the generic loop makes no distinction between the two (see its own doc), so folding both
+      // checks in here reproduces this function's original `continue`-then-try-the-next-suffix
+      // behavior exactly.
+      isTaken: async (candidate) => {
+        if (RESERVED_SLUGS.has(candidate)) return true;
+        if (!SLUG_PATTERN.test(candidate)) return true;
+        return options.isTaken(candidate);
+      },
+      onExhausted: () => {
+        throw new Error(
+          `no free slug could be derived from '${required.name}' after ${MAX_SUFFIX_ATTEMPTS} attempts — ` +
+            "give the copy an explicit slug"
+        );
+      },
+    }
   );
 }
 
