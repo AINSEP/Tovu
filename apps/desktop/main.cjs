@@ -109,6 +109,7 @@ const { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, 
 const { createKeyedSerializer } = require("./src/keyed-serializer.cjs");
 const { createSiteSupervisor } = require("./src/site-supervisor.cjs");
 const { createShutdownTracker } = require("./src/shutdown-tracker.cjs");
+const { applyGuestWebPreferences } = require("./src/webview-guest-policy.cjs");
 const { createSelftestTracker } = require("./src/selftest-tracker.cjs");
 const { registerSpeechIpc } = require("./src/speech/speech-ipc.cjs");
 const { registerRunnerIpcStubs } = require("./src/runner-ipc-stubs.cjs");
@@ -405,10 +406,12 @@ function openFleetWindow() {
   if (selftestTracker) selftestTracker.add(window);
   window.on("page-title-updated", (event) => event.preventDefault());
 
+  // The guest gets the shell's OWN speech preload, not none (D-10) — see
+  // `webview-guest-policy.cjs` for why assigning is strictly stronger than the `delete` this
+  // replaced, and for the symptom it fixes: the embedded admin telling the operator that voice
+  // input needs the desktop app, from inside the desktop app.
   window.webContents.on("will-attach-webview", (_event, webPreferences) => {
-    delete webPreferences.preload;
-    webPreferences.nodeIntegration = false;
-    webPreferences.contextIsolation = true;
+    applyGuestWebPreferences(webPreferences, { preloadPath: SPEECH_PRELOAD_PATH });
   });
 
   void window.loadFile(FLEET_RENDERER_PATH);
