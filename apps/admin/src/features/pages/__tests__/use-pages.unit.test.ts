@@ -369,6 +369,40 @@ describe("usePages — content refresh bus", () => {
     await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
   });
 
+  it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
+
+    // Two assistant writes land back to back, each publishing its own content-refresh
+    // notification — two overlapping `listPages()` calls with no ordering guarantee on responses.
+    let resolveFirst!: (v: { posts: { post: typeof PAGE }[] }) => void;
+    let resolveSecond!: (v: { posts: { post: typeof PAGE }[] }) => void;
+    vi.spyOn(port, "listPages")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    act(() => {
+      publishContentRefresh();
+      publishContentRefresh();
+    });
+
+    // The SECOND (more recent) request settles first, with the newer list.
+    await act(async () => {
+      resolveSecond({ posts: [{ post: PAGE }, { post: NEW_PAGE }] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
+
+    // The FIRST (now-stale) request finally settles. It must not resurrect the older list.
+    await act(async () => {
+      resolveFirst({ posts: [{ post: PAGE }] });
+      await Promise.resolve();
+    });
+
+    expect(result.current.pages).toEqual([PAGE, NEW_PAGE]);
+  });
+
   it("stops re-reading once unmounted", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
     const listSpy = vi.spyOn(port, "listPages");
