@@ -300,3 +300,136 @@ test("backfill-execution-credential-aad: --dry-run never applies a pending migra
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });
+
+/**
+ * The concurrent-rotation proof, driven through the script's OWN exported entry
+ * (`runExecutionCredentialAadBackfill`) so it exercises the real `loadPendingUnits` and the real
+ * write callback, against a real database — not a restatement of the runner's contract, which
+ * `aad-backfill-runner.unit.test.ts` pins separately with fakes.
+ *
+ * The interleaving is injected at the one place it can be: `seal()` is called by the runner AFTER
+ * `loadPending` has snapshotted the row and BEFORE `write` runs, which is exactly the window a live
+ * admin key rotation would land in. The wrapper below performs that rotation as its side effect.
+ */
+
+/** Importing the script runs its own `main()` against `process.argv` (see its tail), so argv is
+ *  pointed at a real database first — otherwise it resolves its `infra/content.db` default, throws,
+ *  and sets `process.exitCode = 1` for the whole test process. With `--db` and no `--apply` it does
+ *  a harmless read-only dry run instead. */
+async function importScriptWithDryRunArgv(dbPath: string) {
+  const originalArgv = process.argv;
+  process.argv = [originalArgv[0]!, "backfill-execution-credential-aad.ts", "--db", dbPath];
+  try {
+    return await import("../backfill-execution-credential-aad.js");
+  } finally {
+    process.argv = originalArgv;
+  }
+}
+
+function readCredentialRow(dbPath: string): { sealedCiphertext: string; aadVersion: number } {
+  const raw = new Database(dbPath, { readonly: true });
+  try {
+    return raw
+      .prepare("SELECT sealed_ciphertext AS sealedCiphertext, aad_version AS aadVersion FROM admin_execution_credentials WHERE principal_id = ?")
+      .get(ADMIN_A) as { sealedCiphertext: string; aadVersion: number };
+  } finally {
+    raw.close();
+  }
+}
+
+test("backfill-execution-credential-aad: a key rotation landing mid-run ABORTS the backfill instead of reverting it", async () => {
+  const scratch = tmpDir("backfill-execution-aad-race-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+  const legacySealed = await sealer.seal({ plaintext: "OLD_KEY_BEFORE_ROTATION", key: activeKey }); // NO aad.
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  seedDb
+    .insert(principals)
+    .values({ id: ADMIN_A, workspaceId: WORKSPACE, kind: "user", displayName: "Admin A", status: "active", createdAt: NOW })
+    .run();
+  seedDb
+    .insert(adminExecutionCredentials)
+    .values({
+      workspaceId: WORKSPACE,
+      principalId: ADMIN_A,
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: null,
+      model: null,
+      maxTokens: null,
+      sealedKeyId: legacySealed.keyId,
+      sealedCiphertext: legacySealed.ciphertext,
+      sealedNonce: legacySealed.nonce,
+      sealedAlg: legacySealed.alg,
+      masked: "••••OLD1",
+      aadVersion: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+    })
+    .run();
+  seedDb.$client.close();
+
+  // What the live server does when an admin rotates their key: re-seal a DIFFERENT plaintext under
+  // the CURRENT scheme and move the row off aad_version 0.
+  const rotatedSealed = await sealer.seal({
+    plaintext: "NEW_KEY_THE_ADMIN_JUST_ROTATED_TO",
+    key: activeKey,
+    aad: buildExecutionCredentialAad({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
+  });
+
+  const script = await importScriptWithDryRunArgv(dbPath);
+  const db = openContentDb(dbPath);
+
+  let rotated = false;
+  const racingSealer = {
+    open: (input: Parameters<typeof sealer.open>[0]) => sealer.open(input),
+    /** Fires exactly once, in the window between `loadPending`'s snapshot and this unit's write. */
+    seal: async (input: Parameters<typeof sealer.seal>[0]) => {
+      if (!rotated) {
+        rotated = true;
+        db.$client
+          .prepare(
+            "UPDATE admin_execution_credentials SET sealed_key_id = ?, sealed_ciphertext = ?, sealed_nonce = ?, sealed_alg = ?, aad_version = 1 WHERE principal_id = ?"
+          )
+          .run(rotatedSealed.keyId, rotatedSealed.ciphertext, rotatedSealed.nonce, rotatedSealed.alg, ADMIN_A);
+      }
+      return await sealer.seal(input);
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      script.runExecutionCredentialAadBackfill(
+        { db, sealer: racingSealer as unknown as Parameters<typeof script.runExecutionCredentialAadBackfill>[0]["sealer"], keyring, log: () => {} },
+        { apply: true }
+      ),
+    /changed 0 row/,
+    "a write onto a row someone else re-sealed must abort, not be counted as migrated"
+  );
+
+  assert.equal(rotated, true, "the fixture must actually have rotated the row mid-run, or this proves nothing");
+  db.$client.close();
+
+  // THE LOAD-BEARING ASSERTION: the admin's rotation survived. Before the CAS predicate existed the
+  // backfill wrote here unconditionally, replacing this ciphertext with OLD_KEY_BEFORE_ROTATION
+  // re-sealed — a silently reverted credential that still opens cleanly and looks entirely correct.
+  const after = readCredentialRow(dbPath);
+  assert.equal(after.sealedCiphertext, rotatedSealed.ciphertext, "the rotated key must still be the one stored");
+  assert.equal(after.aadVersion, 1);
+
+  const reopened = await sealer.open({
+    sealed: { keyId: rotatedSealed.keyId, ciphertext: after.sealedCiphertext, nonce: rotatedSealed.nonce, alg: rotatedSealed.alg },
+    aad: buildExecutionCredentialAad({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
+  });
+  assert.equal(reopened, "NEW_KEY_THE_ADMIN_JUST_ROTATED_TO", "the stored credential must still be the rotated one");
+
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  fs.rmSync(scratch, { recursive: true, force: true });
+});

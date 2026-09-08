@@ -32,7 +32,7 @@
  */
 import path from "node:path";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { siteAssistantCredentials } from "../../apps/website/src/platform/db/schema.js";
 import type { ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
@@ -83,8 +83,12 @@ function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
           sealedAlg: sealed.alg,
           aadVersion: 1,
         })
-        .where(eq(siteAssistantCredentials.workspaceId, row.workspaceId))
-        .run(),
+                // `aadVersion` is in the predicate, not just the SET: this write must land only while the
+        // row is still in the state `loadPending` selected it in. A credential the live server
+        // re-sealed since then matches nothing, `.changes` is 0, and the runner aborts rather than
+        // reverting that rotation with this unit's older plaintext.
+        .where(and(eq(siteAssistantCredentials.workspaceId, row.workspaceId), eq(siteAssistantCredentials.aadVersion, 0)))
+        .run().changes,
   }));
 }
 

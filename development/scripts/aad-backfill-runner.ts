@@ -69,8 +69,19 @@ export interface AadBackfillUnit {
   readonly sealed: SealedColumns;
   /** Computes this unit's AAD. Not called for a dry run. */
   readonly buildAad: () => string;
-  /** Writes this unit's own `sealed_*`/version columns. Not called for a dry run. */
-  readonly write: (sealed: SealedColumns) => void;
+  /**
+   * Writes the re-sealed columns for this unit and returns HOW MANY ROWS IT CHANGED.
+   *
+   * The count is the contract, not a convenience. Every implementation must write under a
+   * compare-and-swap predicate — its own identity columns AND `aad_version = 0`, the state the row
+   * was selected in — so a row some other writer has already moved off 0 matches nothing and this
+   * returns `0`. {@link runAadBackfill} treats anything but exactly `1` as an abort. See that
+   * function's own doc for the lost update this closes.
+   *
+   * @returns rows changed; `1` in the ordinary case.
+   * @complexity O(1) — one update.
+   */
+  readonly write: (sealed: SealedColumns) => number;
 }
 
 export interface AadBackfillDeps {
@@ -108,6 +119,25 @@ export interface AadBackfillMessages {
  * @complexity O(n) in the pending unit count — one decrypt, one re-seal, one verify-open, and one
  *   write per unit; no nested iteration.
  */
+/**
+ * The exact operator-facing text for a write that did not land on exactly one row. Exported so
+ * tests assert on the real string rather than a paraphrase of it.
+ *
+ * Fixed here rather than supplied per script through {@link AadBackfillMessages}: this is the shared
+ * scaffold's own invariant, identical for all six consumers, and `label` already names the script's
+ * own unit. Adding a seventh per-script message would be six edits for one sentence.
+ */
+export function staleWriteMessage(label: string, changed: number): string {
+  return (
+    `aad backfill: writing ${label} changed ${changed} row(s), expected exactly 1. ` +
+    (changed === 0
+      ? "The row is no longer at aad_version 0 — something else re-sealed this credential while this backfill was running, " +
+        "and completing the write would silently revert it. "
+      : "The write predicate matched more than one row, which would re-seal another credential under this unit's AAD. ") +
+    "Aborting; every unit already migrated is correct and re-running is safe."
+  );
+}
+
 export async function runAadBackfill(
   deps: AadBackfillDeps,
   opts: { apply: boolean },
@@ -135,7 +165,15 @@ export async function runAadBackfill(
       throw new Error(config.messages.mismatch(unit.label));
     }
 
-    unit.write(sealed);
+    // Compare-and-swap. `unit.write` is conditional on the row still being at `aad_version = 0`,
+    // so a credential something else re-sealed since `loadPending` ran matches nothing and reports
+    // zero. Overwriting it would silently revert that change with this unit's OLD plaintext, and
+    // nothing downstream would ever report it: the row stays well-formed and opens cleanly under
+    // the new AAD, so the loss is visible only to whoever rotated the key. Abort, loudly.
+    const changed = unit.write(sealed);
+    if (changed !== 1) {
+      throw new Error(staleWriteMessage(unit.label, changed));
+    }
 
     migrated += 1;
     log(config.messages.migratedUnit(unit.label));

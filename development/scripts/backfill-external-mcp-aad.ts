@@ -102,9 +102,14 @@ function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
       label: `workspace=${blob.workspaceId} server=${blob.serverId} slot=${blob.slot}`,
       sealed: blob.sealed,
       buildAad: () => (blob.slot === "env" ? buildExternalMcpEnvAad(identity) : buildExternalMcpOAuthAad(identity)),
+      // Each slot's CAS predicate is its OWN version column, not a shared one. The two blobs are
+      // independent secret classes with independent versions (see this file's header), so an env
+      // migration must not be invalidated by an oauth rotation, or vice versa — pairing `where` with
+      // the wrong column would abort correct work and let the racy write through.
       write: (sealed) => {
         if (blob.slot === "env") {
-          db.update(externalMcpServers)
+          return db
+            .update(externalMcpServers)
             .set({
               sealedKeyId: sealed.keyId,
               sealedCiphertext: sealed.ciphertext,
@@ -112,20 +117,20 @@ function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
               sealedAlg: sealed.alg,
               aadVersion: EXTERNAL_MCP_AAD_VERSION,
             })
-            .where(where)
-            .run();
-        } else {
-          db.update(externalMcpServers)
-            .set({
-              oauthSealedKeyId: sealed.keyId,
-              oauthSealedCiphertext: sealed.ciphertext,
-              oauthSealedNonce: sealed.nonce,
-              oauthSealedAlg: sealed.alg,
-              oauthAadVersion: EXTERNAL_MCP_AAD_VERSION,
-            })
-            .where(where)
-            .run();
+            .where(and(where, eq(externalMcpServers.aadVersion, 0)))
+            .run().changes;
         }
+        return db
+          .update(externalMcpServers)
+          .set({
+            oauthSealedKeyId: sealed.keyId,
+            oauthSealedCiphertext: sealed.ciphertext,
+            oauthSealedNonce: sealed.nonce,
+            oauthSealedAlg: sealed.alg,
+            oauthAadVersion: EXTERNAL_MCP_AAD_VERSION,
+          })
+          .where(and(where, eq(externalMcpServers.oauthAadVersion, 0)))
+          .run().changes;
       },
     };
   });

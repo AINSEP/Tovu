@@ -86,8 +86,12 @@ function loadPendingUnits(db: ContentDb): AadBackfillUnit[] {
           sealedAlg: sealed.alg,
           aadVersion: 1,
         })
-        .where(and(eq(composioConnectorCredentials.workspaceId, row.workspaceId), eq(composioConnectorCredentials.connectorId, row.connectorId)))
-        .run(),
+                // `aadVersion` is in the predicate, not just the SET: this write must land only while the
+        // row is still in the state `loadPending` selected it in. A credential the live server
+        // re-sealed since then matches nothing, `.changes` is 0, and the runner aborts rather than
+        // reverting that rotation with this unit's older plaintext.
+        .where(and(eq(composioConnectorCredentials.workspaceId, row.workspaceId), eq(composioConnectorCredentials.connectorId, row.connectorId), eq(composioConnectorCredentials.aadVersion, 0)))
+        .run().changes,
   }));
 }
 
