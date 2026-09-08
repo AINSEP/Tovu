@@ -19,7 +19,9 @@ The dispatch asked to hear these before the experiment. Three, in descending ord
 
 ### 0.1 The 98% / 100% figure does not exist and never did
 
-`byok-tool-surface.ts:146-147` tells the model, inside a shipping tool description:
+`byok-tool-surface.ts:146-147` told the model, inside a shipping tool description (**removed since, by
+`37a78494`, which also pinned a structural guard asserting no `NN%`-shaped string appears in either
+surface — quoted below only as the historical artifact it now is**):
 
 > measured on a 130-case blind set, the right tool is in the top 10 98% of the time but in the top 20
 > 100% of the time, so the remaining misses are ranked just below the default cutoff, not absent.
@@ -33,13 +35,38 @@ That number is not reproducible and has no traceable source:
 - That eval's own module header states its result for the shipped index: **25% top-1**, not 98%
   anything. Its header is explicit that the earlier, higher n=20 numbers were inflated because that set
   was authored by the same agent that wrote the keywords being graded.
-- `git log -S "in the top 20 100% of the time"` returns exactly one commit, `708e81b2` — the
-  `src/` → `apps/website/src/` rename. The claim predates the rename and no commit introduces it as new
-  text; it was carried through, never derived.
+- **[CORRECTED 2026-09-08]** This bullet previously said `git log -S "in the top 20 100% of the time"`
+  returns exactly one commit, `708e81b2` (the `src/` → `apps/website/src/` rename), and concluded the
+  claim "predates the rename and no commit introduces it as new text". **That was a false negative, and
+  the origin is traceable: `d6ac6975`, 2026-08-08, "refactor(assistant): rework execution model-listing
+  and test-connection routes".** Verified directly — `git show d6ac6975` carries the phrase as brand-new
+  `+` lines, and adds it to BOTH surfaces in one stroke: `src/assistant/agent-daemon-server.ts` (from
+  which `assistant-system-overlay.ts` was later extracted, `e38da66d`) and
+  `src/assistant/byok-tool-surface.ts`. A commit about model-listing routes, carrying no eval run and no
+  citation. The finding is *sharper* for this, not weaker: the figure was invented on a specific day, in
+  a change about something else entirely, and installed in two shipping surfaces simultaneously.
+
+  **Methodological note, worth more than the correction.** `-S` *scoped to a path that was later renamed*
+  truncates the trail at the rename and returns a result that reads like a finding — "nothing introduced
+  this, it was always here" — when the real answer is one flag away. Either add `--follow` (which takes
+  exactly one pathspec, so it cannot be used to search two files at once), or simply drop the pathspec:
+
+  ```
+  git log --oneline -S '<phrase>' -- apps/website/src/assistant/byok-tool-surface.ts   # stops at 708e81b2
+  git log --follow --oneline -S '<phrase>' -- apps/website/src/assistant/byok-tool-surface.ts   # finds d6ac6975
+  git log --oneline -S '<phrase>'                                                      # also finds d6ac6975
+  ```
+
+  The pathspec caused the false negative, not the absence of `-M`. Absence of evidence from a
+  path-scoped `git log -S` is not evidence of absence.
 - `grep -rn "98%" ADS-memory/reports/` finds no tool-search result. Every hit is coverage-gate
   percentages from unrelated test runs.
 
-Measured today with a working harness (§1), the real figures are **87% top-10 and 94% top-20**. So the
+Measured today with a working harness (§1), the real figures are **87% top-10 and 94% top-20 —
+BASELINE arm (pre-collapse, 177-tool catalog), n=130**. (See the labelling note at the head of the Ship
+Report below: the top-20 half of that pair has ALREADY moved to 95% under the shipped collapse. Any
+figure written down outside the eval goes stale the moment the catalog changes, which is precisely how
+this section's own subject came to exist.) So the
 shipping description overstates top-10 by 11 points and asserts a perfect top-20 recall that is 8 cases
 short. This is a live defect independent of the collapse question — it is instruction text the model
 acts on, telling it that re-searching at limit 20 is guaranteed to find any tool, when 6% of the time
@@ -632,7 +659,36 @@ holds, and is restated above.
 Written by the agent that took over after the implementing agent rotated out without a handoff.
 Everything below was re-verified from the tree, not inherited.
 
-## 1. Verdict on the shipped derivation — the 85% IS ours to claim
+## 0. How to read every figure in this report
+
+**No accuracy figure in this document is meaningful without its arm AND its denominator.** Three pairs
+in the Addendum above are adjacent, similar-looking, and NOT interchangeable — a coordinator reading
+them quoted two as if they were one measurement and dispatched work on the mistaken pair. That is a
+defect in how they were written down, not a reading error:
+
+| figure | arm | denominator | where |
+|---|---|---|---|
+| **87% top-10 / 94% top-20** | BASELINE (pre-collapse, 177-tool catalog) | **n=130**, whole set | Addendum → Results → Whole set |
+| **87% top-10 / 95% top-20** | **D1 — resource-keyed cards (what shipped)** | **n=130**, whole set | Addendum → Results → Whole set |
+| **85% top-10 / 97% top-20** | BASELINE *and* D1 — identical on this subset | **n=34**, the affected cases only | Addendum → Results → Restricted |
+
+Two consequences worth stating plainly:
+
+1. **The top-20 figure MOVES from 94% to 95% because of the change being shipped.** Any number written
+   outside the eval goes stale the moment the catalog changes again. That is not hypothetical: it is
+   exactly how `byok-tool-surface.ts` came to assert a 98%-top-10/100%-top-20 rate its own cited eval
+   had never measured (§0.1). Where a figure appears in code or in a doc-comment here, it has been
+   replaced with a pointer at the eval that recomputes it — see `content-read-tool.ts`'s header.
+2. **"177 tools" and "170 tools" are both correct, for different arms.** 177 is the pre-collapse
+   catalog the BASELINE row measures; 170 is what ships after the collapse removes 36 ids and adds 29
+   (`raw 177 → collapsed 170`, verified against the live composition). Either number is a snapshot —
+   the catalog has been growing daily — so treat any hardcoded catalog size, including these, as
+   true-on-the-day rather than a constant.
+
+Any figure below that cannot be traced to a specific arm and denominator is labelled **UNATTRIBUTED**
+rather than given a confident guess.
+
+## 1. Verdict on the shipped derivation — arm D1's figures ARE ours to claim
 
 `content-read-tool.ts`'s `CONTENT_READ_CARDS` was checked by *running* the eval's own
 `resourceKeyOf` (strip the `list`/`get`/`by`/`id` verb tokens, singularize, dedupe) over the eval's
@@ -644,8 +700,13 @@ merged: content_post, member, menu, newsletter_campaign, redirect, widget_instan
 diff derived vs shipped: EXACT MATCH
 ```
 
-All 7 merges are `_get`/`_list` pairs over one resource, exactly as the addendum describes. The
-shipped catalog is the catalog that was measured, so the 85% top-10 / 87% whole-set figures apply.
+All 7 merges are `_get`/`_list` pairs over one resource, exactly as the addendum describes. The shipped
+catalog IS the catalog that was measured, so **arm D1's figures are the ones that apply to what
+shipped: 87% top-10 / 95% top-20 on the whole set (n=130), and 85% top-10 / 97% top-20 on the 34
+affected cases** — the latter identical to BASELINE on those same 34, which is the actual claim worth
+making (the collapse cost nothing at top-10). Note the previous revision of this paragraph wrote "the
+85% top-10 / 87% whole-set figures", mixing the n=34 top-10 with the n=130 top-10 into a single
+unlabelled pair. That is the exact defect §0 above exists to prevent.
 
 **Correction to the addendum's `RESOURCE_KEY_ARTIFACTS` note.** It claimed
 `newsletter_list_lists -> "newsletter"` — that the blind strip eats the noun. It does not. The tokens
@@ -786,11 +847,81 @@ reported.
 - Scoped test runs only, one file at a time, from the repo root. No `serve-command*.integration` suite
   was run.
 
-## 7. Commits
+## 7. RULING: the keyword/doc2query keys STAY on the retired member ids
+
+Raised as a suspected stranded reference — `tool-search-keywords.ts:292` and
+`tool-search-doc2query.ts:903` still key entries as `workspace_get` — on the reasoning that a key not
+corresponding to an indexed id has its vocabulary silently dropped from the search index. **The
+condition is false, and acting on it would have caused the very harm it was meant to prevent.**
+
+`cardDescription()` in `content-read-tool.ts` composes each card's indexed text as its members' own
+plain descriptions plus their own keyword/doc2query tails, looked up as `TOOL_SEARCH_KEYWORDS[memberId]`
+and `DOC2QUERY[memberId]` — **by the retired member id, deliberately**. Read off the live built catalog,
+`content_read.workspace`'s shipped description ends:
+
+> … — also known as: site name title settings workspace details info about What's our workspace's name
+> and id? Can you show me when this workspace was created? What's our current workspace slug? I want
+> basic info about our own workspace. Do we have more than one workspace here?
+
+That is `workspace_get`'s keyword string plus all five of its doc2query questions, verbatim, in the
+card's indexed text. Those keys are not stranded — **they are load-bearing**, and re-keying them onto
+card ids would make the lookup miss and delete that vocabulary from the FTS index with no error
+anywhere. It is also the vocabulary the measured parity rests on: preserving 29 per-resource vocabulary
+chunks is *why* D1 matched BASELINE rather than collapsing to arm C's 59% (n=34, top-10).
+
+Swept both files for all 36 retired ids, with a control grep proving the pattern matches (the keys are
+unquoted identifiers; a quoted grep matches **0**, as warned): **36/36 present in
+`tool-search-keywords.ts`, 34/36 in `tool-search-doc2query.ts`** — `deployment_list` and
+`external_mcp_list` have no doc2query entry, which predates the collapse and is unrelated to it.
+**No change made to either file.**
+
+Pinned by a regression test so the "cleanup" cannot happen later: every search term a retired member
+contributes must appear in its card's description. Re-key the maps and the lookups miss, the checked
+count falls to zero, and it fails loudly.
+
+## 8. The shared id → card mapping (implementing the coordinator's ruling)
+
+`content-read-tool.ts` now exports **`RETIRED_READ_TOOL_TO_CARD`** and **`currentToolIdFor()`**, derived
+from `CONTENT_READ_CARDS` itself so they cannot drift from what ships. One authority, not nine
+hand-maintained copies — nine copies is nine things to forget the next time an id is retired, which is
+the failure this whole exercise exists to clean up.
+
+The ruling it implements is correct and worth restating: **retired ground truth RE-KEYS onto the card,
+it is not dead.** The capability still exists and is still reachable; a suite whose expected id is
+`comments_list_moderation_queue` scoring a retrieval of `content_read.comment_moderation_queue` as a
+miss manufactures a regression that is not real.
+
+Its doc-comment carries an explicit warning that it is a **read-side alias map only** and must NOT be
+applied to the keyword/doc2query lookups in §7 — the two look like the same problem and have opposite
+correct answers.
+
+**REMAINING, not done here:** migrating the ~9 other eval suites to resolve their expected ids through
+`currentToolIdFor()`. The export is ready and tested; the migration is a separate, mechanical pass. Also
+unverified by me, and still claims rather than findings: that `tool-search-doc2query.ts` covers 102 of
+170 tools; that `tool-search-hierarchical-canary.eval.ts` now groups into 32 domains against a
+documented 21; and the specific stale doc-comment baselines in those suites.
+
+## 9. A gap in my own sweep, and what closed it
+
+My first triage filtered candidate test files on their use of `buildAssistantToolRegistrations`. That
+filter was wrong: it excluded every suite that builds a DIFFERENT surface over the same catalog.
+`byok-tool-surface.test.ts` builds the BYOK meta-tool surface and used `workspace_get` throughout as its
+stand-in "a real tool id" — 4 failures, missed entirely.
+
+Re-swept without that filter: **51 test files name a retired id; 27 were outside the original runlist;
+`byok-tool-surface.test.ts` was the only broken one among them** (the other 26 pass). Reported alongside
+it was `assistant-system-overlay.unit.test.ts` — that file passes **13/13** and does not fail; the
+overlay edit in `0c0befe4` did not break it.
+
+The lesson matches §3's: the sweep's *filter* is as capable of hiding a stranded reference as the grep
+pattern is. Both failures here were found by running things, not by searching them.
+
+## 10. Commits
 
 `0c0befe4` live model-facing strings · `6c26e0ab` 12 suites · `15a86368` forms/content-types/database
 ·  `3d14b025` merged get/list pairs + external-mcp · `2c55296a` last three suites incl. the split id ·
-`a2fa0bfc` the `content-read-tool` contract test · `f7e44b4e` the tool descriptions.
+`a2fa0bfc` the `content-read-tool` contract test · `f7e44b4e` the tool descriptions · `8ad8e5e0` the
+shared id→card export, the byok-tool-surface fix, and the de-figured header.
 
 ---
 
