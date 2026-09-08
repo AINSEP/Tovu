@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.js";
 import { ValidationError } from "../../errors.js";
-import { createSite, describeSiteBinding, includeServingSite, listSites, SITE_NAME_PATTERN } from "../../site-registry.js";
+import { createSite, describeSiteBinding, includeServingSite, listSites, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN } from "../../site-registry.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `site-registry.ts`'s list/create half.
@@ -147,17 +147,38 @@ test("describeSiteBinding: TOVU_SITE_DIR is reported as an override, because it 
   assert.equal(binding.dirOverridden, true);
 });
 
-test("describeSiteBinding: switcherCompatible is always true — every binding it produces is resolved via the same {cwd, env} listSites/createSite use", () => {
-  // Three distinct precedence branches (default, TOVU_SITE, TOVU_SITE_DIR) — switcherCompatible
-  // must not vary with any of them: it is false ONLY for a binding built OUTSIDE this function
-  // entirely (an explicit install-dir override, `cli/commands/serve.ts`), which this function
-  // itself can never produce.
+test("describeSiteBinding: switcherCompatible stays true for every binding that really is <cwd>/sites-relative", () => {
+  // The two precedence branches whose result is, by construction, the same `<cwd>/sites/<name>` the
+  // switcher's own write paths resolve.
   assert.equal(describeSiteBinding({ cwd: "/repo", env: {} }).switcherCompatible, true);
   assert.equal(describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE: "second-site" } }).switcherCompatible, true);
+});
+
+test("describeSiteBinding: a TOVU_SITE_DIR pointing OUTSIDE <cwd>/sites is not switcher-compatible (2026-09-07)", () => {
+  // This assertion was `true` until 2026-09-07, on the reasoning that every binding this function
+  // produces is `{cwd, env}`-resolved like the switcher's own root. `resolveSiteRoot` honors
+  // `TOVU_SITE_DIR` outright, so that never held for an override naming a path elsewhere on disk:
+  // the binding claimed to be switchable while `listSites`/`createSite`/`sites_duplicate_site`
+  // would have written under an unrelated `<cwd>/sites`.
   assert.equal(
     describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE_DIR: "/elsewhere/my-site" } }).switcherCompatible,
+    false
+  );
+  // An override that names a real `<cwd>/sites` child is still switchable — the rule is about where
+  // the directory IS, not about the variable being set.
+  assert.equal(
+    describeSiteBinding({ cwd: "/repo", env: { TOVU_SITE_DIR: "/repo/sites/second-site" } }).switcherCompatible,
     true
   );
+});
+
+test("describeSiteBinding: an install-dir-pinned boot marks its binding non-switchable for every process that inherits its env", () => {
+  // The channel `tovu serve <dir>` uses to tell the agent daemon — a SEPARATE process that rebuilds
+  // its own RouteDeps, and the process where `sites_duplicate_site` actually runs — what the API
+  // already knows. Needed even when `<dir>` sits under `<cwd>/sites`, which no path check can
+  // distinguish from a switcher-chosen site.
+  const env = { [SITE_BINDING_NOT_SWITCHABLE_ENV]: "1", TOVU_SITE_DIR: "/repo/sites/second-site" };
+  assert.equal(describeSiteBinding({ cwd: "/repo", env }).switcherCompatible, false);
 });
 
 test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", () => {

@@ -273,13 +273,18 @@ export interface SiteBinding {
    *
    * `listSites`/`createSite`/`persistActiveSite`/`sites_duplicate_site` all resolve their OWN
    * `sites/` root independently from `process.cwd()` (or an injected `cwd`) — a DIFFERENT
-   * computation from whatever `dir` this binding names. For every caller of THIS function
-   * (`describeSiteBinding`), those two computations agree by construction, so `true` here is always
-   * correct. `dir` set explicitly by a `tovu serve <dir>` boot (see
-   * `server/runtime/composition/deps.ts`'s `siteBinding` override) is an arbitrary path with no
-   * `sites/`-sibling relationship to any `cwd` at all — `process.cwd()` could be any directory an
-   * operator happened to be standing in — so `false` there tells the Sites-switcher's write paths to
-   * refuse rather than silently write under an unrelated `<cwd>/sites`.
+   * computation from whatever `dir` this binding names. `false` tells those write paths to refuse
+   * rather than silently write under an unrelated `<cwd>/sites`.
+   *
+   * `describeSiteBinding` used to hardcode this `true`, on the stated reasoning that its own
+   * `{cwd, env}` resolution always agrees with the switcher's. That reasoning did not cover
+   * `TOVU_SITE_DIR`, which `resolveSiteRoot` honors outright and which can name any path on the
+   * disk — so an override pointing outside `<cwd>/sites` produced a binding that CLAIMED to be
+   * switchable while the switcher's own root was somewhere else entirely. It is computed now (see
+   * {@link describeSiteBinding}), and additionally forced off by
+   * {@link SITE_BINDING_NOT_SWITCHABLE_ENV} for the one case no path comparison can detect: a
+   * `tovu serve <dir>` boot whose `<dir>` happens to sit under `<cwd>/sites` but was still pinned
+   * by an explicit argument rather than chosen through the switcher.
    */
   switcherCompatible: boolean;
 }
@@ -297,6 +302,31 @@ export interface SiteBinding {
  *
  * @complexity O(1) — path computation and two env reads, no I/O.
  */
+/**
+ * Set (to any value) by a boot that was pinned to an explicit install-dir argument — `tovu serve
+ * <dir>`, via `cli/commands/serve.ts`'s `pinServedSiteDirIntoEnv`. Written into the SERVING
+ * process's own environment so the agent daemon it `spawn()`s inherits it (2026-09-07 audit, claim
+ * #4).
+ *
+ * WHY AN ENV FLAG AND NOT JUST THE PATH CHECK BELOW: the API process gets its non-switchable
+ * binding handed to it directly (`composition/deps.ts`'s `siteBinding` override), but the daemon is
+ * a separate process that builds its OWN `RouteDeps` via `createSqliteRouteDepsForWorkspace` and so
+ * falls back to this function. The daemon is also where `sites_duplicate_site` actually executes —
+ * so the guard `features/sites/tool-registrations.ts` raises for a non-switchable binding was
+ * enforced by the HTTP routes and bypassed by the agent tool. A path comparison alone cannot close
+ * it: `tovu serve ./sites/tovu-com` names a directory that IS `<cwd>/sites`-relative, yet was still
+ * pinned by argument rather than chosen through the switcher, and the two processes must agree
+ * about that either way.
+ */
+export const SITE_BINDING_NOT_SWITCHABLE_ENV = "TOVU_SITE_BINDING_NOT_SWITCHABLE";
+
+/** Whether `dir` is a direct child of the `<cwd>/sites` root the Sites-switcher's own write paths
+ *  resolve — the condition that makes a binding safe to switch/duplicate against. @complexity O(1). */
+function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boolean {
+  const cwd = optional.cwd ?? process.cwd();
+  return path.dirname(dir) === path.resolve(cwd, "sites");
+}
+
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
   const dir = resolveSiteRoot(optional);
   const env = optional.env ?? process.env;
@@ -304,10 +334,7 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
     dir,
     name: path.basename(dir),
     dirOverridden: env.TOVU_SITE_DIR !== undefined,
-    // Always true here — see {@link SiteBinding.switcherCompatible}'s own doc: every binding this
-    // function produces is, by construction, resolved via the same `{cwd, env}` the Sites-switcher's
-    // write paths use. Only a binding built OUTSIDE this function (an explicit install-dir override)
-    // can be `false`.
-    switcherCompatible: true,
+    switcherCompatible:
+      env[SITE_BINDING_NOT_SWITCHABLE_ENV] === undefined && isUnderSwitcherSitesRoot(dir, optional),
   };
 }
