@@ -98,7 +98,11 @@ import {
   wouldForcedColdStartLoseConversationContext,
 } from "./agent-session-resume.js";
 import { createLiveRunTracker } from "./agent-run-concurrency.js";
-import { buildBaseSystemOverlay, resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
+import {
+  ASSISTANT_DISALLOWED_TOOLS,
+  buildBaseSystemOverlay,
+  resolveBashProhibitionEnabled,
+} from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
@@ -896,6 +900,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
+        // Finding 2 (SEC-assistant-env-isolation-2026-09-07): the actual, enforced tool-grant
+        // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
+        // list. Unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic above.
+        disallowedTools: ASSISTANT_DISALLOWED_TOOLS,
         ...(model !== undefined ? { model } : {}),
         // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
         // def's own `buildArgs` options, which is where it becomes real argv.

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ASSISTANT_DISALLOWED_TOOLS,
   BASH_GUIDANCE_BLOCK,
   BASH_PROHIBITION_BLOCK,
   buildBaseSystemOverlay,
@@ -66,5 +67,33 @@ test("both overlays still carry the surrounding tool-catalog protocol untouched"
     assert.equal(overlay.includes("search_tools FIRST"), true);
     assert.equal(overlay.includes("What to do instead when you believe no tool fits"), true);
     assert.equal(overlay.includes("assistant_ask_choice"), true);
+  }
+});
+
+// Finding 2 (SEC-assistant-env-isolation-2026-09-07): ASSISTANT_DISALLOWED_TOOLS is the actual,
+// enforced gate (agent-daemon-server.ts forwards it to AgentExecutorRunInput.disallowedTools) —
+// these pin its exact contents against silent drift, since a caller reads this array by reference.
+test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the security report flagged as dangerous and unused", () => {
+  assert.deepEqual(
+    [...ASSISTANT_DISALLOWED_TOOLS].sort(),
+    [
+      "Bash",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "Edit",
+      "EnterWorktree",
+      "ExitWorktree",
+      "RemoteTrigger",
+      "Task",
+      "Workflow",
+      "Write",
+    ].sort(),
+  );
+});
+
+test("ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real observed use of (Read, ToolSearch, or Tovu's own catalog names)", () => {
+  for (const usedTool of ["Read", "ToolSearch", "search_tools", "describe_tool", "execute_delegated_tool"]) {
+    assert.equal(ASSISTANT_DISALLOWED_TOOLS.includes(usedTool), false, `${usedTool} has real observed use in chat.db and must not be restricted`);
   }
 });

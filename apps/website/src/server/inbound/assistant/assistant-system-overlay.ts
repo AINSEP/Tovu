@@ -49,6 +49,47 @@ export const BASH_PROHIBITION_BLOCK =
   "to live here and has been deliberately removed. ";
 
 /**
+ * Finding 2 of SEC-assistant-env-isolation-2026-09-07: the actual, enforced restriction on the
+ * assistant's tool grant — forwarded verbatim to `AgentExecutorRunInput.disallowedTools`
+ * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which reaches the spawned `claude` CLI's
+ * own `--disallowedTools` flag (`@jini-ai/agent-runtime`'s `defs/claude.ts`). Confirmed live against
+ * installed Claude Code 2.1.263 that this refuses the named tool's execution outright — even under
+ * `--permission-mode bypassPermissions` — unlike {@link BASH_PROHIBITION_BLOCK}, which is prompt
+ * text only.
+ *
+ * **Evidence, not opinion**: read read-only from `sites/tovu-com/chat.db`'s
+ * `ai_chat_messages.events_json` (32 real admin-chat runs, 2026-09), the only host-CLI-builtin tool
+ * names ever actually invoked were `Read` and `ToolSearch` — plus Tovu's own catalog, reached
+ * exclusively through `search_tools`/`describe_tool`/`execute_delegated_tool`/
+ * `execute_readonly_delegated_tool` (both the bare and `mcp__jini__`-prefixed forms observed) and
+ * federated external MCP tools (e.g. `mcp__higgsfield__*`). Zero occurrences of `Bash`, `Edit`,
+ * `Write`, `Task`, any `Cron*`, `EnterWorktree`/`ExitWorktree`, `RemoteTrigger`, or `Workflow` — the
+ * exact set the security report identified as both dangerous (unaudited file writes, arbitrary
+ * subagent spawn, scheduling/worktree levers) and, per this evidence, never legitimately needed by
+ * the product. `Read` and `ToolSearch` are deliberately left OFF this list — restricting a tool with
+ * real observed use, on no more than "the report didn't call it out," is exactly the over-tight list
+ * this fix must not become; scoping anything beyond this evidence-backed set is a later product
+ * decision, not this fix's call.
+ *
+ * Kept independent of {@link BASH_PROHIBITION_BLOCK}/`TOVU_AGENT_FORBID_BASH`: this list applies
+ * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the
+ * flag's own "not a security control" framing accurate rather than aspirational.
+ */
+export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
+  "Bash",
+  "Edit",
+  "Write",
+  "Task",
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "EnterWorktree",
+  "ExitWorktree",
+  "RemoteTrigger",
+  "Workflow",
+];
+
+/**
  * `TOVU_AGENT_FORBID_BASH=1` opts a single install into {@link BASH_PROHIBITION_BLOCK}. Unset — the
  * default, and the only state a downloaded Tovu or the desktop app ever sees — leaves the base
  * overlay carrying {@link BASH_GUIDANCE_BLOCK} instead: byte-for-byte the same overlay this file
@@ -57,8 +98,12 @@ export const BASH_PROHIBITION_BLOCK =
  *
  * This is NOT a security control, and must never be described as one in code, docs, or an operator
  * -facing message: it only removes an instruction line asking the model not to reach for a tool it
- * may otherwise still be technically permitted to call (`agent-daemon-server.ts`'s own
- * `resolvePermissionMode()` is the actual gate on whether a tool executes at all). Turn it on for
+ * may otherwise still be technically permitted to call. The actual runtime gate is
+ * {@link ASSISTANT_DISALLOWED_TOOLS} — forwarded to the spawned CLI's own `--disallowedTools` flag
+ * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which removes Bash and the other listed
+ * tools from the grant entirely, independent of `agent-daemon-server.ts`'s own
+ * `resolvePermissionMode()` (which only chooses whether the CLI auto-approves the tools it DOES
+ * have — see SEC-assistant-env-isolation-2026-09-07 Finding 2). Turn this prohibition text on for
  * exactly one reason — to surface real gaps in Tovu's own tool catalog. With no shell to fall back
  * on, the assistant must either find a registered tool for a request or say plainly that none
  * exists, and that plain "no tool for this yet" report is the gap surfacing itself: every silent
