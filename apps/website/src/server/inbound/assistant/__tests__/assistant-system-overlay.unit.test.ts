@@ -71,25 +71,32 @@ test("both overlays still carry the surrounding tool-catalog protocol untouched"
 });
 
 // FABRICATED-STAT FIX (2026-09-08): the overlay used to assert "the right tool is in the default
-// top 10 98% of the time and in the top 20 100% of the time" — no reproducible source (see
-// `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §0.1: the cited 130-case eval never
-// measured top-20, and its own top-10 result is 25%, not 98%). That report's repaired baseline
-// (real 177-tool composition) measured the true figures: 87% top-10, 94% top-20, n=130. Also fixes
-// the internal tension with this same overlay's own "if it still does not exist, SAY SO" guidance a
-// few sentences later — a "100% of the time" guarantee and a real not-found path cannot both be true.
-test("both overlays state the true measured accuracy (87% top-10 / 94% top-20), not the fabricated 98%/100% figure", () => {
+// top 10 98% of the time and in the top 20 100% of the time". Verified fabricated: the eval it
+// claimed as its source (`tool-search-heldout-v2.eval.ts`) declares `CUTOFFS = [1, 3, 5, 10] as
+// const` — no top-20 cutoff exists in that file. `git log -S` on the exact phrase traces it to
+// `d6ac6975` (2026-08-08), which added it as brand-new text (to this file's pre-extraction home,
+// `agent-daemon-server.ts`) with no cited measurement — not carried through from a real eval run.
+// Full trail: `ADS-memory/reports/2026-09-08-byok-fabricated-stat.md`.
+//
+// The fix does NOT replace the false number with a true-today one — see that report for why: a
+// retrieval percentage is a property of the current catalog, the catalog is actively changing in
+// this same repo, and nothing in this file re-measures the number it would assert. The second
+// assertion below guards that reasoning directly, failing the moment anyone adds ANY percentage
+// back to this text, not just the specific old one. It also removes a standing internal
+// contradiction: a "100% of the time" guarantee sat a few sentences before this same overlay's own
+// "if it still does not exist, SAY SO" guidance — both cannot be true at once.
+test("both overlays tell the model a miss at the default cutoff is weak evidence, not proof no tool exists, and name no coverage percentage", () => {
   for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
     assert.equal(
       overlay.includes(
         "search again with a higher limit (up to 25) or different phrasing before concluding no " +
-          "tool exists: on a 130-case blind set the right tool is in the default top 10 87% of the " +
-          "time and in the top 20 94% of the time, so a miss at either cutoff is common enough to " +
-          "be worth a retry, not proof the tool is absent.",
+          "tool exists: a differently-worded or wider search often surfaces a tool the default " +
+          "cutoff missed, so a miss at the default limit is weak evidence, not proof that no " +
+          "matching tool exists.",
       ),
       true,
     );
-    assert.equal(overlay.includes("98%"), false);
-    assert.equal(overlay.includes("100% of the time"), false);
+    assert.doesNotMatch(overlay, /\d+%/);
   }
 });
 

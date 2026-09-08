@@ -143,9 +143,9 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
           description:
             `Max hits to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}. ` +
             `If none of the returned candidates fit what you need, search again with a HIGHER limit (try ${SEARCH_LIMIT_MAX}) ` +
-            `and different phrasing before concluding no tool exists — measured on a 130-case blind set, the right tool is in the top ` +
-            `${SEARCH_LIMIT_DEFAULT} 87% of the time and in the top 20 94% of the time, so a miss at either cutoff is common, not rare. ` +
-            `If a retry with different terms still finds nothing, say you could not find a matching tool rather than assuming none exists.`,
+            `and different phrasing before concluding no tool exists — a differently-worded or wider search often surfaces a tool the ` +
+            `default cutoff missed, so a miss at the default limit is weak evidence, not proof that no matching tool exists. If a retry ` +
+            `with different terms still finds nothing, say you could not find a matching tool rather than assuming none exists.`,
         },
       },
       required: ["query"],

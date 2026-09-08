@@ -111,14 +111,22 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
 });
 
 // FABRICATED-STAT FIX (2026-09-08): the `limit` description used to assert "the right tool is in
-// the top 10 98% of the time but in the top 20 100% of the time" — a figure with no reproducible
-// source (see `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §0.1: the cited 130-case
-// eval never measured top-20 at all, and its own top-10 result is 25%, not 98%). That report's
-// repaired baseline (`installFirstPartyToolContributors()` wired in, 177 tools, the real shipped
-// composition) measured the true figures: 87% top-10, 94% top-20, n=130. This asserts the exact
-// corrected text so the false "100% of the time" guarantee cannot silently return, and so the
-// description keeps telling the model what to do on a miss rather than asserting a guarantee.
-test("search_tools' limit description states the true measured accuracy (87% top-10 / 94% top-20), not the fabricated 98%/100% figure", () => {
+// the top 10 98% of the time but in the top 20 100% of the time". Verified fabricated: the eval it
+// claimed as its source (`tool-search-heldout-v2.eval.ts`) declares `CUTOFFS = [1, 3, 5, 10] as
+// const` — no top-20 cutoff exists in that file, so it cannot have produced the "100% in the top
+// 20" half of the claim. `git log -S` on the exact phrase traces it to `d6ac6975` (2026-08-08),
+// which added it as brand-new text with no cited measurement at all — not carried through from any
+// real eval run. Full trail: `ADS-memory/reports/2026-09-08-byok-fabricated-stat.md`.
+//
+// The fix does NOT replace the false number with a true-today one. A retrieval percentage is a
+// property of the CURRENT catalog + keywords, and the catalog changes (a `content_read` collapse
+// landed in this same repo on this same day) — hardcoding this month's true figure into shipped
+// instruction text reproduces the exact defect with a fresher initial value, because nothing here
+// re-measures it. A retrieval number belongs in the eval report where it gets re-measured; this
+// prompt text should only ever describe the behavior to take on a miss. The second assertion below
+// guards that reasoning directly: it fails the moment anyone adds a percentage back to this string,
+// not just when they restore the specific old one.
+test("search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists", () => {
   const searchTools = META_TOOL_DESCRIPTORS.find((tool) => tool.id === "search_tools");
   assert.ok(searchTools, "expected a search_tools descriptor in META_TOOL_DESCRIPTORS");
   const schema = searchTools!.inputSchema as { properties: { limit: { description: string } } };
@@ -126,11 +134,17 @@ test("search_tools' limit description states the true measured accuracy (87% top
     schema.properties.limit.description,
     "Max hits to return (1-25). Optional, defaults to 10. If none of the returned candidates fit " +
       "what you need, search again with a HIGHER limit (try 25) and different phrasing before " +
-      "concluding no tool exists — measured on a 130-case blind set, the right tool is in the top " +
-      "10 87% of the time and in the top 20 94% of the time, so a miss at either cutoff is common, " +
-      "not rare. If a retry with different terms still finds nothing, say you could not find a " +
-      "matching tool rather than assuming none exists.",
+      "concluding no tool exists — a differently-worded or wider search often surfaces a tool the " +
+      "default cutoff missed, so a miss at the default limit is weak evidence, not proof that no " +
+      "matching tool exists. If a retry with different terms still finds nothing, say you could not " +
+      "find a matching tool rather than assuming none exists.",
   );
+});
+
+test("search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today", () => {
+  const searchTools = META_TOOL_DESCRIPTORS.find((tool) => tool.id === "search_tools");
+  const schema = searchTools!.inputSchema as { properties: { limit: { description: string } } };
+  assert.doesNotMatch(schema.properties.limit.description, /\d+%/);
 });
 
 test("search_tools with a missing or empty query is a readable error, not an empty result set", async () => {
