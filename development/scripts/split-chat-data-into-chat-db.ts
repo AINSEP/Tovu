@@ -24,6 +24,13 @@
  * - **`--db` must already exist** (`resolveExistingDbPath`) — a mistyped path errors loudly
  *   instead of silently opening (and migrating) a brand-new empty database and reporting "0 rows"
  *   as a false all-clear.
+ * - **The two databases must not be the same file** (`resolveChatDbPath`). Aimed at one file, every
+ *   safety property above inverts into total data loss and still reports success: `openChatDb`'s
+ *   DDL is all `CREATE TABLE IF NOT EXISTS` so the second open succeeds silently, every
+ *   `INSERT OR IGNORE` no-ops against the rows already there, verification reads those same rows
+ *   back and finds them byte-identical (the "copy landed" signal), and the delete pass then removes
+ *   every chat row from the only file that ever held them. Refused before either database is
+ *   opened, on a dry run as well as an `--apply`.
  * - **Copy, verify, THEN delete, always in that order.** Verification is a full-row content
  *   checksum per source row, keyed by that table's real primary key — not just a row count, which
  *   could match by coincidence. If EVEN ONE row fails verification (missing from chat.db, or
@@ -59,6 +66,7 @@
  * process otherwise throws. Nothing is ever deleted on a non-zero exit.
  */
 import crypto from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -313,11 +321,63 @@ function parseArgs(argv: readonly string[]): Args {
   };
 }
 
-/** `<dirname of content.db>/chat.db`, mirroring `deps.ts`'s `defaultChatDbPath` — duplicated here
- *  (rather than imported) so this standalone script does not pull in the ~1500-line composition
- *  root just for one path expression. */
-function resolveChatDbPath(dbPath: string, explicit?: string): string {
-  return explicit ? path.resolve(explicit) : path.join(path.dirname(dbPath), "chat.db");
+/**
+ * The exact operator-facing text for "both databases name one file". Exported so tests assert on
+ * the real string rather than a paraphrase of it — same convention as `backfill-db-path.ts`'s
+ * {@link import("./backfill-db-path.js").missingDbPathMessage}.
+ */
+export function sameDatabaseMessage(resolvedPath: string): string {
+  return (
+    `split-chat-data-into-chat-db: --db and --chat-db resolve to the same file (${resolvedPath}) — refusing to run. ` +
+    `Copying a database onto itself verifies clean (every row is already "there") and then deletes every ` +
+    `chat row from the only file holding them. Point --chat-db at a DIFFERENT path.`
+  );
+}
+
+/**
+ * `filePath` reduced to a canonical identity for the same-file comparison below — resolved to an
+ * absolute path and, where the filesystem can say, through symlinks.
+ *
+ * Three tiers, because the destination usually does not exist yet: realpath the file itself when it
+ * is there (this is what catches a `chat.db` symlinked at `content.db` — two names, one inode);
+ * otherwise realpath its PARENT and re-join the basename (catches a symlinked directory); otherwise
+ * fall back to the plain resolved path. The fallback can only ever make the guard less sensitive,
+ * never wrong: two identical strings still compare equal.
+ *
+ * @complexity O(1) — at most two `realpathSync` calls.
+ */
+function canonicalFilePath(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  try {
+    return fs.realpathSync(resolved);
+  } catch {
+    try {
+      return path.join(fs.realpathSync(path.dirname(resolved)), path.basename(resolved));
+    } catch {
+      return resolved;
+    }
+  }
+}
+
+/**
+ * `<dirname of content.db>/chat.db`, mirroring `deps.ts`'s `defaultChatDbPath` — duplicated here
+ * (rather than imported) so this standalone script does not pull in the ~1500-line composition
+ * root just for one path expression.
+ *
+ * Also the chokepoint for the same-file refusal, because this is the one place both paths are known
+ * at once. The check covers the DEFAULT as well as an explicit `--chat-db`: a content database that
+ * simply happens to be named `chat.db` aims both handles at one file with no operator mistake
+ * visible anywhere on the command line.
+ *
+ * @throws {Error} `sameDatabaseMessage(...)` when both paths name one file.
+ * @complexity O(1) beyond {@link canonicalFilePath}'s own cost.
+ */
+export function resolveChatDbPath(dbPath: string, explicit?: string): string {
+  const chatDbPath = explicit ? path.resolve(explicit) : path.join(path.dirname(dbPath), "chat.db");
+  if (canonicalFilePath(chatDbPath) === canonicalFilePath(dbPath)) {
+    throw new Error(sameDatabaseMessage(canonicalFilePath(dbPath)));
+  }
+  return chatDbPath;
 }
 
 async function main(): Promise<void> {
