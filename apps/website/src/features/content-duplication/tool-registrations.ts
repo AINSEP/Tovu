@@ -82,6 +82,29 @@ function readOverrides(input: Record<string, unknown>): { title?: string; slug?:
 }
 
 /**
+ * The rejection for a `resource` no registered handler answers to.
+ *
+ * ENUMERATES the live supported set rather than failing generically, because `resource` cannot be a
+ * static JSON-Schema enum (see `agent-tools.ts`'s own header — the set is populated at boot, after
+ * the schema is authored), so this message is the ONLY place a caller can learn what it may pass. A
+ * bare "unknown resource" would leave a model guessing across the whole content model, one wasted
+ * turn per guess. The closing sentence is deliberate too: without it a model reads "not supported"
+ * as "not supported *yet, try a synonym*" and retries `pages`/`Post`/`blog_post` in turn.
+ *
+ * Sorted, so the message is stable across registration order and a test can assert it verbatim.
+ *
+ * @complexity O(r log r) in the number of registered resources — only on the rejection path.
+ */
+function unsupportedResourceError(resource: string, supportedResources: Iterable<string>): ToolInputError {
+  const supported = [...supportedResources].sort();
+  return new ToolInputError(
+    `content_duplicate: cannot duplicate resource '${resource}'. Supported resources: ` +
+      `${supported.length > 0 ? supported.join(", ") : "(none registered)"}. ` +
+      "No other resource can be duplicated by this tool — retrying with a different spelling will not help.",
+  );
+}
+
+/**
  * Where this tool's per-resource handler contributions come from — see this file's own header for
  * why they are injected rather than read from `assistant/duplicate-resource-registry.ts` here.
  *
@@ -117,12 +140,7 @@ export function buildContentDuplicationRegistrations(
       const overrides = readOverrides(input);
 
       const handler = handlersByResource.get(resource);
-      if (!handler) {
-        const supported = [...handlersByResource.keys()].sort();
-        throw new ToolInputError(
-          `cannot duplicate '${resource}'; supported: ${supported.length > 0 ? supported.join(", ") : "(none registered)"}`,
-        );
-      }
+      if (!handler) throw unsupportedResourceError(resource, handlersByResource.keys());
 
       // The resource's OWN declared permission — see this file's own header for why this is
       // deliberately per-resource rather than one flat check for the whole tool.
