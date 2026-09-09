@@ -278,6 +278,32 @@ test("a DRAFT post's own body degrades to the placeholder (visibility guard), bu
   assert.equal(publicRes.status, 404, "sanity check: the public route genuinely cannot show this draft either");
 });
 
+// Confirms a capability the route already has at THIS layer, not a new code path: unlike the
+// html-format case above, `pendingContentOverride` (`resolveHtmlPageEmbeds`'s existing `bodyJson`
+// override, `resolver-service.ts`) is checked BEFORE its own `findPublishedPostById` call, and
+// `resolveHtmlFormatContentMarkers` (which DOES call `findPublishedPostById` first) leaves a
+// `"doc"`-format id untouched on a lookup miss rather than consuming it — so a `"doc"`-format
+// draft's pending body was never actually blocked by the visibility guard, only by the admin UI
+// never routing a draft's request here at all (`PagePreview`/`PostPreview` gate on
+// `status === "published"`). Written to confirm this BEFORE relying on it to widen that UI gate.
+test("a DRAFT doc-format post's own body renders via a POSTed bodyJson override, not the placeholder", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "draft-post-doc", status: "draft", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyJson: docBody(PENDING_BODY_TEXT) }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes('data-tpl="blog-post"'), "the template's own chrome still renders");
+  assert.ok(html.includes(PENDING_BODY_TEXT), "the PENDING body must reach the page, bypassing the visibility guard for this one already-authorized id");
+  assert.ok(!html.includes(POST_BODY_TEXT), "the draft's saved body must not reach the page once a pending override was supplied");
+});
+
 const PENDING_HTML_TEXT = "Pending, unsaved HTML body text the operator is looking at right now";
 
 // 2026-09-09 `bodyHtml` fix: an html-format Page (Pages admin editor) has no `bodyJson` tree, so
