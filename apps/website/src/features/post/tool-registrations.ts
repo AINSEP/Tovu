@@ -249,7 +249,13 @@ function toModelFacingUpdateError(err: unknown): unknown {
 function requirePostKind(input: Record<string, unknown>): PostKind {
   const value = input.kind;
   if (value !== "post" && value !== "page") {
-    throw new Error("'kind' must be exactly 'post' or 'page'");
+    // `ToolInputError`, not a bare `Error` — see `toModelFacingUpdateError`'s doc a few lines up
+    // for why this marker is load-bearing: `@jini-ai/daemon`'s `ToolExecutor` only tags a
+    // rejection `errorKind: 'validation'` (→ 400 with this message intact) when it is
+    // `instanceof ToolInputError`; anything else is `'internal'` and reaches the model as a
+    // redacted 500. A wrong/missing `kind` is exactly the caller-input-was-the-problem case the
+    // marker means, and `requireString` elsewhere in this same file already uses it correctly.
+    throw new ToolInputError("'kind' must be exactly 'post' or 'page'");
   }
   return value;
 }
@@ -257,7 +263,8 @@ function requirePostKind(input: Record<string, unknown>): PostKind {
 function requirePostStatus(input: Record<string, unknown>): PostStatus {
   const value = input.status;
   if (value !== "draft" && value !== "published") {
-    throw new Error("'status' must be exactly 'draft' or 'published'");
+    // Same reasoning as `requirePostKind` above.
+    throw new ToolInputError("'status' must be exactly 'draft' or 'published'");
   }
   return value;
 }
