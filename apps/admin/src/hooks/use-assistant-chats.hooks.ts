@@ -240,6 +240,13 @@ export interface UseAssistantChats {
   remove: (id: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   onMessagesChange: (messages: ChatMessage[]) => void;
+  /**
+   * This pane's conversation id, adopting one if none is active yet. Awaited by
+   * `assistant-transport.ts`'s `startRun` so turn 1's run carries the identity its agent-CLI session
+   * id gets filed under — see the hook's own implementation doc for the amnesia defect that needs it.
+   * Resolves `null` (never rejects) when creation fails.
+   */
+  ensureConversationId: () => Promise<string | null>;
 }
 
 /**
@@ -251,7 +258,9 @@ export interface UseAssistantChats {
  * exemption reconfirmed against the new bar) **Score: this hook's own lexical scope is 1
  * cyclomatic / ~0 cognitive under ESLint — every closure inside it is independently ≤9/≤9 too
  * (`select`'s inner `commit` is 2/1, `remove` is 6/3, `rename` is 4/2, `flush` is 4/2,
- * `onMessagesChange` is 4/2 — see this file's own before/after table in the session report). What
+ * `ensureConversationId` is 3/1, `onMessagesChange` is 3/2 — remeasured 2026-09-09, when adoption
+ * moved out of `onMessagesChange` into `ensureConversationId`; see this file's own before/after
+ * table in the session report for the original figures). What
  * is exempted here is a DIFFERENT, unmeasurable-by-me number: the dispatch brief's owner-tool score
  * of 19/24, which rolls every nested closure's branches into the hook's total. Bar: ≤9/≤9 on
  * whichever view is scored — ESLint's view already clears it; the owner-tool aggregate does not,
@@ -260,7 +269,7 @@ export interface UseAssistantChats {
  * bodies across this scope (`saveWithRetry`, `summarizeFlushOutcomes`, `consumeByokStream`,
  * `buildLocalCliContextRef`, `loadExecutionConfig`'s ledger mappers, `upsertMessage`) — each of
  * those needed 0–2 plain parameters. `select`/`create`/`remove`/`rename`/`flush`/
- * `onMessagesChange` below do not fit that shape: each reads and writes between 3 and 9 of this
+ * `ensureConversationId`/`onMessagesChange` below do not fit that shape: each reads and writes between 3 and 9 of this
  * hook's own refs (`portRef`, `activeIdRef`, `writtenRef`, `switchSeqRef`, `adoptingRef`,
  * `adoptionGenRef`, `paneNonceRef`, `disposedRef`, `conversationsRef`, `listSeqRef`,
  * `pendingRenamesRef`, `renameVersionRef`) AND calls several of this hook's OTHER closures
@@ -721,6 +730,78 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     [refresh],
   );
 
+  /**
+   * This pane's conversation id, adopting one if that is what it takes — the single owner of lazy
+   * adoption, awaited by {@link onMessagesChange} below and by `assistant-transport.ts`'s `startRun`
+   * (via `AssistantDock`'s `useAssistantTransport`).
+   *
+   * `startRun` is the reason this is exposed rather than staying inline in `onMessagesChange`.
+   * Adoption used to be reachable ONLY from a message delta, and `@jini-ai/chat`'s
+   * `useChatPane.sendPrompt` freezes `runContext(...)` into the run's context object BEFORE it calls
+   * `conversation.sendMessage(...)` — the very call that produces that first delta. So on turn 1 the
+   * run was always dispatched with no `conversationId`, `agent-daemon-server.ts`'s `onStarted` skipped
+   * its whole session-capture subscription (`if (conversationId !== undefined)`), and the agent-CLI
+   * session id turn 2 needed to resume was never stored. Turn 2 then started cold while the client,
+   * trusting that resume, had sent only the bare latest user message: the conversation's history was
+   * gone, silently, at exactly the turn-1→turn-2 boundary of every chat.
+   *
+   * `setActiveId` WITHOUT `setPaneKey`: the pane may be mid-run and is keyed on `paneKey`, so leaving
+   * that alone is what keeps this invisible to the user. Re-keying here would remount the pane and
+   * destroy the reply currently streaming into it.
+   *
+   * @returns The conversation id writes and runs for this pane belong to, or `null` when creation
+   *   failed. Never rejects — a caller that cannot get an id (`startRun`) must still be able to send
+   *   the turn: one run with no resumable session is a far smaller loss than a run that never happens.
+   * @complexity O(1) plus at most one `POST /conversations`, shared across concurrent callers.
+   */
+  const ensureConversationId = useCallback((): Promise<string | null> => {
+    const active = activeIdRef.current;
+    if (active) return Promise.resolve(active);
+
+    /*
+     * The adoption generation is READ here, and `resetAdoption` is the only thing that bumps it.
+     *
+     * Deliberately NOT `switchSeqRef`. That token is bumped at the *call* of `select`/`create`,
+     * so an adoption starting after the click reads the already-bumped value, matches it when the
+     * adoption resolves, and publishes `activeId` into a pane that has since been re-keyed to
+     * someone else's transcript. `adoptionGenRef` moves with the commit rather than the intent,
+     * which is the thing this actually needs to be later than.
+     */
+    const generation = adoptionGenRef.current;
+    // `??=` so a run start and the deltas racing it await ONE creation, not two — otherwise a single
+    // turn splits across two conversations, the run filed under one and the messages under the other.
+    const adoption = (adoptingRef.current ??= portRef.current
+      .createConversation()
+      .then((conversation) => {
+        markListMutated();
+        setConversations((current) => [conversation, ...current]);
+        writtenRef.current.set(conversation.id, new Set());
+        // Superseded: the row exists and shows up in the list, but the pane that asked for it is
+        // gone, so pointing `activeId` at it would send the NEXT pane's writes here. The caller's
+        // own follow-up still runs either way — those messages came from the pane that asked for
+        // this conversation, and dropping them would be the data loss adoption exists to prevent.
+        if (adoptionGenRef.current === generation) commitActiveId(conversation.id);
+        return conversation.id;
+      })
+      .catch(() => null));
+
+    void adoption.then((id) => {
+      /*
+       * Cleared so a later turn can retry; keeping a rejected promise would wedge persistence for
+       * the rest of the session.
+       *
+       * Guarded on identity, because a bare `adoptingRef.current = null` clears whatever is there
+       * NOW, which need not be this promise. A stale adoption rejecting late would wipe a newer one
+       * that is still in flight, and the next delta would start a third — two conversations created
+       * for one turn, with the same messages flushed into both and whichever resolved last taking
+       * `activeId`.
+       */
+      if (!id && adoptingRef.current === adoption) adoptingRef.current = null;
+    });
+
+    return adoption;
+  }, [markListMutated, commitActiveId]);
+
   const onMessagesChange = useCallback(
     (messages: ChatMessage[]) => {
       const conversationId = activeIdRef.current;
@@ -738,61 +819,18 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
        *
        * So adopt one lazily, at the first moment there is actually something to save. Created on
        * demand rather than on mount, because a row per admin page-load would litter the switcher with
-       * empty conversations.
-       *
-       * `setActiveId` WITHOUT `setPaneKey`: the pane is mid-run and keyed on `paneKey`, so leaving
-       * that alone is what keeps this invisible to the user. Re-keying here would remount the pane
-       * and destroy the reply currently streaming into it.
+       * empty conversations. `startRun` now usually gets here first (see {@link ensureConversationId}),
+       * in which case `??=` makes this await that same creation rather than starting a second.
        */
       if (persistableMessages(messages).length === 0) return;
 
-      /*
-       * The adoption generation is READ here, and `resetAdoption` is the only thing that bumps it.
-       *
-       * Deliberately NOT `switchSeqRef`. That token is bumped at the *call* of `select`/`create`,
-       * so an `onMessagesChange` arriving after the click reads the already-bumped value, matches
-       * it when the adoption resolves, and publishes `activeId` into a pane that has since been
-       * re-keyed to someone else's transcript. `adoptionGenRef` moves with the commit rather than
-       * the intent, which is the thing this actually needs to be later than.
-       */
-      const generation = adoptionGenRef.current;
-      // `??=` so two deltas arriving before the POST resolves await one creation, not two.
-      const adoption = (adoptingRef.current ??= portRef.current
-        .createConversation()
-        .then((conversation) => {
-          markListMutated();
-          setConversations((current) => [conversation, ...current]);
-          writtenRef.current.set(conversation.id, new Set());
-          // Superseded: the row exists and shows up in the list, but the pane that asked for it is
-          // gone, so pointing `activeId` at it would send the NEXT pane's writes here. The flush
-          // below still runs either way — these messages came from the pane that asked for this
-          // conversation, and dropping them would be the data loss adoption exists to prevent.
-          if (adoptionGenRef.current === generation) commitActiveId(conversation.id);
-          return conversation.id;
-        })
-        .catch(() => null));
-
-      void adoption.then((id) => {
-        if (!id) {
-          /*
-           * Cleared so a later turn can retry; keeping a rejected promise would wedge persistence
-           * for the rest of the session.
-           *
-           * Guarded on identity, because a bare `adoptingRef.current = null` clears whatever is
-           * there NOW, which need not be this promise. A stale adoption rejecting late would wipe a
-           * newer one that is still in flight, and the next delta would start a third — two
-           * conversations created for one turn, with the same messages flushed into both and
-           * whichever resolved last taking `activeId`.
-           */
-          if (adoptingRef.current === adoption) adoptingRef.current = null;
-          return;
-        }
-        flush(id, messages);
+      void ensureConversationId().then((id) => {
+        if (id) flush(id, messages);
       });
     },
-    // `commitActiveId` added (used in the lazy-adoption branch above): stable `useCallback([], ...)`
-    // wrapper, see `select`'s identical note.
-    [flush, markListMutated, commitActiveId],
+    // Adoption itself now lives in `ensureConversationId` (stable `useCallback`, see its own doc),
+    // so `markListMutated`/`commitActiveId` are no longer read here.
+    [flush, ensureConversationId],
   );
 
   return {
@@ -805,6 +843,7 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     remove,
     rename,
     onMessagesChange,
+    ensureConversationId,
   };
 }
 

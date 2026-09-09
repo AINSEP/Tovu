@@ -737,8 +737,8 @@ function pluginRefIdsField(input: StartRunInput): Record<string, unknown> {
  * (or from a future daemon client that never sends one) just gets no session-resume behavior, not
  * an error.
  */
-function conversationIdField(input: StartRunInput): Record<string, unknown> {
-  const conversationId = input.context?.["conversationId"];
+function conversationIdField(input: StartRunInput, resolvedConversationId?: string): Record<string, unknown> {
+  const conversationId = resolvedConversationId ?? input.context?.["conversationId"];
   return typeof conversationId === "string" && conversationId.length > 0 ? { conversationId } : {};
 }
 
@@ -757,8 +757,16 @@ function conversationIdField(input: StartRunInput): Record<string, unknown> {
  * @param prompt - The already-built transcript string ({@link runPrompt}'s result) — this function
  *   only decides which of the six OPTIONAL fields ride alongside it, not how the prompt itself is
  *   built.
+ * @param resolvedConversationId - {@link resolveRunConversationId}'s answer, when `startRun` had to
+ *   adopt a conversation because `input.context` named none (the first turn of a chat). Omitted by
+ *   every caller that already has an id on `input.context`, and by this function's own unit tests —
+ *   in which case the `context` field is read exactly as before.
  */
-export function buildLocalCliContextRef(input: StartRunInput, prompt: string): Record<string, unknown> {
+export function buildLocalCliContextRef(
+  input: StartRunInput,
+  prompt: string,
+  resolvedConversationId?: string,
+): Record<string, unknown> {
   return {
     prompt,
     ...frontendBindTokenField(input),
@@ -766,7 +774,7 @@ export function buildLocalCliContextRef(input: StartRunInput, prompt: string): R
     ...reasoningField(input),
     ...attachmentIdsField(input),
     ...pluginRefIdsField(input),
-    ...conversationIdField(input),
+    ...conversationIdField(input, resolvedConversationId),
   };
 }
 
@@ -813,6 +821,52 @@ export interface CreateTovuAssistantTransportOptions {
    * symmetric, so "unknown" must resolve to "send everything," not to "send only the latest message."
    */
   getResumeCapableAgentIds?: () => ReadonlySet<string>;
+  /**
+   * This pane's conversation id, adopting one if none is active yet —
+   * `useAssistantChats.ensureConversationId` (`hooks/use-assistant-chats.hooks.ts`), wired through
+   * `AssistantDock`'s `useAssistantTransport`. Awaited by `startRun` ONLY when `input.context` names
+   * no conversation, which in practice means the first turn of a chat.
+   *
+   * Why the transport has to be the one to ask: the admin adopts a conversation lazily, from the
+   * first message delta — and `@jini-ai/chat`'s `useChatPane.sendPrompt` freezes `runContext(...)`
+   * into `input.context` BEFORE calling `conversation.sendMessage(...)`, the very call that produces
+   * that delta. So on turn 1 there is no id to capture yet, and `runContext` (synchronous by
+   * contract) has no way to wait for one. `startRun` is the last point in the chain that can still
+   * `await`, which makes it the only place the run can acquire the identity its agent-CLI session id
+   * gets filed under. Without it, `agent-daemon-server.ts`'s `onStarted` skipped its entire
+   * session-capture subscription for turn 1, and turn 2 — sent only the bare latest user message,
+   * trusting a resume that had nothing stored — answered with none of the conversation.
+   *
+   * Contract: resolves `null` rather than rejecting when creation fails. `startRun` treats that as
+   * "send the turn anyway, with no conversationId" — one run with no resumable session is a far
+   * smaller loss than a run that never happens.
+   */
+  ensureConversationId?: () => Promise<string | null>;
+}
+
+/**
+ * The conversation id this run must carry, adopting one if the caller had none.
+ *
+ * @param input - `startRun`'s own input; `input.context.conversationId` wins whenever it is a
+ *   non-empty string, so turn 2 onward never touches {@link ensureConversationId} and never issues a
+ *   redundant `POST /conversations`.
+ * @param ensureConversationId - `CreateTovuAssistantTransportOptions.ensureConversationId`, or
+ *   `undefined` for a transport built without it (every test and any non-dock consumer).
+ * @returns The id to put on the wire, or `undefined` to omit the key entirely — including when
+ *   adoption failed. The `.catch` is load-bearing: `ensureConversationId`'s own contract promises
+ *   `null` over a rejection, and this makes that promise safe to depend on even if a future
+ *   implementation breaks it, rather than failing the user's turn over a lost session id.
+ * @complexity O(1) plus at most one conversation-creation round trip, on the first turn only.
+ */
+async function resolveRunConversationId(
+  input: StartRunInput,
+  ensureConversationId: (() => Promise<string | null>) | undefined,
+): Promise<string | undefined> {
+  const fromContext = input.context?.["conversationId"];
+  if (typeof fromContext === "string" && fromContext.length > 0) return fromContext;
+  if (!ensureConversationId) return undefined;
+  const adopted = await ensureConversationId().catch(() => null);
+  return typeof adopted === "string" && adopted.length > 0 ? adopted : undefined;
 }
 
 /**
@@ -895,7 +949,10 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an
       // unresolved/absent agentId fails open to the full transcript rather than the bare message.
       const prompt = resolveLocalCliPrompt(input, latestUserPrompt, options.getResumeCapableAgentIds?.());
-      const contextRef = buildLocalCliContextRef(input, prompt);
+      // Awaited BEFORE the POST, and only on this branch: session resume is a daemon-run concept, so
+      // neither the BYOK nor the AG-UI path above has anything to file a session id under. See
+      // `resolveRunConversationId` and `CreateTovuAssistantTransportOptions.ensureConversationId`.
+      const contextRef = buildLocalCliContextRef(input, prompt, await resolveRunConversationId(input, options.ensureConversationId));
 
       const response = await fetch(RUNS_URL, {
         method: "POST",

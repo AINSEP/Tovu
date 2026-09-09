@@ -380,10 +380,17 @@ export function AssistantDock({
     configLoaded,
   });
 
-  const transport = useAssistantTransportSeam(useAssistantTransportOverride, { executionConfigRef });
+  // Resolved BEFORE the transport, which now takes `chats.ensureConversationId`: turn 1's run must
+  // be able to adopt this pane's conversation before it is dispatched, because the lazy adoption
+  // driven by `onMessagesChange` starts too late for the run to carry the id. See
+  // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
+  const chats = useChatsSeam(useChats);
+  const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
+    executionConfigRef,
+    ensureConversationId: chats.ensureConversationId,
+  });
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
-  const chats = useChatsSeam(useChats);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See

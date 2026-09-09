@@ -728,17 +728,31 @@ export function useSelectedPluginChips(
  *
  * @param input.executionConfigRef - {@link UseExecutionConfig.executionConfigRef} — read fresh
  *   inside `getExecutionConfig`, never captured by value.
+ * @param input.ensureConversationId - `useChatsSeam`'s `ensureConversationId`. Stable for the
+ *   component's lifetime (a `useCallback` over two other stable callbacks — see its own declaration
+ *   in `use-assistant-chats.hooks.ts`), so listing it in the dependency array below does not defeat
+ *   the memo any more than `executionConfigRef` does. Optional so a test that injects a `useChats`
+ *   stub predating it still builds a working transport — one without first-turn session capture,
+ *   which is exactly the pre-fix behavior and never a crash.
  * @returns The memoized transport instance.
  * @example
- * const transport = useAssistantTransport({ executionConfigRef });
+ * const transport = useAssistantTransport({ executionConfigRef, ensureConversationId: chats.ensureConversationId });
  */
 export function useAssistantTransport(
-  { executionConfigRef }: { executionConfigRef: React.MutableRefObject<ExecutionConfig> },
+  { executionConfigRef, ensureConversationId }: {
+    executionConfigRef: React.MutableRefObject<ExecutionConfig>;
+    ensureConversationId?: () => Promise<string | null>;
+  },
 ): ReturnType<typeof createTovuAssistantTransport> {
   return useMemo(
     () =>
       createTovuAssistantTransport({
         getExecutionConfig: () => executionConfigRef.current,
+        // Turn 1's run has no conversation id of its own to send — the pane adopts one lazily, from
+        // a message delta that does not exist yet when `runContext` is frozen. See
+        // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism and the
+        // amnesia it caused.
+        ...(ensureConversationId ? { ensureConversationId } : {}),
         // ADR-059's AG-UI canary — off by default, flipped per-tab via `localStorage` (see
         // `isAgUiTransportEnabled`'s own doc). Read fresh per `startRun` call, same as
         // `getExecutionConfig` above.
@@ -749,7 +763,7 @@ export function useAssistantTransport(
         // `fetchAgents`/`useRuntimeAccess`'s `rescanAgents` keep the set it reads current.
         getResumeCapableAgentIds,
       }),
-    [executionConfigRef],
+    [executionConfigRef, ensureConversationId],
   );
 }
 
@@ -1448,7 +1462,10 @@ export function useComposerCapabilitiesSeam(
 
 export function useAssistantTransportSeam(
   override: typeof useAssistantTransport | undefined,
-  input: { executionConfigRef: React.MutableRefObject<ExecutionConfig> },
+  input: {
+    executionConfigRef: React.MutableRefObject<ExecutionConfig>;
+    ensureConversationId?: () => Promise<string | null>;
+  },
 ): ReturnType<typeof createTovuAssistantTransport> {
   return (override ?? useAssistantTransport)(input);
 }
