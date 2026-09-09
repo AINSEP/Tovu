@@ -925,3 +925,116 @@ describe("guards proven necessary by deleting them", () => {
     expect(result.current.conversations.map((c) => c.id)).not.toContain("fake-1");
   });
 });
+
+describe("ensureConversationId — the run needs the id BEFORE the first delta exists", () => {
+  /*
+   * The turn-1 amnesia defect (2026-09-09). Lazy adoption is driven by `onMessagesChange`, which
+   * `@jini-ai/chat`'s `useChatPane.sendPrompt` only reaches from INSIDE `conversation.sendMessage`
+   * — strictly after it has already frozen `options.runContext(...)` into the run's context object.
+   * So turn 1's run was dispatched with no `conversationId`, `agent-daemon-server.ts`'s `onStarted`
+   * skipped its whole session-capture subscription (`if (conversationId !== undefined)`), and the
+   * agent-CLI session id turn 2 needed to resume was never written. Turn 2 then started cold while
+   * the client — trusting the resume — had sent only the bare latest user message.
+   *
+   * This is the seam that closes it: an awaitable "give me this pane's conversation id, adopting one
+   * if that is what it takes", callable before the first message delta exists.
+   */
+  it("adopts a conversation and returns its id when none is active yet", async () => {
+    const { result } = renderHook(() => useWiredAssistantChats());
+    await waitFor(() => expect(result.current.conversations).toEqual([]));
+    expect(result.current.activeId).toBeNull();
+
+    let resolved: string | null = null;
+    await act(async () => {
+      resolved = await result.current.ensureConversationId();
+    });
+
+    expect(resolved).toBe("new-1");
+    await waitFor(() => expect(result.current.activeId).toBe("new-1"));
+  });
+
+  it("does NOT remount the pane, for the same reason adoption does not", async () => {
+    const { result } = renderHook(() => useWiredAssistantChats());
+    await waitFor(() => expect(result.current.conversations).toEqual([]));
+    const keyBefore = result.current.paneKey;
+
+    await act(async () => {
+      await result.current.ensureConversationId();
+    });
+
+    expect(result.current.paneKey).toBe(keyBefore);
+  });
+
+  it("returns the active id without creating anything once a conversation exists", async () => {
+    const { result } = renderHook(() => useWiredAssistantChats());
+    await waitFor(() => expect(result.current.conversations).toEqual([]));
+    await act(async () => {
+      await result.current.ensureConversationId();
+    });
+    const postsAfterFirst = calls.filter((c) => c.method === "POST").length;
+
+    let second: string | null = null;
+    await act(async () => {
+      second = await result.current.ensureConversationId();
+    });
+
+    expect(second).toBe("new-1");
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(postsAfterFirst);
+  });
+
+  it("shares ONE creation with the message-delta adoption racing it", async () => {
+    /*
+     * The adversarial case, and the reason this must reuse `adoptingRef` rather than create its own:
+     * `startRun` calls this at the same moment `sendMessage` is appending the user turn, so both
+     * paths enter adoption within the same tick. Two POSTs would split one turn across two
+     * conversations — the run filed under one, the messages written to the other.
+     */
+    const { result } = renderHook(() => useWiredAssistantChats());
+    await waitFor(() => expect(result.current.conversations).toEqual([]));
+
+    await act(async () => {
+      const ensured = result.current.ensureConversationId();
+      result.current.onMessagesChange([message("m1", "hello")]);
+      await ensured;
+    });
+    await waitFor(() => expect(result.current.activeId).toBe("new-1"));
+
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(1);
+    const puts = calls.filter((c) => c.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(puts[0]?.url).toContain("/new-1/messages/m1");
+  });
+
+  it("resolves null rather than rejecting when creation fails, and a later call retries", async () => {
+    /*
+     * `startRun` must never lose the user's turn over a failed conversation POST — the worst case is
+     * one run with no resumable session, not a run that never happens. A rejection here would
+     * propagate straight out of `startRun`.
+     */
+    const base = createFakeAssistantChatsPort();
+    let attempts = 0;
+    const port: AssistantChatsPort = {
+      ...base,
+      createConversation: async () => {
+        attempts += 1;
+        if (attempts === 1) throw new HttpError(500, "boom");
+        return base.createConversation();
+      },
+    };
+    const { result } = renderHook(() => useAssistantChats(port));
+    await waitFor(() => expect(result.current.conversations).toEqual([]));
+
+    let first: string | null = "unset";
+    await act(async () => {
+      first = await result.current.ensureConversationId();
+    });
+    expect(first).toBeNull();
+
+    let second: string | null = null;
+    await act(async () => {
+      second = await result.current.ensureConversationId();
+    });
+    expect(second).not.toBeNull();
+    expect(attempts).toBe(2);
+  });
+});
