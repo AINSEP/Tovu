@@ -97,6 +97,8 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // restating that logic. A test proving the seam itself overrides this with a value the real `api`
     // could never produce (see "the preview iframe's src comes from the injected controller" below).
     templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
+    previewFormRef: { current: null },
+    previewFormTarget: page ? `page-preview-pending-${page.id}` : "",
     // Settled-with-no-styling by default: the Interactive tab then mounts a real GrapesJS editor
     // exactly as it did before canvas styling existed, so no test here has to wait on a theme fetch.
     canvasStyling: { status: "ready", styling: {} },
@@ -487,36 +489,37 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(src).not.toMatch(/\/\/$/);
   });
 
-  // Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
-  // 2026-08-11-template-preview-render-bug.md`) — deliberately UNCHANGED for a draft, even a clean one
-  // (`contentDirty` false): a draft's own `{"type":"content"}` slot does not survive the shared render
-  // pipeline's visibility-filtered "content" resolver (confirmed live in `admin-post-template-preview
-  // .test.ts`'s own draft case — the body degrades to an empty placeholder, which would read as "my
-  // content disappeared"), so `canShowTemplatePreview` requires `status === "published"` and a draft
-  // keeps the pre-existing raw-body fallback.
-  it("preview still falls back to the raw-body sandbox for a clean draft page (drafts are out of this fix's scope)", () => {
-    renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
+  // 2026-09-09 widening — a clean draft now gets the SAME template-preview mechanism a published
+  // page does (a hidden form POSTs `html` into `templatePreviewUrl`, landing in the named iframe),
+  // rather than the old raw-body `SrcDocSandbox` fallback: `template-preview.ts`'s own `bodyHtml`
+  // override bypasses the visibility guard that used to make a draft's real body unreachable there.
+  // The iframe itself carries no `src` (it's targeted by the hidden form instead); the form's
+  // `action` is the real assertion.
+  it("preview POSTs into templatePreviewUrl for a clean draft page, not the raw-body sandbox", () => {
+    const { container } = renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
+    const form = container.querySelector("form");
+    expect(form).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
+    expect(screen.getByText(/publish to make it visible on the site/i)).toBeInTheDocument();
   });
 
-  // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
-  // on an otherwise-untouched published page. `dirty` is correctly `true` (an unsaved `templateChoice`
-  // change), but `contentDirty` stays `false` — this must show a real templated render, not the raw
-  // sandbox. Before the fix, `dirty` alone gated the fallback, so switching templates rendered
-  // unstyled and looked identical across every template (the fallback never read `templateChoice`).
-  it("preview shows a real templated render, with the pending template in the URL, when only the template choice is dirty on a published page", () => {
-    renderEditor({
+  // Template-preview fix (2026-08-11, widened 2026-09-09) — the reported bug's exact repro: picking a
+  // DIFFERENT template on an otherwise-untouched published page. `dirty` is correctly `true` (an
+  // unsaved `templateChoice` change), but `contentDirty` stays `false` — this must show a real
+  // templated render, not the raw sandbox. The pending template rides `templatePreviewUrl`'s own
+  // query string, which is now the hidden form's `action` rather than the iframe's `src`.
+  it("preview POSTs the pending template choice, in the URL, when only the template choice is dirty on a published page", () => {
+    const { container } = renderEditor({
       view: "preview",
       status: "published",
       dirty: true,
       contentDirty: false,
       templateChoice: "page-shell.html",
     });
-    const preview = screen.getByTitle("Page preview");
-    expect(preview).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
-    expect(preview).toHaveAttribute("src", expect.stringContaining("templateChoice=page-shell.html"));
+    const form = container.querySelector("form");
+    expect(form).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
+    expect(form).toHaveAttribute("action", expect.stringContaining("templateChoice=page-shell.html"));
     expect(screen.getByText(/save to update the live page/i)).toBeInTheDocument();
   });
 
@@ -524,10 +527,10 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   // longer imports `lib/api` at all (see `page-editor-port.hooks.ts`'s `templatePreviewUrl` and
   // `use-page-editor.hooks.ts`'s `templatePreviewUrl` field) — it renders whatever the CONTROLLER
   // hands it. A URL the real `api.templatePreviewUrl` could never produce (no `/api/` prefix, no
-  // `template-preview` segment) still ends up as the iframe's `src` verbatim, which is only possible
-  // if the component reads it off the controller rather than calling a global `api` itself.
-  it("preview iframe's src is exactly the controller's templatePreviewUrl, not one this component computed itself", () => {
-    renderEditor({
+  // `template-preview` segment) still ends up as the hidden form's `action` verbatim, which is only
+  // possible if the component reads it off the controller rather than calling a global `api` itself.
+  it("preview form's action is exactly the controller's templatePreviewUrl, not one this component computed itself", () => {
+    const { container } = renderEditor({
       view: "preview",
       status: "published",
       dirty: true,
@@ -535,27 +538,41 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
       templateChoice: "page-shell.html",
       templatePreviewUrl: "fake://template-preview/pg1?templateChoice=page-shell.html",
     });
-    const preview = screen.getByTitle("Page preview");
-    expect(preview).toHaveAttribute("src", "fake://template-preview/pg1?templateChoice=page-shell.html");
+    const form = container.querySelector("form");
+    expect(form).toHaveAttribute("action", "fake://template-preview/pg1?templateChoice=page-shell.html");
   });
 
-  // `SrcDocSandbox` also renders an `<iframe title="Page preview">` (via `srcDoc`, not `src`) — the
-  // fallback is distinguished by the ABSENCE of a `src` attribute, not by element type. Reachable when
-  // a published page's body/title/slug/status itself has unsaved edits (`contentDirty: true`) —
-  // neither the live public URL nor the template-preview endpoint can reflect edits that were never
-  // saved. Same notice wording as before this fix; only the branching condition changed.
-  it("preview falls back to the raw-body sandbox, with a notice, when the page body itself has unsaved edits", () => {
-    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
-    const preview = screen.getByTitle("Page preview");
-    expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+  // The hidden form's whole reason to exist: carrying the operator's PENDING, unsaved `html` into the
+  // preview endpoint via a `bodyHtml` field — a plain `GET` iframe `src` has no way to send a body.
+  it("the hidden form's bodyHtml field carries the current working-copy html, not the last-saved value", () => {
+    const { container } = renderEditor({
+      view: "preview",
+      status: "published",
+      dirty: true,
+      contentDirty: true,
+      html: "<p>Unsaved edit</p>",
+    });
+    const input = container.querySelector('input[name="bodyHtml"]');
+    expect(input).toHaveValue("<p>Unsaved edit</p>");
   });
 
-  it("preview falls back to the raw-body sandbox, with a notice, for a draft page with unsaved edits", () => {
-    renderEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
+  // 2026-09-09 widening — a published page with unsaved content edits now gets the same POST
+  // mechanism, distinguished from the two cases above by wording: `contentDirty` means title/slug/
+  // status/body itself changed, not just the template picker.
+  it("preview POSTs into templatePreviewUrl, with an 'unsaved edits' notice, when the page body itself has unsaved edits", () => {
+    const { container } = renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
+    expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
+    expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
+  });
+
+  it("preview POSTs into templatePreviewUrl, with an 'unsaved edits' notice, for a draft page with unsaved edits", () => {
+    const { container } = renderEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
+    expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
   });
 
   // Visibility-gap fix — `.page-preview-frame` renders up to 900px tall (`pages.css`), so a notice
@@ -567,9 +584,9 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   // Asserts DOM order (notice before the iframe) rather than just presence, since presence alone
   // already passed before this fix — the bug was never that the notice was missing, only unreachable
   // without scrolling.
-  it("places the raw-body-fallback notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
+  it("places the template-preview notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
     renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
-    const notice = screen.getByText(/save your changes to preview them with the theme/i);
+    const notice = screen.getByText(/previewing your unsaved edits/i);
     const preview = screen.getByTitle("Page preview");
     expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

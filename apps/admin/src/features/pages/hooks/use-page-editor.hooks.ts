@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 import type { AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
@@ -142,6 +142,15 @@ export interface PageEditorController {
    * string building, not worth a `useMemo`.
    */
   templatePreviewUrl: string;
+  /** DOM ref for the pending-html-preview's hidden `<form>` — owned here, not local to
+   *  `PagePreview`, so the debounced auto-submit effect below can reach it. Same "hook owns the ref,
+   *  view attaches it" shape `frameRef` above already uses, and the same shape
+   *  `use-post-editor.hooks.ts`'s own `previewFormRef` uses for Posts — see that field's own doc for
+   *  the "why here, not the view" reasoning this mirrors. */
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  /** Stable name shared by the hidden form's `target` and the iframe it submits into. `""` before
+   *  `page` loads — `PagePreview` never renders that early. */
+  previewFormTarget: string;
   /**
    * What the Interactive tab's GrapesJS canvas renders the page against — the active theme's own
    * stylesheet plus its design tokens, so a page is edited looking roughly the way it publishes
@@ -230,6 +239,28 @@ function computeContentDirty(
     draft.status !== page.status ||
     (pageAcceptsHtmlBody(page, draft.html) && draft.html !== draft.savedHtml)
   );
+}
+
+/**
+ * Pending-html preview's debounced auto-submit (2026-09-09) — Pages' own version of
+ * `use-post-editor.hooks.ts`'s `schedulePendingContentPreviewSubmit` (same file, same "hook owns
+ * the effect, not the view" reasoning that function's own doc explains). A form submit is a full
+ * iframe navigation, so firing one per keystroke would thrash the iframe; trailing-only, 500ms.
+ * `clearTimeout` on cleanup is the complete cancellation, same as that function's.
+ *
+ * No `=== null`/`bodyJson`-shaped guard is needed here unlike the Posts version: `html` is a plain
+ * string, always defined once `page` has loaded — the only state `PagePreview` ever mounts in (see
+ * `PageEditor.tsx`'s own `if (!page) return <div className="notice">...` guard) — so `active` alone
+ * decides whether to schedule at all.
+ *
+ * @complexity Time/space: O(1) — one timer, no data copying.
+ */
+function schedulePendingHtmlPreviewSubmit(input: { active: boolean; formRef: RefObject<HTMLFormElement | null> }): () => void {
+  if (!input.active) return () => {};
+  const timer = setTimeout(() => {
+    input.formRef.current?.submit();
+  }, 500);
+  return () => clearTimeout(timer);
 }
 
 /** `save`'s own "apply a successful write" step, named out of `save`'s body for the same
@@ -622,6 +653,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     }
   }, [page, locale, port, navigate, t]);
 
+  // Pending-html preview (2026-09-09) — see `PageEditorController.previewFormRef`'s own doc. The
+  // hidden form's DOM node; `PagePreview` attaches it via `ref`. `previewFormTarget` is `""` before
+  // `page` loads for the same reason `templatePreviewUrl` below is — `PagePreview` never renders
+  // that early.
+  const previewFormRef = useRef<HTMLFormElement>(null);
+  const previewFormTarget = page ? `page-preview-pending-${page.id}` : "";
+
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
 
@@ -645,6 +683,28 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     if (!page || !contentDirty) return;
     autosave.scheduleAutosave(buildPageAutosaveDraft(page, { title, slug, html }));
   }, [page, contentDirty, title, slug, html, autosave.scheduleAutosave]);
+
+  // Pending-html preview's debounced auto-submit (2026-09-09) — see `PageEditorController
+  // .previewFormRef`'s own doc. `active` mirrors `canShowTemplatePreview`'s own widened condition
+  // (`PagePreview`'s doc): true whenever the operator isn't looking at the live site, regardless of
+  // `status` or `contentDirty` — a draft, or a published-but-dirty Page, both need their pending
+  // `html` POSTed into the preview iframe the same way. Computed inline here (not read off a
+  // `dirty`/`canShowLiveSite` controller field) because none exists — `PagePreview` recomputes the
+  // identical condition itself from `status`/`dirty`, the same duplication
+  // `use-post-editor.hooks.ts`'s own `canShowPendingContentPreview` already accepts between the hook
+  // and its view for the same reason (cheap, O(1), and keeps the controller's own field surface
+  // unchanged).
+  useEffect(
+    () =>
+      schedulePendingHtmlPreviewSubmit({
+        active: view === "preview" && page !== null && !(status === "published" && !contentDirty && templateChoice === savedTemplateChoice),
+        formRef: previewFormRef,
+      }),
+    // `page?.id`, not `page` — same reasoning `use-post-editor.hooks.ts`'s identical effect gives:
+    // a `setPage(updated)` after a successful save (a new object reference, same id) must not by
+    // itself restart the debounce timer.
+    [view, page?.id, status, contentDirty, templateChoice, savedTemplateChoice, html]
+  );
 
   const restoreRecoveredDraft = useCallback(() => {
     const draft = autosave.recoverableDraft;
@@ -720,6 +780,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     contentDirty,
     dirty: contentDirty || templateChoice !== savedTemplateChoice,
     templatePreviewUrl,
+    previewFormRef,
+    previewFormTarget,
     canvasStyling,
     save,
     saveConflict,

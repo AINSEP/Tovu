@@ -1,6 +1,6 @@
+import type { RefObject } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
 import type {
@@ -498,6 +498,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     dirty,
     contentDirty,
     templatePreviewUrl,
+    previewFormRef,
+    previewFormTarget,
     canvasStyling,
     save,
     saveConflict,
@@ -638,6 +640,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         dirty={dirty}
         contentDirty={contentDirty}
         templatePreviewUrl={templatePreviewUrl}
+        previewFormRef={previewFormRef}
+        previewFormTarget={previewFormTarget}
         frameRef={frameRef}
         paneWidth={paneWidth}
       />
@@ -687,6 +691,8 @@ function PageEditorPane({
   dirty,
   contentDirty,
   templatePreviewUrl,
+  previewFormRef,
+  previewFormTarget,
   frameRef,
   paneWidth,
 }: {
@@ -702,6 +708,8 @@ function PageEditorPane({
   dirty: boolean;
   contentDirty: boolean;
   templatePreviewUrl: string;
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormTarget: string;
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
 }) {
@@ -716,6 +724,8 @@ function PageEditorPane({
         dirty={dirty}
         contentDirty={contentDirty}
         templatePreviewUrl={templatePreviewUrl}
+        previewFormRef={previewFormRef}
+        previewFormTarget={previewFormTarget}
         frameRef={frameRef}
         paneWidth={paneWidth}
       />
@@ -760,62 +770,50 @@ function PageEditorPane({
  * regression)**: this component previously fed the page's raw stored body HTML into
  * `SrcDocSandbox` — a sandboxed `srcdoc` iframe with no template wrapper, no nav/footer, and no
  * theme stylesheet, regardless of the page's template choice. That was never wired to the real
- * render path; it cannot have regressed, because it never rendered themed. Confirmed independently
- * by the predecessor session that shipped `page-shell.html` (`ADS-memory/reports/implementation/
- * 2026-08-11-basic-page-template.md`'s own "Risks" section) and by reading this function before
- * touching it: `html` here is the editor's raw body string, never passed through
- * `renderViaTemplate`/`renderStaticPage`.
- *
- * Rather than reimplement that whole server-side render pipeline a second time in the admin (a
- * second source of truth that would drift from `src/server/routes/site/pages.ts`'s real one), THREE
- * branches share the real pipeline instead of one:
+ * render path; it cannot have regressed, because it never rendered themed. Rather than reimplement
+ * that whole server-side render pipeline a second time in the admin (a second source of truth that
+ * would drift from `src/server/routes/site/pages.ts`'s real one), it shares the real pipeline
+ * instead of one, through two branches:
  *
  * 1. **Live site** (`status === "published" && !dirty`, i.e. nothing pending at all): iframes the
  *    real public URL (`siteUrl`) directly — the exact same response a visitor gets.
- * 2. **Template preview, own fix (2026-08-11)** (`status === "published" && !contentDirty`, i.e.
- *    title/slug/status/body all match what's saved and the row IS published — only `templateChoice`
- *    is pending): iframes `templatePreviewUrl` — `usePageEditor`'s pre-built URL for this SAME saved
- *    content through the PENDING template choice (`port.templatePreviewUrl`, `page-editor-port.hooks.ts`;
- *    the real binding calls `lib/api.ts`'s own `templatePreviewUrl`, an admin-only render through the
- *    SAME render pipeline as branch 1: `renderViaTemplate`, `routes/admin/posts/template-preview.ts`,
- *    just looked up by id instead of by public slug). This is the fix, and exactly the reported bug's
- *    own repro: picking a template from the dropdown marks
- *    `dirty` (correctly — it IS an unsaved change to `templateChoice`), which used to fall the preview
- *    all the way back to branch 3 below — raw, unstyled, and blind to which template was even
- *    selected, which is why re-picking a DIFFERENT template while already dirty used to look like
- *    nothing happened (branch 3 never reads `templateChoice` at all). See `ADS-memory/reports/
- *    implementation/2026-08-11-template-preview-render-bug.md` for the full root-cause writeup AND why
- *    this branch is gated on `status === "published"` rather than just `!contentDirty` — a draft's own
- *    body does not survive this same render pipeline intact (a disclosed, separate limitation in the
- *    shared "content" marker resolver, not something worth widening this fix to work around).
- * 3. **Raw fallback** (everything else — a draft, regardless of its own dirtiness, or a published page
- *    with `contentDirty`, i.e. the operator actually edited title/slug/status/body): `SrcDocSandbox`
- *    over the raw, un-templated buffer. For a draft this is unchanged from before this fix. For a
- *    dirty published page, it's genuinely the best available preview, since neither the public URL nor
- *    the template-preview endpoint can see edits that were never saved.
+ * 2. **Template preview** (everything else — a draft, or a published page with a pending
+ *    `templateChoice` and/or edited content): a hidden `<form method="post" target="{iframe name}">`
+ *    POSTs the working-copy `html` into `templatePreviewUrl` (`usePageEditor`'s pre-built URL,
+ *    `port.templatePreviewUrl`/`lib/api.ts`'s own `templatePreviewUrl` — the admin-only render
+ *    through the SAME pipeline as branch 1: `renderViaTemplate`,
+ *    `routes/admin/posts/template-preview.ts`, looked up by id instead of by public slug), landing
+ *    the response inside a same-named `<iframe>`. `POST`, not the plain `GET` `<iframe src>` this
+ *    branch used before 2026-09-09, because a `GET` can only carry `templateChoice` on the query
+ *    string — it cannot hand the endpoint this page's own PENDING, possibly-unsaved `html`, which is
+ *    exactly what a draft (or a published-but-dirty page) needs previewed. The debounced auto-submit
+ *    effect (`usePageEditor`'s `schedulePendingHtmlPreviewSubmit`) fires this on template-choice
+ *    change, body change, and switching into this tab — see that function's own doc for the "why a
+ *    form submit, not `fetch`" reasoning, which mirrors `use-post-editor.hooks.ts`'s identical
+ *    mechanism for Posts almost exactly (a `bodyHtml` field here where that one sends `bodyJson`).
  *
- * All three branches fill the same scaled box identically (`.page-preview-iframe` sets
- * `width/height: 100%` on every element), so `3ac885e`'s live pane-width tracking and the
- * toolbar-to-preview spacing are unaffected by which one renders.
+ *    Once a genuine per-id `bodyHtml` override existed server-side (`template-preview.ts`'s
+ *    `pendingBodyHtml`, 2026-09-09 — see that file's own header), this branch no longer needs
+ *    `status === "published"`: `findPublishedPostById`'s visibility guard on a draft's own
+ *    `{"type":"content"}` slot is bypassed for exactly the one id this authenticated caller already
+ *    fetched and authorized, the same way the PRE-EXISTING `bodyJson` override already did for a
+ *    Post — see `resolveHtmlFormatContentMarkers`'s own doc for the full reasoning. That is what
+ *    retired the THIRD branch this function used to have (a raw `SrcDocSandbox` fallback for a
+ *    draft, or a published-and-dirty page): with branch 2 now unconditional whenever branch 1 isn't
+ *    showing, `canShowLiveSite || canShowTemplatePreview` is a tautology, so the fallback had become
+ *    dead code, not merely rare — removed rather than left unreachable. (`draftHtml`'s own textarea
+ *    still exists on the HTML tab for hand-editing raw markup; nothing about that tab changed here.)
  *
  * The public URL and the template-preview endpoint are both cross-origin from the admin in dev
  * (`:5173` vs. `:3000`) — by design for branch 1 (it has to be the real site, not a re-hosted copy);
  * branch 2 goes through the SAME `/api` dev-proxy rule (`apps/admin/vite.config.ts`) every other
  * admin API call already uses, so the `tovu_session` cookie (`SameSite=Strict`) travels with it the
  * same way — see `template-preview.ts`'s own file header for why a real URL (not `srcDoc`) is
- * required for the theme's `/theme-assets/...` CSS to resolve at all. `<iframe src>` embedding does
- * not require CORS (only script-driven cross-origin reads do), and this codebase sets no
- * `X-Frame-Options`/`frame-ancestors` anywhere that would block it (checked `src/server/app.ts`). The
- * cross-origin document's `contentDocument` is therefore unreachable from here — nothing in this
- * component (or the raw-view fallback) depends on reaching into it.
- *
- * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives branch 3's document an opaque origin: its `sandbox`
- * attribute omits `allow-same-origin`, which is asserted by that component's own regression test, so
- * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
- * Branches 1 and 2 do not need that same sandboxing — both are same-origin-appropriate, unsandboxed
- * loads (a real visitor's load, or an authenticated admin's own content through the real theme), and
- * adding `sandbox` there would only break the theme's own scripts (nav toggle, reveal-on-scroll) for
- * no security gain.
+ * required for the theme's `/theme-assets/...` CSS to resolve at all. `<iframe src>`/a form's
+ * `target` navigation does not require CORS (only script-driven cross-origin reads do), and this
+ * codebase sets no `X-Frame-Options`/`frame-ancestors` anywhere that would block it (checked
+ * `src/server/app.ts`). The cross-origin document's `contentDocument` is therefore unreachable from
+ * here — nothing in this component depends on reaching into it.
  */
 function PagePreview({
   html,
@@ -825,6 +823,8 @@ function PagePreview({
   dirty,
   contentDirty,
   templatePreviewUrl,
+  previewFormRef,
+  previewFormTarget,
   frameRef,
   paneWidth,
 }: {
@@ -836,6 +836,11 @@ function PagePreview({
   contentDirty: boolean;
   /** Pre-built by `usePageEditor` — see this function's own doc, branch 2. */
   templatePreviewUrl: string;
+  /** Owned by `usePageEditor` — see `PageEditorController.previewFormRef`'s own doc for why the
+   *  debounced auto-submit effect that reaches through this ref lives there, not here. */
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
+  previewFormTarget: string;
   /** Frame element to measure and its live-measured width — both owned by `usePageEditor`
    *  (`hooks/use-page-editor.hooks.ts`), not local state, so they survive this component's own
    *  mount/unmount as the operator switches tabs. `frameRef` is a CALLBACK ref, not a `RefObject` —
@@ -846,22 +851,16 @@ function PagePreview({
 }) {
   const scale = Math.min(1, paneWidth / width);
   const canShowLiveSite = status === "published" && !dirty;
-  // Template-preview fix (2026-08-11) — see this function's own doc, branch 2. Deliberately requires
-  // `status === "published"`, NOT just `!contentDirty`: a draft's own `{"type":"content"}` slot still
-  // resolves through `resolveHtmlPageEmbeds`'s visibility-filtered "content" resolver
-  // (`resolver-service.ts`'s guard 2, `findPublishedPostById`), which returns nothing for an
-  // unpublished row — confirmed live in this fix's own integration test
-  // (`admin-post-template-preview.test.ts`'s draft case). Widening this to drafts would show styled
-  // chrome around an EMPTY body (the REQ-28 placeholder), which reads as "my content disappeared" —
-  // worse than the honest raw-body fallback a draft already gets. So this is exactly the reported
-  // bug's own scenario: published, body/title/slug all saved, only `templateChoice` is pending.
-  const canShowTemplatePreview = status === "published" && !contentDirty && !canShowLiveSite;
+  // Widened 2026-09-09 to drop the old `status === "published"` requirement — see this function's
+  // own doc for why the visibility gap that requirement worked around no longer exists. Now simply
+  // "not the live site", which is every remaining state by construction.
+  const canShowTemplatePreview = !canShowLiveSite;
 
   return (
     <>
       {canShowLiveSite ? null : (
         <p className="page-preview-notice">
-          {pagePreviewNotice({ canShowTemplatePreview, status })}
+          {pagePreviewNotice({ status, contentDirty })}
         </p>
       )}
       <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
@@ -871,10 +870,11 @@ function PagePreview({
         >
           <PagePreviewFrame
             canShowLiveSite={canShowLiveSite}
-            canShowTemplatePreview={canShowTemplatePreview}
             slug={slug}
             html={html}
             templatePreviewUrl={templatePreviewUrl}
+            previewFormRef={previewFormRef}
+            previewFormTarget={previewFormTarget}
           />
         </div>
       </div>
@@ -883,65 +883,68 @@ function PagePreview({
 }
 
 /**
- * The three-way surface choice from `PagePreview`'s own doc comment (live site / template preview /
- * raw sandbox), as a top-level function so its branching scores independently of `PagePreview`'s own
- * complexity — same pattern `PageEditorToolbarEnd` above uses for `PageEditor`'s own render branches.
+ * The two-way surface choice from `PagePreview`'s own doc comment (live site / template preview), as
+ * a top-level function so its branching scores independently of `PagePreview`'s own complexity — same
+ * pattern `PageEditorToolbarEnd` above uses for `PageEditor`'s own render branches.
  */
 function PagePreviewFrame({
   canShowLiveSite,
-  canShowTemplatePreview,
   slug,
   html,
   templatePreviewUrl,
+  previewFormRef,
+  previewFormTarget,
 }: {
   canShowLiveSite: boolean;
-  canShowTemplatePreview: boolean;
   slug: string;
   html: string;
   /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormTarget: string;
 }) {
   if (canShowLiveSite) {
     return (
       <iframe src={siteUrl(pagePublicPath(slug))} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
     );
   }
-  if (canShowTemplatePreview) {
-    return (
-      <iframe
-        src={templatePreviewUrl}
-        title="Page preview"
-        className="page-preview-iframe"
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
-  return <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />;
+  return (
+    <>
+      {/* `hidden`, not left out of the DOM — a hidden form still submits fine, and this keeps it
+          out of layout without relying on CSS. Posts to the same `templatePreviewUrl` a plain `GET`
+          used to point this iframe's `src` at directly — `templateChoice` rides that URL's own query
+          string exactly as it did there, so a pending template choice AND a pending body are both
+          honored by one submit. Mirrors `PostEditor.tsx`'s identical `PostPreviewFrame` branch 3
+          almost exactly (a `bodyHtml` field here where that one sends `bodyJson`). */}
+      <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
+        <input type="hidden" name="bodyHtml" value={html} />
+      </form>
+      <iframe name={previewFormTarget} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
+    </>
+  );
 }
 
 /**
- * The notice text above a preview that isn't the live site — one branch per `PagePreviewFrame` case
- * minus the live-site one (which shows no notice at all; `PagePreview` skips calling this then).
+ * The notice text above a preview that isn't the live site (`PagePreview` skips calling this for the
+ * live-site branch, which shows no notice at all).
  *
  * Rendered BEFORE `.page-preview-frame` in `PagePreview`, not after (visibility fix — the frame is up
  * to 900px tall before scaling, `pages.css`'s `.page-preview-frame`; a notice placed below it needed a
  * scroll past that height to ever be seen, which is exactly the gap `ADS-memory/reports/implementation/
  * 2026-08-11-template-preview-render-bug.md` flagged and explicitly left unfixed — "not a missing
- * feature, a visibility gap"). Placing it first means the raw-body fallback reads as an explained
- * state as soon as the tab switches, instead of looking like the theme failed to load.
+ * feature, a visibility gap").
+ *
+ * Three phrasings, not two, even though `PagePreviewFrame` only has two branches: `contentDirty`
+ * covers title/slug/status/body edits regardless of `status` (a draft that has never been touched at
+ * all has `contentDirty === false`, so it gets its own, less alarming wording rather than reusing the
+ * "newly selected template" phrasing written for an actually-pending `templateChoice`).
  */
-function pagePreviewNotice({
-  canShowTemplatePreview,
-  status,
-}: {
-  canShowTemplatePreview: boolean;
-  status: "draft" | "published";
-}): string {
-  if (canShowTemplatePreview) {
-    return "Previewing your saved content through the newly selected template — save to update the live page.";
+function pagePreviewNotice({ status, contentDirty }: { status: "draft" | "published"; contentDirty: boolean }): string {
+  if (contentDirty) {
+    return "Previewing your unsaved edits through the live template — this updates a moment after you stop typing.";
   }
-  if (status !== "published") {
-    return "This is the raw body only — publish this page to preview it with the theme's real template and CSS.";
+  if (status === "draft") {
+    return "Previewing this draft through the live template — publish to make it visible on the site.";
   }
-  return "This is the raw body only — save your changes to preview them with the theme's real template and CSS.";
+  return "Previewing your saved content through the newly selected template — save to update the live page.";
 }

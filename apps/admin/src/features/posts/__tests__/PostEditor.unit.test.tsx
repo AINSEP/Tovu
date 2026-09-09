@@ -974,8 +974,23 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
   });
 
-  it("preview falls back to a rendering of the editor buffer, with a notice, for a draft post with unsaved edits", () => {
+  // 2026-09-09 widening — a DIRTY draft now gets the same themed POST-form preview a dirty published
+  // post does (branch 3), not the rough editor-buffer fallback (branch 4): `template-preview.ts`'s
+  // `pendingBodyJson` override already bypassed the visibility guard for a draft's own id, so
+  // `status === "published"` was never load-bearing for this branch's correctness.
+  it("preview shows the same themed live-template render for a draft post with unsaved edits, not the raw editor buffer", () => {
     renderPostEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(preview).not.toHaveAttribute("srcdoc");
+    const form = document.querySelector("form[method='post']");
+    expect(form).not.toBeNull();
+    expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
+    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+  });
+
+  it("preview falls back to a rendering of the editor buffer, with a notice, for a CLEAN draft post (nothing edited yet)", () => {
+    renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Post preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();

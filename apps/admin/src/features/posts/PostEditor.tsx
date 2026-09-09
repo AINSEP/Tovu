@@ -1575,39 +1575,47 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  *    by public slug.
  * 3. **Pending-content preview** (2026-08-12 fix — the owner's own reported bug: formatting text on
  *    an already-published post used to drop the preview straight to branch 4's unstyled fallback the
- *    instant `contentDirty` went true, even though the post was still live at its public URL).
- *    `status === "published" && contentDirty` — this also absorbs the branch-2 case where
- *    `contentDirty` is combined with a pending `templateChoice`, since the `POST` below carries both
- *    at once. Same `template-preview` endpoint as branch 2, but `POST`ed instead of `GET`ted so the
- *    request can carry a BODY: a hidden `<form method="post" target="{iframe's name}">` submits
- *    `bodyJson` — the live, UNSAVED `editor.getJSON()` — into the targeted iframe, landing a real
- *    navigated document instead of a `srcDoc` string. `srcDoc` is rejected here for the same reason
- *    `template-preview.ts`'s own file header gives: the rendered HTML's asset paths are root-relative
- *    to `/theme-assets/{themeId}/...`, which only resolves once the browser believes it is looking at
- *    a real navigated page. Debounced 500ms trailing — a form submit is a full iframe navigation, not
- *    a `fetch`, so firing one per keystroke would be unusable; the debounce effect itself, and the
- *    `formRef`/`previewFormTarget` it needs, now live in `usePostEditor` (moved 2026-08-14, complexity-
- *    ceiling pass — see `PostEditorController.previewFormRef`'s own doc), so this component only
- *    attaches them to the `<form>`/`<iframe>` pair below. Gated on `status === "published"` for the
- *    same reason branch 2 is (see `2026-08-11-template-preview-render-bug.md`): a draft's
- *    `{"type":"content"}` slot does not resolve through this pipeline.
- * 4. **Raw fallback** (everything else — a draft, regardless of its own dirtiness): nothing at the
- *    public URL or the template-preview endpoint reflects a draft, so this renders the LIVE EDITOR
- *    BUFFER instead. Unlike Pages (whose body already IS raw HTML), a post's body is TipTap
- *    `bodyJson`, so `bodyHtml` comes from `editor.getHTML()` — TipTap's own client-side serializer,
- *    not the server's `renderDocNode` — fed into the same sandboxed `SrcDocSandbox` Pages' fallback
- *    uses. This is a deliberately shallower render than the real one (plain marks-to-tags only: no
- *    widget resolution, no media-transform URLs, no theme wrapper) — disclosed as a rough
- *    shape/content check, not parity, for the same reason the live-site branch exists: building a
- *    second `renderDocNode` here would be the duplication this whole approach is chosen to avoid.
+ *    instant `contentDirty` went true, even though the post was still live at its public URL; widened
+ *    2026-09-09 to also cover a DIRTY draft). `contentDirty` alone — this also absorbs the branch-2
+ *    case where `contentDirty` is combined with a pending `templateChoice`, since the `POST` below
+ *    carries both at once. Same `template-preview` endpoint as branch 2, but `POST`ed instead of
+ *    `GET`ted so the request can carry a BODY: a hidden `<form method="post" target="{iframe's
+ *    name}">` submits `bodyJson` — the live, UNSAVED `editor.getJSON()` — into the targeted iframe,
+ *    landing a real navigated document instead of a `srcDoc` string. `srcDoc` is rejected here for
+ *    the same reason `template-preview.ts`'s own file header gives: the rendered HTML's asset paths
+ *    are root-relative to `/theme-assets/{themeId}/...`, which only resolves once the browser
+ *    believes it is looking at a real navigated page. Debounced 500ms trailing — a form submit is a
+ *    full iframe navigation, not a `fetch`, so firing one per keystroke would be unusable; the
+ *    debounce effect itself, and the `formRef`/`previewFormTarget` it needs, now live in
+ *    `usePostEditor` (moved 2026-08-14, complexity-ceiling pass — see
+ *    `PostEditorController.previewFormRef`'s own doc), so this component only attaches them to the
+ *    `<form>`/`<iframe>` pair below.
+ *
+ *    No longer gated on `status === "published"` (2026-09-09): `template-preview.ts`'s
+ *    `pendingBodyJson` override (`resolveHtmlPageEmbeds`'s `pendingContentOverride`) is checked
+ *    BEFORE `findPublishedPostById`'s visibility guard, so it already bypassed that guard for a
+ *    DRAFT's own id too — the `status === "published"` check here was never load-bearing for
+ *    correctness, only inherited from branch 2's (which genuinely does need it, for the
+ *    un-overridden `GET` case). Confirmed by a direct backend test before relying on it
+ *    (`admin-post-template-preview.test.ts`'s "a DRAFT doc-format post's own body renders via a
+ *    POSTed bodyJson override" case) rather than assumed.
+ * 4. **Raw fallback** (a CLEAN draft only — `contentDirty` false, so branch 3 above does not fire, and
+ *    `status !== "published"` keeps branches 1/2 out too): nothing at the public URL, and no pending
+ *    body to POST that would say anything different from what branches 1/2 already would, so this
+ *    renders the LIVE EDITOR BUFFER instead. Unlike Pages (whose body already IS raw HTML), a post's
+ *    body is TipTap `bodyJson`, so `bodyHtml` comes from `editor.getHTML()` — TipTap's own
+ *    client-side serializer, not the server's `renderDocNode` — fed into the same sandboxed
+ *    `SrcDocSandbox` Pages' fallback uses. This is a deliberately shallower render than the real one
+ *    (plain marks-to-tags only: no widget resolution, no media-transform URLs, no theme wrapper) —
+ *    disclosed as a rough shape/content check, not parity, for the same reason the live-site branch
+ *    exists: building a second `renderDocNode` here would be the duplication this whole approach is
+ *    chosen to avoid.
  *    `degradeUnplayableEmbedsForRawPreview` (`rules.ts`) runs on that raw HTML before it reaches
  *    `SrcDocSandbox` (2026-08-12, owner-reported bug — see that function's own doc): a YouTube embed
  *    rendered a solid black box here because `SrcDocSandbox`'s deliberate no-`allow-same-origin`
  *    sandbox breaks the embed player's own same-origin storage access, so this swaps it for a
  *    labelled placeholder instead of a silently broken iframe — this branch's own "rough render, not
  *    parity" disclosure already covers exactly this kind of gap.
- *    Branch 3 means this is now ONLY reachable for a draft — a published post with `contentDirty` no
- *    longer falls this far, which is exactly this fix's own point.
  *
  * No device-width scaling here (unlike `PagePreview`) — that machinery exists so an operator can
  * preview a page at Desktop/Tablet/Mobile widths, which nothing in this dispatch asked for on the
@@ -1655,11 +1663,12 @@ function PostPreview({
   // Template-preview fix (2026-08-11) — see this function's own doc, branch 2, for why `status ===
   // "published"` is required here rather than just `!contentDirty`.
   const canShowTemplatePreview = status === "published" && !contentDirty && !canShowLiveSite;
-  // Pending-content preview (2026-08-12) — see this function's own doc, branch 3. `contentDirty`
+  // Pending-content preview (2026-08-12, widened 2026-09-09 to also cover a DIRTY draft) — see this
+  // function's own doc, branch 3, for why `status` is no longer part of this condition. `contentDirty`
   // already implies `dirty` (`computeContentDirty` in `use-post-editor.hooks.ts` compares a strict
   // subset of what `computeDirty` does), so this is naturally mutually exclusive with the two
   // branches above without needing an explicit `!canShowLiveSite`/`!canShowTemplatePreview` guard.
-  const canShowPendingContentPreview = status === "published" && contentDirty;
+  const canShowPendingContentPreview = contentDirty;
 
   return (
     <>

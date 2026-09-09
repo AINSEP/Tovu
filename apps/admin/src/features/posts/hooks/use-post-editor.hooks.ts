@@ -790,11 +790,17 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const templatePreviewUrl = post ? port.templatePreviewUrl(post.id, templateChoice) : "";
   const previewFormTarget = post ? `post-preview-pending-${post.id}` : "";
 
-  // Pending-content preview (2026-08-12, moved from `PostPreview`) — see this function's own doc,
-  // branch 3. `contentDirty` already implies `dirty` (`computeContentDirty` compares a strict subset
-  // of what `useDirtyGuard` does), so this is naturally mutually exclusive with the live-site/
-  // template-preview branches without an explicit guard against them.
-  const canShowPendingContentPreview = status === "published" && contentDirty;
+  // Pending-content preview (2026-08-12, moved from `PostPreview`; widened 2026-09-09 to cover a
+  // DIRTY draft too — see `PostPreview`'s own doc, branch 3, for the full "why status is no longer
+  // required" reasoning: `template-preview.ts`'s `pendingBodyJson` override already bypasses
+  // `findPublishedPostById`'s visibility guard for exactly the one authorized id being previewed,
+  // regardless of that row's `status`, so the old `status === "published"` gate here was never load-
+  // bearing for correctness — only for BUILDING that override, which existed the whole time.
+  // `contentDirty` already implies `dirty` (`computeContentDirty` compares a strict subset of what
+  // `useDirtyGuard` does), so this is naturally mutually exclusive with the live-site/template-preview
+  // branches without an explicit guard against them. A CLEAN draft (`contentDirty` false) still falls
+  // to branch 4's rough editor-buffer render below — unchanged, and out of this widening's scope.
+  const canShowPendingContentPreview = contentDirty;
   useEffect(
     () =>
       schedulePendingContentPreviewSubmit({

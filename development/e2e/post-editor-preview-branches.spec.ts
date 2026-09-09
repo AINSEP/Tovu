@@ -39,6 +39,17 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * a real navigated page). Debounced 500ms trailing, so this suite waits past that before asserting
  * on the resulting frame.
  *
+ * ## Widened 2026-09-09 — branch 3 no longer requires `status === "published"`
+ *
+ * `template-preview.ts`'s `pendingBodyJson` override (`resolveHtmlPageEmbeds`'s
+ * `pendingContentOverride`) is checked BEFORE `findPublishedPostById`'s visibility guard, so it
+ * already bypassed that guard for a DRAFT's own id too — the `status === "published"` check on branch
+ * 3 was never load-bearing for correctness, only inherited from branch 2's (which genuinely needs it,
+ * for the un-overridden `GET` case branch 2 alone uses). `canShowPendingContentPreview` is now simply
+ * `contentDirty`. Branch 4 (the raw editor-buffer fallback) is consequently reachable ONLY for a
+ * CLEAN draft now — a draft that has never been touched at all — not "any draft" as the tests below
+ * used to assume.
+ *
  * `PostPreview`'s own JSX pairs every non-live-site branch with an `.editor-preview-notice`
  * explaining what's being shown. This suite verifies, DOM-first (`toBeVisible()`, not a screenshot —
  * this project's own memory records CSS presence not being proof of precedence, and a
@@ -140,7 +151,27 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     await loginAsAdmin(page);
   });
 
-  test("INTENDED: a brand-new draft's Preview tab falls back to the raw editor-buffer render, with a VISIBLE notice explaining why", async ({
+  test("INTENDED: a brand-new, UNTOUCHED draft's Preview tab falls back to the raw editor-buffer render, with a VISIBLE notice explaining why", async ({
+    page,
+  }) => {
+    await openFreshPost(page);
+    // Deliberately nothing typed — `contentDirty` stays `false`, so this is genuinely branch 4, not
+    // branch 3 (see the widening note above: a draft with an actual edit no longer falls this far).
+
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const { src, srcdoc } = await previewIframeState(page);
+
+    expect(src, "a clean draft must never resolve to the live-site or template-preview iframe").toBeNull();
+    expect(srcdoc, "a clean draft's Preview must be the SrcDocSandbox fallback").not.toBeNull();
+
+    // The notice this suite exists to verify — measured, not a screenshot.
+    await expectNoticeGenuinelyVisible(page);
+    await expect(page.locator(".editor-preview-notice")).toContainText(
+      "publish this post to preview it with the theme's real template and CSS"
+    );
+  });
+
+  test("WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback", async ({
     page,
   }) => {
     await openFreshPost(page);
@@ -148,16 +179,25 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     await page.keyboard.type("Draft body");
 
     await page.getByRole("tab", { name: "Preview" }).click();
+    // Neither `src` nor `srcdoc` is set for branch 3 (see `previewIframeState`'s own doc) — this is
+    // itself the first confirmation that the raw SrcDocSandbox fallback (branch 4) was NOT chosen.
     const { src, srcdoc } = await previewIframeState(page);
+    expect(srcdoc, "a dirty draft must NOT fall back to the raw, unstyled SrcDocSandbox render").toBeNull();
+    expect(src, "branch 3 never sets `src` directly — it navigates via a targeted form submit").toBeNull();
 
-    expect(src, "a draft must never resolve to the live-site or template-preview iframe").toBeNull();
-    expect(srcdoc, "a draft's Preview must be the SrcDocSandbox fallback").not.toBeNull();
-    expect(srcdoc).toContain("Draft body");
+    const pendingFrame = await waitForPendingContentFrame(page);
+    expect(
+      pendingFrame.url(),
+      "must reuse the SAME id-based template-preview endpoint a published post's branch 3 uses"
+    ).toContain("/template-preview");
 
-    // The notice this suite exists to verify — measured, not a screenshot.
+    // Real, themed chrome around the draft's own unsaved text — the exact visibility-guard bypass
+    // `template-preview.ts`'s `pendingBodyJson` override exists for.
+    await expect(pendingFrame.locator("body")).toContainText("Draft body");
+
     await expectNoticeGenuinelyVisible(page);
     await expect(page.locator(".editor-preview-notice")).toContainText(
-      "publish this post to preview it with the theme's real template and CSS"
+      "Previewing your unsaved edits through the live template"
     );
   });
 
