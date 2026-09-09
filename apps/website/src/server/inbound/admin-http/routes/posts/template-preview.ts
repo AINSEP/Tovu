@@ -27,12 +27,15 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * public slug — but the editors deliberately only ROUTE a `status === "published"` row through this
  * endpoint (see `PagePreview`/`PostPreview`'s own doc comments): a draft's own `{"type":"content"}`
  * slot still resolves through `resolveHtmlPageEmbeds`'s visibility-filtered "content" resolver
- * (`resolver-service.ts`'s guard 2), which returns nothing for an unpublished row, so a draft rendered
- * here would show styled chrome around an EMPTY body — confirmed live in this route's own integration
- * test (`admin-post-template-preview.test.ts`'s draft case). The id-based lookup stays status-agnostic
- * at THIS layer (a real, if currently unreached, capability — an authenticated caller can still hit it
- * for a draft id and get a gracefully-degraded body, never a crash or a raw unresolved marker) so
- * fixing that visibility gap later does not require touching this route's own lookup.
+ * (`resolver-service.ts`'s guard 2), which returns nothing for an unpublished row, so a `GET`-only
+ * request for a draft (no pending body attached — still all either editor currently sends for one,
+ * as of this paragraph) shows styled chrome around an EMPTY body — confirmed live in this route's own
+ * integration test (`admin-post-template-preview.test.ts`'s draft case). The id-based lookup stays
+ * status-agnostic at THIS layer regardless: **a `POST` carrying the matching pending body (`bodyJson`
+ * or, as of 2026-09-09, `bodyHtml` — see that paragraph below) bypasses this SAME visibility guard for
+ * exactly that one already-authorized id**, which is what actually lets a draft preview its real,
+ * unsaved content once a caller sends one — the admin UI widening to send one for a draft is tracked
+ * separately from this route's own capability.
  *
  * **Pending body (2026-08-12)**: the owner's own reported bug — any content edit (not just a
  * template-picker change) sets `contentDirty`, which used to drop the preview all the way to the raw
@@ -48,6 +51,23 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * accepts a pending body) share this same handler — a `GET` request's `req.body` is always empty, so
  * `pendingBodyJson` is `undefined` on every pre-existing caller and that path is byte-for-byte
  * unchanged.
+ *
+ * **`bodyHtml` (2026-09-09, the `"html"`-format half of the same pending-body fix)**: `bodyJson` only
+ * ever helps a `"doc"`-format post/Post — a Page written through the Pages admin editor is
+ * `bodyFormat: "html"` and stores `bodyHtml`, not `bodyJson` (`features/post/post.ts`'s
+ * `resolveUpdateBodyFields`, `repo.sqlite.ts`'s `toRecord`/inverse-column mapping). Overriding
+ * `bodyJson` for an html-format row would do nothing — `renderViaTemplate`'s render path never reads
+ * `bodyJson` for an html-format entity's own body (see `resolveHtmlFormatContentMarkers`'s own doc).
+ * So this route ALSO accepts an optional `bodyHtml` form/JSON field, extracted by
+ * {@link extractPendingBodyHtml} (a plain string — no `JSON.parse` needed, unlike `bodyJson`'s
+ * TipTap-document shape) and threaded through as `renderViaTemplate`'s own `pendingBodyHtml`
+ * parameter, which that function forwards to {@link resolveHtmlFormatContentMarkers}'s
+ * `pendingHtmlOverride` — the equivalent bypass of that function's OWN `findPublishedPostById`
+ * visibility guard, for the exact same reason and under the exact same "matches only the one id this
+ * caller already fetched and authorized" scoping `pendingContentOverride` already uses for `bodyJson`.
+ * `buildPreviewPost` below only builds this override when the FETCHED row's own `bodyFormat` is
+ * `"html"` — an `bodyHtml` field sent for a `"doc"`-format post is ignored, never applied, since that
+ * row has no `bodyHtml` column to preview in the first place.
  *
  * `POST`, not a widened `GET` query string, because a TipTap `bodyJson` document has no realistic
  * upper bound the way a `templateChoice` filename does. The admin client cannot simply point an
@@ -120,6 +140,22 @@ function extractPendingBodyJson(body: unknown): JsonObject | undefined {
 }
 
 /**
+ * Extracts a validated pending-body override from `req.body.bodyHtml` — the `"html"`-format
+ * counterpart to {@link extractPendingBodyJson}, above. Simpler than that one: a plain HTML string
+ * arrives identically from either transport (`express.json()`'s parsed field or
+ * `express.urlencoded()`'s form field are both already strings here — there is no JSON-stringified
+ * intermediate shape to `JSON.parse`, unlike a TipTap document). Any non-string value (missing,
+ * number, object, array) returns `undefined` — the same "malformed input degrades to the saved-body
+ * render, never a 400/crash" contract {@link extractPendingBodyJson} follows, since this endpoint
+ * writes nothing and so has nothing to reject a bad request FOR.
+ */
+function extractPendingBodyHtml(body: unknown): string | undefined {
+  if (!isJsonObject(body)) return undefined;
+  const raw = body.bodyHtml;
+  return typeof raw === "string" ? raw : undefined;
+}
+
+/**
  * Tri-state query contract, matching `templateChoice`'s own tri-state (see `resolveTemplate`'s
  * doc): the key absent entirely means "never chosen" (`null`), present but empty
  * (`?templateChoice=`) means the explicit "No template chosen" opt-out (`""`), present with a
@@ -135,13 +171,24 @@ function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | nul
 /**
  * Never persisted — a shallow clone rendered once for this response and discarded.
  *
+ * `pendingBodyHtml` is only ever applied when `post.bodyFormat === "html"` — a `"doc"`-format post
+ * has no `bodyHtml` column to preview, and applying it there would silently disagree with the
+ * `bodyJson` override on the same clone. See this file's own header for why `bodyJson` and `bodyHtml`
+ * need separate overrides in the first place.
+ *
  * @complexity O(1).
  */
-function buildPreviewPost(post: PostRecord, overrideTemplateChoice: string | null, pendingBodyJson: JsonObject | undefined): PostRecord {
+function buildPreviewPost(
+  post: PostRecord,
+  overrideTemplateChoice: string | null,
+  pendingBodyJson: JsonObject | undefined,
+  pendingBodyHtml: string | undefined
+): PostRecord {
   return {
     ...post,
     templateChoice: overrideTemplateChoice,
     ...(pendingBodyJson !== undefined ? { bodyJson: pendingBodyJson } : {}),
+    ...(pendingBodyHtml !== undefined && post.bodyFormat === "html" ? { bodyHtml: pendingBodyHtml } : {}),
   };
 }
 
@@ -187,11 +234,16 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
       // existed" behavior this file's header promises for `GET`.
       const pendingBodyJson = extractPendingBodyJson(req.body);
+      const pendingBodyHtml = extractPendingBodyHtml(req.body);
+      // Only forwarded to the render pipeline when the FETCHED row is actually html-format (see
+      // `buildPreviewPost`'s own doc) — never applied to a `"doc"`-format post's render, even if a
+      // caller sent a `bodyHtml` field for one.
+      const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
 
-      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson);
+      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
 
       const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
-      const html = await renderViaTemplate(deps, theme, previewPost, staticMenus, pendingBodyJson);
+      const html = await renderViaTemplate(deps, theme, previewPost, staticMenus, pendingBodyJson, pendingBodyHtmlOverride);
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this

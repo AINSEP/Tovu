@@ -618,6 +618,22 @@ export type RenderContextResolutionDeps = Pick<
  * fresh, unresolved marker and try to resolve it again — `withInnerContentFinal` strips the marker
  * attribute so the already-rendered result is inert to any later scan.
  *
+ * `pendingHtmlOverride` (2026-09-09, `bodyHtml` half of the template-preview pending-body fix —
+ * {@link resolveContentTypeEmbeds}'s sibling `pendingContentOverride` already does this for a
+ * `"doc"`-format body's `bodyJson`, but that override is only checked by the LATER
+ * `resolveHtmlPageEmbeds` pass, which this `"html"`-format pass runs strictly before and never
+ * reaches for an id this pass already consumed). Checked BEFORE {@link findPublishedPostById} for a
+ * matching id, same order `pendingContentOverride` uses and for the same reason: an authenticated,
+ * `content.read`-authorized caller (`routes/admin/posts/template-preview.ts`) previewing their own
+ * unsaved edit to a row they already fetched by id should see that pending body, whether the row is
+ * published or not — this is the one bypass of `findPublishedPostById`'s visibility guard, scoped to
+ * exactly the ONE id the caller resolved and authorized, never a caller-supplied id. Only ever
+ * consulted at the id being matched — the RECURSIVE call one line below (into a matched entity's OWN
+ * nested markers) never passes it along, so a distinct nested entity embedded inside the previewed
+ * body still resolves through the normal visibility-gated fetch; the override cannot leak past the
+ * one id it was built for. `undefined` (every pre-existing call site) is byte-for-byte unchanged from
+ * before this parameter existed.
+ *
  * @complexity Bounded by {@link MAX_CONTENT_EMBED_FETCHES} total `findPublishedPostById` calls across
  * the whole call tree (the `budget` object is a single mutable counter threaded through every
  * recursive call), each followed by an O(n) `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass over
@@ -631,7 +647,8 @@ export async function resolveHtmlFormatContentMarkers(
   deps: ContentMarkerResolutionDeps,
   html: string,
   depth: number,
-  budget: { remaining: number }
+  budget: { remaining: number },
+  pendingHtmlOverride?: { id: string; bodyHtml: string }
 ): Promise<string> {
   if (depth >= MAX_CONTENT_EMBED_DEPTH || budget.remaining <= 0) return html;
 
@@ -643,12 +660,19 @@ export async function resolveHtmlFormatContentMarkers(
   const replacements = new Map<string, string>();
   await Promise.all(
     idsToFetch.map(async (id) => {
-      const entity = await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id } });
-      // Missing/unpublished, or `"doc"`-format: leave this id for the final `resolveHtmlPageEmbeds`
-      // pass — a `"doc"`-format target has nothing here to recurse into, and an unresolved id (guard
-      // 2) degrades to the same REQ-28 placeholder that pass already produces for any other miss.
-      if (!entity || entity.bodyFormat !== "html") return;
-      const ownBody = entity.bodyHtml ?? "";
+      let ownBody: string;
+      if (pendingHtmlOverride && id === pendingHtmlOverride.id) {
+        ownBody = pendingHtmlOverride.bodyHtml;
+      } else {
+        const entity = await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id } });
+        // Missing/unpublished, or `"doc"`-format: leave this id for the final `resolveHtmlPageEmbeds`
+        // pass — a `"doc"`-format target has nothing here to recurse into, and an unresolved id (guard
+        // 2) degrades to the same REQ-28 placeholder that pass already produces for any other miss.
+        if (!entity || entity.bodyFormat !== "html") return;
+        ownBody = entity.bodyHtml ?? "";
+      }
+      // No `pendingHtmlOverride` threaded into this recursive call — see this function's own doc on
+      // why the override must never follow into a nested entity's own embeds.
       const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
       const nestedResolved = await resolveHtmlPageEmbeds({
         deps: {
@@ -741,6 +765,16 @@ export async function resolveAssignedTermsForRender(
  * (every pre-existing call site) is byte-identical to before this parameter existed — see the
  * override field's own doc for why this is scoped to one id and never ambient state.
  *
+ * `pendingBodyHtml` (2026-09-09, `bodyHtml` half of the same pending-body fix) — the equivalent
+ * override for an `"html"`-format `post` (a Page written through the Pages admin editor, `bodyHtml`
+ * not `bodyJson`). `pendingBodyJson`/`pendingContentOverride` cannot cover this case: an `"html"`-
+ * format entity's own `{"type":"content"}` slot is resolved by {@link resolveHtmlFormatContentMarkers}
+ * below, which runs strictly BEFORE `resolveHtmlPageEmbeds` and splices raw HTML directly rather than
+ * through the `"post-content"` IR component `pendingContentOverride` feeds. So this is threaded into
+ * THAT function's own `pendingHtmlOverride` parameter instead, keyed to `post.id` the same way — see
+ * that function's own doc for the full reasoning, including why it can never leak past that one id.
+ * `undefined` (every pre-existing call site) is byte-identical to before this parameter existed.
+ *
  * `extraHead` (2026-08-19, SPEC-008 T045 gap fix part 3) — this function's own `renderStaticPage`
  * call bypasses `renderSite`/`pageShell` exactly like the marketing-page branch and static-tier home
  * do, so it had the identical SEO-fold drop; spliced in via
@@ -766,6 +800,7 @@ export async function renderViaTemplate(
   post: PostRecord,
   staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
   pendingBodyJson?: JsonObject,
+  pendingBodyHtml?: string,
   extraHead?: string,
   siteAssistantEnabled = false,
   // Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request,
@@ -800,7 +835,13 @@ export async function renderViaTemplate(
 
   const withTitle = injectPageTitle(rawTemplate, post.title);
   const withCurrentId = injectCurrentEntityContentId(withTitle, post.id);
-  const withNestedContent = await resolveHtmlFormatContentMarkers(deps, withCurrentId, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
+  const withNestedContent = await resolveHtmlFormatContentMarkers(
+    deps,
+    withCurrentId,
+    0,
+    { remaining: MAX_CONTENT_EMBED_FETCHES },
+    pendingBodyHtml !== undefined ? { id: post.id, bodyHtml: pendingBodyHtml } : undefined
+  );
   const resolved = await resolveHtmlPageEmbeds({
     deps: {
       entryRepo: deps.entryRepo,
@@ -1127,7 +1168,7 @@ export async function renderTemplateBranchIfEligible(
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
   const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
   const renderedPost = pageShellFallback !== undefined ? { ...post, templateChoice: pageShellFallback } : post;
-  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
+  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input

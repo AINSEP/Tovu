@@ -113,6 +113,30 @@ function previewUrl(baseUrl: string, id: string, templateChoice: string | null):
   return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${id}/template-preview${query}`;
 }
 
+/** {@link savePost}'s `"html"`-format counterpart — a Page written through the Pages admin editor
+ * (`bodyFormat: "html"`, raw `bodyHtml`, never a TipTap `bodyJson` tree). */
+async function saveHtmlPage(
+  deps: RouteDeps,
+  fields: { slug: string; status?: "draft" | "published"; templateChoice?: string | null; bodyHtml: string }
+): Promise<PostRecord> {
+  const page = {
+    id: randomUUID(),
+    workspaceId: WORKSPACE_ID,
+    title: `Page ${fields.slug}`,
+    slug: fields.slug,
+    bodyJson: { type: "doc", content: [] },
+    status: fields.status ?? "published",
+    kind: "page",
+    bodyFormat: "html",
+    bodyHtml: fields.bodyHtml,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+    templateChoice: fields.templateChoice ?? "page-shell.html",
+  } as unknown as PostRecord;
+  await deps.postRepo.save(page);
+  return page;
+}
+
 const PENDING_BODY_TEXT = "Pending, unsaved body text the operator is looking at right now";
 
 /** Builds a TipTap `bodyJson` doc containing `text` as its sole paragraph — same minimal shape
@@ -252,6 +276,76 @@ test("a DRAFT post's own body degrades to the placeholder (visibility guard), bu
 
   const publicRes = await fetch(`${baseUrl}/draft-post`);
   assert.equal(publicRes.status, 404, "sanity check: the public route genuinely cannot show this draft either");
+});
+
+const PENDING_HTML_TEXT = "Pending, unsaved HTML body text the operator is looking at right now";
+
+// 2026-09-09 `bodyHtml` fix: an html-format Page (Pages admin editor) has no `bodyJson` tree, so
+// `bodyJson`'s override does nothing for it — the previous draft test above only proves the
+// `"doc"`-format (Post) placeholder-degradation case. This proves the `"html"`-format case is
+// DIFFERENT once a `bodyHtml` override is supplied: it bypasses the same visibility guard
+// (`resolveHtmlFormatContentMarkers`'s own `pendingHtmlOverride`) that leaves it a placeholder above.
+test("a DRAFT html-format Page's own body renders via a POSTed bodyHtml override, not the placeholder", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "draft-page",
+    status: "draft",
+    templateChoice: "page-shell.html",
+    bodyHtml: "<p>Saved, published-would-be html body</p>",
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, page.id, "page-shell.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyHtml: `<p>${PENDING_HTML_TEXT}</p>` }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes('data-tpl="page-shell"'), "the template's own chrome still renders");
+  assert.ok(html.includes(PENDING_HTML_TEXT), "the PENDING html body must reach the page, bypassing the visibility guard for this one already-authorized id");
+  assert.ok(!html.includes("data-embed-config"), "degrades to the resolved splice, never a raw unresolved marker");
+});
+
+test("POST never persists the pending bodyHtml — the row's stored bodyHtml is unchanged afterward", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "draft-page",
+    status: "draft",
+    templateChoice: "page-shell.html",
+    bodyHtml: "<p>Saved, published-would-be html body</p>",
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await fetch(previewUrl(baseUrl, page.id, "page-shell.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyHtml: `<p>${PENDING_HTML_TEXT}</p>` }),
+  });
+
+  const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${page.id}`, { headers: { cookie } });
+  const { post: reloaded } = (await getRes.json()) as { post: PostRecord };
+  assert.equal(reloaded.bodyHtml, page.bodyHtml, "the preview request must not have written anything back");
+});
+
+// Adversarial edge: a `"doc"`-format post has no `bodyHtml` column — a stray `bodyHtml` field sent
+// for one must be silently ignored, never applied, rather than corrupting the doc-format render.
+test("a bodyHtml field sent for a doc-format post is ignored — the saved bodyJson still renders", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyHtml: `<p>${PENDING_HTML_TEXT}</p>` }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes(POST_BODY_TEXT), "a doc-format post's own saved body must still render");
+  assert.ok(!html.includes(PENDING_HTML_TEXT), "a bodyHtml field is meaningless for a doc-format post and must not be applied");
 });
 
 // The tri-state: an omitted `templateChoice` query param means "never chosen" (falls back to the
