@@ -1,0 +1,185 @@
+/**
+ * @file External-MCP write-tool picker + the Connection/Tools tab wrapper around each configured
+ * server — Phase 4 of `ADS-memory/reports/pipeline/external-mcp-write-tools/implementation-
+ * outline.md`. Classes match `ExternalMcpSettingsPanel.tsx` (`.external-mcp-source`) and
+ * `ExternalMcpToolPicker.tsx` (`.external-mcp-tool-*`) verbatim.
+ *
+ * ## Every control here declares `color` explicitly
+ *
+ * This app's global reset (`styles.css:279`) sets `button { background: var(--primary); color:
+ * var(--primary-ink); }` on every bare `<button>`. A rule here that set `background`/`border` but
+ * left `color` alone would WIN the two it named and silently LOSE color back to that reset — the
+ * near-white-on-near-white failure that shipped on the sibling settings card's Edit/Save/Cancel
+ * pills (fixed in Jini `b82cbe95`; a prior instance is `settings-dialog.css:851-865`). So every rule
+ * below that touches a `<button>` or a checkbox `<label>` names `color`, even where the value would
+ * otherwise be inherited correctly — see `styles/__tests__/external-mcp-tool-picker-css.unit.test.ts`
+ * for the regression pin. `.btn-secondary` (`styles.css:1084`) already gets this right on its own,
+ * so the header actions reuse it rather than re-deriving the same rule for Refresh/Cancel.
+ *
+ * ## The scrolling list
+ *
+ * The live higgsfield connection advertises 101 tools. `.external-mcp-tool-list` is a FIXED-HEIGHT
+ * scrolling container so a wide-open server cannot grow the settings panel to match it, and every
+ * row inside wraps long names/descriptions (`overflow-wrap: anywhere`) rather than clipping or
+ * truncating them — content stays fully visible, just taller. jsdom cannot verify either property
+ * (no real layout engine), so both are verified live in the browser, not by a component test.
+ */
+
+.external-mcp-source + .external-mcp-source {
+  margin-top: 1rem;
+}
+
+.external-mcp-tool-picker {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0.85rem 1rem;
+  color: var(--fg);
+}
+
+.external-mcp-tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.external-mcp-tool-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+/* A connection that is configured but grants nothing looks identical to a working one at a glance —
+   the same class of quiet failure as an inert write grant, so it gets a distinct color, not just
+   different text. */
+.external-mcp-tool-count[data-zero] {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.external-mcp-tool-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+/* Bare buttons already get `color: var(--primary-ink)` from the app-wide reset — restated here so
+   this rule is legible on its own without requiring a reader to know that default holds. */
+.external-mcp-tool-actions button {
+  color: var(--primary-ink);
+}
+/* Refresh/Cancel use the app's existing secondary variant so Save is the one primary action in this
+   header (`styles.css`'s own "one primary per screen" rule) — restated explicitly rather than left
+   to that class's own definition, for the same legibility reason as the line above. */
+.external-mcp-tool-actions .btn-secondary {
+  color: var(--fg-2);
+}
+
+.external-mcp-tool-note {
+  padding: 0.6rem 0.75rem;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 0.85rem;
+}
+.external-mcp-tool-note[role="alert"] {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+/* Fixed-height scrolling container — see this file's header. */
+.external-mcp-tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.external-mcp-tool-row {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+}
+.external-mcp-tool-row:last-child {
+  border-bottom: none;
+}
+.external-mcp-tool-row[data-locked] {
+  background: var(--surface-2);
+}
+
+.external-mcp-tool-enable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  cursor: pointer;
+}
+.external-mcp-tool-row[data-locked] .external-mcp-tool-enable {
+  color: var(--faint);
+  cursor: default;
+}
+
+.external-mcp-tool-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fg);
+  /* Long tool names (the outline's own worked example ran to 96 characters) wrap inside the row
+     rather than clipping or forcing the row wider than its container. */
+  overflow-wrap: anywhere;
+}
+
+.external-mcp-tool-badges {
+  margin: 0.3rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+/* One badge shape for all three: WRITES, DESTRUCTIVE, and "the server does not say" are all things
+   worth pausing on, per `external-mcp-tool-picker-rules.ts`'s own header — a genuinely declared
+   read-only tool renders no badge at all, so its unremarkable row IS the positive statement. */
+.external-mcp-tool-badge {
+  font-size: var(--text-2xs);
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-pill);
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.external-mcp-tool-description {
+  margin: 0.3rem 0 0;
+  color: var(--faint);
+  font-size: 0.8rem;
+  /* Descriptions can run long (R6-capped, but still up to that cap) — they wrap, never truncate. */
+  overflow-wrap: anywhere;
+}
+
+.external-mcp-tool-write {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.external-mcp-tool-lock {
+  margin: 0.35rem 0 0;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.external-mcp-tool-footnote {
+  margin: 0.6rem 0 0;
+  color: var(--faint);
+  font-size: var(--text-2xs);
+}

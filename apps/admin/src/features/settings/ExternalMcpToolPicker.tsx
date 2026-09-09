@@ -145,6 +145,7 @@ function ToolPickerHeader(props: {
       <div className="external-mcp-tool-actions">
         <button
           type="button"
+          className="btn-secondary"
           {...agentHandle(`${base}-refresh`, { role: "button", label: "Re-read this server's advertised tool list" })}
           onClick={onRefresh}
           disabled={refreshing || saving}
@@ -153,6 +154,7 @@ function ToolPickerHeader(props: {
         </button>
         <button
           type="button"
+          className="btn-secondary"
           {...agentHandle(`${base}-reset`, { role: "button", label: "Discard unsaved tool selection changes" })}
           onClick={onReset}
           disabled={!dirty || saving}

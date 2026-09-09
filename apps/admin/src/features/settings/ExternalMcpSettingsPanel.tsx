@@ -11,8 +11,13 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
+import { TabBar } from "@/components/TabBar";
+import type { Translate } from "@/lib/dictionary-translator";
+
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
+import { ExternalMcpToolPicker } from "./ExternalMcpToolPicker";
+import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 import {
   buildAllowWritePatch,
   resolveExternalMcpCardHandles,
@@ -104,6 +109,28 @@ const DRAFT_TEST_SCOPE = "__draft__";
  * Jini (this surface is Tovu-only per the outline's "Zero Jini change" rule), `onRemove` here opens
  * `ExternalMcpRemoveConfirmDialog` (`confirmRemoveId` below) and `list.remove` is only ever called
  * from that dialog's own Confirm — see `ExternalMcpRemoveConfirmSection`.
+ *
+ * ## Connection / Tools tabs (2026-09-08, Phase 4 of the write-tools outline)
+ *
+ * Each configured server now renders behind a Tovu-owned `TabBar` — Connection (the unmodified
+ * `SourceConfigItemCard`, default-active) and Tools (`ExternalMcpToolPicker`) — rather than the
+ * card alone. Outline §3.5 rules out a Jini field or a Jini prop for this: `SourceFieldKind` has no
+ * checkbox/multi-select variant and `SourceConfigItemCard` exposes no children slot, so the split
+ * is wrapper tabs around the card, entirely in this file. `ExternalMcpSourceRow` owns which tab is
+ * active for exactly one server — that state has no bearing on any other server or on the rest of
+ * this panel, so it is not lifted any higher than the row that needs it.
+ *
+ * Connection stays the DEFAULT tab deliberately: it is what every existing test in this suite (and
+ * `external-mcp-agent-drive.unit.test.tsx`) expects to find without switching tabs first, and it is
+ * also where the server-level controls (the enable toggle, on the card; Remove, via the dialog
+ * above) live. The Tools tab does NOT duplicate either — see `ExternalMcpToolPicker`'s own header on
+ * why a second live control for the same state would be worse than one control a tab away, and its
+ * `connectionEnabled` prop for how a switched-off connection is still surfaced there.
+ *
+ * The Tools tab's `TabBar` `count` is read from the SAVED `allowedToolNames` field
+ * (`parseSavedToolNames`), not from the picker's own draft state: it must be correct before any
+ * probe has run, and deriving it from the picker would mean hoisting that component's state out of
+ * itself for a number the roster row already carries.
  */
 
 /** The "Add server" form, split out from `ExternalMcpSettingsPanel` purely to keep that
@@ -142,19 +169,127 @@ function ExternalMcpAddFormSection(props: {
   );
 }
 
-/** The loading / empty-state / configured-server-list body, split out for the same
- *  complexity-budget reason as {@link ExternalMcpAddFormSection} above — the triple-branch
- *  loading/empty/list ternary plus the per-card `testResult` presence-spread inside `.map()` were
- *  the parent's deepest nesting. Same three branches, same props, same "no card update" wiring. */
-function ExternalMcpSourcesSection(props: {
+type ExternalMcpTabId = "connection" | "tools";
+
+/** The Connection tab's body — the unmodified `SourceConfigItemCard`, exactly as it rendered before
+ *  the tab split existed. Split into its own component (rather than inlined in
+ *  {@link ExternalMcpSourceRow}'s own tab ternary) purely so its `testResult` presence-spread is not
+ *  a conditional expression NESTED inside that outer ternary — `sonarjs/no-nested-conditional`'s
+ *  complaint about the shape, not about anything the values do. */
+function ExternalMcpConnectionCard(props: {
+  source: SourceConfigItem;
+  cardHandle: string;
+  fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
-  cardHandles: string[];
-  t: ReturnType<typeof useT>;
+  onRequestRemove: (sourceId: string) => void;
+}) {
+  const { source, cardHandle, fieldSpecs, list, onRequestRemove } = props;
+  const testResult = list.testResults[source.id];
+  return (
+    <SourceConfigItemCard
+      source={source}
+      agentHandle={cardHandle}
+      fieldSpecs={fieldSpecs}
+      capabilities={list.capabilities}
+      removing={list.isPending(source.id, "remove")}
+      refreshing={list.isPending(source.id, "refresh")}
+      settingTrust={list.isPending(source.id, "trust")}
+      testing={list.isPending(source.id, "test")}
+      updating={list.isPending(source.id, "update")}
+      onRefresh={() => void list.refresh(source.id)}
+      onRemove={() => onRequestRemove(source.id)}
+      onTrustChange={() => {}}
+      onTest={() => void list.test(source.id)}
+      onUpdate={(patch) => void list.update(source.id, patch)}
+      {...(testResult ? { testResult } : {})}
+    />
+  );
+}
+
+/** One server's row: the Connection/Tools `TabBar` wrapping the (unmodified) card and the
+ *  write-tool picker — see this file's own "Connection / Tools tabs" header. Split out of
+ *  {@link ExternalMcpSourcesSection}'s own `.map()` for the same complexity-budget reason as
+ *  {@link ExternalMcpAddFormSection} above. Owns its own active-tab state: which tab an operator is
+ *  looking at for ONE server has no bearing on any other server or on the rest of the panel. */
+function ExternalMcpSourceRow(props: {
+  source: SourceConfigItem;
+  cardHandle: string;
+  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
+  tDrift: Translate;
   /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
    *  see this file's own "Remove asks first" header note. */
   onRequestRemove: (sourceId: string) => void;
 }) {
-  const { list, cardHandles, t, onRequestRemove } = props;
+  const { source, cardHandle, list, tDrift, onRequestRemove } = props;
+  const [tab, setTab] = useState<ExternalMcpTabId>("connection");
+  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields);
+  // The SAVED count, not the picker's own draft — see this file's header on why.
+  const enabledToolCount = parseSavedToolNames(source.fields["allowedToolNames"]).length;
+  const rowLabel = sourceDisplayLabel(source, fieldSpecs);
+
+  return (
+    <div className="external-mcp-source">
+      <TabBar
+        tabs={[
+          {
+            id: "connection",
+            label: tDrift("Connection"),
+            handle: `${cardHandle}-tab-connection`,
+            handleLabel: `Show the Connection settings for ${rowLabel}`,
+          },
+          {
+            id: "tools",
+            label: tDrift("Tools"),
+            count: enabledToolCount,
+            handle: `${cardHandle}-tab-tools`,
+            handleLabel: `Show the Tools settings for ${rowLabel}`,
+          },
+        ]}
+        activeId={tab}
+        onChange={(id) => setTab(id as ExternalMcpTabId)}
+        ariaLabel={`${rowLabel} settings`}
+        containerHandle={`${cardHandle}-tabs`}
+      />
+
+      {tab === "connection" ? (
+        <ExternalMcpConnectionCard
+          source={source}
+          cardHandle={cardHandle}
+          fieldSpecs={fieldSpecs}
+          list={list}
+          onRequestRemove={onRequestRemove}
+        />
+      ) : (
+        <ExternalMcpToolPicker
+          serverId={source.id}
+          active
+          connectionEnabled={source.enabled ?? true}
+          allowedToolNames={source.fields["allowedToolNames"]}
+          writeAllowedToolNames={source.fields["writeAllowedToolNames"]}
+          saving={list.isPending(source.id, "update")}
+          onSave={(fields) => void list.update(source.id, { fields })}
+          cardHandle={cardHandle}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The loading / empty-state / configured-server-list body, split out for the same
+ *  complexity-budget reason as {@link ExternalMcpAddFormSection} above — the triple-branch
+ *  loading/empty/list ternary was the parent's deepest nesting. Each configured server is now one
+ *  {@link ExternalMcpSourceRow}, which owns the per-card `testResult` presence-spread and the new
+ *  tab state that used to sit inline here. */
+function ExternalMcpSourcesSection(props: {
+  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
+  cardHandles: string[];
+  t: ReturnType<typeof useT>;
+  tDrift: Translate;
+  /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
+   *  see this file's own "Remove asks first" header note. */
+  onRequestRemove: (sourceId: string) => void;
+}) {
+  const { list, cardHandles, t, tDrift, onRequestRemove } = props;
 
   if (list.loading) {
     return (
@@ -178,23 +313,13 @@ function ExternalMcpSourcesSection(props: {
   return (
     <div className="source-config-list-items">
       {list.sources.map((source, index) => (
-        <SourceConfigItemCard
+        <ExternalMcpSourceRow
           key={source.id}
           source={source}
-          agentHandle={cardHandles[index]}
-          fieldSpecs={buildExternalMcpFieldSpecs(source.fields)}
-          capabilities={list.capabilities}
-          removing={list.isPending(source.id, "remove")}
-          refreshing={list.isPending(source.id, "refresh")}
-          settingTrust={list.isPending(source.id, "trust")}
-          testing={list.isPending(source.id, "test")}
-          updating={list.isPending(source.id, "update")}
-          onRefresh={() => void list.refresh(source.id)}
-          onRemove={() => onRequestRemove(source.id)}
-          onTrustChange={() => {}}
-          onTest={() => void list.test(source.id)}
-          onUpdate={(patch) => void list.update(source.id, patch)}
-          {...(list.testResults[source.id] ? { testResult: list.testResults[source.id] } : {})}
+          cardHandle={cardHandles[index]!}
+          list={list}
+          tDrift={tDrift}
+          onRequestRemove={onRequestRemove}
         />
       ))}
     </div>
@@ -330,7 +455,13 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
         }}
       />
 
-      <ExternalMcpSourcesSection list={list} cardHandles={cardHandles} t={t} onRequestRemove={setConfirmRemoveId} />
+      <ExternalMcpSourcesSection
+        list={list}
+        cardHandles={cardHandles}
+        t={t}
+        tDrift={tDrift}
+        onRequestRemove={setConfirmRemoveId}
+      />
 
       <ExternalMcpRemoveConfirmSection
         confirmRemoveId={confirmRemoveId}

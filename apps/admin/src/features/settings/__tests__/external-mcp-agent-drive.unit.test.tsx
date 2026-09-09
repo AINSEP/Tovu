@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 
@@ -244,5 +245,135 @@ describe("Remove confirmation dialog is agent-pressable", () => {
 
     expect(screen.getAllByTestId("source-config-item-card")).toHaveLength(1);
     expect(await findElements(driver)).not.toContain("mcp-server-higgsfield-remove-confirm");
+  });
+});
+
+/**
+ * @file (continued) The Connection/Tools tab wrapper (2026-09-08, Phase 4 of the write-tools
+ * outline) must be agent-pressable the same way as everything else on this panel: an assistant
+ * switches to a server's Tools tab, ticks a tool, and saves — all through the real `page.*` verbs.
+ *
+ * `ExternalMcpToolPicker` always calls the REAL `useWiredExternalMcpToolPicker`, which probes over
+ * `fetch` — there is no port-injection seam at the component level (unlike the roster list, which
+ * takes `dependencies`). So this describe block stubs `global.fetch` to answer the probe route with
+ * a real `AdminRemoteToolSurfaceEntry[]` body, the same pattern
+ * `lib/__tests__/api-external-mcp-admissions.unit.test.ts` uses for the sibling admissions route.
+ * The panel's OWN admissions-banner fetch shares the same stub; its response doesn't carry a
+ * `connections` array, which `api.getExternalMcpAdmissions` already treats as "nothing to report"
+ * (`?? []`) rather than a crash, so this is silent and irrelevant to the assertions below.
+ */
+describe("Connection / Tools tabs are agent-pressable", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const PROBE_TOOLS: AdminRemoteToolSurfaceEntry[] = [
+    {
+      remoteName: "generate_image",
+      description: "Generate an image from a prompt.",
+      declaredAnnotations: { readOnlyHint: false },
+      writeDeclared: true,
+      destructiveDeclared: false,
+      hintsAbsent: false,
+      allowlisted: true,
+      writeAllowed: true,
+      admitted: true,
+      refusalReason: null,
+    },
+    {
+      remoteName: "edit_image",
+      description: "Edit an existing image.",
+      declaredAnnotations: { readOnlyHint: false },
+      writeDeclared: true,
+      destructiveDeclared: false,
+      hintsAbsent: false,
+      allowlisted: true,
+      writeAllowed: false,
+      admitted: true,
+      refusalReason: null,
+    },
+  ];
+
+  const HIGGSFIELD_WITH_TOOLS: SourceConfigItem = {
+    id: "higgsfield",
+    fields: {
+      id: "higgsfield",
+      command: "npx",
+      allowedToolNames: "generate_image, edit_image",
+      writeAllowedToolNames: "generate_image",
+    },
+  };
+
+  function stubProbeFetch() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ tools: PROBE_TOOLS, probedAt: "2026-09-08T00:00:00.000Z" }), { status: 200 })),
+    );
+  }
+
+  it("page.click on <cardHandle>-tab-tools swaps the pane: Remove disappears, the picker's own controls appear", async () => {
+    stubProbeFetch();
+    const { container } = renderPanel([HIGGSFIELD_WITH_TOOLS]);
+    await screen.findAllByTestId("source-config-item-card");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    const before = await findElements(driver);
+    expect(before).toContain("mcp-server-higgsfield-remove");
+    expect(before).toContain("mcp-server-higgsfield-tab-tools");
+    expect(before).not.toContain("mcp-server-higgsfield-tools-save");
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-tools" });
+    await driver.settle?.();
+    // The picker's own header controls render as soon as the tab is active, before the probe
+    // resolves — waited on here so the rest of this test isn't racing the fetch.
+    await screen.findByText("2 of 2 tools enabled");
+
+    const afterTools = await findElements(driver);
+    expect(afterTools).not.toContain("mcp-server-higgsfield-remove");
+    expect(afterTools).toContain("mcp-server-higgsfield-tools-save");
+    expect(afterTools).toContain("mcp-server-higgsfield-tools-refresh");
+    expect(afterTools).toContain("mcp-server-higgsfield-tools-generate-image");
+    expect(afterTools).toContain("mcp-server-higgsfield-tools-edit-image");
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-connection" });
+    await driver.settle?.();
+
+    const afterConnection = await findElements(driver);
+    expect(afterConnection).toContain("mcp-server-higgsfield-remove");
+    expect(afterConnection).not.toContain("mcp-server-higgsfield-tools-save");
+  });
+
+  it("every tool checkbox has a REAL accessible name — a real <label>, not just data-agent-label", async () => {
+    stubProbeFetch();
+    const user = userEvent.setup();
+    renderPanel([HIGGSFIELD_WITH_TOOLS]);
+    await screen.findAllByTestId("source-config-item-card");
+
+    await user.click(screen.getByRole("tab", { name: /Tools/ }));
+    // `getByRole` resolves the accessible name via the wrapping <label>, exactly as a screen reader
+    // (or an agent bridge reading the accessibility tree) would — `agentHandle`'s own `label` option
+    // emits `data-agent-label`, which neither of these reads at all, so this would fail if the real
+    // <label> wrapper were ever dropped in favor of relying on that attribute alone.
+    expect(await screen.findByRole("checkbox", { name: "generate_image" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "edit_image" })).toBeInTheDocument();
+  });
+
+  it("page.click toggles a tool's allowlist checkbox through the real driver, and the count updates", async () => {
+    stubProbeFetch();
+    const { container } = renderPanel([HIGGSFIELD_WITH_TOOLS]);
+    await screen.findAllByTestId("source-config-item-card");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-tools" });
+    await driver.settle?.();
+    await screen.findByText("2 of 2 tools enabled");
+
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-edit-image" });
+    await driver.settle?.();
+
+    expect(screen.getByText("1 of 2 tools enabled")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "edit_image" })).not.toBeChecked();
+    // generate_image is untouched — this was a per-row toggle, not a reset of the whole draft.
+    expect(screen.getByRole("checkbox", { name: "generate_image" })).toBeChecked();
   });
 });
