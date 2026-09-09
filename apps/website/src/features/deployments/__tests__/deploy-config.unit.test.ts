@@ -27,10 +27,15 @@ test("buildDeploymentDescriptor: derives every field from the repo's own Dockerf
 test("buildDeploymentDescriptor: secrets are declared by name only, with the boot-blocking/recommended split the boot gate code actually enforces", () => {
   const descriptor = buildDeploymentDescriptor();
 
+  // 2026-09-09 integrations-root-key fix: TOVU_INTEGRATIONS_ROOT_KEY moved from "recommended" to
+  // "boot-blocking" — `production-readiness-gate.ts`'s `hasMissingIntegrationsRootKey` now refuses
+  // production boot when it is unset, closing the silent-rekey gap this test used to describe as
+  // acceptable (an unset var used to boot fine and silently mint a fresh root key on every
+  // container redeploy).
   assert.deepEqual(descriptor.secrets, [
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
     { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "recommended" },
+    { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "boot-blocking" },
   ]);
   // Deliberately excluded — see deploy-config.ts's own REQUIRED_SECRETS doc for why.
   const names = descriptor.secrets.map((s) => s.name);

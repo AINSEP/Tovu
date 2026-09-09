@@ -17,6 +17,15 @@ export interface EnvSnapshot {
   hasAlwaysOnAnalyticsStub: boolean;
   /** SPEC-022 §4.2: true when the seeded owner account still has the publicly-documented default password. */
   hasDefaultOwnerPassword: boolean;
+  /**
+   * True when `TOVU_INTEGRATIONS_ROOT_KEY` is unset. `EnvOrFileKeyring` (`features/webhooks/
+   * keyring.env.ts`) falls back to a generated file under `homedir()` when this var is absent —
+   * inside the shipped container (`Dockerfile`'s `USER node`) that resolves to the image rootfs,
+   * not the mounted Fly volume, so the fallback file (and the root key it holds) does not survive
+   * a redeploy. Left unchecked, a production boot with this var unset succeeds silently and mints a
+   * fresh, ephemeral root key on every deploy — this check turns that into a loud boot-time refusal.
+   */
+  hasMissingIntegrationsRootKey: boolean;
 }
 
 export type BootRefusalCode =
@@ -80,6 +89,7 @@ function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFail
   if (envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
   if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
   if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
+  if (envSnapshot.hasMissingIntegrationsRootKey) failures.push(unsafeDefaultFailure("missing-integrations-root-key"));
   return failures;
 }
 

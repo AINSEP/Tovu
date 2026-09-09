@@ -18,9 +18,15 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * exact shared-function pattern for the identical "must run identically in both entrypoints" reason
  * (see either file's own header, or `serve.ts`'s 2026-09-05 dispatch comments referencing them).
  *
- * `envSnapshot`'s four checks are unchanged from `index.ts`'s original implementation — see this
- * function's own inline comments below for what each one means; nothing about their meaning is
- * specific to either boot path.
+ * `envSnapshot`'s first four checks are unchanged from `index.ts`'s original implementation. The
+ * fifth, `hasMissingIntegrationsRootKey`, was added by this fix (2026-09-09, integrations-root-key
+ * silent-rekey gap): `TOVU_INTEGRATIONS_ROOT_KEY` used to be classified `"recommended"`
+ * (`features/deployments/deploy-config.ts`'s `REQUIRED_SECRETS`) with no boot-gate check at all —
+ * a container redeploy with the var unset booted fine and silently derived a new root key every
+ * time (`EnvOrFileKeyring`'s generated-file fallback resolves against the container's ephemeral
+ * rootfs, not the persistent volume). See this file's own inline comment on the field below for the
+ * full mechanism. See this function's own inline comments below for what each check means; nothing
+ * about their meaning is specific to either boot path.
  */
 export async function runProductionReadinessGateOrExit(): Promise<void> {
   const mode = resolveRuntimeMode();
@@ -46,6 +52,10 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // the owner account. Imported from that module so this can never drift out of sync with what
       // the seeder actually did.
       hasDefaultOwnerPassword: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
+      // True when `TOVU_INTEGRATIONS_ROOT_KEY` is unset — see `EnvSnapshot.hasMissingIntegrationsRootKey`'s
+      // own doc (`production-readiness-gate.ts`) for why an unset var is unsafe specifically in a
+      // container deploy, not just "missing config".
+      hasMissingIntegrationsRootKey: !process.env.TOVU_INTEGRATIONS_ROOT_KEY,
     },
   });
 

@@ -100,56 +100,76 @@ export interface RenderedDeployConfig {
  *
  * CORRECTION (this pass): an earlier version of this comment claimed this list was "verified
  * against the actual boot-gate code" — that claim was false: `ANALYTICS_ROOT_KEY_SEED` was
- * boot-blocking (`index.ts:229` feeds `runProductionReadinessGate` via `production-readiness-gate.
- * ts:77-84`) but absent from `REQUIRED_SECRETS`, so every generated config omitted it and a
+ * boot-blocking but absent from `REQUIRED_SECRETS`, so every generated config omitted it and a
  * deployer following one would hit `PRODUCTION_BOOT_UNSAFE_DEFAULT: dev-secret-placeholder` on
  * first boot with no warning from this tool. Fixed below. A false "verified" claim is worse than no
  * claim at all — this comment now enumerates the actual verification, not an assertion of one.
  *
- * `production-readiness-gate.ts`'s `collectUnsafeDefaultFailures` reads exactly four
- * `EnvSnapshot` fields (`server/runtime/boot/production-readiness-gate.ts:77-84`); `index.ts:225-234`
- * is the ONE place that computes all four for a real boot. Enumerated here exhaustively, not just
- * the ones that happened to need an entry:
+ * CORRECTION (2026-09-09, integrations-root-key silent-rekey gap): the citations in this comment
+ * used to point at `index.ts:225-234` as "the ONE place that computes all four [checks] for a real
+ * boot" — that was already stale when found: the computation was extracted into the shared
+ * `runProductionReadinessGateOrExit()` (`server/runtime/boot/boot-readiness-gate.ts`) so both real
+ * boot paths (`index.ts` AND `cli/commands/serve.ts`'s `tovu serve`) share one implementation;
+ * `index.ts` itself now only calls that function. Citations below point at the real file. Also:
+ * `TOVU_INTEGRATIONS_ROOT_KEY` was "recommended" with NO boot-gate check at all — a container
+ * redeploy with the var unset booted fine and silently minted a fresh root key every time
+ * (`EnvOrFileKeyring`'s generated-file fallback resolves against the container's ephemeral rootfs,
+ * not the persistent volume — `keyring.env.ts`'s own header). Reclassified to "boot-blocking" below,
+ * backed by a real gate check (`production-readiness-gate.ts`'s `hasMissingIntegrationsRootKey`).
  *
- * 1. `hasDevSecretPlaceholder` ("dev-secret-placeholder") — `index.ts:229`:
+ * `production-readiness-gate.ts`'s `collectUnsafeDefaultFailures` reads exactly five `EnvSnapshot`
+ * fields; `boot-readiness-gate.ts`'s `runProductionReadinessGateOrExit` is the ONE place that
+ * computes all five for a real boot. Enumerated here exhaustively, not just the ones that happened
+ * to need an entry:
+ *
+ * 1. `hasDevSecretPlaceholder` ("dev-secret-placeholder") — `boot-readiness-gate.ts`:
  *    `!process.env.ANALYTICS_ROOT_KEY_SEED`. Boot-blocking, and NAMES A REAL SECRET
  *    (`registerAnalyticsIngestRoute`'s wiring in `app.ts` falls back to the literal dev placeholder
  *    `"dev-only-insecure-seed"` whenever this is unset) — covered by the `ANALYTICS_ROOT_KEY_SEED`
  *    entry below.
- * 2. `hasLocalhostEgressAllowance` ("localhost-egress-allowance") — `index.ts:230`: hardcoded
- *    `false`, unconditionally, for every real boot. `index.ts`'s own comment on that line discloses
- *    why: `deps.ts` seeds a hardcoded `localhost`/`example.com` origin+egress-allowlist with no env
- *    var escape hatch yet, so this check cannot currently distinguish a real deploy from a dev one.
- *    No env var gates it today — nothing for this list to declare. NOT a secret this module can
- *    surface; flagged here so a future fix to that gap doesn't silently need a `REQUIRED_SECRETS`
- *    update this comment failed to anticipate.
- * 3. `hasAlwaysOnAnalyticsStub` ("always-enabled-analytics-stub") — `index.ts:231`: hardcoded
- *    `false`, unconditionally (ADR-046 Phase 1's analytics slice wired the durable `SqliteBufferSink`
- *    for every composition root). No env var gates it today either — nothing for this list to
- *    declare.
- * 4. `hasDefaultOwnerPassword` ("default-owner-password") — `index.ts:232`:
+ * 2. `hasLocalhostEgressAllowance` ("localhost-egress-allowance") — `boot-readiness-gate.ts`:
+ *    hardcoded `false`, unconditionally, for every real boot. That file's own comment on the field
+ *    discloses why: `deps.ts` seeds a hardcoded `localhost`/`example.com` origin+egress-allowlist
+ *    with no env var escape hatch yet, so this check cannot currently distinguish a real deploy
+ *    from a dev one. No env var gates it today — nothing for this list to declare. NOT a secret
+ *    this module can surface; flagged here so a future fix to that gap doesn't silently need a
+ *    `REQUIRED_SECRETS` update this comment failed to anticipate.
+ * 3. `hasAlwaysOnAnalyticsStub` ("always-enabled-analytics-stub") — `boot-readiness-gate.ts`:
+ *    hardcoded `false`, unconditionally (ADR-046 Phase 1's analytics slice wired the durable
+ *    `SqliteBufferSink` for every composition root). No env var gates it today either — nothing for
+ *    this list to declare.
+ * 4. `hasDefaultOwnerPassword` ("default-owner-password") — `boot-readiness-gate.ts`:
  *    `(process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD`. Boot-
  *    blocking — covered by the `TOVU_ADMIN_PASSWORD` entry below.
+ * 5. `hasMissingIntegrationsRootKey` ("missing-integrations-root-key") — `boot-readiness-gate.ts`:
+ *    `!process.env.TOVU_INTEGRATIONS_ROOT_KEY`. Boot-blocking as of this pass — covered by the
+ *    `TOVU_INTEGRATIONS_ROOT_KEY` entry below.
  *
- * So of these four, exactly two are actually env-var-gated today (1 and 4) — both now have a
- * `REQUIRED_SECRETS` entry; the other two (2 and 3) have no env var to declare, not a gap in this
- * list.
+ * So of these five, exactly three are actually env-var-gated today (1, 4, and 5) — all three now
+ * have a `REQUIRED_SECRETS` entry; the other two (2 and 3) have no env var to declare, not a gap in
+ * this list.
  *
  * Also checked against this repo's own already-reviewed deployment docs, not just `.env.example`
  * (which lists `TOVU_INTEGRATIONS_ROOT_KEY` alone, under a single undifferentiated "Required"
- * heading that turns out not to match what the code enforces):
+ * heading that turns out not to match what the code enforces today, though it does match this pass's
+ * fix):
  *
  * - `TOVU_ADMIN_PASSWORD` — "boot-blocking". Check 4 above. `docker-compose.yml`'s own "Required"
  *   env block (`${TOVU_ADMIN_PASSWORD:?set TOVU_ADMIN_PASSWORD in .env}`) already draws the
  *   identical line.
  * - `ANALYTICS_ROOT_KEY_SEED` — "boot-blocking". Check 1 above.
- * - `TOVU_INTEGRATIONS_ROOT_KEY` — "recommended". Absent entirely from
- *   `production-readiness-gate.ts`'s checks — boot succeeds without it — but every route needing
- *   at-rest secret encryption (the visitor assistant's provider credential, the newsletter
- *   integration) fails closed with `503 SECRET_STORE_UNCONFIGURED` until it's set
- *   (`.env.example`'s own header on this var; `assistant/execution-credential-store.ts:129`).
- *   `docker-compose.yml` calls this exact var "Strongly recommended", distinct from "Required",
- *   for the same reason.
+ * - `TOVU_INTEGRATIONS_ROOT_KEY` — "boot-blocking" (as of this pass; was "recommended"). Check 5
+ *   above. Before this pass this var was absent entirely from `production-readiness-gate.ts`'s
+ *   checks — boot succeeded without it, silently re-keying every redeploy (this file's 2026-09-09
+ *   CORRECTION above). Every route needing at-rest secret encryption (the visitor assistant's
+ *   provider credential, the newsletter integration) still additionally fails closed with
+ *   `503 SECRET_STORE_UNCONFIGURED` at first use if this is ever unset despite the boot gate
+ *   (`.env.example`'s own header on this var; `assistant/execution-credential-store.ts:129`) — the
+ *   boot-blocking gate is the fix for the SILENT case, not a replacement for that fail-closed
+ *   behavior. `docker-compose.yml` used to call this var "Strongly recommended" with a `:-` (empty)
+ *   default, distinct from "Required" — updated alongside this pass to the same `:?` hard-fail
+ *   `TOVU_ADMIN_PASSWORD` already used there, since it would otherwise now describe a boot that
+ *   fails with a compose file that told the operator it wouldn't.
  *
  * Deliberately EXCLUDED, both checked against the same code rather than assumed:
  * - `TOVU_ADMIN_USER` — `docker-compose.yml` sets it inline as `${TOVU_ADMIN_USER:-admin}`, a plain
@@ -167,7 +187,7 @@ export interface RenderedDeployConfig {
 const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
   { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
   { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
-  { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "recommended" },
+  { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "boot-blocking" },
 ];
 
 /**

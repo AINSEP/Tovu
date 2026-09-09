@@ -59,7 +59,7 @@ test("SPEC-022 durability fix regression: gated-mutations' historical exact refu
         hasDurableAdapter: false,
       },
     ],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
 
   assert.equal(result.ok, false);
@@ -94,11 +94,13 @@ test("AC-05/INV-01 (regression, FAILS FIRST without the fix): the real compositi
     inventory: CAPABILITY_INVENTORY,
     envSnapshot: {
       // A safe production deploy's env snapshot (ANALYTICS_ROOT_KEY_SEED set, TOVU_ADMIN_PASSWORD
-      // changed from the default) — matches what this fix's own manual boot verification used.
+      // changed from the default, TOVU_INTEGRATIONS_ROOT_KEY set) — matches what this fix's own
+      // manual boot verification used.
       hasDevSecretPlaceholder: false,
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
       hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: false,
     },
   });
 
@@ -110,7 +112,27 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
   const result = await runProductionReadinessGate({
     mode,
     inventory: CAPABILITY_INVENTORY,
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, true, "local mode must never be blocked by production-only containment");
+});
+
+/**
+ * 2026-09-09 integrations-root-key fix — real-composition wiring regression, same DEPS_SOURCE
+ * static-read technique the AC-23/24 test above already uses for the identical reason: exercising
+ * `createSqliteRouteDeps()` end-to-end here would let `newsletterKeyring` actually write to the
+ * REAL `homedir()`-relative `~/.tovu/integrations-root-key.hex` on whichever machine runs this
+ * suite whenever `TOVU_INTEGRATIONS_ROOT_KEY` is unset there — a live-filesystem side effect this
+ * test must never risk. A source-level assertion on the exact composition-root wiring line proves
+ * the same fact safely: before this fix, `newsletterKeyring` was `new EnvOrFileKeyring()` with an
+ * unconditional (bare) fallback — a hardcoded `true` regardless of runtime mode — which is exactly
+ * the silent-rekey bug this whole fix closes for production. This assertion fails against that
+ * hardcoded construction and passes only once the fallback is gated off `runtimeMode`.
+ */
+test("2026-09-09 fix (regression): newsletterKeyring's allowFileFallback is gated on runtimeMode, not hardcoded true — a hardcoded true would silently re-mint ~/.tovu/integrations-root-key.hex on every container redeploy", () => {
+  assert.match(
+    DEPS_SOURCE,
+    /const newsletterKeyring = new EnvOrFileKeyring\(\{\s*allowFileFallback:\s*runtimeMode !== "production"\s*\}\);/,
+    'newsletterKeyring must not be constructed with a bare `new EnvOrFileKeyring()` (implicit allowFileFallback: true in every mode) — it must read `allowFileFallback: runtimeMode !== "production"` so the generated-file fallback is disabled specifically in production, where the file lives on the container\'s ephemeral rootfs rather than the persistent volume.'
+  );
 });

@@ -50,12 +50,16 @@ services:
       TOVU_ADMIN_PASSWORD: ${TOVU_ADMIN_PASSWORD:?set TOVU_ADMIN_PASSWORD in .env}
       TOVU_ADMIN_USER: ${TOVU_ADMIN_USER:-admin}
 
-      # ---- Strongly recommended -----------------------------------------
-      # Unset does NOT fail boot. It surfaces much later as a 503
-      # SECRET_STORE_UNCONFIGURED when saving on the AI Assistant screen, which
-      # reads as a broken feature rather than as missing configuration. Set it
-      # now and avoid the confusion.
-      TOVU_INTEGRATIONS_ROOT_KEY: ${TOVU_INTEGRATIONS_ROOT_KEY:-}
+      # No default, as of the 2026-09-09 integrations-root-key fix (was previously
+      # "Strongly recommended", unset-does-not-fail-boot): a production-mode boot with this unset now
+      # ALSO refuses to start with PRODUCTION_BOOT_UNSAFE_DEFAULT
+      # (missing-integrations-root-key), the same as TOVU_ADMIN_PASSWORD above. Before this fix, an
+      # unset var booted fine and silently minted a fresh, throwaway root key on every container
+      # restart (the generated-file fallback lives inside the container's own rootfs, not the
+      # persistent volume) — every credential saved under one key became undecryptable under the
+      # next. Boot-blocking now catches that at start-up instead of as a much-later 503
+      # SECRET_STORE_UNCONFIGURED when saving on the AI Assistant screen.
+      TOVU_INTEGRATIONS_ROOT_KEY: ${TOVU_INTEGRATIONS_ROOT_KEY:?set TOVU_INTEGRATIONS_ROOT_KEY in .env}
 
       PORT: 3000
 

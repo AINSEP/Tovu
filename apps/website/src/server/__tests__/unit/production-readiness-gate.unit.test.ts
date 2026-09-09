@@ -31,7 +31,7 @@ test("AC-07: all production capabilities durable, no unsafe defaults -> boot suc
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "a" }), entry({ name: "b" })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, true);
 });
@@ -40,7 +40,7 @@ test("AC-05/INV-01: a production capability missing its durable adapter refuses 
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "undurable-capability", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -54,7 +54,7 @@ test("AC-06: a dev-only secret placeholder refuses boot before any route would r
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry()],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -66,7 +66,7 @@ test("behavior.spec.md §2.1: multiple simultaneous failures are all aggregated,
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "undurable-1", hasDurableAdapter: false }), entry({ name: "undurable-2", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -85,7 +85,7 @@ test("EC-03/INV-03: a durability check that throws is treated as a failure, neve
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [throwingEntry],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   assert.equal(result.ok, false, "a throwing check must never be interpreted as a passed check");
 });
@@ -94,7 +94,7 @@ test("§2.1 step 1 / local mode: the gate is entirely inert outside production, 
   const result = await runProductionReadinessGate({
     mode: "local",
     inventory: [entry({ name: "undurable", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: true, hasDefaultOwnerPassword: true },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: true, hasDefaultOwnerPassword: true, hasMissingIntegrationsRootKey: true },
   });
   assert.equal(result.ok, true, "local mode must never refuse boot regardless of unsafe defaults or undurable capabilities");
 });
@@ -103,7 +103,7 @@ test("AC-12: webhook delivery worker is never invoked in production mode (REQ-07
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "webhooks", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
   });
   // webhooks is contained regardless of durability per REQ-07's unconditional production-mode gate.
   assert.equal(capabilityRouteGuard({ capabilityName: "webhooks", mode: "production" }).register, false);
@@ -117,7 +117,7 @@ test("AC-14/REQ-08: sharp readiness failure withholds media transform routes, at
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "media", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
     sharpReadiness: async () => false,
   });
   assert.equal(result.ok, false);
@@ -130,7 +130,7 @@ test("AC-15: sharp ready registers media transform routes normally", async () =>
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "media", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
     sharpReadiness: async () => true,
   });
   assert.equal(result.ok, true);
@@ -160,6 +160,7 @@ test("§4.2: production + default owner password refuses boot, names the check",
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
       hasDefaultOwnerPassword: true,
+      hasMissingIntegrationsRootKey: false,
     },
   });
   assert.equal(result.ok, false);
@@ -177,6 +178,7 @@ test("§4.2: production + a custom owner password boots normally", async () => {
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
       hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: false,
     },
   });
   assert.equal(result.ok, true);
@@ -191,7 +193,86 @@ test("§4.2 / §2.1 step 1: a default owner password is inert outside production
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
       hasDefaultOwnerPassword: true,
+      hasMissingIntegrationsRootKey: false,
     },
   });
   assert.equal(result.ok, true, "local mode must never refuse boot due to the default owner password");
+});
+
+/**
+ * 2026-09-09 integrations-root-key fix (RED-first regression): before this check existed, a
+ * production boot with `TOVU_INTEGRATIONS_ROOT_KEY` unset returned `{ ok: true }` here — the real
+ * bug this suite now pins closed. `EnvOrFileKeyring`'s generated-file fallback resolves against the
+ * container's own ephemeral rootfs, not the persistent volume, so an unset var used to boot fine and
+ * silently mint a fresh, throwaway root key on every redeploy.
+ */
+test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY refuses production boot, names the check", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: true,
+    },
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.failures.some((f) => f.code === "PRODUCTION_BOOT_UNSAFE_DEFAULT" && f.details.checkName === "missing-integrations-root-key"));
+  }
+});
+
+test("2026-09-09 fix: a set TOVU_INTEGRATIONS_ROOT_KEY boots normally alongside every other safe default", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: false,
+    },
+  });
+  assert.equal(result.ok, true);
+});
+
+test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY is inert outside production mode — a local developer with no env var set must still boot", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "local",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: true,
+    },
+  });
+  assert.equal(result.ok, true, "local mode must never refuse boot due to a missing integrations root key");
+});
+
+test("2026-09-09 fix: aggregates alongside other unsafe defaults and undurable capabilities, not just reported alone", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry({ name: "undurable", hasDurableAdapter: false })],
+    envSnapshot: {
+      hasDevSecretPlaceholder: true,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
+      hasMissingIntegrationsRootKey: true,
+    },
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    // undurable capability + dev-secret-placeholder + missing-integrations-root-key = 3 distinct
+    // failures, none short-circuited by the others (behavior.spec.md §2.1).
+    assert.equal(result.failures.length, 3);
+    assert.ok(result.failures.some((f) => f.code === "PRODUCTION_CAPABILITY_NOT_DURABLE"));
+    assert.ok(result.failures.some((f) => f.details.checkName === "dev-secret-placeholder"));
+    assert.ok(result.failures.some((f) => f.details.checkName === "missing-integrations-root-key"));
+  }
 });

@@ -1094,13 +1094,32 @@ export function createSqliteRouteDeps(
     settingsRepo,
   });
 
+  // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
+  // second `resolveRuntimeMode()` call used to sit) so `newsletterKeyring`'s own construction below
+  // can read it — `resolveRuntimeMode()` is a pure, side-effect-free read of `process.env.
+  // TOVU_RUNTIME_MODE` (see its own header), so hoisting the call changes nothing about what it
+  // returns, only when it is first read.
+  const runtimeMode = resolveRuntimeMode();
+
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
   // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
   // `KeyringPort` instance also used to build `webhookSigner` below (one root key,
   // purpose-namespaced — `webhooks/ports.ts`'s `KeyringPort.derive()` contract — not two).
+  //
+  // `allowFileFallback: runtimeMode !== "production"` (2026-09-09 integrations-root-key fix): in
+  // local/dev mode this still defaults to `true` (unchanged from before this fix) — a developer
+  // with no `TOVU_INTEGRATIONS_ROOT_KEY` set must keep booting via the generated-file fallback. In
+  // production, the file fallback resolves against the container's own ephemeral rootfs (`Dockerfile`'s
+  // `USER node` -> `homedir()` is `/home/node`, not the mounted Fly volume) — a missing var there
+  // used to boot fine and silently mint a fresh, throwaway root key on every redeploy. The boot-time
+  // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsRootKey`) is
+  // the primary fix — it refuses to boot before this line is ever reached — this is defense in
+  // depth: if that gate is ever bypassed or this composition root is ever reached from a path that
+  // does not call it, `newsletterKeyring` still fails loudly on first use in production rather than
+  // silently re-keying, the same contract `siteAssistantSecretKeyring` below already has.
   const memberRepo = new SqliteMemberRepo(db);
-  const newsletterKeyring = new EnvOrFileKeyring();
+  const newsletterKeyring = new EnvOrFileKeyring({ allowFileFallback: runtimeMode !== "production" });
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
 
@@ -1109,9 +1128,9 @@ export function createSqliteRouteDeps(
   // and (when it is set) derive from byte-identical root-key material. `allowFileFallback: false`
   // here means a missing root key THROWS rather than silently minting
   // `~/.tovu/integrations-root-key.hex` — correct for a store that will hold a real, paid, provider
-  // API key, and deliberately different from `newsletterKeyring`'s default (`true`), which is
-  // correct for cheaply-rotatable, derived-never-stored signing/token secrets. See ADR-058 §2 for
-  // the full reasoning — this asymmetry is intentional, not a bug to reconcile.
+  // API key, unconditionally (even in local dev), unlike `newsletterKeyring`'s mode-gated default
+  // above, which is correct for cheaply-rotatable, derived-never-stored signing/token secrets. See
+  // ADR-058 §2 for the full reasoning — this asymmetry is intentional, not a bug to reconcile.
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
   // Held as a local rather than constructed inline, because the OAuth service below must be given
@@ -1125,7 +1144,9 @@ export function createSqliteRouteDeps(
   // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
   // third `EnvOrFileKeyring` instance).
   const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(db);
-  const runtimeMode = resolveRuntimeMode();
+  // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
+  // comment above) — kept read here via the same local rather than re-hoisting every downstream
+  // use, since everything below this point already assumed a local named `runtimeMode` exists.
   // Outbound mail-API calls (Resend today) use the shared `SINGLE_HOP_HTTPS_EGRESS_POLICY` — see
   // `platform/http/egress-policies.ts`'s own header for why this used to be a hand-copied literal
   // (no default policy exists elsewhere in this codebase to reuse otherwise; checked: no production
