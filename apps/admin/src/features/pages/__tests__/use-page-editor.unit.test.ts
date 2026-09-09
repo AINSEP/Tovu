@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useWiredPageEditor, usePageEditor } from "../hooks/use-page-editor.hooks";
+import { useWiredPageEditor, usePageEditor, type PageEditorController } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 
@@ -1278,5 +1278,130 @@ describe("save() guards against a concurrent save", () => {
 
     expect(result.current.saveConflict).toBeNull();
     expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
+});
+
+describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
+  // Same fake-timer discipline `use-post-editor.hooks.unit.test.tsx`'s equivalent block uses:
+  // installed only after the editor has mounted, torn down regardless of how the test exits.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Stands in for the `<form ref={previewFormRef}>` DOM node `PagePreviewFrame` would attach — these
+   *  tests drive the hook in isolation with no view rendered. Cast through `unknown` because
+   *  `.current` is `readonly` at the `RefObject` type level by design. */
+  function attachFakeForm(ref: PageEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn<(...args: any[]) => any>> } {
+    const fakeForm = { submit: vi.fn() };
+    (ref as unknown as { current: typeof fakeForm | null }).current = fakeForm;
+    return fakeForm;
+  }
+
+  const DRAFT_HTML_PAGE = { ...HTML_PAGE, status: "draft" as const };
+
+  function draftDeps() {
+    return {
+      port: createFakePageEditorPort({
+        page: DRAFT_HTML_PAGE as Parameters<typeof createFakePageEditorPort>[0]["page"],
+        activeThemeTemplates: ["pages-default.html", "page-shell.html"],
+      }),
+      themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(),
+      t: (locale: string, key: string) => `${locale}:${key}`,
+      locale: "en",
+    };
+  }
+
+  /**
+   * `view` already defaults to `"preview"` (the hook's own `useState`), so unlike the Posts suite
+   * there is no "switch to the Preview tab" step that can arm the debounce under fake timers — the
+   * mount-time arming happens during `waitFor`, on REAL timers, and is unreachable afterwards.
+   * Every test below therefore arms the effect with a dependency change made AFTER the fake clock
+   * is installed: a return trip through the HTML tab, or a template pick. Returning through the
+   * HTML tab is a faithful vehicle rather than a workaround — it re-evaluates the exact same
+   * `active` expression, so a `active` that excluded clean drafts (the pre-widening behavior) would
+   * still arm nothing here.
+   */
+  function returnToPreviewTab(controller: PageEditorController): void {
+    // Display-only: the HTML tab reformats a LOCAL `draftHtml` and never calls `setHtml`, so this
+    // round trip cannot make the page look content-dirty and fake the arming.
+    act(() => controller.setView("html"));
+    act(() => controller.setView("preview"));
+  }
+
+  it("submits an untouched DRAFT's pending html on returning to Preview — the widened branch that replaced the raw fallback", async () => {
+    const deps = draftDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    // Nothing edited and nothing re-templated: before the widening this state showed the raw
+    // unstyled fallback instead, so a clean draft never POSTed anything at all.
+    expect(result.current.contentDirty).toBe(false);
+    returnToPreviewTab(result.current);
+
+    vi.advanceTimersByTime(499);
+    expect(form.submit).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(form.submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-submits when only the TEMPLATE changes, against the newly chosen template's URL", async () => {
+    const deps = draftDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    // The operator picks a different template from the dropdown and touches nothing else — no
+    // keystroke, no tab change, no save. `templateChoice` is in the effect's dependency list for
+    // exactly this: the preview must re-render through the newly picked template rather than sit on
+    // the old one.
+    act(() => result.current.setTemplateChoice("page-shell.html"));
+    expect(result.current.contentDirty).toBe(false);
+
+    vi.advanceTimersByTime(499);
+    expect(form.submit).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(form.submit).toHaveBeenCalledTimes(1);
+    // Where that submit lands, which the hidden form carries as its `action`: the POST body is the
+    // pending html, but the template rides the URL's own query string.
+    expect(result.current.templatePreviewUrl).toBe("fake://template-preview/pg-html?templateChoice=page-shell.html");
+
+    // A SECOND pick re-arms again rather than settling on the first — switching templates twice in
+    // a row must not leave the operator looking at the template they just navigated away from.
+    act(() => result.current.setTemplateChoice("pages-default.html"));
+    vi.advanceTimersByTime(500);
+    expect(form.submit).toHaveBeenCalledTimes(2);
+    expect(result.current.templatePreviewUrl).toBe("fake://template-preview/pg-html?templateChoice=pages-default.html");
+  });
+
+  it("cancels the pending submit when the operator leaves Preview before it fires", async () => {
+    const deps = draftDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    act(() => result.current.setTemplateChoice("page-shell.html"));
+    vi.advanceTimersByTime(300);
+    act(() => result.current.setView("html"));
+    vi.advanceTimersByTime(1000);
+
+    expect(form.submit).not.toHaveBeenCalled();
+  });
+
+  it("leaves a CLEAN PUBLISHED page alone — that branch shows the real live site, not a POSTed preview", async () => {
+    const deps = { ...draftDeps(), port: createFakePageEditorPort({ page: HTML_PAGE as Parameters<typeof createFakePageEditorPort>[0]["page"] }) };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    returnToPreviewTab(result.current);
+    vi.advanceTimersByTime(1000);
+
+    expect(form.submit).not.toHaveBeenCalled();
   });
 });
