@@ -157,18 +157,29 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // catalog" tripwire test), while this tool's whole pipeline — Tovu's saved-credential store, the
   // vendor dispatch engine, Tovu's own ADR-027 URL contract — is host-specific glue, the same
   // category `custom-credentials`/`site-inspection`/`site-evidence` above already established.
+  // NOTE (2026-09-09): four of these entries — `content-duplication`, `external-mcp`, `media-import`,
+  // `sites` — were ALREADY missing from this list before `agent-plugin-search` was added (each their
+  // own domain's own `tool-catalog-manifest.ts` addition landed without this assertion being updated
+  // to match, the exact drift class this test exists to catch). Added here opportunistically while
+  // fixing this list for `agent-plugin-search` — not introduced by, and not otherwise in scope for,
+  // that addition. See `features/agent-plugins/tool-registrations.ts`'s own "search_agent_plugin_local"
+  // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
+    "agent-plugin-search",
     "comments",
+    "content-duplication",
     "content-types",
     "custom-credentials",
     "database",
     "deployments",
     "entries",
+    "external-mcp",
     "forms",
     "identity",
     "integrations",
     "media",
     "media-generation",
+    "media-import",
     "members",
     "menus",
     "newsletter",
@@ -181,6 +192,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "settings",
     "site-evidence",
     "site-inspection",
+    "sites",
     "source-control",
     "static-publish",
     "taxonomy",

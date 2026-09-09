@@ -97,9 +97,49 @@ test("installs a valid package and indexes its skills", async () => {
     assert.equal(installed.archiveDigest, digest);
     assert.deepEqual(installed.skills, [{ name: "ui-ux-design", skillPath: "skills/ui-ux-design/SKILL.md" }]);
     assert.deepEqual([...installed.files].sort(), ["plugin.json", "skills/ui-ux-design/SKILL.md"]);
+    // VALID_MANIFEST declares only name/version — description/keywords/author/license must stay
+    // genuinely absent, not present with value `undefined`, matching every pre-existing manifest.
+    assert.equal(installed.description, undefined);
+    assert.equal(installed.keywords, undefined);
+    assert.equal(installed.author, undefined);
+    assert.equal(installed.license, undefined);
+    assert.equal("description" in installed, false);
+    assert.equal("keywords" in installed, false);
 
     const published = await readFile(path.join(installed.packageRoot, "plugin.json"), "utf8");
     assert.equal(published, VALID_MANIFEST);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("carries plugin.json's description/keywords/author/license through onto InstalledAgentPlugin (search_agent_plugin_local's ranking signal)", async () => {
+  const { cwd, instanceLayout } = await freshLayout();
+  try {
+    const manifest = JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      name: "site-compliance",
+      version: "1.0.0",
+      description: "Evidence-based privacy, cookie/consent, and accessibility risk screening for a Tovu site.",
+      author: "Tovu",
+      license: "Apache-2.0",
+      keywords: ["compliance", "privacy", "gdpr", "ccpa", "cookie", "consent", "wcag", "accessibility"],
+    });
+    const archive = new Uint8Array(Buffer.from("archive-bytes-manifest-fields"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader([fileEntry("plugin.json", manifest), fileEntry("skills/site-compliance/SKILL.md", "# Site Compliance\n")]),
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    assert.equal(installed.description, "Evidence-based privacy, cookie/consent, and accessibility risk screening for a Tovu site.");
+    assert.equal(installed.author, "Tovu");
+    assert.equal(installed.license, "Apache-2.0");
+    assert.deepEqual(installed.keywords, ["compliance", "privacy", "gdpr", "ccpa", "cookie", "consent", "wcag", "accessibility"]);
   } finally {
     await forceRemove(cwd);
   }

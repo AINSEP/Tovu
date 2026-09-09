@@ -45,6 +45,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { InstalledAgentPlugin } from "./install.js";
+import { parseAgentPluginMcpConfig } from "./manifest.js";
 import { assertContainedOnDisk } from "./package-paths.js";
 
 export type AgentPluginCapabilityKind = "agent-plugin-skill" | "agent-plugin-mcp-server";
@@ -153,6 +154,49 @@ export async function projectInstalledAgentPluginCapabilities(
 export async function readInstalledSkillMarkdown(packageRoot: string, skillPath: string): Promise<string> {
   const absolute = await assertContainedOnDisk(packageRoot, skillPath);
   return readFile(absolute, "utf8");
+}
+
+/**
+ * Reads and parses one installed package's `mcp.json`, returning the server ids it declares — same
+ * containment guarantee as {@link readInstalledSkillMarkdown}, applied to a fixed, known-safe
+ * filename rather than a caller-supplied `skillPath`.
+ *
+ * `mcp.json` is OPTIONAL per the Agent Plugins spec (`manifest.ts`'s own header), so a missing file
+ * is not an error — it means this package declares no MCP servers, the common case for a
+ * skills-only package like the reference `ui-ux-design`/`site-compliance` installs. A present but
+ * unparseable `mcp.json` (bad JSON, wrong `$schema`, malformed `mcpServers`) is ALSO tolerated rather
+ * than thrown: this reader backs `search_agent_plugin_local`, a discovery tool whose whole purpose is
+ * staying usable even when one installed package is imperfect — the same fail-open posture
+ * `listInstalledPlugins` already takes for a digest that fails to index at all (skipped, not fatal to
+ * every other plugin).
+ *
+ * Only server IDS are ever returned — never each entry's own transport config (`command`/`args`/
+ * `env`, which MAY carry secrets for a real MCP server). This mirrors
+ * `projectInstalledAgentPluginCapabilities`'s own restraint (it never surfaces transport fields
+ * either) and `manifest.ts`'s own stated reason for not even validating that shape: nothing in this
+ * feature launches an MCP server yet, so there is no legitimate reason for those fields to leave disk.
+ *
+ * @complexity O(s) in the declared server count (`parseAgentPluginMcpConfig`'s own bound) plus one
+ * file read.
+ */
+export async function readInstalledMcpServerIds(packageRoot: string): Promise<readonly string[]> {
+  let raw: string;
+  try {
+    const absolute = await assertContainedOnDisk(packageRoot, "mcp.json");
+    raw = await readFile(absolute, "utf8");
+  } catch {
+    return [];
+  }
+
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+
+  const result = parseAgentPluginMcpConfig(parsedJson);
+  return result.ok ? result.config.serverIds : [];
 }
 
 function humanize(value: string): string {

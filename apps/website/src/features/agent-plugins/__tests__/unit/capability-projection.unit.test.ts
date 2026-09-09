@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection.js";
+import {
+  projectInstalledAgentPluginCapabilities,
+  readInstalledMcpServerIds,
+  readInstalledSkillMarkdown,
+} from "../../capability-projection.js";
 import type { InstalledAgentPlugin } from "../../install.js";
 import { PackagePathViolation } from "../../package-paths.js";
 
@@ -144,4 +148,51 @@ test("descriptor ids are stable and collision-free across two differently-named 
   });
   const ids = descriptors.map((d) => d.id);
   assert.deepEqual(new Set(ids).size, ids.length);
+});
+
+test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(
+      path.join(root, "mcp.json"),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        mcpServers: { "fly-cli": { command: "fly-mcp" }, "another-server": { command: "x" } },
+      }),
+    );
+
+    const serverIds = await readInstalledMcpServerIds(root);
+    assert.deepEqual([...serverIds].sort(), ["another-server", "fly-cli"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServerIds returns an empty array when mcp.json does not exist — optional per spec, not an error", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServerIds returns an empty array for malformed JSON — fail-open, matches search's own discovery-tool posture", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(path.join(root, "mcp.json"), "{ not valid json");
+    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServerIds returns an empty array for a wrong-schema mcp.json rather than throwing", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(path.join(root, "mcp.json"), JSON.stringify({ $schema: "wrong", mcpServers: {} }));
+    assert.deepEqual(await readInstalledMcpServerIds(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

@@ -139,6 +139,21 @@ export interface InstalledAgentPluginSkill {
 export interface InstalledAgentPlugin {
   readonly pluginId: string;
   readonly version?: string;
+  /**
+   * `plugin.json`'s own `description`/`keywords`/`author`/`license` (`manifest.ts`'s
+   * `AgentPluginManifest`) — parsed at index time but, before 2026-09-09, discarded immediately
+   * after: only `name`/`version` ever reached `InstalledAgentPlugin`. Added for
+   * `search_agent_plugin_local` (`tool-registrations.ts`), which needs the description and the
+   * author-curated keywords to rank installed plugins against a free-text query — the manifest is
+   * already read and parsed here on every call, so carrying these through is zero additional I/O,
+   * not a new read path. All four are optional because the spec itself makes them optional (the real
+   * installed `ui-ux-design` fixture ships `description` but no `keywords`; a bare-minimum manifest
+   * ships neither) — a caller must not assume any of them are present.
+   */
+  readonly description?: string;
+  readonly keywords?: readonly string[];
+  readonly author?: string;
+  readonly license?: string;
   /** SHA-256 of the raw archive bytes — the content-addressing key and the descriptor `revision`
    * a future capability projection pins invocation to (`capability-projection.ts`). */
   readonly archiveDigest: string;
@@ -477,6 +492,15 @@ export async function indexInstalledRoot(packageRoot: string, archiveDigest: str
   return {
     pluginId: parsed.manifest.name,
     version: parsed.manifest.version,
+    // Conditional spreads, not `field: parsed.manifest.field` directly: an `exactOptionalPropertyTypes`-
+    // style caller (and this codebase's own convention elsewhere — see `buildToolSource`'s identical
+    // `defaultSkillReason` spread in `tool-registrations.ts`) must see an ABSENT key, not a key present
+    // with value `undefined`, when the manifest declared none of these — `deepEqual` fixtures across
+    // this feature's own tests already assert exact object shape.
+    ...(parsed.manifest.description !== undefined ? { description: parsed.manifest.description } : {}),
+    ...(parsed.manifest.keywords !== undefined ? { keywords: parsed.manifest.keywords } : {}),
+    ...(parsed.manifest.author !== undefined ? { author: parsed.manifest.author } : {}),
+    ...(parsed.manifest.license !== undefined ? { license: parsed.manifest.license } : {}),
     archiveDigest,
     packageRoot,
     files: files.sort(),

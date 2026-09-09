@@ -5,6 +5,9 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
+import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
+import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
+import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
 import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
@@ -212,6 +215,22 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // fallback. See `admin-screen-link-tool.ts`'s own header for why it is read-only and returns a
   // path rather than driving `page.navigate` itself.
   "admin-screen-link": adminScreenLinkAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-09: `agent-plugin-search` — `search_agent_plugin_local`, wired via
+  // `contributeAgentPluginSearchTools()`. See `features/agent-plugins/tool-registrations.ts`'s own
+  // "search_agent_plugin_local" section header for why this is a SEPARATE, static tool from the
+  // dynamic `agent_plugin_<pluginId>` tools that same file also registers (those are NOT wired
+  // through the tool-contribution registry at all, so they never appear in this map either).
+  "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
+  // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
+  // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
+  // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,
+  // the exact "domain wired, catalog entry forgotten" drift this whole file exists to catch.
+  "content-duplication": contentDuplicationAgentToolCatalog as unknown as AgentToolDefinition[],
+  // Same pre-existing class as `content-duplication` above: `external-mcp` (`external_mcp_list`/
+  // `external_mcp_save`/etc., 2026-09-07) was wired via `contributeExternalMcpTools()` with no
+  // catalog entry here — distinct from the already-present `external-mcp-reauth` above, a different
+  // domain that only wires the single re-auth notice tool.
+  "external-mcp": externalMcpAgentToolCatalog as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

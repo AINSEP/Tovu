@@ -620,6 +620,13 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Will enabling this plugin change our database schema?",
     "Can you toggle this plugin off?",
   ],
+  search_agent_plugin_local: [
+    "Is there a plugin for deploying to fly.io?",
+    "What agent plugins do I have installed?",
+    "Do we already have something installed that handles GDPR or cookie consent?",
+    "Find a plugin that can help with accessibility review.",
+    "Is there an installed plugin that declares an MCP server, and what does it cover?",
+  ],
   recovery_get_status: [
     "Is there anything wrong with our database recovery state right now?",
     "Is a migration currently stuck or interrupted?",

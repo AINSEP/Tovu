@@ -3,6 +3,7 @@ import {
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
 } from "#src/assistant/index";
+import { contributeAgentPluginSearchTools } from "#src/features/agent-plugins/tool-registrations";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
@@ -223,6 +224,12 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * what makes the tool's per-resource permission resolution load-bearing rather than decorative.
  */
 export function installFirstPartyToolContributors(): void {
+  // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
+  // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
+  // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
+  // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
+  // header for why the two halves use different wiring seams.
+  registerToolContributor(contributeAgentPluginSearchTools());
   registerToolContributor(contributeCommentsTools());
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s

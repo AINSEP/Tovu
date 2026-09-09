@@ -316,6 +316,15 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // plugins_uninstall is a new tool with no prior entry at all.
   plugins_uninstall: "plugin plugins uninstall remove delete extension get rid of",
 
+  // --- agent plugins (agent-plugins.org packages — a DIFFERENT system from .tovu-plugin above) -----------
+  // 2026-09-09: search_agent_plugin_local is a new tool with no prior entry. Phrased from how an
+  // operator asks "is there already something for this" rather than the manifest's own nouns
+  // (id/keywords/description) — those already live in the tool's own description and in the plugin
+  // data itself, so this vocabulary targets the DISCOVERY intent instead: searching, finding, and
+  // marketplace-adjacent words ("addon", "package", "capability") an operator reaches for before
+  // they know whether Tovu even has this concept.
+  search_agent_plugin_local: "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
+
   // --- interactive-UI component catalog -----------------------------------------------------------------
   search_components: "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
   describe_component: "component props properties schema fields interactive ui widget render rendering",
