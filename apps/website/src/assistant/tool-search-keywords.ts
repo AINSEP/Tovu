@@ -322,8 +322,19 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   assistant_render_ui: "render show display draw put a chart here show me a graph draw a table build a dashboard visualize view results embed inline in chat",
 
   // --- pages (bespoke HTML) ------------------------------------------------------------------------------
-  pages_read_html: "page html source code view read existing content current",
-  pages_write_html: "custom page html code write create new design page build a page landing page",
+  // 2026-09-09 — `pages_write_region` shipped as the one-section editor, and the three pages_* tools
+  // now have to be told APART, not merely found: a query about changing one section must not land on
+  // the full-body rewriter, which is exactly the 42KB-per-headline behavior the region tool exists to
+  // stop. So the write pair carries deliberately opposed vocabulary (whole/entire/rewrite/from
+  // scratch vs. one/single/section/without rewriting) rather than the union of both.
+  pages_read_html: "page html source code view read existing content current markup body regions region handles sections what is on the page show me the page before editing version",
+  pages_write_html: "custom page html code write create new design page build a page landing page whole entire full complete rewrite rewriting redo start over from scratch replace the page restructure add a section remove a section",
+  pages_write_region:
+    "section sections region regions part parts piece block chunk area one single just the only the " +
+    "hero headline heading title banner cta call to action pricing faq testimonial footer text copy " +
+    "edit editing change changing update updating tweak adjust revise reword swap replace fix amend " +
+    "without rewriting not the whole page leave the rest keep the rest surgical targeted in place " +
+    "handle data-agent-element",
 
   // --- deployments / static publish -----------------------------------------------------------------------
   deployment_list: "deployments environments releases history staging production what has been deployed",

@@ -968,4 +968,32 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can you check my domain's DNS records using the registrar credential I saved?",
     "Use my saved deployment provider token to make an authenticated request to their API.",
   ],
+
+  // --- pages, bespoke HTML (2026-09-09) — added alongside the TOOL_SEARCH_KEYWORDS entries above.
+  // The pages_* family shipped with NO doc2query coverage at all: this file was generated 2026-08-05
+  // against the then-current catalog, and the tools postdate it. Written from what each tool IS, per
+  // this file's own header, and — because the whole point of `pages_write_region` is to stop the
+  // model reaching for the full rewriter — written to keep the pair APART: no "whole page" phrasing
+  // in the region questions, no "just this section" phrasing in the rewrite questions.
+  pages_read_html: [
+    "What HTML is actually on our landing page right now?",
+    "Show me the current markup for this page before I change anything.",
+    "Which parts of this page can be edited separately?",
+    "What are the editable section handles on this page?",
+    "I need this page's current version number before I edit it.",
+  ],
+  pages_write_html: [
+    "Build me a landing page for our new product.",
+    "Replace this page's whole body with a completely new design.",
+    "Start this page over from scratch — throw away what's there.",
+    "I want to restructure the page and add two new sections.",
+    "Create the full HTML for a bespoke page on our site.",
+  ],
+  pages_write_region: [
+    "Just change the headline on our landing page, leave the rest alone.",
+    "Update the pricing section of this page without touching anything else.",
+    "Can you reword the call to action but keep the page as it is?",
+    "Edit one section of a page instead of rewriting the whole thing.",
+    "I want to swap out the hero copy on this page and nothing more.",
+  ],
 };
