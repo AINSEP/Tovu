@@ -126,6 +126,7 @@ import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memo
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -1102,6 +1103,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   mountRoutes(app, createWidgetsModule(routeDeps));
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
   mountRoutes(app, createPluginsModule(routeDeps));
+  // 2026-09-09 — the `agent-plugins` server module: AGENT_PLUGINS_LIST, the admin Agent Plugins
+  // screen's read of real installed Agent Plugins (a SEPARATE family from the `plugins` module
+  // above — see `modules/agent-plugins.ts`'s own header).
+  mountRoutes(app, createAgentPluginsModule(routeDeps));
   // skills-composer-typeahead (implementation-outline.md, C-001/C-003) — the `skills` server
   // module: GET .../skills, the browser-reachable enumeration of installed standalone Agent Skills.
   mountRoutes(app, createSkillsModule(routeDeps));
