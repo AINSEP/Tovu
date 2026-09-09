@@ -1,0 +1,102 @@
+# ============================================================================
+# Tovu — fly.io deploy workflow TEMPLATE.
+#
+# Derived from the working `.github/workflows/fly-deploy.yml` in the Tovu repo.
+# Write this to `.github/workflows/fly-deploy.yml` in the operator's repo.
+#
+# flyctl runs HERE, on GitHub's runner — never on the operator's machine. That
+# is the point of this path: no local CLI, no local Docker, nothing to install.
+#
+# Replace every `<<PLACEHOLDER: ...>>` before committing.
+# ============================================================================
+#
+# ---------------------------------------------------------------------------
+# ONE-TIME SETUP THIS WORKFLOW CANNOT DO FOR YOU
+# ---------------------------------------------------------------------------
+#
+# 1. Repo secret `FLY_API_TOKEN`
+#      Settings -> Secrets and variables -> Actions -> New repository secret
+#    Named exactly `FLY_API_TOKEN`, value a fly.io deploy token. A HUMAN must
+#    paste this. It cannot be set by an assistant: the GitHub API requires the
+#    value encrypted against the repo public key, which would mean the token
+#    passing through the model's context — precisely what the saved-credential
+#    design exists to prevent.
+#
+# 2. The volume, created before the first deploy — this workflow does not create
+#    one, and a missing volume means no persistent storage and silent data loss
+#    on the next deploy:
+#      flyctl volumes create <name> --region <region> -a <app>
+#    The name must match `fly.toml`'s `[[mounts]] source` exactly.
+#
+# 3. App secrets, via `flyctl secrets set -a <app> KEY=value` — never in this
+#    file and never in fly.toml's committed `[env]`:
+#      - TOVU_ADMIN_PASSWORD         BOOT-BLOCKING. In production mode the
+#        readiness gate refuses to boot while this is unset or still equal to
+#        the built-in default owner password.
+#      - ANALYTICS_ROOT_KEY_SEED     BOOT-BLOCKING. The gate's
+#        `hasDevSecretPlaceholder` is literally `!process.env.ANALYTICS_ROOT_KEY_SEED`.
+#      - TOVU_INTEGRATIONS_ROOT_KEY  NOT boot-blocking — the dangerous one.
+#        Unset, the keyring silently generates a random master key into
+#        `~/.tovu/` on the ephemeral container filesystem, so every deploy and
+#        restart makes all previously sealed credentials permanently
+#        undecryptable, with no error and no log entry.
+#    Generate the random ones as:
+#      node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+#
+# 4. Nothing about migrations. `openContentDb()` runs drizzle's `migrate()`
+#    unconditionally before `app.listen()`, so schema changes apply themselves on
+#    the first boot after a deploy. Do NOT add a migration step to this file.
+# ============================================================================
+
+name: Deploy to Fly.io
+
+# Deploy-only, deliberately separate from any test/CI workflow. It builds and
+# deploys whatever is already on the triggering commit; it runs no tests.
+#
+# `push` fires only on the repo's DEFAULT branch. A push to any other branch
+# will not trigger this — use the `workflow_dispatch` "Run workflow" button, or
+# an API dispatch, to deploy from elsewhere.
+on:
+  push:
+    branches: [<<PLACEHOLDER: default branch, e.g. main>>]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# One deploy at a time. Two `flyctl deploy` runs racing against a single SQLite
+# volume is a real hazard, not just wasted runner minutes.
+#
+# `cancel-in-progress: false` on purpose: a deploy cut off mid-way is worse than
+# a later push waiting its turn. Expect runs to sit in `queued` behind an active
+# deploy — that is correct behaviour, not a stuck job.
+concurrency:
+  group: fly-deploy-<<PLACEHOLDER: fly app name>>
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@v1
+
+      # Fly's REMOTE builder does the image build. This runner only uploads the
+      # build context and polls status, so no Docker or BuildKit setup is needed
+      # here.
+      #
+      # BOTH --build-arg flags are load-bearing. They were lost once already in a
+      # history force-push and two deploys failed before anyone noticed — if you
+      # are editing an existing copy of this file, diff MODIFIED files, not just
+      # added and deleted ones.
+      #
+      #   TOVU_BUILD_SHA       The build context sent to the remote builder
+      #                        excludes `.git`, so `emit-dist-package-json.mjs`
+      #                        cannot read the commit itself. Without this the
+      #                        runtime manifest records no provenance at all.
+      #   TOVU_INSTALL_BROWSER Set to 0 to skip a ~150MB headless Chromium
+      #                        download on every build.
+      - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

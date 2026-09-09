@@ -1,0 +1,96 @@
+# ============================================================================
+# Tovu — fly.io app config TEMPLATE.
+#
+# Derived from the working `fly.toml` at the Tovu repo root. Write this to the
+# root of the operator's repo, next to `Dockerfile`.
+#
+# EVERY `<<PLACEHOLDER: ...>>` below must be replaced before this file is
+# committed. A surviving placeholder is not a harmless default — it is a deploy
+# that either fails confusingly or succeeds against the wrong app.
+#
+# This file is COMMITTED TO THE REPO AND IS PUBLIC. Nothing secret may appear
+# in it. See `[env]` below.
+# ============================================================================
+
+# The fly app to deploy into. There is no safe default: a wrong name here either
+# deploys over someone else's app or silently creates a stray one.
+app = "<<PLACEHOLDER: fly app name>>"
+
+# UNVERIFIED DEFAULT, not a recommendation. Pick the region the operator
+# actually wants and match it in the volume's own `--region`. If this is left as
+# `iad`, say so explicitly rather than letting them assume it was chosen.
+primary_region = "<<PLACEHOLDER: fly region, e.g. iad — this is NOT a default>>"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# ----------------------------------------------------------------------------
+# NON-SECRET VALUES ONLY. This block is public.
+#
+# Real secrets go through `flyctl secrets set`, never here:
+#   - TOVU_ADMIN_PASSWORD        BOOT-BLOCKING (default-owner-password gate)
+#   - ANALYTICS_ROOT_KEY_SEED    BOOT-BLOCKING (dev-secret-placeholder gate)
+#   - TOVU_INTEGRATIONS_ROOT_KEY NOT boot-blocking, and that is the danger —
+#                                unset, the keyring silently GENERATES a random
+#                                master key into ~/.tovu/ on the ephemeral
+#                                container filesystem, so every deploy makes all
+#                                previously sealed credentials undecryptable,
+#                                with no error and no log. Set it.
+#
+# `TOVU_RUNTIME_MODE = "production"` is what ARMS the two boot-blocking gates.
+# Changing it to anything else disables them.
+# ----------------------------------------------------------------------------
+[env]
+  TOVU_RUNTIME_MODE = "production"
+  PORT = "3000"
+
+# ----------------------------------------------------------------------------
+# Persistent state. Every site's content.db + WAL sidecars, uploads/, themes/,
+# and ops state live here; everything else in the image is disposable.
+#
+# TWO THINGS ABOUT THIS MOUNT:
+#
+# 1. It must exist BEFORE the first deploy. The workflow does not create it.
+#    Without it the app boots with no persistent storage and every write is lost
+#    on the next deploy — a silent data loss, not a startup error.
+#       flyctl volumes create <name> --region <region> -a <app>
+#    `source` below must match that name EXACTLY.
+#
+# 2. This mount SHADOWS THE IMAGE'S ENTIRE `sites/` TREE at runtime. Anything
+#    the build leaves under `sites/` is invisible once the volume attaches — not
+#    merged, not per-file, gone. That is why stock data (content.seed.db,
+#    uploads/, themes/) ships under `dist/content/` instead and is copied in at
+#    boot by hydrateContentDbFromSeed() / hydrateBlobStoreFromSeed() /
+#    seedSiteThemes(). Anything new the server must read at boot has to follow
+#    that same route.
+# ----------------------------------------------------------------------------
+[[mounts]]
+  source = "<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>"
+  destination = "/workspace/Tovu/sites"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+
+  # ONE MACHINE ONLY. Tovu stores content in SQLite on the volume above, and a
+  # fly volume attaches to a single machine — so a second machine does not share
+  # this database, it gets its OWN separate volume and its own divergent
+  # content.db. Writes then land in one or the other depending on which machine
+  # served the request. Nothing errors and nothing warns.
+  #
+  # These two settings keep the one machine up. Neither caps the MAXIMUM —
+  # nothing in fly.toml does. Never run `fly scale count` above 1, and never
+  # enable autoscaling.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # `/readyz`, not `/health`: it returns 503 until migrations and seeding
+  # finish, so it is a true readiness signal. `/health` is liveness only and
+  # will report OK on a server that cannot yet serve content.
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/readyz"

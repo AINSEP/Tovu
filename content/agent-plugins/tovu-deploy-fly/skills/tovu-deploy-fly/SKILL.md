@@ -1,0 +1,314 @@
+---
+name: tovu-deploy-fly
+description: Deploy this Tovu instance to fly.io without the operator installing flyctl, Docker, or any other CLI. Writes a fly.toml and a GitHub Actions workflow into their repo, then fires that workflow through the workspace's saved GitHub credential so flyctl runs only on GitHub's runner. Encodes the Tovu-specific rules that generic fly.io knowledge gets wrong — one machine only (SQLite), the volume shadowing the image's whole sites/ tree, secrets never in fly.toml, the sealed-credential master key, and the fact that deploying ships code and not content.
+---
+
+# Deploying Tovu to fly.io
+
+## The one thing to say before anything else
+
+**Deploying ships CODE, not CONTENT.**
+
+`sites/*/content.db` is in `.gitignore` (line 57). It is not in the repo, so it is not in the
+build context, so it is not in the image, so it does not reach the server. The same is true of
+`sites/*/chat.db` (`.gitignore` line 70).
+
+An operator who deploys expecting to see the pages they just wrote in the admin UI **will not
+see them.** Say this in your first reply, before you touch a file. Do not bury it in a summary
+at the end, and do not soften it — being wrong about this costs them a confused hour and,
+if they then "fix" it by overwriting the volume, their actual content.
+
+What a fresh deployment *does* get is the stock seed: `sites/<site>/content.seed.db` **is**
+tracked, the Dockerfile copies it to `dist/content/seed-sites/<site>/`, and
+`hydrateContentDbFromSeed()` copies it into the mounted volume **on the first boot where
+`content.db` does not exist, and never again.** Its gate is `existsSync(dbPath)` — the file's
+presence, never its contents. So:
+
+| Situation | What the operator gets |
+|---|---|
+| First deploy, fresh volume | The stock seed content, not their local content |
+| Every later deploy | Whatever is already on the volume, untouched |
+| Local content they authored | Stays local. Nothing in this procedure moves it. |
+
+If they want their local content on the server, that is a **content migration**, a different
+job from this one. Do not improvise one inside a deploy.
+
+---
+
+## What this plugin does, and what it refuses to do
+
+It deploys via **CI**: you write `fly.toml` and `.github/workflows/fly-deploy.yml` into the
+operator's repo, they add one repository secret by hand, and you fire the workflow through the
+workspace's saved GitHub credential. `flyctl` runs on GitHub's runner. Fly's remote builder
+builds the image. **Nobody downloads or installs anything locally** — that is the whole point.
+
+There is a second path in principle — driving the Machines API directly to create an app,
+volume, secrets, and machines with `config.image`. It is **not implemented here**, for one
+concrete reason: it needs a prebuilt, published Tovu image to point `config.image` at, and no
+such image exists. See `references/machines-api-path.md` before you consider improvising it.
+
+**Do not improvise the Machines API path.** If CI cannot be used, say so and stop, rather than
+half-building a deploy that has no image to run.
+
+---
+
+## The five rules
+
+These are the reason this plugin exists. Generic fly.io advice gets every one of them wrong.
+
+### Rule 1 — Exactly one machine. Never autoscale.
+
+Tovu stores each site's content in **SQLite** (`sites/<site>/content.db`) on the mounted volume.
+
+A fly volume attaches to **one machine**. Scaling to two machines does not give you two
+processes sharing a database — it gives you a **second machine with its own separate volume and
+its own separate, divergent `content.db`**. Writes land in one or the other depending on which
+machine served the request, and neither is complete. Nothing errors. Nothing warns. The
+operator discovers it when content they saved is intermittently missing.
+
+So:
+
+- Never run `fly scale count` above 1.
+- Never enable autoscaling, `auto_start_machines` beyond a single machine, or any
+  "scale to zero and back up to N" configuration.
+- Before firing a deploy, **read the current machine count** and refuse to proceed if it is
+  not 0 or 1 (see the pre-flight step below).
+
+The template's `min_machines_running = 1` and `auto_stop_machines = false` keep the one
+machine up. They do **not** cap the maximum — nothing in `fly.toml` does. The cap is
+operational discipline, which is why it is written here.
+
+### Rule 2 — The volume shadows the image's ENTIRE `sites/` tree.
+
+`fly.toml` mounts the volume at `/workspace/Tovu/sites`. That mount **replaces** whatever the
+image has at that path. Anything the build left under `sites/` is **invisible** the moment the
+volume is attached — not merged, not shadowed per-file, gone.
+
+This is why the Dockerfile copies stock data to `dist/content/`, **outside** `sites/`, and
+hydrates it in at boot:
+
+- `content.seed.db` → `dist/content/seed-sites/<site>/content.seed.db`, copied in by
+  `hydrateContentDbFromSeed()` on first boot only.
+- The site's `uploads/` → `dist/content/seed-sites/<site>/uploads`, copied in by
+  `hydrateBlobStoreFromSeed()`. This was added 2026-09-02 to close a real incident: the seed DB
+  ships media **rows** but until that copy existed nothing shipped the **bytes** those rows
+  point at, so every admin media preview 500'd.
+- Themes take the same route via `seedSiteThemes()`.
+
+The rule to apply: **if you ever add something the deployed server needs to read at boot, it
+must live outside `sites/` in the image and be copied in at runtime.** Putting it under
+`sites/` in the Dockerfile looks right, builds fine, and is silently unreachable in production.
+
+### Rule 3 — Secrets go through fly secrets. Never `fly.toml`.
+
+`fly.toml` is committed to the repo. `[env]` in it is **public**. Only non-secret values belong
+there — the template ships `TOVU_RUNTIME_MODE` and `PORT`, and nothing else.
+
+Everything below goes through `flyctl secrets set` (or the equivalent API call), never the
+committed file:
+
+| Secret | Status | What happens without it |
+|---|---|---|
+| `TOVU_ADMIN_PASSWORD` | **Boot-blocking** | The production readiness gate refuses to boot. `hasDefaultOwnerPassword` is true whenever it is unset **or still equal to the default**, and that is one of the four `collectUnsafeDefaultFailures` checks. |
+| `ANALYTICS_ROOT_KEY_SEED` | **Boot-blocking** | `hasDevSecretPlaceholder` is literally `!process.env.ANALYTICS_ROOT_KEY_SEED`. Unset means the app falls back to the dev placeholder seed, and the gate refuses to boot. |
+| `TOVU_INTEGRATIONS_ROOT_KEY` | **Not boot-blocking — and that is the danger.** See Rule 4. | Nothing fails at boot. Something much worse happens quietly. |
+
+Both boot-blocking checks only run when `TOVU_RUNTIME_MODE=production`, which the template
+sets. Generate either value as 32 random bytes hex:
+
+```
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+**Never** put a token, key, or password into a `custom_credential_make_request` call, a file you
+write, a commit message, or your reply. If a secret value has to exist, the operator types it —
+into GitHub's secret form, or into `custom_credential_set_token`'s masked field.
+
+### Rule 4 — `TOVU_INTEGRATIONS_ROOT_KEY` must be set explicitly, or saved credentials die on every deploy.
+
+This one is not a "recommended for completeness" item. Read what actually happens.
+
+`EnvOrFileKeyring.resolveRootKey()` resolves the master key in this order:
+
+1. `process.env.TOVU_INTEGRATIONS_ROOT_KEY`, hex-decoded. If present, done.
+2. Otherwise — and `allowFileFallback` defaults to **true** — it looks for
+   `~/.tovu/integrations-root-key.hex`.
+3. If that file does not exist, it **generates 32 random bytes, writes them to that path, and
+   uses them.** No error. No warning. No log.
+
+In the container, `USER node`, so `~` is `/home/node` — **not** on the volume, which is mounted
+at `/workspace/Tovu/sites`. The container filesystem is ephemeral. Therefore:
+
+> With `TOVU_INTEGRATIONS_ROOT_KEY` unset, every deploy and every machine restart generates a
+> **brand-new random master key**. Every credential sealed under the previous key becomes
+> permanently undecryptable, and nothing anywhere reports it. Boot succeeds. The failure surfaces
+> later as unrelated-looking 503s and auth errors from integrations that worked yesterday.
+
+So: **set it before the first deploy, and never rotate it casually.** Treat it as the one value
+whose loss is unrecoverable. If the operator has already deployed without it, say plainly that
+credentials saved on the server so far are gone and must be re-entered — do not imply they can
+be recovered.
+
+### Rule 5 — Migrations apply themselves. Do not add a migration step.
+
+`openContentDb()` runs drizzle's `migrate()` unconditionally, before `app.listen()`. A new table
+arriving in a migration is created on the first boot after that deploy. There is no separate
+migration command to run before or after, and adding one to the workflow is wrong.
+
+---
+
+## Procedure
+
+### Step 0 — Establish what you are deploying to, before you write anything
+
+Ask, or confirm from the conversation, and **do not guess any of these**:
+
+1. **Which GitHub repo** the deploy runs from — `owner/repo`. It must be the repo whose default
+   branch the workflow will run on.
+2. **The fly app name.** This is the app the config points at, and getting it wrong deploys into
+   the wrong place or creates a stray app.
+3. **The region.** There is no correct default. The template ships `iad` marked
+   `PLACEHOLDER` — if you leave it as-is, say so explicitly rather than letting them assume it
+   was chosen for them.
+4. **The volume name**, which must match `fly.toml`'s `[[mounts]] source` **exactly**.
+
+If a saved credential can answer one of these, use it rather than asking:
+`content_read` with `resource: "custom_credential"` lists every saved credential's label, base
+URL, and additional hosts. A workspace with `fly.io` and `github` labels already saved is the
+expected case.
+
+### Step 1 — Pre-flight against the live fly API (reads only)
+
+The workspace's saved `fly.io` credential is host-bound to both `https://api.fly.io` **and**
+`https://api.machines.dev`, so the Machines API is reachable through
+`custom_credential_make_request` today with no CLI. Use it to check reality before writing
+config that assumes something false.
+
+```
+custom_credential_make_request({
+  label: "fly.io",
+  method: "GET",
+  url: "https://api.machines.dev/v1/apps/<app>/machines"
+})
+```
+
+Read the result and apply **Rule 1**: if the app already runs more than one machine, **stop and
+report it.** Do not deploy into a split-brain and do not "fix" it by deleting a machine —
+whichever one you delete may be the one holding content. That is the operator's call, with the
+facts in front of them.
+
+Check the volume the same way (`GET /v1/apps/<app>/volumes`). A missing volume is the single
+most consequential pre-flight failure: **the app will boot with no persistent storage, and
+every write is lost on the next deploy.** The workflow does not create volumes. Either the
+operator creates it, or you create it explicitly and say that you did — never silently.
+
+If a call comes back 401 or 403, read the `authDiagnostic` field before reporting a bare
+failure; follow the remedy it names, and retry at most **once**.
+
+### Step 2 — Write the two files
+
+Both templates live beside this file. Read them, then write them into the operator's repo:
+
+- `references/fly.template.toml` → the repo root, as `fly.toml`
+- `references/fly-deploy.template.yml` → `.github/workflows/fly-deploy.yml`
+
+Every value the operator must decide is marked `<<PLACEHOLDER: ...>>`. **Replace every one of
+them** with the values from Step 0. Then re-read what you wrote and confirm no `<<PLACEHOLDER`
+marker survives — a leftover marker is a deploy that fails confusingly, or worse, one that
+succeeds against the wrong app.
+
+Two details in the workflow that are load-bearing and must not be dropped:
+
+- `--build-arg TOVU_BUILD_SHA=${{ github.sha }}` — the build context sent to the remote builder
+  excludes `.git`, so without this the runtime manifest records no provenance at all.
+- `--build-arg TOVU_INSTALL_BROWSER=0` — skips a ~150MB headless Chromium download.
+
+Both have been silently lost once already, in a history force-push, and two deploys failed
+before anyone noticed. If you are editing an existing workflow rather than writing a fresh one,
+**diff modified files, not just added and deleted ones.**
+
+### Step 3 — The operator adds `FLY_API_TOKEN` by hand
+
+**You cannot do this step, and you should not try.**
+
+Creating a GitHub Actions secret through the API requires encrypting the value against the
+repo's public key — which means the fly token would have to pass through your context to get
+there. The entire saved-credential design exists so that never happens. Setting a token you can
+read is not a shortcut; it is the failure mode.
+
+Tell them, exactly:
+
+> Go to **Settings → Secrets and variables → Actions → New repository secret** in
+> `<owner>/<repo>`. Name it exactly `FLY_API_TOKEN`. The value is a fly.io deploy token. Paste
+> only the value — do not commit it anywhere, and do not paste it into this chat.
+
+Then wait. Do not fire the workflow until they confirm. A dispatch without the secret fails on
+the runner in a way that reads like a config problem rather than a missing secret.
+
+### Step 4 — Set the app secrets
+
+Rule 3's table lists them. These go through fly secrets, not the committed file, and the
+operator supplies each value — you generate the random ones only if they ask you to, and even
+then the value goes to them, not into a file you write.
+
+Confirm all three are set before dispatching. The two boot-blocking ones fail loudly; Rule 4's
+fails silently, which is exactly why it needs a deliberate check rather than an assumption.
+
+### Step 5 — Fire the workflow
+
+Commit and push the two files to the repo's **default branch** — the workflow triggers on
+`push: [main]` and on `workflow_dispatch`. A push to any other branch will not trigger it.
+
+Then dispatch through the saved GitHub credential:
+
+```
+custom_credential_make_request({
+  label: "github",
+  method: "POST",
+  url: "https://api.github.com/repos/<owner>/<repo>/actions/workflows/fly-deploy.yml/dispatches",
+  headers: { "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+  body: "{\"ref\":\"main\"}"
+})
+```
+
+A successful dispatch returns **204 with an empty body**. That means *queued*, not *deployed* —
+do not report success here.
+
+### Step 6 — Watch it land
+
+```
+custom_credential_make_request({
+  label: "github",
+  method: "GET",
+  url: "https://api.github.com/repos/<owner>/<repo>/actions/workflows/fly-deploy.yml/runs?per_page=1"
+})
+```
+
+Poll a few times with a gap between calls. Report `status` and `conclusion` as they actually
+come back. The workflow is concurrency-limited to one deploy at a time and **queues rather than
+cancels**, so a run sitting in `queued` behind another deploy is normal, not stuck.
+
+When it reaches `success`, confirm the app itself is actually serving before you say it is
+deployed — `/readyz` returns 503 until migrations and seeding finish, which makes it a real
+readiness signal where `/health` is only liveness.
+
+If the run fails, report the failure and the step that failed. Do not re-dispatch on a hunch;
+a second deploy queued behind a broken one wastes the operator's time and tells you nothing new.
+
+---
+
+## Reporting rules
+
+- **A queued dispatch is not a deploy.** Report what you observed, at the stage you observed it.
+- **Never print, echo, or reconstruct a secret**, including in a summary of what the operator did.
+- **Say which values you left as placeholders.** `primary_region = "iad"` is an unverified
+  default; if you did not change it, that is a thing the operator needs to know, not a detail.
+- **Repeat the code-not-content rule at the end**, once the site is up and they are about to go
+  looking for their pages.
+
+## References
+
+- `references/fly.template.toml` — the `fly.toml` to write, placeholders marked.
+- `references/fly-deploy.template.yml` — the workflow to write, placeholders marked.
+- `references/machines-api-path.md` — the CLI-free Machines API path, what it would take, and
+  the one thing that blocks it today. Read this before proposing it; do not implement it.
