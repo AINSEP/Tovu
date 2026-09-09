@@ -104,6 +104,38 @@ test("a doctype is skipped rather than parsed as an element", () => {
   assert.deepEqual(regionHandlesIn(`<!doctype html><section data-agent-element="hero"><p>x</p></section>`), ["hero"]);
 });
 
+test("an outer region's close tag arriving before a NESTED region's own close implicitly closes the nested one — the outer still replaces correctly, and the orphaned nested region is reported unclosed rather than mis-replaced", () => {
+  // Generalizes the existing "implicitly-closed <p>" case to an element that itself carries a
+  // handle: the same browser-tolerant stack-pop applies whether or not the swallowed element was
+  // addressable. A splice that guessed at "b"'s close instead of refusing it would silently corrupt
+  // whatever came after — this proves the refusal fires instead.
+  const html = `<section data-agent-element="a"><div data-agent-element="b">x</section><section data-agent-element="c"><p>y</p></section>`;
+  const b = locateRegion(html, "b");
+  assert.ok("problem" in b, "the implicitly-closed nested region must be refused as a target, not spliced on a guess");
+  assert.equal(b.problem.kind, "not-replaceable");
+
+  const a = locateRegion(html, "a");
+  assert.ok("region" in a);
+  assert.equal(
+    replaceRegionInner(html, a.region, "REPLACED"),
+    `<section data-agent-element="a">REPLACED</section><section data-agent-element="c"><p>y</p></section>`,
+    "everything from a's real close tag onward, including the sibling region, must survive byte-identically"
+  );
+});
+
+test("literal (unescaped) markup inside <pre>/<code> is a REAL region, matching how a browser parses it — <pre>/<code> are not raw-text elements the way <script>/<style> are", () => {
+  // Deliberately the opposite finding from the <script>/<style>/comment masking tests above: masking
+  // those three is correct because a browser never parses their content as markup. <pre> and <code>
+  // are NOT on that list — a browser parses their content as ordinary child elements, so a
+  // data-agent-element left unescaped inside one is genuinely live, addressable markup, not
+  // documentation text. An author who wants to SHOW example markup inside <pre><code> must escape it
+  // (&lt;section&gt;), exactly as they already must for it to display correctly at all.
+  const html =
+    `<section data-agent-element="real"><p>r</p></section>` +
+    `<pre><code><section data-agent-element="live-in-pre"><p>x</p></section></code></pre>`;
+  assert.deepEqual(regionHandlesIn(html), ["real", "live-in-pre"]);
+});
+
 test("a region that is never closed is reported but refused as a write target — there is no delimited span to replace", () => {
   const found = locateRegion(`<section data-agent-element="hero"><p>x</p>`, "hero");
   assert.ok("problem" in found);

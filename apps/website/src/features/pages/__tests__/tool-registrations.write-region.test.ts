@@ -162,6 +162,33 @@ test("a region containing a nested same-tag element is replaced whole — the sp
   );
 });
 
+test("writing an OUTER region that contains an addressable nested region removes the nested handle — the tool's own 'check the surviving handles' promise, confirmed at the handler level", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1");
+  await call("pages_write_html", {
+    id: "page-1",
+    html: `<section data-agent-element="outer" data-agent-role="region"><div data-agent-element="inner" data-agent-role="region"><p>x</p></div></section>`,
+  });
+
+  const result = (await call("pages_write_region", {
+    id: "page-1",
+    handle: "outer",
+    html: "<p>flattened</p>",
+  })) as { written: boolean; regions: string[] };
+
+  assert.equal(result.written, true);
+  assert.deepEqual(result.regions, ["outer"], "the nested 'inner' handle must be reported gone, not silently still 'present' on a stale list");
+
+  const saved = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.equal(saved?.bodyHtml, `<section data-agent-element="outer" data-agent-role="region"><p>flattened</p></section>`);
+
+  await assert.rejects(
+    () => call("pages_write_region", { id: "page-1", handle: "inner", html: "<p>x</p>" }),
+    /has no region with data-agent-element="inner"/,
+    "targeting the now-destroyed nested handle must be refused as absent, never resolve to something else"
+  );
+});
+
 test("pages_write_region rejects a stale expectedVersion and writes NOTHING — two region edits cannot silently clobber each other", async () => {
   const { repo, call } = harness();
   await seedThreeRegionPage(call, repo, "page-1");
@@ -267,4 +294,47 @@ test("a <style> block at top level needs no handle — the tagging rule is about
   })) as { written: boolean };
 
   assert.equal(result.written, true);
+});
+
+/**
+ * BUG (found by adversarial testing, 2026-09-09): a region's own tool description promises "A handle
+ * that... two elements both carry, is REJECTED rather than guessed at" — but that check only runs
+ * against the HANDLE the caller is targeting. Nothing validates the FRAGMENT being written in: if it
+ * happens to contain `data-agent-element="<some other handle already in the document>"`, the write
+ * succeeds and the document now carries that handle twice — silently breaking the addressability of a
+ * region the model never touched and, on a 42KB page it cannot see, has no way to notice.
+ *
+ * Not introduced by `pages_write_region` specifically — `pages_write_html`'s full-rewrite path has the
+ * identical gap (see the sibling probe that reproduced it against a hand-written duplicate-handle
+ * document). Filed here because a small region fragment is the more likely place for it to happen by
+ * accident: the model is looking at a few lines of new markup, not the rest of the page.
+ */
+test("BUG: writing a region fragment that reuses an UNRELATED handle already in the document silently makes that handle ambiguous", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1");
+  await call("pages_write_html", {
+    id: "page-1",
+    html:
+      `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` +
+      `<section data-agent-element="cta" data-agent-role="region"><p>Talk to us</p></section>`,
+  });
+
+  // The model is only editing "hero" — it has no reason to think about "cta" at all.
+  const result = (await call("pages_write_region", {
+    id: "page-1",
+    handle: "hero",
+    html: `<div data-agent-element="cta">accidentally reuses an unrelated handle</div>`,
+  })) as { written: boolean };
+
+  // What SHOULD happen: refused, exactly like locateRegion refuses a target handle that already
+  // resolves ambiguously — the tool's own description makes no distinction between "the handle you
+  // asked for is ambiguous" and "your write just MADE some other handle ambiguous."
+  assert.equal(result.written, false, "a write that introduces a duplicate handle elsewhere in the document must be refused, not silently accepted");
+
+  const saved = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.doesNotMatch(
+    saved?.bodyHtml ?? "",
+    /data-agent-element="cta"[\s\S]*data-agent-element="cta"/,
+    "the stored document must never end up with a handle carried by two elements as a side effect of an unrelated region write"
+  );
 });
