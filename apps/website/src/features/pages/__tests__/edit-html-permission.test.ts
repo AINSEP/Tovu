@@ -374,6 +374,10 @@ async function toolHarness() {
           storeCalls.push("write");
           return real.write(html);
         },
+        // Not spied: `capturedVersion` is a pure accessor over what the three calls above already
+        // recorded, so counting it would add a call to `storeCalls` that says nothing about which
+        // store operations a refused tool call reached.
+        capturedVersion: () => real.capturedVersion(),
       };
     },
   });
@@ -430,7 +434,11 @@ test("pages_write_html still serves an admin, so the gate narrows the capability
   };
 
   assert.equal(result.written, true);
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  // read-then-convert, not convert-then-read (changed 2026-09-09 with `expectedVersion`): the read
+  // has to come first so a caller-stated basis is compared against the version the compare-and-set
+  // will use, and `ensureHtmlFormat` on a `doc` row is itself a version bump. On this page — never
+  // written before — the read is the one that raises PageNotFoundError, so the conversion follows it.
+  assert.deepEqual(storeCalls, ["read", "ensureHtmlFormat", "write"]);
 
   const row = await postRepo.findById({ workspaceId: WORKSPACE, id: "page-1" });
   assert.equal(row?.bodyHtml, html);

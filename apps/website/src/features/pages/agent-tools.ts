@@ -61,14 +61,44 @@ const PAGE_HTML_CONTRACT =
   "- NO external resources: no <script src>, no remote stylesheets, no remote fonts, no hotlinked " +
   "images. Use the site's own uploaded media or inline SVG.";
 
+/**
+ * The optimistic-concurrency basis, stated once for both writers.
+ *
+ * Deliberately the SAME vocabulary `content_post_update` already publishes (`VERSION_CONFLICT`,
+ * "nothing is written", "re-read and reapply") rather than a second, page-flavored one. A model that
+ * has learned what a version conflict means on one content tool must not have to learn it again on
+ * the other; two spellings of one protocol is how one arm gets handled and its sibling does not.
+ */
+const EXPECTED_VERSION_SCHEMA = {
+  type: "integer",
+  minimum: 0,
+  description:
+    "OPTIONAL optimistic-concurrency basis — the 'version' pages_read_html returned for this page. " +
+    "Omit it and this write simply overwrites whatever is currently stored, INCLUDING an edit a human " +
+    "or another agent turn made that you never saw. Send it and the write is rejected with " +
+    "VERSION_CONFLICT (nothing written) if anyone saved in the meantime. Send it whenever you have " +
+    "one — which is every time you read the page before editing it.",
+} as const;
+
+/** Appended to both writers' descriptions so the conflict protocol is stated where it is used. */
+const VERSION_CONFLICT_GUIDANCE =
+  "\n\nCONCURRENCY: pass expectedVersion (from pages_read_html) whenever you read the page before " +
+  "editing it. On VERSION_CONFLICT nothing was written — re-read with pages_read_html, reapply your " +
+  "change to what you get back, and resend with the new version.";
+
 export const pagesAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "pages_read_html",
     description:
       "Reads the full bespoke HTML body of a page, plus the list of editable region handles currently " +
-      "present in it. Call this before rewriting a page you did not just write, so the rewrite is " +
-      "based on what is actually there rather than a guess. A page that has never been given HTML " +
-      "reads back as an empty string with no regions — that is a new page, not an error.",
+      "present in it and the page's current version. Call this before editing a page you did not just " +
+      "write, so the edit is based on what is actually there rather than a guess.\n\n" +
+      "The 'regions' it returns are the addresses pages_write_region takes: if the section you need to " +
+      "change is listed there, edit THAT region rather than rewriting the whole page with " +
+      "pages_write_html. Pass the returned 'version' back as expectedVersion on whichever write you " +
+      "make.\n\n" +
+      "A page that has never been given HTML reads back as an empty string with no regions and no " +
+      "version — that is a new page, not an error; author it with pages_write_html.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
@@ -84,9 +114,16 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "Replaces a page's ENTIRE HTML body with the markup you supply, and converts the page to " +
       "HTML format if it is not one already. This is the tool for 'build me a landing page' and for " +
       "any rewrite substantial enough that patching would be worse than starting over.\n\n" +
-      "It overwrites everything — there is no merge. If the operator asked for a change to one part " +
-      "of an existing page, read it first with pages_read_html and include the parts you are keeping.\n\n" +
-      PAGE_HTML_CONTRACT,
+      "It overwrites everything — there is no merge. To change ONE section of an existing page, do " +
+      "not use this tool: call pages_read_html, find the section's handle in the 'regions' it " +
+      "returns, and call pages_write_region. A real page is tens of kilobytes; re-emitting all of it " +
+      "to change a headline puts every other section at risk on every turn.\n\n" +
+      "REFUSED, not warned: a top-level element with no data-agent-element handle is rejected and " +
+      "NOTHING is written. Untagged markup produces a page no later turn can edit a piece of, so it " +
+      "is treated as malformed input rather than accepted with a note. Only <style> (and other " +
+      "metadata elements) may sit at the top level untagged.\n\n" +
+      PAGE_HTML_CONTRACT +
+      VERSION_CONFLICT_GUIDANCE,
     sideEffects: "mutates-durable-state",
     // Declaration only — `buildDomainRegistrations` sets every registration's `policy.authorize` to a
     // pass-through so each permission is evaluated exactly once, by the handler's own
@@ -104,6 +141,55 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
           description:
             "The complete inner HTML for this page, following the contract in this tool's description.",
         },
+        expectedVersion: EXPECTED_VERSION_SCHEMA,
+      },
+    },
+  },
+  {
+    name: "pages_write_region",
+    description:
+      "Replaces the CONTENTS of one editable region of a page, leaving every other byte of the page " +
+      "exactly as it was. This is how you change one section — a headline, a pricing block, a call to " +
+      "action — without rewriting the whole document.\n\n" +
+      "Address the region by the handle from pages_read_html's 'regions' list (the value of that " +
+      "section's data-agent-element attribute). A handle that is not in the page, or that two " +
+      "elements both carry, is REJECTED rather than guessed at — nothing is written and the error " +
+      "tells you which handles the page actually has.\n\n" +
+      "INNER CONTENT ONLY. The html you send replaces what is INSIDE the region element; the element " +
+      "itself — its tag, its data-agent-element handle, its class — is kept for you and must NOT be " +
+      "re-emitted. Sending `<section data-agent-element=\"page-hero\">…</section>` would nest a second " +
+      "section inside the first, not replace it. Send only what goes inside: `<h1>New headline</h1>`.\n\n" +
+      "Editing a region that CONTAINS other regions replaces those too — the result reports the " +
+      "handles that still exist afterwards, so check them before targeting one again.\n\n" +
+      "To restructure the page, add a section, or remove one, use pages_write_html instead: this tool " +
+      "cannot change a region's own tag or attributes, and cannot create or delete a region.\n\n" +
+      PAGE_HTML_CONTRACT +
+      VERSION_CONFLICT_GUIDANCE,
+    sideEffects: "mutates-durable-state",
+    // Same declaration-only note as `pages_write_html` above: writing part of a page stores exactly
+    // the same unsanitized markup into exactly the same public surface as writing all of it, so it
+    // is gated on the identical permission. A narrower gate here would be a gap, not a refinement.
+    authorization: { permission: PAGES_EDIT_HTML_PERMISSION },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "handle", "html"],
+      properties: {
+        id: PAGE_ID_SCHEMA,
+        handle: {
+          type: "string",
+          minLength: 1,
+          description:
+            "The region's data-agent-element handle, exactly as pages_read_html reported it in 'regions'. " +
+            "Do not invent one — a handle you did not read back is an address that does not exist.",
+        },
+        html: {
+          type: "string",
+          description:
+            "The new INNER content for that region — what goes between its open and close tags. Do not " +
+            "include the region element itself. Follows the same contract as this tool's description.",
+        },
+        expectedVersion: EXPECTED_VERSION_SCHEMA,
       },
     },
   },

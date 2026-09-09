@@ -138,8 +138,15 @@ const RAW_TEXT_ELEMENT_PATTERN = /<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi;
  * {@link substituteMarkers}'s index-based splice back into the ORIGINAL html) depends on a masked
  * span occupying exactly the same positions as what it replaces. Deleting the comment/raw-text
  * content instead of blanking it would shift every later offset out from under those callers.
+ *
+ * EXPORTED (2026-09-09) for `features/pages/regions.ts`, which scans the SAME page bodies for
+ * `data-agent-element` region elements and needs the identical "text inside a comment or inside a
+ * <style> block is not markup" rule with the identical offset-preserving guarantee. A second copy
+ * of this masking is exactly the four-scanners-for-one-concept drift this module's own header
+ * exists to close: region scanning is a different question about the same bytes, not a second
+ * vocabulary.
  */
-function maskNonRenderableRegions(html: string): string {
+export function maskNonRenderableRegions(html: string): string {
   const withoutComments = html.replace(HTML_COMMENT_PATTERN, blank);
   return withoutComments.replace(RAW_TEXT_ELEMENT_PATTERN, (whole, tagName: string, content: string) => {
     const closingTagLength = tagName.length + 3; // "</" + tagName + ">"

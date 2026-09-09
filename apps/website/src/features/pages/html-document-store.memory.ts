@@ -56,6 +56,11 @@ export class InMemoryPagesHtmlDocumentStore {
     await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
   }
 
+  /** @see PagesHtmlDocumentStorePort.capturedVersion */
+  capturedVersion(): number | null {
+    return this.lastReadVersion;
+  }
+
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
   async ensureHtmlFormat(seedHtml: string): Promise<void> {
     const row = await this.load();

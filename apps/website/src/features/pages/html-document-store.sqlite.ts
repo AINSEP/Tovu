@@ -128,6 +128,24 @@ export interface PagesHtmlDocumentStorePort {
   ensureHtmlFormat(seedHtml: string): Promise<void>;
   read(): Promise<string>;
   write(html: string): Promise<void>;
+  /**
+   * The row `version` captured by the most recent {@link read}/{@link ensureHtmlFormat} — the exact
+   * value the next {@link write}'s compare-and-set will condition on — or `null` before either has
+   * run.
+   *
+   * Added 2026-09-09 so a caller-stated `expectedVersion` (the agent tools' optimistic-concurrency
+   * basis, mirroring `content_post_update`'s) can be compared against the version the write is
+   * ACTUALLY conditioned on, with nothing able to move in between. Comparing against a version read
+   * separately — through `postRepo`, say — would leave a window where a concurrent writer lands
+   * between the check and this store's own `read()`, and the write would then be conditioned on the
+   * intruder's version and silently clobber it. That is precisely the failure a version guard exists
+   * to prevent, so the basis and the predicate must be the same number.
+   *
+   * Purely additive to `@jini-ai/vibecoding/html`'s `HtmlDocumentStore` shape: that port needs only
+   * `read`/`write`, and TypeScript's structural typing means an extra method never breaks
+   * assignability (see this file's header on why the port is satisfied structurally).
+   */
+  capturedVersion(): number | null;
 }
 
 /**
@@ -161,6 +179,14 @@ export class PagesHtmlDocumentStore {
     private readonly scope: PagesHtmlDocumentStoreScope,
     private readonly deps: PagesHtmlDocumentStoreDeps
   ) {}
+
+  /**
+   * @see PagesHtmlDocumentStorePort.capturedVersion
+   * @complexity O(1).
+   */
+  capturedVersion(): number | null {
+    return this.lastReadVersion;
+  }
 
   /**
    * Reads the current `body_html`, capturing this row's `version` on the instance for the next

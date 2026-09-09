@@ -46,9 +46,9 @@ async function seedPage(repo: InMemoryPostRepo, id: string, title: string) {
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id, title, kind: "page" } });
 }
 
-test("both Pages tools are registered with the input schemas the model needs", () => {
+test("all three Pages tools are registered with the input schemas the model needs", () => {
   const { byName } = harness();
-  assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_html"]);
+  assert.deepEqual([...byName.keys()].sort(), ["pages_read_html", "pages_write_html", "pages_write_region"]);
   for (const [name, entry] of byName) {
     assert.ok(entry.descriptor.inputSchema, `${name} must publish an input schema`);
   }
@@ -76,17 +76,21 @@ test("pages_write_html writes the document, births the html row, and reports its
   assert.equal(saved?.bodyHtml, html);
 });
 
-test("pages_write_html warns when the model tagged no editable regions", async () => {
+// Was "warns when the model tagged no editable regions", asserting `written: true` plus an advisory
+// `warning`. Changed 2026-09-09, deliberately and in the strict direction: an advisory on a
+// successful write is not feedback — both live landing pages carry zero handles across ~42KB, so the
+// warning demonstrably taught the model nothing. Untagged markup is now malformed input, refused on
+// the turn it is sent. The row-is-untouched half of the property lives in
+// `tool-registrations.write-region.test.ts`; this keeps the domain's own tool test honest about what
+// the tool now does.
+test("pages_write_html refuses markup whose top-level sections carry no editable-region handle", async () => {
   const { repo, call } = harness();
   await seedPage(repo, "page-1", "Landing");
 
-  const result = (await call("pages_write_html", { id: "page-1", html: "<h1>Untagged</h1>" })) as {
-    written: boolean;
-    warning?: string;
-  };
-
-  assert.equal(result.written, true, "the write still lands — the warning is advice, not a rejection");
-  assert.match(String(result.warning), /no data-agent-element regions/);
+  await assert.rejects(
+    () => call("pages_write_html", { id: "page-1", html: "<h1>Untagged</h1>" }),
+    /data-agent-element/
+  );
 });
 
 test("pages_write_html refuses a post id with a reason the model can act on, not a thrown error", async () => {
@@ -96,7 +100,11 @@ test("pages_write_html refuses a post id with a reason the model can act on, not
     input: { workspaceId: WS, id: "post-1", title: "A blog post", kind: "post" },
   });
 
-  const result = (await call("pages_write_html", { id: "post-1", html: "<p>x</p>" })) as {
+  // Tagged markup on purpose: the tagging check runs before the store is opened (so a refused write
+  // can never one-way-convert a row), which means untagged markup here would report the tagging
+  // problem instead of the wrong-id one this test is about.
+  const html = `<section data-agent-element="body" data-agent-role="region"><p>x</p></section>`;
+  const result = (await call("pages_write_html", { id: "post-1", html })) as {
     written: boolean;
     reason?: string;
   };

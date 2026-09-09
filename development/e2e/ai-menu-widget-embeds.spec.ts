@@ -195,6 +195,12 @@ test("LIVE AGENT: create a menu, a menu-widget, and a text widget; embed both in
   const cookieHeader = cookieHeaderFrom(setCookie);
   await login(request);
 
+  // ---- Step 5's markup is a `data-agent-element` region, not `<!doctype html><html><body>` (changed
+  // 2026-09-09). Two reasons, both real: PAGE_HTML_CONTRACT has always forbidden page chrome in a
+  // page body (the theme's template owns it, so emitting <html>/<body> produces a doubled page), and
+  // as of the same date `pages_write_html` REFUSES a top-level element with no handle rather than
+  // warning about it — so the old prompt now fails the call it is asserting succeeds. This test is
+  // about widget embeds reaching the rendered page, and the embed <div>s below are unchanged. ----
   // ---- Direct, ordered, narrow prompt — same philosophy as surface-live-agent.spec.ts's own: this
   // test is not evaluating prompt-following generally, only that the transport and tools work once
   // called. Every argument is spelled out so a real model has nothing to guess. Step 7 is expected
@@ -207,7 +213,7 @@ execute the sequence, then stop.
 2. widgets_create_instance with { "widgetType": "menu", "title": "QA E2E Menu Widget", "config": { "menuRef": "<the menu id returned by step 1>" } }
 3. widgets_create_instance with { "widgetType": "text", "title": "QA E2E Text Widget", "config": { "body": "${TEXT_WIDGET_MARKER}" } }
 4. content_post_create with { "kind": "page", "title": "QA E2E Page", "slug": "${PAGE_SLUG}", "status": "published" }
-5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<!doctype html><html><body><h1>QA E2E Page</h1><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 2>\\"></div><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 3>\\"></div></body></html>" }
+5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<section data-agent-element=\\"page-body\\" data-agent-role=\\"region\\"><h1>QA E2E Page</h1><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 2>\\"></div><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 3>\\"></div></section>" }
 6. content_post_create with { "kind": "post", "title": "QA E2E Post", "slug": "${POST_SLUG}", "status": "published" }
 7. widgets_insert_embed with { "hostEntryId": "<the post id returned by step 6>", "baseVersion": 1, "widgetEntryId": "<the widget instance id returned by step 3>" }. This call is expected to fail because a real blog post cannot host a widget embed today — that is fine and expected. If it fails, report the error in your final message and do NOT retry it.`;
 
