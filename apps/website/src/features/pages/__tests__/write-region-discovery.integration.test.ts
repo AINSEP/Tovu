@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createByokToolSurface } from "#src/assistant/byok-tool-surface";
+import { createByokToolSurface } from "#src/assistant/index";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { MIN_EXPECTED_TOOL_COUNT, fakeEvalRouteDeps } from "../../../../../../development/evals/tool-search-eval-registry.js";
