@@ -334,6 +334,40 @@ test("a DRAFT html-format Page's own body renders via a POSTed bodyHtml override
   assert.ok(!html.includes("data-embed-config"), "degrades to the resolved splice, never a raw unresolved marker");
 });
 
+// The transport the Pages editor ACTUALLY uses. Every `bodyHtml` test above sends
+// `content-type: application/json`, but no browser form can: `PageEditor.tsx`'s hidden
+// `<form method="post" target="{iframe}">` (the whole delivery mechanism for this override) always
+// encodes as `application/x-www-form-urlencoded`. The `bodyJson` half of this route already has its
+// own form-encoded test above for exactly this reason; without this one the `"html"`-format half was
+// proven only on a transport the product never sends, which is how a route can pass its whole suite
+// and still show the operator a raw unstyled body.
+test("POST with a form-urlencoded bodyHtml field renders the PENDING body through the template — the Pages editor's real transport", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const page = await saveHtmlPage(deps, {
+    slug: "draft-page",
+    status: "draft",
+    templateChoice: "page-shell.html",
+    bodyHtml: "<p>Saved, published-would-be html body</p>",
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const form = new URLSearchParams();
+  form.set("bodyHtml", `<p>${PENDING_HTML_TEXT}</p>`);
+  const res = await fetch(previewUrl(baseUrl, page.id, "page-shell.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  // The owner-visible symptom this whole fix exists for: a draft used to render as raw unstyled
+  // body with none of the theme's chrome around it.
+  assert.ok(html.includes('data-tpl="page-shell"'), "the template's own chrome must wrap the form-encoded pending body too");
+  assert.ok(html.includes(PENDING_HTML_TEXT), "the PENDING html body must reach the page via the form-encoded transport too");
+  assert.ok(!html.includes("Saved, published-would-be html body"), "the SAVED body must not reach the page once a pending override was supplied");
+});
+
 test("POST never persists the pending bodyHtml — the row's stored bodyHtml is unchanged afterward", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
   const page = await saveHtmlPage(deps, {
