@@ -799,9 +799,10 @@ function PageEditorPane({
  *    fetched and authorized, the same way the PRE-EXISTING `bodyJson` override already did for a
  *    Post — see `resolveHtmlFormatContentMarkers`'s own doc for the full reasoning. That is what
  *    retired the THIRD branch this function used to have (a raw `SrcDocSandbox` fallback for a
- *    draft, or a published-and-dirty page): with branch 2 now unconditional whenever branch 1 isn't
- *    showing, `canShowLiveSite || canShowTemplatePreview` is a tautology, so the fallback had become
- *    dead code, not merely rare — removed rather than left unreachable. (`draftHtml`'s own textarea
+ *    draft, or a published-and-dirty page): branch 2 is now simply "not the live site", so the two
+ *    branches are exhaustive by construction and the fallback had become dead code, not merely rare
+ *    — removed rather than left unreachable. This is also why only `canShowLiveSite` is computed
+ *    below: its negation needs no name of its own. (`draftHtml`'s own textarea
  *    still exists on the HTML tab for hand-editing raw markup; nothing about that tab changed here.)
  *
  * The public URL and the template-preview endpoint are both cross-origin from the admin in dev
@@ -851,10 +852,6 @@ function PagePreview({
 }) {
   const scale = Math.min(1, paneWidth / width);
   const canShowLiveSite = status === "published" && !dirty;
-  // Widened 2026-09-09 to drop the old `status === "published"` requirement — see this function's
-  // own doc for why the visibility gap that requirement worked around no longer exists. Now simply
-  // "not the live site", which is every remaining state by construction.
-  const canShowTemplatePreview = !canShowLiveSite;
 
   return (
     <>

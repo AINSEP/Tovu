@@ -685,8 +685,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   }, [page, contentDirty, title, slug, html, autosave.scheduleAutosave]);
 
   // Pending-html preview's debounced auto-submit (2026-09-09) — see `PageEditorController
-  // .previewFormRef`'s own doc. `active` mirrors `canShowTemplatePreview`'s own widened condition
-  // (`PagePreview`'s doc): true whenever the operator isn't looking at the live site, regardless of
+  // .previewFormRef`'s own doc. `active` mirrors the negation of `PagePreview`'s own
+  // `canShowLiveSite` (see that function's doc): true whenever the operator isn't looking at the
+  // live site, regardless of
   // `status` or `contentDirty` — a draft, or a published-but-dirty Page, both need their pending
   // `html` POSTed into the preview iframe the same way. Computed inline here (not read off a
   // `dirty`/`canShowLiveSite` controller field) because none exists — `PagePreview` recomputes the
