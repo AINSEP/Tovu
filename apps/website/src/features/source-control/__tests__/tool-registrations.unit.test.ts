@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -245,6 +245,42 @@ test("an unsupported provider throws before any permission check, dialog, or cre
     /'provider' must be 'github'/
   );
   assert.equal(surfaceExchanges.size(), 0);
+});
+
+// ---------------------------------------------------------------------------
+// 3a. 500-redact defect (RED->GREEN): both `parseCommitCommand` checks used to throw a bare
+// `Error`, tagged `errorKind: 'internal'` by `@jini-ai/daemon`'s `ToolExecutor` and redacted to a
+// message-stripped 500 by `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` (SEC-005). Both now
+// throw `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
+// ---------------------------------------------------------------------------
+
+test("an unsupported provider is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
+});
+
+test("an invalid target (bad owner) is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { provider: "github", owner: "not valid!!", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
 });
 
 test("an invalid target (bad owner) throws before any dialog is raised", async () => {

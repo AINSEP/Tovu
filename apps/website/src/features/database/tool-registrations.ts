@@ -33,6 +33,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
+// rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
+// `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
+import { ToolInputError } from "@jini-ai/core";
 import {
   plan as gatewayPlan,
   type GatedMutationHooks,
@@ -128,7 +132,7 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
 export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     database_query_timeline: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new Error("input must be an object");
+      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
       const input = isRecord(ctx.input) ? ctx.input : {};
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database-ledger" });
 
@@ -194,7 +198,7 @@ export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolReg
     },
 
     backup_create_restore_point: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new Error("input must be an object");
+      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
       const input = isRecord(ctx.input) ? ctx.input : {};
       const costAck = optionalBoolean(input, "costAck");
 

@@ -10,6 +10,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
+// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
+// than redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -260,7 +264,7 @@ interface ParsedCommitCommand {
 function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const provider = requireString(raw, "provider");
   if (provider !== "github") {
-    throw new Error(
+    throw new ToolInputError(
       "source_control_execute_commit: 'provider' must be 'github' — gitlab/bitbucket commits are not supported yet (see source_control_get_capabilities)."
     );
   }
@@ -271,7 +275,7 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
 
   const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage });
   if (configError !== null) {
-    throw new Error(`source_control_execute_commit: ${configError}`);
+    throw new ToolInputError(`source_control_execute_commit: ${configError}`);
   }
 
   return { owner, repo, commitMessage, branch };

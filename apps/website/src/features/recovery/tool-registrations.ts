@@ -29,6 +29,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
+// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
+// than redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import { plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
@@ -130,20 +134,20 @@ const UNWIRED_RECOVERY_TOOL_IDS = new Set([
 /** One field's "must be typeof number" check for {@link requireDeepLinkEnvelope} — same rejection
  *  style as the kit's own `requireNumber`, just scoped to a nested envelope field path. */
 function requireEnvelopeNumber(value: unknown, fieldPath: string): number {
-  if (typeof value !== "number") throw new Error(`'${fieldPath}' (number) is required`);
+  if (typeof value !== "number") throw new ToolInputError(`'${fieldPath}' (number) is required`);
   return value;
 }
 
 /** One field's "must be typeof string" check for {@link requireDeepLinkEnvelope}. */
 function requireEnvelopeString(value: unknown, fieldPath: string): string {
-  if (typeof value !== "string") throw new Error(`'${fieldPath}' (string) is required`);
+  if (typeof value !== "string") throw new ToolInputError(`'${fieldPath}' (string) is required`);
   return value;
 }
 
 /** One field's "must be a string, or explicitly null" check — `ledgerEventId`/`restorePointId`
  *  are the only two nullable fields on the envelope. */
 function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string | null {
-  if (value !== null && typeof value !== "string") throw new Error(`'${fieldPath}' must be a string or null`);
+  if (value !== null && typeof value !== "string") throw new ToolInputError(`'${fieldPath}' must be a string or null`);
   return value;
 }
 
@@ -155,13 +159,13 @@ function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string 
  * interpreter, because this is the only nested-object tool input in the whole wiring layer and that
  * interpreter is flat-only — it cannot express a nested `envelope` object at all.
  *
- * @throws {Error} Naming the first missing/mistyped field, matching the kit's
+ * @throws {ToolInputError} Naming the first missing/mistyped field, matching the kit's
  * `requireString`/`requireNumber` rejection style.
  * @complexity O(1) — a fixed number of field checks.
  * @overallScore 100
  */
 function requireDeepLinkEnvelope(value: unknown): DatabaseContextEnvelope {
-  if (!isRecord(value)) throw new Error("'envelope' (object) is required");
+  if (!isRecord(value)) throw new ToolInputError("'envelope' (object) is required");
 
   return {
     v: requireEnvelopeNumber(value.v, "envelope.v"),
@@ -271,7 +275,7 @@ export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolReg
     },
 
     recovery_resolve_deep_link: async (ctx) => {
-      if (!isRecord(ctx.input)) throw new Error("'envelope' (object) is required");
+      if (!isRecord(ctx.input)) throw new ToolInputError("'envelope' (object) is required");
       const envelope = requireDeepLinkEnvelope(ctx.input.envelope);
 
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "backup.read", entityType: "restore-point" });

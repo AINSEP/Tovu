@@ -34,6 +34,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
+// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
+// than redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 import {
   plan as gatewayPlan,
   type GatedMutationHooks,
@@ -191,7 +195,7 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
       const contentType = requireString(input, "contentType");
       const contentId = requireString(input, "contentId");
       if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
-        throw new Error("'termIds' (string array) is required");
+        throw new ToolInputError("'termIds' (string array) is required");
       }
       const termIds = input.termIds as string[];
 
