@@ -493,9 +493,14 @@ function resolveAuthorizationScheme(connection: CustomProviderConnectionInput): 
  *  one, HTTP Basic when a `username` is saved, Bearer otherwise. Never logged, and never returned
  *  from this module — used only as an outbound request header value.
  *
+ *  Exported (2026-09-09) for `github-write-files.ts`'s own outbound GitHub Git Data API calls —
+ *  the same per-credential auth-scheme precedence a `custom_credential_write_files` call must use,
+ *  reused rather than re-derived so the scheme a future 401/403 there could report can never drift
+ *  from the scheme this module actually sends.
+ *
  * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
  */
-function buildAuthorizationHeader(connection: CustomProviderConnectionInput): string {
+export function buildAuthorizationHeader(connection: CustomProviderConnectionInput): string {
   const resolved = resolveAuthorizationScheme(connection);
   if (resolved.kind === "self-describing") return `${resolved.scheme} ${resolved.value}`;
   if (resolved.kind === "basic") return `Basic ${buildBasicAuthPayload(resolved.username, resolved.token)}`;
