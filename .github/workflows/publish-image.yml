@@ -1,0 +1,76 @@
+# ============================================================================
+# Publishes the generic Tovu container image to ghcr.io.
+#
+# This is the missing `config.image` input for the Fly Machines API deploy path — as of
+# 2026-09-10 no published Tovu image exists anywhere. Deliberately independent of
+# `fly-deploy.yml` and NOT gated on `jini-published-typecheck.yml` (no `needs:` on either)
+# — an image-build failure here must never block, or be blocked by, the existing deploy
+# path.
+#
+# GHCR requires a fully lowercase image name. `${{ github.repository }}` is
+# "leonaburime-ucla/Tovu" (capital T) — pushing that raw would target a ref GHCR rejects,
+# so it is lowercased in a dedicated step below rather than interpolated directly into
+# any tag.
+# ============================================================================
+name: Publish Image to GHCR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lowercases the repo path once so every later step (both tags) uses the same
+      # value; ghcr.io rejects any uppercase byte anywhere in the repository path.
+      - name: Compute lowercase image name
+        id: image
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+      # BuildKit is required here, not optional. This repo has no top-level
+      # `.dockerignore` — only `Dockerfile.dockerignore`, the BuildKit-only per-Dockerfile
+      # ignore convention, which is what excludes `sites/` (every developer's real
+      # content.db, uploads, and secrets) from the build context. A classic `docker build`
+      # ignores `Dockerfile.dockerignore` entirely and would ship `sites/` straight into
+      # this PUBLIC image. `docker/build-push-action` always builds through BuildKit via
+      # buildx, so this pairing is what keeps that safe — do not replace either action
+      # with a bare `docker build` / `docker push`.
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # No install step of our own runs on this runner — the checkout above is the only
+      # local action; `npm install` happens inside the Dockerfile's own build stage, and
+      # no lockfile here is touched.
+      #
+      # --build-arg TOVU_BUILD_SHA: mirrors fly-deploy.yml. The build context excludes
+      #   `.git` (Dockerfile.dockerignore), so `emit-dist-package-json.mjs` cannot read
+      #   the commit itself without this; omitting it would ship a runtime manifest with
+      #   no provenance.
+      # --build-arg TOVU_INSTALL_BROWSER=0: mirrors fly-deploy.yml. Skips the ~150MB
+      #   headless Chromium download — this image stays generic, no site or browser baked
+      #   in.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            TOVU_BUILD_SHA=${{ github.sha }}
+            TOVU_INSTALL_BROWSER=0
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
