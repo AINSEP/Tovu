@@ -3476,6 +3476,23 @@ export const api = {
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
   listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins`),
+  /**
+   * AGENT_PLUGIN_SET_ENABLED — turns one installed Agent Plugin on or off for this workspace.
+   *
+   * Returns the SINGLE updated row rather than a `changeSetId`, deliberately unlike
+   * `setPluginEnabled` above: that family's route is `executeCommand`-wrapped and its client
+   * re-fetches the whole list afterwards, while this one writes one JSON activation record and
+   * hands back the row in `listAgentPlugins`' own shape, so the caller replaces it in place with no
+   * second GET. See the route's own header for what skipping the gateway costs.
+   *
+   * `enabled` is validated server-side, not coerced — an omitted or non-boolean value is 400
+   * `VALIDATION_ERROR` instead of a silent disable.
+   */
+  setAgentPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
+    request<{ agentPlugin: AdminAgentPlugin }>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
 
   // Deployment panel (`src/server/routes/admin/system/deployment-overview.ts` /
   // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.

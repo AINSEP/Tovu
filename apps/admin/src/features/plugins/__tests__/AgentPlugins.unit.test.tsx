@@ -52,6 +52,9 @@ function fakeController(overrides: Partial<AgentPluginsController> = {}): AgentP
   return {
     agentPlugins: [SITE_COMPLIANCE, TOVU_DEPLOY_FLY],
     error: null,
+    toggleError: null,
+    togglingIds: new Set<string>(),
+    onToggleEnabled: async () => {},
     inspectedPlugin: null,
     inspectPlugin: () => {},
     closeInspector: () => {},
@@ -144,6 +147,9 @@ describe("AgentPlugins inspector (stateful)", () => {
     return {
       agentPlugins: [SITE_COMPLIANCE],
       error: null,
+      toggleError: null,
+      togglingIds: new Set<string>(),
+      onToggleEnabled: async () => {},
       inspectedPlugin,
       inspectPlugin: setInspectedPlugin,
       closeInspector: () => setInspectedPlugin(null),

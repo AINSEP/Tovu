@@ -36,6 +36,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // the JSX-only pass since they live in `.hooks.ts` files.
     "failed to load plugins": "no se pudieron cargar los plugins",
     "failed to update plugin": "no se pudo actualizar el plugin",
+    "failed to update agent plugin": "no se pudo actualizar el plugin de agentes",
   },
   id: {
     Enable: "Aktifkan",
@@ -63,6 +64,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "gagal memuat plugin",
     "failed to update plugin": "gagal memperbarui plugin",
+    "failed to update agent plugin": "gagal memperbarui plugin agen",
   },
   de: {
     Enable: "Aktivieren",
@@ -90,6 +92,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "Plugins konnten nicht geladen werden",
     "failed to update plugin": "Plugin konnte nicht aktualisiert werden",
+    "failed to update agent plugin": "Agent-Plugin konnte nicht aktualisiert werden",
   },
   "zh-CN": {
     Enable: "启用",
@@ -117,6 +120,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "加载插件失败",
     "failed to update plugin": "更新插件失败",
+    "failed to update agent plugin": "更新智能体插件失败",
   },
   "zh-TW": {
     Enable: "啟用",
@@ -144,6 +148,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "載入外掛失敗",
     "failed to update plugin": "更新外掛失敗",
+    "failed to update agent plugin": "更新代理程式外掛失敗",
   },
   "pt-BR": {
     Enable: "Ativar",
@@ -171,6 +176,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "não foi possível carregar os plugins",
     "failed to update plugin": "não foi possível atualizar o plugin",
+    "failed to update agent plugin": "não foi possível atualizar o plugin de agentes",
   },
   ru: {
     Enable: "Включить",
@@ -198,6 +204,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "не удалось загрузить плагины",
     "failed to update plugin": "не удалось обновить плагин",
+    "failed to update agent plugin": "не удалось обновить плагин агента",
   },
   fa: {
     Enable: "فعال‌سازی",
@@ -225,6 +232,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "بارگذاری افزونه‌ها ناموفق بود",
     "failed to update plugin": "به‌روزرسانی افزونه ناموفق بود",
+    "failed to update agent plugin": "به‌روزرسانی افزونه عامل ناموفق بود",
   },
   ar: {
     Enable: "تفعيل",
@@ -252,6 +260,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "تعذّر تحميل الإضافات",
     "failed to update plugin": "تعذّر تحديث الإضافة",
+    "failed to update agent plugin": "تعذّر تحديث إضافة الوكيل",
   },
   ja: {
     Enable: "有効にする",
@@ -279,6 +288,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "プラグインの読み込みに失敗しました",
     "failed to update plugin": "プラグインの更新に失敗しました",
+    "failed to update agent plugin": "エージェントプラグインの更新に失敗しました",
   },
   ko: {
     Enable: "사용",
@@ -306,6 +316,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "플러그인을 불러오지 못했습니다",
     "failed to update plugin": "플러그인을 업데이트하지 못했습니다",
+    "failed to update agent plugin": "에이전트 플러그인을 업데이트하지 못했습니다",
   },
   pl: {
     Enable: "Włącz",
@@ -333,6 +344,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "nie udało się wczytać wtyczek",
     "failed to update plugin": "nie udało się zaktualizować wtyczki",
+    "failed to update agent plugin": "nie udało się zaktualizować wtyczki agenta",
   },
   hu: {
     Enable: "Engedélyezés",
@@ -360,6 +372,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "a bővítmények betöltése sikertelen",
     "failed to update plugin": "a bővítmény frissítése sikertelen",
+    "failed to update agent plugin": "az ügynök-bővítmény frissítése sikertelen",
   },
   fr: {
     Enable: "Activer",
@@ -387,6 +400,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "échec du chargement des extensions",
     "failed to update plugin": "échec de la mise à jour de l'extension",
+    "failed to update agent plugin": "échec de la mise à jour de l'extension d'agent",
   },
   uk: {
     Enable: "Увімкнути",
@@ -414,6 +428,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "не вдалося завантажити плагіни",
     "failed to update plugin": "не вдалося оновити плагін",
+    "failed to update agent plugin": "не вдалося оновити плагін агента",
   },
   tr: {
     Enable: "Etkinleştir",
@@ -441,6 +456,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "eklentiler yüklenemedi",
     "failed to update plugin": "eklenti güncellenemedi",
+    "failed to update agent plugin": "ajan eklentisi güncellenemedi",
   },
   th: {
     Enable: "เปิดใช้งาน",
@@ -468,6 +484,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "โหลดปลั๊กอินไม่สำเร็จ",
     "failed to update plugin": "อัปเดตปลั๊กอินไม่สำเร็จ",
+    "failed to update agent plugin": "อัปเดตปลั๊กอินเอเจนต์ไม่สำเร็จ",
   },
   it: {
     Enable: "Abilita",
@@ -495,6 +512,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "impossibile caricare i plugin",
     "failed to update plugin": "impossibile aggiornare il plugin",
+    "failed to update agent plugin": "impossibile aggiornare il plugin per agenti",
   },
   hi: {
     Enable: "सक्षम करें",
@@ -522,6 +540,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "प्लगिन लोड नहीं हो सके",
     "failed to update plugin": "प्लगिन अपडेट नहीं हो सका",
+    "failed to update agent plugin": "एजेंट प्लगिन अपडेट नहीं हो सका",
   },
   ur: {
     Enable: "فعال کریں",
@@ -549,6 +568,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "پلگ اِنز لوڈ نہ ہو سکے",
     "failed to update plugin": "پلگ اِن اپ ڈیٹ نہ ہو سکا",
+    "failed to update agent plugin": "ایجنٹ پلگ اِن اپ ڈیٹ نہ ہو سکا",
   },
   bn: {
     Enable: "সক্ষম করুন",
@@ -576,6 +596,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
 
     "failed to load plugins": "প্লাগইন লোড করা যায়নি",
     "failed to update plugin": "প্লাগইন আপডেট করা যায়নি",
+    "failed to update agent plugin": "এজেন্ট প্লাগইন আপডেট করা যায়নি",
   },
 };
 
