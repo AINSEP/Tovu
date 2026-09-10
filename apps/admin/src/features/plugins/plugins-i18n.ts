@@ -35,6 +35,19 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "— packaging skills, tools, and MCP servers into portable plugins.":
     "— que empaqueta habilidades, herramientas y servidores MCP en plugins portables.",
 
+    // AgentPlugins.tsx's Downloaded/Installed tab split (2026-09-09) — new strings that split
+    // introduced. Downloaded's own lede/empty-state reuse pre-split keys verbatim (see this file's
+    // git history — those two were ALREADY untranslated at HEAD before the split, not something
+    // this pass broke), so only the genuinely new copy is added here.
+    Downloaded: "Descargado",
+    "Downloaded Agent Plugins": "Plugins de agentes descargados",
+    "Every package downloaded to this workspace.": "Todos los paquetes descargados en este espacio de trabajo.",
+    "No Agent Plugins are enabled for this workspace.": "No hay Plugins de agentes activados en este espacio de trabajo.",
+    "These plugins are enabled. Their skills reach the assistant's prompt on every run.":
+      "Estos plugins están activados. Sus habilidades llegan al prompt del asistente en cada ejecución.",
+    "Until then, the downloaded packages on the Downloaded tab are the ones Tovu ships.":
+      "Mientras tanto, los paquetes descargados en la pestaña Descargados son los que incluye Tovu.",
+
     // Hook-level notice/error strings (use-plugins.hooks.ts) — these never got translated during
     // the JSX-only pass since they live in `.hooks.ts` files.
     "failed to load plugins": "no se pudieron cargar los plugins",
