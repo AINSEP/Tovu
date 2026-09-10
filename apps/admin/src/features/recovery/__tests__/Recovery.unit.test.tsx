@@ -91,15 +91,7 @@ describe("loading and error-before-load states", () => {
   });
 });
 
-describe("loaded — header and cost class", () => {
-  it("renders the page title and cost class from status", () => {
-    renderRecovery({ status: { costClass: "expensive", banner: null } });
-    expect(screen.getByRole("heading", { name: "Recovery" })).toBeInTheDocument();
-    // Real cost-class badge text (`costClassLabel`), not the raw `"expensive"` enum value — see
-    // `rules.ts`'s own doc comment on why the raw value never reaches the screen anymore.
-    expect(screen.getByText("Costly restore")).toBeInTheDocument();
-  });
-
+describe("loaded", () => {
   it("shows an inline banner ABOVE the list, not a blank screen, once loaded and a later error occurs", () => {
     renderRecovery({ points: [POINT], status: STATUS, error: "failed to create restore point" });
     expect(screen.getByText("failed to create restore point")).toBeInTheDocument();

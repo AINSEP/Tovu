@@ -1559,9 +1559,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
-/* Recovery's two top-of-screen notices (2026-09-10, owner: read as plain text, not boxed cards) —
-   `RestoreCapabilityNotice`/`DegradedBannerView` in `Recovery.tsx`. Scoped modifier rather than
-   touching `.notice`/`.card` themselves, which stay card-shaped everywhere else in this admin.
+/* Recovery's top-of-screen degraded banner (2026-09-10, owner: read as plain text, not a boxed
+   card) — `DegradedBannerView` in `Recovery.tsx`. (Its sibling `RestoreCapabilityNotice` got this
+   same treatment the same day, then was cut outright — "seems useless" — later the same day; this
+   modifier stays, since `DegradedBannerView` still needs it.) Scoped modifier rather than touching
+   `.notice`/`.card` themselves, which stay card-shaped everywhere else in this admin.
    `.notice.recovery-plain-notice` matches `.notice.warning`/`.notice.error`'s own specificity
    (two classes) and is declared after both, so it wins the box-model tie — background/border/
    shadow/padding/margin all go to nothing — but it deliberately never sets `color`, so a toned

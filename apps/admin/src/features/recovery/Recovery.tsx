@@ -1,7 +1,6 @@
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { InfoTip } from "../../components/InfoTip";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatTimestamp } from "../../lib/format-timestamp";
@@ -10,7 +9,6 @@ import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import {
   categoryLabel,
-  costClassExplanation,
   costClassLabel,
   isAssertiveRecoveryBanner,
   recoveryBannerTone,
@@ -91,20 +89,6 @@ type RecoveryTabId = (typeof RECOVERY_TAB_IDS)[number];
  *  typo must not blank the panel. */
 function resolveRecoveryTabId(tabId: string | null | undefined): RecoveryTabId {
   return resolveActiveTabId(tabId, RECOVERY_TAB_IDS, "restore-points");
-}
-
-/** The "Restore capability: <cost class>" notice at the top of the screen, split out from
- * `Recovery` itself purely to keep `Recovery`'s own complexity under the gate — same
- * no-state, props-driven shape as `DegradedBannerView` below it. */
-function RestoreCapabilityNotice(props: { locale: string; status: AdminRecoveryStatus }) {
-  const { locale, status } = props;
-  const explanation = costClassExplanation(status.costClass, locale);
-  return (
-    <div className="notice recovery-plain-notice">
-      {t(locale, "Restore capability:")} <span className={`status status-${status.costClass}`}>{costClassLabel(status.costClass, locale)}</span>
-      {explanation ? <InfoTip label={explanation} /> : null}
-    </div>
-  );
 }
 
 function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus }) {
@@ -591,7 +575,6 @@ export function Recovery({ useRecoveryHook = useWiredRecovery, tabId }: Recovery
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      <RestoreCapabilityNotice locale={locale} status={status} />
       <DegradedBannerView locale={locale} status={status} />
 
       <TabBar ariaLabel={t("Recovery")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} containerHandle="recovery-tab-bar" />

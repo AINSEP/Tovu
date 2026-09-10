@@ -79,24 +79,6 @@ export function costClassLabel(costClass: string, locale: string): string {
   return known ? t(locale, known) : costClass;
 }
 
-/** Longer explanation for the same value, meant for an {@link InfoTip} on the top-of-page capability
- *  badge only (design-spec.md §2.2's `CapabilityStatusBar`) — the per-row/per-flow badges stay
- *  compact with just {@link costClassLabel}'s short text, matching this app's existing "detail lives
- *  in a hover affordance, not a repeated paragraph" convention (see `ThemeExplore.tsx`'s own
- *  `InfoTip` use). Reuses the existing `"No restore-point mechanism available — see the runbook."`
- *  copy for `unavailable` rather than minting new text, since `RestorePointsList`'s per-row cell
- *  already says exactly that in the same situation and the two should agree. */
-const COST_CLASS_EXPLANATIONS: Record<string, string> = {
-  cheap: "Restore points are lightweight file snapshots — fast and low-impact to capture or restore.",
-  expensive: "Restore points are full database dumps — capturing or restoring takes longer and uses more resources.",
-  unavailable: "No restore-point mechanism available — see the runbook.",
-};
-
-export function costClassExplanation(costClass: string, locale: string): string | null {
-  const known = COST_CLASS_EXPLANATIONS[costClass];
-  return known ? t(locale, known) : null;
-}
-
 /** Visual severity for a Recovery degraded banner — `.notice.error` vs `.notice.warning`, both
  *  already in `styles.css` (no new CSS). Mirrors `Database.tsx`'s `resolveSchemaStateWarning`
  *  `tone` field, the identical precedent for "not every degraded state is an error."
