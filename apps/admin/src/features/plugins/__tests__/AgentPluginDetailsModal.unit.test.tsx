@@ -49,10 +49,12 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
 
 /**
  * @file (continued) The wrap toggle added alongside `WrappedFileContent`/`AgentPluginFileContent`
- * (item 1, 2026-08-31 UI-fixes pass): a per-extension default, a manual per-file override, and a
- * reset back to that default when the file selection changes. Exercised through the same
- * `useDetails` seam above, with a small stateful fake standing in for the real hook's file-selection
- * wiring — `selectFile` has to actually change what's selected here, unlike the static fakes above.
+ * (item 1, 2026-08-31 UI-fixes pass): every file defaults to wrapped (owner correction, 2026-09-10 —
+ * a `plugin.json` line ran off the pane indefinitely under the old per-extension default), a manual
+ * per-file override, and a reset back to the wrapped default when the file selection changes.
+ * Exercised through the same `useDetails` seam above, with a small stateful fake standing in for the
+ * real hook's file-selection wiring — `selectFile` has to actually change what's selected here,
+ * unlike the static fakes above.
  */
 
 const WRAP_TOGGLE_NAME = /^Wrap:/;
@@ -69,21 +71,42 @@ function useFakeMultiFileDetails(): AgentPluginDetailsModalController {
 }
 
 describe("AgentPluginDetailsModal wrap toggle", () => {
-  it("defaults a markdown file to wrapped and a non-markdown file to unwrapped", async () => {
+  it("defaults every file to wrapped, markdown and non-markdown alike", async () => {
     const user = userEvent.setup();
     const { container } = render(
       <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeMultiFileDetails} />,
     );
 
-    // alpha.md is selected by default and is markdown -> wrapped, via the grid renderer.
+    // alpha.md is selected by default and defaults wrapped, via the grid renderer.
     expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
     expect(container.querySelector(".gutter")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "plugin.json" }));
 
-    // plugin.json is not markdown -> unwrapped, back through CodeWithLines instead.
-    expect(container.querySelector(".code-viewer--wrap")).not.toBeInTheDocument();
-    expect(container.querySelector(".gutter")).toBeInTheDocument();
+    // plugin.json is not markdown, but defaults wrapped too now — the extension no longer decides
+    // the default (owner correction, 2026-09-10).
+    expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
+    expect(container.querySelector(".gutter")).not.toBeInTheDocument();
+  });
+
+  it("keeps one gutter number per source line when a wrapped file has a long line, so numbering can't drift", () => {
+    const longLine = "x".repeat(400);
+    function useFakeLongLineDetails(): AgentPluginDetailsModalController {
+      const file = { relativePath: "plugin.json", content: `line one\n${longLine}\nline three` };
+      return { files: [file], selectedFile: file, selectFile: vi.fn() };
+    }
+
+    const { container } = render(
+      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeLongLineDetails} />,
+    );
+
+    // WrappedFileContent lays out one CSS grid row per source line (`.line-number` paired with its
+    // own `.line-content` in the same row), not two independent `white-space: pre` blocks kept in
+    // sync by both refusing to wrap — so a long line's row simply grows taller and the count of
+    // gutter numbers stays exactly the source line count regardless of how many visual rows the
+    // long line wraps to.
+    const lineNumbers = container.querySelectorAll(".line-number");
+    expect(Array.from(lineNumbers).map((el) => el.textContent)).toEqual(["1", "2", "3"]);
   });
 
   it("switches renderers and aria-pressed when the toggle is clicked, in both directions", async () => {

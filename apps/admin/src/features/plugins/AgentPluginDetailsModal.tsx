@@ -39,12 +39,6 @@ function PluginFilePath({ path }: { path: string }) {
   );
 }
 
-/** `.md` files read better wrapped (prose); `plugin.json`/`.ts` sources usually read better
- *  unwrapped (structure). Only the wrap-toggle's *default* per file — see {@link AgentPluginFileContent}. */
-function isMarkdownPath(path: string): boolean {
-  return path.toLowerCase().endsWith(".md");
-}
-
 /**
  * Wrap-safe stand-in for Jini's `CodeWithLines`, used only while wrapping is on. `CodeWithLines`
  * renders the gutter and the code as two independent `white-space: pre` text blocks that stay
@@ -69,8 +63,16 @@ function WrappedFileContent({ text }: { text: string }) {
   );
 }
 
-/** Keyed by `file.relativePath` in the parent, so switching the selected file remounts this and
- *  resets `wrap` to the extension-based default rather than carrying a manual toggle across files. */
+/**
+ * Keyed by `file.relativePath` in the parent, so switching the selected file remounts this and
+ * resets `wrap` to its default rather than carrying a manual toggle across files.
+ *
+ * Defaults to wrapped for every file. Previously unwrapped for `plugin.json`/`.ts` sources on the
+ * theory that structure reads better with no wrap; in practice the most likely first click in this
+ * modal (`plugin.json`) ran a long line off the pane indefinitely, and the owner had to scroll
+ * horizontally just to read it (owner correction, 2026-09-10). The toggle keeps unwrapped one click
+ * away for whoever genuinely wants raw structure.
+ */
 function AgentPluginFileContent({
   file,
   headingId,
@@ -80,7 +82,7 @@ function AgentPluginFileContent({
   headingId: string;
   agentHandleBase: string;
 }) {
-  const [wrap, setWrap] = useState(() => isMarkdownPath(file.relativePath));
+  const [wrap, setWrap] = useState(true);
 
   return (
     <section className="agent-plugin-source-content" aria-labelledby={headingId}>

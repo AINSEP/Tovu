@@ -164,7 +164,11 @@ export function buildPluginRemoveConfirmCopy(params: { name: string }): PluginRe
  * now-deleted `TOVU_BUNDLED_AGENT_PLUGINS` catalog did, so `AgentPlugins.tsx` needs a pure
  * formatting step rather than a stored field. Mirrors `tool-registrations.ts`'s server-side
  * `humanize()` (same transform, independently kept per that file's own "private formatting helper
- * of a sibling module" precedent — see its header).
+ * of a sibling module" precedent — see its header) — that copy has no override map of its own; it
+ * feeds an LLM-facing tool description, a different surface this pass did not touch.
+ *
+ * Checks {@link AGENT_PLUGIN_DISPLAY_NAME_OVERRIDES} first and falls back to the id-derived
+ * transform below for every id without an entry, so most ids never need a map entry at all.
  *
  * @complexity O(n) in `pluginId`'s length.
  */
@@ -180,7 +184,25 @@ const AGENT_PLUGIN_ID_ACRONYMS = new Set([
   "ai", "api", "cli", "css", "html", "http", "id", "io", "json", "mcp", "rss", "sdk", "seo", "sql", "ui", "url", "ux", "yaml",
 ]);
 
+/**
+ * Hand-curated display names for the rare id whose id-derived title-case reads wrong rather than
+ * merely plain. `humanizeAgentPluginId` consults this first; every id without an entry falls
+ * through unchanged to the generic transform.
+ *
+ * `"tovu-deploy-fly"` -> `"Fly.io Deploy"`: the id-derived title-case is `"Tovu Deploy Fly"`, which
+ * neither leads with the actual product this plugin deploys to (Fly.io, the hosting provider) nor
+ * spells its name — no acronym-list-style rule can produce a mid-word "." (owner correction,
+ * 2026-09-10, reported as unreadable on the one screen whose job is recognizing a package at a
+ * glance). Kept as a map rather than a special-cased branch so a second override never means a
+ * second `if`.
+ */
+const AGENT_PLUGIN_DISPLAY_NAME_OVERRIDES: Readonly<Record<string, string>> = {
+  "tovu-deploy-fly": "Fly.io Deploy",
+};
+
 export function humanizeAgentPluginId(pluginId: string): string {
+  const override = AGENT_PLUGIN_DISPLAY_NAME_OVERRIDES[pluginId];
+  if (override !== undefined) return override;
   return pluginId
     .split("-")
     .filter((part) => part.length > 0)
