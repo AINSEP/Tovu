@@ -386,6 +386,26 @@ function isGoogleTypeArrayKey(key: string, value: unknown): boolean {
   return key === "type" && Array.isArray(value);
 }
 
+/** True for a JSON-Schema `enum` that carries the nullable-idiom's literal `null` member alongside
+ *  its real values (this catalog's real sites: `seo`'s `ogType`/`twitterCard`, each paired with a
+ *  `type: ["string","null"]` on the same node) — see {@link applyGoogleSchemaEnum}'s doc for why
+ *  that `null` cannot reach Gemini's wire format as an `enum` member. */
+function isGoogleNullableEnumKey(key: string, value: unknown): boolean {
+  return key === "enum" && Array.isArray(value) && value.includes(null);
+}
+
+/** Drops a nullable `enum`'s literal `null` member before it reaches Gemini, whose `enum` is
+ *  `repeated string` only (see `sanitizeGoogleSchema`'s "Stringify a numeric `enum`" doc point for
+ *  the sibling rule this mirrors — a JS `null` fails that same check with `typeof member ===
+ *  "object"`, not `"string"`). Safe to drop rather than convert: the sibling `type: ["string",
+ *  "null"]` on the same node already becomes `nullable: true` via
+ *  {@link applyGoogleSchemaTypeArray} in the same entries loop, which is where Gemini expresses
+ *  "this field may be absent/null" — losing the redundant `null` `enum` member loses no
+ *  information Gemini's own shape has anywhere else to put it. */
+function applyGoogleSchemaEnum(result: Record<string, unknown>, value: readonly unknown[]): void {
+  result.enum = value.filter((member) => member !== null);
+}
+
 /** True for the one key ({@link applyGoogleSchemaEntry}'s `properties`) whose VALUE is a map keyed
  *  by arbitrary, tool-author-chosen property names rather than schema keywords. */
 function isGooglePropertiesKey(key: string, value: unknown): boolean {
@@ -447,6 +467,10 @@ function applyGoogleSchemaEntry(
     return { hasConst: true, constValue: value };
   }
   if (isGoogleTypeArrayKey(key, value)) return applyGoogleSchemaTypeArray(result, value as readonly unknown[]);
+  if (isGoogleNullableEnumKey(key, value)) {
+    applyGoogleSchemaEnum(result, value as readonly unknown[]);
+    return {};
+  }
   if (!GOOGLE_SUPPORTED_SCHEMA_KEYS.has(key)) return {};
   if (isGooglePropertiesKey(key, value)) {
     // Each property name is preserved verbatim; only its own subschema value is recursively
