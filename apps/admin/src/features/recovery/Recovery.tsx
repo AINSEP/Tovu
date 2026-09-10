@@ -313,10 +313,10 @@ function RestoreDisclosureStatus(props: {
 function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: boolean; onStart: () => void }) {
   const { locale, acknowledged, busy, onStart } = props;
   return (
-    <div className="notice">
+    <div className="recovery-ceremony-step">
       <button
         type="button"
-        className="btn-ghost"
+        className="btn-primary"
         disabled={!acknowledged || busy}
         aria-describedby="recovery-ack-label"
         title={!acknowledged ? t(locale, "Acknowledge the disclosure above to continue.") : undefined}
@@ -333,7 +333,7 @@ function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: b
 function RestorePlannedStep(props: { locale: string; planId: string; busy: boolean; onConfirm: () => void }) {
   const { locale, planId, busy, onConfirm } = props;
   return (
-    <div className="notice">
+    <div className="recovery-ceremony-step">
       <p>{restorePlanReadyMessage(locale, planId)}</p>
       <button
         type="button"
@@ -352,7 +352,7 @@ function RestorePlannedStep(props: { locale: string; planId: string; busy: boole
 function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => void }) {
   const { locale, busy, onExecute } = props;
   return (
-    <div className="notice">
+    <div className="recovery-ceremony-step">
       <p>{t(locale, "Confirmed. Executing performs the restore — this cannot be undone.")}</p>
       <button
         type="button"
@@ -374,7 +374,7 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
 function RestoreDoneStep(props: { locale: string; restoreRunId: string; state: string; restartRequired?: boolean }) {
   const { locale, restoreRunId, state, restartRequired } = props;
   return (
-    <div className="notice">
+    <div className="recovery-ceremony-step">
       <p role="status">
         {restoreDoneMessage(locale, restoreRunId, <span className={`status status-${state}`}>{state}</span>)}
       </p>
@@ -460,22 +460,23 @@ function RestoreFlow({
       >
         {t("← Restore points")}
       </button>
-      <h2>
-        {t("Restore to")} {formatTimestamp(point.createdAt)}
-      </h2>
-
-      <div className="settings-layer-grid">
-        <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t("Trigger")}</span>
-          <span>{point.trigger}</span>
-        </div>
-        <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t("Cost class")}</span>
-          <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
-        </div>
-        <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t("Kind")}</span>
-          <span>{point.kind}</span>
+      <div className="card recovery-ceremony-summary">
+        <h2 className="card-title">
+          {t("Restore to")} {formatTimestamp(point.createdAt)}
+        </h2>
+        <div className="settings-layer-grid">
+          <div className="settings-layer-cell">
+            <span className="settings-layer-label">{t("Trigger")}</span>
+            <span>{point.trigger}</span>
+          </div>
+          <div className="settings-layer-cell">
+            <span className="settings-layer-label">{t("Cost class")}</span>
+            <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
+          </div>
+          <div className="settings-layer-cell">
+            <span className="settings-layer-label">{t("Kind")}</span>
+            <span>{point.kind}</span>
+          </div>
         </div>
       </div>
 

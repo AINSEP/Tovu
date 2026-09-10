@@ -2677,8 +2677,63 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .storage-restore-point-link { background: transparent; border: none; color: var(--accent-text); cursor: pointer; padding: 0; text-decoration: underline; }
 
 .recovery-degraded-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; justify-content: space-between; }
-.recovery-disclosure-panel ul { margin: 0.4rem 0; padding-left: 1.3rem; }
-.recovery-disclosure-panel label { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.88rem; }
+
+/* Restore ceremony redesign (web-design pass, 2026-09-10 — owner, looking at the live page: "holy
+   shit that looks awful"). Three fixes, reusing only existing tokens/patterns:
+   1. `.recovery-ceremony-summary` groups the Trigger/Cost class/Kind facts with the heading above
+      them into one `.card`/`.card-title` (both already established elsewhere — Workspace,
+      Deployment) instead of a bare `<h2>` sitting over an isolated `.settings-layer-grid`.
+      `.settings-layer-grid`/`.settings-layer-cell`/`.settings-layer-label` themselves are UNTOUCHED
+      — shared with Workspace.tsx and Taxonomy.tsx.
+   2. Inside `.recovery-disclosure-panel` (DisclosurePanel's own doc comment: "the load-bearing,
+      blocking centerpiece of this screen"), the discard-count list now outweighs its own coverage
+      caveat instead of both rendering as identical `.notice`-inherited paragraphs: the list gets the
+      size/weight/color step up, the caveat right after it (`ul + p`) steps down to muted/small, and
+      the baseline-unavailable warning gets the same tinted-box treatment `.notice.error` already
+      uses elsewhere (scoped under this ancestor, not touching `.save-error`'s own shared rule) so it
+      reads as a real warning instead of one red sentence indistinguishable from the paragraph above
+      it. The checkbox becomes a full-width, bordered-off confirmation row — the gate the operator
+      must cross, not text with a tiny native box floating in it.
+   3. `.recovery-ceremony-step` replaces the full `.notice` box each ceremony step (idle/planned/
+      confirmed/done) used to wrap itself in. Two full bordered/shadowed cards stacked directly on
+      top of each other (disclosure panel, then a second one holding only a button) is what actually
+      read as "unstyled default HTML boxes" — a hairline divider reads as this card's next step
+      instead. `RestoreIdleStep`'s button also moves `.btn-ghost` (transparent bg AND transparent
+      border — no chrome at all, which is why the CTA looked perpetually broken/disabled even when
+      enabled) to `.btn-primary`, so the three reachable ceremony buttons now step up in weight with
+      the ceremony's own escalating commitment: primary (plan) -> `.btn-secondary` (confirm, already
+      correct) -> `.btn-danger` (execute, already correct). */
+.recovery-ceremony-summary h2 { margin: 0 0 var(--space-4); }
+
+.recovery-disclosure-panel > p:first-child { margin: 0 0 var(--space-2); font-size: var(--text-md); color: var(--fg); }
+.recovery-disclosure-panel ul {
+  margin: var(--space-2) 0 var(--space-4); padding-left: 1.3rem;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  font-size: var(--text-md); font-weight: 600; color: var(--fg);
+}
+.recovery-disclosure-panel ul + p { font-size: var(--text-xs); color: var(--muted); margin: 0 0 var(--space-3); line-height: 1.5; }
+.recovery-disclosure-panel label {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);
+  font-size: var(--text-sm); font-weight: 600; color: var(--fg); cursor: pointer;
+}
+.recovery-disclosure-panel label input[type="checkbox"] {
+  width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; accent-color: var(--primary); cursor: pointer; flex-shrink: 0;
+}
+.recovery-disclosure-panel .save-error, .recovery-ceremony-step .save-error {
+  margin: 0 0 var(--space-3); padding: var(--space-3) var(--space-4);
+  background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--r-sm);
+  font-weight: 600; font-size: var(--text-sm);
+}
+.recovery-ceremony-step {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);
+}
+/* Same flex-column stretch trap `.settings-scope-editor .btn-danger` documents above: without this,
+   `align-items: stretch` (the default) blows every ceremony-step button out to the container's full
+   width. The `<p>`s inside these steps still want the stretch (so their text wraps at the container
+   width, not their own shrink-to-fit width) — only the button opts out. */
+.recovery-ceremony-step button { align-self: flex-start; }
 
 /* SEO — per-entry overrides + analyze (SPEC-037 REQ-06/07) */
 .seo-entry-section { margin-top: 1.6rem; }
