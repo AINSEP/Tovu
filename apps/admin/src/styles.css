@@ -2799,8 +2799,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Mixed toward `--surface` rather than toward `transparent`: every other mix in this block is
    opaque, and an oklch mix with `transparent` premultiplies against transparent BLACK, which
    drags the hue on a light ground. Opaque keeps the marker the same muted red in both themes. */
+/* `0.72em` rather than a smaller value: the row's tallest element is `.recovery-loss-what`, not
+   the muted qualifier that starts the line, so the marker is aligned to the noun's optical centre
+   — at 0.55em it sat visibly high against it. */
 .recovery-loss-list li::before {
-  content: ""; position: absolute; left: 0; top: 0.55em;
+  content: ""; position: absolute; left: 0; top: 0.72em;
   width: 6px; height: 6px; border-radius: 1px;
   background: color-mix(in oklch, var(--danger) 55%, var(--surface));
 }
@@ -2841,8 +2844,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    manifest rather than a child): a rounded red box inset within a tinted box was a box inside a
    box, and it made the alarm look like a footnote attached to the ledger rather than the ruling
    on it. Edge to edge, it is unmistakably the rank-1 band in a stack of bands. */
+/* The BAND is full-bleed; its TEXT still takes a reading measure. Verified rendered at a 1512px
+   viewport, the sentence ran as one ~130-character line across the whole card — past twice the
+   length prose stays readable at, on the one sentence here that most needs to be read rather than
+   skimmed. Two lines at a comfortable measure beat one line nobody finishes.
+
+   The measure is trailing padding, NOT `max-width`: this `<p>` carries the band's background
+   itself, so capping its width would shrink the red band along with the text and undo the
+   full-bleed treatment that makes it rank 1. `max()` keeps the ordinary gutter once the card is
+   narrower than the measure, where `calc()` would otherwise go negative. */
 .recovery-disclosure-panel .recovery-baseline-alarm {
-  display: block; margin: 0; padding: var(--space-5) var(--space-6);
+  display: block; margin: 0;
+  padding: var(--space-5) max(var(--space-6), calc(100% - 92ch)) var(--space-5) var(--space-6);
   background: var(--danger); color: var(--danger-ink); border-radius: 0;
   font-size: var(--text-base); font-weight: 600; line-height: 1.5;
   max-width: none;
