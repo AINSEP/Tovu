@@ -1,22 +1,20 @@
 # ============================================================================
-# NOT THE DEPLOY PATH. Verified 2026-09-02 — read this before trusting anything below.
+# Remote corrected 2026-09-09 — the paragraph below was stale and has misled a session before.
 #
-# Production (`tovu.fly.dev`) is deployed by the "Deploy to Fly.io" workflow in a
-# SEPARATE PUBLIC MIRROR REPO, `github.com/leonaburime-ucla/Tovu`, branch `main`.
-# This checkout's only remote is the private working repo `leonaburime-ucla/Tovu-AI-CMS`,
-# and the mirror's HEAD (`e75cd098`) does not exist in this tree at all.
+# Production (`tovu.fly.dev`) is deployed by the "Deploy to Fly.io" workflow
+# (`.github/workflows/fly-deploy.yml`), triggered on push to `main`. This checkout's only
+# remote is now `origin` -> `github.com/leonaburime-ucla/Tovu.git` — the SAME public repo
+# that deploy runs from, not a separate private working repo. `gh run list` / `gh api
+# repos/:owner/:repo/...` run from this directory therefore already answer about the right
+# repo; no `--repo` override is needed.
 #
-# Two consequences, both of which have already misled a session:
-#   - `gh run list` / `gh api repos/:owner/:repo/...` run from this directory answer about
-#     Tovu-AI-CMS, whose CI has failed in 5-6s on every run for weeks (a billing block).
-#     Reading that produces the confident and WRONG conclusion that production cannot be
-#     deployed. Pass `--repo leonaburime-ucla/Tovu` for any deploy question.
-#   - The sibling `.github/workflows/fly-deploy.yml` in THIS repo is not on this repo's
-#     default branch, so GitHub 404s it and `workflow_dispatch` cannot fire it. It has
-#     never run once. The workflow that actually deploys lives in the mirror.
+# What is still true and still worth knowing: this file (and the workflow itself) live only
+# on `restructure/apps-website-phased` today, not on `main` (the branch the workflow's
+# `push:` trigger actually watches) — see that workflow file's own header for the current
+# commit-count gap and how to fire a deploy by hand (`workflow_dispatch`) in the meantime.
 #
-# `app` was `tovu-ai-cms` here, which resolves to nothing (HTTP 000); the live app is
-# `tovu` (HTTP 200). Corrected below to match observed production.
+# `app` matches the live app: `tovu` resolves (HTTP 200); an earlier `tovu-ai-cms` did not
+# (HTTP 000) and was corrected below to match observed production.
 # ============================================================================
 
 # Tovu — Fly.io app config.
