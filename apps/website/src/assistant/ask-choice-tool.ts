@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
+import { ToolInputError } from "@jini-ai/core";
 import {
   buildDomainRegistrations,
   withSchemaOnRejection,
@@ -57,10 +60,110 @@ import {
  * could corrupt, and no confirmation token, because there is nothing to confirm — this tool COLLECTS
  * a decision, it does not act on one. The action the administrator decided about is a separate,
  * ordinary tool call the model makes afterward, informed by what this tool returned.
+ *
+ * ## The fallback answer IS something to confirm, even though this tool writes nothing
+ *
+ * The paragraph above is true for the held-open path (`awaitAskChoiceSubmission`): the model is
+ * blocked inside its own call for as long as the form is outstanding, so it never gets a turn to
+ * call this tool again before the real answer arrives. The no-`emitSurface` fallback breaks that
+ * premise — that call RETURNS immediately with "nothing has been answered yet," and the model is
+ * free to call `assistant_ask_choice` again right away with whatever `choice`/`selections` it
+ * likes. `isFallbackAskChoiceAnswer` used to treat every such call as the administrator's real
+ * answer, with no check that a form had ever been shown, let alone answered — a live incident (a
+ * paid `media_generate_asset` credential spend that nobody chose) is the best remaining explanation
+ * once a pre-checked radio was empirically ruled out.
+ *
+ * So the fallback path mints its own single-use, principal-bound, TTL-limited ticket
+ * (`ASK_CHOICE_ANSWER_TICKET_PARAM`) the moment it renders a form with no exchange to open — the
+ * exact shape `pending-confirmations.ts` uses for the identical problem ("a second tool call the
+ * model could otherwise make itself"), narrowed to what this tool needs (no entity/version to bind
+ * to). The ticket rides home in the form's `baseParams`, which `@jini-ai/ui`'s `buildFormSurface`
+ * renders into the surface's HTML and merges into whatever the form posts back — never into this
+ * call's own `modelText`, so the model never reads it from its own result (the daemon's
+ * `splitToolResultSurfaces` withholds the UI resource from model context regardless). A "second
+ * call" is now only accepted when it carries a ticket that matches an outstanding, unconsumed one
+ * minted for the same principal; anything else — no ticket, an unknown one, an expired one, a
+ * replayed one — is refused with a `ToolInputError`, not reported as `submitted: true`.
  */
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
 export const ASK_CHOICE_TOOL_ID = "assistant_ask_choice";
+
+/**
+ * Carries the fallback path's answer ticket in the rendered form's callback params.
+ *
+ * Deliberately NOT {@link SURFACE_EXCHANGE_ID_PARAM}: that name is `mcp-ui-tool-calls-route.ts`'s
+ * OWN shape discriminator — a callback carrying it is routed to a Shape-1 exchange delivery
+ * (`surfaceExchanges.deliver`), which would look for a live `SurfaceExchange` that was never
+ * opened (the fallback exists precisely because there was no `emitSurface` to open one with) and
+ * reject with 409 before this handler's second call ever ran. This ticket needs the OTHER shape —
+ * an ordinary second tool call (ADR-053 Decision 3) — so it rides under a name that route does not
+ * recognize.
+ */
+export const ASK_CHOICE_ANSWER_TICKET_PARAM = "__askChoiceAnswerTicket";
+
+/** How long a fallback-path ticket may sit unredeemed. Mirrors `tool-surface-exchanges.ts`'s own
+ *  `DEFAULT_SURFACE_IDLE_TTL_MS` — long enough for a human to read a dialog and decide, short
+ *  enough that a ticket from an abandoned form cannot be redeemed later out of scrollback. */
+const ASK_CHOICE_TICKET_TTL_MS = 5 * 60 * 1000;
+
+/** Returned to the model in place of `submitted: true` when a "second call" cannot be matched to
+ *  an outstanding ticket. Deliberately says WHAT to do, not just what went wrong — the failure
+ *  mode this guards is the model fabricating an answer, so the correction is "ask again for real
+ *  and wait," not a retryable shape fix. */
+const ASK_CHOICE_FORGED_ANSWER_MESSAGE =
+  "assistant_ask_choice: this answer does not match a form that is currently outstanding for this " +
+  "administrator — there is no such ticket, it already expired, or it was already used. The " +
+  "administrator's answer can only arrive by them submitting a real rendered form; never set " +
+  "'choice' or 'selections' yourself. If a decision is still needed, call assistant_ask_choice " +
+  "again with the question and wait for the real response.";
+
+/**
+ * A single-use, principal-bound ticket store guarding the fallback (no-`emitSurface`) path's
+ * second call — see this file's own header ("The fallback answer IS something to confirm").
+ *
+ * In-process and created fresh per {@link buildAskChoiceRegistrations} call, exactly like
+ * `pending-confirmations.ts`'s store: `buildAskChoiceRegistrations` runs once per daemon boot, so
+ * one instance spans every call the daemon serves, and a ticket that does not survive a daemon
+ * restart is one the administrator will simply be shown a fresh form for — the fail-closed
+ * direction. Not shared with the real `SurfaceExchangeStore`: that store's `open()` requires a
+ * live `SurfaceEmitter` to send through, which is exactly what this branch does not have.
+ *
+ * @complexity O(1) amortized per operation; expired entries are swept lazily on mint.
+ */
+function createAskChoiceAnswerTicketStore(): {
+  mint(principalId: string): string;
+  redeem(spec: { ticket: string | undefined; principalId: string }): boolean;
+} {
+  const pending = new Map<string, { principalId: string; expiresAtMs: number }>();
+
+  function sweep(nowMs: number): void {
+    for (const [key, entry] of pending) {
+      if (entry.expiresAtMs <= nowMs) pending.delete(key);
+    }
+  }
+
+  return {
+    mint(principalId) {
+      const nowMs = Date.now();
+      sweep(nowMs);
+      const ticket = randomUUID();
+      pending.set(ticket, { principalId, expiresAtMs: nowMs + ASK_CHOICE_TICKET_TTL_MS });
+      return ticket;
+    },
+    redeem({ ticket, principalId }) {
+      if (ticket === undefined) return false;
+      const nowMs = Date.now();
+      const entry = pending.get(ticket);
+      if (!entry) return false;
+      // Single-use — removed before any binding check, so a replayed or probed ticket cannot be
+      // told apart from one that never existed (mirrors `pending-confirmations.ts#redeem`).
+      pending.delete(ticket);
+      if (entry.expiresAtMs <= nowMs) return false;
+      return entry.principalId === principalId;
+    },
+  };
+}
 
 /** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts`'s identical field. */
 interface AgentToolDefinition {
@@ -325,20 +428,31 @@ function describeUnansweredAskChoice(status: Exclude<SurfaceMessage["status"], "
 }
 
 /** Builds the ask-choice MCP-UI form resource. Split out purely to keep the handler under the
- *  complexity ceiling; mirrors `demo-choices-tool.ts#buildDemoChoicesFormSurface`'s structure. */
+ *  complexity ceiling; mirrors `demo-choices-tool.ts#buildDemoChoicesFormSurface`'s structure.
+ *
+ *  @param input.answerTicket - Present only when there is no `exchange` (the no-emit-seam
+ *  fallback) — the single-use ticket minted for this render, embedded in `baseParams` the same way
+ *  `exchange.id` is, so the form's own submission carries it back automatically. The two are
+ *  mutually exclusive: a call either opens a real exchange or mints a ticket, never both. */
 function buildAskChoiceFormSurface(input: {
   principalId: string;
   exchange: SurfaceExchange | undefined;
+  answerTicket: string | undefined;
   parsed: ParsedAskChoiceInput;
 }): ReturnType<typeof buildFormSurface> {
-  const { principalId, exchange, parsed } = input;
+  const { principalId, exchange, answerTicket, parsed } = input;
+  const baseParams = exchange
+    ? { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id }
+    : answerTicket !== undefined
+      ? { [ASK_CHOICE_ANSWER_TICKET_PARAM]: answerTicket }
+      : undefined;
   return buildFormSurface({
     uri: `ui://tovu/ask-choice/${principalId}/${Date.now()}` as UIResourceUri,
     title: parsed.title,
     ...(parsed.description === undefined ? {} : { description: parsed.description }),
     submitLabel: parsed.submitLabel ?? "Submit",
     toolName: ASK_CHOICE_TOOL_ID,
-    ...(exchange ? { baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } } : {}),
+    ...(baseParams ? { baseParams } : {}),
     fields: buildAskChoiceFields(parsed),
     // Cancel posts back rather than just closing the dialog, exactly like `demo-choices-tool.ts` —
     // a silent close would strand the agent's blocked call until the TTL expires.
@@ -396,14 +510,28 @@ export function buildAskChoiceRegistrations(
   _routeDeps: unknown,
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
+  // One store per registration build, matching `buildAskChoiceRegistrations`'s own boot-once
+  // lifetime (see `createAskChoiceAnswerTicketStore`'s doc). Guards ONLY the no-emit-seam
+  // fallback below — the held-open path never reaches `isFallbackAskChoiceAnswer` at all.
+  const answerTickets = createAskChoiceAnswerTicketStore();
+
   const handlers: Record<string, ToolHandler> = {
     [ASK_CHOICE_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
       const input = (ctx.input ?? {}) as Record<string, unknown>;
 
       // ---- Fallback second call: no `emitSurface` was available on the original call, so the form
       // went out the old way and the administrator's answer arrived as a fresh call. See
-      // `isFallbackAskChoiceAnswer`'s own doc for why `title` is the discriminator. ----
+      // `isFallbackAskChoiceAnswer`'s own doc for why `title` is the discriminator.
+      //
+      // Matching that shape is necessary but NOT sufficient: it is exactly the shape the model
+      // itself could fabricate by calling this tool a second time with an invented `choice`. What
+      // makes this branch safe is the ticket check below — fail closed on anything that does not
+      // redeem a real, outstanding, unconsumed ticket for THIS principal. ----
       if (isFallbackAskChoiceAnswer(input)) {
+        const ticket = typeof input[ASK_CHOICE_ANSWER_TICKET_PARAM] === "string" ? input[ASK_CHOICE_ANSWER_TICKET_PARAM] : undefined;
+        if (!answerTickets.redeem({ ticket, principalId: ctx.principal.id })) {
+          throw new ToolInputError(ASK_CHOICE_FORGED_ANSWER_MESSAGE);
+        }
         return describeAskChoiceAnswer(input);
       }
 
@@ -418,7 +546,11 @@ export function buildAskChoiceRegistrations(
             ? surfaces.surfaceExchanges.open({ toolId: ASK_CHOICE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface)
             : undefined;
 
-          const ui = buildAskChoiceFormSurface({ principalId: ctx.principal.id, exchange, parsed });
+          // No exchange means the fallback below is about to hand this call's answer to whatever
+          // arrives as a second call — mint the ticket that second call must carry.
+          const answerTicket = exchange ? undefined : answerTickets.mint(ctx.principal.id);
+
+          const ui = buildAskChoiceFormSurface({ principalId: ctx.principal.id, exchange, answerTicket, parsed });
 
           // ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface
           // the old way; the administrator's submission arrives as a second call and lands in the

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 
-import { ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
+import { ASK_CHOICE_ANSWER_TICKET_PARAM, ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
 import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
@@ -32,12 +32,13 @@ interface CallOptions {
   input?: unknown;
   emitSurface?: SurfaceEmitter;
   signal?: AbortSignal;
+  principalId?: string;
 }
 
 function call(handler: ReturnType<typeof buildHandler>, options: CallOptions = {}) {
   return handler({
     executionId: "exec-1",
-    principal: { id: "principal-1" },
+    principal: { id: options.principalId ?? "principal-1" },
     run: { id: "run-1" },
     input: options.input ?? {},
     signal: options.signal ?? new AbortController().signal,
@@ -50,6 +51,15 @@ function exchangeIdFromSurface(surface: unknown): string {
   const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id, or the administrator's answer has nothing to name");
+  return match[1]!;
+}
+
+/** Pulls the fallback path's answer ticket out of a directly-returned tool result's HTML, the way
+ *  the rendered iframe's own submission would. */
+function answerTicketFromResult(result: unknown): string {
+  const html = (result as { content: Array<{ resource?: { text: string } }> }).content[1]?.resource?.text ?? "";
+  const match = html.match(new RegExp(`${ASK_CHOICE_ANSWER_TICKET_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the fallback surface must carry its answer ticket, or a real submission has nothing to redeem");
   return match[1]!;
 }
 
@@ -236,17 +246,79 @@ test("with no emit seam the tool falls back to returning the surface, and opens 
   assert.equal(result.content[1]?.type, "resource");
 });
 
-test("the fallback's second call still echoes the administrator's selections to the agent", async () => {
+test("the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket", async () => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const handler = buildHandler(surfaceExchanges);
 
-  const result = await call(handler, { input: { choice: "wait" } });
+  const opened = (await call(handler, { input: MOBILE_CSS_CALL })) as { content: Array<{ resource?: { text: string } }> };
+  const ticket = answerTicketFromResult(opened);
+
+  const result = await call(handler, { input: { choice: "wait", [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
 
   assert.deepEqual(result, {
     submitted: true,
     choice: "wait",
     note: "Tell the administrator what you understood from their answer, in plain language, before proceeding.",
   });
+});
+
+test("a fabricated second call with no ticket at all is refused, never reported as submitted", async () => {
+  // This is the forgery the model itself could attempt: no form was ever rendered for this input,
+  // so there is nothing to redeem. Before the fix this returned `{ submitted: true, choice:
+  // 'media_generate_asset', ... }` — a decision the administrator never made, echoed straight into
+  // the agent's next turn. The exact scenario a live incident traced a paid credential spend to.
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const handler = buildHandler(surfaceExchanges);
+
+  await assert.rejects(
+    call(handler, { input: { choice: "media_generate_asset" } }),
+    (error: Error) => {
+      assert.match(error.message, /does not match a form that is currently outstanding/);
+      assert.match(error.message, /never set 'choice' or 'selections' yourself/i);
+      return true;
+    },
+  );
+});
+
+test("a second call carrying an unknown ticket is refused the same way as no ticket", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const handler = buildHandler(surfaceExchanges);
+
+  await assert.rejects(
+    call(handler, { input: { choice: "wait", [ASK_CHOICE_ANSWER_TICKET_PARAM]: "not-a-real-ticket" } }),
+    /does not match a form that is currently outstanding/,
+  );
+});
+
+test("a ticket already redeemed once cannot be replayed", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const handler = buildHandler(surfaceExchanges);
+
+  const opened = (await call(handler, { input: MOBILE_CSS_CALL })) as { content: Array<{ resource?: { text: string } }> };
+  const ticket = answerTicketFromResult(opened);
+
+  const first = await call(handler, { input: { choice: "wait", [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.deepEqual((first as { submitted: boolean }).submitted, true);
+
+  await assert.rejects(
+    call(handler, { input: { choice: "apply", [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } }),
+    /does not match a form that is currently outstanding/,
+  );
+});
+
+test("a ticket minted for one administrator cannot be redeemed by another", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const handler = buildHandler(surfaceExchanges);
+
+  const opened = (await call(handler, { input: MOBILE_CSS_CALL, principalId: "principal-1" })) as {
+    content: Array<{ resource?: { text: string } }>;
+  };
+  const ticket = answerTicketFromResult(opened);
+
+  await assert.rejects(
+    call(handler, { input: { choice: "wait", [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket }, principalId: "principal-2" }),
+    /does not match a form that is currently outstanding/,
+  );
 });
 
 test("rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn", async () => {
