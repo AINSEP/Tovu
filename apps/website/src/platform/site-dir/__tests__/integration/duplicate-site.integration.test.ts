@@ -6,6 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { openChatDb } from "../../../db/sqlite/chat-db.js";
 import { duplicateSite } from "../../duplicate-site.js";
 import { InitDirNotEmptyError, InternalError, SiteDirInvalidError, ValidationError } from "../../errors.js";
 import { initSite } from "../../init-site.js";
@@ -31,7 +32,12 @@ function mkTempParent(): string {
  *  `uploads/`. Mirrors `duplicate-content-db.integration.test.ts`'s own fixture-building approach. */
 function seedSourceExtras(siteDir: string): void {
   const dbPath = path.join(siteDir, "content.db");
-  const raw = new Database(dbPath);
+  // `initSite` opens content.db through `openContentDb`, which now drops the ai_chats/
+  // ai_chat_messages/assistant_agent_sessions tables the moment they're empty (the two-db split's
+  // forward migration, `drop-empty-legacy-chat-tables.ts`), so by the time this fixture runs they
+  // no longer exist. Reopen via `openChatDb` first to recreate them (byte-identical DDL to
+  // migrations 0023/0051), modeling a PRE-split install whose content.db still holds real rows.
+  const raw = openChatDb(dbPath);
   try {
     const now = Date.now();
     raw

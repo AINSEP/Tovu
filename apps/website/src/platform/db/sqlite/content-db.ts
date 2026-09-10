@@ -7,6 +7,7 @@ import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import * as schema from "../schema.js";
+import { dropEmptyLegacyChatTables } from "./drop-empty-legacy-chat-tables.js";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
@@ -83,6 +84,11 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
 
   const db = drizzle(sqlite, { schema }) as ContentDb;
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+  // Two-db split (`0fb84ae0`) forward migration, §"why this can't be a plain .sql migration" in
+  // drop-empty-legacy-chat-tables.ts: drops the three vestigial chat tables migrations 0023/0051
+  // still create, but only the ones with no rows, so a pre-split install's real history is never
+  // touched (chat-orphan-check.ts keeps flagging those for a human).
+  dropEmptyLegacyChatTables(sqlite);
   ensureWatermarkRow(db);
   if (seed) seedContentDb({ db, seed });
   return db;

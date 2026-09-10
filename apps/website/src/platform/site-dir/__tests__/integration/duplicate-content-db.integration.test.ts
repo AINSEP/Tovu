@@ -6,6 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { openChatDb } from "../../../db/sqlite/chat-db.js";
 import { initSite } from "../../init-site.js";
 import { duplicateContentDb } from "../../duplicate-content-db.js";
 
@@ -35,7 +36,13 @@ function buildSourceWithChatHistory(parent: string): string {
   const { dir } = initSite({ dir: path.join(parent, "source"), name: "Source Site" });
   const dbPath = path.join(dir, "content.db");
 
-  const raw = new Database(dbPath);
+  // `initSite` opens content.db through `openContentDb`, which now drops these three tables the
+  // moment they're empty (the two-db split's forward migration, `drop-empty-legacy-chat-tables.ts`)
+  // -- so right after `initSite` they no longer exist. Reopen the same file through `openChatDb`
+  // first to recreate them (byte-identical DDL to migrations 0023/0051, per
+  // `chat-orphan-check.integration.test.ts`'s own fixture note), modeling a PRE-split install whose
+  // content.db still carries real rows in tables this repo's migrations still create.
+  const raw = openChatDb(dbPath);
   try {
     const now = Date.now();
     raw
