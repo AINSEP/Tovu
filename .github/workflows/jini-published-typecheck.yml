@@ -1,0 +1,96 @@
+name: Jini Published Typecheck
+
+# Narrow, fast, ENABLED gate -- deliberately its OWN workflow, not a change to ci.yml.
+# .github/workflows/ci.yml exists but is `disabled_manually` on GitHub (checked via
+# `gh api repos/leonaburime-ucla/Tovu/actions/workflows`) and carries a dozen gates, several
+# intentionally red-by-policy or report-only (check:architecture, check:inventory, the full
+# repo-wide test suite, etc.) -- turning that whole workflow back on would bury this signal in
+# pre-existing noise. This workflow does exactly one thing: prove Tovu still typechecks against
+# the @jini-ai/* versions actually published to npm, in the ~2 minutes that costs, well before the
+# Docker build gets anywhere near it.
+#
+# THE BUG THIS CATCHES. Tovu's dev `node_modules/@jini-ai/*` are `npm link`-style symlinks into a
+# sibling Jini checkout (development/scripts/link-jini.mjs) -- often newer than what's actually
+# published. `npm run typecheck` on a linked machine is green against that newer local source.
+# `Dockerfile:44`'s `npm install` (and any downstream `npm ci`) instead pulls the real published
+# tarballs, which can be missing symbols the source already uses. Deploy run 34506663942 hit
+# exactly this: green local typecheck, then 102 raw TS errors 6.5 minutes into the Docker build
+# (`Module '"@jini-ai/cms/media"' has no exported member 'findMediaByIdOrSlug'`, and more). A
+# GitHub Actions runner never has that sibling Jini checkout, so its own `npm ci` always resolves
+# @jini-ai/* straight from the registry -- the exact thing the Docker build does, just faster and
+# on every push/PR instead of only at deploy time.
+#
+# Local equivalent: `npm run check:jini-registry-drift` (development/scripts/check-jini-registry-
+# drift.mjs) reproduces the same registry-vs-local comparison on a developer's own linked machine,
+# without evicting their symlinks -- useful before pushing, not a replacement for this gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, general-work]
+  # Lets fly-deploy.yml run this as a prerequisite job (`uses: ./.github/workflows/jini-published-
+  # typecheck.yml`) so a known-bad tree can't reach `flyctl deploy` even on a direct push to main
+  # that skips review -- see fly-deploy.yml's own `jini-published-typecheck` job.
+  workflow_call: {}
+
+jobs:
+  typecheck-against-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/admin/package-lock.json
+
+      # Plain `npm ci`, deliberately -- a fresh GitHub Actions runner has no sibling Jini checkout
+      # to `npm link` against, so this always resolves @jini-ai/* from the registry, exactly like
+      # the Dockerfile's `npm install` does. No special redirection needed here (contrast
+      # check-jini-registry-drift.mjs, which has to shadow node_modules to get this same effect on
+      # a developer's machine where the symlinks already exist).
+      - name: Install root dependencies (registry-only)
+        run: npm ci
+
+      # `continue-on-error` + captured output, not a bare `run:` -- this step's own failure must
+      # not short-circuit the admin typecheck below or skip the diagnosis step; both projects'
+      # results need to reach that one step so it can report on whichever failed (or both).
+      - name: Typecheck (root) against published @jini-ai/*
+        id: typecheck-root
+        continue-on-error: true
+        run: |
+          set +e
+          npm run typecheck > /tmp/typecheck-root.log 2>&1
+          code=$?
+          cat /tmp/typecheck-root.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
+
+      - name: Install admin dependencies (registry-only)
+        run: npm ci --prefix apps/admin
+
+      - name: Typecheck (admin) against published @jini-ai/*
+        id: typecheck-admin
+        continue-on-error: true
+        run: |
+          set +e
+          npm --prefix apps/admin run typecheck > /tmp/typecheck-admin.log 2>&1
+          code=$?
+          cat /tmp/typecheck-admin.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
+
+      # THIS is what makes the job blocking (the two steps above are continue-on-error so both
+      # always run and both logs always exist). Scans both logs for the specific "missing
+      # @jini-ai/* export/module" signature and prints a targeted explanation ahead of the raw
+      # output -- see development/scripts/diagnose-jini-typecheck-failure.mjs for why, and for what
+      # it does when the failure does NOT match that signature (still fails, raw log only).
+      - name: Diagnose result
+        if: always()
+        run: |
+          node development/scripts/diagnose-jini-typecheck-failure.mjs \
+            "${{ steps.typecheck-root.outputs.exit_code }}" /tmp/typecheck-root.log \
+            "${{ steps.typecheck-admin.outputs.exit_code }}" /tmp/typecheck-admin.log

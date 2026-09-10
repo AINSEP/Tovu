@@ -22,6 +22,12 @@ name: Deploy to Fly.io
 # workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever
 # is already on the triggering branch/commit via Fly's remote builder.
 #
+# One exception, added after deploy run 34506663942 (see the `jini-published-typecheck` job
+# below): `deploy` now `needs` that one narrow, ENABLED gate — install + typecheck against the
+# @jini-ai/* versions actually on npm — so a build known to fail on registry drift never reaches
+# `flyctl deploy`. That job is a separate, independently-triggered workflow file
+# (`.github/workflows/jini-published-typecheck.yml`), not `ci.yml`.
+#
 # ============================================================================
 # One-time manual setup — this workflow cannot do any of this for you
 # ============================================================================
@@ -88,7 +94,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gates the deploy below on `.github/workflows/jini-published-typecheck.yml` (a reusable
+  # workflow -- it also runs standalone on push/PR, see its own file). Added after deploy run
+  # 34506663942 shipped a green `main` past this workflow straight into a Docker build that died
+  # 6.5 minutes in on @jini-ai/* registry drift (see that workflow's header for the full story).
+  # `ci.yml` is `disabled_manually` on GitHub and not a substitute here -- it doesn't gate this
+  # workflow at all (separate trigger, separate job graph), and re-enabling the whole thing would
+  # also block deploys on its many known-red/report-only gates, not just this one narrow check.
+  jini-published-typecheck:
+    uses: ./.github/workflows/jini-published-typecheck.yml
+
   deploy:
+    needs: jini-published-typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

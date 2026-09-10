@@ -60,6 +60,7 @@
     "check:route-coverage-floor": "tsx development/scripts/check-route-coverage-floor.ts",
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
     "check:route-test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/route-test-failure-baseline.json",
+    "check:jini-registry-drift": "node development/scripts/check-jini-registry-drift.mjs",
     "check:openapi-contract": "tsx development/scripts/check-openapi-contract.ts",
     "check:openapi-secret-leaks": "tsx development/scripts/check-openapi-secret-leaks.ts",
     "triage:coverage-gaps": "tsx development/scripts/classify-coverage-gaps.ts",
