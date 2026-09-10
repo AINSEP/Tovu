@@ -55,6 +55,19 @@ jobs:
       - name: Install root dependencies (registry-only)
         run: npm ci
 
+      # `packages/sdk` (`@tovu/sdk`) is a REAL npm workspace, not a `@jini-ai/*` registry package --
+      # `npm ci` above already links it via the root `workspaces` field, but its `dist/` is
+      # gitignored like every other build output, so a fresh checkout has no built output for it
+      # yet. `apps/website/src` imports `@tovu/sdk` as a real (non-type-only) module in 19 places, so
+      # skipping this step makes typecheck fail with `TS2307: Cannot find module '@tovu/sdk'` --
+      # NOT registry drift, just a missing prerequisite. `Dockerfile:58` runs this exact command
+      # before its own root build for the identical reason (commit `241a8e46` -- a prior production
+      # deploy broke on this before the sdk build step existed). Caught in run 34511570890: this
+      # workflow's first version omitted it and false-positived as a registry-drift failure.
+      # apps/admin has no equivalent need -- verified `grep -rl "@tovu/sdk" apps/admin/src` is empty.
+      - name: Build packages/sdk (workspace prerequisite for typecheck)
+        run: npm run build --workspace=packages/sdk
+
       # `continue-on-error` + captured output, not a bare `run:` -- this step's own failure must
       # not short-circuit the admin typecheck below or skip the diagnosis step; both projects'
       # results need to reach that one step so it can report on whichever failed (or both).
