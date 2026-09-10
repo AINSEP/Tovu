@@ -665,6 +665,49 @@ export interface AdminPublishCredentialsSnapshot {
   executionMode: AdminPublishExecutionMode;
 }
 
+/** Mirrors `resolveRuntimeMode()`'s own closed union (`contracts/core/runtime-mode.ts`) — the
+ *  Site Token tab's own copy of "is this a production deployment" (the fact that decides whether
+ *  the generate action can matter at all — see `AdminSiteTokenStatus`'s doc). */
+export type AdminSiteTokenRuntimeMode = "production" | "local";
+
+/** Mirrors `GET .../system/site-token`'s response shape (`inspectRootKeyMaterial`, server-side).
+ *  NEVER carries the key value itself — only whether one is active, which of the two possible
+ *  sources it came from, and a one-way `fingerprint` a human can use to recognize "same key as
+ *  before" across a reload without revealing it. Call `api.revealSiteToken()` for the actual
+ *  value, behind its own explicit action. */
+export interface AdminSiteTokenStatus {
+  active: boolean;
+  source: "env" | "file" | "none";
+  fingerprint?: string;
+  /** `true` when a source was found but is not valid hex — `active` is `false` in this case too. */
+  invalid?: boolean;
+  /** Where a generated file lives (or would live) — not secret, a fixed filesystem convention.
+   *  Always present, even when `source` isn't `"file"`, so a `"none"` status can still say where
+   *  Generate would write. */
+  keyFilePath: string;
+  runtimeMode: AdminSiteTokenRuntimeMode;
+}
+
+/** Mirrors `POST .../system/site-token/generate`'s `201` response shape. `hex` is the raw root
+ *  key, in the clear. Not the only call that can return one anymore — `api.revealSiteToken()`
+ *  also can, on demand (2026-09-09: the owner's own words, "i want that token to be visible to
+ *  admins or else when it breaks they have no idea whats going on" — superseding an earlier,
+ *  narrower "shown once at creation" brief). The caller must still never persist or log the value
+ *  itself; `AdminSiteTokenStatus` (the plain `GET`) never carries it. */
+export interface AdminGeneratedSiteToken {
+  hex: string;
+  fingerprint: string;
+  keyFilePath: string;
+  runtimeMode: AdminSiteTokenRuntimeMode;
+}
+
+/** Mirrors `POST .../system/site-token/reveal`'s response shape — {@link AdminSiteTokenStatus}
+ *  plus the raw value when one is active. `hex` is absent when `active` is `false` (nothing to
+ *  reveal). */
+export interface AdminRevealedSiteToken extends AdminSiteTokenStatus {
+  hex?: string;
+}
+
 /**
  * The three providers the Source Control page can save a connection for. Deliberately its own
  * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
@@ -3661,6 +3704,33 @@ export const api = {
     request<{ verification: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}/verify`, {
       method: "POST",
     }),
+
+  // Secrets panel → Site Token tab (`src/server/inbound/admin-http/routes/system/site-token.ts`)
+  // — status of the TOVU_INTEGRATIONS_ROOT_KEY root key's generated-file fallback, an explicit
+  // reveal action, and a create-only generate action. `admin.security.tokens.manage`-gated
+  // server-side on every one of the three calls below. See that route file's own header for the
+  // 2026-09-09 durability fix (a generated key file now genuinely protects every stored credential
+  // in production too, with one disclosed gap: webhook signing/newsletter tokens still need the
+  // env var there) and for the accepted security tradeoff of a key file living beside the
+  // database it protects.
+  /** Never throws for "no key active" — that is `{active: false, source: "none"}`, a normal 200,
+   *  not an error. Never carries the key value — see `revealSiteToken` for that. */
+  getSiteTokenStatus: () => request<AdminSiteTokenStatus>(`/workspaces/${WORKSPACE_ID}/system/site-token`),
+  /** Returns the raw key value (whichever source is active) when one is set — a deliberate,
+   *  explicit, separately-clickable action, never fired on page load. Superseded an earlier
+   *  fingerprint-only brief (owner: "i want that token to be visible to admins or else when it
+   *  breaks they have no idea whats going on"). No audit trail — this codebase has no
+   *  general-purpose sensitive-read audit mechanism to hook into (checked; not built here). */
+  revealSiteToken: () =>
+    request<AdminRevealedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/reveal`, { method: "POST" }),
+  /** `409 ENV_VAR_ACTIVE` if the env var is already set (it always wins over a file, so writing
+   *  one would be silently inert), `409 ALREADY_EXISTS` if a key file is already present — both
+   *  surfaced as a thrown `ApiError` with that marker on `.code` (or, absent a `code`, on
+   *  `.message` — see `rules.ts`'s `classifyAccessTokenSubmitError` for the precedent this
+   *  mirrors). Only ever CREATES; there is no rotate/replace call in this file. Works in
+   *  production now too (2026-09-09 durability fix) — this is no longer local-only. */
+  generateSiteToken: () =>
+    request<AdminGeneratedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/generate`, { method: "POST" }),
 
   // Source Control page → credential management (`src/server/routes/admin/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per

@@ -32,6 +32,17 @@ export function AccessTokensIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** The Site Token tab's own icon — a shield, distinct from {@link AccessTokensIcon}'s plain key:
+ *  this tab is about the ONE key that protects every OTHER credential, not a credential itself. */
+export function SiteTokenIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M12 3.5 4.5 6.2v5.3c0 4.4 3.1 7.4 7.5 8.9 4.4-1.5 7.5-4.5 7.5-8.9V6.2L12 3.5Z" />
+      <path d="M9.4 12.2l1.8 1.8 3.6-3.8" />
+    </svg>
+  );
+}
+
 /** The search field's leading icon — always `aria-hidden`, the field has its own visually-hidden
  *  `<label>` carrying the accessible name (`AccessTokensTab.tsx`'s `AccessTokensSearch`). */
 export function SearchIcon({ size = 16 }: { size?: number }) {

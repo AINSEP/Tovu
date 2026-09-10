@@ -6,8 +6,10 @@ import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
-import { AccessTokensIcon } from "./security-visuals";
+import { SiteTokenTab } from "./SiteTokenTab";
+import { AccessTokensIcon, SiteTokenIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
+import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
 
 /**
  * @file The Security page (`/admin/access-tokens`) — a consolidation, not a new store: every token
@@ -51,18 +53,35 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
  * second Create — not as two separate surfaces, and there is no partial-inventory disclosure left to
  * show once every store is read.
  *
- * Page shell mirrors `SourceControl.tsx`/`Deployment.tsx` exactly: `page-header` + `TabBar`, one real
- * tab today ("Access Tokens") — not padded with a disabled placeholder for a second tab nothing here
- * asks for yet (Activity Log and Roles & Permissions already have their own top-level Operations/
- * People nav entries, not sibling tabs of this page).
+ * Page shell mirrors `SourceControl.tsx`/`Deployment.tsx` exactly: `page-header` + `TabBar`. Two
+ * real tabs as of 2026-09-09 — "Access Tokens" (above) and "Site Token" (`SiteTokenTab.tsx`) — not
+ * padded with a disabled placeholder for a THIRD tab nothing here asks for yet (Activity Log and
+ * Roles & Permissions already have their own top-level Operations/People nav entries, not sibling
+ * tabs of this page).
+ *
+ * Page renamed "Security" -> "Secrets" the same day (owner naming decision, not this agent's
+ * call): the most accurate label for what's actually here — access tokens, the site/root key,
+ * credentials — matching what Fly/GitHub already call the same thing. The rename is cosmetic
+ * (nav label + `<h1>` only, per `translateAdminNavLabel`'s "copy string is its own i18n key"
+ * convention — `panels.tsx`'s nav entry and this file's own `t(locale, "Secrets")` calls are the
+ * only two places the old "Security" literal lived); the module/file names, the route id
+ * (`/admin/access-tokens`, independent of the label — see `panels.tsx`'s own comment), and every
+ * internal identifier below (`SECURITY_TAB_IDS`, `security-i18n.ts`, `SecurityProps`, …) are
+ * UNCHANGED — renaming those is a bigger, separate move this pass does not make.
+ *
+ * "Site Token" joined the same day: not another saved credential this page reads, but the ONE key
+ * that (partially — see `SiteTokenTab.tsx`'s own header) protects every credential Access Tokens
+ * lists. `admin.security.tokens.manage`-gated separately from every verb above (`features/
+ * identity/site-token-permission.ts`) — a narrower trust boundary than ordinary content admin,
+ * deliberately not reusing this page's existing permission checks.
  */
 
-const SECURITY_TAB_IDS = ["access-tokens"] as const;
+const SECURITY_TAB_IDS = ["access-tokens", "site-token"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
-/** Falls back to the one tab for an absent or unrecognized `?tab=` value. Delegates to the shared
- *  `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/`Database.tsx`/
- *  `Themes.tsx` all use. */
+/** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value. Delegates to
+ *  the shared `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/
+ *  `Database.tsx`/`Themes.tsx` all use. */
 function resolveSecurityTabId(tabId: string | null | undefined): SecurityTabId {
   return resolveActiveTabId(tabId, SECURITY_TAB_IDS, "access-tokens");
 }
@@ -73,6 +92,8 @@ export interface SecurityProps {
   /** DI seam for tests, threaded through to {@link AccessTokensTab} — same convention
    *  `SourceControlProps.useSourceControlCredentialsHook` follows. */
   useAccessTokensHook?: typeof useWiredAccessTokens;
+  /** DI seam for tests, threaded through to {@link SiteTokenTab} — same convention. */
+  useSiteTokenHook?: typeof useWiredSiteToken;
 }
 
 export function Security(props: SecurityProps) {
@@ -87,6 +108,13 @@ export function Security(props: SecurityProps) {
       handle: "security-tab-access-tokens",
       handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
     },
+    {
+      id: "site-token",
+      label: t(locale, "Site Token"),
+      icon: <SiteTokenIcon size={16} />,
+      handle: "security-tab-site-token",
+      handleLabel: "Switch to the Site Token tab — view and generate the root key file that decrypts webhook signing and newsletter tokens on a local install",
+    },
   ];
 
   function handleTabChange(nextTabId: string) {
@@ -99,12 +127,12 @@ export function Security(props: SecurityProps) {
         className="page-header"
         {...agentHandle("security-header", {
           role: "region",
-          label: "Security panel header — every saved access token in this install, in one place",
+          label: "Secrets panel header — every saved access token and the root key that protects them, in one place",
         })}
       >
         <div className="page-header-text">
           <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Security")}</h1>
+          <h1 className="page-title">{t(locale, "Secrets")}</h1>
           <p className="page-description">
             {t(
               locale,
@@ -114,13 +142,14 @@ export function Security(props: SecurityProps) {
         </div>
       </div>
       <TabBar
-        ariaLabel={t(locale, "Security")}
+        ariaLabel={t(locale, "Secrets")}
         tabs={tabs}
         activeId={activeTabId}
         onChange={handleTabChange}
         containerHandle="security-tab-bar"
       />
       {activeTabId === "access-tokens" ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
+      {activeTabId === "site-token" ? <SiteTokenTab useSiteTokenHook={props.useSiteTokenHook} /> : null}
     </div>
   );
 }

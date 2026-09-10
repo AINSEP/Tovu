@@ -96,3 +96,32 @@ const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
 export function removeDialogLastRowNote(locale: string, provider: string): string {
   return interpolate(REMOVE_DIALOG_LAST_ROW_TEMPLATE[locale] ?? REMOVE_DIALOG_LAST_ROW_TEMPLATE.en!, { provider });
 }
+
+/** Site Token tab's load-error banner — same `{error}`-interpolated shape as
+ *  {@link accessTokensLoadErrorMessage}. */
+const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Couldn't load the root key's status: {error}",
+};
+export function siteTokenLoadErrorMessage(locale: string, error: string): string {
+  return interpolate(SITE_TOKEN_LOAD_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_LOAD_ERROR_TEMPLATE.en!, { error });
+}
+
+/** Site Token tab's generic generate-error banner — used when the failure is neither of the two
+ *  known markers (`ENV_VAR_ACTIVE`/`ALREADY_EXISTS`, both handled with their own fixed copy in
+ *  `SiteTokenTab.tsx` rather than this template, since neither needs an `{error}` slot). */
+const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Couldn't generate a key: {error}",
+};
+export function siteTokenGenerateErrorMessage(locale: string, error: string): string {
+  return interpolate(SITE_TOKEN_GENERATE_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_GENERATE_ERROR_TEMPLATE.en!, { error });
+}
+
+/** Site Token tab's reveal-error banner — same `{error}`-interpolated shape. Unlike generate,
+ *  reveal has no known-marker cases to special-case (a reveal either works or fails outright), so
+ *  this is the only error template that call site needs. */
+const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Couldn't reveal the root key: {error}",
+};
+export function siteTokenRevealErrorMessage(locale: string, error: string): string {
+  return interpolate(SITE_TOKEN_REVEAL_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_REVEAL_ERROR_TEMPLATE.en!, { error });
+}
