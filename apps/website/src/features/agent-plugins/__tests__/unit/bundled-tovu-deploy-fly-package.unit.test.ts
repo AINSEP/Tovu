@@ -139,16 +139,20 @@ test("SKILL.md states that the volume shadows the image's ENTIRE sites/ tree", a
   assert.match(skill, /hydrateBlobStoreFromSeed/);
 });
 
-test("SKILL.md keeps secrets out of fly.toml and names all three, with their real blocking status", async () => {
+test("SKILL.md keeps secrets out of fly.toml and names all three as boot-blocking", async () => {
   const skill = await readSkill();
   assert.match(skill, /TOVU_ADMIN_PASSWORD/);
   assert.match(skill, /ANALYTICS_ROOT_KEY_SEED/);
   assert.match(skill, /TOVU_INTEGRATIONS_ROOT_KEY/);
 
-  // The distinction is the whole value of the table: two fail loudly at boot, the third fails
-  // silently and permanently. A drift that flattens them into one "set these" list loses it.
+  // As of 2026-09-09 (ddfa5e07) all three are boot-blocking — TOVU_INTEGRATIONS_ROOT_KEY's old
+  // silent-rekey-on-redeploy failure mode was closed by a boot gate, so there is no longer a
+  // "not boot-blocking" secret to distinguish in this table. What still has to survive: the
+  // rotation/undecryptable risk is a DIFFERENT hazard the boot gate cannot close (a rotated key
+  // still boots fine and silently orphans every credential sealed under the old one) — a drift
+  // that dropped that warning while flattening the table would lose real information.
   assert.match(skill, /Boot-blocking/i);
-  assert.match(skill, /Not boot-blocking/i);
+  assert.doesNotMatch(skill, /Not boot-blocking/i);
   assert.match(skill, /undecryptable/i);
 });
 
