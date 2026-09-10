@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "higgsfield-media",
+  "version": "1.0.0",
+  "description": "Generates an image with the connected Higgsfield MCP server and lands it in this site's Media library. Encodes the four things generic MCP knowledge gets wrong about this connection: generate_image is asynchronous and returns a job id rather than an image, job_status sync:true can never complete over Tovu's federated transport, model choice is an account paywall (z_image works where gpt_image_2 and recraft_v4_1 return 'Requires basic plan or higher'), and the CDN URL only reaches the library through media_import_from_url.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "keywords": [
+    "higgsfield",
+    "image",
+    "image-generation",
+    "generate",
+    "media",
+    "media-library",
+    "import",
+    "external-mcp",
+    "federation",
+    "mcp",
+    "oauth",
+    "async",
+    "job-status",
+    "polling",
+    "cdn"
+  ]
+}
