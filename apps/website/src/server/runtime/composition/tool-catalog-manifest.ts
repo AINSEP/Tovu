@@ -12,6 +12,7 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
+import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePostTools, contributePostDuplicateHandlers } from "#src/features/post/tool-registrations";
@@ -211,6 +212,15 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * reached the assistant before this. See `features/external-mcp/tool-registrations.ts`'s own header
  * for the wiring detail.
  *
+ * `contributeFsFilesTools()` (2026-09-10) is a NEW domain, two tools: `fs_list_files`/`fs_read_file`,
+ * closing the "the assistant has no filesystem access at all" gap — concretely, an Agent Plugin's own
+ * bundled `references/*.template.*` files were unreachable. Read-only, and scoped to a fixed, named
+ * five-directory allowlist (`features/fs-files/layout.ts`) resolved off `platform/site-dir`'s own
+ * `resolveSiteRoot`/`resolveProductRoot` — never the site directory itself (which holds `chat.db`) and
+ * never anything server-internal. See `features/fs-files/agent-tools.ts`'s own header for the full
+ * allowlist argument and why no write/edit/delete tool exists in this domain. Adds no new module edge
+ * for the identical reason `site-evidence`/`custom-credentials` above do not.
+ *
  * `contributeContentDuplicationTools()` (2026-09-07) is a NEW domain, one tool: `content_duplicate`,
  * generic over a `resource` parameter rather than one bespoke `*_duplicate` tool per resource (owner
  * correction to the original per-resource `content_post_duplicate` design — see
@@ -244,6 +254,7 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeDeploymentsTools());
   registerToolContributor(contributeEntriesTools());
   registerToolContributor(contributeExternalMcpTools());
+  registerToolContributor(contributeFsFilesTools());
   registerToolContributor(contributeFormsTools());
   registerToolContributor(contributeIdentityTools());
   registerToolContributor(contributeWebhooksTools());

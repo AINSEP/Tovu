@@ -24,6 +24,15 @@
  * assistant-tool domain (`features/sites/tool-registrations.ts`), also outside `site-dir`.
  */
 export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
+/**
+ * `product-root.ts` joined 2026-09-10: `features/fs-files/layout.ts` is the first `features/**`
+ * caller of `resolveProductRoot` (every prior caller — `init-site.ts`, `read-template.ts`,
+ * `server/runtime/composition/deps.ts` — is either inside `site-dir` itself or a composition root),
+ * so it needs the same door `site-root.ts` above already opened for `features/skills/layout.ts`/
+ * `features/agent-plugins/layout.ts` (`no-deep-imports:platform/site-dir` is `error`-severity — see
+ * `.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`).
+ */
+export { resolveProductRoot } from "./product-root.js";
 export {
   SiteCorruptError,
   SiteDirInvalidError,
