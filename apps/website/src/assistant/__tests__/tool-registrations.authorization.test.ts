@@ -46,6 +46,7 @@ interface AuthorizeCall {
   principalId: string;
   permission: string;
   workspaceId: string;
+  entityType: string;
 }
 
 /**
@@ -175,10 +176,11 @@ test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired
   // fixture table too.
   //
   // `collections_content_type_list` is excluded from THIS table on purpose: unlike the five below,
-  // it is not self-enforcing (see `tool-registrations.ts`'s file header), so its `authorize()` call
-  // carries an `entityType` the shared per-tool loop's 3-key `deepEqual` does not expect. It has its
-  // own dedicated block further down, the same split `tool-registrations.comments.test.ts` uses
-  // between its shared mutation loop and `comments_list_moderation_queue`'s own tests.
+  // it is not self-enforcing (see `tool-registrations.ts`'s file header) — its handler calls the
+  // route's own `requireToolPermission` explicitly rather than a domain function that self-enforces.
+  // It has its own dedicated block further down (asserted per-field, not via the strict `deepEqual`
+  // the shared loop below uses), the same split `tool-registrations.comments.test.ts` uses between
+  // its shared mutation loop and `comments_list_moderation_queue`'s own tests.
   const wiredIds = [...registrationsById().keys()]
     .filter((id) => id.startsWith("collections_content_type_") && id !== "content_read.collection_content_type")
     .sort();
@@ -205,10 +207,16 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     await wired.handler(executionContext(TOOL_INPUTS[toolId]));
 
     assert.equal(authorizeCalls.length, 1, "exactly one authorization evaluation — ADR-021 §2 'one evaluator'");
+    // `entityType: "content-type"` is threaded through by Jini's `a93e7b62` fix ("thread entityType
+    // through entries/content-types authorize chokepoints"): before it, these five domain functions
+    // omitted `entityType` while their fronting HTTP routes pre-checked WITH it, so a principal
+    // holding only a `resourceType: "content-type"`-scoped grant passed the route but was denied at
+    // the chokepoint with `resource_scope_mismatch`. This expectation intentionally matches that fix.
     assert.deepEqual(authorizeCalls[0], {
       principalId: PRINCIPAL_ID,
       permission: expectedPermission,
       workspaceId: WORKSPACE_ID,
+      entityType: "content-type",
     });
   });
 
