@@ -294,8 +294,14 @@ function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogg
 }
 
 /**
- * The production session factory: reach the server, handshake, and give up on the whole thing if
- * the handshake outlasts `connectTimeoutMs`.
+ * The production session factory: reach the server and handshake.
+ *
+ * Which config field bounds the handshake differs by transport, because the two adapters do not
+ * offer the same seam: the stdio arm gives up on the whole `connect` (spawn + handshake) if it
+ * outlasts `connectTimeoutMs`, via the outer race in {@link connectMcpStdioSessionWithSpawnTimeout}.
+ * The hosted arm has no such outer race — see the inline comment on its branch below for why — so
+ * its handshake is bounded the same way every later request is, by whatever `requestTimeoutMs` it is
+ * constructed with.
  *
  * Dispatches on the launch spec rather than on a configured transport name, so "which adapter" is
  * decided by the shape of the thing that was resolved and cannot disagree with it.
@@ -305,10 +311,14 @@ async function defaultConnect(connection: ResolvedFederatedConnection): Promise<
     return connectMcpHttpSession({
       exchange: createFetchMcpHttpExchange(),
       spec: connection.launch,
-      // The hosted adapter needs no outer race: its per-request timeout is enforced with an
-      // AbortSignal that also cancels the underlying request, so the handshake is already bounded.
-      // `connectTimeoutMs` is the right bound for it because the handshake IS the connect.
-      requestTimeoutMs: connection.config.connectTimeoutMs,
+      // Unlike the stdio arm, the hosted adapter has ONE timeout field, and it governs every
+      // request the session ever sends (`adapter.http.ts`'s `McpHttpSession.postWithTimeout`),
+      // the handshake included but not exclusively — every later `tools/call` reuses it too. So
+      // `callTimeoutMs` is the right bound here, matching the stdio arm below: `connectTimeoutMs`
+      // still needs its own outer race for that arm's `spawn`-can-hang gap, but this adapter's
+      // request-scoped `AbortSignal` already bounds its own handshake, so no such race is needed
+      // here — that much of the old comment stands, only the bound it fed was wrong.
+      requestTimeoutMs: connection.config.callTimeoutMs,
     });
   }
   return connectMcpStdioSessionWithSpawnTimeout(connection, connection.launch);
