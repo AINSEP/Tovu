@@ -392,6 +392,16 @@ export interface AdminDeploymentOverview {
   deployClis: AdminDeployCliStatus[];
 }
 
+/** Mirrors `ObservabilityConfig` in `apps/website/src/platform/observability/config.ts`, flattened
+ *  for the wire the same way {@link AdminDeploymentOverview} flattens its own source config.
+ *  `serviceName` is `null` whenever `enabled` is `false` — there is no service name to report for
+ *  a port that never loads the OTel SDK. Deliberately does NOT carry the OTLP endpoint itself: that
+ *  can embed a collector hostname or credential, and this status read only needs to answer on/off. */
+export interface AdminObservabilityStatus {
+  enabled: boolean;
+  serviceName: string | null;
+}
+
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
@@ -3515,6 +3525,25 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "PATCH", body: JSON.stringify({ enabled }) }
     ),
+  /**
+   * PLUGIN_UNINSTALL (Milestone 2, 2026-08-20) — `DELETE /workspaces/:id/plugins/:pluginId`.
+   * Deletes a `"site"` plugin's on-disk artifact and every workspace's activation row for it; no
+   * `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`-style spec package covers this route at all (see
+   * `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own header — new surface, not an
+   * implementation of an existing contract). Deliberately NOT `executeCommand`-wrapped server-side
+   * (a filesystem delete has no meaningful inverse), so unlike `setPluginEnabled` above there is no
+   * `changeSetId` in the response — just the id and which workspaces' activation rows were cleared.
+   *
+   * Refuses with `PLUGIN_NOT_FOUND` (404, id unknown), `PLUGIN_NOT_UNINSTALLABLE` (422, the
+   * discovered record is `"built-in"`), `PLUGIN_ENABLED` (409, still enabled in some workspace), or
+   * `PLUGIN_ID_INVALID` (400, path-traversal-shaped id) — see `rules.ts`'s `describeApiError` for
+   * the operator-facing text each maps to.
+   */
+  uninstallPlugin: (pluginId: string) =>
+    request<{ pluginId: string; clearedWorkspaceIds: string[] }>(
+      `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
+      { method: "DELETE" }
+    ),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
@@ -3543,6 +3572,13 @@ export const api = {
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
   getDeploymentOverview: () =>
     request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
+
+  // Observability panel, Overview tab (`apps/website/src/server/inbound/admin-http/routes/system/
+  // observability-status.ts`) — `system.read`-gated, same shape as `getDeploymentOverview` above.
+  /** Whether `platform/observability`'s real OTel adapter is on right now, and under what service
+   *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
+  getObservabilityStatus: () =>
+    request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with

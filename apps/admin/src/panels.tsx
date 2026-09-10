@@ -28,6 +28,7 @@ import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
 import { SourceControl } from "./features/source-control";
 import { Security } from "./features/security";
+import { Observability } from "./features/observability";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
@@ -587,7 +588,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // label instead of one implying it contains the other.
   {
     id: "plugins",
-    render: () => <Plugins />,
+    render: (ctx) => <Plugins tabId={ctx.query.get("tab")} />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
@@ -866,6 +867,28 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // Deployment/Source Control already draw: the summary is agent-readable, the credential-entry
     // fields and the destructive Remove action are not (`AccessTokensTab.tsx`'s own `agentHandle`
     // tagging plan).
+  },
+  {
+    // `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09): a real,
+    // enabled Operations row, not `soon`/`Placeholder` — the owner explicitly wants this clickable
+    // now. Renders `Observability.tsx`, a real screen whose Overview tab reads REAL current state
+    // over `GET .../system/observability-status` (own `hooks/use-observability-status.hooks.ts`),
+    // same "a real, non-Placeholder component sets `agentReachable: true` explicitly" convention
+    // this file's `agent-plugins` entry documents. Positioned directly ahead of Activity Log /
+    // Import & Export (both still `soon`, unbuilt) — same "a BUILT screen belongs beside its
+    // nearest neighbours in meaning, not buried under panels nobody can use yet" reasoning
+    // `deployment`'s own comment gives for its position relative to Recovery.
+    id: "observability",
+    render: () => <Observability />,
+    nav: {
+      label: "Observability",
+      group: "Operations",
+      // A monitor with a pulse line — distinct from every sibling Operations icon (database's
+      // ellipse-stack, integrations' zigzag, recovery's circular arrow, deployment's shield-ish
+      // arc, source-control's two-nodes, access-tokens' shield).
+      icon: '<rect x="2" y="3" width="14" height="11" rx="1.5"/><path d="M4.5 9h2l1.2-3 1.6 6 1.2-4.5 1 1.5h2.5"/>',
+    },
+    agentReachable: true,
   },
   {
     id: "activity-log",

@@ -29,6 +29,7 @@ import { Recovery } from "../../features/recovery";
 import { Deployment } from "../../features/deployment";
 import { SourceControl } from "../../features/source-control";
 import { Security } from "../../features/security";
+import { Observability } from "../../features/observability";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "../../features/widgets";
 import { Workspace } from "../../features/workspace";
 import { AiAssistant } from "../../features/ai-assistant";
@@ -65,9 +66,9 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  it("has exactly 45 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(45);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(45);
+  it("has exactly 46 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(46);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
   });
 });
 
@@ -95,6 +96,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "billing", component: Placeholder, extraProps: { sectionId: "billing" } },
   { id: "database", component: Database },
   { id: "recovery", component: Recovery },
+  { id: "observability", component: Observability },
   { id: "activity-log", component: Placeholder, extraProps: { sectionId: "activity-log" } },
   { id: "import-export", component: Placeholder, extraProps: { sectionId: "import-export" } },
   { id: "workspace", component: Workspace },

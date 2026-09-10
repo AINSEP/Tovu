@@ -79,6 +79,32 @@ describe("Add-Ons nav section", () => {
   });
 });
 
+describe("Operations nav section — observability", () => {
+  it("observability is a fully enabled link, not a soon/preview-gated one", () => {
+    // Same "enabled, not soon" guarantee `agent-plugins` asserts for Add-Ons above — the owner's
+    // explicit ask for this entry (`development/todos.md`, 2026-09-09) was that it be clickable
+    // now, not a disabled preview.
+    const operations = getNav().find((group) => group.label === "Operations");
+    expect(operations).toBeDefined();
+
+    const item = operations!.items.find((i) => i.id === "observability");
+    expect(item).toBeDefined();
+    expect(item?.label).toBe("Observability");
+    expect(item?.soon).toBeFalsy();
+    expect(item?.soonPreviewable).toBeFalsy();
+  });
+
+  it("sits ahead of Activity Log and Import & Export, the two still-unbuilt Operations rows", () => {
+    const operations = getNav().find((group) => group.label === "Operations");
+    const ids = operations!.items.map((item) => item.id);
+
+    const observabilityIndex = ids.indexOf("observability");
+    expect(observabilityIndex).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf("activity-log")).toBeGreaterThan(observabilityIndex);
+    expect(ids.indexOf("import-export")).toBeGreaterThan(observabilityIndex);
+  });
+});
+
 describe("Commerce nav section", () => {
   it("exists with exactly Payments, Orders, Products, Subscriptions, Billing in that order", () => {
     const commerce = getNav().find((group) => group.label === "Commerce");
