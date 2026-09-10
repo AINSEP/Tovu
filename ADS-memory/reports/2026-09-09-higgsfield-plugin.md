@@ -237,9 +237,45 @@ Inactive, bundled, seeded by the system — identical in shape to how `site-comp
 4. **The Higgsfield account is plan-limited.** `z_image` works; the better models need an upgrade.
    Nothing in Tovu can change that.
 
-## One thing worth someone owning (not mine — `apps/admin`)
+## RETRACTED: the "pre-checked money-spending option"
 
-In the `assistant_ask_choice` dialog the assistant raised, the **pre-checked default was the
-money-spending option** ("Generate it with Tovu's own `media_generate_asset` instead… costs real
-money on that vendor's credential"). A spend-by-default radio is worth a look by whoever owns that
-component.
+An earlier version of this report stated that the `assistant_ask_choice` dialog **pre-checked the
+money-spending option**. **I am withdrawing that claim.** It is not supported by the evidence, and
+another agent's independent trace of the code path contradicts it.
+
+**What I actually saw.** Before I clicked anything, the Playwright accessibility snapshot reported:
+
+```
+radio "Generate it with Tovu's own media_generate_asset instead … costs real money
+       on that vendor's credential"                          [checked] [active] [ref=f1e10]
+radio "Stop here — I'll upgrade the Higgsfield plan myself…"                   [ref=f1e13]
+radio "Stop entirely — drop this request for now"                              [ref=f1e16]
+```
+
+So it was a real reading of the rendered a11y tree, not an inference from option ordering or from
+the assistant's recommendation text.
+
+**Why it is probably an artifact of my own automation.** `[checked]` arrived paired with
+`[active]` (focus), and the same pairing follows focus around. In the post-click snapshot
+(`.playwright-mcp/page-2026-09-10T00-57-07-836Z.yml:436-442`) the paid radio has **no** `[checked]`
+and the radio I clicked carries `[checked] [active]` together. Chromium can report a
+focused radio in an otherwise-unchecked group as checked, and nothing but my own driving focused
+that group.
+
+**The code path says nothing is authored as checked:** `buildAskChoiceFields` never sets
+`EnumField.value`, there is one construction site, and the emitted HTML carries zero `checked`
+attributes. That is stronger evidence about intent than an a11y-tree reading taken through an
+automation harness. **Treat the component as correct on this point.**
+
+**And my run does NOT support the related self-answer defect.** The concern raised against
+`isFallbackAskChoiceAnswer` (`ask-choice-tool.ts:296`) — that a call carrying a `choice` and no
+`title` is accepted as an authentic operator answer — is a real code-reading, but **my transcript
+is not evidence for it**. In run 1 (`fc6b26ed-4619-469e-aa94-9a7cdd749ebe`) `assistant_ask_choice`
+was invoked **exactly once**, carrying `title` and **no `choice`**; run 2 contains no
+`assistant_ask_choice` at all. There is no second, self-answering call. The form was opened and a
+human (me) submitted it.
+
+**Lesson for this report's own standards:** I applied a lower bar to an incidental UI observation
+than to the Higgsfield claims, every one of which I cross-checked. A single a11y-tree flag, seen
+once, through an automation harness, should have been labelled unverified rather than reported as
+a defect.
