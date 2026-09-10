@@ -2,10 +2,15 @@
  * @file Spanish dictionary for `Media.tsx`'s own UI chrome — page header, tab strip, toolbar,
  * empty states, the metadata edit panel, and the lightbox/purge dialogs.
  *
- * Deliberately does NOT cover the media-provider catalog rendered by the "Media providers" tab
- * (`@jini-ai/ui`'s `DEFAULT_MEDIA_PROVIDER_CATALOG`) — those are real third-party provider names
- * ("AIHubMix", "ElevenLabs", …), not UI copy this screen authored, so they stay as-is regardless
- * of locale. Same `DICT[locale]?.[key] ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
+ * Deliberately does NOT cover the media-provider catalog rendered by the "External Providers" tab
+ * (`media-provider-catalog.ts`'s real, engine-canonical `MEDIA_PROVIDER_CATALOG` — see that file's
+ * own header) — those are real third-party provider names ("xAI Grok Imagine", "ElevenLabs", …),
+ * not UI copy this screen authored, so they stay as-is regardless of locale. Same
+ * `DICT[locale]?.[key] ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
+ *
+ * `"Media providers"` below is an unused leftover from before the tab was renamed "External
+ * Providers" (2026-09-10) — kept rather than deleted (harmless, reversible), same policy
+ * `providers-i18n.ts`'s own header documents for its own unused leftovers from the same rename.
  */
 export const MEDIA_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -18,6 +23,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Imágenes",
     Videos: "Videos",
     "Media providers": "Proveedores de medios",
+    "External Providers": "Proveedores externos",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Aún no hay imágenes.",
     "No videos yet.": "Aún no hay videos.",
@@ -86,6 +92,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Gambar",
     Videos: "Video",
     "Media providers": "Penyedia media",
+    "External Providers": "Penyedia Eksternal",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Belum ada gambar.",
     "No videos yet.": "Belum ada video.",
@@ -143,6 +150,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Bilder",
     Videos: "Videos",
     "Media providers": "Medienanbieter",
+    "External Providers": "Externe Anbieter",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Noch keine Bilder.",
     "No videos yet.": "Noch keine Videos.",
@@ -200,6 +208,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "图片",
     Videos: "视频",
     "Media providers": "媒体提供商",
+    "External Providers": "外部服务商",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "还没有图片。",
     "No videos yet.": "还没有视频。",
@@ -257,6 +266,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "圖片",
     Videos: "影片",
     "Media providers": "媒體提供商",
+    "External Providers": "外部服務商",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "還沒有圖片。",
     "No videos yet.": "還沒有影片。",
@@ -314,6 +324,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Imagens",
     Videos: "Vídeos",
     "Media providers": "Provedores de mídia",
+    "External Providers": "Provedores externos",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Ainda não há imagens.",
     "No videos yet.": "Ainda não há vídeos.",
@@ -371,6 +382,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Изображения",
     Videos: "Видео",
     "Media providers": "Провайдеры медиа",
+    "External Providers": "Внешние провайдеры",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Изображений пока нет.",
     "No videos yet.": "Видео пока нет.",
@@ -428,6 +440,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "تصاویر",
     Videos: "ویدئوها",
     "Media providers": "ارائه‌دهندگان رسانه",
+    "External Providers": "ارائه‌دهندگان خارجی",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "هنوز تصویری وجود ندارد.",
     "No videos yet.": "هنوز ویدئویی وجود ندارد.",
@@ -485,6 +498,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "الصور",
     Videos: "مقاطع الفيديو",
     "Media providers": "مزوّدو الوسائط",
+    "External Providers": "المزودون الخارجيون",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "لا توجد صور بعد.",
     "No videos yet.": "لا توجد مقاطع فيديو بعد.",
@@ -542,6 +556,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "画像",
     Videos: "動画",
     "Media providers": "メディアプロバイダー",
+    "External Providers": "外部プロバイダー",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "画像はまだありません。",
     "No videos yet.": "動画はまだありません。",
@@ -599,6 +614,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "이미지",
     Videos: "동영상",
     "Media providers": "미디어 제공업체",
+    "External Providers": "외부 공급자",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "아직 이미지가 없습니다.",
     "No videos yet.": "아직 동영상이 없습니다.",
@@ -656,6 +672,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Obrazy",
     Videos: "Filmy",
     "Media providers": "Dostawcy mediów",
+    "External Providers": "Zewnętrzni dostawcy",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Brak obrazów.",
     "No videos yet.": "Brak filmów.",
@@ -713,6 +730,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Képek",
     Videos: "Videók",
     "Media providers": "Médiaszolgáltatók",
+    "External Providers": "Külső szolgáltatók",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Még nincsenek képek.",
     "No videos yet.": "Még nincsenek videók.",
@@ -770,6 +788,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Images",
     Videos: "Vidéos",
     "Media providers": "Fournisseurs de médias",
+    "External Providers": "Fournisseurs externes",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Aucune image pour l'instant.",
     "No videos yet.": "Aucune vidéo pour l'instant.",
@@ -827,6 +846,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Зображення",
     Videos: "Відео",
     "Media providers": "Постачальники медіа",
+    "External Providers": "Зовнішні провайдери",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Зображень поки немає.",
     "No videos yet.": "Відео поки немає.",
@@ -884,6 +904,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Görseller",
     Videos: "Videolar",
     "Media providers": "Medya sağlayıcıları",
+    "External Providers": "Harici Sağlayıcılar",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Henüz görsel yok.",
     "No videos yet.": "Henüz video yok.",
@@ -941,6 +962,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "รูปภาพ",
     Videos: "วิดีโอ",
     "Media providers": "ผู้ให้บริการสื่อ",
+    "External Providers": "ผู้ให้บริการภายนอก",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "ยังไม่มีรูปภาพ",
     "No videos yet.": "ยังไม่มีวิดีโอ",
@@ -998,6 +1020,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "Immagini",
     Videos: "Video",
     "Media providers": "Fornitori di contenuti multimediali",
+    "External Providers": "Provider esterni",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "Ancora nessuna immagine.",
     "No videos yet.": "Ancora nessun video.",
@@ -1055,6 +1078,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "इमेज",
     Videos: "वीडियो",
     "Media providers": "मीडिया प्रदाता",
+    "External Providers": "बाहरी प्रदाता",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "अभी तक कोई इमेज नहीं है।",
     "No videos yet.": "अभी तक कोई वीडियो नहीं है।",
@@ -1112,6 +1136,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "تصاویر",
     Videos: "ویڈیوز",
     "Media providers": "میڈیا فراہم کنندگان",
+    "External Providers": "بیرونی فراہم کنندگان",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "ابھی تک کوئی تصویر نہیں ہے۔",
     "No videos yet.": "ابھی تک کوئی ویڈیو نہیں ہے۔",
@@ -1169,6 +1194,7 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = {
     Images: "ছবি",
     Videos: "ভিডিও",
     "Media providers": "মিডিয়া প্রদানকারী",
+    "External Providers": "বাহ্যিক প্রদানকারী",
     // Type-filter tabs (`rules.ts`'s `filterMediaByTab`)
     "No images yet.": "এখনও কোনও ছবি নেই।",
     "No videos yet.": "এখনও কোনও ভিডিও নেই।",

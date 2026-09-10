@@ -28,23 +28,31 @@
  * MCP server, Media providers, Connectors and External MCP are no longer here.
  * They were never "settings" in the sense the nine above are — three of them
  * configure an outside service with a credential, and the fourth exposes this
- * install to an MCP client — so they became two top-level nav rows under the
- * new "Integrations" group instead of tabs an operator had to know to look for
- * behind Settings:
+ * install to an MCP client — so they moved out to top-level nav rows instead
+ * of tabs an operator had to know to look for behind Settings. Where they
+ * landed moved again the same day (second pass, also owner-approved) — this
+ * comment describes the CURRENT, final destination:
  *
- * - MCP server  -> `features/integrations/DeveloperApi.tsx`, "MCP Server" tab.
+ * - MCP server  -> `features/providers/Providers.tsx`, "MCP Server" tab (moved there from its own
+ *                  short-lived `features/integrations/DeveloperApi.tsx` page, now deleted — see
+ *                  `panels.tsx`'s comment on the `providers`/`integrations` panels for why).
  * - Connectors  -> `features/providers/Providers.tsx`, "Composio" tab (relabelled to the vendor's
  *                  own name; "Connectors" told an operator nothing about what they were setting up).
  * - External MCP -> `features/providers/Providers.tsx`, "External MCP" tab.
- * - Media providers -> DELETED outright, not moved. It was an `inert` mount over
+ * - Media providers -> DELETED outright from here, not moved. It was an `inert` mount over
  *   `createFakeMediaProvidersPort()` under a note reading "Tovu doesn't have a media-provider
  *   backend yet" — a claim that stopped being true once the REAL, persisted Media providers tab
- *   existed (first on the Media screen, then moved again the same day onto
- *   `features/providers/Providers.tsx`'s "Media" tab — see that file's own header — backed by
- *   `media-providers-port.ts` -> `api.getMediaProviders()` and the `media_provider_credentials`
- *   table throughout). Keeping a second, non-functional copy of a shipped screen would have been
- *   the more confusing outcome, and `features/security/rules.ts` deep-links the media-provider
- *   credential store to the real one.
+ *   existed. That real tab passed through `features/providers/Providers.tsx` briefly (first pass)
+ *   before landing on `features/media/Media.tsx`'s own "External Providers" tab (second pass, where
+ *   it lives now) — backed by `media-providers-port.ts` -> `api.getMediaProviders()` and the
+ *   `media_provider_credentials` table throughout. Keeping a second, non-functional copy of a
+ *   shipped screen would have been the more confusing outcome, and `features/security/rules.ts`
+ *   deep-links the media-provider credential store to the real one.
+ *
+ * `providers`, now labelled "Integrations", is one row under the "Add-Ons" nav group — renamed back
+ * from "Integrations" the same day (the group's OWN name and its `providers` row's name briefly
+ * collided once the row absorbed the retired `integrations` panel's tabs — see `panels.tsx`'s own
+ * group comment for the full rename history).
  *
  * `ExternalMcpSettingsPanel.tsx`, `ComposioKeyField.tsx`, `connectors-port.ts` and their
  * rules/i18n/hook files still physically live in THIS folder — see

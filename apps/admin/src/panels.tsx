@@ -11,7 +11,7 @@ import { Comments } from "./features/comments";
 import { Analytics } from "./features/analytics";
 import { Media } from "./features/media";
 import { Menus, MenuEditor } from "./features/menus";
-import { DeveloperApi, IntegrationDeliveries } from "./features/integrations";
+import { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
 import { Providers } from "./features/providers";
 import { Users } from "./features/users";
 import { Authentication } from "./features/authentication";
@@ -572,7 +572,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
 
-  // --- Integrations ---
+  // --- Add-Ons ---
   // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
   // skills, design tokens — whereas plugins/agent-plugins are installed capabilities that extend
   // what the site can DO, which is a different axis.
@@ -589,84 +589,37 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // of one implying it contains the other. All of that reasoning is UNCHANGED by the rename below;
   // only the umbrella's NAME moved, not the decision to have one or what goes under it.
   //
-  // 2026-09-10: group renamed "Add-Ons" -> "Integrations" (owner call) and widened from two rows to
-  // four. "Add-Ons" described installed capabilities only, which stopped covering the group once it
-  // took on both directions of the same outside-the-boundary concern:
-  //   - `providers`      — an outside service Tovu CONSUMES, configured with a credential.
-  //   - `integrations`   — other tools reaching Tovu, both directions at once (see below).
-  //   - `plugins` / `agent-plugins` — capabilities installed INTO Tovu (the original two rows).
-  // Renaming the group also resolved a real collision: the `integrations` panel's own old nav label
-  // was "Integrations & API", which would have read as a row named almost exactly like its own
-  // group.
+  // 2026-09-10, FIRST PASS (superseded the same day — see SECOND PASS below): group renamed
+  // "Add-Ons" -> "Integrations" and widened from two rows to four (`providers`, `integrations`
+  // joining `plugins`/`agent-plugins`), split on direction of travel. The `integrations` row's own
+  // label went through two wrong answers before landing on "APIs & Webhooks" that same pass
+  // (corrects an earlier pass that shipped "Developer API" twice): that row held two tabs pointed in
+  // OPPOSITE directions — MCP Server (something else connects INTO Tovu) and Webhooks (Tovu pushes
+  // OUT to a subscriber's endpoint). "Developer API" only described the inbound half; "External
+  // APIs" was rejected as backwards — it reads as Tovu CONSUMING outside APIs, which is `providers`'
+  // job, not this row's.
   //
-  // The `integrations` row's OWN label went through two wrong answers before landing on "APIs &
-  // Webhooks" (owner call, corrects an earlier pass that shipped "Developer API" twice): that row
-  // holds two tabs pointed in OPPOSITE directions — MCP Server (something else connects INTO Tovu,
-  // i.e. Tovu exposing an API) and Webhooks (Tovu pushes OUT to a subscriber's endpoint). "Developer
-  // API" only describes the inbound half; a webhook push is not "Tovu's API" from the receiving
-  // service's point of view. "External APIs" was considered too and rejected as backwards — it reads
-  // as Tovu CONSUMING outside APIs, which is `providers`' job, not this row's. "APIs & Webhooks"
-  // names both halves the row actually holds.
+  // 2026-09-10, SECOND PASS (this state, owner call): group renamed BACK "Integrations" -> "Add-Ons"
+  // and narrowed from four rows to three. Four rows under one group, split only by directionality
+  // rather than by whether a connection needed its own top-level nav slot, had grown one row too
+  // many for what is really one concern: this install's outside connections. `providers` and
+  // `integrations` COLLAPSE into one row — `providers` keeps its route id (`/admin/providers`
+  // stays a working URL) but its label becomes "Integrations", and its screen
+  // (`features/providers/Providers.tsx`) absorbs `integrations`' two tabs (MCP Server, Webhooks)
+  // alongside its own two (External MCP, Composio) — four tabs, ordered External MCP, Composio, MCP
+  // Server, Webhooks (owner's explicit tab-order call). The `integrations` panel's OWN nav row is
+  // retired — see that panel's own entry below for what happens to its bare `/admin/integrations`
+  // URL and why the id/route still exist.
+  //
+  // Row order (Plugins, Agent Plugins, Integrations) applies the owner's earlier "plugins first,
+  // agent plugins second, providers third" instruction to this collapsed three-row shape — the
+  // fourth slot that instruction implicitly left for the (now-retired) `integrations` row no longer
+  // exists, so the three remaining rows keep their original relative order rather than being
+  // reshuffled around a gap.
   //
   // "MCP" deliberately does NOT appear as a nav label at any level in this group (owner call). The
   // protocol name appears only on TABS inside these pages, where the surrounding page context
   // explains what it is — an operator who doesn't know the acronym can still find the screen.
-  {
-    id: "providers",
-    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs —
-    // same `?tab=` deep-linking convention as `deployment`'s and `settings`'s own entries elsewhere
-    // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen.
-    render: (ctx) => <Providers tabId={ctx.query.get("tab")} />,
-    nav: {
-      // First row in the group, ahead of APIs & Webhooks: this is the direction an operator reaches
-      // for far more often (wiring Tovu UP to an outside service) than the reverse.
-      label: "Providers",
-      group: "Integrations",
-      // An outlet/socket — "somewhere to plug an outside service in". Distinct from
-      // `agent-plugins`' radiating-node glyph and `plugins`' plug-into-a-box silhouette directly
-      // below, both of which describe something installed INTO Tovu rather than connected to it.
-      icon: '<rect x="2.5" y="4" width="13" height="10" rx="2"/><circle cx="6.5" cy="9" r="1.25"/><circle cx="11.5" cy="9" r="1.25"/>',
-    },
-    agentReachable: true,
-  },
-  {
-    // Moved here from Operations 2026-09-10 (owner call) and relabelled "Integrations & API" ->
-    // "APIs & Webhooks" (see the group comment above for why "Developer API" — this row's own first
-    // relabel — was wrong, and why "External APIs" was rejected too). Same panel, same screen, same
-    // URL space — this row is how OTHER TOOLS talk to this Tovu install, in both directions at once
-    // (an MCP client connecting in, and outbound webhooks going out), which is the opposite of
-    // `providers` above (Tovu reaching OUT to a service it consumes) and the reason both belong in
-    // one group.
-    //
-    // The panel **id** stays `integrations` even though the label no longer says "Integrations":
-    // the id IS the route (`/integrations`, plus the `/:subscriptionId` deliveries sub-route below)
-    // and the `agent-pages.ts` allowlist key, so renaming it to match the new label would break
-    // every existing deep link and bookmark for a cosmetic gain. Route ids are independent of nav
-    // labels throughout this file — `id: "access-tokens"` labelled "Secrets" is the same call, made
-    // for the same reason (see that entry's own comment).
-    id: "integrations",
-    // `?tab=` deep-linking as of the same pass: two tabs — MCP Server (Tovu as an MCP server
-    // something else connects TO) and Webhooks (outbound, Tovu pushing OUT). Guarded by
-    // `resolveDeveloperApiTabId` inside the screen, same convention as `deployment`/`settings`.
-    // The `integration-deliveries` sub-route below renders its OWN full screen rather than a tab,
-    // unchanged — it is a drill-down from one webhook row, not a peer of these two.
-    render: (ctx) => {
-      switch (ctx.view) {
-        case "integration-deliveries":
-          // Guaranteed present: this view only fires when `/:subscriptionId` matched.
-          return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
-        default:
-          return <DeveloperApi tabId={ctx.query.get("tab")} />;
-      }
-    },
-    nav: {
-      label: "APIs & Webhooks",
-      group: "Integrations",
-      icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
-    },
-    agentReachable: true,
-    routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
-  },
   {
     id: "plugins",
     render: (ctx) => <Plugins tabId={ctx.query.get("tab")} />,
@@ -675,12 +628,12 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
       // being marked `soon`. Label reverted to "Plugins" once the group above stopped ALSO being
       // called "Plugins" — the OLD "Installed" relabel existed only to avoid "Plugins > Plugins"
-      // reading as a mistake, which is moot under any other group name ("Add-Ons" then,
-      // "Integrations" now). The panel **id** is
-      // deliberately unchanged: it is the route (`/plugins`) and the `agent-pages.ts` allowlist
-      // key, so renaming it would break both for a cosmetic gain.
+      // reading as a mistake, which is moot under any other group name ("Add-Ons", both before and
+      // after the "Integrations" detour above). The panel **id** is deliberately unchanged: it is
+      // the route (`/plugins`) and the `agent-pages.ts` allowlist key, so renaming it would break
+      // both for a cosmetic gain.
       label: "Plugins",
-      group: "Integrations",
+      group: "Add-Ons",
       icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
     },
     agentReachable: true,
@@ -698,10 +651,82 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // `.tovu-plugin` Marketplace nav row removed from the Plugins entry above (see that entry's
       // group comment).
       label: "Agent Plugins",
-      group: "Integrations",
+      group: "Add-Ons",
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
     },
     agentReachable: true,
+  },
+  {
+    // Route id stays `providers` — this is the SAME panel that was labelled "Providers" before the
+    // second pass, not a new one, and not the retired `integrations` panel either. Renaming this id
+    // to `integrations` to match the new LABEL was deliberately rejected: `integrations` is already
+    // a route id (the panel below), so doing that would either collide with it or require also
+    // renaming that one, breaking `/admin/integrations` bookmarks for a cosmetic gain — the same
+    // "route ids are independent of nav labels" rule this file applies everywhere else (`id:
+    // "access-tokens"` labelled "Secrets" is the same call, made for the same reason).
+    id: "providers",
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs —
+    // same `?tab=` deep-linking convention as `deployment`'s and `settings`'s own entries elsewhere
+    // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen. Four tabs as of
+    // the second pass (External MCP, Composio, MCP Server, Webhooks — owner's explicit order); see
+    // `Providers.tsx`'s own header for the absorption of the retired `integrations` panel's two
+    // tabs.
+    render: (ctx) => <Providers tabId={ctx.query.get("tab")} />,
+    nav: {
+      // Third and last row in the group — after Plugins, Agent Plugins (owner's row-order call; see
+      // the group comment above).
+      label: "Integrations",
+      group: "Add-Ons",
+      // Unchanged from the "Providers" label's own icon (an outlet/socket — "somewhere to plug an
+      // outside service in") — still an apt silhouette for a row that now ALSO covers the reverse
+      // direction (other tools connecting in), distinct from `agent-plugins`' radiating-node glyph
+      // and `plugins`' plug-into-a-box silhouette above, both of which describe something installed
+      // INTO Tovu rather than connected to it either way.
+      icon: '<rect x="2.5" y="4" width="13" height="10" rx="2"/><circle cx="6.5" cy="9" r="1.25"/><circle cx="11.5" cy="9" r="1.25"/>',
+    },
+    agentReachable: true,
+  },
+  {
+    // RETIRED as a nav row (second pass, this state) — no `nav` field, which per `AdminPanel`'s own
+    // doc (`@jini-ai/admin/core`) means "routable but not listed", the same convention `appearance`
+    // below already uses. The id/route stay for two reasons: `/:subscriptionId` below is a REAL,
+    // still-reachable-by-direct-link screen (`IntegrationDeliveries`, a drill-down from one webhook
+    // row — reachable today from the Webhooks tab now living on `providers`), and the bare
+    // `/admin/integrations` URL is a real bookmark/agent-remembered link that used to work.
+    //
+    // Decision on what `/admin/integrations` (the bare index route) now does: REDIRECTS to
+    // `/providers?tab=webhooks` (`IntegrationsRedirect`, `features/integrations/
+    // IntegrationsRedirect.tsx`) rather than 404ing or rendering nothing. A dead URL that used to
+    // work is a real regression this file's own dispatch called out explicitly — redirecting is the
+    // only one of the three options that keeps an old bookmark landing on real content instead of a
+    // deliberately broken or blank screen. `?tab=webhooks` specifically (not the merged screen's own
+    // default tab) preserves which screen a stored `/admin/integrations` link opened on before this
+    // pass — see `use-integrations-redirect.hooks.ts`'s own doc for why.
+    //
+    // KNOWN, ACCEPTED SIDE EFFECT: the sidebar has no highlight to give while viewing
+    // `/admin/integrations/:subscriptionId` (the deliveries drill-down) — `currentPanelId`
+    // (`App.tsx`) resolves to this panel's own id, which no nav row claims anymore. Before this pass
+    // that view highlighted "APIs & Webhooks"; there is no row to highlight in its place now. Not
+    // fixed here: redirecting the drill-down route too would be a real functionality loss (it is
+    // live content, not a stale index page), and highlighting `providers` instead would be
+    // inaccurate — that row's own URL is not where this content lives.
+    //
+    // `DeveloperApi.tsx`, the page shell that used to render here, is DELETED — its two tabs moved
+    // into `providers`/`Providers.tsx` verbatim; see that file's own header for the full move.
+    id: "integrations",
+    render: (ctx) => {
+      switch (ctx.view) {
+        case "integration-deliveries":
+          // Guaranteed present: this view only fires when `/:subscriptionId` matched. Unchanged by
+          // the second pass — this is its own full screen, not a tab, and was never part of the
+          // `providers`/`integrations` tab merge.
+          return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
+        default:
+          return <IntegrationsRedirect />;
+      }
+    },
+    agentReachable: true,
+    routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
 
   // --- Commerce ---

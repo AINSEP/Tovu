@@ -147,9 +147,10 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
 
   return (
     <div className="integrations-tab-body">
-      {/* No `page`/`page-header` of its own since 2026-09-10: this component is now a TAB BODY under
-          `DeveloperApi.tsx`'s single page shell, which draws the kicker, title and description for
-          the whole APIs & Webhooks page. A tab body that re-declared a page title directly beneath
+      {/* No `page`/`page-header` of its own since 2026-09-10: this component is a TAB BODY under a
+          single page shell — first `DeveloperApi.tsx`'s (that file is now retired), now
+          `features/providers/Providers.tsx`'s, which draws the kicker, title and description for
+          the whole Integrations page. A tab body that re-declared a page title directly beneath
           the page title it sits under would read as a rendering bug — the same reason
           `AccessTokensTab`/`SiteTokenTab` are headerless under `Security.tsx`'s one shell. The
           description this header used to carry ("Send webhook notifications to external services

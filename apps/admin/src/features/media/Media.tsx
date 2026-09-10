@@ -1,6 +1,8 @@
 import { useRef } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -10,7 +12,9 @@ import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
-import { useMediaTabs, type MediaTabId } from "./hooks/use-media-tabs.hooks";
+import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
+import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
+import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "../../components/TabBar";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 
@@ -877,7 +881,7 @@ function MediaGridOrEmpty({
   onTrash,
   onRequestPurge,
 }: {
-  activeTab: MediaTabId;
+  activeTab: MediaContentTabId;
   visibleMedia: AdminMedia[];
   mediaExpandHandles: string[];
   editingId: string | null;
@@ -948,7 +952,7 @@ function MediaGridOrEmpty({
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
     media: AdminMedia[];
-    activeTab: MediaTabId;
+    activeTab: MediaContentTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
   },
@@ -1083,34 +1087,58 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
   );
 }
 
-export function Media(props: MediaProps) {
-  // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
-  // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
-  // `panels.tsx`/tests), and JSX's `createElement`/`jsx` runtime always constructs an actual props
-  // object — `{}` when no attributes are given, never `undefined` — so `Media` is never invoked
-  // with zero arguments the way a plain function call could be. `MediaProps`' three fields are all
-  // optional, so `{}` satisfies the type and this compiles the same as before for every existing
-  // call site.
-  const useMediaHook = resolveMediaHook(props.useMediaHook);
-  const useMediaTabsHook = resolveMediaTabsHook(props.useMediaTabsHook);
-  const controller = useMediaHook();
-  const { media, error, t } = controller;
-  const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
-
-  if (error && !media) return <div className="notice error">{error}</div>;
-  if (!media) return <div className="notice">Loading media…</div>;
-
-  // Computed after the two early returns so `media` is already narrowed to non-null. Not memoized:
-  // a single filter over a media library is cheap next to the render it feeds, and a `useMemo`
-  // here cannot be hoisted above the early returns without changing hook order.
-  const visibleMedia = filterMediaByTab(media, activeTab);
-  // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
-  // same reasoning as every other list on this workstream.
-  const mediaExpandHandles = buildAgentListHandles(
-    "media-item",
-    visibleMedia.map((item) => item.id),
+/**
+ * The "External Providers" tab body — credentials for outside media generation services (API
+ * keys for image/video/audio-generation vendors), extracted the same way `MediaToolbar`/
+ * `MediaGridOrEmpty` above are: an independent branch of `Media`'s own render, scored in its own
+ * scope.
+ *
+ * Landed here 2026-09-10 (owner call, second pass) after one day on
+ * `features/providers/Providers.tsx` as its "Media" tab — see that file's own header for the full
+ * move history, and `media-provider-catalog.ts`/`media-providers-port.ts` (both moved into this
+ * feature alongside it) for why the catalog is keyed off the generation engine's own spellings, not
+ * `@jini-ai/ui`'s sample one.
+ *
+ * `I18nProvider` is load-bearing here, not decoration — same trap `Providers.tsx`'s own header
+ * documents in full: `MediaProvidersTab` resolves its own copy through `@jini-ai/ui`'s `useT()`,
+ * which silently falls through to raw English keys with no ancestor provider, in every non-English
+ * locale, with no error anywhere. `data-theme="light"` on the inner wrapper is the same
+ * `media-providers-panel` class `styles.css`'s "Media providers tab: neutralize Jini's warm 'paper'
+ * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
+ * unmoved.
+ */
+function ExternalProvidersPanel({ locale }: { locale: string }) {
+  return (
+    <I18nProvider
+      initialLocale={locale}
+      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
+      fallbackLocale="en"
+      syncDocumentAttributes={false}
+    >
+      <div className="media-providers-panel" data-theme="light">
+        <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
+      </div>
+    </I18nProvider>
   );
+}
 
+/**
+ * The page header and tab bar every `Media` tab shares — extracted so `Media`'s own early return
+ * on the External Providers tab (see that function's own comment) does not have to duplicate this
+ * markup between two `return` statements. `children` is whichever tab body is active: either
+ * `MediaLibraryPanel`'s grid or `ExternalProvidersPanel`.
+ */
+function MediaPageShell({
+  t,
+  activeTab,
+  setActiveTab,
+  children,
+}: {
+  t: (key: string) => string;
+  activeTab: MediaTabId;
+  setActiveTab: MediaTabsController["setActiveTab"];
+  children: React.ReactNode;
+}) {
   return (
     <div className="page">
       <div
@@ -1132,13 +1160,62 @@ export function Media(props: MediaProps) {
           to draw itself (`media.css`'s retired `.media-tabs`). Tabs, ids, order, the translated
           labels and every per-tab agent handle are unchanged — `Media.hooks.tsx`'s
           `resolveMediaTabs` builds them from the same `MEDIA_TABS` list.
-          "Media providers" LEFT this screen 2026-09-10 (owner-approved Integrations nav restructure)
-          — it is now the Media tab on `features/providers/Providers.tsx`, alongside Composio and
-          External MCP, all outside-service connections under one nav row. Only "all"/"images"/
-          "videos" render here now, so this tab bar is back to the three-tab grid-filter row it was
-          before that tab existed. */}
+          "External Providers" JOINED this screen 2026-09-10 (owner-approved nav restructure, second
+          pass) — it spent one day as the "Media" tab on `features/providers/Providers.tsx` before
+          landing here for good; see that file's own header for the full move history. It is the
+          fourth, LAST tab — "all"/"images"/"videos" are the three content-filter tabs an operator
+          reaches for far more often, and read as one group with this one set apart. */}
       <TabBar ariaLabel="Media" tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
 
+      {children}
+    </div>
+  );
+}
+
+export function Media(props: MediaProps) {
+  // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
+  // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
+  // `panels.tsx`/tests), and JSX's `createElement`/`jsx` runtime always constructs an actual props
+  // object — `{}` when no attributes are given, never `undefined` — so `Media` is never invoked
+  // with zero arguments the way a plain function call could be. `MediaProps`' three fields are all
+  // optional, so `{}` satisfies the type and this compiles the same as before for every existing
+  // call site.
+  const useMediaHook = resolveMediaHook(props.useMediaHook);
+  const useMediaTabsHook = resolveMediaTabsHook(props.useMediaTabsHook);
+  const controller = useMediaHook();
+  const { media, error, t } = controller;
+  const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+
+  if (error && !media) return <div className="notice error">{error}</div>;
+  if (!media) return <div className="notice">Loading media…</div>;
+
+  // External Providers renders no grid, no filter, and has no concept of the grid's "empty" state —
+  // an early return here (rather than a ternary further down) is what lets `MediaContentTabId`
+  // narrow `activeTab` for the REST of this function, so `filterMediaByTab`/`MediaLibraryPanel`
+  // below can declare that narrower type directly instead of re-widening to the full tab set (see
+  // `MediaContentTabId`'s own doc comment in `use-media-tabs.hooks.ts`).
+  if (activeTab === "external-providers") {
+    return (
+      <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab}>
+        <ExternalProvidersPanel locale={controller.locale} />
+      </MediaPageShell>
+    );
+  }
+
+  // Computed after every early return so `media` is non-null and `activeTab` is narrowed to
+  // `MediaContentTabId`. Not memoized: a single filter over a media library is cheap next to the
+  // render it feeds, and a `useMemo` here cannot be hoisted above the early returns without
+  // changing hook order.
+  const visibleMedia = filterMediaByTab(media, activeTab);
+  // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
+  // same reasoning as every other list on this workstream.
+  const mediaExpandHandles = buildAgentListHandles(
+    "media-item",
+    visibleMedia.map((item) => item.id),
+  );
+
+  return (
+    <MediaPageShell t={t} activeTab={activeTab} setActiveTab={setActiveTab}>
       {/* "all", "images" and "videos" all render the SAME grid, differing only in which items reach
           it — one code path, so a card looks and behaves identically whichever tab it is viewed
           from, and the lightbox/edit/row-menu wiring below cannot drift per tab. */}
@@ -1149,6 +1226,6 @@ export function Media(props: MediaProps) {
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}
       />
-    </div>
+    </MediaPageShell>
   );
 }

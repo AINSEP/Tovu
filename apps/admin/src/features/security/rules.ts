@@ -16,7 +16,7 @@ import {
   SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
 } from "../source-control/rules";
-import { MEDIA_PROVIDER_CATALOG } from "../providers/media-provider-catalog";
+import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,
@@ -889,8 +889,8 @@ export function otherCredentialMatchesQuery(store: OtherCredentialStoreInfo, ite
 }
 
 /** A media provider's human catalog label (e.g. `"grok"` → `"xAI Grok Imagine"`) — same
- *  `MEDIA_PROVIDER_CATALOG` lookup `Providers.tsx` itself uses, so a media-provider row on this page
- *  reads with the identical name an operator already sees on the Providers → Media tab. Falls
+ *  `MEDIA_PROVIDER_CATALOG` lookup `Media.tsx` itself uses, so a media-provider row on this page
+ *  reads with the identical name an operator already sees on the Media → External Providers tab. Falls
  *  back to the raw provider id for one this workspace has a stored key under but the catalog no
  *  longer lists (a removed vendor) — a stale id is still a fact worth showing, not a reason to hide
  *  the row. @complexity O(n) in the catalog's own (small, fixed) size. */

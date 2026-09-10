@@ -64,6 +64,20 @@ export function VideosIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** External Providers — a cloud, the generic shape of "hosted elsewhere". This tab carried the same
+ *  silhouette on its own brief stop as the "Media" tab on `features/providers/Providers.tsx` (that
+ *  file's own 18-viewBox `TabIcon` frame) — redrawn here in this file's 24-viewBox `LINE_ICON`
+ *  convention instead, since every other tab on this page uses that frame. No vendor mark: this
+ *  admin draws zero brand logos (see `source-control-visuals.tsx`'s header), and this tab lists
+ *  several. */
+export function ExternalProvidersIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M7 16h9.5a3.5 3.5 0 0 0 .4-6.98A4.75 4.75 0 0 0 7.7 7.2 3.5 3.5 0 0 0 7 16Z" />
+    </svg>
+  );
+}
+
 /** Which icon each `MEDIA_TABS` id carries — a lookup rather than a field on `MEDIA_TABS` itself,
  *  because that constant lives in a `.hooks.ts` file (no JSX) and is the URL contract
  *  `use-media-tabs.hooks.ts` resolves `?tab=` against; the icons are presentation. */
@@ -71,6 +85,7 @@ const MEDIA_TAB_ICONS = {
   all: <AllMediaIcon />,
   images: <ImagesIcon />,
   videos: <VideosIcon />,
+  "external-providers": <ExternalProvidersIcon />,
 } as const;
 
 /**

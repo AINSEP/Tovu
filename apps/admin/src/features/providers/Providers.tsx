@@ -1,4 +1,4 @@
-import { ConnectorsBrowser, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { ConnectorsBrowser, I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -10,14 +10,15 @@ import { ComposioKeyField } from "../settings/ComposioKeyField";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { connectorsDependencies } from "../settings/connectors-port";
 import { t as tCapability } from "../settings/settings-capabilities-i18n";
+import { Integrations } from "../integrations/Integrations";
+import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
+import { t as tIntegrations } from "../integrations/integrations-i18n";
 import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
-import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
-import { mediaProvidersPort } from "./media-providers-port";
 
 /**
- * @file The Providers page (`/admin/providers`) — every outside service this install CONSUMES,
- * each one configured with a credential, in one place.
+ * @file The Integrations page (`/admin/providers`) — every outside connection this install has,
+ * in both directions, in one place.
  *
  * ## Why these belong together (owner call, 2026-09-10)
  *
@@ -25,32 +26,43 @@ import { mediaProvidersPort } from "./media-providers-port";
  * knowing to open Settings and scroll a sidebar of unrelated concerns (Instructions, Privacy,
  * Dialog appearance, About). They are not settings in the sense the rest of that page is — they are
  * connections to third-party systems, each holding a credential, each able to fail independently of
- * anything Tovu itself does. That is one job, and it is the mirror image of `DeveloperApi.tsx`'s:
- * this page is Tovu reaching OUT, that one is other tools reaching IN. The new "Integrations" nav
- * group holds both directions, which is what makes the pair legible as a group at all.
+ * anything Tovu itself does.
  *
- * Media joined the same day from a different origin: not a Settings tab, but its own tab on the
- * Media screen (`features/media/Media.tsx`, `?tab=media-providers`) — a REAL, persisted surface
- * (`media_provider_credentials`, not a fake), unlike Connectors/External MCP which were genuinely
- * inert on Settings before this move. It belongs here for the same reason Composio and External MCP
- * do — a credentialed connection to an outside service — even though it never lived on Settings.
- * `media-provider-catalog.ts`/`media-providers-port.ts` moved here verbatim from `features/media/`;
- * see those files' own headers for why the catalog is keyed off the generation engine's spellings,
- * not `@jini-ai/ui`'s sample one.
+ * MCP Server and Webhooks joined this SAME screen on 2026-09-10 (second pass, owner call) — moved
+ * here verbatim from `features/integrations/DeveloperApi.tsx`, which this change retires. That page
+ * used to be its own nav row ("APIs & Webhooks") holding the mirror-image direction: OTHER TOOLS
+ * reaching Tovu (MCP Server, an MCP client connecting IN) or Tovu reaching OUT to a subscriber
+ * (Webhooks). The owner's call was that four rows under one "Add-Ons" group had grown one row too
+ * many for what is really one concern — "this install's outside connections" — split only by
+ * direction of travel, not by whether the connection needs its own top-level nav slot. Collapsing
+ * the two rows into one, with direction expressed as tabs instead of nav rows, is what this file
+ * does. `panels.tsx`'s own comment on the `providers`/`integrations` panels has the full history;
+ * `DeveloperApi.tsx`'s retirement (its render logic moved here, its own file deleted) is recorded on
+ * the `integrations` panel entry there, including what happens to its old bare `/admin/integrations`
+ * URL.
+ *
+ * Media joined this screen once already (2026-09-10, first pass) and LEFT it the same day (second
+ * pass) — not a Settings tab originally, but its own tab on the Media screen
+ * (`features/media/Media.tsx`, `?tab=media-providers`), moved here briefly, then moved to the Media
+ * screen for good as "External Providers" (owner call: media generation credentials belong beside
+ * the media they generate, not beside MCP/webhook plumbing). See `features/media/Media.tsx`'s own
+ * header for where it lives now — `media-provider-catalog.ts`/`media-providers-port.ts` moved WITH
+ * it, into `features/media/`.
  *
  * ## Naming
  *
- * The nav row is "Providers", never "MCP" or "Connectors" — the owner's call. "MCP" appears only as
- * a TAB label here, where the page around it supplies the context an operator needs. "Connectors"
+ * The nav row is "Integrations", never "MCP" or "Connectors" — the owner's call. "MCP" appears only
+ * as a TAB label here, where the page around it supplies the context an operator needs. "Connectors"
  * was the old Settings tab label for what is really just Composio, so the tab now says the vendor's
  * name outright rather than a generic word that told an operator nothing about what they were
  * configuring.
  *
  * ## The `I18nProvider` below is load-bearing, not decoration
  *
- * `ExternalMcpSettingsPanel` and `ConnectorsBrowser` both resolve their own copy through
- * `@jini-ai/ui`'s `useT()`, which reads `I18nContext` from an ANCESTOR. On the Settings page that
- * ancestor was `SettingsUi`'s own `<I18nProvider>`. Mounting these components here WITHOUT one
+ * `ExternalMcpSettingsPanel`, `ConnectorsBrowser` and `IntegrationsTab` all resolve their own copy
+ * through `@jini-ai/ui`'s `useT()`, which reads `I18nContext` from an ANCESTOR. On the Settings page
+ * that ancestor was `SettingsUi`'s own `<I18nProvider>`; on the old `/admin/integrations` page it was
+ * `DeveloperApi.tsx`'s own copy of this same provider. Mounting these components here WITHOUT one
  * would not throw and would not warn — `useI18n` falls through to `PASSTHROUGH_CONTEXT`, so every
  * string silently renders its raw English key and the regression is invisible in every non-English
  * locale until an operator reports it. Hence the provider, fed the same dictionaries and the same
@@ -62,26 +74,37 @@ import { mediaProvidersPort } from "./media-providers-port";
  * `syncDocumentAttributes={false}` for the same reason `SettingsUi` sets it — only these tab bodies
  * are translated through this dictionary, so claiming a document-wide `<html lang>` here would
  * misinform assistive tech about the rest of the admin shell.
+ *
+ * `data-theme="light"` on this file's own page root (below) covers every tab body mounted under it,
+ * including the MCP Server tab's `IntegrationsTab` — `DeveloperApi.tsx` needed its OWN nested
+ * `data-theme="light"` wrapper around that one tab specifically because its page root had none; this
+ * page's root already sets it for the whole screen, so that per-tab wrapper does not need to be
+ * carried over.
  */
 
 /** Tab ids are independent of tab LABELS, the same way panel ids are independent of nav labels
  *  throughout `panels.tsx`. `composio` names the vendor rather than the old "Connectors" wording so
- *  a deep link says what it opens. `media` first, matching the owner-approved tab order (Media |
- *  Composio | External MCP) and this file's own default (see {@link resolveProvidersTabId}). */
-const PROVIDERS_TAB_IDS = ["media", "composio", "external-mcp"] as const;
+ *  a deep link says what it opens. `webhooks`/`mcp-server` are carried over unchanged from
+ *  `DeveloperApi.tsx`'s own `DEVELOPER_API_TAB_IDS` — see this file's header for why those two tabs
+ *  are here now. Order is the owner's explicit call (2026-09-10, second pass): External MCP first,
+ *  Composio second, then the two absorbed tabs in their original relative order (MCP Server,
+ *  Webhooks) — see {@link resolveProvidersTabId} for the default. */
+const PROVIDERS_TAB_IDS = ["external-mcp", "composio", "mcp-server", "webhooks"] as const;
 type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
 
-/** Falls back to the Media tab (first in {@link PROVIDERS_TAB_IDS}) for an absent or unrecognized
- *  `?tab=` value — same "fall back to the first tab" convention `DeveloperApi.tsx`'s own resolver
- *  follows, delegating to the shared `../../lib/resolve-active-tab-id` guard `Security.tsx`/
- *  `Deployment.tsx`/`Database.tsx`/`Themes.tsx` all use — a stale bookmark or a typo must open on a
- *  real tab, never a blank panel. */
+/** Falls back to the External MCP tab (first in {@link PROVIDERS_TAB_IDS}) for an absent or
+ *  unrecognized `?tab=` value — same "fall back to the first tab" convention `DeveloperApi.tsx`'s
+ *  own resolver followed, delegating to the shared `../../lib/resolve-active-tab-id` guard
+ *  `Security.tsx`/`Deployment.tsx`/`Database.tsx`/`Themes.tsx` all use — a stale bookmark or a typo
+ *  must open on a real tab, never a blank panel. The retired `/admin/integrations` page's own
+ *  redirect (`panels.tsx`'s `integrations` panel) points at `?tab=webhooks` explicitly, so that
+ *  URL's pre-merge default screen is preserved regardless of what this function's own default is. */
 function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
-  return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "media");
+  return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "external-mcp");
 }
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data — same helper shape
- *  `SettingsUi.tsx` and `DeveloperApi.tsx` both use for their own tab icons. */
+ *  `SettingsUi.tsx` and `DeveloperApi.tsx` both used for their own tab icons. */
 function TabIcon({ children }: { children: React.ReactNode }) {
   return (
     <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -96,6 +119,10 @@ export interface ProvidersProps {
   tabId?: string | null;
   /** DI seam for tests — same convention `SecurityProps.useAccessTokensHook` follows. */
   useProvidersHook?: typeof useProviders;
+  /** DI seam for the Webhooks tab's own list/create/delete state — carried over from
+   *  `DeveloperApiProps.useIntegrationsHook`, same convention. Threaded straight through to
+   *  `Integrations` below; this component has no reason to see its return value itself. */
+  useIntegrationsHook?: typeof useWiredIntegrations;
 }
 
 /** Resolved separately rather than as a default parameter value inside {@link Providers}'s own body
@@ -114,17 +141,16 @@ export function Providers(props: ProvidersProps) {
 
   const tabs: TabBarTab[] = [
     {
-      id: "media",
-      label: t(locale, "Media"),
-      // A cloud — the generic shape of "hosted elsewhere". No vendor mark: this admin draws zero
-      // brand logos (see `source-control-visuals.tsx`'s header), and this tab lists several.
+      id: "external-mcp",
+      label: t(locale, "External MCP"),
       icon: (
         <TabIcon>
-          <path d="M5.5 13.5h7a2.75 2.75 0 0 0 .35-5.48A3.75 3.75 0 0 0 5.9 6.3 2.75 2.75 0 0 0 5.5 13.5z" />
+          <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
+          <path d="M9 13.5V16" />
         </TabIcon>
       ),
-      handle: "providers-tab-media",
-      handleLabel: "Switch to the Media tab — API keys for image, video, and audio generation providers",
+      handle: "providers-tab-external-mcp",
+      handleLabel: "Switch to the External MCP tab — MCP tool servers this install connects out to",
     },
     {
       id: "composio",
@@ -144,16 +170,34 @@ export function Providers(props: ProvidersProps) {
       handleLabel: "Switch to the Composio tab — third-party accounts and APIs connected through Composio",
     },
     {
-      id: "external-mcp",
-      label: t(locale, "External MCP"),
+      // Absorbed from `DeveloperApi.tsx`'s own `mcp-server` tab (2026-09-10, second pass) — same id,
+      // same label source (`integrations-i18n.tsx`'s own `t`, reused rather than re-translated), same
+      // icon, same body (`IntegrationsTab`). Only the address and its position in a four-tab row
+      // changed.
+      id: "mcp-server",
+      label: tIntegrations(locale, "MCP Server"),
       icon: (
         <TabIcon>
-          <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
-          <path d="M9 13.5V16" />
+          <path d="M4 6.5h10M4 11.5h10" />
+          <circle cx="6.5" cy="6.5" r="1.5" />
+          <circle cx="11.5" cy="11.5" r="1.5" />
         </TabIcon>
       ),
-      handle: "providers-tab-external-mcp",
-      handleLabel: "Switch to the External MCP tab — MCP tool servers this install connects out to",
+      handle: "providers-tab-mcp-server",
+      handleLabel: "Switch to the MCP Server tab — connect an MCP client to this Tovu install",
+    },
+    {
+      // Absorbed from `DeveloperApi.tsx`'s own `webhooks` tab — see the `mcp-server` tab above for
+      // the shape of this move.
+      id: "webhooks",
+      label: tIntegrations(locale, "Webhooks"),
+      icon: (
+        <TabIcon>
+          <path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10" />
+        </TabIcon>
+      ),
+      handle: "providers-tab-webhooks",
+      handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes",
     },
   ];
 
@@ -173,47 +217,34 @@ export function Providers(props: ProvidersProps) {
           `@jini-ai/ui/settings-dialog.css` content: with no `data-theme` ancestor the stylesheet
           falls through to its `@media (prefers-color-scheme: dark)` variant, so these tab bodies
           would render dark on any OS set to dark mode while the rest of the (light-only) admin
-          shell stays light. Carried over from the Settings page these tabs moved off, whose whole
-          `settings-page` wrapper is pinned the same way for the same reason. */}
+          shell stays light. Now covers the MCP Server tab too (see this file's header) — one
+          ancestor for every themed tab body on this page. */}
       <div className="page providers-page" data-theme="light">
         <div
           className="page-header"
           {...agentHandle("providers-header", {
             role: "region",
-            label: "Providers panel header — every outside service this site connects to, and the credential each one needs",
+            label: "Integrations panel header — this install's outside connections in both directions: services it connects out to, and tools that connect in",
           })}
         >
           <div className="page-header-text">
-            <p className="page-kicker">{t(locale, "Integrations")}</p>
-            <h1 className="page-title">{t(locale, "Providers")}</h1>
+            <p className="page-kicker">{t(locale, "Add-Ons")}</p>
+            <h1 className="page-title">{t(locale, "Integrations")}</h1>
             <p className="page-description">
               {t(
                 locale,
-                "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.",
+                "Outside connections in both directions — external MCP tool servers, Composio accounts, this install's own MCP server, and outbound webhooks.",
               )}
             </p>
           </div>
         </div>
         <TabBar
-          ariaLabel={t(locale, "Providers")}
+          ariaLabel={t(locale, "Integrations")}
           tabs={tabs}
           activeId={activeTabId}
           onChange={handleTabChange}
           containerHandle="providers-tab-bar"
         />
-
-        {activeTabId === "media" ? (
-          // `media-providers-panel` is the class `styles.css`'s "Media providers tab: neutralize
-          // Jini's warm 'paper' tokens" section overrides `--jini-bg-panel`/`--jini-bg-elevated` on
-          // (owner report: the cards and their fields sat on a warm cream tone, not this admin's own
-          // neutral white) — kept byte-for-byte from `Media.tsx`'s own mount so that CSS, a pure
-          // class-name selector, keeps applying unmoved. `MediaProvidersTab`/the catalog/the port are
-          // all verbatim from `Media.tsx`'s old "Media providers" tab too — same real backend
-          // (`media_provider_credentials`), only the address changed.
-          <div className="media-providers-panel" data-theme="light">
-            <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
-          </div>
-        ) : null}
 
         {activeTabId === "composio" ? (
           <>
@@ -252,6 +283,24 @@ export function Providers(props: ProvidersProps) {
                 : tCapability(locale, "Changes apply when Tovu restarts")
             }
           />
+        ) : null}
+
+        {activeTabId === "mcp-server" ? (
+          // Verbatim from `DeveloperApi.tsx`'s own "MCP Server" tab, itself verbatim from the
+          // Settings page's old `mcp` tab before that — same `IntegrationsTab` component, same
+          // `serverName`, same `agentHandle`. Its own subtitle still says plainly that it is showing
+          // sample output rather than a live server: `IntegrationsTab` defaults to an in-memory fake
+          // port, and wiring a real `McpIntegrationsPort` to Tovu's daemon remains its own piece of
+          // work. Moving it (twice, now) did not make it more real, and this file does not imply it
+          // did.
+          <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />
+        ) : null}
+
+        {activeTabId === "webhooks" ? (
+          // `Integrations` (the webhooks list) renders no `page`/`page-header` of its own — see that
+          // component's own doc comment for why: it was built to be a tab body under a single page
+          // shell, first `DeveloperApi.tsx`'s, now this one.
+          <Integrations useIntegrationsHook={props.useIntegrationsHook} />
         ) : null}
       </div>
     </I18nProvider>

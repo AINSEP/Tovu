@@ -1,7 +1,7 @@
 import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "../../lib/fetch-query";
-import type { MediaTabId } from "./hooks/use-media-tabs.hooks";
+import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_DICT } from "./media-i18n";
 
 /**
@@ -314,7 +314,7 @@ export function readFileAsBase64(file: File): Promise<string> {
  *
  * @complexity Time O(n), space O(n).
  */
-export function filterMediaByTab(media: AdminMedia[], tab: MediaTabId): AdminMedia[] {
+export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): AdminMedia[] {
   if (tab === "images") return media.filter((item) => item.contentType?.startsWith("image/") ?? false);
   if (tab === "videos") return media.filter((item) => item.contentType?.startsWith("video/") ?? false);
   return media;

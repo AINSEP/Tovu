@@ -12,7 +12,7 @@ import { Comments } from "../../features/comments";
 import { Analytics } from "../../features/analytics";
 import { Media } from "../../features/media";
 import { Menus, MenuEditor } from "../../features/menus";
-import { DeveloperApi, IntegrationDeliveries } from "../../features/integrations";
+import { IntegrationDeliveries, IntegrationsRedirect } from "../../features/integrations";
 import { Providers } from "../../features/providers";
 import { Users } from "../../features/users";
 import { Authentication } from "../../features/authentication";
@@ -67,9 +67,11 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  // 47 as of 2026-09-10: `providers` joined in the owner-approved Integrations nav restructure.
-  // `integrations` did NOT leave — it kept its id and its `/:subscriptionId` route and only
-  // changed nav label ("Integrations & API" -> "APIs & Webhooks") and group.
+  // 47 as of 2026-09-10 (second pass, owner call): unchanged from the first pass's count —
+  // `integrations` did NOT leave the manifest, it lost its nav row. Its two tabs (MCP Server,
+  // Webhooks) moved into `providers` (now labelled "Integrations"), and its own id/route stayed for
+  // the `/:subscriptionId` deliveries drill-down and the retired index route's redirect — see
+  // `panels.tsx`'s own comment on both panels for the full history.
   it("has exactly 47 panels, and every id is unique", () => {
     expect(ADMIN_PANELS).toHaveLength(47);
     expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
@@ -302,13 +304,12 @@ describe("panel 'themes'", () => {
 });
 
 describe("panel 'integrations'", () => {
-  // The panel id stays `integrations` while its nav label reads "APIs & Webhooks" — route ids are
-  // independent of nav labels throughout `panels.tsx`, so this asserts the id/route pairing that
-  // keeps every existing `/admin/integrations` bookmark working, not the label.
-  it("index route renders DeveloperApi, threading ?tab= through", () => {
-    const el = panel("integrations").render(ctx({ query: new URLSearchParams("tab=mcp-server") })) as ReactElement;
-    expect(el.type).toBe(DeveloperApi);
-    expect(el.props).toMatchObject({ tabId: "mcp-server" });
+  // The panel id/route stay even though the row has no nav entry anymore (second pass, 2026-09-10)
+  // — this asserts the id/route pairing that keeps `/admin/integrations` and its deliveries
+  // drill-down resolving to real content, not a label (there is none to assert here now).
+  it("index route renders IntegrationsRedirect (redirects to /providers?tab=webhooks)", () => {
+    const el = panel("integrations").render(ctx()) as ReactElement;
+    expect(el.type).toBe(IntegrationsRedirect);
   });
 
   it("integration-deliveries view renders IntegrationDeliveries with subscriptionId", () => {

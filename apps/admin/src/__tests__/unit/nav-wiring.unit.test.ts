@@ -59,31 +59,42 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
-describe("Integrations nav section", () => {
-  // Renamed from "Add-Ons" 2026-09-10 (owner call) and widened from two rows to four: `providers`
-  // and `integrations` joined `plugins`/`agent-plugins` under one group split on direction of
-  // travel — see `panels.tsx`'s own comment on the `providers` panel for the full reasoning.
-  it("exists with exactly Providers, APIs & Webhooks, Plugins, Agent Plugins in that order", () => {
-    const integrations = getNav().find((group) => group.label === "Integrations");
-    expect(integrations).toBeDefined();
+describe("Add-Ons nav section", () => {
+  // 2026-09-10, second pass (owner call): renamed BACK from "Integrations" to "Add-Ons", and
+  // narrowed from four rows to three — `providers` and `integrations` (four tabs total between
+  // them) collapsed into one row, `providers`, now labelled "Integrations". See `panels.tsx`'s own
+  // comment on the `providers`/`integrations` panels for the full reasoning and rename history.
+  it("exists with exactly Plugins, Agent Plugins, Integrations in that order", () => {
+    const addOns = getNav().find((group) => group.label === "Add-Ons");
+    expect(addOns).toBeDefined();
 
-    const ids = integrations!.items.map((item) => item.id);
-    expect(ids).toEqual(["providers", "integrations", "plugins", "agent-plugins"]);
+    const ids = addOns!.items.map((item) => item.id);
+    expect(ids).toEqual(["plugins", "agent-plugins", "providers"]);
   });
 
-  // Regression guard: this exact row was mislabeled "Developer API" twice before landing on
-  // "APIs & Webhooks" — see `panels.tsx`'s own comment on the `integrations` panel entry.
-  it("the integrations panel is labeled 'APIs & Webhooks', not 'Developer API' or 'External APIs'", () => {
-    const integrations = getNav().find((group) => group.label === "Integrations");
-    const item = integrations!.items.find((i) => i.id === "integrations");
+  // Regression guard: this exact row (route id `providers`) was labelled "Providers", then briefly
+  // gained a sibling row labelled "APIs & Webhooks" (mislabeled "Developer API" twice before that),
+  // before both merged into this one row labelled "Integrations" — see `panels.tsx`'s own comment
+  // on the `providers` panel entry for the full history.
+  it("the providers panel is labeled 'Integrations', not 'Providers' or 'APIs & Webhooks'", () => {
+    const addOns = getNav().find((group) => group.label === "Add-Ons");
+    const item = addOns!.items.find((i) => i.id === "providers");
 
     expect(item).toBeDefined();
-    expect(item?.label).toBe("APIs & Webhooks");
+    expect(item?.label).toBe("Integrations");
+  });
+
+  // The retired `integrations` panel keeps its id/route (so `/admin/integrations` still resolves,
+  // redirecting rather than 404ing — see `panels.tsx`'s own comment) but has no nav row of its own
+  // anymore, in this group or any other.
+  it("the integrations panel no longer has its own nav row anywhere", () => {
+    const allIds = getNav().flatMap((group) => group.items.map((item) => item.id));
+    expect(allIds).not.toContain("integrations");
   });
 
   it("agent-plugins is a fully enabled link, not a soon/preview-gated one", () => {
-    const integrations = getNav().find((group) => group.label === "Integrations");
-    const item = integrations!.items.find((i) => i.id === "agent-plugins");
+    const addOns = getNav().find((group) => group.label === "Add-Ons");
+    const item = addOns!.items.find((i) => i.id === "agent-plugins");
 
     expect(item).toBeDefined();
     expect(item?.label).toBe("Agent Plugins");

@@ -1,11 +1,27 @@
 import { navigate } from "@/lib/router";
 
-export type MediaTabId = "all" | "images" | "videos";
+export type MediaTabId = "all" | "images" | "videos" | "external-providers";
 
+/** The subset of {@link MediaTabId} that reaches the media-grid rendering path
+ *  (`filterMediaByTab`, `MediaGridOrEmpty`, `MediaLibraryPanel` in `Media.tsx`) — everything except
+ *  "external-providers", which renders a provider-credentials panel with no grid, no filter, and no
+ *  concept of "empty" in the grid's sense. `Media.tsx`'s own early return on
+ *  `activeTab === "external-providers"` is what narrows `MediaTabId` down to this type for the rest
+ *  of that component's body; this alias exists so every function further down the grid-rendering
+ *  path can declare that narrower contract directly instead of re-widening to the full tab set and
+ *  needing a redundant `"external-providers"` branch nothing would ever reach. */
+export type MediaContentTabId = Exclude<MediaTabId, "external-providers">;
+
+/** "External Providers" (2026-09-10, owner call — supersedes the same-day first pass that briefly
+ *  put this tab on `features/providers/Providers.tsx` as "Media"): credentials for outside media
+ *  generation services belong beside the media they generate, not beside MCP/webhook plumbing. Last
+ *  in the list — an operator reaches for All/Images/Videos far more often than provider credentials,
+ *  and the three content tabs read as one group with this one set apart. */
 export const MEDIA_TABS: readonly { id: MediaTabId; label: string }[] = [
   { id: "all", label: "All" },
   { id: "images", label: "Images" },
   { id: "videos", label: "Videos" },
+  { id: "external-providers", label: "External Providers" },
 ];
 
 const MEDIA_TAB_IDS = MEDIA_TABS.map((tab) => tab.id) as readonly string[];
