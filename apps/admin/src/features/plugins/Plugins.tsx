@@ -1,30 +1,51 @@
-import { DataTable } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { useState } from "react";
 
-import { pluginToggleAriaLabel, pluginToggleControl } from "./rules";
-import { useWiredPlugins } from "./hooks/use-plugins.hooks";
+import type { AdminPlugin } from "@/lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import { navigate } from "../../lib/router";
+import { PluginRow } from "./PluginRow";
+import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
+import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
+import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
+import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
 /**
- * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
- * ui.spec.md) — markup only.
+ * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
+ * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling
+ * screen for the unrelated agent-plugins.org standard — see `panels.tsx`'s own "Add-Ons" group
+ * comment for why these two are deliberately not the same system) already has, but independent of
+ * it: nothing here imports from `AgentPlugins.tsx`/`AgentPluginRow.tsx`, and neither can this file's
+ * behavior change by editing those.
  *
- * State and API calls live in `hooks/use-plugins.hooks.ts`; the server-error-message override and
- * the toggle-cell visibility/label decision live in `rules.ts`. Route `/admin/plugins`; consumes
- * REQ-10's `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` HTTP contract (`api.listPlugins()`/
- * `api.setPluginEnabled()`) as a black box.
+ * State and API calls live in `hooks/use-plugins.hooks.ts`; the server-error-message override,
+ * toggle-cell decision, subline, and remove-confirm copy live in `rules.ts`. Route `/plugins`;
+ * consumes `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`/`PLUGIN_UNINSTALL` (`api.listPlugins()`/
+ * `api.setPluginEnabled()`/`api.uninstallPlugin()`) as a black box.
  *
- * Mirrors `Roles.tsx`/`Redirects.tsx`'s conventions exactly (ui.spec.md §0): `<table
- * className="list-table">`, `<div className="notice">`/`<div className="notice error">`
- * loading/error states, `"No … yet."` empty-state notice, plain `useState`/`useEffect`, a single
- * toggle-as-button per row (label names the action), row-scoped in-flight state (`Roles.tsx`'s
- * `rowSavingId` pattern), await-then-reload mutation flow (no optimistic pre-flip — see ui.spec.md
- * §9's disclosed reading).
+ * Three tabs, Installed first (owner correction, applied identically to the sibling screen the same
+ * night — Installed before Downloaded, not the other way round):
+ *  - **Installed** — `plugin.enabled === true` only. Carries the Enable/Disable toggle unchanged
+ *    from the pre-split table (`pluginToggleControl`/`onToggleEnabled`).
+ *  - **Downloaded** — every plugin `PLUGINS_LIST` returns, unfiltered (this workspace's on-disk
+ *    set). Carries Remove instead of the toggle — showing the same switch on both tabs would be
+ *    redundant once Downloaded already answers "is it on disk", and unlike `AgentPlugins.tsx`'s own
+ *    Downloaded tab (which has no real uninstall route and only relabels its toggle), this Remove
+ *    drives the REAL `PLUGIN_UNINSTALL` route: it deletes the plugin's on-disk artifact, gated
+ *    behind `PluginRemoveConfirmDialog`. A built-in plugin's Remove is honestly disabled — see
+ *    `pluginRemoveAriaLabel`/the section note below.
+ *  - **Marketplace** — a designed empty state; nothing is fetched, listed, or installable (REQ-02:
+ *    install is a filesystem operation, placing files under this site's plugin install directory,
+ *    not an HTTP one — `api.spec.md` §1 lists no install/marketplace route for this family either).
  *
- * There is no create/upload affordance: REQ-02 installs a plugin by placing its files under the
- * site install dir, and `api.spec.md` §1 exposes no endpoint an "add plugin" control could call.
+ * `?tab=` is URL-deep-linked through the shared `resolveActiveTabId` guard, the same idiom
+ * `Security.tsx`/`Database.tsx`/`SourceControl.tsx`/`Deployment.tsx` all use — `panels.tsx`'s
+ * `plugins` entry passes `ctx.query.get("tab")` through as `tabId`.
  */
 export interface PluginsProps {
+  /** The `?tab=` query value from `panels.tsx`'s `plugins` route. See {@link resolvePluginsTabId}. */
+  tabId?: string | null;
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
@@ -33,33 +54,164 @@ export interface PluginsProps {
   usePluginsHook?: typeof useWiredPlugins;
 }
 
-/**
- * Renders every discovered plugin in the order `PLUGINS_LIST` returns it (TB-01 — never re-sorted
- * client-side). Loading and toggling live in `usePlugins` (see its own `@complexity`/`@tradeoffs`).
- *
- * @complexity O(n) render in the number of discovered plugins.
- * @overallScore 100
- */
-export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
-  const { plugins, error, rowError, rowSavingId, onToggleEnabled, t, locale } = usePluginsHook();
+const PLUGINS_TAB_IDS = ["installed", "downloaded", "marketplace"] as const;
+type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
+
+/** Falls back to the Installed tab for an absent or unrecognized `?tab=` value. Delegates to the
+ *  shared `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen
+ *  uses. */
+function resolvePluginsTabId(tabId: string | null | undefined): PluginsTabId {
+  return resolveActiveTabId(tabId, PLUGINS_TAB_IDS, "installed");
+}
+
+/** The Installed tab's own row list — the Enable/Disable toggle unchanged from the pre-split table,
+ *  now living in the row's action slot instead of a `DataTable` cell. */
+function InstalledPluginRows({
+  plugins,
+  controller,
+  expandedIds,
+  onToggleExpanded,
+  rowHandleById,
+}: {
+  plugins: AdminPlugin[];
+  controller: PluginsController;
+  expandedIds: ReadonlySet<string>;
+  onToggleExpanded: (id: string) => void;
+  rowHandleById: Map<string, string>;
+}) {
+  const { t, locale, rowSavingId, onToggleEnabled } = controller;
+  return (
+    <ul className="plugin-rows">
+      {plugins.map((plugin) => {
+        const control = pluginToggleControl(plugin, rowSavingId, locale);
+        return (
+          <PluginRow
+            key={plugin.id}
+            plugin={plugin}
+            t={t}
+            expanded={expandedIds.has(plugin.id)}
+            onToggleExpanded={() => onToggleExpanded(plugin.id)}
+            agentHandleBase={rowHandleById.get(plugin.id)!}
+            action={
+              <button
+                type="button"
+                disabled={control.disabled}
+                onClick={() => onToggleEnabled(plugin)}
+                aria-label={pluginToggleAriaLabel(plugin, locale)}
+              >
+                {control.label}
+              </button>
+            }
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The Downloaded tab's own row list — Remove instead of the toggle; see this file's own header for
+ *  why. A built-in plugin's Remove is honestly disabled, `aria-describedby` pointing at
+ *  `removeNoteId`, the section-wide reason. */
+function DownloadedPluginRows({
+  plugins,
+  controller,
+  expandedIds,
+  onToggleExpanded,
+  rowHandleById,
+  removeNoteId,
+  onRequestRemove,
+}: {
+  plugins: AdminPlugin[];
+  controller: PluginsController;
+  expandedIds: ReadonlySet<string>;
+  onToggleExpanded: (id: string) => void;
+  rowHandleById: Map<string, string>;
+  removeNoteId: string;
+  onRequestRemove: (plugin: AdminPlugin) => void;
+}) {
+  const { t, locale, rowSavingId } = controller;
+  return (
+    <ul className="plugin-rows">
+      {plugins.map((plugin) => {
+        const builtIn = plugin.source === "built-in";
+        const busy = rowSavingId === plugin.id;
+        return (
+          <PluginRow
+            key={plugin.id}
+            plugin={plugin}
+            t={t}
+            expanded={expandedIds.has(plugin.id)}
+            onToggleExpanded={() => onToggleExpanded(plugin.id)}
+            agentHandleBase={rowHandleById.get(plugin.id)!}
+            action={
+              <button
+                type="button"
+                className="plugin-icon-btn"
+                disabled={builtIn || busy}
+                onClick={() => onRequestRemove(plugin)}
+                aria-label={pluginRemoveAriaLabel(plugin, locale)}
+                aria-describedby={builtIn ? removeNoteId : undefined}
+              >
+                <PluginTrashIcon />
+              </button>
+            }
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
+  const controller = usePluginsHook();
+  const { plugins, error, rowError, t } = controller;
+  const activeTabId = resolvePluginsTabId(tabId);
+
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const pendingRemovePlugin = plugins?.find((plugin) => plugin.id === pendingRemoveId) ?? null;
+  const removeNoteId = "plugins-remove-unavailable-note";
+
+  function onToggleExpanded(id: string) {
+    setExpandedIds((ids) => {
+      const next = new Set(ids);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleTabChange(nextTabId: string) {
+    navigate(`/plugins?tab=${nextTabId}`, { replace: true });
+  }
 
   if (error) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
-  // workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback only
-  // receives the row, not its index.
+  // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
+  // plugin's handle is identical whichever tab currently lists it (mirrors `AgentPluginRow`'s own
+  // reasoning for deriving from the id alone, not list position).
   const rowHandles = buildAgentListHandles(
     "plugins-row",
     plugins.map((plugin) => plugin.id),
   );
   const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
 
+  const installedPlugins = filterInstalledPlugins(plugins) ?? [];
+  const downloadedPlugins = plugins;
+
+  const tabs: TabBarTab[] = [
+    { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — plugins this site has turned on" },
+    { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
+    { id: "marketplace", label: t("Marketplace"), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
+  ];
+
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Studio")}</p>
+          <p className="page-kicker">{t("Add-Ons")}</p>
           <h1 className="page-title">{t("Plugins")}</h1>
           <p className="page-description">
             {t("Enable or disable plugins discovered in this site's plugin install directory.")}
@@ -72,10 +224,29 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
         </div>
       ) : null}
 
-      <DataTable
-        rows={plugins}
-        rowKey={(plugin) => plugin.id}
-        empty={
+      <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} containerHandle="plugins-tab-bar" />
+
+      {activeTabId === "installed" ? (
+        installedPlugins.length === 0 ? (
+          <div className="card">
+            <div className="empty-state">
+              <p>{t("No plugins are enabled for this site.")}</p>
+              <p className="page-description">{t("Enabled plugins extend what this site can do.")}</p>
+            </div>
+          </div>
+        ) : (
+          <InstalledPluginRows
+            plugins={installedPlugins}
+            controller={controller}
+            expandedIds={expandedIds}
+            onToggleExpanded={onToggleExpanded}
+            rowHandleById={rowHandleById}
+          />
+        )
+      ) : null}
+
+      {activeTabId === "downloaded" ? (
+        downloadedPlugins.length === 0 ? (
           <div className="card">
             <div className="empty-state">
               <p>{t("No plugins installed.")}</p>
@@ -86,79 +257,50 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
               </p>
             </div>
           </div>
-        }
-        columns={[
-          { key: "name", header: t("Name"), cell: (plugin) => plugin.name },
-          { key: "version", header: t("Version"), cell: (plugin) => plugin.version },
-          { key: "source", header: t("Source"), cell: (plugin) => plugin.source },
-          {
-            key: "tier",
-            header: t("Tier"),
-            cell: (plugin) => (
-              // `tier-${plugin.tier}` doubles the prefix (`tier-tier-3`) because the manifest
-              // value already carries it — ui.spec.md §5's literal template, kept verbatim.
-              <span className={`tier tier-${plugin.tier}`}>{plugin.tier}</span>
-            ),
-          },
-          {
-            key: "status",
-            header: t("Status"),
-            cell: (plugin) => <span className={`status status-${plugin.status}`}>{plugin.status}</span>,
-          },
-          {
-            key: "enabled",
-            headerLabel: t("Enabled"),
-            cell: (plugin) => {
-              const control = pluginToggleControl(plugin, rowSavingId, locale);
-              return control.visible ? (
-                <button
-                  type="button"
-                  disabled={control.disabled}
-                  onClick={() => onToggleEnabled(plugin)}
-                  aria-label={pluginToggleAriaLabel(plugin, locale)}
-                  {...agentHandle(`${rowHandleById.get(plugin.id)}-toggle-enabled`, {
-                    role: "button",
-                    label: `Enable or disable the "${plugin.name}" plugin`,
-                  })}
-                >
-                  {control.label}
-                </button>
-              ) : (
-                // AC-21: enabling this row is already known to 422, so no enable-capable
-                // control is offered at all (`Roles.tsx`'s built-in-row `—` idiom).
-                <span className="muted-cell">—</span>
-              );
-            },
-          },
-          {
-            key: "quarantine",
-            header: t("Quarantine"),
-            cell: (plugin) =>
-              plugin.quarantine ? (
-                <div className="plugin-errors">
-                  <span className="save-error">
-                    {t("Quarantined after")} {plugin.quarantine.consecutiveFailures} {t("consecutive failures")}
-                  </span>
-                  <div>{plugin.quarantine.reason}</div>
-                </div>
-              ) : null,
-          },
-          {
-            key: "errors",
-            header: t("Errors"),
-            cell: (plugin) =>
-              plugin.errors.length > 0 ? (
-                <ul className="plugin-errors">
-                  {plugin.errors.map((e) => (
-                    <li key={`${e.code}:${e.file ?? ""}:${e.message}`}>
-                      <span className="save-error">{e.code}</span> <span>{e.message}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null,
-          },
-        ]}
-      />
+        ) : (
+          <>
+            <DownloadedPluginRows
+              plugins={downloadedPlugins}
+              controller={controller}
+              expandedIds={expandedIds}
+              onToggleExpanded={onToggleExpanded}
+              rowHandleById={rowHandleById}
+              removeNoteId={removeNoteId}
+              onRequestRemove={(plugin) => setPendingRemoveId(plugin.id)}
+            />
+            <p id={removeNoteId} className="page-description">
+              {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
+            </p>
+          </>
+        )
+      ) : null}
+
+      {activeTabId === "marketplace" ? (
+        <div className="card">
+          <div className="empty-state" role="note">
+            <p>{t("Nothing to browse yet")}</p>
+            <p className="page-description">
+              {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
+            </p>
+            <p className="page-description">
+              {t("Install a plugin by placing its files in this site's plugin install directory.")}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingRemovePlugin ? (
+        <PluginRemoveConfirmDialog
+          name={pendingRemovePlugin.name}
+          agentHandleBase={rowHandleById.get(pendingRemovePlugin.id)!}
+          onConfirm={() => {
+            setPendingRemoveId(null);
+            void controller.onRemovePlugin(pendingRemovePlugin);
+          }}
+          onCancel={() => setPendingRemoveId(null)}
+          t={t}
+        />
+      ) : null}
     </div>
   );
 }

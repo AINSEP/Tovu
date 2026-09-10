@@ -60,4 +60,92 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     expect(result.current.plugins).toBeNull();
   });
+
+  /**
+   * `onToggleEnabled(plugin, {enabled: true})` on a currently-disabled plugin — this exact call is
+   * what the pre-split table's AC-19 exercised through the rendered UI. The Installed/Downloaded tab
+   * split (2026-09-09) removed every UI path that can reach it (Installed pre-filters to
+   * `enabled: true`; Downloaded's action slot is Remove, not the toggle — see `Plugins.unit
+   * .test.tsx`'s own header for the full reasoning), but the underlying mechanism in this hook is
+   * unchanged and still correct. Proven directly here so that fact stays covered even though no
+   * component test can reach it anymore.
+   */
+  it("still correctly enables a disabled plugin via the injected port, even though no tab in the rebuilt UI can trigger this direction anymore", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onToggleEnabled(result.current.plugins![0]!);
+    });
+
+    expect(result.current.plugins?.[0]?.enabled).toBe(true);
+  });
+});
+
+describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
+  it("removes the plugin via the injected port and re-fetches the list", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onRemovePlugin(result.current.plugins![0]!);
+    });
+
+    expect(result.current.plugins).toHaveLength(0);
+    expect(result.current.rowError).toBeNull();
+  });
+
+  it("surfaces a built-in plugin's refusal as rowError and leaves the list unchanged", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onRemovePlugin(result.current.plugins![0]!);
+    });
+
+    expect(result.current.rowError).toBe("This plugin ships with Tovu and cannot be removed.");
+    expect(result.current.plugins).toHaveLength(1);
+  });
+
+  it("EC-11-style single-flight: a second removal request for the same row while one is outstanding is a no-op", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+    });
+    let resolveUninstall!: () => void;
+    const uninstallCalls: string[] = [];
+    const realUninstall = port.uninstallPlugin.bind(port);
+    port.uninstallPlugin = (id: string) => {
+      uninstallCalls.push(id);
+      return new Promise((resolve) => {
+        resolveUninstall = () => resolve(realUninstall(id));
+      });
+    };
+
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+
+    const plugin = result.current.plugins![0]!;
+    let firstCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.onRemovePlugin(plugin);
+    });
+    await act(async () => {
+      await result.current.onRemovePlugin(plugin);
+    });
+
+    expect(uninstallCalls).toHaveLength(1);
+    resolveUninstall();
+    await act(async () => {
+      await firstCall;
+    });
+  });
 });

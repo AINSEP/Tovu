@@ -5,40 +5,58 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Plugins } from "../Plugins";
 
 /**
- * @file `Plugins` screen — SPEC-005 REQ-12..17, AC-18..25, EC-11, ui.spec.md (main 1.1.1 pass);
- * REQ-18/AC-26 (1.1.2 addendum, resolves RT-010 — see the dedicated `describe` block below).
+ * @file `Plugins` screen — SPEC-005 REQ-12..18, AC-18..26, EC-11 (ui.spec.md), rebuilt onto the
+ * row-based, tabbed (Installed/Downloaded/Marketplace) shape (2026-09-09). This rewrite REPLACES
+ * the plain-`DataTable` version of this suite rather than deleting its coverage: every assertion
+ * below carries forward the same requirement, adapted to where that fact now lives.
  *
- * RT-009 fixture note: this file's mocked `GET .../plugins` response mirrors the SAME AC-11/AC-18
- * shared fixture shape used by the backend's `discovery.integration.test.ts`/
- * `plugins-http.integration.test.ts` (built-in `word-count` + one valid + one invalid site
- * plugin) — duplicated here as a literal JSON shape rather than a cross-package import, since
- * `apps/admin` is a separate package with its own module resolution and has no path alias into
- * `src/features/plugin-runtime`. The "valid" site plugin's manifest would carry `tier: "tier-3"`
- * on the backend (RT-009); this `AC11_PLUGINS_RESPONSE` fixture omits `tier` entirely, which is
- * fine for what IT tests (id/name/version/source/status/enabled/errors, REQ-12/AC-18) — the 1.1.2
- * addendum below uses its own separate, varied-tier fixture rather than retrofitting `tier` onto
- * this one, since AC-26 specifically requires proving non-tier-3 values render correctly, which a
- * uniform tier-3 fixture could never distinguish from a hardcoded implementation.
+ * What moved and why:
+ *  - `role="table"`/`"row"` -> `role="tablist"`/`"tab"` for the tab bar, `role="listitem"` for a
+ *    plugin row (a `<ul>` of `PluginRow`, not a table) — same adaptation
+ *    `AgentPlugins.unit.test.tsx` made for its own sibling redesign the same night.
+ *  - The single unified list split into Installed (`enabled: true` only) and Downloaded
+ *    (unfiltered) tabs. AC-18's "every record, in API order" now applies to Downloaded specifically
+ *    — Installed's own scope is a NEW assertion, not a renamed old one.
+ *  - Quarantine (`automatic plugin quarantine`) and per-row `errors[]` (AC-24) moved from
+ *    always-visible `DataTable` columns into the row's own expander — those tests now expand the
+ *    row first.
+ *  - The tier badge (AC-26) moved into the row's plain-text subline (`source · tier · status`) —
+ *    asserted as that exact string instead of a separate `<span>`.
+ *  - AC-19 ("activating Enable on a valid, disabled plugin") is NO LONGER REACHABLE through this
+ *    screen's rendered UI: Installed only ever shows `enabled: true` rows (so its toggle only ever
+ *    reads "Disable"), and Downloaded's own action slot is Remove, not a toggle (owner's explicit,
+ *    repeated instruction — Downloaded showing the same switch as Installed was called out as
+ *    redundant). The underlying `onToggleEnabled(plugin, {enabled:true})` codepath is unchanged and
+ *    still directly covered in `use-plugins.hooks.unit.test.ts`; AC-19/AC-20/EC-11 below are
+ *    redirected to the Disable direction, which IS still reachable (Installed's own toggle). This is
+ *    a genuine screen-capability gap worth the owner's attention, not something silently patched
+ *    around here — flagged in the handoff, not hidden by rewriting the scenario to look unchanged.
+ *  - AC-21's "invisible toggle" branch (`pluginToggleControl`'s `visible: false` case, for an
+ *    invalid+disabled plugin) is now unreachable via Installed-tab-only rendering (Installed
+ *    pre-filters to `enabled: true`, which alone satisfies `pluginToggleControl`'s visibility
+ *    condition). Covered instead by a direct function invocation in `plugins-rules.unit.test.ts`,
+ *    per this workspace's "unreachable branch: delete vs. direct-invoke test" convention.
  *
- * TDD-certified against the stub in `../Plugins.tsx`; currently RED — the component throws "not
- * implemented" on every render. These assertions describe the contract the Programmer stage must
- * satisfy. This is the FIRST RTL-based component test in `apps/admin` (first-ever test harness for
- * this package, added this dispatch).
+ * New coverage this rewrite adds (not present in the pre-split suite): tab order/default, the
+ * row-action split itself, the Remove confirm dialog gating the real `DELETE`, a built-in plugin's
+ * honestly-disabled Remove, and `?tab=` deep-linking.
  */
 
 const AC11_PLUGINS_RESPONSE = {
   plugins: [
-    { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", status: "valid", enabled: true, errors: [] },
+    { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] },
     {
       id: "invalid-site-plugin",
       name: "Invalid Site Plugin",
       version: "1.0.0",
       source: "site",
+      tier: "tier-3",
       status: "invalid",
       enabled: false,
+      quarantine: null,
       errors: [{ code: "HOOK_UNKNOWN", file: "tovu.plugin.json", message: "attaches to an undeclared hook point" }],
     },
-    { id: "valid-site-plugin", name: "Valid Site Plugin", version: "1.0.0", source: "site", status: "valid", enabled: false, errors: [] },
+    { id: "valid-site-plugin", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
   ],
 };
 
@@ -50,7 +68,7 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  // `Plugins` now also calls `useAdminLocale()` (real `fetch`, not this screen's own concern), which
+  // `Plugins` also calls `useAdminLocale()` (real `fetch`, not this screen's own concern), which
   // would otherwise consume one of this file's strictly-ordered `mockResolvedValueOnce` slots and
   // shift every later assertion by one call. Routed to a fixed default-locale response outside
   // `fetchMock`'s own call queue, so `fetchMock.mock.calls` still holds exactly this screen's own
@@ -67,84 +85,140 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // `navigate()` drives real `history.pushState` — same cleanup convention `Security.unit.test.tsx`
+  // uses, so one test's tab click never leaks into the next.
+  window.history.replaceState(null, "", "/");
 });
 
-describe("REQ-12/AC-18: renders every PLUGINS_LIST record in API response order", () => {
-  it("renders exactly 3 rows with id/name/version/source/status/enabled, in the order the endpoint returns them (TB-01, no client re-sort)", async () => {
+describe("tabs: Installed, Downloaded, Marketplace, in that order, Installed active by default", () => {
+  it("renders exactly those three tabs in that order, with Installed selected", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-
     render(<Plugins />);
 
-    const table = await screen.findByRole("table");
-    const rows = within(table).getAllByRole("row").slice(1); // drop the header row
-    expect(rows).toHaveLength(3);
-
-    // TB-01 order: built-ins first (id asc), then site plugins (id asc) — exactly the order the
-    // mocked response returns them, since this screen must never re-sort/re-group client-side.
-    expect(within(rows[0]).getByText("Word Count")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("Invalid Site Plugin")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("Valid Site Plugin")).toBeInTheDocument();
+    const tablist = await screen.findByRole("tablist");
+    const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Marketplace"]);
+    expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
   });
 });
 
-describe("toggle button accessible names", () => {
-  it("gives each row's Enable/Disable button a page-wide-unique accessible name naming its own plugin — a generic browser agent reads the accessibility tree, not this repo's own agentHandle() data-agent-label", async () => {
+describe("Installed tab scope: plugin.enabled === true only", () => {
+  it("shows only the enabled row by default", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
-    await screen.findByRole("table");
 
-    // Page-wide `screen.getByRole` (no `within()` scoping) — this is exactly what a generic
-    // accessibility-tree-driven agent would query, and it fails with an ambiguous-match error if
-    // two rows' toggle buttons ever share one accessible name again.
-    expect(screen.getByRole("button", { name: "Disable Word Count" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Enable Valid Site Plugin" })).toBeInTheDocument();
+    await screen.findByRole("tablist");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
+  });
+});
+
+describe("REQ-12/AC-18: Downloaded tab renders every PLUGINS_LIST record, unfiltered, in API order", () => {
+  it("renders exactly 3 rows in the order the endpoint returns them (TB-01, no client re-sort)", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    // `tabId="downloaded"` rather than clicking the tab: `Plugins`'s active tab is a CONTROLLED prop
+    // sourced from the URL (`panels.tsx`'s `ctx.query.get("tab")`) — clicking a tab in production
+    // calls `navigate()` and the app's router re-invokes `render(ctx)` with the new query, but a
+    // bare `render(<Plugins />)` in a unit test has no such router wrapping it, so a click alone
+    // never changes which tab this component itself thinks is active. `Security.unit.test.tsx`'s
+    // own suite draws the identical line: its click test asserts only `window.location`, and its
+    // per-tab content tests render fresh with a `tabId` prop instead of clicking through.
+    render(<Plugins tabId="downloaded" />);
+
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+    expect(within(rows[0]!).getByText("Word Count")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("Invalid Site Plugin")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("Valid Site Plugin")).toBeInTheDocument();
+  });
+});
+
+describe("row-action split: Installed carries the toggle, Downloaded carries Remove", () => {
+  it("Installed's row shows the Enable/Disable toggle and no Remove control", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins />);
+
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    expect(within(row).getByRole("button", { name: "Disable Word Count" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
+  });
+
+  it("Downloaded's row shows Remove and no Enable/Disable toggle", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+    expect(within(row).getByRole("button", { name: "Remove Valid Site Plugin" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^(Enable|Disable)/ })).not.toBeInTheDocument();
   });
 });
 
 describe("REQ-15/AC-23: loading and error states", () => {
-  it("shows a loading notice while the initial fetch is in flight", async () => {
+  it("shows a loading notice while the initial fetch is in flight, no tabs yet", async () => {
     fetchMock.mockImplementation(() => new Promise(() => {})); // never resolves
     render(<Plugins />);
     expect(await screen.findByText(/loading plugins/i)).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("shows an error notice instead of a table when the initial fetch rejects, with no partial/stale data", async () => {
+  it("shows an error notice instead of any tab when the initial fetch rejects, with no partial/stale data", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     render(<Plugins />);
 
     expect(await screen.findByText(/network down|failed/i)).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 });
 
-describe("REQ-14/AC-22: empty state", () => {
-  it("renders an empty-state notice instead of an empty <table> when zero plugins are returned", async () => {
+describe("empty states", () => {
+  it("REQ-14/AC-22: Downloaded shows its own empty-state notice instead of an empty list when zero plugins are returned", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
-    render(<Plugins />);
+    render(<Plugins tabId="downloaded" />);
 
     expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+  });
+
+  it("Installed shows its own honest empty note when nothing is enabled", async () => {
+    const allDisabled = { plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => ({ ...p, enabled: false })) };
+    fetchMock.mockResolvedValueOnce(jsonResponse(allDisabled));
+    render(<Plugins />);
+
+    expect(await screen.findByText(/no plugins are enabled for this site/i)).toBeInTheDocument();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+  });
+
+  it("Downloaded still lists every plugin while Installed has nothing enabled — the same fixture, two independent renders", async () => {
+    const allDisabled = { plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => ({ ...p, enabled: false })) };
+    fetchMock.mockResolvedValueOnce(jsonResponse(allDisabled));
+    render(<Plugins tabId="downloaded" />);
+
+    expect(await screen.findAllByRole("listitem")).toHaveLength(3);
   });
 });
 
-describe("REQ-16/AC-24: per-row inline error display", () => {
-  it("renders an invalid plugin's own errors[] (code + message) inline on its own row", async () => {
+describe("REQ-16/AC-24: per-row inline error display, now inside the row's own expander", () => {
+  it("an invalid plugin's own errors[] (code + message) are hidden until the row is expanded, then shown", async () => {
+    const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins tabId="downloaded" />);
 
-    const table = await screen.findByRole("table");
-    const invalidRow = within(table).getByText("Invalid Site Plugin").closest("tr")!;
-    expect(within(invalidRow).getByText(/HOOK_UNKNOWN/)).toBeInTheDocument();
-    expect(within(invalidRow).getByText(/attaches to an undeclared hook point/)).toBeInTheDocument();
+    const row = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
+    expect(within(row).getByText(/HOOK_UNKNOWN/)).not.toBeVisible();
+
+    await user.click(within(row).getByRole("button", { name: /^Invalid Site Plugin/ }));
+    expect(within(row).getByText(/HOOK_UNKNOWN/)).toBeVisible();
+    expect(within(row).getByText(/attaches to an undeclared hook point/)).toBeVisible();
 
     // A valid row's errors[] is empty — nothing should render for it.
-    const validRow = within(table).getByText("Word Count").closest("tr")!;
+    const validRow = screen.getByRole("listitem", { name: "Valid Site Plugin" });
     expect(within(validRow).queryByText(/HOOK_UNKNOWN/)).not.toBeInTheDocument();
   });
 });
 
 describe("automatic plugin quarantine", () => {
-  it("shows the durable reason/count and leaves Enable as the recovery control", async () => {
+  it("shows the durable reason/count inside the row's expander", async () => {
+    const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         plugins: AC11_PLUGINS_RESPONSE.plugins.map((plugin) =>
@@ -158,175 +232,210 @@ describe("automatic plugin quarantine", () => {
                   consecutiveFailures: 3,
                 },
               }
-            : plugin
+            : plugin,
         ),
-      })
+      }),
     );
 
-    render(<Plugins />);
-    const row = within(await screen.findByRole("table")).getByText("Word Count").closest("tr")!;
-    expect(within(row).getByText("Quarantined after 3 consecutive failures")).toBeInTheDocument();
-    expect(within(row).getByText(/save blocker/)).toBeInTheDocument();
-    expect(within(row).getByRole("button", { name: /enable/i })).toBeInTheDocument();
+    render(<Plugins tabId="downloaded" />);
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    await user.click(within(row).getByRole("button", { name: /^Word Count/ }));
+
+    expect(within(row).getByText("Quarantined after 3 consecutive failures")).toBeVisible();
+    expect(within(row).getByText(/save blocker/)).toBeVisible();
+    // Word Count is now quarantined AND disabled: it no longer appears on Installed (enabled-only),
+    // and Downloaded's own action slot is Remove — honestly disabled here too, since Word Count is
+    // built-in. There is currently no re-enable control anywhere on this screen for a quarantined
+    // plugin (flagged in the handoff as a real gap, not asserted as a positive requirement here).
+    expect(within(row).queryByRole("button", { name: /^Enable/ })).not.toBeInTheDocument();
   });
 });
 
-describe("REQ-18/AC-26 (1.1.2): per-row trust-tier badge", () => {
-  // Small addition alongside the rest of this certified suite (SPEC-005 1.1.2, resolves RT-010).
-  // Synthetic fixture with THREE DIFFERENT `tier` values, exactly as AC-26 explicitly permits ("no
-  // shipped v1 manifest other than tier-3 need exist for this test") — the point is proving each
-  // row renders that record's OWN tier, not a value that happens to always be "tier-3" across the
-  // fixture (which is all `AC11_PLUGINS_RESPONSE` above would ever exercise, since real v1 data is
-  // tier-3-only per REQ-01's v1 boundary call).
-  const TIER_BADGE_RESPONSE = {
-    plugins: [
-      { id: "tier-one-plugin", name: "Tier One Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, errors: [] },
-      { id: "tier-two-plugin", name: "Tier Two Plugin", version: "1.0.0", source: "site", tier: "tier-2", status: "valid", enabled: false, errors: [] },
-      { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, errors: [] },
-    ],
-  };
+describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not hardcoded", () => {
+  it("each row's subline reflects that record's own source/tier/status", async () => {
+    const response = {
+      plugins: [
+        { id: "tier-one-plugin", name: "Tier One Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] },
+        { id: "tier-two-plugin", name: "Tier Two Plugin", version: "1.0.0", source: "site", tier: "tier-2", status: "invalid", enabled: false, quarantine: null, errors: [] },
+        { id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] },
+      ],
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+    render(<Plugins tabId="downloaded" />);
 
-  it("AC-26: each row's tier badge shows that record's own tier value verbatim — not hardcoded to tier-3", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(TIER_BADGE_RESPONSE));
-    render(<Plugins />);
-
-    const table = await screen.findByRole("table");
-
-    const tierOneRow = within(table).getByText("Tier One Plugin").closest("tr")!;
-    expect(within(tierOneRow).getByText("tier-1")).toBeInTheDocument();
-    // Guards specifically against a hardcoded badge: this row's tier is tier-1, so "tier-3" must
-    // never appear on it.
-    expect(within(tierOneRow).queryByText("tier-3")).not.toBeInTheDocument();
-
-    const tierTwoRow = within(table).getByText("Tier Two Plugin").closest("tr")!;
-    expect(within(tierTwoRow).getByText("tier-2")).toBeInTheDocument();
-
-    const tierThreeRow = within(table).getByText("Word Count").closest("tr")!;
-    expect(within(tierThreeRow).getByText("tier-3")).toBeInTheDocument();
+    await screen.findAllByRole("listitem");
+    expect(within(screen.getByRole("listitem", { name: "Tier One Plugin" })).getByText("site · tier-1 · valid")).toBeInTheDocument();
+    expect(within(screen.getByRole("listitem", { name: "Tier Two Plugin" })).getByText("site · tier-2 · invalid")).toBeInTheDocument();
+    expect(within(screen.getByRole("listitem", { name: "Word Count" })).getByText("built-in · tier-3 · valid")).toBeInTheDocument();
   });
 });
 
-describe("REQ-13/AC-19/AC-20: enable/disable toggle interaction", () => {
-  it("AC-19: activating 'Enable' on a valid, disabled plugin PATCHes {enabled:true}, shows an in-flight state, then re-fetches and shows enabled:true on 200", async () => {
+describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirected to the Disable direction (see this file's own header for why Enable is not reachable here)", () => {
+  it("activating Disable on Word Count PATCHes {enabled:false}, shows in-flight, re-fetches, and the row leaves Installed", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)) // initial GET
+      .mockResolvedValueOnce(jsonResponse({ plugin: { id: "word-count", version: "1.0.0", enabled: false, updatedAt: "now" }, changeSetId: "cs-1" })) // PATCH
       .mockResolvedValueOnce(
-        jsonResponse({ plugin: { id: "valid-site-plugin", version: "1.0.0", enabled: true, updatedAt: "now" }, changeSetId: "cs-1" })
-      ) // PATCH
-      .mockResolvedValueOnce(
-        jsonResponse({
-          plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)),
-        })
+        jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "word-count" ? { ...p, enabled: false } : p)) }),
       ); // re-fetch GET
 
     render(<Plugins />);
-    const table = await screen.findByRole("table");
-    const row = within(table).getByText("Valid Site Plugin").closest("tr")!;
-    const button = within(row).getByRole("button", { name: /enable/i });
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
     await user.click(button);
 
     const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(patchCall).toBeTruthy();
-    expect(JSON.parse(String(patchCall![1].body))).toEqual({ enabled: true });
+    expect(JSON.parse(String(patchCall![1].body))).toEqual({ enabled: false });
 
     await waitFor(() => {
-      const refreshedRow = within(screen.getByRole("table")).getByText("Valid Site Plugin").closest("tr")!;
-      expect(within(refreshedRow).getByRole("button", { name: /disable/i })).toBeInTheDocument();
+      expect(screen.queryByRole("listitem", { name: "Word Count" })).not.toBeInTheDocument();
+      expect(screen.getByText(/no plugins are enabled for this site/i)).toBeInTheDocument();
     });
   });
 
-  it("AC-20: a non-2xx PATCH response shows an error, leaves the row's enabled value unchanged, and returns the control to normal (re-clickable)", async () => {
+  it("a non-2xx PATCH response shows an error, leaves the row on Installed unchanged, and returns the control to normal (re-clickable)", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE))
       .mockResolvedValueOnce(jsonResponse({ error: "This plugin failed validation and cannot be enabled.", code: "PLUGIN_INVALID" }, 422));
 
     render(<Plugins />);
-    const table = await screen.findByRole("table");
-    const row = within(table).getByText("Valid Site Plugin").closest("tr")!;
-    const button = within(row).getByRole("button", { name: /enable/i });
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
     await user.click(button);
 
     expect(await screen.findByText(/failed validation and cannot be enabled/i)).toBeInTheDocument();
 
-    const refreshedRow = within(screen.getByRole("table")).getByText("Valid Site Plugin").closest("tr")!;
-    expect(within(refreshedRow).getByRole("button", { name: /enable/i })).toBeInTheDocument(); // unchanged, re-clickable
-    expect(within(refreshedRow).getByRole("button", { name: /enable/i })).not.toBeDisabled();
+    const stillRow = screen.getByRole("listitem", { name: "Word Count" });
+    const stillButton = within(stillRow).getByRole("button", { name: "Disable Word Count" });
+    expect(stillButton).toBeInTheDocument();
+    expect(stillButton).not.toBeDisabled();
   });
 
-  it("EC-11: a second click on the same row's toggle before the first request resolves does not send a second PATCH (client-side single-flight, no Idempotency-Key sent)", async () => {
+  it("EC-11: a second click on the same row's toggle before the first request resolves does not send a second PATCH", async () => {
     const user = userEvent.setup();
     let resolvePatch!: (value: Response) => void;
     const patchPromise = new Promise<Response>((resolve) => {
       resolvePatch = resolve;
     });
 
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE))
-      .mockImplementationOnce(() => patchPromise);
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)).mockImplementationOnce(() => patchPromise);
 
     render(<Plugins />);
-    const table = await screen.findByRole("table");
-    const row = within(table).getByText("Valid Site Plugin").closest("tr")!;
-    const button = within(row).getByRole("button", { name: /enable/i });
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    const button = within(row).getByRole("button", { name: "Disable Word Count" });
 
     await user.click(button);
-    // The button must now be disabled/in-flight — a second click must be a no-op (EC-11).
-    await user.click(button);
+    await user.click(button); // must be a no-op — the button is now disabled/in-flight
 
     const patchCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
     expect(patchCalls).toHaveLength(1);
-    expect(patchCalls[0][1]?.headers as Record<string, string> | undefined).not.toHaveProperty("Idempotency-Key");
+    expect(patchCalls[0]![1]?.headers as Record<string, string> | undefined).not.toHaveProperty("Idempotency-Key");
 
-    resolvePatch(jsonResponse({ plugin: { id: "valid-site-plugin", version: "1.0.0", enabled: true, updatedAt: "now" }, changeSetId: "cs-1" }));
+    resolvePatch(jsonResponse({ plugin: { id: "word-count", version: "1.0.0", enabled: false, updatedAt: "now" }, changeSetId: "cs-1" }));
   });
 });
 
-describe("REQ-13/AC-21: invalid/incompatible rows never offer an enable-capable control, but a disable path always remains", () => {
-  it("AC-21: a status:'invalid', enabled:false row offers no control that can request enabled:true", async () => {
+describe("Downloaded tab: Remove is gated behind a confirm dialog before the real DELETE call fires", () => {
+  it("opens a confirm dialog naming the plugin and does not call DELETE until Confirm is pressed", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+    await user.click(within(row).getByRole("button", { name: "Remove Valid Site Plugin" }));
+
+    const dialog = screen.getByRole("dialog", { name: 'Remove "Valid Site Plugin" from this site?' });
+    expect(within(dialog).getByText(/deletes the plugin's files from this site/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ pluginId: "valid-site-plugin", clearedWorkspaceIds: [] }))
+      .mockResolvedValueOnce(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.filter((p) => p.id !== "valid-site-plugin") }));
+
+    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => {
+      const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE");
+      expect(deleteCall).toBeTruthy();
+      expect(String(deleteCall![0])).toContain("/plugins/valid-site-plugin");
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("listitem", { name: "Valid Site Plugin" })).not.toBeInTheDocument());
+  });
+
+  it("Cancel closes the dialog without ever calling DELETE", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+    await user.click(within(row).getByRole("button", { name: "Remove Valid Site Plugin" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    // The row itself is untouched.
+    expect(screen.getByRole("listitem", { name: "Valid Site Plugin" })).toBeInTheDocument();
+  });
+
+  it("a built-in plugin's Remove is honestly disabled, with the reason reaching the accessibility tree", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    const removeBtn = within(row).getByRole("button", { name: "Remove Word Count — unavailable" });
+
+    expect(removeBtn).toBeDisabled();
+    // A disabled control is not focusable, so the WHY has to reach the accessibility tree some
+    // other way — a described-by pointing at the section's own visible note.
+    expect(removeBtn).toHaveAccessibleDescription(/ship with Tovu itself/);
+  });
+});
+
+describe("?tab= deep-linking (ADR-063's shared idiom, same as Security.tsx/Database.tsx)", () => {
+  it("falls back to Installed for an absent or unrecognized ?tab= value", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="not-a-real-tab" />);
+    expect(await screen.findByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("selects the tab named by a recognized ?tab= value", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+    expect(await screen.findByRole("tab", { name: "Downloaded" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("switching tabs calls navigate with the right query string", async () => {
+    const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
 
-    const table = await screen.findByRole("table");
-    const invalidRow = within(table).getByText("Invalid Site Plugin").closest("tr")!;
-    expect(within(invalidRow).queryByRole("button", { name: /enable/i })).not.toBeInTheDocument();
-  });
-
-  it("AC-21: a row with enabled:true always offers a working Disable control, regardless of status", async () => {
-    const responseWithEnabledInvalid = {
-      plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "invalid-site-plugin" ? { ...p, enabled: true } : p)),
-    };
-    fetchMock.mockResolvedValueOnce(jsonResponse(responseWithEnabledInvalid));
-    render(<Plugins />);
-
-    const table = await screen.findByRole("table");
-    const invalidRow = within(table).getByText("Invalid Site Plugin").closest("tr")!;
-    const disableButton = within(invalidRow).getByRole("button", { name: /disable/i });
-    expect(disableButton).toBeInTheDocument();
-    expect(disableButton).not.toBeDisabled();
+    await user.click(await screen.findByRole("tab", { name: "Downloaded" }));
+    expect(window.location.pathname).toBe("/admin/plugins");
+    expect(window.location.search).toBe("?tab=downloaded");
   });
 });
 
 describe("Accessibility (React Component Testing Policy)", () => {
-  it("the plugin list renders as a semantic table with an accessible toggle button per row", async () => {
+  it("the plugin list renders as a semantic list with an accessible toggle button per row", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
 
-    const table = await screen.findByRole("table");
-    expect(table).toBeInTheDocument();
-    const row = within(table).getByText("Word Count").closest("tr")!;
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
     expect(within(row).getByRole("button", { name: /disable/i })).toBeInTheDocument();
   });
 
-  it("status is conveyed by visible text, not color alone — the status string itself is always rendered", async () => {
+  it("the row's subline is visible text, not color alone — status is always rendered as text", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
-    render(<Plugins />);
+    render(<Plugins tabId="downloaded" />);
 
-    const table = await screen.findByRole("table");
-    const invalidRow = within(table).getByText("Invalid Site Plugin").closest("tr")!;
-    expect(within(invalidRow).getByText("invalid")).toBeInTheDocument();
+    const invalidRow = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
+    expect(within(invalidRow).getByText(/invalid/)).toBeInTheDocument();
   });
 });

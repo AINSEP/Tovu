@@ -41,10 +41,17 @@ export interface PluginsController {
   plugins: AdminPlugin[] | null;
   error: string | null;
   rowError: string | null;
-  /** In-flight enable/disable request, keyed by plugin id — one at a time. See `usePlugins`'s own
-   *  `@tradeoffs` note for what that gives up. */
+  /** In-flight enable/disable OR remove request, keyed by plugin id — one at a time, one row action
+   *  at a time overall (a remove in flight on one row and a toggle in flight on another still share
+   *  this single field). See `usePlugins`'s own `@tradeoffs` note for what that gives up. */
   rowSavingId: string | null;
   onToggleEnabled: (plugin: AdminPlugin) => Promise<void>;
+  /** Deletes a `"site"` plugin's on-disk artifact via `PLUGIN_UNINSTALL` and re-fetches the list —
+   *  the Downloaded tab's Remove control, gated behind `PluginRemoveConfirmDialog` before this is
+   *  ever called (see `Plugins.tsx`'s own `pendingRemoveId`). Refused by the server for a
+   *  `"built-in"` plugin or one still enabled somewhere; either refusal lands in `rowError` via the
+   *  same `describeApiError` path `onToggleEnabled` already uses. */
+  onRemovePlugin: (plugin: AdminPlugin) => Promise<void>;
   /** Bound translator — `Plugins.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
   /** The raw resolved locale — exposed only because `rules.ts`'s `pluginToggleControl` genuinely
@@ -95,7 +102,23 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     }
   }
 
-  return { plugins, error, rowError, rowSavingId, onToggleEnabled, t, locale };
+  async function onRemovePlugin(plugin: AdminPlugin) {
+    // Same single-flight discipline as `onToggleEnabled` — a second activation of this row's own
+    // Remove (or of any other row's action) while a request is outstanding is a no-op.
+    if (rowSavingId === plugin.id) return;
+    setRowSavingId(plugin.id);
+    setRowError(null);
+    try {
+      await port.uninstallPlugin(plugin.id);
+      await reload();
+    } catch (e) {
+      setRowError(describeApiError(e, translate(locale, "failed to remove plugin")));
+    } finally {
+      setRowSavingId(null);
+    }
+  }
+
+  return { plugins, error, rowError, rowSavingId, onToggleEnabled, onRemovePlugin, t, locale };
 }
 
 /**

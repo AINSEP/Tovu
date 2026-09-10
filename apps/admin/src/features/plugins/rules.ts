@@ -18,12 +18,20 @@ import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
  * @complexity O(1).
  * @overallScore 100
  */
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). Covers both this
+ *  screen's routes: `PLUGIN_SET_ENABLED`'s three codes (unchanged) plus `PLUGIN_UNINSTALL`'s four
+ *  (`PLUGIN_NOT_FOUND` is shared verbatim between both routes' error envelopes, so it needed no
+ *  second branch) — see `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own
+ *  `sendPluginUninstallError` for the source of truth these four messages translate. */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     if (e.code === "PLUGIN_NOT_FOUND") return "No plugin with that id is installed.";
     if (e.code === "PLUGIN_INVALID") return "This plugin failed validation and cannot be enabled.";
     if (e.code === "PLUGIN_INCOMPATIBLE") return "This plugin requires a different SDK version.";
+    if (e.code === "PLUGIN_NOT_UNINSTALLABLE") return "This plugin ships with Tovu and cannot be removed.";
+    if (e.code === "PLUGIN_ENABLED")
+      return "This plugin is enabled and must be disabled everywhere before it can be removed.";
+    if (e.code === "PLUGIN_ID_INVALID") return "This plugin's id is invalid.";
   }
   return describeApiErrorDefault(e, fallback);
 }
@@ -72,6 +80,81 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
  */
 export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): string {
   return `${plugin.enabled ? t(locale, "Disable") : t(locale, "Enable")} ${plugin.name}`;
+}
+
+/**
+ * The Installed tab's own scope (2026-09-09 tab split) — plugins this workspace has actually
+ * turned on. Downloaded (every plugin `PLUGINS_LIST` returns, unfiltered) and Installed read the
+ * exact same underlying list; this filter is the one line of difference between them, kept as its
+ * own named, independently testable function rather than an inline `.filter()` repeated in a
+ * `.tsx` panel — mirrors `filterEnabledAgentPlugins`'s identical role for the sibling screen.
+ *
+ * `null` in, `null` out: a `null` `plugins` means the initial load hasn't settled yet, a fact about
+ * the LOAD rather than about which rows are enabled — collapsing it to `[]` here would make
+ * `Plugins.tsx` unable to tell "still loading" from "loaded, and none are enabled".
+ *
+ * @complexity Time O(n) in `plugins.length`; space O(k) for the k enabled rows kept.
+ */
+export function filterInstalledPlugins(plugins: AdminPlugin[] | null): AdminPlugin[] | null {
+  return plugins ? plugins.filter((plugin) => plugin.enabled) : null;
+}
+
+/**
+ * The row's one-line subline, shown under its name/version heading and repeated inside its
+ * expander's own quarantine/errors context: `source · tier · status` (e.g. `"site · tier-3 ·
+ * valid"`). `AdminPlugin` has no free-text description field (unlike `AdminAgentPlugin`), so this
+ * is built from the trust/health signal the type already carries rather than inventing prose.
+ * Values are rendered verbatim, not translated — `plugin.source`/`tier`/`status` are domain
+ * enum values, not copy, matching how the pre-split table rendered them (no `t()` wrapping there
+ * either).
+ *
+ * @complexity O(1).
+ */
+export function pluginSubline(plugin: AdminPlugin): string {
+  return `${plugin.source} · ${plugin.tier} · ${plugin.status}`;
+}
+
+/**
+ * The Downloaded tab's Remove button `aria-label` — every row's button reads "Remove" identically,
+ * so the plugin's own name has to be in the accessible name for anything reading the accessibility
+ * tree to tell rows apart (same reasoning {@link pluginToggleAriaLabel} gives for the Installed
+ * tab's switch). Reads "unavailable" for a built-in row instead of naming an action nobody can
+ * take — `PLUGIN_NOT_UNINSTALLABLE`'s reason lives in the section note the disabled button's
+ * `aria-describedby` points at (`AgentPluginRow`'s own honest-disabled idiom), not repeated here.
+ *
+ * @complexity O(1).
+ */
+export function pluginRemoveAriaLabel(plugin: AdminPlugin, locale: string): string {
+  return plugin.source === "built-in"
+    ? `${t(locale, "Remove")} ${plugin.name} — ${t(locale, "unavailable")}`
+    : `${t(locale, "Remove")} ${plugin.name}`;
+}
+
+/** {@link buildPluginRemoveConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
+ *  `features/settings/rules.ts`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
+export interface PluginRemoveConfirmCopy {
+  title: string;
+  body: string;
+}
+
+/**
+ * Names the exact plugin in the title (an operator managing several installed plugins must see
+ * WHICH one they are about to lose), and states plainly in the body what Remove actually does here:
+ * unlike `AgentPluginDisableConfirmDialog`'s "Disable" (a reversible state flip — nothing on this
+ * screen can genuinely delete an Agent Plugin), this button drives the real
+ * `DELETE /workspaces/:id/plugins/:pluginId` route (`uninstallPlugin()`,
+ * `features/plugin-runtime/uninstall.ts`) — it deletes the plugin's on-disk artifact outright, not
+ * a reversible flag. The body says so in the owner's own required terms: this deletes the plugin's
+ * files from this site, cannot be undone, and reinstalling starts from scratch.
+ *
+ * @complexity Time/space: O(1) — no iteration.
+ */
+export function buildPluginRemoveConfirmCopy(params: { name: string }): PluginRemoveConfirmCopy {
+  return {
+    title: `Remove "${params.name}" from this site?`,
+    body:
+      "This deletes the plugin's files from this site. This cannot be undone — reinstalling starts from scratch.",
+  };
 }
 
 /**
@@ -222,8 +305,16 @@ export interface AgentPluginDisableConfirmCopy {
  * about to stop reaching the assistant), and states in the body what disabling actually does and
  * does not do: it is reversible (the package stays on disk and can be re-enabled), unlike
  * `features/settings/rules.ts`'s `buildExternalMcpRemoveConfirmCopy` counterpart, whose "Remove"
- * discards a sealed credential for good. That is also why this dialog's own confirm button reads
- * "Disable", not "Remove" — there is no delete here, only a state flip.
+ * discards a sealed credential for good.
+ *
+ * `variant` is the SAME underlying operation (`AGENT_PLUGIN_SET_ENABLED` with `enabled: false`)
+ * asked for from two different controls, added when Downloaded's row lost its Enable/Disable switch
+ * in favor of a single Remove/Enable action (2026-09-09 — see `AgentPlugins.tsx`'s own header):
+ *   - `"disable"` — Installed tab's switch. Confirm reads "Disable"; the row it guards already says
+ *     "Enabled"/"Disabled", so naming the same verb keeps the dialog consistent with the control.
+ *   - `"remove"` — Downloaded tab's action button. Confirm reads "Remove" to match that button, but
+ *     the body's bundled-package sentence is reused VERBATIM across both — the fact that this can't
+ *     actually delete anything doesn't change based on which control asked.
  *
  * The bundled-package sentence is unconditional rather than gated on a per-plugin flag: every
  * Agent Plugin installed today ships bundled with Tovu (`AGENT_PLUGINS_LIST`'s three rows are all
@@ -234,13 +325,41 @@ export interface AgentPluginDisableConfirmCopy {
  * `installAgentPluginFromUrl` gains a production caller and `origin` reaches the wire — tracked
  * here rather than silently assumed permanent.
  *
- * @complexity Time/space: O(1) — no iteration.
+ * @complexity Time/space: O(1) — one ternary, no iteration.
  */
-export function buildAgentPluginDisableConfirmCopy(params: { name: string }): AgentPluginDisableConfirmCopy {
+export function buildAgentPluginDisableConfirmCopy(params: {
+  name: string;
+  variant: "disable" | "remove";
+}): AgentPluginDisableConfirmCopy {
+  const bundledFact = "This package ships with Tovu — it can't be deleted outright, only turned off.";
+  if (params.variant === "remove") {
+    return {
+      title: `Remove ${params.name}?`,
+      body:
+        "This turns it off: its skills stop reaching the assistant on the next run, and it drops off the Installed tab. " +
+        `It stays right here on Downloaded and can be enabled again any time. ${bundledFact}`,
+    };
+  }
   return {
     title: `Disable ${params.name} for this site?`,
-    body:
-      "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. " +
-      "This package ships with Tovu — it can't be deleted outright, only turned off.",
+    body: `Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. ${bundledFact}`,
   };
+}
+
+/**
+ * The Downloaded tab's own remove/enable action button `aria-label` — same reasoning as
+ * {@link agentPluginToggleAriaLabel} for the Installed tab's switch: every row's button reads
+ * "Remove"/"Enable" identically, so the plugin's own name has to be in the accessible name for
+ * anything reading the accessibility tree to tell rows apart.
+ *
+ * Reads "Remove" for a currently-enabled row (Downloaded's stand-in for the switch's "on" state —
+ * see `AgentPlugins.tsx`'s own header for why Downloaded dropped the switch) and "Enable" for a
+ * currently-disabled one, mirroring {@link agentPluginToggleAriaLabel}'s own verb choice exactly so
+ * the two tabs describe the same underlying states in the same words.
+ *
+ * @complexity O(1).
+ */
+export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
+  const verb = plugin.enabled ? t(locale, "Remove") : t(locale, "Enable");
+  return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
 }

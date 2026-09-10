@@ -12,7 +12,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Activar",
     Disable: "Desactivar",
     "Inspect package files": "Inspeccionar los archivos del paquete",
-    Studio: "Estudio",
+    "Add-Ons": "Complementos",
     Plugins: "Plugins",
     "Loading plugins…": "Cargando plugins…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -68,17 +68,30 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.":
       "Desinstalar no está disponible: estos paquetes se incluyen con Tovu y se restauran en el próximo reinicio.",
 
+    // Plugins.tsx's Installed/Downloaded/Marketplace tab rebuild (2026-09-09) — this screen's OWN
+    // new copy. "Installed"/"Downloaded"/"Marketplace"/"Nothing to browse yet" are reused verbatim
+    // from the keys above (shared tab-label vocabulary across both screens in this dictionary).
+    Remove: "Eliminar",
+    "No plugins are enabled for this site.": "No hay plugins activados en este sitio.",
+    "Enabled plugins extend what this site can do.": "Los plugins activados amplían lo que este sitio puede hacer.",
+    "Built-in plugins ship with Tovu itself and have no on-disk files to remove.":
+      "Los plugins integrados se incluyen con el propio Tovu y no tienen archivos en disco para eliminar.",
+    "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.":
+      "El mercado está planeado para una versión futura. Tovu aún no descarga, lista ni instala plugins desde un mercado.",
+    "Install a plugin by placing its files in this site's plugin install directory.":
+      "Instala un plugin colocando sus archivos en el directorio de instalación de plugins de este sitio.",
+
     // Hook-level notice/error strings (use-plugins.hooks.ts) — these never got translated during
     // the JSX-only pass since they live in `.hooks.ts` files.
     "failed to load plugins": "no se pudieron cargar los plugins",
     "failed to update plugin": "no se pudo actualizar el plugin",
+    "failed to remove plugin": "no se pudo eliminar el plugin",
     "failed to update agent plugin": "no se pudo actualizar el plugin de agentes",
   },
   id: {
     Enable: "Aktifkan",
     Disable: "Nonaktifkan",
     "Inspect package files": "Periksa berkas paket",
-    Studio: "Studio",
     Plugins: "Plugin",
     "Loading plugins…": "Memuat plugin…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -109,7 +122,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Aktivieren",
     Disable: "Deaktivieren",
     "Inspect package files": "Paketdateien untersuchen",
-    Studio: "Studio",
     Plugins: "Plugins",
     "Loading plugins…": "Plugins werden geladen…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -140,7 +152,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "启用",
     Disable: "禁用",
     "Inspect package files": "检查软件包文件",
-    Studio: "工作室",
     Plugins: "插件",
     "Loading plugins…": "正在加载插件…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -171,7 +182,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "啟用",
     Disable: "停用",
     "Inspect package files": "檢視套件檔案",
-    Studio: "工作室",
     Plugins: "外掛",
     "Loading plugins…": "正在載入外掛…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -202,7 +212,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Ativar",
     Disable: "Desativar",
     "Inspect package files": "Inspecionar arquivos do pacote",
-    Studio: "Estúdio",
     Plugins: "Plugins",
     "Loading plugins…": "Carregando plugins…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -233,7 +242,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Включить",
     Disable: "Отключить",
     "Inspect package files": "Просмотреть файлы пакета",
-    Studio: "Студия",
     Plugins: "Плагины",
     "Loading plugins…": "Загрузка плагинов…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -264,7 +272,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "فعال‌سازی",
     Disable: "غیرفعال‌سازی",
     "Inspect package files": "بررسی فایل‌های بسته",
-    Studio: "استودیو",
     Plugins: "افزونه‌ها",
     "Loading plugins…": "در حال بارگذاری افزونه‌ها…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -295,7 +302,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "تفعيل",
     Disable: "تعطيل",
     "Inspect package files": "فحص ملفات الحزمة",
-    Studio: "الاستوديو",
     Plugins: "الإضافات",
     "Loading plugins…": "جارٍ تحميل الإضافات…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -326,7 +332,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "有効にする",
     Disable: "無効にする",
     "Inspect package files": "パッケージファイルを確認",
-    Studio: "スタジオ",
     Plugins: "プラグイン",
     "Loading plugins…": "プラグインを読み込み中…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -357,7 +362,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "사용",
     Disable: "사용 안 함",
     "Inspect package files": "패키지 파일 검사",
-    Studio: "스튜디오",
     Plugins: "플러그인",
     "Loading plugins…": "플러그인을 불러오는 중…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -388,7 +392,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Włącz",
     Disable: "Wyłącz",
     "Inspect package files": "Sprawdź pliki pakietu",
-    Studio: "Studio",
     Plugins: "Wtyczki",
     "Loading plugins…": "Wczytywanie wtyczek…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -419,7 +422,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Engedélyezés",
     Disable: "Letiltás",
     "Inspect package files": "Csomagfájlok megtekintése",
-    Studio: "Stúdió",
     Plugins: "Bővítmények",
     "Loading plugins…": "Bővítmények betöltése…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -450,7 +452,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Activer",
     Disable: "Désactiver",
     "Inspect package files": "Inspecter les fichiers du paquet",
-    Studio: "Studio",
     Plugins: "Extensions",
     "Loading plugins…": "Chargement des extensions…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -481,7 +482,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Увімкнути",
     Disable: "Вимкнути",
     "Inspect package files": "Переглянути файли пакета",
-    Studio: "Студія",
     Plugins: "Плагіни",
     "Loading plugins…": "Завантаження плагінів…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -512,7 +512,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Etkinleştir",
     Disable: "Devre dışı bırak",
     "Inspect package files": "Paket dosyalarını incele",
-    Studio: "Stüdyo",
     Plugins: "Eklentiler",
     "Loading plugins…": "Eklentiler yükleniyor…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -543,7 +542,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "เปิดใช้งาน",
     Disable: "ปิดใช้งาน",
     "Inspect package files": "ตรวจสอบไฟล์แพ็กเกจ",
-    Studio: "สตูดิโอ",
     Plugins: "ปลั๊กอิน",
     "Loading plugins…": "กำลังโหลดปลั๊กอิน…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -574,7 +572,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Abilita",
     Disable: "Disabilita",
     "Inspect package files": "Ispeziona i file del pacchetto",
-    Studio: "Studio",
     Plugins: "Plugin",
     "Loading plugins…": "Caricamento plugin…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -605,7 +602,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "सक्षम करें",
     Disable: "अक्षम करें",
     "Inspect package files": "पैकेज फ़ाइलें देखें",
-    Studio: "स्टूडियो",
     Plugins: "प्लगिन",
     "Loading plugins…": "प्लगिन लोड हो रहे हैं…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -636,7 +632,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "فعال کریں",
     Disable: "غیرفعال کریں",
     "Inspect package files": "پیکیج فائلیں دیکھیں",
-    Studio: "اسٹوڈیو",
     Plugins: "پلگ اِنز",
     "Loading plugins…": "پلگ اِنز لوڈ ہو رہے ہیں…",
     "Enable or disable plugins discovered in this site's plugin install directory.":
@@ -667,7 +662,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "সক্ষম করুন",
     Disable: "নিষ্ক্রিয় করুন",
     "Inspect package files": "প্যাকেজ ফাইল পরীক্ষা করুন",
-    Studio: "স্টুডিও",
     Plugins: "প্লাগইন",
     "Loading plugins…": "প্লাগইন লোড হচ্ছে…",
     "Enable or disable plugins discovered in this site's plugin install directory.":

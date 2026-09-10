@@ -20,4 +20,12 @@ export interface PluginsPort {
     id: string,
     patch: { enabled: boolean }
   ): Promise<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>;
+  /** `PLUGIN_UNINSTALL` (`DELETE /workspaces/:id/plugins/:pluginId`) — deletes a `"site"` plugin's
+   *  on-disk artifact and every workspace's activation row for it. Refuses a `"built-in"` plugin
+   *  (`PLUGIN_NOT_UNINSTALLABLE`) and a plugin still enabled somewhere (`PLUGIN_ENABLED`) — see
+   *  `features/plugin-runtime/uninstall.ts`'s own two preconditions. The Downloaded tab's own
+   *  `usePlugins` caller re-fetches the list afterward (`reload()`), the same "echo is narrow,
+   *  re-fetch is authoritative" convention `setPluginEnabled` above already uses, rather than
+   *  reading `clearedWorkspaceIds` itself. */
+  uninstallPlugin(id: string): Promise<{ pluginId: string; clearedWorkspaceIds: string[] }>;
 }

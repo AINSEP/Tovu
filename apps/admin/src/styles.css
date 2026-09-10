@@ -4819,6 +4819,119 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 .site-card-flag svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
 
+/* ------------------------------------------------------------------------
+   Plugins screen (Plugins.tsx) — the `.tovu-plugin` runtime family's row list,
+   independent of `.agent-plugin-row*` above (that block belongs to the sibling
+   Agent Plugins screen). Same row shape, different tokens: this screen stays a
+   plain `.page`, so it uses Tovu's own `--surface`/`--fg`/`--border` set rather
+   than Jini's `--jini-*` tokens, which only redefine inside a `data-theme`-
+   pinned Jini island this screen never opts into.
+   ------------------------------------------------------------------------ */
+.plugin-rows {
+  margin: 0; padding: 0; list-style: none;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.plugin-row + .plugin-row { border-top: 1px solid var(--border); }
+.plugin-row-main { display: flex; align-items: center; gap: 12px; padding: 0 14px 0 0; }
+
+.plugin-row-summary {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 8px 13px 17px;
+  border: 0; background: transparent; text-align: left; font: inherit; color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.plugin-row-summary:hover { background: var(--surface-2); }
+.plugin-row-summary:focus-visible,
+.plugin-icon-btn:focus-visible {
+  outline: 2px solid var(--accent-text); outline-offset: 2px;
+}
+
+.plugin-row-glyph {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  color: var(--muted);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.plugin-row[data-enabled="true"] .plugin-row-glyph {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+.plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.plugin-row-name {
+  font-size: 13.5px; font-weight: 650; color: var(--fg);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.plugin-row-version {
+  flex: 0 0 auto;
+  font-size: 11px; font-family: var(--font-mono, monospace); color: var(--muted);
+  background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: var(--r-pill); padding: 1px 7px;
+}
+.plugin-row-subline {
+  font-size: 12.5px; line-height: 1.45; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.plugin-row-chevron { flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--faint); }
+.plugin-chevron-glyph { transition: transform 160ms ease; }
+.plugin-row-summary[aria-expanded="true"] .plugin-chevron-glyph { transform: rotate(90deg); }
+
+/* The hairline between the summary zone and the action zone — same reasoning
+   `.agent-plugin-row-actions` documents: without it the chevron reads as floating between the
+   subline and the action, belonging to neither. */
+.plugin-row-actions {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  align-self: stretch;
+}
+
+.plugin-icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  color: var(--fg-2);
+  background: transparent;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.plugin-icon-btn:hover:not(:disabled) {
+  color: var(--danger); background: var(--danger-bg); border-color: var(--danger);
+}
+/* Honest-disabled — built-in plugins have no on-disk artifact for this route to remove. Must LOOK
+   unavailable rather than merely fail on click; the reason lives in `aria-describedby` and the
+   section-wide note under the list. */
+.plugin-icon-btn:disabled { color: var(--faint); cursor: default; }
+
+/* Detail panel — quarantine + `errors[]`, moved here from the pre-split table's own always-visible
+   columns. `[hidden]` needs its own rule for the reason every other `[hidden]` panel in this file
+   documents: the UA stylesheet's `[hidden] { display: none }` loses to any `display` declared on
+   the element itself — this panel has none, so this is defensive, matching the sibling screen's
+   identical rule. Indented to the row's own text column (17px summary padding + 34px glyph + 12px
+   gap), so it visibly belongs to the row above it. */
+.plugin-row-detail { display: grid; gap: 10px; padding: 2px 17px 16px 63px; }
+.plugin-row-detail[hidden] { display: none; }
+
+@media (max-width: 700px) {
+  .plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+  .plugin-row-summary { padding: 13px 14px 9px 17px; }
+  .plugin-row-detail { padding-left: 17px; }
+  .plugin-row-actions {
+    padding: 10px 14px 13px 17px;
+    border-left: none; border-top: 1px solid var(--border);
+    justify-content: flex-end;
+  }
+}
+
 .site-card-actions .btn-secondary:disabled {
   background: transparent; color: var(--faint); border-color: var(--border);
 }
