@@ -2362,6 +2362,25 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    failure mode before. `flex-shrink: 0` on the items is still required: without it, flex's default
    shrink-to-fit squeezes each tab's padding/text before wrap kicks in. */
 .tab-bar { display: flex; flex-wrap: wrap; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; }
+/* The tab row's own `margin-bottom` above (20.8px) stacks with the surrounding `.page`'s flex
+   `gap: var(--space-6)` (24px) whenever a tab bar sits directly in a `.page` column — true for
+   every full-page consumer of this component (Recovery, Providers, Media, Themes, Pages, Security,
+   Roles, Deployment, SEO, Database, Source Control, Sites; see `TabBar.tsx`'s own header for the
+   full list). Measured on Recovery's Restore tab before touching anything: 44.8px total from tab
+   row to content, nearly double the 24px gap that same page already uses one row up, between its
+   header and this tab row — an accidental doubling, not a deliberate rhythm. Owner-reported
+   2026-09-10: "there's a general pattern where there's a lot of space under the tab... seems to be
+   everywhere." Zeroing it here makes every tab row's own bottom space equal to the page's normal
+   24px rhythm instead of 44.8px.
+
+   Scoped to the `.page > .tab-bar` child combinator, not the bare rule above, because that rule's
+   `margin-bottom` is NOT redundant everywhere: `ExternalMcpSettingsPanel.tsx`'s per-row
+   Connection/Tools tab bar reuses this same class nested inside `.external-mcp-source`, well below
+   any `.page`'s flex gap (that panel itself lives inside the Providers `.page`, several DOM levels
+   under this rule's own tab row, so a plain `.page .tab-bar` descendant selector would have caught
+   it too) — there, the 20.8px margin is that row's ONLY source of space before its panel content,
+   and zeroing it would collapse the gap to nothing. */
+.page > .tab-bar { margin-bottom: 0; }
 .tab-bar-item {
   display: inline-flex; align-items: center;
   background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
@@ -2867,16 +2886,23 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 
 /* --- Region 4: the gate. The only thing between "safe" and "issuing a destructive plan". --- */
-/* Given a full-bleed band rather than being a sentence with a 16px native box in it. Turning
-   `--ok` when satisfied is the whole point: it tells the operator why the button below just
-   became available, which nothing on the earlier design did.
+/* Given a full-bleed band rather than being a sentence with a 16px native box in it.
 
    Pass #3 dropped its `--surface-2` ground. Three alert-looking treatments were stacking with no
    rank — the tinted manifest, the solid red alarm, and this band — and `--surface-2` is the one
    COOL surface in the token set (oklch hue 250) sitting directly under a composition of warm reds,
    so it read as a third alarm borrowed from a different design system. A gate is a control, not an
    alert; unfilled, it is the calm step between the verdict above it and the button below, and the
-   `:has(:checked)` tint below is now a real state change rather than one wash replacing another. */
+   `:has(:checked)` tint below is now a real state change rather than one wash replacing another.
+
+   2026-09-10 owner feedback: this used to turn `--ok` (green) when checked — reusing the same
+   token `.status-ok`/`.tab-bar-dot` use for "connected/active" (see that comment further up this
+   file). Checking this box isn't a success state, though — it's the operator acknowledging a loss
+   window on a DESTRUCTIVE action, and green's "you're safe now" vocabulary said the opposite of
+   what this screen means. Recolored to `--primary`, the same burnt-orange token `.btn-primary`
+   (the "Continue to confirm" button directly beneath this gate) already carries as its fill, so
+   checking the box visually previews the action it is about to unlock rather than borrowing an
+   unrelated "all clear" signal. */
 .recovery-ack-gate {
   display: flex; align-items: flex-start; gap: var(--space-4);
   margin: 0; padding: var(--space-5) var(--space-6);
@@ -2884,16 +2910,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   font-size: var(--text-md); font-weight: 500; line-height: 1.45; color: var(--fg);
   cursor: pointer; transition: background-color 0.14s ease;
 }
-/* Deliberately a much weaker green than `--ok-bg` itself: full-strength it sits directly beneath
-   the solid `--danger` alarm and the two saturated bands fight each other. The checkbox's own
-   `accent-color` carries the signal; this only needs to confirm the band's state changed. */
+/* Deliberately a much weaker tint than `--primary-dim` itself: full-strength it sits directly
+   beneath the solid `--danger` alarm and the two saturated bands fight each other. The checkbox's
+   own `accent-color` carries the signal; this only needs to confirm the band's state changed. */
 .recovery-ack-gate:has(input:checked) {
-  background: color-mix(in oklch, var(--ok) 7%, var(--surface));
-  border-bottom-color: color-mix(in oklch, var(--ok) 25%, var(--border));
+  background: color-mix(in oklch, var(--primary) 7%, var(--surface));
+  border-bottom-color: color-mix(in oklch, var(--primary) 25%, var(--border));
 }
 .recovery-ack-gate input[type="checkbox"] {
   width: 1.35rem; height: 1.35rem; margin: 0.02rem 0 0;
-  accent-color: var(--ok); cursor: pointer; flex-shrink: 0;
+  accent-color: var(--primary); cursor: pointer; flex-shrink: 0;
 }
 /* This admin gives `button`/`a` an app-wide focus ring but never gave one to inputs. This control
    gates a destructive action, so it does not get to be the keyboard-invisible one. */
