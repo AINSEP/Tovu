@@ -3098,6 +3098,41 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Alignment fix (2026-09-10, owner report). The "Card removed" rule above only zeroed the
+   MODAL's outer chrome (background/border/radius/shadow) — it deliberately left
+   `.jini-tabbed-dialog-head` and `.jini-tabbed-dialog-content`'s own padding in place (see that
+   rule's comment), on the reasoning that `.admin-content`'s page padding alone already kept the
+   list off the viewport edge. That reasoning covered the edge case (nothing clips) but missed the
+   ordinary one: those two `@jini-ai/ui` defaults (`padding: 24px 24px 12px` on the head,
+   `padding: 16px 24px 22px` on the content — both are a floating dialog's own inset from ITS OWN
+   border, not overridden here) STACK on top of `.admin-content`'s 32px/40px page padding rather
+   than replacing it. Measured live at 1440px: the "PLUGINS" eyebrow and the row-list card both
+   sat 24px right of `/admin/plugins`' flush `.page-kicker`/`.plugin-rows` at the same viewport,
+   and the head's own 24px top padding pushed the whole block 24px further down the page than
+   every sibling screen that renders straight into `.admin-content`.
+
+   Same diagnosis and same fix as `.settings-ui-section--page-flow .jini-tabbed-dialog-content`'s
+   "Flat variant" padding-inline rule further down this file: a dialog edge that no longer exists
+   should not still be indenting content away from it. Zeroed here rather than there because this
+   screen was never given the `--page-flow` modifier (see the "Card removed" comment for why: it
+   has no `.page-header` of its own competing with the shell's title strip, so hiding the strip —
+   the other half of that variant — is not wanted here, only the padding half is).
+
+   Head's `padding-top` goes to 0 so the title block starts flush with `.admin-content`'s own
+   inset instead of 24px below it; its 12px `padding-bottom` is untouched — that's the gap to the
+   tab strip below, not an edge inset, and removing it would just move the crowding rather than
+   fix it. Both sides zero `padding-inline` rather than only the left, matching the Flat variant's
+   own reasoning: a lopsided 24px right gutter with nothing on the left would read as its own new
+   misalignment. Content's `padding-top`/`padding-bottom` are untouched for the same reason as the
+   head's bottom padding — that's rhythm between the subtitle and the tab strip, not an edge. */
+.agent-plugins-section .jini-tabbed-dialog-head {
+  padding-top: 0;
+  padding-inline: 0;
+}
+.agent-plugins-section .jini-tabbed-dialog-content {
+  padding-inline: 0;
+}
+
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
    box: that treatment means "this control does nothing yet" everywhere else in this admin, which
    is now the opposite of true on this screen — the switch below it is live. A plain lede also
