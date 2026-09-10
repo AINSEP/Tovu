@@ -573,15 +573,16 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Add-Ons ---
   // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
   // skills, design tokens — whereas plugins/agent-plugins are installed capabilities that extend
-  // what the site can DO, which is a different axis. Splitting also gives Marketplace somewhere to
-  // live: as a Studio row it would have read as a fourth design tool.
+  // what the site can DO, which is a different axis.
   //
-  // 2026-09-09: group renamed "Plugins" -> "Add-Ons" (owner call). The `.tovu-plugin` runtime
-  // family (this "Plugins" row + Marketplace below) and the Agent Plugins open standard
-  // (agent-plugins.org) are genuinely different systems that happen to share the word "plugin" —
-  // the flat "Plugins" heading had already caused an agent to work in the wrong directory. "Plugins"
-  // and "Agent Plugins" are now two sibling rows under one "Add-Ons" umbrella label instead of one
-  // implying it contains the other.
+  // 2026-09-09: group renamed "Plugins" -> "Add-Ons" (owner call), and the Marketplace nav row
+  // removed (owner call): it duplicated the `MarketplacePanel` tab already inside the Agent Plugins
+  // screen below, so this was a deletion of a duplicate row, not of the feature. The `.tovu-plugin`
+  // runtime family (this "Plugins" row) and the Agent Plugins open standard (agent-plugins.org) are
+  // genuinely different systems that happen to share the word "plugin" — the flat "Plugins" heading
+  // had already caused an agent to work in the wrong directory. "Plugins" and "Agent Plugins" are
+  // now two sibling rows under one "Add-Ons" umbrella label instead of one implying it contains the
+  // other.
   {
     id: "plugins",
     render: () => <Plugins />,
@@ -600,37 +601,21 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
-    id: "plugins-marketplace",
-    render: () => <Placeholder sectionId="plugins-marketplace" agentHandle="plugins-marketplace" />,
-    nav: {
-      label: "Marketplace",
-      group: "Add-Ons",
-      soon: true,
-      icon: '<path d="M3 6.5h12l-1 8H4z"/><path d="M6.5 6.5a2.5 2.5 0 015 0"/>',
-    },
-    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
-    // nothing built yet for an agent to DO on this screen, but landing here to report that back
-    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
-    // `false` default would reintroduce.
-  },
-  {
     id: "agent-plugins",
     render: () => <AgentPlugins />,
     nav: {
-      // Sibling row under "Add-Ons", alongside Plugins and Marketplace: surfaces the Agent
-      // Plugins open standard (agent-plugins.org, published 2026-08-06) — portable
-      // skills/MCP-server bundles, distinct from the site-capability plugins the other two rows
-      // manage. No backend yet, but `soonPreviewable: true` (owner request) so the row is a real
-      // clickable link to a reminder note + the spec URL, not an inert "coming soon" label.
+      // Sibling row under "Add-Ons", alongside Plugins: surfaces the Agent Plugins open standard
+      // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct
+      // from the site-capability plugins the other row manages. Renders `AgentPlugins.tsx`, a real
+      // screen reading real per-workspace data over `AGENT_PLUGINS_LIST`
+      // (`GET /api/admin/v1/workspaces/:workspaceId/agent-plugins`) — not a stub. Marketplace lives
+      // as a tab inside that screen (`MarketplacePanel`), not as a nav row of its own; the row that
+      // used to sit here for it was a duplicate and was removed.
       label: "Agent Plugins",
       group: "Add-Ons",
-      soon: true,
-      soonPreviewable: true,
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
     },
-    // Reachable via the default, same as every other panel here — still no backend, so an agent
-    // landing here finds a reminder note and a spec URL, not a usable feature, but that's still a
-    // more useful answer than "no such page" for an operator asking where this is.
+    agentReachable: true,
   },
 
   // --- Commerce ---

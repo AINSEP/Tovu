@@ -59,23 +59,23 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
-describe("Plugins nav section", () => {
-  it("exists with exactly Installed, Marketplace, Agent Plugins in that order", () => {
-    const plugins = getNav().find((group) => group.label === "Plugins");
-    expect(plugins).toBeDefined();
+describe("Add-Ons nav section", () => {
+  it("exists with exactly Plugins, Agent Plugins in that order", () => {
+    const addOns = getNav().find((group) => group.label === "Add-Ons");
+    expect(addOns).toBeDefined();
 
-    const ids = plugins!.items.map((item) => item.id);
-    expect(ids).toEqual(["plugins", "plugins-marketplace", "agent-plugins"]);
+    const ids = addOns!.items.map((item) => item.id);
+    expect(ids).toEqual(["plugins", "agent-plugins"]);
   });
 
-  it("agent-plugins is a real clickable preview link, not an inert 'soon' label", () => {
-    const plugins = getNav().find((group) => group.label === "Plugins");
-    const item = plugins!.items.find((i) => i.id === "agent-plugins");
+  it("agent-plugins is a fully enabled link, not a soon/preview-gated one", () => {
+    const addOns = getNav().find((group) => group.label === "Add-Ons");
+    const item = addOns!.items.find((i) => i.id === "agent-plugins");
 
     expect(item).toBeDefined();
     expect(item?.label).toBe("Agent Plugins");
-    expect(item?.soon).toBe(true);
-    expect(item?.soonPreviewable).toBe(true);
+    expect(item?.soon).toBeFalsy();
+    expect(item?.soonPreviewable).toBeFalsy();
   });
 });
 

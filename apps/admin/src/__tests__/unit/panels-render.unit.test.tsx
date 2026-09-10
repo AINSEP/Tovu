@@ -65,9 +65,9 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  it("has exactly 46 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(46);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
+  it("has exactly 45 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(45);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(45);
   });
 });
 
@@ -87,7 +87,6 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "admin-appearance", component: Placeholder, extraProps: { sectionId: "admin-appearance" } },
   { id: "playground", component: Playground },
   { id: "plugins", component: Plugins },
-  { id: "plugins-marketplace", component: Placeholder, extraProps: { sectionId: "plugins-marketplace" } },
   { id: "agent-plugins", component: AgentPlugins },
   { id: "payments", component: Payments },
   { id: "orders", component: Placeholder, extraProps: { sectionId: "orders" } },
