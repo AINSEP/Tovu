@@ -75,6 +75,9 @@ describe("styles/external-mcp-tool-picker.css", () => {
     ".external-mcp-tool-enable",
     ".external-mcp-tool-row[data-locked] .external-mcp-tool-enable",
     ".external-mcp-tool-write",
+    // `ExternalMcpSourceRow`'s own per-server "Tools" trigger (2026-09-10) — a bare `<button>`,
+    // subject to the same global reset as every other control pinned above.
+    ".external-mcp-source-tools-open",
   ];
 
   it.each(CONTROL_SELECTORS)("%s declares color explicitly", (selector) => {

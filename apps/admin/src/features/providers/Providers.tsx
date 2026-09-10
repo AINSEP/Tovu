@@ -269,14 +269,18 @@ export function Providers(props: ProvidersProps) {
         ) : null}
 
         {activeTabId === "external-mcp" ? (
-          // Verbatim from the Settings page's old "External MCP" tab. `saveStatusLabel` still
-          // carries the restart notice rather than "All changes saved", for the reason that tab's
-          // own comment gave: a saved row is persisted but NOT live, because the admitted tool set
-          // is frozen at connect (`mcp-federation/trust.ts` R5). Telling an operator their change
-          // is saved, while the running assistant still cannot see the server, would be true and
-          // useless.
+          // Verbatim from the Settings page's old "External MCP" tab, plus one addition
+          // (2026-09-10): `showTitle={false}`. The panel's own `<h3>External MCP servers</h3>`
+          // duplicated the TabBar tab above it once this became a sub-tab here rather than a
+          // standalone Settings tab — see `ExternalMcpSettingsPanel.tsx`'s own `showTitle` doc for
+          // why the subtitle stays regardless. `saveStatusLabel` still carries the restart notice
+          // rather than "All changes saved", for the reason that tab's own comment gave: a saved
+          // row is persisted but NOT live, because the admitted tool set is frozen at connect
+          // (`mcp-federation/trust.ts` R5). Telling an operator their change is saved, while the
+          // running assistant still cannot see the server, would be true and useless.
           <ExternalMcpSettingsPanel
             dependencies={p.externalMcp.dependencies}
+            showTitle={false}
             saveStatusLabel={
               p.externalMcp.restartRequired
                 ? tCapability(locale, "Saved — restart Tovu to connect")

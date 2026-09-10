@@ -249,9 +249,10 @@ describe("Remove confirmation dialog is agent-pressable", () => {
 });
 
 /**
- * @file (continued) The Connection/Tools tab wrapper (2026-09-08, Phase 4 of the write-tools
- * outline) must be agent-pressable the same way as everything else on this panel: an assistant
- * switches to a server's Tools tab, ticks a tool, and saves — all through the real `page.*` verbs.
+ * @file (continued) The per-server Tools modal (2026-09-10, superseding the 2026-09-08
+ * Connection/Tools `TabBar` this describe block originally covered) must be agent-pressable the
+ * same way as everything else on this panel: an assistant opens a server's Tools modal, ticks a
+ * tool, and saves — all through the real `page.*` verbs.
  *
  * `ExternalMcpToolPicker` always calls the REAL `useWiredExternalMcpToolPicker`, which probes over
  * `fetch` — there is no port-injection seam at the component level (unlike the roster list, which
@@ -262,7 +263,7 @@ describe("Remove confirmation dialog is agent-pressable", () => {
  * `connections` array, which `api.getExternalMcpAdmissions` already treats as "nothing to report"
  * (`?? []`) rather than a crash, so this is silent and irrelevant to the assertions below.
  */
-describe("Connection / Tools tabs are agent-pressable", () => {
+describe("the Tools modal is agent-pressable", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -311,7 +312,7 @@ describe("Connection / Tools tabs are agent-pressable", () => {
     );
   }
 
-  it("page.click on <cardHandle>-tab-tools swaps the pane: Remove disappears, the picker's own controls appear", async () => {
+  it("page.click on <cardHandle>-tools-open opens the modal: Remove stays visible, the picker's own controls appear", async () => {
     stubProbeFetch();
     const { container } = renderPanel([HIGGSFIELD_WITH_TOOLS]);
     await screen.findAllByTestId("source-config-item-card");
@@ -319,28 +320,32 @@ describe("Connection / Tools tabs are agent-pressable", () => {
 
     const before = await findElements(driver);
     expect(before).toContain("mcp-server-higgsfield-remove");
-    expect(before).toContain("mcp-server-higgsfield-tab-tools");
+    expect(before).toContain("mcp-server-higgsfield-tools-open");
     expect(before).not.toContain("mcp-server-higgsfield-tools-save");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-tools" });
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-open" });
     await driver.settle?.();
-    // The picker's own header controls render as soon as the tab is active, before the probe
+    // The picker's own header controls render as soon as the modal mounts it, before the probe
     // resolves — waited on here so the rest of this test isn't racing the fetch.
     await screen.findByText("2 of 2 tools enabled");
 
-    const afterTools = await findElements(driver);
-    expect(afterTools).not.toContain("mcp-server-higgsfield-remove");
-    expect(afterTools).toContain("mcp-server-higgsfield-tools-save");
-    expect(afterTools).toContain("mcp-server-higgsfield-tools-refresh");
-    expect(afterTools).toContain("mcp-server-higgsfield-tools-generate-image");
-    expect(afterTools).toContain("mcp-server-higgsfield-tools-edit-image");
+    const afterOpen = await findElements(driver);
+    // Remove is NEVER hidden by this modal — unlike the old TabBar, which unmounted the Connection
+    // card (and its Remove button) while the Tools tab was active. That was the whole point of
+    // moving Tools off the card's own action cluster: see `ExternalMcpSettingsPanel.tsx`'s header on
+    // widening the visual (and now structural) distance between Tools and the unrecoverable Remove.
+    expect(afterOpen).toContain("mcp-server-higgsfield-remove");
+    expect(afterOpen).toContain("mcp-server-higgsfield-tools-save");
+    expect(afterOpen).toContain("mcp-server-higgsfield-tools-refresh");
+    expect(afterOpen).toContain("mcp-server-higgsfield-tools-generate-image");
+    expect(afterOpen).toContain("mcp-server-higgsfield-tools-edit-image");
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-connection" });
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-modal-close" });
     await driver.settle?.();
 
-    const afterConnection = await findElements(driver);
-    expect(afterConnection).toContain("mcp-server-higgsfield-remove");
-    expect(afterConnection).not.toContain("mcp-server-higgsfield-tools-save");
+    const afterClose = await findElements(driver);
+    expect(afterClose).toContain("mcp-server-higgsfield-remove");
+    expect(afterClose).not.toContain("mcp-server-higgsfield-tools-save");
   });
 
   it("every tool checkbox has a REAL accessible name — a real <label>, not just data-agent-label", async () => {
@@ -349,7 +354,7 @@ describe("Connection / Tools tabs are agent-pressable", () => {
     renderPanel([HIGGSFIELD_WITH_TOOLS]);
     await screen.findAllByTestId("source-config-item-card");
 
-    await user.click(screen.getByRole("tab", { name: /Tools/ }));
+    await user.click(screen.getByRole("button", { name: /Open tool permissions/ }));
     // `getByRole` resolves the accessible name via the wrapping <label>, exactly as a screen reader
     // (or an agent bridge reading the accessibility tree) would — `agentHandle`'s own `label` option
     // emits `data-agent-label`, which neither of these reads at all, so this would fail if the real
@@ -364,7 +369,7 @@ describe("Connection / Tools tabs are agent-pressable", () => {
     await screen.findAllByTestId("source-config-item-card");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tab-tools" });
+    await executePageCapability(driver, "page.click", { handle: "mcp-server-higgsfield-tools-open" });
     await driver.settle?.();
     await screen.findByText("2 of 2 tools enabled");
 

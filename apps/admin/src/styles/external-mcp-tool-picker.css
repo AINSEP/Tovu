@@ -29,6 +29,84 @@
   margin-top: 1rem;
 }
 
+/* `ExternalMcpSourceRow`'s own per-server row (`ExternalMcpSettingsPanel.tsx`, 2026-09-10) — the
+   (unmodified) `SourceConfigItemCard` plus a Tovu-owned "Tools" button beside it, replacing that
+   file's old per-row Connection/Tools `TabBar`. `align-items: flex-start`, not `center`: the card's
+   own head-row content (checkbox/label/Remove) sits flush against its own top padding, and staying
+   flex-start here keeps the button pinned to that same top band instead of re-centering against the
+   card's full height once it expands to show its fields. `.external-mcp-source-tools-open`'s own
+   padding/font-size below are chosen to roughly match the card's head-row content height, so the two
+   read as one visual band despite being separate DOM elements — the same "content left, action
+   right, same row" idiom `styles.css`'s own `.external-mcp-head` (h3/subtitle + "Add server") already
+   uses one level up; see `ExternalMcpSettingsPanel.tsx`'s own header for why a Jini change (an
+   `actions` slot on `SourceConfigItemCard`) was the alternative ruled out for this pass. */
+.external-mcp-source-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.external-mcp-source-card {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.external-mcp-source-tools-open {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fg-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.external-mcp-source-tools-open:hover {
+  color: var(--fg);
+  border-color: var(--accent-text);
+}
+.external-mcp-source-tools-count {
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* `ExternalMcpToolsModal.tsx` — widens the shared `.settings-dialog` (`styles.css`) the same way
+   that file's own `.sitemap-modal` widens it for its own wide content; see that rule's comment for
+   why `width`, not just `max-width`, is required against `.settings-dialog-backdrop`'s
+   `place-items: center` shrink-to-fit sizing. `ExternalMcpToolPicker`'s own `.external-mcp-tool-list`
+   below already caps itself at `max-height: 22rem` with its own internal scroll, so this modal rarely
+   needs to scroll itself — `.external-mcp-tools-modal-body`'s own scroll is a safety net for a short
+   viewport, not the primary defense. */
+.external-mcp-tools-modal {
+  width: 42rem;
+  max-width: calc(100vw - 2rem);
+  max-height: 85vh;
+}
+.external-mcp-tools-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.external-mcp-tools-modal-kicker {
+  margin: 0 0 0.2rem;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.external-mcp-tools-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .external-mcp-tool-picker {
   background: var(--surface-2);
   border: 1px solid var(--border);
