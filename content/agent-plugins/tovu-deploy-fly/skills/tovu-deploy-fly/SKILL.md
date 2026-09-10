@@ -194,6 +194,15 @@ The workspace's saved `fly.io` credential is host-bound to both `https://api.fly
 `custom_credential_make_request` today with no CLI. Use it to check reality before writing
 config that assumes something false.
 
+**Never call an org-wide or account-wide listing endpoint** — `GET /v1/apps` with an `org_slug`
+filter, or anything else that enumerates every app in an organization. Everything this pre-flight
+needs is available **per-app** once the app name is known, from the two calls below. Resolve the
+app name from Step 0 — the operator, an existing `fly.toml` already in the repo, or by asking —
+never by listing the org to search for it. Many real deploy tokens are **app-scoped**: they can
+fully manage that one app but 403 on any call that lists the whole org. That 403 looks
+exactly like a broken or invalid credential. It is neither — it is a normal, expected permission
+boundary, and hitting it here would falsely block a deploy that would otherwise succeed.
+
 ```
 custom_credential_make_request({
   label: "fly.io",

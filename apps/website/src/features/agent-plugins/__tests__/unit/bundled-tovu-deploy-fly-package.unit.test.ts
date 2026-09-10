@@ -168,6 +168,20 @@ test("SKILL.md says plainly and EARLY that deploying ships code, not content", a
   assert.ok(position >= 0 && position < skill.length / 4, "the code-not-content warning must appear in the first quarter of SKILL.md");
 });
 
+test("SKILL.md forbids org-wide or account-wide Fly API listing calls during pre-flight", async () => {
+  const skill = await readSkill();
+
+  // A live run hit `GET /v1/apps?org_slug=personal` mid pre-flight — undocumented, and 403'd on
+  // an app-scoped deploy token that could fully manage its own app but not enumerate the org.
+  // That looked like a broken credential; it is a normal, expected Fly token permission boundary.
+  // Everything this pre-flight needs is available per-app once the app name is known, so the
+  // guardrail must name the hazard concretely, not just gesture at "be careful with the API".
+  assert.match(skill, /org_slug/);
+  assert.match(skill, /org-wide|account-wide/i);
+  assert.match(skill, /app-scoped/i);
+  assert.match(skill, /403/);
+});
+
 test("SKILL.md documents the Machines API path as BLOCKED and never as a procedure to run", async () => {
   const machines = await readFile(path.join(SKILL_DIR, "references", "machines-api-path.md"), "utf8");
   assert.match(machines, /NOT implemented|Do not implement/i);
