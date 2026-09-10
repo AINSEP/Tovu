@@ -48,6 +48,23 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Until then, the downloaded packages on the Downloaded tab are the ones Tovu ships.":
       "Mientras tanto, los paquetes descargados en la pestaña Descargados son los que incluye Tovu.",
 
+    // Pre-existing gap, not introduced by the Downloaded/Installed split above: the Installed and
+    // Marketplace tab labels, the reused Downloaded lede/empty-state, and the whole Marketplace
+    // panel's own copy had no dictionary entry at all before this split (verified against the
+    // commit before it started) — this closes that, all at once, rather than leaving the Spanish
+    // view of this screen half-translated in a way later work would misattribute to the split.
+    Installed: "Instalado",
+    Marketplace: "Mercado",
+    "An installed plugin sits inert until you enable it. Enabling one puts its skills in the assistant's prompt for every run.":
+      "Un plugin instalado permanece inactivo hasta que lo activas. Activarlo hace que sus habilidades lleguen al prompt del asistente en cada ejecución.",
+    "No Agent Plugins are installed in this workspace.": "No hay Plugins de agentes instalados en este espacio de trabajo.",
+    "Agent Plugin Marketplace": "Mercado de plugins de agentes",
+    "A future place to discover portable Agent Plugins.": "Un futuro lugar para descubrir Plugins de agentes portables.",
+    "Nothing to browse yet": "Todavía no hay nada para explorar",
+    "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.":
+      "El mercado está planeado para una versión futura. Tovu aún no descarga, instala ni lista paquetes del mercado.",
+    "Read the package format": "Leer el formato del paquete",
+
     // Hook-level notice/error strings (use-plugins.hooks.ts) — these never got translated during
     // the JSX-only pass since they live in `.hooks.ts` files.
     "failed to load plugins": "no se pudieron cargar los plugins",
