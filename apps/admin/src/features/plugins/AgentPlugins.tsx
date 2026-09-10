@@ -6,11 +6,12 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
+import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow } from "./AgentPluginRow";
 import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
 import { filterEnabledAgentPlugins, humanizeAgentPluginId } from "./rules";
@@ -80,9 +81,11 @@ function AgentPluginsStatus({
  *  least one row, so it carries no emptiness branch of its own — {@link AgentPluginsStatus} owns
  *  that case.
  *
- * Takes `onRequestToggleEnabled` rather than reaching into `controller.onToggleEnabled` directly —
- * disabling a row now opens `AgentPlugins`'s own confirm dialog instead of calling the mutation
- * immediately; see that function's own `onRequestToggleEnabled` for the enable/disable branch. */
+ * `onRequestToggleEnabled` replaced a direct `controller.onToggleEnabled` call here (2026-09-09):
+ * turning a plugin OFF now goes through a confirm step (`AgentPlugins`'s own `pendingDisableId`),
+ * so the row's switch must route through the request function rather than the controller's mutation
+ * directly — see `AgentPluginDisableConfirmDialog`'s own header for why disabling, specifically,
+ * needs the interstitial and enabling does not. */
 function AgentPluginList({
   agentPlugins,
   controller,
@@ -314,21 +317,35 @@ export interface AgentPluginsProps {
  *  4. The single "Installed" tab split into Downloaded (every package on disk for this workspace,
  *     unfiltered) and Installed (only `enabled: true`). They read identically today — every bundled
  *     package ships enabled — and diverge the moment an operator disables one; each has its own
- *     honest empty state for that day.
+ *     honest empty state for that day. Turning one off now asks first — see
+ *     `AgentPluginDisableConfirmDialog`'s own header for why only that direction does.
  */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
   const controller = useAgentPluginsHook();
-  const { t, locale, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
+  const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
-  // TODO(2026-09-09, Task 2 of this dispatch): a plugin's switch calls `onToggleEnabled` directly
-  // in both directions today. The enabled->disabled direction is about to gain a confirm dialog
-  // (`AgentPluginDisableConfirmDialog`) in front of it — landing as its own commit right after this
-  // one — at which point this direct pass-through is replaced by a request/confirm indirection.
+  // Which plugin (by id) is waiting on the disable-confirm dialog, or `null` when none is. Lives
+  // here rather than in `useAgentPlugins` — this is presentation flow ("has the operator confirmed
+  // yet"), not a network mutation, the same split `ExternalMcpSettingsPanel.tsx`'s own
+  // `confirmRemoveId` draws for the identical shape of interstitial. An id rather than a plugin
+  // object so the confirmed row is always looked up fresh against the current `agentPlugins` — a
+  // stale object reference could not reflect the plugin toggling or vanishing by some other route
+  // while the dialog sat open.
+  const [pendingDisableId, setPendingDisableId] = useState<string | null>(null);
+  const pendingDisablePlugin = agentPlugins?.find((plugin) => plugin.pluginId === pendingDisableId) ?? null;
+
+  /** Routes a row's switch activation: enabling stays a plain one-click toggle, disabling opens
+   *  the confirm dialog instead of calling the mutation immediately — see
+   *  `AgentPluginDisableConfirmDialog`'s own header for why only that direction needs it. */
   function onRequestToggleEnabled(plugin: AdminAgentPlugin): void {
-    void onToggleEnabled(plugin);
+    if (plugin.enabled) {
+      setPendingDisableId(plugin.pluginId);
+    } else {
+      void onToggleEnabled(plugin);
+    }
   }
 
   const tabs: SettingsDialogTab[] = [
@@ -384,6 +401,22 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
           labels={{ kicker: t("Plugins") }}
         />
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} onClose={closeInspector} /> : null}
+        {pendingDisablePlugin ? (
+          <AgentPluginDisableConfirmDialog
+            name={humanizeAgentPluginId(pendingDisablePlugin.pluginId)}
+            // Same derivation the row itself uses (`buildAgentListHandles`), computed from the one
+            // id alone rather than threaded down from whichever tab's row is currently mounted —
+            // that function derives a handle from the id, not list position, so this always matches
+            // the handle the row published, in either tab.
+            agentHandleBase={buildAgentListHandles("agent-plugin-row", [pendingDisablePlugin.pluginId])[0]!}
+            onConfirm={() => {
+              setPendingDisableId(null);
+              void onToggleEnabled(pendingDisablePlugin);
+            }}
+            onCancel={() => setPendingDisableId(null)}
+            t={t}
+          />
+        ) : null}
       </div>
     </I18nProvider>
   );

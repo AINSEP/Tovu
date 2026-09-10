@@ -209,3 +209,38 @@ export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: 
 export function filterEnabledAgentPlugins(agentPlugins: AdminAgentPlugin[] | null): AdminAgentPlugin[] | null {
   return agentPlugins ? agentPlugins.filter((plugin) => plugin.enabled) : null;
 }
+
+/** {@link buildAgentPluginDisableConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
+ *  `features/settings/rules.ts`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
+export interface AgentPluginDisableConfirmCopy {
+  title: string;
+  body: string;
+}
+
+/**
+ * Names the exact plugin in the title (an operator with several installed must see WHICH one is
+ * about to stop reaching the assistant), and states in the body what disabling actually does and
+ * does not do: it is reversible (the package stays on disk and can be re-enabled), unlike
+ * `features/settings/rules.ts`'s `buildExternalMcpRemoveConfirmCopy` counterpart, whose "Remove"
+ * discards a sealed credential for good. That is also why this dialog's own confirm button reads
+ * "Disable", not "Remove" — there is no delete here, only a state flip.
+ *
+ * The bundled-package sentence is unconditional rather than gated on a per-plugin flag: every
+ * Agent Plugin installed today ships bundled with Tovu (`AGENT_PLUGINS_LIST`'s three rows are all
+ * `origin: "bundled"` — see `AgentPluginRow`'s own header on why its uninstall button is honestly
+ * disabled for the same reason), and `AdminAgentPlugin` does not expose `origin` to this screen at
+ * all. Stating it as a plugin-specific conditional would require inventing that field; stating it
+ * as a fact true of every row today does not. This sentence will need to become conditional once
+ * `installAgentPluginFromUrl` gains a production caller and `origin` reaches the wire — tracked
+ * here rather than silently assumed permanent.
+ *
+ * @complexity Time/space: O(1) — no iteration.
+ */
+export function buildAgentPluginDisableConfirmCopy(params: { name: string }): AgentPluginDisableConfirmCopy {
+  return {
+    title: `Disable ${params.name} for this site?`,
+    body:
+      "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. " +
+      "This package ships with Tovu — it can't be deleted outright, only turned off.",
+  };
+}

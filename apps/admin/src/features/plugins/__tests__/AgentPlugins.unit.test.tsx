@@ -269,6 +269,76 @@ describe("AgentPlugins", () => {
   });
 });
 
+/**
+ * Regression coverage for the disable-confirm dialog (2026-09-09): before this, a single click on
+ * ANY row's switch called `controller.onToggleEnabled` immediately — turning off a bundled plugin
+ * an assistant run might currently depend on had no interstitial at all. These tests were run and
+ * confirmed RED against the pre-dialog `AgentPlugins.tsx` (the switch called the controller directly
+ * with no dialog ever appearing) before `AgentPluginDisableConfirmDialog` was wired in.
+ */
+describe("AgentPlugins disable-confirm dialog", () => {
+  it("opens a confirm dialog naming the plugin instead of calling the controller when disabling an enabled plugin", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("switch"));
+
+    expect(onToggleEnabled).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Disable Site Compliance for this site?" });
+    expect(within(dialog).getByText(/stays on disk and can be enabled again/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/ships with Tovu/)).toBeInTheDocument();
+  });
+
+  it("does not open a confirm dialog when enabling a disabled plugin — only disabling asks first", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("switch"));
+
+    expect(onToggleEnabled).toHaveBeenCalledTimes(1);
+    expect(onToggleEnabled).toHaveBeenCalledWith(TOVU_DEPLOY_FLY);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("calls the controller only once Confirm is pressed, then closes the dialog", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("switch"));
+    await userEvent.click(screen.getByRole("button", { name: "Disable" }));
+
+    expect(onToggleEnabled).toHaveBeenCalledTimes(1);
+    expect(onToggleEnabled).toHaveBeenCalledWith(SITE_COMPLIANCE);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Cancel closes the dialog without ever calling the controller", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("switch"));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onToggleEnabled).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The row itself is untouched — still reporting the server-confirmed Enabled state.
+    expect(within(row("Site Compliance")).getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("Escape closes the dialog without calling the controller", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("switch"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(onToggleEnabled).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
 describe("AgentPlugins inspector (stateful)", () => {
   function useStatefulFakeAgentPlugins(): AgentPluginsController {
     // A minimal, real `useState`-backed fake — mirrors this suite's own precedent
