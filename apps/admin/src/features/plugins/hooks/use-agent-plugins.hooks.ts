@@ -61,6 +61,10 @@ export interface AgentPluginsController {
   togglingIds: ReadonlySet<string>;
   /** Flips one plugin's activation and replaces that row with the server's answer. */
   onToggleEnabled: (plugin: AdminAgentPlugin) => Promise<void>;
+  /** Plugin ids whose row detail panel (keywords, portable components, MCP servers) is open. */
+  expandedIds: ReadonlySet<string>;
+  /** Opens or closes one row's detail panel. */
+  onToggleExpanded: (pluginId: string) => void;
   /** The plugin currently open in the read-only package inspector, or `null` when it's closed. */
   inspectedPlugin: InspectedAgentPlugin | null;
   /** Opens the inspector for `plugin`. */
@@ -103,6 +107,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
   const [error, setError] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPlugin, setInspectedPlugin] = useState<InspectedAgentPlugin | null>(null);
 
   useEffect(() => {
@@ -136,6 +141,8 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     toggleError,
     togglingIds,
     onToggleEnabled,
+    expandedIds,
+    onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),
     inspectedPlugin,
     inspectPlugin: setInspectedPlugin,
     closeInspector: () => setInspectedPlugin(null),

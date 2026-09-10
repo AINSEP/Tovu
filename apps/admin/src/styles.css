@@ -2777,46 +2777,280 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    screens' scope). ------------------------------------------------------ */
 
 /* Measure — this panel has no `--page-flow` variant (`.settings-ui-section--page-flow` above), so
-   it had none of that modifier's own `max-width: 46rem` fix for the identical problem: a card
-   holding a couple of sentences and a short list, stretched to the full ~1300px+ admin column.
-   Same value, reused on this screen's own class instead of the shared modifier. */
-.agent-plugins-section .jini-tabbed-dialog-content { max-width: 46rem; }
+   it had none of that modifier's own `max-width` fix for the identical problem: a card holding a
+   couple of sentences and a short list, stretched to the full ~1300px+ admin column.
 
-/* Meta rows (Version/Source/Availability) — label above value, value the visually dominant line.
-   Was `.jini-settings-privacy-disclosure`, the Privacy tab's own title+description pair (`dt` 13px/
-   600/near-black, `dd` 12px/muted) — built for a bold heading followed by a caption, which read
-   backwards borrowed for a label/value fact: "Source" outweighed the value it labeled. Verified
-   live via getComputedStyle before touching this. */
-.agent-plugin-meta { margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.agent-plugin-meta > div { display: flex; flex-direction: column; gap: 2px; }
-.agent-plugin-meta dt {
-  margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+   Widened 46rem -> 58rem with the row redesign (2026-09-09). 46rem was measured for a CARD, whose
+   controls sit UNDER its text; a row carries its state word, switch, and two icon buttons to the
+   RIGHT of the text, and at 46rem that action cluster squeezed the description into a two-line
+   wrap on the very packages whose descriptions are longest. Still capped well short of the full
+   column, so the list keeps a readable measure rather than running edge to edge. */
+.agent-plugins-section .jini-tabbed-dialog-content { max-width: 58rem; }
+
+/* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
+   box: that treatment means "this control does nothing yet" everywhere else in this admin, which
+   is now the opposite of true on this screen — the switch below it is live. A plain lede also
+   stops the panel opening with a boxed paragraph competing with the list for first attention. */
+.agent-plugins-lede {
+  margin: 0 0 18px; max-width: 46rem;
+  font-size: 13px; line-height: 1.55; color: var(--jini-text-muted);
+}
+
+/* Load failure and refused-toggle messages. Not `.settings-ui-inert-note` for the same reason as
+   above, and given the danger token so a failure does not read as ambient help text. */
+.agent-plugins-alert {
+  margin: 0 0 14px; padding: 9px 12px;
+  font-size: 13px; line-height: 1.5; color: var(--jini-danger);
+  background: color-mix(in srgb, var(--jini-danger) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jini-danger) 22%, transparent);
+  border-radius: var(--jini-radius-sm);
+}
+.agent-plugins-empty-note { margin: 0; font-size: 13px; color: var(--jini-text-muted); }
+
+/* ---------------------------------------------------------------------------
+   Installed rows (AgentPluginRow.tsx)
+
+   Was one bordered `.jini-settings-section-card` per plugin, each holding a `<dl>` of stacked
+   VERSION/STATUS/KEYWORDS pairs plus two labelled chip lists — three plugins came to 1275px of
+   inner scroll with every field at equal weight. This is one bordered container with hairline
+   dividers between rows: a list reads as a list, and one border for the whole set replaces three
+   competing boxes. Nothing was dropped — keywords, portable components, and MCP server ids moved
+   into the per-row detail panel below.
+   --------------------------------------------------------------------------- */
+.agent-plugin-rows {
+  margin: 0; padding: 0; list-style: none;
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-md);
+  background: var(--jini-bg-panel);
+  overflow: hidden;
+}
+.agent-plugin-row + .agent-plugin-row { border-top: 1px solid var(--jini-border); }
+
+/* Applied state, signal 1 of 3 (the state word and the switch position are the other two — colour
+   alone must not carry meaning). A rail rather than a row tint: a filled row would fight the
+   chips inside its own expanded panel for contrast. */
+.agent-plugin-row { position: relative; }
+.agent-plugin-row::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--jini-accent);
+  opacity: 0;
+  transition: opacity 140ms var(--jini-ease-out);
+}
+.agent-plugin-row[data-enabled="true"]::before { opacity: 1; }
+
+.agent-plugin-row-main { display: flex; align-items: center; gap: 12px; padding: 0 14px 0 0; }
+
+/* The row's summary IS its expander — one hit target for "tell me more", rather than a fourth
+   control competing with the three real ones on the right. */
+.agent-plugin-row-summary {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 8px 13px 17px;
+  border: 0; background: transparent; text-align: left; font: inherit; color: inherit;
+  cursor: pointer;
+  border-radius: var(--jini-radius-sm);
+}
+.agent-plugin-row-summary:hover { background: color-mix(in srgb, var(--jini-text) 3.5%, transparent); }
+.agent-plugin-row-summary:focus-visible,
+.agent-plugin-switch:focus-visible,
+.agent-plugin-icon-btn:focus-visible {
+  outline: 2px solid var(--jini-accent); outline-offset: 2px;
+}
+
+.agent-plugin-row-glyph {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  color: var(--jini-text-muted);
+  background: var(--jini-bg-subtle);
+  border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius-sm);
+  transition: color 140ms var(--jini-ease-out), border-color 140ms var(--jini-ease-out);
+}
+/* The glyph picks up the accent on an enabled plugin — the same accent as the rail and the switch
+   track, so "on" reads as one state across the whole row rather than three unrelated details. */
+.agent-plugin-row[data-enabled="true"] .agent-plugin-row-glyph {
+  color: var(--jini-accent);
+  border-color: color-mix(in srgb, var(--jini-accent) 32%, var(--jini-border));
+}
+
+.agent-plugin-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.agent-plugin-row-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.agent-plugin-row-name {
+  font-size: 13.5px; font-weight: 650; color: var(--jini-text-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.agent-plugin-row-version {
+  flex: 0 0 auto;
+  font-size: 11px; font-family: var(--font-mono, monospace); color: var(--jini-text-muted);
+  background: var(--jini-bg-subtle); border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius-pill); padding: 1px 7px;
+}
+/* One line, clamped. The full text is never lost — it is the first thing the assistant reads and
+   it stays in the package's own manifest; on this screen its job is to identify the row, and a
+   four-line paragraph per row is what made the old cards unscannable. */
+.agent-plugin-row-desc {
+  font-size: 12.5px; line-height: 1.45; color: var(--jini-text-muted);
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agent-plugin-row-chevron {
+  flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--jini-text-disabled);
+}
+.agent-plugin-chevron-glyph { transition: transform 160ms var(--jini-ease-out); }
+.agent-plugin-row-summary[aria-expanded="true"] .agent-plugin-chevron-glyph { transform: rotate(90deg); }
+
+/* The hairline between the summary zone and the action zone. Without it the summary's own chevron
+   read as a control floating between the description and the switch, belonging to neither — seen
+   rendered before this rule existed. Two zones, one divider, and the chevron is visibly the end of
+   the first one. */
+.agent-plugin-row-actions {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--jini-border);
+  align-self: stretch;
+}
+/* Signal 2 of 3. Fixed-width so the switch column stays put between an "Enabled" and a "Disabled"
+   row — a shifting switch position reads as a layout bug while scanning down the list. */
+.agent-plugin-state {
+  min-width: 4.6rem; text-align: right;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
   color: var(--jini-text-muted);
 }
-.agent-plugin-meta dd { margin: 0; font-size: 13px; color: var(--jini-text); }
+.agent-plugin-row[data-enabled="true"] .agent-plugin-state { color: var(--jini-text); }
 
-/* Portable-components list — one label, one box. Was `.jini-mcp-capabilities-card` (its own border
-   and `--jini-bg-panel` fill) nested inside the outer `.jini-settings-section-card` (the SAME fill
-   and border) — two identical boxes stacked for one list. Dropped the inner box; kept only the
-   uppercase label. Skill names render as chips instead of a bulleted list prefixed with the word
-   "Skill" on every line — the section's own label already says what these are, once. */
-.agent-plugin-skills { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.agent-plugin-skills-label {
-  margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+/* iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint. */
+.agent-plugin-switch {
+  flex: 0 0 auto; position: relative;
+  width: 38px; height: 22px; padding: 0;
+  border: 1px solid var(--jini-border-strong);
+  border-radius: var(--jini-radius-pill);
+  background: var(--jini-bg-subtle);
+  cursor: pointer;
+  transition: background-color 160ms var(--jini-ease-out), border-color 160ms var(--jini-ease-out);
+}
+.agent-plugin-switch-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: #fff; border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(28, 27, 26, 0.28);
+  transition: transform 160ms var(--jini-ease-out);
+}
+.agent-plugin-switch[aria-checked="true"] {
+  background: var(--jini-accent); border-color: var(--jini-accent);
+}
+.agent-plugin-switch[aria-checked="true"] .agent-plugin-switch-knob { transform: translateX(16px); }
+.agent-plugin-switch:hover:not(:disabled) { border-color: var(--jini-accent); }
+/* In flight. Dimmed and inert rather than mid-travel: the position it will land on is not known
+   until the server answers, and animating to the requested state first would show a position the
+   server may refuse. */
+.agent-plugin-switch:disabled { cursor: progress; opacity: 0.55; }
+
+.agent-plugin-icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  color: var(--jini-text-muted);
+  background: transparent;
+  border: 1px solid transparent; border-radius: var(--jini-radius-sm);
+  cursor: pointer;
+  transition: color 140ms var(--jini-ease-out), background-color 140ms var(--jini-ease-out),
+    border-color 140ms var(--jini-ease-out);
+}
+.agent-plugin-icon-btn:hover:not(:disabled) {
+  color: var(--jini-text-strong); background: var(--jini-bg-subtle); border-color: var(--jini-border);
+}
+/* Honest-disabled, and it must LOOK unavailable rather than merely fail on click — the reason is
+   in `aria-describedby` and in the section footnote. Not `cursor: not-allowed`: a "no" cursor
+   invites the click that produces nothing. */
+.agent-plugin-icon-btn:disabled { color: var(--jini-text-disabled); cursor: default; }
+
+/* Detail panel — everything the old card shouted, on request. `[hidden]` needs its own rule here
+   for the reason `.cms-section-items[hidden]` above already documents: the UA stylesheet's
+   `[hidden] { display: none }` loses to any `display` declared on the element itself. */
+/* Indented to start at the row's TEXT column (17px summary padding + 34px glyph + 12px gap), not
+   at the row's own edge — so the panel visibly belongs to the row above it rather than to the
+   list. */
+.agent-plugin-row-detail {
+  display: grid; gap: 14px;
+  padding: 2px 17px 16px 63px;
+}
+.agent-plugin-row-detail[hidden] { display: none; }
+.agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
+.agent-plugin-detail-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--jini-text-muted);
 }
-.agent-plugin-skills-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
-.agent-plugin-skills-list li {
-  font-size: 12.5px; font-family: var(--font-mono, monospace); color: var(--jini-text);
-  background: var(--jini-bg-subtle); border: 1px solid var(--jini-border); border-radius: 999px;
-  padding: 3px 10px;
+.agent-plugin-chips { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-plugin-chips li {
+  font-size: 12px; font-family: var(--font-mono, monospace); color: var(--jini-text);
+  background: var(--jini-bg-subtle); border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius-pill); padding: 2px 9px;
 }
-.agent-plugin-skills-list code { font: inherit; color: inherit; background: none; }
+.agent-plugin-chips code { font: inherit; color: inherit; background: none; }
 
-/* Separates the per-package "Inspect package files" action above from the section-wide standard-
-   format footnote below it — was flush against the last card's bottom edge with no rhythm of its
-   own, reading as a stray trailing line rather than a section footer. */
-.agent-plugins-format-note { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--jini-border); }
+/* Section-wide footnotes (why uninstall is unavailable; the package format link). Separated from
+   the list so they read as a footer rather than a stray trailing line — the same job the removed
+   `.agent-plugins-format-note` did for one line, now doing it for the pair. */
+.agent-plugins-footnotes {
+  margin-top: 1.15rem; padding-top: 1.15rem;
+  border-top: 1px solid var(--jini-border);
+  display: grid; gap: 6px;
+}
+.agent-plugins-footnotes p { margin: 0; }
+
+/* Marketplace empty state — a designed nothing, not a mocked store. Centered and generously
+   spaced so the panel reads as "deliberately empty" rather than "failed to load". */
+.agent-plugins-marketplace-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 10px;
+  max-width: 30rem; margin: 8px auto;
+  padding: 34px 26px;
+  border: 1px dashed var(--jini-border-strong); border-radius: var(--jini-radius-md);
+  background: var(--jini-bg-panel);
+}
+.agent-plugins-marketplace-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 54px; height: 54px; margin-bottom: 2px;
+  color: var(--jini-text-disabled);
+  background: var(--jini-bg-subtle); border-radius: var(--jini-radius-pill);
+}
+.agent-plugins-marketplace-empty h3 {
+  margin: 0; font-size: 14.5px; font-weight: 650; color: var(--jini-text-strong);
+}
+.agent-plugins-marketplace-empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--jini-text-muted); }
+.agent-plugins-marketplace-link { margin-top: 4px; font-size: 13px; }
+
+/* Narrow admin column: the action cluster keeps its size and the text yields, then the cluster
+   drops under the text rather than crushing it. */
+@media (max-width: 700px) {
+  .agent-plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+  .agent-plugin-row-summary { padding: 13px 14px 9px 17px; }
+  /* The text column no longer has a stable left edge once the actions stack, so the detail panel
+     returns to the row's own edge and reclaims the width for its chips. */
+  .agent-plugin-row-detail { padding-left: 17px; }
+  .agent-plugin-row-actions {
+    justify-content: flex-end; padding: 0 14px 13px 17px;
+    /* Stacked, the zones are separated by their own stacking; a left border would now cut across
+       the row's width rather than between two columns. */
+    border-left: none; align-self: auto;
+  }
+  .agent-plugin-state { min-width: 0; margin-right: auto; text-align: left; }
+}
+
+/* Every transition above is feedback, not spectacle, and none of it is load-bearing — the switch
+   still reads its position from `aria-checked` and the state word, and the chevron from
+   `aria-expanded`. So it all simply stops. */
+@media (prefers-reduced-motion: reduce) {
+  .agent-plugin-row::before,
+  .agent-plugin-row-glyph,
+  .agent-plugin-chevron-glyph,
+  .agent-plugin-switch,
+  .agent-plugin-switch-knob,
+  .agent-plugin-icon-btn {
+    transition: none;
+  }
+}
 /* Connectors tab: Tovu's own Composio API key field above `ConnectorsBrowser`, which ships no key
  * input of its own (see `ComposioKeyField.tsx`). Sized to sit as chrome above the grid rather than
  * compete with it. */
