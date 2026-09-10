@@ -149,21 +149,48 @@ export function Authentication(): ReactElement {
   ];
 
   return (
-    <I18nProvider
-      initialLocale="en"
-      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
-      fallbackLocale="en"
-      syncDocumentAttributes={false}
-    >
-      <div className="settings-ui-section" data-theme="light">
-        <SettingsDialogShell
-          tabs={tabs}
-          presentation="inline"
-          className="jini-tabbed-dialog--inline"
-          fullscreenEnabled={false}
-          labels={{ kicker: "People" }}
-        />
+    <div className="page">
+      {/* Same `.page`/`.page-header` primitive ~39 other admin screens use (see `styles.css`'s own
+          comment above `.page-header .page-kicker`). Matches `AiAssistant.tsx`'s pattern exactly:
+          this page owns its own header instead of the shell's kicker/title/subtitle strip, so the
+          shell's own copy of that header can be hidden rather than stacked as a second, near-
+          duplicate heading above the tab strip. */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">People</p>
+          <h1 className="page-title">Authentication</h1>
+          <p className="page-description">
+            Review current sign-in support and future provider requirements.
+          </p>
+        </div>
       </div>
-    </I18nProvider>
+
+      <I18nProvider
+        initialLocale="en"
+        dictionaries={SETTINGS_DIALOG_DICTIONARIES}
+        fallbackLocale="en"
+        syncDocumentAttributes={false}
+      >
+        {/* `settings-ui-section--page-flow`: the owner's "take Authentication out of the UI card"
+            request. `SettingsDialogShell` styles `.jini-tabbed-dialog` as a modal (elevated
+            background, border, radius, shadow) — right for Settings, where the shell owns the whole
+            viewport, but wrong here, where the page already supplies its own header and background
+            above. `--page-flow` is the existing modifier `AiAssistant.tsx` already uses for exactly
+            this: it flattens the shell's card chrome and hides its own kicker/title/subtitle strip
+            (see that modifier's own comment in `styles.css`), restoring the horizontal measure and
+            spacing the card used to supply incidentally. `tabs[].title`/`.subtitle` are left
+            unchanged below — the shell still uses them for its accessible naming, this only hides
+            the visual duplicate. */}
+        <div className="settings-ui-section settings-ui-section--page-flow" data-theme="light">
+          <SettingsDialogShell
+            tabs={tabs}
+            presentation="inline"
+            className="jini-tabbed-dialog--inline"
+            fullscreenEnabled={false}
+            labels={{ kicker: "People" }}
+          />
+        </div>
+      </I18nProvider>
+    </div>
   );
 }
