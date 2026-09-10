@@ -59,6 +59,7 @@ import {
 } from "../tool-registrations.js";
 import { listToolContributors, resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 
 // `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
 // `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see
@@ -255,6 +256,36 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
+/**
+ * Every `content_read.<resource>` id the Tier-1 read collapse (`content-read-tool.ts`,
+ * `deriveContentReadRegistrations`) produces, derived from {@link RETIRED_READ_TOOL_TO_CARD}'s own
+ * values rather than a hand-copied prefix check.
+ *
+ * These ids are excluded from the three generic per-tool loops below (`catalogEntry()` cannot
+ * resolve them, and never should):
+ * 1. a merged (get+list) card's published `inputSchema`/`description` is `unionInputSchema()`'s
+ *    union / a concatenation of its member(s)' own already-published values (`content-read-
+ *    tool.ts`'s `cardDescription`/`unionInputSchema`) — not a literal `AgentToolDefinition`. No
+ *    domain catalog declares an entry named `content_read.*`; there is nothing for `catalogEntry()`
+ *    to find.
+ * 2. `assertRiskMetadataIsWirable`'s risk cross-check cannot apply either, and not only because
+ *    `catalogEntry()` has nothing to hand it: `deriveContentReadRegistrations` runs in
+ *    `buildAssistantToolRegistrations` AFTER every member's own risk was already cross-checked
+ *    under its ORIGINAL id, as part of that domain's normal `buildDomainRegistrations` wiring
+ *    (confirmed: `backup_list_restore_points` is checked there, before the collapse ever sees it).
+ *    Re-running the same gate under the card's relabeled id would look up a key
+ *    `derivedRiskByToolId()` never contributes an entry for — always "no entry in
+ *    DERIVED_RISK_BY_TOOL_ID", regardless of what `catalogEntry()` returns — not real drift.
+ * 3. same reasoning for `actorClassRule`: CONTENT_READ_CARDS are exclusively read-only
+ *    (`content-read-tool.ts` hardcodes `derivedRisk.set(id, "none")` for every card), so no member
+ *    ever carries a confirmation-requiring rule in the first place; the property this guards is
+ *    already true by construction here, not something worth re-deriving from a nonexistent entry.
+ *
+ * `collections_content_type_list`'s own carve-out in `tool-registrations.authorization.test.ts` is
+ * the identical reasoning, one domain earlier (that file's header explains it in full).
+ */
+const DERIVED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(RETIRED_READ_TOOL_TO_CARD.values());
+
 // ---------------------------------------------------------------------------
 // 1. Published contracts
 // ---------------------------------------------------------------------------
@@ -262,6 +293,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 test("every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}", () => {
   for (const [id, registration] of registrationsById()) {
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
+    if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // union schema / concatenated description — see DERIVED_CONTENT_READ_IDS's own doc
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
@@ -392,6 +424,7 @@ test("the returned fields array is a copy — a tool caller cannot mutate domain
 
 test("the real catalog and this layer's independent classification agree for every wired tool", () => {
   for (const id of registrationsById().keys()) {
+    if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // already cross-checked pre-collapse, under its original id — see DERIVED_CONTENT_READ_IDS's own doc
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
@@ -430,6 +463,7 @@ test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired whil
 
 test("no CURRENTLY wired tool carries a confirmation-requiring actor-class rule — the guard above is an invariant, not a live fix", () => {
   for (const id of registrationsById().keys()) {
+    if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // read-only by construction — see DERIVED_CONTENT_READ_IDS's own doc
     assert.notEqual(catalogEntry(id).actorClassRule, "confirmer-must-equal-own-delegatedBy", `${id} is wired, so it must not claim a human-confirmation requirement Tovu cannot honor`);
   }
 });
