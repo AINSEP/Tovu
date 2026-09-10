@@ -60,6 +60,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "No se pudo confirmar la migración hacia adelante",
     "Failed to execute the forward migration": "No se pudo ejecutar la migración hacia adelante",
     "failed to load restore points": "no se pudieron cargar los puntos de restauración",
+    "Failed to create restore point": "No se pudo crear el punto de restauración",
     "failed to load the Database Timeline": "no se pudo cargar la cronología de la base de datos",
     // Drift warning (2026-08-24, `rules.ts`'s `resolveSchemaStateWarning` — see the note above
     // `DATABASE_DICT` on why these ten keys are `es`-only for now).
@@ -121,6 +122,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Gagal mengonfirmasi migrasi maju",
     "Failed to execute the forward migration": "Gagal menjalankan migrasi maju",
     "failed to load restore points": "gagal memuat titik pemulihan",
+    "Failed to create restore point": "Gagal membuat titik pemulihan",
     "failed to load the Database Timeline": "gagal memuat linimasa basis data",
   },
   de: {
@@ -162,6 +164,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Die Vorwärtsmigration konnte nicht bestätigt werden",
     "Failed to execute the forward migration": "Die Vorwärtsmigration konnte nicht ausgeführt werden",
     "failed to load restore points": "Wiederherstellungspunkte konnten nicht geladen werden",
+    "Failed to create restore point": "Der Wiederherstellungspunkt konnte nicht erstellt werden",
     "failed to load the Database Timeline": "Die Datenbank-Zeitleiste konnte nicht geladen werden",
   },
   "zh-CN": {
@@ -203,6 +206,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "无法确认前向迁移",
     "Failed to execute the forward migration": "无法执行前向迁移",
     "failed to load restore points": "无法加载还原点",
+    "Failed to create restore point": "无法创建还原点",
     "failed to load the Database Timeline": "无法加载数据库时间线",
   },
   "zh-TW": {
@@ -244,6 +248,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "無法確認前向遷移",
     "Failed to execute the forward migration": "無法執行前向遷移",
     "failed to load restore points": "無法載入還原點",
+    "Failed to create restore point": "無法建立還原點",
     "failed to load the Database Timeline": "無法載入資料庫時間軸",
   },
   "pt-BR": {
@@ -285,6 +290,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Falha ao confirmar a migração para frente",
     "Failed to execute the forward migration": "Falha ao executar a migração para frente",
     "failed to load restore points": "falha ao carregar os pontos de restauração",
+    "Failed to create restore point": "Falha ao criar o ponto de restauração",
     "failed to load the Database Timeline": "falha ao carregar a linha do tempo do banco de dados",
   },
   ru: {
@@ -326,6 +332,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Не удалось подтвердить прямую миграцию",
     "Failed to execute the forward migration": "Не удалось выполнить прямую миграцию",
     "failed to load restore points": "не удалось загрузить точки восстановления",
+    "Failed to create restore point": "Не удалось создать точку восстановления",
     "failed to load the Database Timeline": "не удалось загрузить хронологию базы данных",
   },
   fa: {
@@ -367,6 +374,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "تأیید مهاجرت روبه‌جلو ناموفق بود",
     "Failed to execute the forward migration": "اجرای مهاجرت روبه‌جلو ناموفق بود",
     "failed to load restore points": "بارگذاری نقاط بازیابی ناموفق بود",
+    "Failed to create restore point": "ایجاد نقطه بازیابی ناموفق بود",
     "failed to load the Database Timeline": "بارگذاری جدول زمانی پایگاه داده ناموفق بود",
   },
   ar: {
@@ -408,6 +416,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "تعذّر تأكيد الترحيل إلى الأمام",
     "Failed to execute the forward migration": "تعذّر تنفيذ الترحيل إلى الأمام",
     "failed to load restore points": "تعذّر تحميل نقاط الاستعادة",
+    "Failed to create restore point": "تعذّر إنشاء نقطة الاستعادة",
     "failed to load the Database Timeline": "تعذّر تحميل الجدول الزمني لقاعدة البيانات",
   },
   ja: {
@@ -449,6 +458,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "前方移行の確認に失敗しました",
     "Failed to execute the forward migration": "前方移行の実行に失敗しました",
     "failed to load restore points": "復元ポイントの読み込みに失敗しました",
+    "Failed to create restore point": "復元ポイントの作成に失敗しました",
     "failed to load the Database Timeline": "データベースタイムラインの読み込みに失敗しました",
   },
   ko: {
@@ -490,6 +500,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "순방향 마이그레이션을 확인하지 못했습니다",
     "Failed to execute the forward migration": "순방향 마이그레이션을 실행하지 못했습니다",
     "failed to load restore points": "복원 지점을 로드하지 못했습니다",
+    "Failed to create restore point": "복원 지점을 만들지 못했습니다",
     "failed to load the Database Timeline": "데이터베이스 타임라인을 로드하지 못했습니다",
   },
   pl: {
@@ -531,6 +542,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Nie udało się potwierdzić migracji do przodu",
     "Failed to execute the forward migration": "Nie udało się wykonać migracji do przodu",
     "failed to load restore points": "nie udało się wczytać punktów przywracania",
+    "Failed to create restore point": "Nie udało się utworzyć punktu przywracania",
     "failed to load the Database Timeline": "nie udało się wczytać osi czasu bazy danych",
   },
   hu: {
@@ -572,6 +584,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Nem sikerült megerősíteni az előremigrálást",
     "Failed to execute the forward migration": "Nem sikerült végrehajtani az előremigrálást",
     "failed to load restore points": "nem sikerült betölteni a visszaállítási pontokat",
+    "Failed to create restore point": "Nem sikerült létrehozni a visszaállítási pontot",
     "failed to load the Database Timeline": "nem sikerült betölteni az adatbázis idővonalát",
   },
   fr: {
@@ -613,6 +626,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Échec de la confirmation de la migration en avant",
     "Failed to execute the forward migration": "Échec de l'exécution de la migration en avant",
     "failed to load restore points": "échec du chargement des points de restauration",
+    "Failed to create restore point": "Échec de la création du point de restauration",
     "failed to load the Database Timeline": "échec du chargement de la chronologie de la base de données",
   },
   uk: {
@@ -654,6 +668,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Не вдалося підтвердити пряму міграцію",
     "Failed to execute the forward migration": "Не вдалося виконати пряму міграцію",
     "failed to load restore points": "не вдалося завантажити точки відновлення",
+    "Failed to create restore point": "Не вдалося створити точку відновлення",
     "failed to load the Database Timeline": "не вдалося завантажити хронологію бази даних",
   },
   tr: {
@@ -695,6 +710,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "İleri geçiş onaylanamadı",
     "Failed to execute the forward migration": "İleri geçiş çalıştırılamadı",
     "failed to load restore points": "geri yükleme noktaları yüklenemedi",
+    "Failed to create restore point": "Geri yükleme noktası oluşturulamadı",
     "failed to load the Database Timeline": "veritabanı zaman çizelgesi yüklenemedi",
   },
   th: {
@@ -736,6 +752,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "ยืนยันการย้ายข้อมูลไปข้างหน้าไม่สำเร็จ",
     "Failed to execute the forward migration": "เรียกใช้การย้ายข้อมูลไปข้างหน้าไม่สำเร็จ",
     "failed to load restore points": "โหลดจุดกู้คืนไม่สำเร็จ",
+    "Failed to create restore point": "สร้างจุดกู้คืนไม่สำเร็จ",
     "failed to load the Database Timeline": "โหลดไทม์ไลน์ฐานข้อมูลไม่สำเร็จ",
   },
   it: {
@@ -777,6 +794,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "Impossibile confermare la migrazione in avanti",
     "Failed to execute the forward migration": "Impossibile eseguire la migrazione in avanti",
     "failed to load restore points": "impossibile caricare i punti di ripristino",
+    "Failed to create restore point": "Impossibile creare il punto di ripristino",
     "failed to load the Database Timeline": "impossibile caricare la cronologia del database",
   },
   hi: {
@@ -818,6 +836,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "आगे के माइग्रेशन की पुष्टि करना विफल रहा",
     "Failed to execute the forward migration": "आगे का माइग्रेशन निष्पादित करना विफल रहा",
     "failed to load restore points": "रीस्टोर पॉइंट लोड करना विफल रहा",
+    "Failed to create restore point": "रीस्टोर पॉइंट बनाना विफल रहा",
     "failed to load the Database Timeline": "डेटाबेस टाइमलाइन लोड करना विफल रहा",
   },
   ur: {
@@ -859,6 +878,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "آگے کی مائیگریشن کی تصدیق ناکام ہوئی",
     "Failed to execute the forward migration": "آگے کی مائیگریشن عمل میں لانا ناکام ہوا",
     "failed to load restore points": "ری اسٹور پوائنٹس لوڈ کرنا ناکام ہوا",
+    "Failed to create restore point": "ری اسٹور پوائنٹ بنانا ناکام ہوا",
     "failed to load the Database Timeline": "ڈیٹا بیس ٹائم لائن لوڈ کرنا ناکام ہوا",
   },
   bn: {
@@ -900,6 +920,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "Failed to confirm the forward migration": "সামনের মাইগ্রেশন নিশ্চিত করা ব্যর্থ হয়েছে",
     "Failed to execute the forward migration": "সামনের মাইগ্রেশন কার্যকর করা ব্যর্থ হয়েছে",
     "failed to load restore points": "রিস্টোর পয়েন্ট লোড করা ব্যর্থ হয়েছে",
+    "Failed to create restore point": "রিস্টোর পয়েন্ট তৈরি করা ব্যর্থ হয়েছে",
     "failed to load the Database Timeline": "ডেটাবেস টাইমলাইন লোড করা ব্যর্থ হয়েছে",
   },
 };

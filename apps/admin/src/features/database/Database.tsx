@@ -5,27 +5,25 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
-import { useWiredRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
 import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
-import { MigrateForwardIcon, RestorePointsIcon, TimelineIcon } from "./database-visuals";
+import { MigrateForwardIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
- * read-first Timeline, the restore-points list, and the migrate-forward ceremony, behind a
- * `TabBar` (`components/TabBar.tsx`) with three tabs — Timeline, Restore points, Migrate forward.
- * Markup only.
+ * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`components/TabBar.tsx`)
+ * with two tabs — Timeline, Migrate forward. Markup only.
  *
- * State and API calls live in `hooks/use-timeline-section.hooks.ts`,
- * `hooks/use-restore-points-section.hooks.ts`, and `hooks/use-migrate-forward-section.hooks.ts` —
- * one per section, matching the three independent pieces of screen state. Structural reference:
- * `Analytics.tsx`'s "raw ingest, said so explicitly" pattern (design-spec.md §0.3).
+ * State and API calls live in `hooks/use-timeline-section.hooks.ts` and
+ * `hooks/use-migrate-forward-section.hooks.ts` — one per section, matching the two independent
+ * pieces of screen state. Structural reference: `Analytics.tsx`'s "raw ingest, said so explicitly"
+ * pattern (design-spec.md §0.3).
  *
  * The migrate-forward plan/confirm/execute ceremony (ADR-041 §3, SPEC-017 C-103/C-105) is now
  * wired to the real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure).
@@ -41,27 +39,33 @@ import { viewInRecoveryAccessibleName } from "./rules";
  * the `PENDING_MIGRATION` boot banner and the Tier-3 browser have no route yet — this screen omits
  * them rather than rendering dead affordances.
  *
- * TAB GROUPING (this pass): three tabs, one per section, in read → recover → change order —
- * **Timeline** (the read-first ledger, so it's what a returning operator sees first), **Restore
- * points** (the snapshots available to recover to), **Migrate forward** (the one ceremony that
- * actually writes). `?tab=` deep-linking follows `Deployment.tsx`/`SettingsUi.tsx`'s own pattern:
- * `panels.tsx` passes `ctx.query.get("tab")` in as `tabId`, an unrecognized or absent value falls
- * back to the first tab ("timeline") rather than rendering nothing, and switching tabs calls
- * `navigate(..., { replace: true })` so the URL stays a correct deep link without growing the
+ * NO RESTORE-POINTS TAB (2026-09-10): this screen used to carry a third tab — Restore points
+ * (list + create, `RestorePointsSection`/`useRestorePointsSection`) — between Timeline and Migrate
+ * forward. `development/todos.md`'s "Recovery vs Database's Restore Points tab" entry (owner,
+ * 2026-09-10, superseded same morning) moved that whole capability into `features/recovery/
+ * Recovery.tsx`, now tabbed itself, alongside the restore ceremony it already owned — restore
+ * points were never a "database" concern per the owner's own call. `Database.tsx` keeps only the
+ * two tabs below; anything about a restore point's own list/create lives in Recovery now, not here.
+ *
+ * TAB GROUPING (this pass): two tabs, one per section, in read → change order — **Timeline** (the
+ * read-first ledger, so it's what a returning operator sees first), **Migrate forward** (the one
+ * ceremony that actually writes). `?tab=` deep-linking follows `Deployment.tsx`/`SettingsUi.tsx`'s
+ * own pattern: `panels.tsx` passes `ctx.query.get("tab")` in as `tabId`, an unrecognized or absent
+ * value falls back to the first tab ("timeline") rather than rendering nothing, and switching tabs
+ * calls `navigate(..., { replace: true })` so the URL stays a correct deep link without growing the
  * back-button history one entry per click.
  *
  * `Database` itself still has no hook of its own (no single fetch/state this top-level shell owns
  * — the tab-id resolution below is pure, not stateful), so it keeps calling
  * `useAdminLocale()`/`database-i18n`'s `t` directly for its own header and tab-bar text — per the
  * standing i18n rule's carve-out for components with no hook file. Each SECTION below
- * (`useTimelineSection`, `useRestorePointsSection`, `useMigrateForwardSection`) already
- * independently resolves `useAdminLocale()` for its own internal error-string translations
- * (unrelated to this file), so `t`/`locale` are sourced from each section's own hook rather than
- * threaded down from `Database` as a prop — that prop was redundant with a resolution each hook
- * was already doing.
+ * (`useTimelineSection`, `useMigrateForwardSection`) already independently resolves
+ * `useAdminLocale()` for its own internal error-string translations (unrelated to this file), so
+ * `t`/`locale` are sourced from each section's own hook rather than threaded down from `Database`
+ * as a prop — that prop was redundant with a resolution each hook was already doing.
  */
 
-const DATABASE_TAB_IDS = ["timeline", "restore-points", "migrate-forward"] as const;
+const DATABASE_TAB_IDS = ["timeline", "migrate-forward"] as const;
 type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
 
 /** Falls back to the first tab for an absent or unrecognized `?tab=` value. Delegates to the
@@ -85,10 +89,9 @@ const KIND_OPTIONS = [
 
 export interface TimelineSectionProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
-   *  for `useCustomSelect`. Mirrored per-section below (`RestorePointsSectionProps`,
-   *  `MigrateForwardSectionProps`) since each section owns independent state. Defaulted to the
-   *  WIRED hook (2026-08-14, Orc-BASH pass) — see `use-timeline-section.hooks.ts`'s own
-   *  `useWiredTimelineSection`. */
+   *  for `useCustomSelect`. Mirrored below (`MigrateForwardSectionProps`) since each section owns
+   *  independent state. Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see
+   *  `use-timeline-section.hooks.ts`'s own `useWiredTimelineSection`. */
   useTimelineSectionHook?: typeof useWiredTimelineSection;
 }
 
@@ -305,57 +308,6 @@ function TimelineSection({ useTimelineSectionHook = useWiredTimelineSection }: T
   );
 }
 
-export interface RestorePointsSectionProps {
-  /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-restore-points-
-   *  section.hooks.ts`'s own `useWiredRestorePointsSection`. */
-  useRestorePointsSectionHook?: typeof useWiredRestorePointsSection;
-}
-
-function RestorePointsSection({ useRestorePointsSectionHook = useWiredRestorePointsSection }: RestorePointsSectionProps) {
-  const { points, error, creating, createRestorePoint, t } = useRestorePointsSectionHook();
-
-  if (error && !points) return <div className="notice error">{error}</div>;
-  if (!points) return <div className="notice">{t("Loading restore points…")}</div>;
-
-  return (
-    <div>
-      <div className="editor-header">
-        <h2>{t("Restore points")}</h2>
-        <button
-          type="button"
-          onClick={createRestorePoint}
-          disabled={creating}
-          {...agentHandle("database-create-restore-point", { role: "button", label: "Create a new restore point now" })}
-        >
-          {creating ? t("Creating…") : t("Create restore point")}
-        </button>
-      </div>
-      {error ? <div className="notice error">{error}</div> : null}
-      <DataTable
-        rows={points}
-        rowKey={(p) => p.id}
-        empty={
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("No restore points yet.")}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          { key: "timestamp", header: t("Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
-          { key: "trigger", header: t("Trigger"), cell: (p) => p.trigger },
-          {
-            key: "cost-class",
-            header: t("Cost class"),
-            cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
-          },
-          { key: "kind", header: t("Kind"), cell: (p) => p.kind },
-        ]}
-      />
-    </div>
-  );
-}
-
 export interface MigrateForwardSectionProps {
   /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-migrate-forward-
    *  section.hooks.ts`'s own `useWiredMigrateForwardSection`. */
@@ -530,9 +482,8 @@ function SchemaStateWarningBanner({ useSchemaStateSectionHook = useWiredSchemaSt
  *  `migrateForwardStep` use for the identical complexity-gate reason: a component's OWN
  *  cyclomatic/cognitive score counts a ternary or `&&` written directly in its JSX, not one
  *  delegated to a plain function like this.
- *  @complexity O(1) — three mutually exclusive branches, no iteration. */
+ *  @complexity O(1) — two mutually exclusive branches, no iteration. */
 function databaseTabPanel(activeTabId: DatabaseTabId) {
-  if (activeTabId === "restore-points") return <RestorePointsSection />;
   if (activeTabId === "migrate-forward") return <MigrateForwardSection />;
   return <TimelineSection />;
 }
@@ -551,7 +502,6 @@ export function Database(props: DatabaseProps) {
   // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.
   const tabs: TabBarTab[] = [
     { id: "timeline", label: t(locale, "Timeline"), icon: <TimelineIcon /> },
-    { id: "restore-points", label: t(locale, "Restore points"), icon: <RestorePointsIcon /> },
     { id: "migrate-forward", label: t(locale, "Migrate forward"), icon: <MigrateForwardIcon /> },
   ];
 

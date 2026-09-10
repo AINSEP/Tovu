@@ -1,5 +1,5 @@
 /**
- * @file This screen's own small icon set — three inline SVGs for its tab row, no icon dependency.
+ * @file This screen's own small icon set — two inline SVGs for its tab row, no icon dependency.
  * Same rationale `source-control-visuals.tsx` and `deployment/deployment-visuals.tsx` give for
  * theirs: this app ships no icon component library to `features/`, and importing a glyph across a
  * feature boundary would tie this screen's rendering to a sibling feature another agent owns.
@@ -32,17 +32,6 @@ export function TimelineIcon({ size = 16 }: { size?: number }) {
       <path d="M10 12h9" />
       <circle cx="6" cy="17.5" r="1.25" />
       <path d="M10 17.5h9" />
-    </svg>
-  );
-}
-
-/** Restore points — a clock wrapped in a counter-clockwise arrow: back to an earlier moment. */
-export function RestorePointsIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
-      <path d="M4.5 4.5v4h4" />
-      <path d="M12 8.5V12l2.5 1.5" />
     </svg>
   );
 }

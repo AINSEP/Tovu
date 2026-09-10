@@ -173,7 +173,13 @@ describe("t (2026-08-11, standing i18n rule)", () => {
 
     const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
 
-    await waitFor(() => expect(result.current.t("Restore points")).toBe("Puntos de restauración"));
+    // "Failed to create restore point" (2026-09-10) — not "Restore points": that heading key moved
+    // to `recovery-i18n.tsx` with the create button's own markup when `RestorePointsSection` left
+    // `Database.tsx` (see `Database.tsx`'s own file header). This hook itself was NOT deleted (still
+    // exercised by `__measurements__/request-volume.measurement.test.tsx`) and still calls
+    // `t(locale, "Failed to create restore point")` internally, so that key is what actually proves
+    // this hook's bound `t` reflects its own resolved locale rather than a hardcoded English default.
+    await waitFor(() => expect(result.current.t("Failed to create restore point")).toBe("No se pudo crear el punto de restauración"));
   });
 });
 

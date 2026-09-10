@@ -4,47 +4,52 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Database } from "../Database";
 import type { TimelineSectionController } from "../hooks/use-timeline-section.hooks";
-import type { RestorePointsSectionController } from "../hooks/use-restore-points-section.hooks";
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
 import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
 import { navigate } from "@/lib/router";
-import type { AdminLedgerRow, AdminRestorePoint } from "@/lib/api";
+import type { AdminLedgerRow } from "@/lib/api";
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for
- * all three sections; the three underlying hooks (`useTimelineSection`, `useRestorePointsSection`,
- * `useMigrateForwardSection`) already have their own dedicated, 100%-covered test files. This
- * file's job is only the render layer, which was bare (3.12%) before this pass.
+ * both sections; the two underlying hooks (`useTimelineSection`, `useMigrateForwardSection`)
+ * already have their own dedicated, 100%-covered test files. This file's job is only the render
+ * layer, which was bare (3.12%) before the original tabs pass.
  *
- * `TimelineSection`/`RestorePointsSection`/`MigrateForwardSection` each declare a `use*Hook` DI
- * seam (`Recovery.tsx`/`Pages.tsx` convention), but `Database` — the only exported component in
- * this file — never threads a prop through to them, so there is no way to inject a controller via
- * props from the top (same situation as `RestoreFlow` in `Recovery.tsx`). Module-mocking each
- * `use*Section` hook is the seam that's actually reachable: each mock is driven through a
- * `vi.hoisted` ref that tests mutate before rendering, giving direct control over every section's
- * state without a real `fetch`.
+ * NO RESTORE-POINTS SECTION (2026-09-10): this file used to also cover a third section,
+ * `RestorePointsSection`/`useRestorePointsSection`, mounted on a `restore-points` tab. That whole
+ * capability moved to `features/recovery/Recovery.tsx` (`development/todos.md`'s "Recovery vs
+ * Database's Restore Points tab" entry, owner, 2026-09-10) — see `Recovery.unit.test.tsx`'s own
+ * "create restore point" describe block for its coverage now. `useRestorePointsSection` itself was
+ * NOT deleted (still exercised by `__measurements__/request-volume.measurement.test.tsx`, unrelated
+ * to this screen), so this file simply stopped mounting/mocking it.
+ *
+ * `TimelineSection`/`MigrateForwardSection` each declare a `use*Hook` DI seam
+ * (`Recovery.tsx`/`Pages.tsx` convention), but `Database` — the only exported component in this
+ * file — never threads a prop through to them, so there is no way to inject a controller via props
+ * from the top (same situation as `RestoreFlow` in `Recovery.tsx`). Module-mocking each `use*Section`
+ * hook is the seam that's actually reachable: each mock is driven through a `vi.hoisted` ref that
+ * tests mutate before rendering, giving direct control over every section's state without a real
+ * `fetch`.
  *
  * `t`/`locale` (2026-08-11, standing i18n rule): each controller fixture below defaults `t` to the
  * identity function (and `locale` to `"en"`, where the controller carries one) — matching
  * `wired-hooks-convention.md`'s own `t: (k) => k` example — so every existing assertion above stays
  * matched against the raw English key with no behavior change.
  *
- * TABS (this pass): `Database` now renders one section at a time behind a `TabBar`
- * (Timeline/Restore points/Migrate forward — see `Database.tsx`'s own header comment for the
- * grouping rationale), instead of mounting all three at once. `renderDatabase` below resolves a
- * default `?tab=` from WHICH override key a test passed — `restorePoints` opens on the
- * "restore-points" tab, `migrateForward` opens on "migrate-forward", anything else (including no
- * override at all) opens on the default "timeline" tab — so every pre-existing test call below
- * still lands on the section it was already asserting against with no change to the call itself.
- * A test that needs a specific tab regardless of that inference (or needs to assert on the tab bar
- * itself) passes `tabId` explicitly, which always wins.
+ * TABS: `Database` renders one section at a time behind a `TabBar` (Timeline/Migrate forward — see
+ * `Database.tsx`'s own header comment for the grouping rationale), instead of mounting both at
+ * once. `renderDatabase` below resolves a default `?tab=` from WHICH override key a test passed —
+ * `migrateForward` opens on "migrate-forward", anything else (including no override at all) opens
+ * on the default "timeline" tab — so every pre-existing test call below still lands on the section
+ * it was already asserting against with no change to the call itself. A test that needs a specific
+ * tab regardless of that inference (or needs to assert on the tab bar itself) passes `tabId`
+ * explicitly, which always wins.
  */
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
-const { timelineRef, restorePointsRef, migrateForwardRef, schemaStateRef } = vi.hoisted(() => ({
+const { timelineRef, migrateForwardRef, schemaStateRef } = vi.hoisted(() => ({
   timelineRef: { current: null as unknown },
-  restorePointsRef: { current: null as unknown },
   migrateForwardRef: { current: null as unknown },
   schemaStateRef: { current: null as unknown },
 }));
@@ -52,10 +57,6 @@ const { timelineRef, restorePointsRef, migrateForwardRef, schemaStateRef } = vi.
 vi.mock("../hooks/use-timeline-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-timeline-section.hooks")>();
   return { ...actual, useWiredTimelineSection: () => timelineRef.current };
-});
-vi.mock("../hooks/use-restore-points-section.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-restore-points-section.hooks")>();
-  return { ...actual, useWiredRestorePointsSection: () => restorePointsRef.current };
 });
 vi.mock("../hooks/use-migrate-forward-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-migrate-forward-section.hooks")>();
@@ -75,15 +76,6 @@ const ROW: AdminLedgerRow = {
 };
 const ROW_NO_RESTORE_POINT: AdminLedgerRow = { ...ROW, id: "row2", restorePointId: null };
 
-const POINT: AdminRestorePoint = {
-  id: "rp1",
-  trigger: "manual",
-  costClass: "cheap",
-  kind: "full",
-  watermarkAtCapture: 42,
-  createdAt: "2026-08-01T00:00:00.000Z",
-};
-
 function timelineController(overrides: Partial<TimelineSectionController> = {}): TimelineSectionController {
   return {
     rows: [ROW],
@@ -102,17 +94,6 @@ function timelineController(overrides: Partial<TimelineSectionController> = {}):
     loadMore: vi.fn(),
     t: (key: string) => key,
     locale: "en",
-    ...overrides,
-  };
-}
-
-function restorePointsController(overrides: Partial<RestorePointsSectionController> = {}): RestorePointsSectionController {
-  return {
-    points: [POINT],
-    error: null,
-    creating: false,
-    createRestorePoint: vi.fn(async () => {}),
-    t: (key: string) => key,
     ...overrides,
   };
 }
@@ -143,51 +124,44 @@ function schemaStateController(overrides: Partial<SchemaStateSectionController> 
 
 /** See the "TABS" file-header note above for why this infers a default tab from which override
  *  key a test passed, rather than requiring every existing call site to name one. */
-function resolveDefaultTabId(overrides: {
-  restorePoints?: unknown;
-  migrateForward?: unknown;
-  tabId?: string | null;
-}): string | null | undefined {
+function resolveDefaultTabId(overrides: { migrateForward?: unknown; tabId?: string | null }): string | null | undefined {
   if (overrides.tabId !== undefined) return overrides.tabId;
   if (overrides.migrateForward) return "migrate-forward";
-  if (overrides.restorePoints) return "restore-points";
   return "timeline";
 }
 
 function renderDatabase(overrides: {
   timeline?: Partial<TimelineSectionController>;
-  restorePoints?: Partial<RestorePointsSectionController>;
   migrateForward?: Partial<MigrateForwardSectionController>;
   schemaState?: Partial<SchemaStateSectionController>;
   tabId?: string | null;
 } = {}) {
   const t = timelineController(overrides.timeline);
-  const r = restorePointsController(overrides.restorePoints);
   const m = migrateForwardController(overrides.migrateForward);
   const s = schemaStateController(overrides.schemaState);
   timelineRef.current = t;
-  restorePointsRef.current = r;
   migrateForwardRef.current = m;
   schemaStateRef.current = s;
   render(<Database tabId={resolveDefaultTabId(overrides)} />);
-  return { timeline: t, restorePoints: r, migrateForward: m, schemaState: s };
+  return { timeline: t, migrateForward: m, schemaState: s };
 }
 
 beforeEach(() => {
   timelineRef.current = timelineController();
-  restorePointsRef.current = restorePointsController();
   migrateForwardRef.current = migrateForwardController();
   schemaStateRef.current = schemaStateController();
 });
 
 describe("page shell", () => {
-  it("renders the page header and the three-tab tab bar", () => {
+  it("renders the page header and the two-tab tab bar", () => {
     renderDatabase();
     expect(screen.getByRole("heading", { name: "Database", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Database" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Restore points" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Migrate forward" })).toBeInTheDocument();
+    // Restore points moved to Recovery (2026-09-10, `development/todos.md`) — Database no longer
+    // has a tab for it at all.
+    expect(screen.queryByRole("tab", { name: "Restore points" })).not.toBeInTheDocument();
   });
 });
 
@@ -195,17 +169,16 @@ describe("tab bar", () => {
   it("defaults to the Timeline tab and shows only its content when no tabId is given", () => {
     renderDatabase();
     expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "false");
-    // Only Timeline's section is mounted — the other two sections' own headings are absent.
-    expect(screen.queryByRole("heading", { name: "Restore points" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Migrate forward" })).toHaveAttribute("aria-selected", "false");
+    // Only Timeline's section is mounted — the other section's own heading is absent.
     expect(screen.queryByRole("heading", { name: "Migrate forward" })).not.toBeInTheDocument();
   });
 
   it("opens on the tab named by tabId, showing only that section", () => {
-    renderDatabase({ tabId: "restore-points" });
-    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("heading", { name: "Restore points" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Migrate forward" })).not.toBeInTheDocument();
+    renderDatabase({ tabId: "migrate-forward" });
+    expect(screen.getByRole("tab", { name: "Migrate forward" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Migrate forward" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("table")).toHaveLength(0);
   });
 
   it("falls back to Timeline for an unrecognized tabId", () => {
@@ -348,48 +321,6 @@ describe("TimelineSection — pagination", () => {
     const c = renderDatabase({ timeline: { rows: [ROW], nextCursor: "cursor1", loadingMore: true } });
     expect(screen.getByRole("button", { name: "Loading…" })).toBeDisabled();
     void c;
-  });
-});
-
-describe("RestorePointsSection", () => {
-  it("shows a loading notice while points is null and there is no error", () => {
-    renderDatabase({ restorePoints: { points: null, error: null } });
-    expect(screen.getByText("Loading restore points…")).toBeInTheDocument();
-  });
-
-  it("shows only the error notice when points is null and error is set", () => {
-    renderDatabase({ restorePoints: { points: null, error: "failed to load restore points" } });
-    expect(screen.getByText("failed to load restore points")).toBeInTheDocument();
-  });
-
-  it("shows the empty state when points is an empty array", () => {
-    renderDatabase({ restorePoints: { points: [] } });
-    expect(screen.getByText("No restore points yet.")).toBeInTheDocument();
-  });
-
-  it("renders timestamp, trigger, cost-class, and kind columns for a loaded point", () => {
-    renderDatabase({ restorePoints: { points: [POINT] } });
-    expect(screen.getByText("2026-08-01 00:00")).toBeInTheDocument();
-    expect(screen.getByText("manual")).toBeInTheDocument();
-    expect(screen.getByText("full")).toBeInTheDocument();
-  });
-
-  it("clicking 'Create restore point' calls createRestorePoint", async () => {
-    const user = userEvent.setup();
-    const c = renderDatabase({ restorePoints: { points: [POINT] } });
-    await user.click(screen.getByRole("button", { name: "Create restore point" }));
-    expect(c.restorePoints.createRestorePoint).toHaveBeenCalledTimes(1);
-  });
-
-  it("disables the create button and shows 'Creating…' while creating is true", () => {
-    renderDatabase({ restorePoints: { points: [POINT], creating: true } });
-    expect(screen.getByRole("button", { name: "Creating…" })).toBeDisabled();
-  });
-
-  it("shows an inline error banner ABOVE the table once points have loaded and a later error occurs", () => {
-    renderDatabase({ restorePoints: { points: [POINT], error: "failed to create restore point" } });
-    expect(screen.getByText("failed to create restore point")).toBeInTheDocument();
-    expect(screen.getAllByRole("table").length).toBeGreaterThan(0);
   });
 });
 
