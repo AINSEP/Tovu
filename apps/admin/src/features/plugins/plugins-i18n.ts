@@ -64,6 +64,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.":
       "El mercado está planeado para una versión futura. Tovu aún no descarga, instala ni lista paquetes del mercado.",
     "Read the package format": "Leer el formato del paquete",
+    "Package format:": "Formato del paquete:",
+    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.":
+      "Desinstalar no está disponible: estos paquetes se incluyen con Tovu y se restauran en el próximo reinicio.",
 
     // Hook-level notice/error strings (use-plugins.hooks.ts) — these never got translated during
     // the JSX-only pass since they live in `.hooks.ts` files.
