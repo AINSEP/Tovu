@@ -2787,6 +2787,33 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    column, so the list keeps a readable measure rather than running edge to edge. */
 .agent-plugins-section .jini-tabbed-dialog-content { max-width: 58rem; }
 
+/* Card removed (2026-09-09, owner request). `.jini-tabbed-dialog`'s own base rule
+   (`@jini-ai/ui`'s `tabbed-dialog.css`) paints this shell as a MODAL — an elevated
+   background, a 1px border, and rounded corners — and the `--inline` presentation
+   this screen passes only drops the FLOATING variant's width/height/shadow, not
+   that chrome. Inside an admin page that already carries its own background, the
+   leftover chrome read as a second white rounded box wrapping the whole screen
+   rather than the row list sitting directly on the page.
+
+   Same fix, same reasoning as `.settings-ui-section--page-flow`'s "Flat variant"
+   block further down this file (written for the AI Assistant tab): CSS rather than
+   an `@jini-ai/ui` change, since the shared shell has no `flat`/`chromeless` prop.
+   Scoped to this screen's own class rather than to `.settings-ui-section` itself —
+   Settings, Authentication, and the placeholder tabs are the shell's other three
+   consumers and keep the panel look, which is still correct for them. Unlike that
+   `--page-flow` block, this leaves `.jini-tabbed-dialog-head` and
+   `.jini-tabbed-dialog-content`'s own padding alone: this screen has no separate
+   page header of its own (same as Settings), so the shell's title/subtitle strip
+   is still this page's only heading, and `.admin-content`'s existing 2rem/2.5rem
+   page padding already keeps the list off the viewport edge without help from the
+   modal's internal padding. */
+.agent-plugins-section .jini-tabbed-dialog {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
    box: that treatment means "this control does nothing yet" everywhere else in this admin, which
    is now the opposite of true on this screen — the switch below it is live. A plain lede also
