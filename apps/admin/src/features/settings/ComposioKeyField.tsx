@@ -56,11 +56,19 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
         )}
       </p>
       <div className="composio-key-row">
+        {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
+            credential-shaped fields (a long-standing intentional decision, not a bug); `off` is
+            what let Chrome's saved-password manager silently prefill this field with a saved
+            login password, so the vendor rejected a key the owner never typed and she debugged
+            her real key for nothing. `new-password` is the documented signal that suppresses
+            both the saved-credential dropdown and the silent fill (matching this repo's own
+            corrected precedent on `users/Users.tsx` and `security/AccessTokensTab.tsx`, commit
+            `fc64f2d9`). */}
         <input
           id="composio-api-key"
           className="composio-key-input"
           type="password"
-          autoComplete="off"
+          autoComplete="new-password"
           spellCheck={false}
           placeholder={placeholder}
           value={draft}

@@ -113,7 +113,11 @@ function SupabaseVendorFields({ t }: { t: Translate }) {
         <label className="field-label" htmlFor="site-db-supabase-key">
           {t("Supabase API key")}
         </label>
-        <input id="site-db-supabase-key" type="password" disabled placeholder={t("Paste your API key")} autoComplete="off" />
+        {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
+            credential-shaped fields (see `security/AccessTokensTab.tsx`'s token input). This
+            field is `disabled` today, but it is a real password-type credential field, so it
+            gets the same guard the moment it is wired up. */}
+        <input id="site-db-supabase-key" type="password" disabled placeholder={t("Paste your API key")} autoComplete="new-password" />
         <span className="field-hint">{t("Shown for what's coming. It isn't stored anywhere yet.")}</span>
       </span>
     </span>
