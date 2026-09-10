@@ -47,7 +47,7 @@ import {
   resolveCustomCredentialByLabel,
   updateCustomCredential,
 } from "./store.js";
-import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
+import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
 import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID } from "./write-files-confirmation-ui.js";
 import { isWorkflowPath, validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
@@ -357,7 +357,7 @@ async function resolveWriteFilesDecision(exchange: SurfaceExchange, ui: UIResour
  */
 async function performGitHubFilesWrite(
   routeDeps: CustomCredentialsToolDeps,
-  resolved: { baseUrl: string; connection: { token: string; username?: string } },
+  resolved: { baseUrl: string; connection: CustomProviderConnectionInput },
   validated: ValidatedWriteFilesInput,
   plan: GitHubWriteFilesPlan
 ): Promise<WriteFilesResult> {
