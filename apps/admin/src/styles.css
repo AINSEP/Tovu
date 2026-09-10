@@ -2374,12 +2374,24 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    24px rhythm instead of 44.8px.
 
    Scoped to the `.page > .tab-bar` child combinator, not the bare rule above, because that rule's
-   `margin-bottom` is NOT redundant everywhere: `ExternalMcpSettingsPanel.tsx`'s per-row
-   Connection/Tools tab bar reuses this same class nested inside `.external-mcp-source`, well below
-   any `.page`'s flex gap (that panel itself lives inside the Providers `.page`, several DOM levels
-   under this rule's own tab row, so a plain `.page .tab-bar` descendant selector would have caught
-   it too) — there, the 20.8px margin is that row's ONLY source of space before its panel content,
-   and zeroing it would collapse the gap to nothing. */
+   `margin-bottom` is NOT redundant for every consumer of this shared class — only for one sitting
+   directly in a `.page`'s own flex column, the specific doubling this fix targets. `.tab-bar` is a
+   plain reusable class, not a component with a fixed DOM position, so nothing stops a future
+   consumer from nesting it several levels below a `.page` instead (inside some other panel's own
+   markup, itself living inside that `.page`) — for a tab row placed like that, this same 20.8px
+   margin would be its ONLY source of space before its own content, unrelated to any `.page`'s flex
+   gap, and zeroing it there would collapse that gap to nothing for no reason. The child combinator
+   is what keeps this rule from reaching a case like that: `.page > .tab-bar` matches only a tab bar
+   that is a DIRECT child of `.page`, while a plain `.page .tab-bar` descendant selector would have
+   matched the nested case too and broken it.
+
+   No consumer nests `.tab-bar` this way today — the one that used to,
+   `ExternalMcpSettingsPanel.tsx`'s per-row Connection/Tools tab bar (nested inside
+   `.external-mcp-source`, itself inside the Providers `.page`), was replaced by a per-server Tools
+   button + modal in `14f94e9c` and no longer exists. Kept scoped to the child combinator anyway,
+   not loosened to the bare rule above: the reasoning above is about the shape of `.tab-bar` as a
+   reusable class, not about that one now-gone consumer, and the next nested tab bar — whenever one
+   is added — would hit the identical doubling problem in reverse the moment it exists. */
 .page > .tab-bar { margin-bottom: 0; }
 .tab-bar-item {
   display: inline-flex; align-items: center;
