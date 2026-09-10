@@ -169,6 +169,72 @@ test("SKILL.md records the plan gate's exact string and the model that works", a
   assert.match(models, /use_unlim/);
 });
 
+/**
+ * The cold-start facts, established 2026-09-09 by reading the live connection row and fetching
+ * Higgsfield's own published metadata (both well-known documents returned 200). They are asserted
+ * for the same reason every other content assertion in this file is: an assistant that gets these
+ * wrong does active harm. Asking an operator for a "Higgsfield API key" sends them hunting for a
+ * credential that does not exist, and promising an in-chat connect that this deployment cannot
+ * finish strands them mid-journey.
+ */
+test("SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client", async () => {
+  const skill = await readSkill();
+
+  // The grant, verified against the live row's own `oauth_grant`.
+  assert.match(skill, /authorization_code/);
+  // The correction that matters most: there is no key to paste. An edit that drops this reopens the
+  // exact wrong question ("what's your API key?").
+  assert.match(skill, /no API key to paste/i);
+  // Discovery + dynamic registration is WHY the operator supplies only a URL. Losing it turns a
+  // one-field form into an interrogation for a client id and two endpoints nobody can produce.
+  assert.match(skill, /8414|9728|7591/);
+  assert.match(skill, /registration_endpoint|dynamic client registration/i);
+  assert.match(skill, /only thing a human supplies is the URL/i);
+});
+
+test("SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL", async () => {
+  const skill = await readSkill();
+
+  // No assistant tool wraps AGENT_PLUGIN_SET_ENABLED, so a disabled bundled plugin can only be
+  // turned on from the admin screen — and its own `agent_plugin_*` tool does not exist until the
+  // next daemon boot. Both halves have to survive an edit.
+  assert.match(skill, /AGENT_PLUGIN_SET_ENABLED/);
+  assert.match(skill, /Agent Plugins/);
+  assert.match(skill, /restart/i);
+
+  // `external_mcp_oauth_connect` refuses outright when TOVU_PUBLIC_URL is unset, because a tool call
+  // has no live request to derive a callback origin from. Naming the variable is what makes the
+  // refusal recognisable instead of looking like Higgsfield being down.
+  assert.match(skill, /TOVU_PUBLIC_URL/);
+  assert.match(skill, /Settings → External MCP/);
+});
+
+test("plugin.json's keywords also reach an operator who says 'photo' or 'illustration'", async () => {
+  const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
+  assert.equal(parsed.ok, true);
+  const keywords = (parsed.ok ? (parsed.manifest.keywords ?? []) : []).map((keyword) => keyword.toLowerCase());
+
+  // Measured, not guessed: against the real installed catalog on 2026-09-09, "photo" and
+  // "illustration" scored ZERO — `rankInstalledAgentPlugins` drops a zero-scoring candidate, so this
+  // plugin was unreachable by either word. `search_agent_plugin_local` matches by substring, so the
+  // synonyms have to be present as keywords; nothing else in the package contains them.
+  for (const term of ["photo", "illustration", "picture", "art"]) {
+    assert.ok(
+      keywords.some((keyword) => keyword.includes(term)),
+      `plugin.json keywords must reach an operator who searches "${term}" — got ${JSON.stringify(keywords)}`,
+    );
+  }
+
+  // The connect vocabulary matters for the same reason: the cold start begins with someone asking to
+  // "connect" or "sign in" to something, before they know the plugin's name.
+  for (const term of ["connect", "login", "authorize"]) {
+    assert.ok(
+      keywords.some((keyword) => keyword.includes(term)),
+      `plugin.json keywords must reach an operator who searches "${term}" — got ${JSON.stringify(keywords)}`,
+    );
+  }
+});
+
 test("SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand", async () => {
   const skill = await readSkill();
 

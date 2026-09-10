@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "higgsfield-media",
   "version": "1.0.0",
-  "description": "Generates an image with the connected Higgsfield MCP server and lands it in this site's Media library. Encodes the four things generic MCP knowledge gets wrong about this connection: generate_image is asynchronous and returns a job id rather than an image, job_status sync:true can never complete over Tovu's federated transport, model choice is an account paywall (z_image works where gpt_image_2 and recraft_v4_1 return 'Requires basic plan or higher'), and the CDN URL only reaches the library through media_import_from_url.",
+  "description": "Generates an image with the Higgsfield MCP server and lands it in this site's Media library, and walks an operator who has NOTHING configured through connecting it. Encodes what generic MCP knowledge gets wrong about this connection: Higgsfield authenticates by OAuth browser sign-in (no API key), and self-configures its endpoints and client by RFC 8414 discovery plus RFC 7591 dynamic registration, so the only value a human supplies is the URL; generate_image is asynchronous and returns a job id rather than an image; job_status sync:true can never complete over Tovu's federated transport; model choice is an account paywall (z_image works where gpt_image_2 and recraft_v4_1 return 'Requires basic plan or higher'); and the CDN URL only reaches the library through media_import_from_url.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "keywords": [
@@ -20,6 +20,26 @@
     "async",
     "job-status",
     "polling",
-    "cdn"
+    "cdn",
+    "photo",
+    "photograph",
+    "picture",
+    "illustration",
+    "art",
+    "artwork",
+    "visual",
+    "graphic",
+    "connect",
+    "connection",
+    "sign-in",
+    "login",
+    "authorize",
+    "authentication",
+    "credential",
+    "setup",
+    "onboarding",
+    "getting-started",
+    "api-key",
+    "text-to-image"
   ]
 }

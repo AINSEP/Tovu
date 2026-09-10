@@ -1,6 +1,6 @@
 ---
 name: higgsfield-media
-description: Generate an image with the connected Higgsfield MCP server and land it in this site's Media library. Covers the whole chain — generate_image (asynchronous, returns a job id and not an image), job_status polling (never with sync:true, which cannot complete over Tovu's federated transport), and media_import_from_url for the CDN URL. Also covers the two things that make this fail silently for a whole session: the per-tool write grant a federated write tool needs, and the account plan gate that rejects some models at submit with "Requires basic plan or higher".
+description: Connect Higgsfield from nothing, then generate an image and land it in this site's Media library. Covers the cold start (Higgsfield authenticates by OAuth browser sign-in, NOT an API key, and discovers its own endpoints and client — the only value a human supplies is the URL; the enable step and, where TOVU_PUBLIC_URL is unset, the authorization step both need the admin UI) and the whole generate chain — generate_image (asynchronous, returns a job id and not an image), job_status polling (never with sync:true, which cannot complete over Tovu's federated transport), and media_import_from_url for the CDN URL. Also covers the two things that make this fail silently for a whole session: the per-tool write grant a federated write tool needs, and the account plan gate that rejects some models at submit with "Requires basic plan or higher".
 ---
 
 # Higgsfield → Media library
@@ -26,29 +26,107 @@ in this site — it is a link to somebody else's server.
 
 ## Before you start: is this connection actually usable?
 
-Higgsfield is **not** a Tovu-native capability. It is an **external MCP server**, federated in,
-that the operator connected themselves in **Settings → External MCP**. Three separate things
-must all be true, and each one fails differently:
+Higgsfield is **not** a Tovu-native capability. It is an **external MCP server**, federated in.
+Four separate things must all be true, and each one fails differently:
 
-| What | Where the operator sets it | How it fails if missing |
+| What | Where it is set | How it fails if missing |
 |---|---|---|
-| The connection exists and is enabled | Settings → External MCP | No `mcp__higgsfield__*` tool exists at all |
+| The connection row exists and is enabled | `external_mcp_save` (in chat), or Settings → External MCP | No `mcp__higgsfield__*` tool exists at all |
+| Its OAuth is connected | `external_mcp_oauth_connect` (in chat), or Settings → External MCP | Calls fail `is disconnected: its authorization expired or was revoked` |
 | The tool is in the allowlist | The tool picker's per-tool tick | Tool is refused `not-in-operator-allowlist`; you never see it |
 | `generate_image` is *also* granted **"may write"** | The second tick on the same row | Tool is refused `remote-declares-not-read-only`; you never see it |
 
-The third row is the one that has cost this project the most time. See
+The last row is the one that has cost this project the most time. See
 [the write grant](#the-write-grant-two-lists-not-one) below.
 
-**How Higgsfield authenticates: OAuth, and you cannot do it.** The connection uses an
-authorization-code OAuth grant against `https://mcp.higgsfield.ai/mcp`, and the access token is
-short-lived — on the order of a day. Only the operator can sign in, and **the sign-in cannot
-happen inside this chat**: an OAuth flow will not run in the chat pane's sandboxed dialog.
+---
+
+## How Higgsfield authenticates: OAuth — a real browser sign-in, not an API key
+
+Verified 2026-09-09 against the live connection row and Higgsfield's own published metadata:
+
+- `auth_mode` is `oauth` and `oauth_grant` is `authorization_code`, over `streamable_http` to
+  `https://mcp.higgsfield.ai/mcp`. There is **no API key to paste**. If you find yourself asking
+  the operator for a Higgsfield API key, you are wrong.
+- Higgsfield publishes RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414
+  (`/.well-known/oauth-authorization-server`) metadata — both return 200 — including an RFC 7591
+  `registration_endpoint` at `https://mcp.higgsfield.ai/oauth2/register`.
+- **Therefore nobody types a client id, a client secret, or an endpoint.** Tovu discovers the
+  endpoints and mints its own OAuth client on the first connect (`assistant/external-mcp-oauth.ts`,
+  "Self-configuration: discovery + dynamic client registration"). The live row's stored endpoints
+  (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,
+  not typed by a human. **The only thing a human supplies is the URL.**
+- Scopes `openid email offline_access`; PKCE `S256`.
+- **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires
+  `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.
+
+**You cannot complete the sign-in yourself** — the human signs in to Higgsfield in their own
+browser. What you *can* do is start the authorization and hand over the link.
 
 If a federated call fails saying the server *"is disconnected: its authorization expired or was
 revoked"*, do not retry it in a loop and do not guess. Call `external_mcp_reauth_prompt`, which
 puts a real notice in front of the operator naming the server and pointing them at Settings →
 External MCP. After they say they have reconnected, retry the **original** call exactly once and
 report what actually happened.
+
+---
+
+## Connecting from zero
+
+This is the path for an operator who has **no Higgsfield connection at all**. Do not assume the
+steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —
+check `content_read.external_mcp` (or `external_mcp_list`) first and see what actually exists.
+
+**Step A — the plugin itself must be enabled, and you cannot do it.**
+`higgsfield-media` ships bundled but **disabled** (`seed-bundled.ts` writes
+`{ enabled: false, origin: "bundled" }` on first boot). `search_agent_plugin_local` *will* still
+find it while disabled — that is deliberate, and it is how you got here. But a disabled plugin gets
+no `agent_plugin_higgsfield_media` tool, and **no assistant tool wraps `AGENT_PLUGIN_SET_ENABLED`**
+(`features/agent-plugins/uninstall.ts` says so in as many words). So:
+
+> Ask the operator to open the **Agent Plugins** admin screen and turn `higgsfield-media` on, then
+> **restart the assistant**. Per-plugin tools are registered once, in `agent-daemon-server.ts`'s
+> boot sequence, so the plugin's own tool does not appear until that restart.
+
+Enabling is preserved across boots (`recordBundledAgentPluginIfAbsent` never overwrites an existing
+decision), so this is a one-time step.
+
+**Step B — create the connection row.** `external_mcp_save` opens a form the human confirms; it
+never writes silently. The values that are known-correct for Higgsfield:
+
+| Field | Value |
+|---|---|
+| `id` | `higgsfield` |
+| `transport` | `streamable_http` |
+| `url` | `https://mcp.higgsfield.ai/mcp` |
+| `authMode` | `oauth` |
+| `oauthGrant` | `authorization_code` |
+| `allowedToolNames` | `generate_image, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |
+| `writeAllowedToolNames` | `generate_image, reveal_generation` |
+
+Leave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and
+dynamic registration fill them in. Never pass a credential as a tool argument; there is no schema
+property for one.
+
+**Step C — start the authorization.** `external_mcp_oauth_connect { id: "higgsfield" }` returns the
+link for the human to open. Then detect completion by calling `content_read.external_mcp` again and
+reading `oauth.status` — **there is no "wait for it" tool**.
+
+> ⚠️ **This step needs `TOVU_PUBLIC_URL` to be set on the server.** A chat tool call has no live
+> browser request to derive a callback origin from, so `external_mcp_oauth_connect` refuses outright
+> when it is unset, with a message naming `TOVU_PUBLIC_URL`. It was unset in the development
+> environment as of 2026-09-09. **If you see that refusal, do not retry it and do not work around
+> it** — send the operator to **Settings → External MCP**, which derives the callback from the live
+> request and therefore works either way. The refusal is a fact about the deployment, not about
+> Higgsfield.
+
+**Step D — the write grant, then a restart.** Even with OAuth connected, `generate_image` stays
+refused until it is in `writeAllowedToolNames` *and* the assistant has restarted. See the next
+section — this is the failure that looks like nothing at all.
+
+**The honest summary: the cold start is not fully in-chat.** Step A always requires the admin UI
+plus a restart, and Step C requires it too wherever `TOVU_PUBLIC_URL` is unset. Say that plainly
+rather than implying you can finish it alone.
 
 ---
 
