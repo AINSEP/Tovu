@@ -4822,3 +4822,69 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .site-card-actions .btn-secondary:disabled {
   background: transparent; color: var(--faint); border-color: var(--border);
 }
+
+/* ------------------------------------------------------------------------
+   Observability screen (Observability.tsx) — scoped to `.observability-section`
+   so none of these touch any other `.settings-ui-section`/`.jini-*` consumer.
+   Same reasoning as the Agent Plugins block above: this screen pins
+   `data-theme="light"` on its own wrapper and uses Jini's own `--jini-*`
+   tokens throughout, never Tovu's `--muted`/`--fg`/`--surface`. ------------ */
+
+.observability-section .jini-tabbed-dialog-content { max-width: 46rem; }
+
+.observability-section .jini-tabbed-dialog {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.observability-lede {
+  margin: 0 0 14px; max-width: 44rem;
+  font-size: 13px; line-height: 1.55; color: var(--jini-text-muted);
+}
+
+.observability-alert {
+  margin: 0 0 14px; padding: 9px 12px;
+  font-size: 13px; line-height: 1.5; color: var(--jini-danger);
+  background: color-mix(in srgb, var(--jini-danger) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jini-danger) 22%, transparent);
+  border-radius: var(--jini-radius-sm);
+}
+
+/* The current-status card — one glance answers "is anything being recorded right now". The dot is
+   the ONLY color-only signal, backed by the headline's own words (`Observability.tsx`), same
+   "color plus text, never color alone" rule the Sites screen's own status dot documents. */
+.observability-status-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 14px 0; padding: 12px 14px;
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-md);
+  background: var(--jini-bg-panel);
+}
+.observability-status-dot {
+  flex-shrink: 0; margin-top: 5px;
+  width: 9px; height: 9px; border-radius: 50%;
+}
+.observability-status-card--on .observability-status-dot { background: var(--jini-success); }
+.observability-status-card--off .observability-status-dot { background: var(--jini-text-disabled); }
+.observability-status-headline { margin: 0 0 2px; font-size: 13.5px; font-weight: 600; color: var(--jini-text-strong); }
+
+/* Providers empty state — a designed nothing, not a mocked connection form. Same treatment as
+   `.agent-plugins-marketplace-empty` above, for the identical reason: centered and generously
+   spaced so the panel reads as "deliberately empty" rather than "failed to load". */
+.observability-providers-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 10px;
+  max-width: 30rem; margin: 8px auto;
+  padding: 34px 26px;
+  border: 1px dashed var(--jini-border-strong); border-radius: var(--jini-radius-md);
+  background: var(--jini-bg-panel);
+}
+.observability-providers-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 54px; height: 54px; margin-bottom: 2px;
+  color: var(--jini-text-disabled);
+  background: var(--jini-bg-subtle); border-radius: var(--jini-radius-pill);
+}
+.observability-providers-empty h3 { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--jini-text-strong); }
+.observability-providers-empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--jini-text-muted); }
