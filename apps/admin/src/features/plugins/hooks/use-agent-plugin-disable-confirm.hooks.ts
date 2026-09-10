@@ -20,6 +20,7 @@ export interface AgentPluginDisableConfirmController {
 
 export function useAgentPluginDisableConfirm(props: {
   name: string;
+  variant: "disable" | "remove";
   onCancel: () => void;
 }): AgentPluginDisableConfirmController {
   const { onCancel } = props;
@@ -32,5 +33,5 @@ export function useAgentPluginDisableConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name }) };
+  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant }) };
 }

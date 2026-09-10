@@ -252,6 +252,22 @@ describe("AgentPlugins", () => {
     expect(tab).toHaveFocus();
   });
 
+  it("Installed's row keeps the switch, with no Remove action", async () => {
+    renderAgentPlugins();
+    await userEvent.click(screen.getByRole("button", { name: "Installed" }));
+    const complianceRow = row("Site Compliance");
+    expect(within(complianceRow).getByRole("switch")).toBeInTheDocument();
+    expect(within(complianceRow).queryByRole("button", { name: /^Remove /i })).not.toBeInTheDocument();
+  });
+
+  it("Downloaded's row shows Remove/Enable, not a switch", async () => {
+    renderAgentPlugins();
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+    const complianceRow = row("Site Compliance");
+    expect(within(complianceRow).queryByRole("switch")).not.toBeInTheDocument();
+    expect(within(complianceRow).getByRole("button", { name: "Remove Site Compliance" })).toBeInTheDocument();
+  });
+
   it("keeps Marketplace explicitly future-only, with no listing and no install control", async () => {
     renderAgentPlugins();
 

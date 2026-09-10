@@ -4,40 +4,46 @@ import { useAgentPluginDisableConfirm } from "./hooks/use-agent-plugin-disable-c
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
- * @file Confirmation gate in front of `AgentPluginRow`'s enable/disable switch, but ONLY on the
- * enabled->disabled direction. There is no admin uninstall route — the only two agent-plugins
- * routes are `GET .../agent-plugins` (list) and `PATCH .../agent-plugins/:pluginId` (set-enabled);
- * `uninstallAgentPlugin()` (`features/agent-plugins/uninstall.ts`) is reachable only from an
- * assistant tool and refuses every bundled package outright — see `AgentPluginRow`'s own header for
- * why its trash icon is honestly disabled for that reason. So "remove this plugin from the site",
- * mechanically, is what turning the switch off already does: `resolveAgentPluginRefs()` refuses to
- * pin a disabled plugin into a run, which is the only lever an operator actually has over a bundled
- * package. This dialog exists because that lever has a real cost (the assistant loses those skills
- * on its very next run) and, before it landed, the switch fired that cost with a single click and no
- * way to reconsider.
+ * @file Confirmation gate in front of the SAME underlying operation from two different controls.
+ * There is no admin uninstall route — the only two agent-plugins routes are `GET .../agent-plugins`
+ * (list) and `PATCH .../agent-plugins/:pluginId` (set-enabled); `uninstallAgentPlugin()`
+ * (`features/agent-plugins/uninstall.ts`) is reachable only from an assistant tool and refuses every
+ * bundled package outright — see `AgentPluginRow`'s own header for why its trash icon is honestly
+ * disabled for that reason. So "remove this plugin", mechanically, is what turning it off already
+ * does: `resolveAgentPluginRefs()` refuses to pin a disabled plugin into a run, which is the only
+ * lever an operator actually has over a bundled package. This dialog exists because that lever has a
+ * real cost (the assistant loses those skills on its very next run) and, before it landed, a single
+ * click fired that cost with no way to reconsider.
  *
- * Enabling stays a plain one-click toggle — see `AgentPlugins.tsx`'s own `onRequestToggleEnabled`
- * for the branch — because turning a plugin ON has no comparable cost to interrupt: nothing an
- * operator already depends on stops working, and the switch itself already announces the resulting
- * state (`aria-checked` plus the row's own "Enabled"/"Disabled" word).
+ * Two `variant`s, same mechanism, added when Downloaded's row lost its Enable/Disable switch in
+ * favor of a single Remove/Enable action (2026-09-09 — see `AgentPlugins.tsx`'s own header):
+ *   - `"disable"` — Installed's switch. Confirm reads "Disable", matching the verb the switch itself
+ *     already shows via the row's "Enabled"/"Disabled" word — the owner's explicit call against
+ *     renaming that control to "Add to site / Remove from site".
+ *   - `"remove"` — Downloaded's action button. Confirm reads "Remove" to match that button's own
+ *     label; the body still discloses, honestly, that this can't delete anything the backend can't
+ *     already refuse to delete — see `buildAgentPluginDisableConfirmCopy`'s own header.
+ *
+ * Enabling stays a plain one-click action in both places — see `AgentPlugins.tsx`'s own
+ * `onRequestToggleEnabled`/`onRequestRemove` — because turning a plugin ON has no comparable cost to
+ * interrupt: nothing an operator already depends on stops working.
  *
  * Markup, classes (`settings-dialog`/`settings-dialog-backdrop`, `btn-secondary`/`btn-danger`), and
  * behaviour (Escape-to-cancel via the paired hook, Cancel default-focused so the destructive-leaning
  * action is never the default) mirror `features/settings/ExternalMcpRemoveConfirmDialog.tsx` — the
  * most recent precedent for exactly this shape of dialog in this app, reused rather than
- * re-invented. Confirm reads "Disable", not "Remove": this is a reversible state flip (the package
- * stays on disk and can be re-enabled), not a destructive delete, and naming it "Disable" keeps the
- * dialog's own verb identical to the switch it guards — the owner's explicit call against renaming
- * that control to "Add to site / Remove from site".
+ * re-invented.
  */
 
 export interface AgentPluginDisableConfirmDialogProps {
   /** The plugin's own human-readable display name (`humanizeAgentPluginId(plugin.pluginId)`) —
    *  must name the exact plugin being disabled, not a generic "this plugin". */
   name: string;
+  /** Which control opened this dialog — see this file's own header for what each reads and why. */
+  variant: "disable" | "remove";
   /** This plugin row's own agent-handle base (e.g. `agent-plugin-row-site-compliance`) — Confirm/
-   *  Cancel publish as `<rowHandle>-disable-confirm` / `<rowHandle>-disable-cancel`, nesting under
-   *  the row's already-published `<rowHandle>-enabled` switch the same way
+   *  Cancel publish as `<rowHandle>-<variant>-confirm` / `<rowHandle>-<variant>-cancel`, nesting
+   *  under the row's own control (`<rowHandle>-enabled` or `<rowHandle>-remove`) the same way
    *  `ExternalMcpRemoveConfirmDialog` nests its own controls under its card's handle. */
   agentHandleBase: string;
   onConfirm: () => void;
@@ -51,14 +57,16 @@ export interface AgentPluginDisableConfirmDialogProps {
 
 export function AgentPluginDisableConfirmDialog({
   name,
+  variant,
   agentHandleBase,
   onConfirm,
   onCancel,
   t,
   useAgentPluginDisableConfirmHook = useAgentPluginDisableConfirm,
 }: AgentPluginDisableConfirmDialogProps) {
-  const { copy } = useAgentPluginDisableConfirmHook({ name, onCancel });
-  const titleId = `${agentHandleBase}-disable-confirm-title`;
+  const { copy } = useAgentPluginDisableConfirmHook({ name, variant, onCancel });
+  const titleId = `${agentHandleBase}-${variant}-confirm-title`;
+  const confirmWord = variant === "remove" ? "Remove" : "Disable";
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
@@ -79,9 +87,9 @@ export function AgentPluginDisableConfirmDialog({
             className="btn-secondary"
             autoFocus
             onClick={onCancel}
-            {...agentHandle(`${agentHandleBase}-disable-cancel`, {
+            {...agentHandle(`${agentHandleBase}-${variant}-cancel`, {
               role: "button",
-              label: `Close this dialog without disabling ${name}`,
+              label: `Close this dialog without ${variant === "remove" ? "removing" : "disabling"} ${name}`,
             })}
           >
             {t("Cancel")}
@@ -90,12 +98,12 @@ export function AgentPluginDisableConfirmDialog({
             type="button"
             className="btn-danger"
             onClick={onConfirm}
-            {...agentHandle(`${agentHandleBase}-disable-confirm`, {
+            {...agentHandle(`${agentHandleBase}-${variant}-confirm`, {
               role: "button",
-              label: `Disable ${name} for this site`,
+              label: variant === "remove" ? `Remove ${name}` : `Disable ${name} for this site`,
             })}
           >
-            {t("Disable")}
+            {t(confirmWord)}
           </button>
         </span>
       </div>

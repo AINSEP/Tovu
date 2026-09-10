@@ -12,7 +12,7 @@ import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
-import { AgentPluginRow } from "./AgentPluginRow";
+import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
 import { filterEnabledAgentPlugins, humanizeAgentPluginId } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
@@ -81,21 +81,22 @@ function AgentPluginsStatus({
  *  least one row, so it carries no emptiness branch of its own — {@link AgentPluginsStatus} owns
  *  that case.
  *
- * `onRequestToggleEnabled` replaced a direct `controller.onToggleEnabled` call here (2026-09-09):
- * turning a plugin OFF now goes through a confirm step (`AgentPlugins`'s own `pendingDisableId`),
- * so the row's switch must route through the request function rather than the controller's mutation
- * directly — see `AgentPluginDisableConfirmDialog`'s own header for why disabling, specifically,
- * needs the interstitial and enabling does not. */
+ * `stateControlFor` replaced a direct `controller.onToggleEnabled` call here (2026-09-09): once
+ * Installed kept the real switch and Downloaded traded it for a Remove/Enable action (see
+ * `AgentPluginRow`'s own header on the split), the two tabs need genuinely different per-row
+ * `AgentPluginRowStateControl` values, not the same callback rendered two ways — so this list asks
+ * its caller (a factory, computed once per tab in `AgentPlugins`) for one, per plugin, rather than
+ * hard-coding either shape itself. */
 function AgentPluginList({
   agentPlugins,
   controller,
   uninstallNoteId,
-  onRequestToggleEnabled,
+  stateControlFor,
 }: {
   agentPlugins: AdminAgentPlugin[];
   controller: AgentPluginsController;
   uninstallNoteId: string;
-  onRequestToggleEnabled: (plugin: AdminAgentPlugin) => void;
+  stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
 }) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`). Derived from each id alone (see that function's own
@@ -116,7 +117,7 @@ function AgentPluginList({
           expanded={controller.expandedIds.has(plugin.pluginId)}
           busy={controller.togglingIds.has(plugin.pluginId)}
           onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
-          onToggleEnabled={() => onRequestToggleEnabled(plugin)}
+          stateControl={stateControlFor(plugin)}
           onInspect={() =>
             controller.inspectPlugin({ id: plugin.pluginId, displayName: humanizeAgentPluginId(plugin.pluginId) })
           }
@@ -142,7 +143,7 @@ function AgentPluginList({
 function AgentPluginListPanel({
   controller,
   uninstallNoteId,
-  onRequestToggleEnabled,
+  stateControlFor,
   sectionLabel,
   lede,
   emptyMessage,
@@ -150,7 +151,7 @@ function AgentPluginListPanel({
 }: {
   controller: AgentPluginsController;
   uninstallNoteId: string;
-  onRequestToggleEnabled: (plugin: AdminAgentPlugin) => void;
+  stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
   sectionLabel: string;
   lede: string;
   emptyMessage: string;
@@ -174,7 +175,7 @@ function AgentPluginListPanel({
           agentPlugins={visiblePlugins}
           controller={controller}
           uninstallNoteId={uninstallNoteId}
-          onRequestToggleEnabled={onRequestToggleEnabled}
+          stateControlFor={stateControlFor}
         />
       ) : null}
       {/* `.agent-plugins-footnotes` (styles.css): section-wide facts, not per-plugin details, so
@@ -205,7 +206,7 @@ function AgentPluginListPanel({
 
 type AgentPluginListPanelProps = Pick<
   Parameters<typeof AgentPluginListPanel>[0],
-  "controller" | "uninstallNoteId" | "onRequestToggleEnabled"
+  "controller" | "uninstallNoteId" | "stateControlFor"
 >;
 
 /**
@@ -304,7 +305,7 @@ export interface AgentPluginsProps {
  * Settings-style Agent Plugins catalog. Downloaded/Installed are both read from
  * `AGENT_PLUGINS_LIST` (real, per-workspace installed state); Marketplace is future-only.
  *
- * REDESIGNED 2026-09-09. Four changes worth stating, because each replaced something that was
+ * REDESIGNED 2026-09-09. Five changes worth stating, because each replaced something that was
  * deliberate at the time:
  *
  *  1. Cards became rows (`AgentPluginRow` — see its own header for the before/after and why
@@ -319,8 +320,15 @@ export interface AgentPluginsProps {
  *  4. The single "Installed" tab split into Downloaded (every package on disk for this workspace,
  *     unfiltered) and Installed (only `enabled: true`). They read identically today — every bundled
  *     package ships enabled — and diverge the moment an operator disables one; each has its own
- *     honest empty state for that day. Turning one off now asks first — see
- *     `AgentPluginDisableConfirmDialog`'s own header for why only that direction does.
+ *     honest empty state for that day.
+ *  5. Owner correction, same day: Installed is the FIRST/default tab (not Downloaded) — it is the
+ *     "what's active" view, so it leads. And Downloaded's row dropped the Enable/Disable switch for
+ *     a single Remove/Enable action (`AgentPluginRowStateControl`'s `"remove-or-enable"` variant):
+ *     showing the switch on BOTH tabs repeated the same on/off fact Installed already conveys by
+ *     which rows it lists at all. Both directions still turn a plugin's activation on or off through
+ *     the exact same `AGENT_PLUGIN_SET_ENABLED` call either way — only which CONTROL asks, and
+ *     whether it interrupts first, differs. See `AgentPluginDisableConfirmDialog`'s own header for
+ *     the two `variant`s that follow from this.
  */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
   const controller = useAgentPluginsHook();
@@ -329,38 +337,39 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
-  // Which plugin (by id) is waiting on the disable-confirm dialog, or `null` when none is. Lives
-  // here rather than in `useAgentPlugins` — this is presentation flow ("has the operator confirmed
-  // yet"), not a network mutation, the same split `ExternalMcpSettingsPanel.tsx`'s own
-  // `confirmRemoveId` draws for the identical shape of interstitial. An id rather than a plugin
-  // object so the confirmed row is always looked up fresh against the current `agentPlugins` — a
-  // stale object reference could not reflect the plugin toggling or vanishing by some other route
-  // while the dialog sat open.
-  const [pendingDisableId, setPendingDisableId] = useState<string | null>(null);
-  const pendingDisablePlugin = agentPlugins?.find((plugin) => plugin.pluginId === pendingDisableId) ?? null;
+  // Which plugin (by id) is waiting on a disable/remove confirm dialog, and which CONTROL asked —
+  // `null` when neither tab has one open. Lives here rather than in `useAgentPlugins` — this is
+  // presentation flow ("has the operator confirmed yet"), not a network mutation, the same split
+  // `ExternalMcpSettingsPanel.tsx`'s own `confirmRemoveId` draws for the identical shape of
+  // interstitial. An id rather than a plugin object so the confirmed row is always looked up fresh
+  // against the current `agentPlugins` — a stale object reference could not reflect the plugin
+  // toggling or vanishing by some other route while the dialog sat open. `variant` travels alongside
+  // the id (not derived from `plugin.enabled` at render time) because Installed's switch and
+  // Downloaded's Remove button can both open this for an enabled row, and the dialog's own wording
+  // must match whichever one the operator actually clicked, not the plugin's state.
+  const [pendingDisable, setPendingDisable] = useState<{ pluginId: string; variant: "disable" | "remove" } | null>(
+    null,
+  );
+  const pendingDisablePlugin = agentPlugins?.find((plugin) => plugin.pluginId === pendingDisable?.pluginId) ?? null;
 
-  /** Routes a row's switch activation: enabling stays a plain one-click toggle, disabling opens
-   *  the confirm dialog instead of calling the mutation immediately — see
-   *  `AgentPluginDisableConfirmDialog`'s own header for why only that direction needs it. */
+  /** Installed's switch: enabling stays a plain one-click toggle, disabling opens the confirm
+   *  dialog (`variant: "disable"`) instead of calling the mutation immediately. */
   function onRequestToggleEnabled(plugin: AdminAgentPlugin): void {
     if (plugin.enabled) {
-      setPendingDisableId(plugin.pluginId);
+      setPendingDisable({ pluginId: plugin.pluginId, variant: "disable" });
     } else {
       void onToggleEnabled(plugin);
     }
   }
 
+  /** Downloaded's Remove action — shown only for a currently-enabled row (see `AgentPluginRow`'s
+   *  own state-area rendering), so unlike `onRequestToggleEnabled` this has no direct-call branch:
+   *  Remove always asks first, with `variant: "remove"` so the dialog reads accordingly. */
+  function onRequestRemove(plugin: AdminAgentPlugin): void {
+    setPendingDisable({ pluginId: plugin.pluginId, variant: "remove" });
+  }
+
   const tabs: SettingsDialogTab[] = [
-    {
-      id: "downloaded",
-      label: t("Downloaded"),
-      icon: <InstalledIcon />,
-      title: t("Agent Plugins"),
-      subtitle: t("Every package downloaded to this workspace."),
-      panel: (
-        <DownloadedPanel controller={controller} uninstallNoteId={uninstallNoteId} onRequestToggleEnabled={onRequestToggleEnabled} />
-      ),
-    },
     {
       id: "installed",
       label: t("Installed"),
@@ -368,7 +377,29 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
       title: t("Agent Plugins"),
       subtitle: t("Portable packages installed for this workspace."),
       panel: (
-        <InstalledOnlyPanel controller={controller} uninstallNoteId={uninstallNoteId} onRequestToggleEnabled={onRequestToggleEnabled} />
+        <InstalledOnlyPanel
+          controller={controller}
+          uninstallNoteId={uninstallNoteId}
+          stateControlFor={(plugin) => ({ kind: "toggle", onToggleEnabled: () => onRequestToggleEnabled(plugin) })}
+        />
+      ),
+    },
+    {
+      id: "downloaded",
+      label: t("Downloaded"),
+      icon: <InstalledIcon />,
+      title: t("Agent Plugins"),
+      subtitle: t("Every package downloaded to this workspace."),
+      panel: (
+        <DownloadedPanel
+          controller={controller}
+          uninstallNoteId={uninstallNoteId}
+          stateControlFor={(plugin) => ({
+            kind: "remove-or-enable",
+            onRemove: () => onRequestRemove(plugin),
+            onEnable: () => void onToggleEnabled(plugin),
+          })}
+        />
       ),
     },
     {
@@ -403,19 +434,20 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
           labels={{ kicker: t("Plugins") }}
         />
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} onClose={closeInspector} /> : null}
-        {pendingDisablePlugin ? (
+        {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
             name={humanizeAgentPluginId(pendingDisablePlugin.pluginId)}
+            variant={pendingDisable.variant}
             // Same derivation the row itself uses (`buildAgentListHandles`), computed from the one
             // id alone rather than threaded down from whichever tab's row is currently mounted —
             // that function derives a handle from the id, not list position, so this always matches
             // the handle the row published, in either tab.
             agentHandleBase={buildAgentListHandles("agent-plugin-row", [pendingDisablePlugin.pluginId])[0]!}
             onConfirm={() => {
-              setPendingDisableId(null);
+              setPendingDisable(null);
               void onToggleEnabled(pendingDisablePlugin);
             }}
-            onCancel={() => setPendingDisableId(null)}
+            onCancel={() => setPendingDisable(null)}
             t={t}
           />
         ) : null}

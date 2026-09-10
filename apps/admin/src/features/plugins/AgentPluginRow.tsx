@@ -3,7 +3,7 @@ import { useId } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
-import { agentPluginGlyphKind, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "./rules";
+import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "./rules";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
@@ -40,7 +40,30 @@ import type { Translate } from "@/lib/dictionary-translator";
  *    package files — {name}" is preserved verbatim from the text button this eye replaced, so the
  *    accessible name (and the translated `Inspect package files` key behind it) survives the
  *    redesign.
+ *
+ * ---------------------------------------------------------------------------
+ * Two state-area shapes, one row (2026-09-09, Downloaded/Installed row-action split)
+ * ---------------------------------------------------------------------------
+ * Once Downloaded and Installed existed side by side, the same switch on BOTH tabs was genuinely
+ * redundant — Installed already tells the operator "this is on" by which rows it lists at all, so
+ * repeating the on/off state a second time on Downloaded's identical row added nothing. Owner's
+ * call: Installed keeps the real switch (that tab IS the "what's active" view); Downloaded trades it
+ * for a single Remove/Enable action naming what clicking it DOES rather than mirroring state that
+ * tab doesn't own. `stateControl` (a discriminated union, not a boolean) carries that difference so
+ * `AgentPluginList`/`AgentPlugins.tsx` decide the variant once per tab rather than this row
+ * re-deriving it — a row has no way to know which tab it is rendering inside otherwise.
  */
+
+/** The row's state-area control. `"toggle"` is Installed's real Enable/Disable switch, unchanged
+ *  from before this split. `"remove-or-enable"` is Downloaded's single action: `onRemove` fires for
+ *  a currently-enabled row (opens the same confirm dialog the switch does, reworded to "Remove" —
+ *  see `AgentPluginDisableConfirmDialog`), `onEnable` for a currently-disabled one (a direct,
+ *  unconfirmed call, same as flipping the switch on has always been). Both are supplied always,
+ *  regardless of `plugin.enabled` — the row itself, not its caller, decides which one a click
+ *  reaches, since only the row already knows the plugin's own current state at render time. */
+export type AgentPluginRowStateControl =
+  | { readonly kind: "toggle"; readonly onToggleEnabled: () => void }
+  | { readonly kind: "remove-or-enable"; readonly onRemove: () => void; readonly onEnable: () => void };
 
 export interface AgentPluginRowProps {
   readonly plugin: AdminAgentPlugin;
@@ -49,12 +72,83 @@ export interface AgentPluginRowProps {
   readonly expanded: boolean;
   readonly busy: boolean;
   readonly onToggleExpanded: () => void;
-  readonly onToggleEnabled: () => void;
+  readonly stateControl: AgentPluginRowStateControl;
   readonly onInspect: () => void;
   /** The id of the section-level note explaining why uninstall is unavailable. Referenced by the
    *  disabled uninstall control rather than repeated once per row. */
   readonly uninstallNoteId: string;
   readonly agentHandleBase: string;
+}
+
+/** The row's state area — split out of {@link AgentPluginRow} itself so that component's own
+ *  branching stays flat; this is the one part of the row whose markup and accessible name genuinely
+ *  differ by tab (see this file's own header). */
+function AgentPluginRowStateArea({
+  plugin,
+  t,
+  locale,
+  busy,
+  stateControl,
+  agentHandleBase,
+  displayName,
+}: {
+  plugin: AdminAgentPlugin;
+  t: Translate;
+  locale: string;
+  busy: boolean;
+  stateControl: AgentPluginRowStateControl;
+  agentHandleBase: string;
+  displayName: string;
+}) {
+  if (stateControl.kind === "toggle") {
+    return (
+      <>
+        {/* The word, not just the switch's position — see this file's header. */}
+        <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={plugin.enabled}
+          aria-label={agentPluginToggleAriaLabel(plugin, locale)}
+          aria-busy={busy}
+          disabled={busy}
+          className="agent-plugin-switch"
+          onClick={stateControl.onToggleEnabled}
+          // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
+          // member, and `checkbox` is the two-state control a page driver already knows how to
+          // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
+          // above, which stays `switch` because that is what assistive tech should hear.
+          {...agentHandle(`${agentHandleBase}-enabled`, {
+            role: "checkbox",
+            label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
+          })}
+        >
+          <span className="agent-plugin-switch-knob" aria-hidden="true" />
+        </button>
+      </>
+    );
+  }
+
+  // Downloaded: a single action, not a toggle — its own label already names the state (a row
+  // reading "Remove" is implicitly on; one reading "Enable" is implicitly off), so this does not
+  // need a second, separate state word the way the switch does.
+  const enabled = plugin.enabled;
+  const actionWord = enabled ? "Remove" : "Enable";
+  return (
+    <button
+      type="button"
+      aria-busy={busy}
+      disabled={busy}
+      onClick={enabled ? stateControl.onRemove : stateControl.onEnable}
+      aria-label={agentPluginRemoveOrEnableAriaLabel(plugin, locale)}
+      {...agentHandle(`${agentHandleBase}-${enabled ? "remove" : "enable"}`, {
+        role: "button",
+        label: `${actionWord} the "${displayName}" Agent Plugin`,
+      })}
+    >
+      {t(actionWord)}
+    </button>
+  );
 }
 
 /** One labelled chip list inside the detail panel. Rendered only when the package actually declares
@@ -77,7 +171,7 @@ function DetailChips({ label, values }: { label: string; values: readonly string
 }
 
 export function AgentPluginRow(props: AgentPluginRowProps) {
-  const { plugin, t, locale, expanded, busy, onToggleExpanded, onToggleEnabled, onInspect, uninstallNoteId, agentHandleBase } = props;
+  const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, uninstallNoteId, agentHandleBase } = props;
   const displayName = humanizeAgentPluginId(plugin.pluginId);
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];
   const detailId = useId();
@@ -130,28 +224,15 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
         </button>
 
         <div className="agent-plugin-row-actions">
-          {/* The word, not just the switch's position — see this file's header. */}
-          <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={plugin.enabled}
-            aria-label={agentPluginToggleAriaLabel(plugin, locale)}
-            aria-busy={busy}
-            disabled={busy}
-            className="agent-plugin-switch"
-            onClick={onToggleEnabled}
-            // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
-            // member, and `checkbox` is the two-state control a page driver already knows how to
-            // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
-            // above, which stays `switch` because that is what assistive tech should hear.
-            {...agentHandle(`${agentHandleBase}-enabled`, {
-              role: "checkbox",
-              label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
-            })}
-          >
-            <span className="agent-plugin-switch-knob" aria-hidden="true" />
-          </button>
+          <AgentPluginRowStateArea
+            plugin={plugin}
+            t={t}
+            locale={locale}
+            busy={busy}
+            stateControl={stateControl}
+            agentHandleBase={agentHandleBase}
+            displayName={displayName}
+          />
           <button
             type="button"
             className="agent-plugin-icon-btn"
@@ -169,7 +250,8 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
               `origin: "bundled"`, with `AgentPluginNotUninstallableError` — precisely because
               `recordBundledAgentPluginIfAbsent` re-seeds it on the next boot, so a delete would
               appear to succeed and then silently reappear. That function's own header names this
-              screen's enable/disable switch as the lever an operator actually has for a bundled
+              screen's enable/disable control (the switch on Installed, Remove/Enable on Downloaded
+              — see this file's own header) as the lever an operator actually has for a bundled
               package.
 
               Every installed package today is bundled — `installAgentPluginFromUrl` exists but has
