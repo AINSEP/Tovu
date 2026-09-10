@@ -576,13 +576,15 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // what the site can DO, which is a different axis.
   //
   // 2026-09-09: group renamed "Plugins" -> "Add-Ons" (owner call), and the Marketplace nav row
-  // removed (owner call): it duplicated the `MarketplacePanel` tab already inside the Agent Plugins
-  // screen below, so this was a deletion of a duplicate row, not of the feature. The `.tovu-plugin`
-  // runtime family (this "Plugins" row) and the Agent Plugins open standard (agent-plugins.org) are
-  // genuinely different systems that happen to share the word "plugin" — the flat "Plugins" heading
-  // had already caused an agent to work in the wrong directory. "Plugins" and "Agent Plugins" are
-  // now two sibling rows under one "Add-Ons" umbrella label instead of one implying it contains the
-  // other.
+  // removed (owner call): Marketplace belongs inside the Plugins screen below as a tab, not beside
+  // it as its own top-level row — that tab is not built yet as of this commit, so the row is gone
+  // ahead of its replacement landing. (Do not confuse this with `AgentPlugins.tsx`'s own
+  // `MarketplacePanel` tab, which is a different marketplace for the unrelated agent-plugins.org
+  // standard below.) The `.tovu-plugin` runtime family (this "Plugins" row) and the Agent Plugins
+  // open standard (agent-plugins.org) are genuinely different systems that happen to share the word
+  // "plugin" — the flat "Plugins" heading had already caused an agent to work in the wrong
+  // directory. "Plugins" and "Agent Plugins" are now two sibling rows under one "Add-Ons" umbrella
+  // label instead of one implying it contains the other.
   {
     id: "plugins",
     render: () => <Plugins />,
@@ -608,9 +610,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct
       // from the site-capability plugins the other row manages. Renders `AgentPlugins.tsx`, a real
       // screen reading real per-workspace data over `AGENT_PLUGINS_LIST`
-      // (`GET /api/admin/v1/workspaces/:workspaceId/agent-plugins`) — not a stub. Marketplace lives
-      // as a tab inside that screen (`MarketplacePanel`), not as a nav row of its own; the row that
-      // used to sit here for it was a duplicate and was removed.
+      // (`GET /api/admin/v1/workspaces/:workspaceId/agent-plugins`) — not a stub. This screen's own
+      // Marketplace tab (`MarketplacePanel`) is the agent-plugins.org marketplace, unrelated to the
+      // `.tovu-plugin` Marketplace nav row removed from the Plugins entry above (see that entry's
+      // group comment).
       label: "Agent Plugins",
       group: "Add-Ons",
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
