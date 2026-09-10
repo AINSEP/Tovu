@@ -4,6 +4,7 @@ import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } fr
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
@@ -49,6 +50,11 @@ export interface RecoveryController {
   status: AdminRecoveryStatus | null;
   points: AdminRestorePoint[] | null;
   error: string | null;
+  /** Restore-point functionality consolidation (2026-09-10) — the create action moved here from
+   *  Database's own `RestorePointsSection`/`useRestorePointsSection`. Same no-argument create,
+   *  `creating` reflects the in-flight request. */
+  creating: boolean;
+  createRestorePoint: () => Promise<void>;
   /** The restore point a "Restore…" row action selected, or the one a resolved deep link matched —
    *  `null` shows the plain list, non-null swaps in `RestoreFlow` (design-spec.md §0.1: a full
    *  inline swap, never a modal-over-list). */
@@ -79,6 +85,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
 
   // `t`/`locale` intentionally omitted from this callback's own deps — same pre-existing gap
@@ -105,6 +112,29 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
 
   useContentRefreshSubscription(RECOVERY_RESOURCE, load);
 
+  /** Restore-point functionality consolidation (2026-09-10) — same no-capabilities-read shape
+   *  Database's old `useRestorePointsSection.createRestorePoint` used: no route exists yet to learn
+   *  `costClass` ahead of time (design-spec.md §3.3 wants a cost/disk estimate the confirmer
+   *  explicitly acknowledges first), so `costAck: true` is sent unconditionally; an `unavailable`
+   *  site gets the server's own `RESTORE_POINT_UNAVAILABLE` rejection rather than a client-side
+   *  guess. Reloads `status`/`points` via `load()` on success (this hook's pre-existing plain-state
+   *  reload idiom, not `lib/fetch-query`) rather than optimistically appending, so a fresh
+   *  `costClass`/banner read comes back too.
+   * `t`/`locale` intentionally omitted from this callback's own deps — same gap `load` above
+   * documents. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const createRestorePoint = useCallback(async () => {
+    setCreating(true);
+    try {
+      await port.createRestorePoint({ trigger: "manual", costAck: true });
+      load();
+    } catch (e) {
+      setError(describeApiError(e, t(locale, "Failed to create restore point")));
+    } finally {
+      setCreating(false);
+    }
+  }, [port, load]);
+
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
   // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope
   // resolves to `found: false` — an expected, non-exceptional case, not an error toast.
@@ -120,13 +150,21 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
       .then((result) => {
         if (result.found && result.restorePoint) {
           const match = points.find((p) => p.id === result.restorePoint!.restorePointId);
-          if (match) setSelected(match);
+          if (match) {
+            setSelected(match);
+            // Tabs (2026-09-10): a resolved deep link used to swap straight into `RestoreFlow` with
+            // no tab bar in the way. Now that Recovery is tabbed, landing here also has to move the
+            // URL onto the "restore" tab, or the operator would land on the Restore points list with
+            // no visible sign the ceremony is one click away — same silent-regression risk this
+            // effect's whole existence guards against.
+            navigate("/recovery?tab=restore", { replace: true });
+          }
         }
       })
       .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
   }, [points, port]);
 
-  return { status, points, error, selected, setSelected, t: boundT, locale };
+  return { status, points, error, creating, createRestorePoint, selected, setSelected, t: boundT, locale };
 }
 
 /**

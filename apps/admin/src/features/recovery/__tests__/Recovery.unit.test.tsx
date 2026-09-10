@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Recovery } from "../Recovery";
 import type { RecoveryController } from "../hooks/use-recovery.hooks";
+import { navigate } from "@/lib/router";
 import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
+
+// Tabs (2026-09-10): `Recovery` now navigates between "restore-points" and "restore" via `?tab=`,
+// same `TabBar` + `navigate(..., { replace: true })` convention `Database.tsx`'s own test file
+// mocks this identical way.
+vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
 /**
  * @file `Recovery` — the `/admin/recovery` screen (design-spec.md §4, ADR-045). Markup only;
@@ -46,6 +52,8 @@ function recoveryController(overrides: Partial<RecoveryController> = {}): Recove
     status: STATUS,
     points: [POINT],
     error: null,
+    creating: false,
+    createRestorePoint: vi.fn(async () => {}),
     selected: null,
     setSelected: vi.fn(),
     t: (key: string) => key,
@@ -54,12 +62,16 @@ function recoveryController(overrides: Partial<RecoveryController> = {}): Recove
   };
 }
 
-function renderRecovery(overrides: Partial<RecoveryController> = {}) {
+function renderRecovery(overrides: Partial<RecoveryController> = {}, renderOverrides: { tabId?: string | null } = {}) {
   const c = recoveryController(overrides);
   const useRecoveryHook = () => c;
-  render(<Recovery useRecoveryHook={useRecoveryHook} />);
+  render(<Recovery useRecoveryHook={useRecoveryHook} tabId={renderOverrides.tabId} />);
   return c;
 }
+
+beforeEach(() => {
+  vi.mocked(navigate).mockClear();
+});
 
 describe("loading and error-before-load states", () => {
   it("shows a loading notice while points/status are null and there is no error", () => {
@@ -184,11 +196,72 @@ describe("restore points list", () => {
     expect(screen.getByText("No restore-point mechanism available — see the runbook.")).toBeInTheDocument();
   });
 
-  it("clicking 'Restore…' calls setSelected with that point", async () => {
+  it("clicking 'Restore…' calls setSelected with that point and navigates to the restore tab", async () => {
     const user = userEvent.setup();
     const c = renderRecovery({ points: [POINT] });
     await user.click(screen.getByRole("button", { name: "Restore… 2026-08-01 12:34" }));
     expect(c.setSelected).toHaveBeenCalledWith(POINT);
+    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+  });
+});
+
+describe("tabs", () => {
+  it("renders the page header and the two-tab tab bar", () => {
+    renderRecovery();
+    expect(screen.getByRole("heading", { name: "Recovery", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Recovery" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Restore points" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Restore" })).toBeInTheDocument();
+  });
+
+  it("defaults to the Restore points tab when no tabId is given", () => {
+    renderRecovery();
+    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Restore" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("table")).toBeInTheDocument();
+  });
+
+  it("opens on the tab named by tabId", () => {
+    renderRecovery({ points: [], selected: null }, { tabId: "restore" });
+    expect(screen.getByRole("tab", { name: "Restore" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("falls back to Restore points for an unrecognized tabId", () => {
+    renderRecovery({}, { tabId: "bogus" });
+    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("clicking the Restore tab calls navigate with the new ?tab= query, replacing history", async () => {
+    const user = userEvent.setup();
+    renderRecovery();
+    await user.click(screen.getByRole("tab", { name: "Restore" }));
+    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+  });
+
+  it("on the Restore tab with nothing selected, prompts back to Restore points instead of rendering the ceremony", () => {
+    renderRecovery({ selected: null }, { tabId: "restore" });
+    expect(screen.getByText("Select a restore point from the Restore points tab to begin.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^Restore to/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("create restore point (moved here from Database.tsx, 2026-09-10)", () => {
+  it("shows a 'Create restore point' button on the Restore points tab", () => {
+    renderRecovery();
+    expect(screen.getByRole("button", { name: "Create restore point" })).toBeInTheDocument();
+  });
+
+  it("clicking 'Create restore point' calls createRestorePoint", async () => {
+    const user = userEvent.setup();
+    const c = renderRecovery();
+    await user.click(screen.getByRole("button", { name: "Create restore point" }));
+    expect(c.createRestorePoint).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the create button and shows 'Creating…' while creating is true", () => {
+    renderRecovery({ creating: true });
+    expect(screen.getByRole("button", { name: "Creating…" })).toBeDisabled();
   });
 });
 
@@ -221,7 +294,11 @@ afterEach(() => {
 function renderFlow(recoveryOverrides: Partial<RecoveryController> = {}) {
   const rc = recoveryController({ selected: POINT, ...recoveryOverrides });
   const useRecoveryHook = () => rc;
-  render(<Recovery useRecoveryHook={useRecoveryHook} />);
+  // Tabs (2026-09-10): `RestoreFlow` only renders on the "restore" tab — production only ever
+  // reaches it there (`onSelectPoint`/the deep-link effect both navigate to `?tab=restore` before
+  // `selected` is ever consulted), so this mirrors that real arrival state rather than a case that
+  // cannot occur outside a test.
+  render(<Recovery useRecoveryHook={useRecoveryHook} tabId="restore" />);
   return rc;
 }
 
@@ -246,12 +323,13 @@ describe("RestoreFlow shell (rendered via Recovery with a point selected)", () =
     expect(screen.getByText("Computing the discarded-write-window disclosure…")).toBeInTheDocument();
   });
 
-  it("clicking back calls setSelected(null)", async () => {
+  it("clicking back calls setSelected(null) and navigates to the restore-points tab", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(new Promise(() => {}));
     const rc = renderFlow();
     await user.click(screen.getByRole("button", { name: "← Restore points" }));
     expect(rc.setSelected).toHaveBeenCalledWith(null);
+    expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore-points", { replace: true });
   });
 
   it("shows the disclosure-fetch error instead of the disclosure panel on failure", async () => {

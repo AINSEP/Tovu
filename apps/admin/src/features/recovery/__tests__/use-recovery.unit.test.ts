@@ -2,10 +2,16 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
+import { navigate } from "@/lib/router";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
 import { createFakeRecoveryPort } from "../hooks/recovery-dependencies.hooks";
 import { RECOVERY_RESOURCE } from "../rules";
+
+// Tabs (2026-09-10): the deep-link resolution effect below now also navigates to `?tab=restore` on
+// a match — mocked for the same reason `Recovery.unit.test.tsx`/`Database.unit.test.tsx` mock it,
+// so no real browser navigation runs under jsdom and the call is directly assertable.
+vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
 /**
  * @file `useRecovery` — the Recovery screen's status/points load plus deep-link re-resolution
@@ -46,6 +52,7 @@ beforeEach(() => {
     }
     return fetchMock(url, init);
   });
+  vi.mocked(navigate).mockClear();
   sessionStorage.clear();
 });
 
@@ -117,6 +124,101 @@ describe("selected", () => {
   });
 });
 
+describe("createRestorePoint (2026-09-10, restore-point functionality consolidation)", () => {
+  it("starts with creating=false", async () => {
+    const { result } = await renderLoaded();
+    expect(result.current.creating).toBe(false);
+  });
+
+  it("POSTs { trigger: 'manual', costAck: true } to /database/restore-points and reloads status+points on success", async () => {
+    const { result } = await renderLoaded();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ restorePoint: { id: "rp2", costClass: "cheap", kind: "full" } })); // create
+    fetchMock.mockResolvedValueOnce(jsonResponse(STATUS)); // reload status
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT, { ...POINT, id: "rp2" }] })); // reload points
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    const createCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/database/restore-points"))!;
+    expect(JSON.parse(String((createCall[1] as RequestInit).body))).toEqual({ trigger: "manual", costAck: true });
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+  });
+
+  it("sets creating=true during the request, then false once the reload settles", async () => {
+    const { result } = await renderLoaded();
+    let resolveCreate: ((r: Response) => void) | undefined;
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => (resolveCreate = resolve)));
+
+    let createPromise!: Promise<void>;
+    act(() => {
+      createPromise = result.current.createRestorePoint();
+    });
+    await waitFor(() => expect(result.current.creating).toBe(true));
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(STATUS)); // reload status
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] })); // reload points
+    await act(async () => {
+      resolveCreate?.(jsonResponse({ restorePoint: { id: "rp2", costClass: "cheap", kind: "full" } }));
+      await createPromise;
+    });
+
+    expect(result.current.creating).toBe(false);
+  });
+
+  it("sets the Recovery-specific fallback error and clears creating on failure — without reloading", async () => {
+    const { result } = await renderLoaded();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 409)); // RESTORE_POINT_UNAVAILABLE-shaped, no message
+
+    const callsBefore = fetchMock.mock.calls.length;
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    expect(result.current.error).toBe("Failed to create restore point");
+    expect(result.current.creating).toBe(false);
+    // Only the failed create call — no follow-up reload GETs.
+    expect(fetchMock.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it("uses the server's own error message when one is present", async () => {
+    const { result } = await renderLoaded();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "site is unavailable for snapshots" }, 409));
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    expect(result.current.error).toBe("site is unavailable for snapshots");
+  });
+});
+
+describe("createRestorePoint — injected port (2026-08-14 Orc-BASH pass convention)", () => {
+  it("appends to the fake port's store, visible on the next list read", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [] });
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([]));
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    await waitFor(() => expect(result.current.points).toHaveLength(1));
+  });
+
+  it("surfaces a create failure from the fake port's rejected createRestorePoint", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [], createError: new Error("boom from fake") });
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([]));
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("boom from fake"));
+  });
+});
+
 describe("deep-link re-resolution (sessionStorage envelope)", () => {
   it("does nothing when no envelope is stashed", async () => {
     const callsBefore = () => fetchMock.mock.calls.length;
@@ -143,6 +245,15 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
     const { result } = renderHook(() => useWiredRecovery());
     await waitFor(() => expect(result.current.selected).toEqual(POINT));
+  });
+
+  it("also navigates to the restore tab on a resolved match — tabs (2026-09-10) put the ceremony behind ?tab=restore", async () => {
+    sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify({ v: 1, restorePointId: "rp1" }));
+    fetchMock.mockResolvedValueOnce(jsonResponse(STATUS));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
+    renderHook(() => useWiredRecovery());
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true }));
   });
 
   it("leaves selected=null when the server resolves found:true but no local point matches the id", async () => {

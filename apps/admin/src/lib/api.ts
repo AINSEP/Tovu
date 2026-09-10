@@ -3359,6 +3359,16 @@ export const api = {
   // Recovery (ADR-045) — restore-points list (shared with Database), disclosure, deep-link, status,
   // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
   listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/recovery/restore-points"),
+  /** Same underlying `/database/restore-points` write `createDatabaseRestorePoint` above uses — the
+   *  `restore_points` table is genuinely shared (see `AdminRestorePoint`'s own doc comment) and
+   *  there is no separate Recovery-owned write route. Recovery grew its own create action
+   *  (2026-09-10, restore-point functionality consolidation) so this gets a Recovery-named entry
+   *  point for that reason, not because the backend route differs. */
+  createRecoveryRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
+    request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {
+      method: "POST",
+      body: JSON.stringify(options),
+    }),
   computeRecoveryDisclosure: (restorePointId: string) =>
     request<AdminDisclosureResult>("/recovery/disclosure", {
       method: "POST",

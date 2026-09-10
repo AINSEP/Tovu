@@ -15,6 +15,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const RECOVERY_DICT: Record<string, Record<string, string>> = {
   es: {
+  "Restore points": "Puntos de restauración",
+  "Create restore point": "Crear punto de restauración",
+  "Failed to create restore point": "No se pudo crear el punto de restauración",
   "Go to Database": "Ir a Base de datos",
   // rules.ts's categoryLabel — the two currently-known discarded-write-window categories. Reuses
   // this file's own "escrituras de posts/páginas y de tablas de plugins" wording from the
@@ -68,6 +71,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "No se pudo ejecutar la restauración",
   },
   id: {
+  "Restore points": "Titik pemulihan",
+  "Create restore point": "Buat titik pemulihan",
+  "Failed to create restore point": "Gagal membuat titik pemulihan",
   "Go to Database": "Buka Basis Data",
   "posts/pages writes": "penulisan pos/halaman",
   "plugin-table rows": "baris tabel plugin",
@@ -116,6 +122,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Gagal menjalankan pemulihan",
   },
   de: {
+  "Restore points": "Wiederherstellungspunkte",
+  "Create restore point": "Wiederherstellungspunkt erstellen",
+  "Failed to create restore point": "Der Wiederherstellungspunkt konnte nicht erstellt werden",
   "Go to Database": "Zur Datenbank",
   "posts/pages writes": "Schreibvorgänge für Beiträge/Seiten",
   "plugin-table rows": "Zeilen der Plugin-Tabellen",
@@ -164,6 +173,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Die Wiederherstellung konnte nicht ausgeführt werden",
   },
   "zh-CN": {
+  "Restore points": "还原点",
+  "Create restore point": "创建还原点",
+  "Failed to create restore point": "无法创建还原点",
   "Go to Database": "转到数据库",
   "posts/pages writes": "文章/页面写入",
   "plugin-table rows": "插件表行",
@@ -212,6 +224,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "无法执行还原",
   },
   "zh-TW": {
+  "Restore points": "還原點",
+  "Create restore point": "建立還原點",
+  "Failed to create restore point": "無法建立還原點",
   "Go to Database": "前往資料庫",
   "posts/pages writes": "文章/頁面寫入",
   "plugin-table rows": "外掛資料表資料列",
@@ -260,6 +275,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "無法執行還原",
   },
   "pt-BR": {
+  "Restore points": "Pontos de restauração",
+  "Create restore point": "Criar ponto de restauração",
+  "Failed to create restore point": "Falha ao criar o ponto de restauração",
   "Go to Database": "Ir para Banco de dados",
   "posts/pages writes": "gravações de posts/páginas",
   "plugin-table rows": "linhas de tabelas de plugins",
@@ -308,6 +326,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Falha ao executar a restauração",
   },
   ru: {
+  "Restore points": "Точки восстановления",
+  "Create restore point": "Создать точку восстановления",
+  "Failed to create restore point": "Не удалось создать точку восстановления",
   "Go to Database": "Перейти в раздел «База данных»",
   "posts/pages writes": "записи постов/страниц",
   "plugin-table rows": "строки таблиц плагинов",
@@ -356,6 +377,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Не удалось выполнить восстановление",
   },
   fa: {
+  "Restore points": "نقاط بازیابی",
+  "Create restore point": "ایجاد نقطه بازیابی",
+  "Failed to create restore point": "ایجاد نقطه بازیابی ناموفق بود",
   "Go to Database": "رفتن به پایگاه داده",
   "posts/pages writes": "نوشتن‌های پست‌ها/صفحات",
   "plugin-table rows": "ردیف‌های جدول افزونه‌ها",
@@ -404,6 +428,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "اجرای بازیابی ناموفق بود",
   },
   ar: {
+  "Restore points": "نقاط الاستعادة",
+  "Create restore point": "إنشاء نقطة استعادة",
+  "Failed to create restore point": "تعذّر إنشاء نقطة الاستعادة",
   "Go to Database": "الانتقال إلى قاعدة البيانات",
   "posts/pages writes": "عمليات كتابة المقالات/الصفحات",
   "plugin-table rows": "صفوف جداول الإضافات",
@@ -452,6 +479,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "تعذّر تنفيذ الاستعادة",
   },
   ja: {
+  "Restore points": "復元ポイント",
+  "Create restore point": "復元ポイントを作成",
+  "Failed to create restore point": "復元ポイントの作成に失敗しました",
   "Go to Database": "データベースへ移動",
   "posts/pages writes": "投稿/固定ページの書き込み",
   "plugin-table rows": "プラグインテーブルの行",
@@ -500,6 +530,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "復元の実行に失敗しました",
   },
   ko: {
+  "Restore points": "복원 지점",
+  "Create restore point": "복원 지점 만들기",
+  "Failed to create restore point": "복원 지점을 만들지 못했습니다",
   "Go to Database": "데이터베이스로 이동",
   "posts/pages writes": "게시물/페이지 쓰기",
   "plugin-table rows": "플러그인 테이블 행",
@@ -548,6 +581,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "복원을 실행하지 못했습니다",
   },
   pl: {
+  "Restore points": "Punkty przywracania",
+  "Create restore point": "Utwórz punkt przywracania",
+  "Failed to create restore point": "Nie udało się utworzyć punktu przywracania",
   "Go to Database": "Przejdź do Bazy danych",
   "posts/pages writes": "zapisy postów/stron",
   "plugin-table rows": "wiersze tabel wtyczek",
@@ -596,6 +632,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Nie udało się wykonać przywracania",
   },
   hu: {
+  "Restore points": "Visszaállítási pontok",
+  "Create restore point": "Visszaállítási pont létrehozása",
+  "Failed to create restore point": "Nem sikerült létrehozni a visszaállítási pontot",
   "Go to Database": "Ugrás az Adatbázishoz",
   "posts/pages writes": "bejegyzés-/oldalírások",
   "plugin-table rows": "bővítménytábla-sorok",
@@ -644,6 +683,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Nem sikerült végrehajtani a visszaállítást",
   },
   fr: {
+  "Restore points": "Points de restauration",
+  "Create restore point": "Créer un point de restauration",
+  "Failed to create restore point": "Échec de la création du point de restauration",
   "Go to Database": "Aller à Base de données",
   "posts/pages writes": "écritures d'articles/pages",
   "plugin-table rows": "lignes des tables d'extensions",
@@ -692,6 +734,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Échec de l'exécution de la restauration",
   },
   uk: {
+  "Restore points": "Точки відновлення",
+  "Create restore point": "Створити точку відновлення",
+  "Failed to create restore point": "Не вдалося створити точку відновлення",
   "Go to Database": "Перейти до Бази даних",
   "posts/pages writes": "записи постів/сторінок",
   "plugin-table rows": "рядки таблиць плагінів",
@@ -740,6 +785,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Не вдалося виконати відновлення",
   },
   tr: {
+  "Restore points": "Geri yükleme noktaları",
+  "Create restore point": "Geri yükleme noktası oluştur",
+  "Failed to create restore point": "Geri yükleme noktası oluşturulamadı",
   "Go to Database": "Veritabanına git",
   "posts/pages writes": "yazı/sayfa yazmaları",
   "plugin-table rows": "eklenti tablosu satırları",
@@ -788,6 +836,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Geri yükleme çalıştırılamadı",
   },
   th: {
+  "Restore points": "จุดกู้คืน",
+  "Create restore point": "สร้างจุดกู้คืน",
+  "Failed to create restore point": "สร้างจุดกู้คืนไม่สำเร็จ",
   "Go to Database": "ไปที่ฐานข้อมูล",
   "posts/pages writes": "การเขียนโพสต์/หน้า",
   "plugin-table rows": "แถวตารางปลั๊กอิน",
@@ -836,6 +887,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "เรียกใช้การกู้คืนไม่สำเร็จ",
   },
   it: {
+  "Restore points": "Punti di ripristino",
+  "Create restore point": "Crea punto di ripristino",
+  "Failed to create restore point": "Impossibile creare il punto di ripristino",
   "Go to Database": "Vai a Database",
   "posts/pages writes": "scritture di articoli/pagine",
   "plugin-table rows": "righe delle tabelle dei plugin",
@@ -884,6 +938,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "Impossibile eseguire il ripristino",
   },
   hi: {
+  "Restore points": "रीस्टोर पॉइंट",
+  "Create restore point": "रीस्टोर पॉइंट बनाएं",
+  "Failed to create restore point": "रीस्टोर पॉइंट बनाना विफल रहा",
   "Go to Database": "डेटाबेस पर जाएं",
   "posts/pages writes": "पोस्ट/पेज लेखन",
   "plugin-table rows": "प्लगइन तालिकाओं की पंक्तियाँ",
@@ -932,6 +989,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "पुनर्स्थापना निष्पादित करना विफल रहा",
   },
   ur: {
+  "Restore points": "ری اسٹور پوائنٹس",
+  "Create restore point": "ری اسٹور پوائنٹ بنائیں",
+  "Failed to create restore point": "ری اسٹور پوائنٹ بنانا ناکام ہوا",
   "Go to Database": "ڈیٹا بیس پر جائیں",
   "posts/pages writes": "پوسٹس/صفحات کی تحریریں",
   "plugin-table rows": "پلگ ان ٹیبلز کی قطاریں",
@@ -980,6 +1040,9 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to execute the restore": "بحالی عمل میں لانا ناکام ہوا",
   },
   bn: {
+  "Restore points": "রিস্টোর পয়েন্ট",
+  "Create restore point": "রিস্টোর পয়েন্ট তৈরি করুন",
+  "Failed to create restore point": "রিস্টোর পয়েন্ট তৈরি করা ব্যর্থ হয়েছে",
   "Go to Database": "ডেটাবেসে যান",
   "posts/pages writes": "পোস্ট/পেজ লেখা",
   "plugin-table rows": "প্লাগইন টেবিলের সারি",
