@@ -25,6 +25,14 @@ import type { AdminAgentPlugin } from "@/lib/api";
  * the screen was read-only and is now exactly wrong. It is replaced by assertions that the switch
  * exists, reports server state, and calls the controller. The other half of that old test — that
  * the screen still offers no Install and no Run — is kept verbatim, because that half is still true.
+ *
+ * REWRITTEN 2026-09-09 (c): the single "Installed" tab split into Downloaded (every row
+ * `agentPlugins` carries, unfiltered — this suite's OWN fixtures already mix one enabled and one
+ * disabled plugin, so this was already what most tests below were driving) and Installed (only
+ * `plugin.enabled === true`). Tests that exercise a row's controls (switch, expander, inspector,
+ * uninstall affordance) stay on Downloaded, now the first/default tab, unchanged in every assertion
+ * — Downloaded is the pre-split tab's exact content, retitled. The tab-identity test and the new
+ * Installed-scoping tests below are what actually changed.
  */
 
 const SITE_COMPLIANCE: AdminAgentPlugin = {
@@ -85,13 +93,16 @@ function row(name: string): HTMLElement {
 }
 
 describe("AgentPlugins", () => {
-  it("renders the first horizontal tab as Installed and lists every real installed plugin as a row", () => {
+  it("renders the first horizontal tab as Downloaded, ahead of Installed and Marketplace, listing every downloaded plugin unfiltered", () => {
     renderAgentPlugins();
+    const downloadedTab = screen.getByRole("button", { name: "Downloaded" });
     const installedTab = screen.getByRole("button", { name: "Installed" });
     const marketplaceTab = screen.getByRole("button", { name: "Marketplace" });
-    expect(installedTab).toHaveAttribute("aria-pressed", "true");
+    expect(downloadedTab).toHaveAttribute("aria-pressed", "true");
+    expect(downloadedTab.compareDocumentPosition(installedTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(installedTab.compareDocumentPosition(marketplaceTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
+    // Downloaded is unfiltered — both the enabled and the disabled fixture plugin show up.
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     const compliance = row("Site Compliance");
     expect(within(compliance).getByText("v1.0.0")).toBeInTheDocument();
@@ -100,6 +111,27 @@ describe("AgentPlugins", () => {
     // No version chip for a plugin whose installed package carries none — honest omission, not a
     // stale placeholder (same "no invented value" rule the old card's own comment stated).
     expect(within(row("Tovu Deploy Fly")).queryByText(/^v\d/)).not.toBeInTheDocument();
+  });
+
+  it("scopes the Installed tab to enabled rows only, and gives it its own empty state", async () => {
+    renderAgentPlugins();
+    await userEvent.click(screen.getByRole("button", { name: "Installed" }));
+
+    // TOVU_DEPLOY_FLY is `enabled: false` in the fixture — it belongs on Downloaded, not here.
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(row("Site Compliance")).toBeInTheDocument();
+    expect(screen.queryByRole("listitem", { name: "Tovu Deploy Fly" })).not.toBeInTheDocument();
+  });
+
+  it("shows Installed's own honest empty state when nothing in the workspace is enabled, while Downloaded still lists it", async () => {
+    renderAgentPlugins({ agentPlugins: [{ ...TOVU_DEPLOY_FLY, enabled: false }] });
+    await userEvent.click(screen.getByRole("button", { name: "Installed" }));
+
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No Agent Plugins are enabled for this workspace.");
+
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+    expect(screen.getByRole("listitem", { name: "Tovu Deploy Fly" })).toBeInTheDocument();
   });
 
   it("reports each row's applied state with a switch AND a word, never colour alone", () => {
@@ -212,9 +244,9 @@ describe("AgentPlugins", () => {
     }
   });
 
-  it("keeps the tab keyboard reachable", async () => {
+  it("keeps the default tab keyboard reachable", async () => {
     renderAgentPlugins();
-    const tab = screen.getByRole("button", { name: "Installed" });
+    const tab = screen.getByRole("button", { name: "Downloaded" });
     tab.focus();
     await userEvent.keyboard("{Enter}");
     expect(tab).toHaveFocus();

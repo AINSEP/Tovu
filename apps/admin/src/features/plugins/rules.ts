@@ -1,4 +1,4 @@
-import { ApiError, describeApiError as describeApiErrorDefault, type AdminPlugin } from "../../lib/api";
+import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin } from "../../lib/api";
 import { t } from "./plugins-i18n";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 
@@ -192,4 +192,20 @@ export function agentPluginGlyphKind(plugin: {
 export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
   const verb = plugin.enabled ? t(locale, "Disable") : t(locale, "Enable");
   return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
+}
+
+/**
+ * The Installed tab's own scope. Downloaded (every package on disk for this workspace) and
+ * Installed (only the rows an operator has actually turned on) read the exact same underlying
+ * list — this filter is the one line of difference between them, kept as its own named,
+ * independently testable function rather than an inline `.filter()` repeated in a `.tsx` panel.
+ *
+ * `null` in, `null` out: a `null` `agentPlugins` means the initial load hasn't settled yet, which
+ * is a fact about the LOAD, not about which rows are enabled — collapsing it to `[]` here would
+ * make `AgentPlugins.tsx` unable to tell "still loading" from "loaded, and none are enabled".
+ *
+ * @complexity Time O(n) in `agentPlugins.length`; space O(k) for the k enabled rows kept.
+ */
+export function filterEnabledAgentPlugins(agentPlugins: AdminAgentPlugin[] | null): AdminAgentPlugin[] | null {
+  return agentPlugins ? agentPlugins.filter((plugin) => plugin.enabled) : null;
 }

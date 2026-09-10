@@ -13,7 +13,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginRow } from "./AgentPluginRow";
 import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
-import { humanizeAgentPluginId } from "./rules";
+import { filterEnabledAgentPlugins, humanizeAgentPluginId } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
@@ -21,7 +21,7 @@ const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
 /**
  * The panel's non-row messages: a failed load, an unsettled first load, a refused toggle, and a
- * genuinely empty install directory.
+ * genuinely empty scoped list.
  *
  * Extracted from `AgentPlugins` rather than inlined as four more ternaries in the tab array — that
  * shape put `AgentPlugins` at a complexity of 13 against this repo's ceiling of 9
@@ -31,13 +31,29 @@ const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
  * `toggleError` is deliberately separate from `error` and uses `role="alert"`, not `role="status"`:
  * a load failure is the state of the screen, while a refused toggle is the outcome of something the
  * operator just did and should interrupt.
+ *
+ * Split from `agentPlugins` as a THIRD parameter (`visiblePlugins`) since the Downloaded/Installed
+ * split (2026-09-09): `agentPlugins` (the controller's raw, unfiltered load) still answers "has the
+ * load settled", but "is the list genuinely empty" now depends on the TAB's own scope — Installed
+ * can read `agentPlugins.length > 0` while still being empty of ENABLED rows. Collapsing these two
+ * questions back into one, as the pre-split version did, would show Installed's "loading" state
+ * forever whenever Downloaded had rows but none were enabled.
  */
 function AgentPluginsStatus({
   agentPlugins,
+  visiblePlugins,
   error,
   toggleError,
+  emptyMessage,
   t,
-}: Pick<AgentPluginsController, "agentPlugins" | "error" | "toggleError" | "t">) {
+}: {
+  agentPlugins: AgentPluginsController["agentPlugins"];
+  visiblePlugins: readonly AdminAgentPlugin[];
+  error: AgentPluginsController["error"];
+  toggleError: AgentPluginsController["toggleError"];
+  emptyMessage: string;
+  t: Translate;
+}) {
   return (
     <>
       {error ? (
@@ -51,28 +67,36 @@ function AgentPluginsStatus({
           {toggleError}
         </p>
       ) : null}
-      {agentPlugins && agentPlugins.length === 0 ? (
+      {agentPlugins && visiblePlugins.length === 0 ? (
         <p className="agent-plugins-empty-note" role="status">
-          {t("No Agent Plugins are installed in this workspace.")}
+          {emptyMessage}
         </p>
       ) : null}
     </>
   );
 }
 
-/** The installed list itself. Rendered only when there is at least one row, so it carries no
- *  emptiness branch of its own — {@link AgentPluginsStatus} owns that case. */
+/** The row list itself, scoped to whichever tab is rendering it. Rendered only when there is at
+ *  least one row, so it carries no emptiness branch of its own — {@link AgentPluginsStatus} owns
+ *  that case.
+ *
+ * Takes `onRequestToggleEnabled` rather than reaching into `controller.onToggleEnabled` directly —
+ * disabling a row now opens `AgentPlugins`'s own confirm dialog instead of calling the mutation
+ * immediately; see that function's own `onRequestToggleEnabled` for the enable/disable branch. */
 function AgentPluginList({
   agentPlugins,
   controller,
   uninstallNoteId,
+  onRequestToggleEnabled,
 }: {
   agentPlugins: AdminAgentPlugin[];
   controller: AgentPluginsController;
   uninstallNoteId: string;
+  onRequestToggleEnabled: (plugin: AdminAgentPlugin) => void;
 }) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
-  // workstream uses (`buildAgentListHandles`).
+  // workstream uses (`buildAgentListHandles`). Derived from each id alone (see that function's own
+  // doc), so a plugin's row handle is identical whichever tab currently lists it.
   const rowHandles = buildAgentListHandles(
     "agent-plugin-row",
     agentPlugins.map((plugin) => plugin.pluginId),
@@ -89,7 +113,7 @@ function AgentPluginList({
           expanded={controller.expandedIds.has(plugin.pluginId)}
           busy={controller.togglingIds.has(plugin.pluginId)}
           onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
-          onToggleEnabled={() => void controller.onToggleEnabled(plugin)}
+          onToggleEnabled={() => onRequestToggleEnabled(plugin)}
           onInspect={() =>
             controller.inspectPlugin({ id: plugin.pluginId, displayName: humanizeAgentPluginId(plugin.pluginId) })
           }
@@ -101,22 +125,61 @@ function AgentPluginList({
   );
 }
 
-/** The Installed tab's whole panel. */
-function InstalledPanel({ controller, uninstallNoteId }: { controller: AgentPluginsController; uninstallNoteId: string }) {
+/**
+ * The shared shell both list tabs (Downloaded, Installed) render through: the status line(s), the
+ * row list when the tab's own scope is non-empty, and the section-wide uninstall-unavailable
+ * footnote plus spec link. Introduced with the Downloaded/Installed split (2026-09-09) so those two
+ * tabs — which differ only in WHICH rows they scope to and their own copy, never in markup — share
+ * one implementation instead of two copies that could drift.
+ *
+ * `visiblePlugins` is the tab's own already-scoped list (all of them for Downloaded, only the
+ * enabled ones for Installed via `filterEnabledAgentPlugins`) — `null` while the underlying load
+ * hasn't settled yet, same convention `AgentPluginsController.agentPlugins` uses.
+ */
+function AgentPluginListPanel({
+  controller,
+  uninstallNoteId,
+  onRequestToggleEnabled,
+  sectionLabel,
+  lede,
+  emptyMessage,
+  visiblePlugins,
+}: {
+  controller: AgentPluginsController;
+  uninstallNoteId: string;
+  onRequestToggleEnabled: (plugin: AdminAgentPlugin) => void;
+  sectionLabel: string;
+  lede: string;
+  emptyMessage: string;
+  visiblePlugins: AdminAgentPlugin[] | null;
+}) {
   const { t, agentPlugins, error, toggleError } = controller;
 
   return (
-    <section className="jini-settings-section" aria-label={t("Installed Agent Plugins")}>
-      <p className="agent-plugins-lede">
-        {t("An installed plugin sits inert until you enable it. Enabling one puts its skills in the assistant's prompt for every run.")}
-      </p>
-      <AgentPluginsStatus agentPlugins={agentPlugins} error={error} toggleError={toggleError} t={t} />
-      {agentPlugins && agentPlugins.length > 0 ? (
-        <AgentPluginList agentPlugins={agentPlugins} controller={controller} uninstallNoteId={uninstallNoteId} />
+    <section className="jini-settings-section" aria-label={sectionLabel}>
+      <p className="agent-plugins-lede">{lede}</p>
+      <AgentPluginsStatus
+        agentPlugins={agentPlugins}
+        visiblePlugins={visiblePlugins ?? []}
+        error={error}
+        toggleError={toggleError}
+        emptyMessage={emptyMessage}
+        t={t}
+      />
+      {visiblePlugins && visiblePlugins.length > 0 ? (
+        <AgentPluginList
+          agentPlugins={visiblePlugins}
+          controller={controller}
+          uninstallNoteId={uninstallNoteId}
+          onRequestToggleEnabled={onRequestToggleEnabled}
+        />
       ) : null}
       {/* `.agent-plugins-footnotes` (styles.css): section-wide facts, not per-plugin details, so
           they stay siblings of the list — but with their own separation, so they read as a footer
-          rather than a stray line butted against the last row. */}
+          rather than a stray line butted against the last row. Both list tabs share this exact
+          footnote (and its handle) rather than each carrying their own — only one tab's panel is
+          ever mounted at a time (`TabbedDialog` renders `activeTab.panel` alone), so there is no id
+          collision in the live DOM. */}
       <div className="agent-plugins-footnotes">
         <p id={uninstallNoteId} className="jini-field-hint">
           {t("Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.")}
@@ -134,6 +197,55 @@ function InstalledPanel({ controller, uninstallNoteId }: { controller: AgentPlug
         </p>
       </div>
     </section>
+  );
+}
+
+type AgentPluginListPanelProps = Pick<
+  Parameters<typeof AgentPluginListPanel>[0],
+  "controller" | "uninstallNoteId" | "onRequestToggleEnabled"
+>;
+
+/**
+ * Downloaded tab: every package on disk for this workspace, unfiltered — the pre-split
+ * `InstalledPanel`'s exact content, retitled. There is no cross-site "downloaded" registry (see
+ * `agent-plugins/ws/<workspace>/packages/`), so this list is scoped to the current workspace, not
+ * global — the copy below says so rather than implying otherwise.
+ *
+ * Reuses the pre-split lede and empty-state copy VERBATIM (both already translated into every
+ * locale `plugins-i18n.ts` carries): a downloaded package that is not yet enabled is exactly the
+ * "sits inert until you enable it" case those strings already describe, so retitling this tab does
+ * not require retiring their translations.
+ */
+function DownloadedPanel(props: AgentPluginListPanelProps) {
+  return (
+    <AgentPluginListPanel
+      {...props}
+      sectionLabel={props.controller.t("Downloaded Agent Plugins")}
+      lede={props.controller.t(
+        "An installed plugin sits inert until you enable it. Enabling one puts its skills in the assistant's prompt for every run.",
+      )}
+      emptyMessage={props.controller.t("No Agent Plugins are installed in this workspace.")}
+      visiblePlugins={props.controller.agentPlugins}
+    />
+  );
+}
+
+/**
+ * Installed tab: only the rows this workspace has actually turned on (`plugin.enabled === true`).
+ * New with the Downloaded/Installed split (2026-09-09) — before it, "installed" meant "on disk",
+ * which is now Downloaded's job. Reuses the pre-split tab label, section aria-label, and subtitle
+ * verbatim: "Installed"/"Installed Agent Plugins"/"Portable packages installed for this workspace."
+ * already meant "the ones actually installed", which is precisely this tab's new, narrower scope.
+ */
+function InstalledOnlyPanel(props: AgentPluginListPanelProps) {
+  return (
+    <AgentPluginListPanel
+      {...props}
+      sectionLabel={props.controller.t("Installed Agent Plugins")}
+      lede={props.controller.t("These plugins are enabled. Their skills reach the assistant's prompt on every run.")}
+      emptyMessage={props.controller.t("No Agent Plugins are enabled for this workspace.")}
+      visiblePlugins={filterEnabledAgentPlugins(props.controller.agentPlugins)}
+    />
   );
 }
 
@@ -155,7 +267,7 @@ function MarketplacePanel({ t }: { t: Translate }) {
         </span>
         <h3>{t("Nothing to browse yet")}</h3>
         <p>{t("Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.")}</p>
-        <p className="jini-field-hint">{t("Until then, the installed packages on the Installed tab are the ones Tovu ships.")}</p>
+        <p className="jini-field-hint">{t("Until then, the downloaded packages on the Downloaded tab are the ones Tovu ships.")}</p>
         {/* On its own line rather than trailing a centered sentence — a link that wraps mid-
             paragraph in a centered block reads as part of the prose instead of as the next step. */}
         <a
@@ -184,10 +296,10 @@ export interface AgentPluginsProps {
 }
 
 /**
- * Settings-style Agent Plugins catalog. Installed is read from `AGENT_PLUGINS_LIST` (real,
- * per-workspace installed state); Marketplace is future-only.
+ * Settings-style Agent Plugins catalog. Downloaded/Installed are both read from
+ * `AGENT_PLUGINS_LIST` (real, per-workspace installed state); Marketplace is future-only.
  *
- * REDESIGNED 2026-09-09. Three changes worth stating, because each replaced something that was
+ * REDESIGNED 2026-09-09. Four changes worth stating, because each replaced something that was
  * deliberate at the time:
  *
  *  1. Cards became rows (`AgentPluginRow` — see its own header for the before/after and why
@@ -199,22 +311,46 @@ export interface AgentPluginsProps {
  *  3. Marketplace got a designed empty state rather than one grey sentence. Its copy stays exactly
  *     as honest: nothing is fetched, listed, or installable, and the panel offers no control that
  *     pretends otherwise.
+ *  4. The single "Installed" tab split into Downloaded (every package on disk for this workspace,
+ *     unfiltered) and Installed (only `enabled: true`). They read identically today — every bundled
+ *     package ships enabled — and diverge the moment an operator disables one; each has its own
+ *     honest empty state for that day.
  */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
   const controller = useAgentPluginsHook();
-  const { t, locale, inspectedPlugin, closeInspector } = controller;
+  const { t, locale, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
+  // TODO(2026-09-09, Task 2 of this dispatch): a plugin's switch calls `onToggleEnabled` directly
+  // in both directions today. The enabled->disabled direction is about to gain a confirm dialog
+  // (`AgentPluginDisableConfirmDialog`) in front of it — landing as its own commit right after this
+  // one — at which point this direct pass-through is replaced by a request/confirm indirection.
+  function onRequestToggleEnabled(plugin: AdminAgentPlugin): void {
+    void onToggleEnabled(plugin);
+  }
+
   const tabs: SettingsDialogTab[] = [
+    {
+      id: "downloaded",
+      label: t("Downloaded"),
+      icon: <InstalledIcon />,
+      title: t("Agent Plugins"),
+      subtitle: t("Every package downloaded to this workspace."),
+      panel: (
+        <DownloadedPanel controller={controller} uninstallNoteId={uninstallNoteId} onRequestToggleEnabled={onRequestToggleEnabled} />
+      ),
+    },
     {
       id: "installed",
       label: t("Installed"),
       icon: <InstalledIcon />,
       title: t("Agent Plugins"),
       subtitle: t("Portable packages installed for this workspace."),
-      panel: <InstalledPanel controller={controller} uninstallNoteId={uninstallNoteId} />,
+      panel: (
+        <InstalledOnlyPanel controller={controller} uninstallNoteId={uninstallNoteId} onRequestToggleEnabled={onRequestToggleEnabled} />
+      ),
     },
     {
       id: "marketplace",
