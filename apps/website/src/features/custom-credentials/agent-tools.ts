@@ -1,6 +1,7 @@
 import type { AgentToolSideEffect } from "@jini-ai/cms/core";
 
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
+import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
 
 /**
  * @file Agent-tool catalog for `features/custom-credentials` — closes the gap the admin's Access
@@ -72,6 +73,16 @@ import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
  *   `custom_credential_set_token` as the correct tool for a rotation instead. On success, returns the
  *   SAME summary shape `content_read.custom_credential` does (safe in full — see that tool's own bullet above
  *   for why `CustomCredentialSummary` can never carry a token) — never the token itself.
+ * - `custom_credential_write_files` — added 2026-09-09, a general-purpose, human-confirmed multi-file
+ *   commit through a saved credential (e.g. the `tovu-deploy-fly` plugin's `fly.toml` +
+ *   `.github/workflows/fly-deploy.yml`, but not hardcoded to that pair — any future caller can write
+ *   any named files). Unlike `custom_credential_make_request`, EVERY call is gated: the dialog names
+ *   the credential, repository, branch, and every path being written (each labeled create or update,
+ *   resolved against the branch's real current state before the dialog is ever shown), with an extra,
+ *   more prominent warning for any `.github/workflows/**` path. Confirmed writes land as ONE atomic
+ *   commit built on the branch's current tree — see `tool-registrations.ts`'s own header for the full
+ *   design and why neither existing write path (`source_control_execute_commit`'s separate credential
+ *   table, or `make_request`'s un-gated POST/PUT/PATCH) fit this job.
  *
  * No schema below carries a token field of any kind: the credential's own SAVED allowed-origin
  * set (`baseUrl` plus any `additionalHosts` — set by a human through the Access Tokens form, never by
@@ -205,6 +216,48 @@ const CREATE_CREDENTIAL_SCHEMA = {
   },
 } as const;
 
+/** `custom_credential_write_files`'s entire input shape. `files.maxItems` is bound to the SAME
+ *  `WRITE_FILES_LIMITS.maxFiles` cap `write-files-validation.ts` actually enforces, so the schema the
+ *  model sees can never silently drift from the real cap. */
+const WRITE_FILES_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["label", "owner", "repo", "branch", "commitMessage", "files"],
+  properties: {
+    label: { type: "string", description: LABEL_FIELD_DESCRIPTION },
+    owner: { type: "string", description: "The GitHub owner or organization name that owns the target repository (e.g. 'octocat')." },
+    repo: { type: "string", description: "The GitHub repository name, without the owner prefix (e.g. 'my-site')." },
+    branch: {
+      type: "string",
+      description:
+        "The exact branch to commit onto. This branch MUST already exist — this tool never creates one. It does NOT default to the repository's default branch, so name it explicitly (ask the human, or check with custom_credential_make_request first, if unsure).",
+    },
+    commitMessage: { type: "string", description: "The git commit message for this write, 1-500 characters." },
+    files: {
+      type: "array",
+      minItems: 1,
+      maxItems: WRITE_FILES_LIMITS.maxFiles,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["path", "content"],
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "A repository-relative file path (e.g. 'fly.toml', '.github/workflows/fly-deploy.yml'). Never absolute, never containing a '..' segment, and never naming or nesting under the reserved '.git' directory — any of those is refused before anything is written.",
+          },
+          content: {
+            type: "string",
+            description: `The file's exact new text content, written verbatim. Capped at ${WRITE_FILES_LIMITS.maxFileBytes} bytes per file and ${WRITE_FILES_LIMITS.maxTotalBytes} bytes across all files in one call.`,
+          },
+        },
+      },
+      description: `1-${WRITE_FILES_LIMITS.maxFiles} files to write in one atomic commit. Every path is shown to the human in the confirmation dialog before anything is written.`,
+    },
+  },
+} as const;
+
 /**
  * This domain's fixed agent-tool catalog.
  *
@@ -258,5 +311,13 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: "custom-credentials.write" },
     inputSchema: CREATE_CREDENTIAL_SCHEMA,
+  },
+  {
+    name: "custom_credential_write_files",
+    description:
+      "THIS IS HOW TO WRITE ONE OR MORE FILES INTO A REPOSITORY THROUGH A SAVED CREDENTIAL, IN ONE ATOMIC COMMIT, WITH A REAL HUMAN CONFIRMATION FIRST. Reach for this whenever a task needs to add or update named files in an operator's own repository (e.g. a fly.toml and a GitHub Actions workflow for a deploy, a generated config file, a small script) using a saved credential (Access Tokens page -> 'Add custom provider', e.g. 'github') — never write files by shelling out to git or curl-ing GitHub's Contents API yourself; this tool exists specifically so you never have to. Call content_read.custom_credential first if you don't already know the exact saved label. Give it 'label' (the saved credential), 'owner'/'repo' (the target repository), 'branch' (MUST already exist — this tool never creates one, and it does not default to the repository's default branch, so name it explicitly), 'commitMessage', and 'files' (1-25 entries of {path, content} — 'path' is repository-relative, never absolute and never containing a '..' segment or a reserved '.git' segment; 'content' is the file's exact new text, capped at 1 MiB per file and 4 MiB total). EVERY call shows the human an interactive confirmation before anything is written — unlike custom_credential_make_request, there is no un-gated verb here. The dialog names the saved credential, the repository and branch, and every single path this call would write, each labeled as a create (new path) or an update (already exists on the branch) — resolved by checking the branch's REAL current state before the dialog is ever shown, never guessed. If any path is inside '.github/workflows/', the dialog carries an EXTRA, more prominent warning naming every such path and explaining that a workflow file controls what code runs automatically on every future push to the repository. THIS ONE CALL raises that dialog and WAITS — it does not return until the human answers; there is no second call to make. If confirmed, every file lands in ONE atomic commit (never one commit per file), built directly on the branch's current tree (nothing else already on the branch is touched, moved, or deleted), and this returns {executed: true, commitSha, commitUrl, filesWritten}. If declined, it returns {executed: false, cancelled: true} and nothing is written. If nobody answers before the confirmation expires (or the run ends first), it returns {executed: false, cancelled: false, reason: 'expired' | 'abandoned'}. If the branch moved since this call started (someone else pushed in the meantime) or GitHub itself rejects the write, it returns {executed: false, cancelled: false, reason: 'error', message} and nothing is written — this tool never leaves a half-written commit; retry fresh rather than assuming partial success. Refused before any confirmation or network call, with a clear reason naming what was wrong: the named branch does not exist; any file path is absolute, contains a '..' segment, is empty, contains a NUL byte, exceeds the path-length cap, or names/nests under the reserved '.git' directory; more than 25 files; a single file over the per-file byte cap; the files' combined size over the aggregate cap; or two files naming the same path. The credential's token is never sent to you and never appears in this tool's input or output.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "custom-credentials.write" },
+    inputSchema: WRITE_FILES_SCHEMA,
   },
 ];

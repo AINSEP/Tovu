@@ -35,6 +35,7 @@ import {
 import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
+import { commitGitHubFiles, planGitHubFileWrite, type GitHubWriteFilesPlan } from "./github-write-files.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -43,9 +44,12 @@ import {
   describeCredential,
   describeCredentialByLabel,
   listCustomCredentials,
+  resolveCustomCredentialByLabel,
   updateCustomCredential,
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
+import { buildWriteFilesConfirmationResource, WRITE_FILES_TOOL_ID } from "./write-files-confirmation-ui.js";
+import { isWorkflowPath, validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
  * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
@@ -171,6 +175,39 @@ import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./typ
  * NOT silently overwritten — `createCustomCredential`'s own `CustomCredentialDuplicateLabelError` is
  * caught and turned into a refusal that names `custom_credential_set_token` as the correct tool for a
  * rotation, so a duplicate submission can never masquerade as a successful create.
+ *
+ * ## `custom_credential_write_files` — a general-purpose, human-confirmed multi-file commit (2026-09-09)
+ *
+ * The gap this closes: the `tovu-deploy-fly` agent plugin needs to write two named files
+ * (`fly.toml`, `.github/workflows/fly-deploy.yml`) into an operator's repo through their saved GitHub
+ * credential, with a real human confirmation before anything lands. Neither existing write path fit —
+ * `source_control_execute_commit` (`features/source-control`) exports and commits the WHOLE SITE's
+ * content against its OWN, deliberately separate credential table (see that feature's `store.ts`
+ * header for why it stays separate — this tool does not repeat that split in reverse; it uses THIS
+ * domain's own `resolveCustomCredentialByLabel`, the same resolver `verifyCustomCredential`/
+ * `makeCredentialedRequest` already use), and `custom_credential_make_request` could technically PUT
+ * files one at a time through GitHub's Contents API but has no confirmation gate on POST/PUT/PATCH at
+ * all (only its own DELETE path is gated) — using it to silently write files would be exactly the
+ * unsafe shortcut this tool exists to avoid.
+ *
+ * Unlike DELETE above (gated only for one HTTP verb inside a general-purpose request tool), EVERY
+ * call to this tool is gated — there is no un-confirmed path, because every call durably writes to a
+ * real, third-party repository. Every path/size/count check (`write-files-validation.ts`) and the
+ * read-only branch/tree/existence reconnaissance (`github-write-files.ts`'s `planGitHubFileWrite`)
+ * run BEFORE the dialog is opened, so a malformed call or a nonexistent branch is refused with no
+ * dialog raised at all — same ordering `custom_credential_make_request`'s own DELETE gate uses. The
+ * confirmation dialog (`write-files-confirmation-ui.ts`) then names every path this call would write,
+ * whether each is a create or an update (resolved by the plan phase's own per-path existence check —
+ * never guessed), and gives any `.github/workflows/**` path its own emphatic, textually distinct
+ * warning: that directory is the single most sensitive path class a repository can have, since it
+ * controls what code executes automatically on every future push. Only on confirmation does
+ * `commitGitHubFiles` build and land the real commit; a decline, expiry, or abandonment writes
+ * nothing, same fail-closed contract this domain's other gated tools already establish.
+ *
+ * `WRITE`-gated, the same permission `custom_credential_make_request`/`custom_credential_set_token`
+ * use — this can mutate durable state in a THIRD-PARTY system (a real GitHub repository), the same
+ * classification `deployment_execute_static_publish`/`source_control_execute_commit` carry for the
+ * identical kind of external write.
  */
 
 export interface CustomCredentialsToolDeps {
@@ -251,6 +288,13 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
   // in this map uses. No external call, ever — see this file's header, "custom_credential_create", for
   // the full reasoning.
   ["custom_credential_create", "mutates-durable-state"],
+  // -> planGitHubFileWrite (read-only reconnaissance) then, ONLY on human confirmation,
+  // commitGitHubFiles: a real commit landed in a THIRD-PARTY repository — the same
+  // "mutates-durable-state via an external write" classification custom_credential_make_request/
+  // deployment_execute_static_publish/source_control_execute_commit carry. Every call is gated (see
+  // this file's header, "custom_credential_write_files") — there is no un-confirmed path the way
+  // GET/POST/PUT/PATCH are for custom_credential_make_request.
+  ["custom_credential_write_files", "mutates-durable-state"],
 ]);
 
 /**
@@ -270,6 +314,62 @@ async function resolveMakeRequestDeleteDecision(exchange: SurfaceExchange, ui: U
     return { confirmed: false, result: { executed: false, cancelled: true } };
   }
   return { confirmed: false, result: { executed: false, cancelled: false, reason: outcome.reason } };
+}
+
+/** `custom_credential_write_files`'s ENTIRE agent-facing result shape — boolean-plus-reason on every
+ *  non-success branch, the same discriminated shape {@link SetTokenResult}/{@link CreateCredentialResult}
+ *  use below for the identical reason: nothing here could ever be widened to carry the token, and a
+ *  caller can always branch on `executed` alone regardless of which branch produced the result.
+ *  `reason: "error"` is this tool's own addition — unlike a form submission, the write itself can fail
+ *  at the GitHub API level AFTER confirmation (a diverged branch, a provider error), which needs a
+ *  human-readable `message` the other reasons never carry. */
+type WriteFilesResult =
+  | { executed: true; commitSha: string; commitUrl: string; filesWritten: number }
+  | { executed: false; cancelled: true }
+  | { executed: false; cancelled: false; reason: "expired" | "abandoned" }
+  | { executed: false; cancelled: false; reason: "error"; message: string };
+
+/**
+ * Waits for the human's answer to `custom_credential_write_files`'s confirmation dialog — same
+ * mechanism {@link resolveMakeRequestDeleteDecision} documents, adapted to this tool's own
+ * {@link WriteFilesResult} shape. Unlike DELETE's gate, EVERY call reaches this function (see this
+ * file's header, "custom_credential_write_files") — there is no un-gated verb for this tool.
+ */
+async function resolveWriteFilesDecision(exchange: SurfaceExchange, ui: UIResource): Promise<{ confirmed: true } | { confirmed: false; result: WriteFilesResult }> {
+  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  if (outcome.confirmed) return { confirmed: true };
+
+  if (outcome.reason === "declined") {
+    return { confirmed: false, result: { executed: false, cancelled: true } };
+  }
+  return { confirmed: false, result: { executed: false, cancelled: false, reason: outcome.reason } };
+}
+
+/**
+ * The write itself, run only once the human has confirmed — extracted to its own top-level function
+ * so the handler's own branching stays under this repo's complexity ceiling, same reasoning
+ * {@link handleSetTokenAnswer}'s own extraction gives. `plan` must be the SAME plan the confirmation
+ * dialog was built from (`tool-registrations.ts`'s handler threads it through directly rather than
+ * re-planning), so the tree {@link commitGitHubFiles} builds on top of is guaranteed to be the one the
+ * human actually saw described.
+ *
+ * @complexity O(1) beyond {@link commitGitHubFiles}'s own O(files) cost.
+ */
+async function performGitHubFilesWrite(
+  routeDeps: CustomCredentialsToolDeps,
+  resolved: { baseUrl: string; connection: { token: string; username?: string } },
+  validated: ValidatedWriteFilesInput,
+  plan: GitHubWriteFilesPlan
+): Promise<WriteFilesResult> {
+  const commitResult = await commitGitHubFiles(
+    { httpClient: routeDeps.customCredentialsHttpClient },
+    { baseUrl: resolved.baseUrl, connection: resolved.connection, owner: validated.owner, repo: validated.repo, branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
+    plan
+  );
+  if (!commitResult.ok) {
+    return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
+  }
+  return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
 }
 
 /** The exact keys `custom_credential_set_username` accepts — nothing else, ever. This is the
@@ -888,6 +988,70 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       if (!decision.confirmed) return decision.result;
 
       return makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body });
+    },
+
+    // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS
+    // gated behind an in-chat confirmation naming every path — see this file's header,
+    // "custom_credential_write_files", for the full design. Shape/path/size validation
+    // (`validateWriteFilesInput`) and the read-only branch/tree/existence reconnaissance
+    // (`planGitHubFileWrite`) both run BEFORE the dialog is opened, same ordering the DELETE gate above
+    // uses: a malformed call or a nonexistent branch is refused with no dialog and no confirmation spent.
+    custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
+      const input = requireInputRecord(ctx.input);
+      const label = requireString(input, "label");
+      const validated = validateWriteFilesInput({ owner: input.owner, repo: input.repo, branch: input.branch, commitMessage: input.commitMessage, files: input.files });
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+
+      // Fail closed rather than degrade — same posture `custom_credential_set_token`/
+      // `custom_credential_create` document above: a write only a human can confirm has nowhere to go
+      // in an execution context that cannot hold this call open.
+      if (!ctx.emitSurface) {
+        throw new Error(
+          "custom_credential_write_files: this execution context has no interactive confirmation channel " +
+            "(no emitSurface), so a write cannot be confirmed here. Nothing was written."
+        );
+      }
+
+      // A DECRYPTING resolve — unlike DELETE's non-decrypting `resolveRequestTarget` pre-check, this
+      // tool has no cheaper way to learn whether the label exists: `resolveCustomCredentialByLabel`
+      // itself never decrypts for a label with no matching row (see `store.ts`'s own doc), so a bad
+      // label still costs no decrypt; a real label's own decrypt is unavoidable here because the very
+      // next step (the plan phase's read-only GitHub calls) needs the token regardless of whether the
+      // human goes on to confirm.
+      const resolved = await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer }, { workspaceId: routeDeps.workspaceId, label });
+      if (!resolved) {
+        throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
+      }
+
+      const planResult = await planGitHubFileWrite(
+        { httpClient: routeDeps.customCredentialsHttpClient },
+        { baseUrl: resolved.baseUrl, connection: resolved.connection, owner: validated.owner, repo: validated.repo, branch: validated.branch, files: validated.files }
+      );
+      if (!planResult.ok) {
+        throw new Error(`custom_credential_write_files: ${planResult.message}`);
+      }
+
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: WRITE_FILES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const ui = buildWriteFilesConfirmationResource({
+        label,
+        owner: validated.owner,
+        repo: validated.repo,
+        branch: validated.branch,
+        files: planResult.plan.fileStates.map((fileState) => ({ path: fileState.path, exists: fileState.exists, isWorkflow: isWorkflowPath(fileState.path) })),
+        exchangeId: exchange.id,
+      });
+
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      let decision: Awaited<ReturnType<typeof resolveWriteFilesDecision>>;
+      try {
+        decision = await resolveWriteFilesDecision(exchange, ui);
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
+      if (!decision.confirmed) return decision.result;
+
+      return performGitHubFilesWrite(routeDeps, resolved, validated, planResult.plan);
     },
   };
 
