@@ -105,6 +105,30 @@ describe("rename form", () => {
   });
 });
 
+describe("showPageHeader", () => {
+  // `SettingsUi.tsx` mounts this component inside `SettingsDialogShell`'s own chrome, which
+  // already renders this tab's title/subtitle — `showPageHeader={false}` is how that caller avoids
+  // a doubled "Workspace" heading. See `WorkspaceProps.showPageHeader`'s own doc for the full
+  // reasoning and why it suppresses the whole block, not just the `<h1>`.
+  it("renders the page-header (kicker, title, description) by default, unchanged from before this prop existed", () => {
+    render(<Workspace useWorkspaceHook={() => baseController()} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Administration")).toBeInTheDocument();
+    expect(screen.getByText("This site's identity — its name, URL slug, and creation date.")).toBeInTheDocument();
+  });
+
+  it("renders none of the page-header when showPageHeader is false, but the form/identity/delete sections are untouched", () => {
+    render(<Workspace useWorkspaceHook={() => baseController()} showPageHeader={false} />);
+    expect(screen.queryByRole("heading", { level: 1, name: "Workspace" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Administration")).not.toBeInTheDocument();
+    expect(screen.queryByText("This site's identity — its name, URL slug, and creation date.")).not.toBeInTheDocument();
+
+    // Everything below the header is unaffected — this prop only touches the header block.
+    expect(screen.getByLabelText("Name")).toHaveValue("My Site");
+    expect(screen.getByRole("heading", { level: 2, name: "Delete workspace" })).toBeInTheDocument();
+  });
+});
+
 describe("Delete workspace", () => {
   it("is always visible, permanently disabled, with an explanatory notice", () => {
     render(<Workspace useWorkspaceHook={() => baseController()} />);

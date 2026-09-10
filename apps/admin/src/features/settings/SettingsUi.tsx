@@ -69,20 +69,23 @@
  * has now resolved OQ-04: tab. `panels.tsx`'s own comment on the retired `workspace` panel has the
  * redirect/nav-row mechanics; this file only owns the mount.
  *
- * The screen itself is UNCHANGED — `Workspace.tsx`, `rules.ts`, `workspace-i18n.ts`, and its hooks
- * stayed exactly where they already lived and exactly as they already worked, self-contained via its
- * own `useWiredWorkspace()` (not one of this file's `useSettingsSlice` mounts below — Workspace talks
- * to `/api/admin/v1/workspaces/:id` directly, a different ledger entirely from the `core.*`
- * namespace every other tab here reads). The tab's own label/title/subtitle reuse
- * `workspace-i18n.ts`'s existing `"Workspace"` / description strings (already translated across all
- * 21 admin locales) rather than re-translating the same words into a second dictionary.
+ * The screen itself kept its state, fetch, save, and error handling exactly as they already worked —
+ * `rules.ts`, `workspace-i18n.ts`, and its hooks are untouched, self-contained via its own
+ * `useWiredWorkspace()` (not one of this file's `useSettingsSlice` mounts below — Workspace talks to
+ * `/api/admin/v1/workspaces/:id` directly, a different ledger entirely from the `core.*` namespace
+ * every other tab here reads). The tab's own label/title/subtitle reuse `workspace-i18n.ts`'s
+ * existing `"Workspace"` / description strings (already translated across all 21 admin locales)
+ * rather than re-translating the same words into a second dictionary.
  *
- * KNOWN, ACCEPTED COSMETIC CONSEQUENCE: `Workspace.tsx` renders its own `.page-header` (kicker,
- * title, description) — every other tab's `panel` here is a bare widget with no header of its own,
- * because `SettingsDialogShell` already renders one from this tab's `title`/`subtitle` fields. That
- * makes the Workspace tab the one tab in this file with a doubled heading (the shell's chrome, then
- * `Workspace.tsx`'s own). Not fixed here: the task that folded this tab in was explicit that
- * `Workspace.tsx` itself must not be rewritten to fit its new mount, only relocated to it.
+ * `Workspace.tsx` gained exactly one addition for this mount: `showPageHeader={false}` below. Every
+ * other tab's `panel` here is a bare widget with no header of its own, because `SettingsDialogShell`
+ * already renders one from this tab's `title`/`subtitle` fields — `Workspace.tsx` renders its OWN
+ * `.page-header` too (kicker, title, description) when used at its standalone route, so mounting it
+ * verbatim here first shipped with a doubled "Workspace" heading (the shell's chrome, then
+ * `Workspace.tsx`'s own underneath it) before this prop existed. See `WorkspaceProps.showPageHeader`
+ * for the full reasoning, including why this suppresses the whole header block rather than only the
+ * `<h1>` the way `ExternalMcpSettingsPanel.tsx`'s own `showTitle` does for the same class of problem
+ * on the Providers screen.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -666,12 +669,20 @@ export function SettingsUi(props: SettingsUiProps) {
           <path d="M2.5 7h13" />
         </TabIcon>
       ),
-      // `<Workspace />` verbatim, no props — production callers get the real `useWiredWorkspace()`
+      // `useWorkspaceHook` unset — production callers get the real `useWiredWorkspace()`
       // (`WorkspaceProps.useWorkspaceHook`'s own default), the same as every other mount of this
       // component. Self-contained: it manages its own fetch/save/error state and does not read from
       // or write into `s` (`SettingsUiController`) — see this file's header for why it isn't one of
       // the `useSettingsSlice` tabs.
-      panel: <Workspace />,
+      //
+      // `showPageHeader={false}`: this tab's own `title`/`subtitle` above ARE `Workspace.tsx`'s
+      // kicker-free header content (same "Workspace" title, same identity-summary sentence, by
+      // construction — both come from the one `tWorkspace(...)` call above), so
+      // `SettingsDialogShell` already renders that content once, in its own chrome, before this
+      // panel mounts at all. See `WorkspaceProps.showPageHeader`'s own doc for why the fix is a
+      // prop rather than a CSS rule, and why it drops the whole header block rather than only the
+      // title.
+      panel: <Workspace showPageHeader={false} />,
     },
     {
       id: "about",

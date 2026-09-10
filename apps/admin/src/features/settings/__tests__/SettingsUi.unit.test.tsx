@@ -409,4 +409,45 @@ describe("Workspace tab (SPEC-044's OQ-04, folded in 2026-09-10)", () => {
       global.fetch = originalFetch;
     }
   });
+
+  it("shows the 'Workspace' heading and its identity subtitle exactly once each, not doubled", async () => {
+    // Regression guard for the doubled-heading defect flagged after this tab's first pass: mounting
+    // `<Workspace />` verbatim gave the tab both the shell's own chrome header AND `Workspace.tsx`'s
+    // own `.page-header` underneath it, each saying "Workspace" and the same identity sentence.
+    // `showPageHeader={false}` (`SettingsUi.tsx`'s mount, `WorkspaceProps.showPageHeader`) is what
+    // this test pins — unlike the test above, this one lets the fetch actually resolve so the
+    // assertion runs against `Workspace.tsx`'s real LOADED render branch, the one branch the
+    // page-header used to appear in.
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            workspace: { id: "w1", name: "My Site", slug: "my-site", createdAt: "2026-08-01T00:00:00.000Z" },
+          }),
+          { status: 200 },
+        ),
+      ),
+    ) as typeof fetch;
+    try {
+      const user = userEvent.setup();
+      render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+      await goToTab(user, "workspace");
+
+      // Waits for the loaded branch — `findByLabelText` retries until `Workspace.tsx`'s fetch
+      // resolves and the rename form actually renders.
+      expect(await screen.findByLabelText("Name")).toHaveValue("My Site");
+
+      // The shell's own chrome header — the only "Workspace" heading left.
+      expect(screen.getByRole("heading", { level: 2, name: "Workspace" })).toBeInTheDocument();
+      // `Workspace.tsx`'s own `<h1>`/kicker/description are gone, not merely hidden.
+      expect(screen.queryByRole("heading", { level: 1, name: "Workspace" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Administration")).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText("This site's identity — its name, URL slug, and creation date."),
+      ).toHaveLength(1);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

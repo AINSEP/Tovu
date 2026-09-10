@@ -34,6 +34,30 @@ export interface WorkspaceProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useWorkspaceHook?: typeof useWiredWorkspace;
+  /**
+   * Whether to render this screen's own `.page-header` (kicker "Administration", the "Workspace"
+   * `<h1>`, and the identity-summary description). Defaults to `true` (this component's original,
+   * standalone-route rendering — unchanged for every other caller).
+   *
+   * `SettingsUi.tsx` passes `false`: mounted as that screen's `"workspace"` tab, `Workspace` sits
+   * *under* `SettingsDialogShell`'s own chrome header, which already renders the tab's `title` and
+   * `subtitle` (`SettingsUi.tsx`'s tab entry sets both to this same kicker-free "Workspace" title
+   * and identity-summary sentence — see that entry's own comment). Rendering this header too used
+   * to say "Workspace" and the same description a second time directly underneath the shell's own
+   * — the exact `showTitle`-style seam `ExternalMcpSettingsPanel.tsx` already uses for the
+   * identical problem on the Providers screen (see that component's own `showTitle` doc), matched
+   * here rather than a CSS override: a `display: none` would leave "Workspace" in the DOM and the
+   * accessibility tree, so a screen reader would still announce the title twice even though only
+   * one copy is visible.
+   *
+   * Suppresses the WHOLE header block, not just the `<h1>` the way `showTitle` does on
+   * `ExternalMcpSettingsPanel` — that panel's own subtitle is unique content with no shell
+   * equivalent, so only its title is redundant; here all three pieces (kicker, title, description)
+   * restate something the shell's chrome already shows once this is a tab, not a standalone page,
+   * so all three go together. No kicker survives on its own either: no other `SettingsUi` tab shows
+   * one, since the shell's single "Settings" kicker already plays that role for all ten.
+   */
+  showPageHeader?: boolean;
 }
 
 /** The rename form's own status pair — a save error, or a "Saved." confirmation once the form is
@@ -49,7 +73,7 @@ function WorkspaceFormStatus(props: { locale: string; saveError: string | null; 
   );
 }
 
-export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspaceProps = {}) {
+export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader = true }: WorkspaceProps = {}) {
   const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave, t, locale } = useWorkspaceHook();
 
   if (error) return <div className="notice error">{error}</div>;
@@ -62,13 +86,15 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
     // a table/dashboard, and `.page` itself carries no max-width anywhere in the app (would affect
     // all ~39 other screens using it), so the cap lives on a scoped wrapper class instead.
     <div className="page workspace-page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">{t("Administration")}</p>
-          <h1 className="page-title">{t("Workspace")}</h1>
-          <p className="page-description">{t("This site's identity — its name, URL slug, and creation date.")}</p>
+      {showPageHeader ? (
+        <div className="page-header">
+          <div className="page-header-text">
+            <p className="page-kicker">{t("Administration")}</p>
+            <h1 className="page-title">{t("Workspace")}</h1>
+            <p className="page-description">{t("This site's identity — its name, URL slug, and creation date.")}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <form onSubmit={onSave} className="notice integrations-form form-measure">
         <WorkspaceFormStatus locale={locale} saveError={saveError} saved={saved} dirty={dirty} />
