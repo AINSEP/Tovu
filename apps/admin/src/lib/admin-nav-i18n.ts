@@ -74,7 +74,12 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "Import & Export": "Importar y exportar",
   Deployment: "Implementación",
   "Source Control": "Control de código fuente",
-  // Administration
+  // Administration (2026-09-10: Workspace folded into a Settings tab, same "unused-but-harmless"
+  // treatment the Add-Ons block above already gives "Providers"/"APIs & Webhooks" — this label has
+  // no nav row left to translate, but the string itself is reused by `SettingsUi.tsx`'s own
+  // "workspace" tab via `workspace-i18n.ts`'s translator, not this one, so deleting it here would
+  // not even shrink the app's real translation surface. See `panels.tsx`'s own comment on the
+  // retired `workspace` panel for the full history.)
   Settings: "Configuración",
   Workspace: "Espacio de trabajo",
   Notifications: "Notificaciones",

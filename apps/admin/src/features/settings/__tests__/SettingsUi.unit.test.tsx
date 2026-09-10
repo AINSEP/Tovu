@@ -377,3 +377,36 @@ describe("About tab", () => {
     expect(screen.queryByRole("status", { name: /update/i })).not.toBeInTheDocument();
   });
 });
+
+describe("Workspace tab (SPEC-044's OQ-04, folded in 2026-09-10)", () => {
+  it("publishes the tab as agent-clickable, labelled 'Workspace'", () => {
+    render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    const workspaceNav = screen.getByTestId("settings-dialog-nav-workspace");
+    expect(workspaceNav).toHaveAttribute("data-agent-element", "tab-workspace");
+    expect(workspaceNav).toHaveAttribute("data-agent-label", "Workspace");
+  });
+
+  it("mounts the real Workspace screen verbatim, not a placeholder", async () => {
+    // Deliberately does not mock `Workspace.tsx`'s own `useWiredWorkspace()` — this tab has no seam
+    // for that in `SettingsUiController` (see `SettingsUi.tsx`'s own comment on the tab: Workspace
+    // is self-contained and reads nothing from `s`). Instead, `fetch` itself is stubbed to a
+    // promise that never settles, so `Workspace.tsx`'s own "Loading workspace…" render (its state
+    // before the real fetch resolves) is deterministic here rather than racing jsdom's real
+    // network-failure timing — an earlier version of this test asserted the same text without the
+    // stub and was flaky for exactly that reason (jsdom's fetch rejection can land before or after
+    // `userEvent.click`'s own microtask flush). `Workspace.unit.test.tsx` already covers the loaded/
+    // error/save states directly via its own `useWorkspaceHook` DI seam; this test only needs to
+    // prove the REAL component mounted, not a placeholder.
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(() => new Promise(() => {})) as typeof fetch;
+    try {
+      const user = userEvent.setup();
+      render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+      await goToTab(user, "workspace");
+
+      expect(screen.getByText("Loading workspace…")).toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});

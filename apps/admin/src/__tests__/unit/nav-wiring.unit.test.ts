@@ -103,6 +103,27 @@ describe("Add-Ons nav section", () => {
   });
 });
 
+describe("Administration nav section — workspace", () => {
+  // 2026-09-10 (owner call, resolving SPEC-044's OQ-04): Workspace folded into a Settings tab —
+  // see `panels.tsx`'s own comment on the `settings`/`workspace` panels. Same "retired panel keeps
+  // its id/route, loses its nav row" shape the `integrations` panel above already asserts for
+  // itself; the retired `workspace` panel's own bare route now redirects to
+  // `/admin/settings?tab=workspace` rather than 404ing or rendering nothing.
+  it("the workspace panel no longer has its own nav row anywhere", () => {
+    const allIds = getNav().flatMap((group) => group.items.map((item) => item.id));
+    expect(allIds).not.toContain("workspace");
+  });
+
+  it("settings keeps its own nav row unchanged — the fold added a tab, not a new top-level entry", () => {
+    const administration = getNav().find((group) => group.label === "Administration");
+    expect(administration).toBeDefined();
+
+    const item = administration!.items.find((i) => i.id === "settings");
+    expect(item).toBeDefined();
+    expect(item?.label).toBe("Settings");
+  });
+});
+
 describe("Operations nav section — observability", () => {
   it("observability is a fully enabled link, not a soon/preview-gated one", () => {
     // Same "enabled, not soon" guarantee `agent-plugins` asserts for Add-Ons above — the owner's

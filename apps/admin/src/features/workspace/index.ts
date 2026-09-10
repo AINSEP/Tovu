@@ -7,3 +7,4 @@
  * it is exported from this line.
  */
 export { Workspace } from "./Workspace";
+export { WorkspaceRedirect } from "./WorkspaceRedirect";

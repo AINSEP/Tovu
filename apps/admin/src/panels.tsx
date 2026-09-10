@@ -31,7 +31,7 @@ import { SourceControl } from "./features/source-control";
 import { Security } from "./features/security";
 import { Observability } from "./features/observability";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
-import { Workspace } from "./features/workspace";
+import { WorkspaceRedirect } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
 import { Playground } from "./features/playground";
 import { Sites } from "./features/sites";
@@ -1019,7 +1019,9 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `SettingsUi`'s `tabId` prop) — same "URL names the sub-state" shape as `widgets`' own
     // `?type=` below, so `/admin/settings?tab=privacy` is both bookmarkable and a page an agent's
-    // `page.navigate` could be pointed at once that capability grows param support.
+    // `page.navigate` could be pointed at once that capability grows param support. Ten tabs as of
+    // 2026-09-10: the `workspace` panel immediately below folded into this one as its own
+    // `"workspace"` tab (owner call, resolving SPEC-044's OQ-04) — see that panel's own comment.
     render: (ctx) => <SettingsUi tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Settings",
@@ -1029,24 +1031,43 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    // RETIRED as a nav row (2026-09-10, owner call) — no `nav` field, the same convention the
+    // `integrations` panel below in this file already uses for a route that stays reachable
+    // without a sidebar entry. SPEC-044 (Workspace Administration) shipped this screen with OQ-04
+    // — "standalone nav entry near Settings, or a tab inside it? — either satisfies every REQ/AC
+    // unchanged" — left open in `feature.spec.md`; the owner has now resolved it: **tab**. The
+    // screen itself (`Workspace.tsx`, unchanged) now mounts as `SettingsUi.tsx`'s `"workspace"`
+    // tab instead of its own top-level route+nav pair — see that file's own comment for placement
+    // reasoning and translation reuse. `ADS-memory/specs/044-workspace-administration/
+    // feature.spec.md`'s OQ-04 entry is updated to record this resolution too.
+    //
+    // The id/route stay (this is NOT the same as deleting the panel): `/admin/workspace` is a real
+    // bookmark/agent-remembered link that used to work, and a dead URL that used to work is a
+    // regression this restructure's own dispatch calls out explicitly each time it comes up (see
+    // the `integrations` panel's own comment for the identical reasoning). So the bare route
+    // REDIRECTS to `/admin/settings?tab=workspace` (`WorkspaceRedirect`,
+    // `features/workspace/WorkspaceRedirect.tsx`) rather than 404ing or rendering nothing — unlike
+    // `integrations`, Workspace has no sub-route to preserve (no `/:id` drill-down), so this panel
+    // needs nothing beyond the one redirect branch.
+    //
+    // KNOWN, ACCEPTED SIDE EFFECT, same one `integrations`' own comment records: nothing highlights
+    // in the sidebar for the brief instant `/admin/workspace` is on screen before the redirect
+    // fires, because no nav row claims this panel's id anymore. Not fixable by highlighting
+    // `settings` instead without also making `currentPanelId` resolution generic across every
+    // retired-panel-with-a-redirect case; out of scope for this one-screen fold.
     id: "workspace",
-    render: () => <Workspace />,
-    nav: {
-      // SPEC-044 (Workspace Administration). Placement call (OQ-04 in feature.spec.md, not yet
-      // resolved by the owner): a standalone nav entry near Settings, its closest sibling concept
-      // — could instead become a Settings tab; either satisfies every REQ/AC unchanged.
-      label: "Workspace",
-      group: "Administration",
-      icon: '<rect x="2.5" y="2.5" width="13" height="13" rx="2"/><path d="M2.5 7h13"/>',
-    },
+    render: () => <WorkspaceRedirect />,
     agentReachable: true,
   },
   {
     id: "notifications",
     // Owner placed this "under settings" — read as the Administration group beside Settings, not as
     // a tab inside `SettingsUi`, because it ships as a `soon` NAV entry and a tab would have no nav
-    // row to label. Same open question Workspace's own note records above (standalone entry vs
-    // Settings tab); resolving one should probably resolve both.
+    // row to label. This used to record the same open placement question Workspace's own note
+    // carried (standalone entry vs Settings tab) as one question that would "probably resolve
+    // both" — it didn't: Workspace's resolved 2026-09-10 to "tab" (see that panel's own comment),
+    // but this entry's own `soon`-NAV-with-no-screen-yet reasoning above is unaffected by that
+    // answer and still applies on its own terms. Revisit when this stops being `soon`.
     render: () => <Placeholder sectionId="notifications" agentHandle="notifications" />,
     nav: {
       label: "Notifications",

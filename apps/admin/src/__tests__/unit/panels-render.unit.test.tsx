@@ -32,7 +32,7 @@ import { SourceControl } from "../../features/source-control";
 import { Security } from "../../features/security";
 import { Observability } from "../../features/observability";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "../../features/widgets";
-import { Workspace } from "../../features/workspace";
+import { WorkspaceRedirect } from "../../features/workspace";
 import { AiAssistant } from "../../features/ai-assistant";
 import { Playground } from "../../features/playground";
 import { Sites } from "../../features/sites";
@@ -105,7 +105,10 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "observability", component: Observability },
   { id: "activity-log", component: Placeholder, extraProps: { sectionId: "activity-log" } },
   { id: "import-export", component: Placeholder, extraProps: { sectionId: "import-export" } },
-  { id: "workspace", component: Workspace },
+  // 2026-09-10: retired as a nav row (folded into a Settings tab — see `panels.tsx`'s own comment
+  // on this panel), so its render is now the redirect, not the real `Workspace` screen. `Workspace`
+  // itself is exercised where it actually mounts now: `SettingsUi.unit.test.tsx`'s "Workspace tab".
+  { id: "workspace", component: WorkspaceRedirect },
   { id: "notifications", component: Placeholder, extraProps: { sectionId: "notifications" } },
   { id: "trash", component: Placeholder, extraProps: { sectionId: "trash" } },
   { id: "seo", component: Seo },

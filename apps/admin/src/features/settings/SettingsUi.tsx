@@ -7,10 +7,10 @@
  * was that both stay available. `settings-raw/` was later deleted once `/settings` was judged to
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
- * 9 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
- * Dialog appearance, Language, Memory, Skills, About. The shell is generic
- * over its tab array, so adding more is appending entries to `tabs` below —
- * not restructuring this file. Each ledger-backed tab owns one
+ * 10 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
+ * Dialog appearance, Language, Memory, Skills, Workspace, About. The shell is
+ * generic over its tab array, so adding more is appending entries to `tabs`
+ * below — not restructuring this file. Each ledger-backed tab owns one
  * `useSettingsSlice` instance (its own load, debounce, save chain and diff
  * base); the page chrome renders `mergeSaveStates` over all of them. Memory
  * and Skills have no Tovu backend at all and so own no slice; both mount
@@ -59,6 +59,31 @@
  * `features/providers/hooks/use-providers.hooks.ts` for why moving that file set is a deliberate
  * follow-up rather than part of the restructure.
  *
+ * ## One tab ARRIVED here the same day: Workspace
+ *
+ * `"workspace"`, mounting `features/workspace/Workspace.tsx` verbatim (SPEC-044) — the opposite
+ * direction of the moves above, and a different feature folder entirely, not one being absorbed.
+ * `Workspace.tsx` used to be its own top-level `/admin/workspace` route+nav row; SPEC-044 shipped it
+ * that way because placement (standalone entry vs Settings tab) was its own recorded open question,
+ * OQ-04, deliberately left for later since either answer satisfies every REQ/AC unchanged. The owner
+ * has now resolved OQ-04: tab. `panels.tsx`'s own comment on the retired `workspace` panel has the
+ * redirect/nav-row mechanics; this file only owns the mount.
+ *
+ * The screen itself is UNCHANGED — `Workspace.tsx`, `rules.ts`, `workspace-i18n.ts`, and its hooks
+ * stayed exactly where they already lived and exactly as they already worked, self-contained via its
+ * own `useWiredWorkspace()` (not one of this file's `useSettingsSlice` mounts below — Workspace talks
+ * to `/api/admin/v1/workspaces/:id` directly, a different ledger entirely from the `core.*`
+ * namespace every other tab here reads). The tab's own label/title/subtitle reuse
+ * `workspace-i18n.ts`'s existing `"Workspace"` / description strings (already translated across all
+ * 21 admin locales) rather than re-translating the same words into a second dictionary.
+ *
+ * KNOWN, ACCEPTED COSMETIC CONSEQUENCE: `Workspace.tsx` renders its own `.page-header` (kicker,
+ * title, description) — every other tab's `panel` here is a bare widget with no header of its own,
+ * because `SettingsDialogShell` already renders one from this tab's `title`/`subtitle` fields. That
+ * makes the Workspace tab the one tab in this file with a doubled heading (the shell's chrome, then
+ * `Workspace.tsx`'s own). Not fixed here: the task that folded this tab in was explicit that
+ * `Workspace.tsx` itself must not be rewritten to fit its new mount, only relocated to it.
+ *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
  * inline with no close affordance), so the page view and the modal view are
@@ -97,6 +122,8 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
+import { Workspace } from "../workspace";
+import { t as tWorkspace } from "../workspace/workspace-i18n";
 import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
@@ -603,6 +630,48 @@ export function SettingsUi(props: SettingsUiProps) {
           </div>
         </div>
       ),
+    },
+    {
+      // SPEC-044's OQ-04, resolved 2026-09-10 (owner call): folded in from a standalone top-level
+      // nav row — see this file's own header (the "One tab ARRIVED here" section) and
+      // `panels.tsx`'s comment on the retired `workspace` panel for the full history and the
+      // `/admin/workspace` -> `/admin/settings?tab=workspace` redirect that keeps old links
+      // working.
+      //
+      // Placed last, immediately before About: every other tab here configures how the ASSISTANT
+      // behaves or how this OPERATOR experiences the dialog (execution, instructions,
+      // notifications, privacy, appearance, language, memory, skills) — this one is the only tab
+      // that is about the INSTALL's own identity, closer in kind to About's version/runtime facts
+      // than to any operator preference above it. Not inserted earlier in that run (e.g. ahead of
+      // Language) for the same reason: nothing about Workspace configures another tab's behavior,
+      // so there is no ordering dependency forcing it earlier, only this one thematic affinity to
+      // the tab already at the end.
+      //
+      // Label/title/subtitle reuse `workspace-i18n.ts`'s own `t(locale, key)` translator
+      // (`tWorkspace`) rather than re-translating the same three strings into
+      // `settings-capabilities-i18n.ts`: `"Workspace"` and its identity-summary subtitle are
+      // already translated there, across the same 21 admin locales `admin-nav-i18n.ts` covers, from
+      // when this screen's own `<h1>`/`<p className="page-description">` used them as a standalone
+      // page. Two dictionaries carrying the same three English source strings would drift the
+      // moment either changed.
+      id: "workspace",
+      label: tWorkspace(settingsLocale, "Workspace"),
+      title: tWorkspace(settingsLocale, "Workspace"),
+      subtitle: tWorkspace(settingsLocale, "This site's identity — its name, URL slug, and creation date."),
+      // Unchanged from the retired nav row's own icon — a card/panel with a header bar, read as
+      // "this install's own identity card", distinct from every `TabIcon` glyph around it.
+      icon: (
+        <TabIcon>
+          <rect x="2.5" y="2.5" width="13" height="13" rx="2" />
+          <path d="M2.5 7h13" />
+        </TabIcon>
+      ),
+      // `<Workspace />` verbatim, no props — production callers get the real `useWiredWorkspace()`
+      // (`WorkspaceProps.useWorkspaceHook`'s own default), the same as every other mount of this
+      // component. Self-contained: it manages its own fetch/save/error state and does not read from
+      // or write into `s` (`SettingsUiController`) — see this file's header for why it isn't one of
+      // the `useSettingsSlice` tabs.
+      panel: <Workspace />,
     },
     {
       id: "about",

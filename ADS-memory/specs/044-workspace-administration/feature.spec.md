@@ -283,10 +283,17 @@ of scope here. That larger change is recorded as OQ-01 below, not silently dropp
   places. — Owner: Leon Aburime — Resolve by: 2026-09-30
 - OQ-03: Desktop multi-install manager (Tovu-Runner side, ADR-007's other named tenancy consumer) —
   out of this repo's scope entirely. — Owner: Leon Aburime — Resolve by: 2026-11-30
-- OQ-04: Should the `Workspace` admin screen be its own top-level nav entry (REQ-07's default) or a
-  tab inside the existing `Settings` section? A UI-placement call, not a behavioral question — either
-  answer satisfies every REQ/AC above unchanged. — Owner: Leon Aburime — Resolve by: before Software
-  Architect dispatch (cheap to answer, no reason to defer)
+- OQ-04: **RESOLVED 2026-09-10.** Should the `Workspace` admin screen be its own top-level nav entry
+  (REQ-07's default) or a tab inside the existing `Settings` section? A UI-placement call, not a
+  behavioral question — either answer satisfies every REQ/AC above unchanged. — Owner: Leon Aburime
+  — Resolve by: before Software Architect dispatch (cheap to answer, no reason to defer)
+  — **Answer: tab.** Implemented in `apps/admin/src/features/settings/SettingsUi.tsx` (the
+  `"workspace"` tab, mounting `Workspace.tsx` verbatim, unchanged from REQ-07) and
+  `apps/admin/src/panels.tsx` (the `workspace` panel loses its `nav` field; its route now redirects
+  `/admin/workspace` -> `/admin/settings?tab=workspace` rather than dropping the old URL). REQ-07's
+  text below still describes the original standalone-nav-entry shape this spec shipped with — left
+  as the historical record of what was actually built and tested at the time, not edited to match
+  this later placement change, the same way this file treats every other post-ship decision.
 
 ---
 

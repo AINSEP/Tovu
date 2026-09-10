@@ -42,7 +42,7 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
 
 /**
  * @file `SettingsUi`'s port/slice/save-merge bootstrap, so `SettingsUi` in `SettingsUi.tsx` is only
- * markup (the 9-tab `SettingsDialogTab[]` array and the shell mounts).
+ * markup (the 10-tab `SettingsDialogTab[]` array and the shell mounts).
  *
  * Extracted verbatim — same state, same declaration order, same slice configs. `ADMIN_LOCALES` and
  * `DEFAULT_INSTRUCTIONS` stay imported directly by `SettingsUi.tsx` rather than being threaded
@@ -52,9 +52,13 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * Six independent `useSettingsSlice` instances are mounted — one per ledger-backed tab (Execution,
  * Instructions, Notifications, Privacy, Dialog appearance, Language) — each with its own load,
  * debounce, save chain, and diff base (see `use-settings-slice.hooks.ts`'s own header for why that
- * independence matters). The remaining three tabs (Memory, Skills, About) have no Tovu backend and
- * so mount no slice; Skills' fake port is still constructed here (via `useRef`, so it mounts once)
- * since it is the same kind of "stable thing the view needs a reference to" as the slices are.
+ * independence matters). Three more tabs (Memory, Skills, About) have no Tovu backend and so mount
+ * no slice; Skills' fake port is still constructed here (via `useRef`, so it mounts once) since it
+ * is the same kind of "stable thing the view needs a reference to" as the slices are. The tenth,
+ * Workspace (folded in 2026-09-10 — see `SettingsUi.tsx`'s own header), mounts no slice either, for
+ * a different reason from the other three: it has a REAL Tovu backend, just not this one — its own
+ * `useWiredWorkspace()` (`features/workspace/hooks/use-workspace.hooks.ts`) owns its fetch/save/
+ * error state independently of `s`, so this controller has nothing to expose for it at all.
  *
  * The Composio and External MCP controllers this hook used to expose left on 2026-09-10 with their
  * tabs — see `SettingsUi.tsx`'s header. They are composed by
