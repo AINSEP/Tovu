@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
@@ -77,7 +78,10 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
 }
 
 function registrations(deps: PluginsToolDeps): Map<string, ToolRegistration> {
-  return new Map(buildPluginsRegistrations(deps).map((r) => [r.descriptor.id, r]));
+  // `plugins_set_enabled` grew a confirmation-surface dependency (2026-09-09), so the builder now
+  // takes the assistant's surface machinery too. This file's own tool (`plugins_uninstall`) raises no
+  // surface, so a store nobody opens an exchange on is exactly the right fixture here.
+  return new Map(buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: PluginsToolDeps, id: string): ToolRegistration {

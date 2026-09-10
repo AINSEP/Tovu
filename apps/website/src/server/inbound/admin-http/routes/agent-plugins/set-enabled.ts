@@ -1,7 +1,6 @@
 import type { Response } from "express";
 
-import { setAgentPluginActivation } from "#src/features/agent-plugins/activation";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -52,6 +51,18 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  * `list.ts` serves) before any write is attempted, and `setAgentPluginActivation` independently
  * re-asserts the Agent Plugins name grammar. No absolute host path reaches the response — the
  * response body is re-shaped from that same loader's fields, exactly as `list.ts` does.
+ *
+ * ---------------------------------------------------------------------------
+ * 2026-09-09: the write composition moved out, and is now shared
+ * ---------------------------------------------------------------------------
+ * The "verify the id is installed here, then write the activation record" pair that used to sit
+ * inline in the handler below is now `features/agent-plugins/set-enabled.ts`'s `setAgentPluginEnabled`,
+ * because it acquired a SECOND caller: `plugins_set_enabled`'s Agent Plugin branch
+ * (`features/plugin-runtime/tool-registrations.ts`), the assistant's own enable/disable tool. Two
+ * copies of that precondition would be two places that each decide what "installed" means, and the
+ * failure mode of them drifting is an activation recorded for a plugin the admin screen says is not
+ * there. What stayed here is genuinely this route's own: the read model it answers with, and the
+ * HTTP status mapping.
  */
 
 /** The `list.ts` row shape, for one plugin, so the client can replace a row in place rather than
@@ -109,11 +120,17 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         return;
       }
 
-      const workspaceRoot = resolveAgentPluginLayout().forWorkspace(deps.workspaceId).root;
-      const written = await setAgentPluginActivation({ workspaceRoot, pluginId, enabled, actor: principal.id });
+      const written = await setAgentPluginEnabled({ workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
 
-      sendUpdatedRow(res, candidate, written.plugins[pluginId]?.enabled ?? enabled);
-    } catch {
+      sendUpdatedRow(res, candidate, written.enabled);
+    } catch (error) {
+      // `setAgentPluginEnabled` re-asserts the installed precondition independently of the
+      // `candidates` lookup above, so a package removed between the two reads lands here rather than
+      // as an opaque 500 — the same 404 the pre-check produces, for the same reason.
+      if (error instanceof AgentPluginNotInstalledError) {
+        res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
+        return;
+      }
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });

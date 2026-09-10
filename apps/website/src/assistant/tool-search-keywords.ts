@@ -310,7 +310,13 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   settings_register_definitions: "setting settings definition definitions register schema rename change type deprecate add new remove",
 
   // --- plugins -------------------------------------------------------------------------------------------
-  plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
+  // 2026-09-09: this tool now covers BOTH plugin families, so the phrasing an operator uses for the
+  // Agent Plugin half ("agent plugin", "skill", "turn on the higgsfield one") has to reach it too —
+  // before, those words only ranked `search_agent_plugin_local`, which can find a plugin but cannot
+  // turn one on, so the journey dead-ended one step short of working.
+  plugins_set_enabled:
+    "plugin plugins agent plugin agent-plugin agent-plugins enable disable turn on off activate deactivate switch on switch off " +
+    "extension addon add-on skill skills capability use it install it already installed not active inactive",
   plugins_list: "plugin plugins extensions installed available list",
   // Added 2026-09-07 (ADS-memory/reports/2026-09-07-assistant-tool-coverage-audit.md, Gap #4):
   // plugins_uninstall is a new tool with no prior entry at all.

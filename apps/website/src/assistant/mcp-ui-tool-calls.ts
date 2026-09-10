@@ -62,6 +62,15 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // `source_control_get_capabilities` is deliberately ABSENT here — it is a plain read that never
   // opens an exchange, same reasoning the read-only static-publish tools are absent for above.
   "source_control_execute_commit",
+  // 2026-09-09 — `plugins_set_enabled` (`features/plugin-runtime/tool-registrations.ts`) holds up the
+  // SAME shape `content_post_delete`/`deployment_execute_static_publish` do: on an ENABLE it opens a
+  // `SurfaceExchangeStore` exchange and parks on `ctx.emitSurface` until this endpoint delivers the
+  // human's confirm/cancel click (`features/plugin-runtime/set-enabled-confirmation-ui.ts`). Turning a
+  // plugin on is a privilege escalation for the assistant itself — an Agent Plugin's SKILL.md enters
+  // the run prompt and its tool becomes registrable; a site plugin's enable hook can run live ADR-023
+  // schema DDL — so it belongs here for the identical reason, not a lesser one. The DISABLE direction
+  // raises no dialog and never reaches this endpoint.
+  "plugins_set_enabled",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.

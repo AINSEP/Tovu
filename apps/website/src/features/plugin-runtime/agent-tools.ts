@@ -31,12 +31,26 @@
  *   wrapped in a confirmation dialog the way `content_post_delete`/`deployment_execute_static_publish`
  *   are: this route itself is deliberately NOT wrapped in the change-set/revert gateway either
  *   (`uninstall.ts`'s own header — "there is no meaningful 'restore the prior state' for deleted
- *   bytes"), so there is no existing human-confirmation transport this tool could reuse without
- *   inventing one, and this pass does not invent one. The description below states the irreversibility
- *   in plain language instead, the same mitigation `plugins_set_enabled`'s own description already
- *   uses for its own DDL risk — whether that is sufficient, or this needs the stronger
- *   actor-class/confirmation gating `backup_execute_restore`/`database_execute_migrate_forward` get,
- *   is flagged as open in the audit and not decided here.
+ *   bytes"). The description below states the irreversibility in plain language instead.
+ *   CORRECTED 2026-09-09: this bullet used to justify that with "there is no existing
+ *   human-confirmation transport this tool could reuse without inventing one" — already false when
+ *   written (ADR-055 Decision 2's held-open exchange had been serving `content_post_delete` since
+ *   2026-08-04), and now visibly so: `plugins_set_enabled` below reuses exactly that transport for
+ *   its own enable path (`set-enabled-confirmation-ui.ts`). Whether `plugins_uninstall` should too is
+ *   a live question this file no longer answers with a false premise; it was simply not part of the
+ *   pass that gated enabling.
+ * - `plugins_set_enabled` is ONE tool covering BOTH plugin families (2026-09-09) — the `.tovu-plugin`
+ *   site/runtime family this module belongs to, AND `features/agent-plugins/`'s separate Agent Plugin
+ *   family, selected by a REQUIRED `family` argument. Two tools would have been the smaller diff and
+ *   the worse answer: the operator asking "turn on the Higgsfield plugin" does not know which of
+ *   Tovu's two plugin systems that word means, and a model choosing between two near-identically
+ *   named enable tools is the exact confusion this catalog exists to prevent. What is deliberately
+ *   NOT folded in is install/uninstall: `DERIVED_RISK_BY_TOOL_ID` is keyed per tool id, so merging a
+ *   reversible flag flip with an operation that runs third-party code or deletes bytes would force
+ *   one risk band onto three very different blast radii.
+ * - Enabling, in either family, raises a real human confirmation and PARKS on the answer
+ *   (`set-enabled-confirmation-ui.ts`, ADR-055 Decision 2's held-open exchange). Disabling does not.
+ *   See that file's header for why the asymmetry is the point rather than an omission.
  * - `plugins_set_enabled` is included, but is NOT the low-risk "flip a flag" operation its own name
  *   suggests: enabling a plugin whose manifest declares a `dataModule` invokes ADR-023's
  *   core-mediated DDL engine (`features/plugins/data-module.ts`) against the LIVE database —
@@ -57,8 +71,12 @@
  *
  * Architectural role:
  * `features/plugin-runtime` domain declaration. Imports nothing from elsewhere in this package —
- * both tools' input shapes are primitive (a string id, a boolean flag), so there is no shared type
- * to import without inventing a dependency this file does not otherwise need.
+ * every entry's input shape is primitive (a string id, a string family, a boolean flag), so there is
+ * no shared type to import without inventing a dependency this file does not otherwise need. In
+ * particular the `family` enum is restated here rather than imported from
+ * `set-enabled-confirmation-ui.ts`'s `PluginFamily`: this module is the CONTRACT the model reads, and
+ * a contract that could silently follow a UI module's rename is not a contract. The two are pinned
+ * together by test instead (`tool-registrations.plugins-set-enabled-families.test.ts`).
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
@@ -91,13 +109,36 @@ const NO_INPUT_SCHEMA = {
 const SET_ENABLED_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["pluginId", "enabled"],
+  required: ["family", "pluginId", "enabled"],
   properties: {
-    pluginId: { type: "string", minLength: 1, description: "The plugin id, as returned by content_read.plugin." },
+    family: {
+      type: "string",
+      enum: ["site-runtime", "agent-plugin"],
+      description:
+        "Which plugin SYSTEM the id belongs to. Required, and never guessed — Tovu has two unrelated systems that share the word 'plugin'. " +
+        "Use 'agent-plugin' for an Agent Plugin (an agent-plugins.org package with a plugin.json, skills and an optional mcp.json — " +
+        "anything search_agent_plugin_local returned, e.g. higgsfield-media). Use 'site-runtime' for a .tovu-plugin site/runtime plugin — " +
+        "anything content_read.plugin returned. If you did not get the id from one of those two tools, call the matching one first rather " +
+        "than picking a family.",
+    },
+    pluginId: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The plugin id. For family 'site-runtime', as returned by content_read.plugin. For family 'agent-plugin', the plugin.json 'name' as " +
+        "returned by search_agent_plugin_local. An id that is not installed/discovered in THIS workspace is refused, and nothing is written.",
+    },
     enabled: {
       type: "boolean",
       description:
-        "true to enable, false to disable. Enabling a plugin whose manifest declares a data module runs schema DDL against the live database (ADR-023's snapshot-protected, transactional core-mediated engine) — this is not a pure metadata toggle. Refused if the plugin is not currently valid (status must be 'valid' to enable; disabling has no such precondition).",
+        "true to enable, false to disable. ENABLING ALWAYS ASKS THE HUMAN FIRST — this tool opens a confirmation dialog and waits for the " +
+        "answer, because turning a plugin on changes what you yourself can do next; do not promise the user it is on until this call returns " +
+        "with changed:true. Disabling is not confirmed (it only removes capability). For family 'site-runtime', enabling a plugin whose " +
+        "manifest declares a data module runs schema DDL against the live database (ADR-023's snapshot-protected, transactional core-mediated " +
+        "engine) and is refused unless the plugin's discovery status is 'valid'; disabling has no such precondition. For family 'agent-plugin', " +
+        "enabling reports restartRequired:true — the activation is durable and takes effect immediately for prompt injection, but the plugin's " +
+        "own agent_plugin_<id> tool is registered only when the agent daemon starts, so relay that restart note to the user instead of " +
+        "claiming the plugin's tool is available now.",
     },
   },
 } as const;
@@ -131,7 +172,15 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "plugins_set_enabled",
     description:
-      "Enables or disables a discovered plugin. Refuses to enable a plugin whose current discovery status is 'invalid' or 'incompatible'. Enabling a plugin with a data module runs live schema DDL (ADR-023) — reversible in the sense that disabling flips the activation flag back, but not a pure no-op toggle.",
+      "Turns a plugin ON or OFF. This is the ONE tool for enabling and disabling plugins, and it covers BOTH of Tovu's plugin systems — " +
+      "say which with the required 'family' argument: 'agent-plugin' for an Agent Plugin found by search_agent_plugin_local (e.g. the " +
+      "higgsfield-media image/video plugin), 'site-runtime' for a .tovu-plugin site plugin listed by content_read.plugin. Use this when the " +
+      "user asks to enable, disable, turn on, turn off, activate or deactivate a plugin, or when a plugin you need is installed but not " +
+      "active. ENABLING OPENS A CONFIRMATION DIALOG AND WAITS for the human to approve it — enabling changes what you yourself can do next, " +
+      "so it is not yours to grant; disabling is not confirmed. Refuses to enable a site-runtime plugin whose discovery status is 'invalid' " +
+      "or 'incompatible'; enabling one with a data module runs live schema DDL (ADR-023) — reversible in the sense that disabling flips the " +
+      "activation flag back, but not a pure no-op toggle. Installing and uninstalling are SEPARATE tools, deliberately: this one only flips " +
+      "an already-installed plugin's switch and never adds or deletes anything.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: SET_ENABLED_SCHEMA,

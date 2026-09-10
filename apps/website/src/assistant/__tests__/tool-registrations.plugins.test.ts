@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import type { UIResource } from "#src/assistant/index";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import {
+  SURFACE_EXCHANGE_ID_PARAM,
+  createSurfaceExchangeStore,
+  type SurfaceExchangeStore,
+} from "../../contracts/core/tool-surface-exchanges.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributePluginsTools } from "../../features/plugin-runtime/tool-registrations.js";
+import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Plugins moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
@@ -197,7 +203,11 @@ test("the ToolPolicy layer is a pass-through 'allow' for both plugins registrati
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   "content_read.plugin": {},
-  plugins_set_enabled: { pluginId: VALID_PLUGIN.id, enabled: true },
+  // `enabled: false`, not `true`: since 2026-09-09 an ENABLE parks on a human confirmation
+  // (`set-enabled-confirmation-ui.ts`), and this shared loop asserts on the authorization gate, not
+  // on the dialog. The enable direction has its own tests below, driven through a real exchange
+  // store. `family` is required and never inferred — see that section's own header.
+  plugins_set_enabled: { pluginId: VALID_PLUGIN.id, enabled: false, family: "site-runtime" },
   // INVALID_PLUGIN, not VALID_PLUGIN: it is `source: "site"` and never activated anywhere in this
   // fixture, so an ALLOWED call actually succeeds (VALID_PLUGIN can't be used here — it is
   // `source: "built-in"`, which uninstallPlugin() always refuses, and this shared loop's
@@ -246,11 +256,51 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   });
 }
 
+/**
+ * Drives `plugins_set_enabled`'s ENABLE direction end to end, answering its confirmation dialog the
+ * way `mcp-ui-tool-calls-route.ts` does for a real human click.
+ *
+ * Built through `buildPluginsRegistrations` directly rather than `buildAssistantToolRegistrations`
+ * because the exchange store has to be one this test can `deliver` into; the assistant-level builder
+ * owns its own store internally. The registration is otherwise identical — same builder, same deps.
+ */
+async function enableWithDecision(
+  deps: RouteDeps,
+  input: Record<string, unknown>,
+  decision: "confirm" | "cancel",
+): Promise<unknown> {
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const registration = buildPluginsRegistrations(deps as unknown as PluginsToolDeps, { surfaceExchanges }).find(
+    (r) => r.descriptor.id === "plugins_set_enabled",
+  );
+  assert.ok(registration, "expected 'plugins_set_enabled' to be wired");
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (surface) => void emitted.push(surface);
+  const pending = registration.handler({
+    executionId: "exec-1",
+    principal: { id: PRINCIPAL_ID },
+    run: { id: "run-1" },
+    input,
+    signal: new AbortController().signal,
+    emitSurface,
+  } as ToolExecutionContext);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
+
+  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the dialog must carry its exchange id");
+  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_set_enabled" });
+  return pending;
+}
+
 test("plugins_set_enabled: authorize() runs before any write", async () => {
   const { deps, order } = fakeRouteDeps();
   order.length = 0;
 
-  await wired(deps, "plugins_set_enabled").handler(executionContext({ pluginId: VALID_PLUGIN.id, enabled: true }));
+  await enableWithDecision(deps, { pluginId: VALID_PLUGIN.id, enabled: true, family: "site-runtime" }, "confirm");
 
   assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
 });
@@ -258,7 +308,7 @@ test("plugins_set_enabled: authorize() runs before any write", async () => {
 test("plugins_set_enabled: refuses to enable a plugin whose discovery status is 'invalid'", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "plugins_set_enabled").handler(executionContext({ pluginId: INVALID_PLUGIN.id, enabled: true })),
+    () => enableWithDecision(deps, { pluginId: INVALID_PLUGIN.id, enabled: true, family: "site-runtime" }, "confirm"),
     /failed validation/,
   );
 });
@@ -266,7 +316,7 @@ test("plugins_set_enabled: refuses to enable a plugin whose discovery status is 
 test("plugins_set_enabled: refuses to enable an unknown plugin id", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "plugins_set_enabled").handler(executionContext({ pluginId: "does-not-exist", enabled: true })),
+    () => enableWithDecision(deps, { pluginId: "does-not-exist", enabled: true, family: "site-runtime" }, "confirm"),
     /was not found/,
   );
 });
@@ -275,9 +325,9 @@ test("plugins_set_enabled: disabling has no validity precondition — a currentl
   const { deps, pluginActivationRepo } = fakeRouteDeps();
   await pluginActivationRepo.save({ pluginId: INVALID_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "0.1.0", enabled: true, updatedAt: NOW });
 
-  const out = (await wired(deps, "plugins_set_enabled").handler(executionContext({ pluginId: INVALID_PLUGIN.id, enabled: false }))) as {
-    plugin: { enabled: boolean };
-  };
+  const out = (await wired(deps, "plugins_set_enabled").handler(
+    executionContext({ pluginId: INVALID_PLUGIN.id, enabled: false, family: "site-runtime" }),
+  )) as { plugin: { enabled: boolean } };
   assert.equal(out.plugin.enabled, false);
 });
 
@@ -297,8 +347,9 @@ test("workflow: list plugins, enable one the list returned, list again to confir
   assert.equal(target.enabled, false, "a never-activated plugin starts disabled");
   assert.equal(target.status, "valid");
 
-  // Step 2: enable — using the id step 1 returned, not a hardcoded literal.
-  await wired(deps, "plugins_set_enabled").handler(executionContext({ pluginId: target.id, enabled: true }));
+  // Step 2: enable — using the id step 1 returned, not a hardcoded literal. Enabling now parks on a
+  // human confirmation, so the workflow answers it the way a real click does.
+  await enableWithDecision(deps, { pluginId: target.id, enabled: true, family: "site-runtime" }, "confirm");
 
   // Step 3: list again — the enable in step 2 must be visible in a FRESH read, proving state
   // actually persisted rather than the tool merely reporting success.

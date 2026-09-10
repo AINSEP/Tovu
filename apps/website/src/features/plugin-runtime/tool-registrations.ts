@@ -73,7 +73,13 @@ import {
   type ToolRegistration,
   type OutboxPort,
 } from "@jini-ai/cms/core";
+import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
+import {
+  resolveConfirmationDecision,
+  type AssistantSurfaceDeps,
+  type ConfirmationOutcome,
+} from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
@@ -101,6 +107,12 @@ import { uninstallPlugin } from "./uninstall.js";
 import { resolveAgentPluginLayout } from "../agent-plugins/layout.js";
 import { listInstalledPlugins } from "../agent-plugins/resolve-agent-plugin-refs.js";
 import type { InstalledAgentPlugin } from "../agent-plugins/install.js";
+// The Agent Plugin half of `plugins_set_enabled` (2026-09-09). `set-enabled.ts` is that feature's own
+// business rule — a DOMAIN module, deliberately not `agent-plugins/tool-registrations.ts` — so this
+// adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
+// "one tool, two families" section below.
+import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
+import { buildEnableConfirmationResource, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
 
@@ -148,7 +160,264 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["plugins_uninstall", "mutates-durable-state"],
 ]);
 
-export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegistration[] {
+/**
+ * ===========================================================================================
+ * `plugins_set_enabled` — one tool, two plugin families
+ * ===========================================================================================
+ * Tovu has two unrelated plugin systems that share the word "plugin":
+ *
+ * - `.tovu-plugin` SITE/RUNTIME plugins — this feature. Discovered by `discoverPlugins()`, activated
+ *   as a database row through `activation.ts`'s `setPluginEnabled`, enable-hook may run ADR-023 DDL.
+ * - AGENT PLUGINS — `features/agent-plugins/`. agent-plugins.org packages on disk, activated as a
+ *   JSON record through `agent-plugins/set-enabled.ts`, whose `SKILL.md` is injected into a run's
+ *   prompt and whose `agent_plugin_<id>` tool only exists while it is active.
+ *
+ * Before 2026-09-09 the assistant could toggle the first and had NO tool at all for the second, so
+ * "find the Higgsfield plugin and use it" dead-ended in chat at the point of turning it on. The fix
+ * is one tool with an explicit `family` argument rather than a second, near-identically-named enable
+ * tool — a model choosing between `plugins_set_enabled` and `agent_plugins_set_enabled` is precisely
+ * the confusion the catalog exists to prevent, and the operator asking to "turn on the Higgsfield
+ * plugin" does not know which system that word means either.
+ *
+ * `family` is REQUIRED and never inferred from the id. The two namespaces are independent, so an id
+ * present in both is possible, and guessing has already produced real work in the wrong directory.
+ *
+ * WHAT IS NOT FOLDED IN, and why it is a rule rather than a preference: install and uninstall stay
+ * separate tools. `DERIVED_RISK_BY_TOOL_ID` is keyed PER TOOL ID, so one tool gets exactly one risk
+ * band. Enabling is reversible and touches a flag; installing runs third-party code; uninstalling
+ * deletes bytes. Merging them would force one band onto three very different blast radii, and the
+ * wiring gate that reads that map fails CLOSED.
+ */
+
+/** One parsed `plugins_set_enabled` call. */
+interface SetEnabledRequest {
+  readonly family: PluginFamily;
+  readonly pluginId: string;
+  readonly enabled: boolean;
+}
+
+/** Reads `family` as an explicit choice between the two real systems.
+ *
+ *  A `ToolInputError`, not a bare `Error`: this genuinely IS "the caller's input was the problem, and
+ *  a different input fixes it", and a bare `Error` out of a tool handler is redacted into an opaque
+ *  failure by the daemon — so the one message that could tell the model which family to name would
+ *  never reach it. @complexity O(1). */
+function readFamily(input: Record<string, unknown>): PluginFamily {
+  const raw = input["family"];
+  if (raw === "site-runtime" || raw === "agent-plugin") return raw;
+  throw new ToolInputError(
+    "'family' is required and must be exactly one of: 'site-runtime' (a .tovu-plugin site plugin, as listed by " +
+      "content_read.plugin) or 'agent-plugin' (an Agent Plugin, as returned by search_agent_plugin_local). Tovu has two " +
+      "unrelated plugin systems and this tool never guesses between them — if you are unsure, call the matching list/search " +
+      "tool first and use the family whose results contained this id.",
+  );
+}
+
+/** @complexity O(1). */
+function readSetEnabledRequest(rawInput: unknown): SetEnabledRequest {
+  const input = requireInputRecord(rawInput);
+  const family = readFamily(input);
+  const pluginId = requireString(input, "pluginId");
+  if (typeof input["enabled"] !== "boolean") {
+    throw new ToolInputError("'enabled' (boolean) is required — true to turn the plugin on, false to turn it off");
+  }
+  return { family, pluginId, enabled: input["enabled"] };
+}
+
+/**
+ * Raises the enable-confirmation dialog and parks on the human's answer.
+ *
+ * Fails CLOSED when the execution context cannot hold a call open, exactly like
+ * `content_post_delete`: degrading to "enable it and mention that we could not ask" would make the
+ * confirmation decorative in precisely the contexts that most need it. Disabling is unaffected —
+ * it never reaches here.
+ *
+ * @throws {Error} When there is no `emitSurface` to raise a dialog through.
+ * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
+ */
+async function confirmEnable(
+  surfaces: AssistantSurfaceDeps,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  request: SetEnabledRequest,
+): Promise<ConfirmationOutcome> {
+  const emitSurface = ctx.emitSurface;
+  if (!emitSurface) {
+    throw new Error(
+      "plugins_set_enabled: this execution context has no interactive confirmation channel (no emitSurface), so a plugin " +
+        "cannot be enabled from here — enabling changes what the assistant itself can do and is not the model's to grant. " +
+        "Nothing was changed. Ask the operator to enable it from the admin, or disable (which needs no confirmation).",
+    );
+  }
+
+  const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_SET_ENABLED_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
+  const ui = buildEnableConfirmationResource({
+    subject: { family: request.family, pluginId: request.pluginId },
+    exchangeId: exchange.id,
+  });
+
+  // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+  // handler open until the idle deadline — mirrors `content_post_delete`'s identical guard.
+  const closeOnAbort = () => exchange.close();
+  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  } finally {
+    ctx.signal.removeEventListener("abort", closeOnAbort);
+  }
+}
+
+/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was changed either way,
+ *  and the model is still alive to read this and say something sensible. @complexity O(1). */
+function notConfirmedResult(outcome: ConfirmationOutcome, request: SetEnabledRequest): unknown {
+  const base = { changed: false, family: request.family, pluginId: request.pluginId, restartRequired: false };
+  if (outcome.confirmed) return base; // unreachable; keeps the return type honest for callers
+  if (outcome.reason === "declined") {
+    return { ...base, cancelled: true, note: `The user declined. '${request.pluginId}' was NOT enabled and nothing changed.` };
+  }
+  return {
+    ...base,
+    cancelled: false,
+    reason: outcome.reason,
+    note:
+      outcome.reason === "expired"
+        ? `The user did not answer the confirmation before it expired. '${request.pluginId}' was NOT enabled.`
+        : `The confirmation was closed because the run ended. '${request.pluginId}' was NOT enabled.`,
+  };
+}
+
+/**
+ * What a caller must still do after a successful toggle, per family and direction.
+ *
+ * This exists because "enabled: true" alone was actively misleading. The activation record is
+ * durable and re-read per run, so the GATE moves immediately — but a plugin's own tool
+ * (`agent_plugin_<id>` for Agent Plugins, a capability tool for site plugins) is registered once, at
+ * agent-daemon boot, and the `search_tools` index is a one-shot snapshot taken right after
+ * (`agent-daemon-server.ts`). So a freshly enabled plugin's TOOL is not callable in the daemon that
+ * is running now. Reporting plain success and letting the operator discover that themselves is the
+ * confusion this field exists to prevent.
+ * @complexity O(1).
+ */
+function restartNoteFor(request: SetEnabledRequest): string {
+  if (request.family === "agent-plugin") {
+    return request.enabled
+      ? `Enabled and saved. Its guidance is available to runs that pin it immediately, but the plugin's own ` +
+          `agent_plugin_${request.pluginId} tool is registered only when the agent daemon starts — tell the user Tovu has to be ` +
+          `restarted before that tool can be called, rather than implying it is usable right now.`
+      : "Disabled and saved. This takes effect immediately: the activation record is re-read on every run.";
+  }
+  return request.enabled
+    ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +
+        "daemon starts — tell the user Tovu has to be restarted before that tool can be called."
+    : "Disabled and saved. Any tool this plugin already contributed stays listed in the running daemon until it restarts.";
+}
+
+/**
+ * The Agent Plugin branch. Reuses `agent-plugins/set-enabled.ts` — the SAME composition
+ * `AGENT_PLUGIN_SET_ENABLED` (the admin route) calls, so there is one writer and one definition of
+ * "installed in this workspace", not a second copy that could drift.
+ * @complexity O(d) in installed-digest count plus one small file rewrite.
+ */
+async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
+  try {
+    const result = await setAgentPluginEnabled({
+      workspaceId: routeDeps.workspaceId,
+      pluginId: request.pluginId,
+      enabled: request.enabled,
+      actor: principalId,
+    });
+    return {
+      changed: true,
+      cancelled: false,
+      family: request.family,
+      agentPlugin: { pluginId: result.pluginId, enabled: result.enabled },
+      restartRequired: result.enabled,
+      note: restartNoteFor(request),
+    };
+  } catch (error) {
+    // Re-classified at the tool boundary for the same reason `readFamily` throws one: an id that is
+    // not installed here IS a caller-input problem with an actionable fix (search first, then use a
+    // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
+    // carries only the plugin id the caller already sent — nothing internal leaks.
+    if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError(error.message);
+    throw error;
+  }
+}
+
+/**
+ * The `.tovu-plugin` site/runtime branch — unchanged in mechanism from before this file grew a
+ * second family: the SAME `executeCommand` composition `routes/admin/plugins/set-enabled.ts` uses,
+ * with the same `captureInverse`/`rollback` pair.
+ * @complexity O(p) in discovered-plugin count, plus the command gateway's own writes.
+ */
+async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
+  const { pluginId, enabled } = request;
+  const discovery = await routeDeps.discoverPlugins();
+  // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
+  // `routes/admin/plugins/set-enabled.ts`'s identical `priorActivation` shape exactly, since this
+  // handler IS that route's own `executeCommand` composition.
+  let priorActivation: PluginActivationRecord | null = null;
+
+  const { result } = await executeCommand<{ activation: PluginActivationRecord }>({
+    deps: {
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      changeSets: routeDeps.changeSets,
+      outbox: routeDeps.outbox,
+      authorize: routeDeps.authorize,
+    },
+    command: {
+      workspaceId: routeDeps.workspaceId,
+      actor: { id: principalId, kind: AGENT_TOOL_PRINCIPAL_KIND },
+      summary: `Agent set plugin '${pluginId}' enabled=${enabled}`,
+      permission: "admin.plugins.enable",
+    },
+    mutation: {
+      entityType: "plugin-activation",
+      entityId: pluginId,
+      operation: "update",
+      captureInverse: async () => {
+        priorActivation = await routeDeps.pluginActivationRepo.getActivation({ workspaceId: routeDeps.workspaceId, pluginId });
+        return { enabled: priorActivation?.enabled ?? false };
+      },
+      execute: () =>
+        setPluginEnabled({
+          deps: {
+            clock: routeDeps.clock,
+            repo: routeDeps.pluginActivationRepo,
+            discovery,
+            onEnabled: routeDeps.onPluginEnabled,
+            onDisabled: routeDeps.onPluginDisabled,
+          },
+          input: { workspaceId: routeDeps.workspaceId, pluginId, enabled },
+        }),
+      rollback: async () => {
+        if (priorActivation) {
+          await routeDeps.pluginActivationRepo.save(priorActivation);
+        } else {
+          await routeDeps.pluginActivationRepo.deleteActivation({ workspaceId: routeDeps.workspaceId, pluginId });
+        }
+        if (priorActivation?.enabled) {
+          await routeDeps.onPluginEnabled(pluginId);
+        } else {
+          routeDeps.onPluginDisabled(pluginId);
+        }
+      },
+    },
+  });
+
+  const record = discovery.find((r) => r.id === pluginId);
+  if (!record) throw new ToolInputError(`plugin '${pluginId}' was not found in the current discovery snapshot`);
+  return {
+    changed: true,
+    cancelled: false,
+    family: request.family,
+    plugin: toAdminPluginResponse(record, result.activation),
+    restartRequired: enabled,
+    note: restartNoteFor(request),
+  };
+}
+
+export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     plugins_list: async (ctx) => {
       requireNoInput(ctx.input);
@@ -164,70 +433,35 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegis
       return { plugins };
     },
 
+    /**
+     * ONE tool, BOTH plugin families. See `agent-tools.ts`'s header for why enable/disable is
+     * consolidated here while install/uninstall deliberately are not, and
+     * `set-enabled-confirmation-ui.ts`'s for why enabling asks a human and disabling does not.
+     *
+     * Order is load-bearing: parse -> authorize -> confirm -> write. The explicit
+     * `requireToolPermission` ahead of the dialog is NOT a second policy (the site-runtime branch's
+     * `executeCommand` still performs its own check on the same permission with the same evaluator,
+     * per ADR-021 §2) — it gates SHOWING THE DIALOG, which is its own disclosure: a principal with no
+     * `admin.plugins.enable` grant must not be able to make a confirmation prompt appear in a human's
+     * chat naming a plugin, let alone reach the write behind it.
+     */
     plugins_set_enabled: async (ctx) => {
-      const input = requireInputRecord(ctx.input);
-      const pluginId = requireString(input, "pluginId");
-      const enabledRaw = input.enabled;
-      if (typeof enabledRaw !== "boolean") throw new Error("'enabled' (boolean) is required");
-      const enabled = enabledRaw;
-
-      const discovery = await routeDeps.discoverPlugins();
-      // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
-      // `routes/admin/plugins/set-enabled.ts`'s identical `priorActivation` shape exactly, since
-      // this handler IS that route's own `executeCommand` composition.
-      let priorActivation: PluginActivationRecord | null = null;
-
-      const { result } = await executeCommand<{ activation: PluginActivationRecord }>({
-        deps: {
-          clock: routeDeps.clock,
-          idGen: routeDeps.idGen,
-          changeSets: routeDeps.changeSets,
-          outbox: routeDeps.outbox,
-          authorize: routeDeps.authorize,
-        },
-        command: {
-          workspaceId: routeDeps.workspaceId,
-          actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-          summary: `Agent set plugin '${pluginId}' enabled=${enabled}`,
-          permission: "admin.plugins.enable",
-        },
-        mutation: {
-          entityType: "plugin-activation",
-          entityId: pluginId,
-          operation: "update",
-          captureInverse: async () => {
-            priorActivation = await routeDeps.pluginActivationRepo.getActivation({ workspaceId: routeDeps.workspaceId, pluginId });
-            return { enabled: priorActivation?.enabled ?? false };
-          },
-          execute: () =>
-            setPluginEnabled({
-              deps: {
-                clock: routeDeps.clock,
-                repo: routeDeps.pluginActivationRepo,
-                discovery,
-                onEnabled: routeDeps.onPluginEnabled,
-                onDisabled: routeDeps.onPluginDisabled,
-              },
-              input: { workspaceId: routeDeps.workspaceId, pluginId, enabled },
-            }),
-          rollback: async () => {
-            if (priorActivation) {
-              await routeDeps.pluginActivationRepo.save(priorActivation);
-            } else {
-              await routeDeps.pluginActivationRepo.deleteActivation({ workspaceId: routeDeps.workspaceId, pluginId });
-            }
-            if (priorActivation?.enabled) {
-              await routeDeps.onPluginEnabled(pluginId);
-            } else {
-              routeDeps.onPluginDisabled(pluginId);
-            }
-          },
-        },
+      const request = readSetEnabledRequest(ctx.input);
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "admin.plugins.enable",
+        entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin",
+        entityId: request.pluginId,
       });
 
-      const record = discovery.find((r) => r.id === pluginId);
-      if (!record) throw new Error(`plugin '${pluginId}' was not found in the current discovery snapshot`);
-      return { plugin: toAdminPluginResponse(record, result.activation) };
+      if (request.enabled) {
+        const outcome = await confirmEnable(surfaces, ctx, request);
+        if (!outcome.confirmed) return notConfirmedResult(outcome, request);
+      }
+
+      return request.family === "agent-plugin"
+        ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
+        : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request);
     },
 
     /**
