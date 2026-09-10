@@ -333,14 +333,23 @@ describe("RestoreFlow shell (rendered via Recovery with a point selected)", () =
 });
 
 describe("DisclosurePanel", () => {
+  /** The count line's quantity and category are separate elements as of the 2026-09-10 web-design
+   *  pass, so `getByText` no longer sees the whole sentence on one node (`getNodeText` reads only
+   *  an element's DIRECT text children). Asserting the row's full `textContent` instead is the
+   *  stronger check either way: it pins the complete rendered string exactly, where the previous
+   *  regex would have passed on any line merely CONTAINING it. */
+  function lossRowTexts(): (string | null)[] {
+    return screen.getAllByRole("listitem").map((li) => li.textContent);
+  }
+
   it("renders a known category's count directly", async () => {
     await renderFlowWithDisclosure({ partial: true, watermarkBaselineAvailable: true, counts: { posts_pages: 3 } });
-    expect(screen.getByText("3 posts/pages writes")).toBeInTheDocument();
+    expect(lossRowTexts()).toContain("3 posts/pages writes");
   });
 
   it("renders 'unknown' counts distinctly (INV-05) rather than as 0", async () => {
     await renderFlowWithDisclosure({ partial: true, watermarkBaselineAvailable: true, counts: { plugin_table: "unknown" } });
-    expect(screen.getByText(/at least an unknown number of plugin-table rows/)).toBeInTheDocument();
+    expect(lossRowTexts()).toContain("at least an unknown number of plugin-table rows");
   });
 
   it("renders only the categories the server actually sent — no placeholder row for an uncovered category", async () => {

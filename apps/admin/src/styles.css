@@ -2752,45 +2752,100 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .recovery-meta-key { color: var(--faint); }
 .recovery-meta-value { color: var(--fg-2); font-weight: 500; }
 
-/* --- Region 2: what it costs. The one place this screen raises its voice. --- */
+/* --- Region 2: what it costs. --- */
+/* Pass #3 (2026-09-10) — the owner rejected pass #2 on sight for one specific reason, and it is
+   the reason this block is mostly rewritten rather than retuned: the two loudest things on the
+   screen were the sentences "at least an unknown number of posts/pages writes" and "…of
+   plugin-table rows", set at 1.15rem/600. That is heading-weight type spent on a hedge. It
+   promises a magnitude in the split second before it is read and then delivers none, which is the
+   exact inverse of what this screen must communicate. Pass #2's own comment called this region
+   "the one place this screen raises its voice" — the voice was right, the words it was raised on
+   were not.
+
+   Pass #3's rule: BIG TYPE IS RESERVED FOR REAL NUMBERS. When a count is a figure, that figure is
+   the largest thing in the region. When it is "unknown", nothing in the ledger is set large at
+   all, and the screen's loudest element becomes the one sentence that actually earns it — the
+   full-bleed `.recovery-baseline-alarm` band below, which says the figures are unverified.
+   Uncertainty still dominates the composition; it just does so by saying so, rather than by
+   shouting a non-number in headline type. */
 .recovery-loss-manifest {
   padding: var(--space-5) var(--space-6) var(--space-6);
-  background: color-mix(in oklch, var(--danger) 5%, var(--surface));
+  /* 5% was invisible in dark mode — verified rendered: `--danger` there is oklch(74%…), so a 5%
+     mix against an oklch(18.5%) surface moved the ground by almost nothing and the region lost its
+     boundary entirely, leaving the spine to do all the work. 9% reads as a distinct ground in
+     both themes, and in dark it lands slightly LIGHTER than the card, which is how depth is built
+     on a dark surface rather than with a heavier border. */
+  background: color-mix(in oklch, var(--danger) 9%, var(--surface));
   border-block: 1px solid color-mix(in oklch, var(--danger) 22%, var(--border));
   /* The spine, as an inset shadow rather than a border-left so it doesn't shift the padding box. */
   box-shadow: inset 3px 0 0 var(--danger);
 }
 .recovery-loss-lede { margin: 0; font-size: var(--text-md); line-height: 1.5; color: var(--fg-2); }
 .recovery-loss-lede strong { color: var(--fg); font-weight: 600; }
-/* A ledger, not a bulleted paragraph. Each discarded category is one ruled row at 1.15rem/600 —
-   the largest body text on the screen, and the only content that outweighs the heading block
-   above it, because it is the thing actually at stake. `list-style: none` because the rules
-   already separate the rows; a marker on top of them would be decoration. */
+/* The full-width hairlines between rows are gone. Two items do not need dividing, and ruled rows
+   read as a data table — which set up the expectation of tabular figures that the "unknown" rows
+   then fail to deliver. Spacing and a marker group them instead. */
 .recovery-loss-list {
   list-style: none; margin: var(--space-4) 0 0; padding: 0;
-  border-top: 1px solid color-mix(in oklch, var(--danger) 18%, var(--border));
+  display: flex; flex-direction: column; gap: var(--space-3);
 }
+/* The marker replaces the rules as the thing that says "these are discrete losses, count them".
+   Square rather than a round bullet so it doesn't read as prose list decoration, and held at 55%
+   so a column of them stays quieter than the region's own spine. */
 .recovery-loss-list li {
-  margin: 0; padding: var(--space-3) 0;
-  border-bottom: 1px solid color-mix(in oklch, var(--danger) 18%, var(--border));
-  font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; color: var(--fg);
+  margin: 0; padding: 0 0 0 var(--space-4); position: relative;
+  line-height: 1.4; color: var(--fg);
 }
+/* Mixed toward `--surface` rather than toward `transparent`: every other mix in this block is
+   opaque, and an oklch mix with `transparent` premultiplies against transparent BLACK, which
+   drags the hue on a light ground. Opaque keeps the marker the same muted red in both themes. */
+.recovery-loss-list li::before {
+  content: ""; position: absolute; left: 0; top: 0.55em;
+  width: 6px; height: 6px; border-radius: 1px;
+  background: color-mix(in oklch, var(--danger) 55%, var(--surface));
+}
+/* The quantity slot. Two states, deliberately not interchangeable (INV-05: an "unknown" is never
+   a verified 0, and the type must not let them be mistaken for each other). */
+/* A REAL figure — the characteristic element of the whole screen when it exists. Display face,
+   tabular figures so a column of them aligns, and the only thing here allowed to outweigh the
+   restore-point heading, because it is the actual size of what is being destroyed. */
+.recovery-loss-qty {
+  font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--fg); font-variant-numeric: tabular-nums;
+}
+/* No figure. Steps all the way down to a muted qualifier — smaller than the noun it qualifies —
+   so the row reads "…posts/pages writes", with the hedge audibly parenthetical. Nothing on an
+   all-unknown ledger is set at heading size, which is the whole point of the pass. */
+.recovery-loss-qty[data-unknown] {
+  font-family: inherit; font-size: var(--text-sm); font-weight: 400;
+  letter-spacing: normal; color: var(--muted);
+}
+/* The category noun — what is actually at stake, and the only thing that differs between one row
+   and the next. Carries the row when there is no figure to carry it. */
+.recovery-loss-what { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); }
 /* Genuinely secondary — it qualifies the ledger's completeness, it is not itself a loss figure.
    Steps all the way down to 12px/muted and takes a reading measure so it reads as a footnote. */
 .recovery-loss-caveat {
-  margin: var(--space-3) 0 0; max-width: 68ch;
+  margin: var(--space-4) 0 0; max-width: 68ch;
   font-size: var(--text-xs); line-height: 1.55; color: var(--muted);
 }
-/* The single most important sentence on this screen when it renders: every count above it is
+/* --- Region 3: the verdict. The single loudest element on the screen. --- */
+/* The one sentence that changes what an operator should do: every figure they just read is
    unverified. `.save-error`'s shared rule is 13px `--danger` text on nothing — indistinguishable
    from the paragraph above it — and pass #1's pale `--danger-bg` outline was barely better. This
-   is the one solid `--danger` fill in the app, which is exactly what `--danger-ink` was added
-   for (see that token). Two classes (0,2,0) beats `.save-error`'s own (0,1,0), so the shared rule
-   stays untouched for every other screen that uses it. */
-.recovery-disclosure-panel .save-error {
-  display: block; margin: var(--space-5) 0 0; padding: var(--space-4) var(--space-5);
-  background: var(--danger); color: var(--danger-ink); border-radius: var(--r-sm);
-  font-size: var(--text-base); font-weight: 600; line-height: 1.45;
+   is the one solid `--danger` fill in the app, which is exactly what `--danger-ink` was added for
+   (see that token). Two classes (0,2,0) beats `.save-error`'s own (0,1,0), so the shared rule
+   stays untouched for every other screen that uses it.
+
+   Full-bleed as of pass #3 (see the JSX note in `Recovery.tsx` on why it is now a sibling of the
+   manifest rather than a child): a rounded red box inset within a tinted box was a box inside a
+   box, and it made the alarm look like a footnote attached to the ledger rather than the ruling
+   on it. Edge to edge, it is unmistakably the rank-1 band in a stack of bands. */
+.recovery-disclosure-panel .recovery-baseline-alarm {
+  display: block; margin: 0; padding: var(--space-5) var(--space-6);
+  background: var(--danger); color: var(--danger-ink); border-radius: 0;
+  font-size: var(--text-base); font-weight: 600; line-height: 1.5;
+  max-width: none;
 }
 .recovery-ceremony-step .save-error {
   display: block; margin: 0; padding: var(--space-4) var(--space-5);
@@ -2798,14 +2853,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   font-size: var(--text-base); font-weight: 600; line-height: 1.45;
 }
 
-/* --- Region 3: the gate. The only thing between "safe" and "issuing a destructive plan". --- */
-/* Given its own tinted ground and full-bleed band rather than being a sentence with a 16px native
-   box in it. Turning `--ok` when satisfied is the whole point: it tells the operator why the
-   button below just became available, which nothing on the previous design did. */
+/* --- Region 4: the gate. The only thing between "safe" and "issuing a destructive plan". --- */
+/* Given a full-bleed band rather than being a sentence with a 16px native box in it. Turning
+   `--ok` when satisfied is the whole point: it tells the operator why the button below just
+   became available, which nothing on the earlier design did.
+
+   Pass #3 dropped its `--surface-2` ground. Three alert-looking treatments were stacking with no
+   rank — the tinted manifest, the solid red alarm, and this band — and `--surface-2` is the one
+   COOL surface in the token set (oklch hue 250) sitting directly under a composition of warm reds,
+   so it read as a third alarm borrowed from a different design system. A gate is a control, not an
+   alert; unfilled, it is the calm step between the verdict above it and the button below, and the
+   `:has(:checked)` tint below is now a real state change rather than one wash replacing another. */
 .recovery-ack-gate {
   display: flex; align-items: flex-start; gap: var(--space-4);
   margin: 0; padding: var(--space-5) var(--space-6);
-  background: var(--surface-2); border-bottom: 1px solid var(--border);
+  background: var(--surface); border-bottom: 1px solid var(--border);
   font-size: var(--text-md); font-weight: 500; line-height: 1.45; color: var(--fg);
   cursor: pointer; transition: background-color 0.14s ease;
 }
@@ -2829,7 +2891,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .recovery-ack-gate { transition: none; }
 }
 
-/* --- Region 4: proceed. Inside the same card, directly under the gate it depends on. --- */
+/* --- Region 5: proceed. Inside the same card, directly under the gate it depends on. --- */
 /* Pass #1 left this floating below the card as a detached button, so nothing visually connected
    the checkbox to the control it unlocks. */
 .recovery-ceremony-step {
@@ -3002,6 +3064,25 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: none;
   border-radius: 0;
   box-shadow: none;
+  /* THE clipping fix (2026-09-10). `@jini-ai/ui`'s own `.jini-tabbed-dialog` is
+     `display: grid` + `grid-template-rows: auto minmax(0, 1fr)` and declares NO
+     `grid-template-columns` at all, so the shell gets one implicit `auto` column
+     — and an `auto` track's MINIMUM is its items' min-content width, which a
+     grid item cannot be shrunk below. Paired with the same rule's
+     `overflow: hidden`, that is a silent clip rather than a scrollbar.
+
+     Measured live at a 1180px viewport with the workspace chat panel open: this
+     element is 488px wide, its single column resolves to 556px, and the extra
+     68px — precisely the eye and trash buttons — is cut off behind the panel
+     with nothing on screen to say it exists. `minmax(0, 1fr)` lets the one
+     column shrink to the box that holds it, which is all this ever needed.
+
+     Fixed here, scoped to this screen, rather than in `tabbed-dialog.css`:
+     that file is a published `@jini-ai/ui` asset shared by Settings,
+     Authentication, and the placeholder tabs, and a grid-sizing change there
+     reaches every consumer. If the same clip turns up on another tab, promote
+     it upstream instead of copying this rule a second time. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
@@ -3238,21 +3319,42 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .agent-plugins-marketplace-empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--jini-text-muted); }
 .agent-plugins-marketplace-link { margin-top: 4px; font-size: 13px; }
 
-/* Narrow admin column: the action cluster keeps its size and the text yields, then the cluster
-   drops under the text rather than crushing it. */
-@media (max-width: 700px) {
+/* Narrow LIST: the action cluster keeps its size and the text yields, then the cluster drops under
+   the text rather than crushing it.
+
+   A CONTAINER query, not the `@media (max-width: 700px)` this replaced (2026-09-10). That media
+   query keyed on the VIEWPORT, and the thing that actually squeezes this row is the workspace chat
+   panel, which takes width from the admin column while leaving the viewport exactly as wide as it
+   was. Measured live at a 1180px viewport with the chat panel open: the list renders 440px wide —
+   comfortably past the point the row needs to stack — while the media query, seeing 1180, never
+   fired. So the row kept its one-line layout, the name truncated to "Site …", and the trash and eye
+   buttons were pushed outside the clip described on `.jini-tabbed-dialog` below. Every viewport
+   width the media query DID catch is a subset of what this catches, so nothing is lost by the swap.
+
+   560px is where the inline layout runs out: glyph (34) + gaps + chevron (16) + the row's own
+   padding (~53) + the action cluster (~207) leaves ~237px of text column, and the longest installed
+   name plus its version chip needs ~170px of that. Below it, the name — the one thing a row exists
+   to identify — is what starts giving way, so that is where the layout changes instead. */
+.agent-plugin-rows { container-type: inline-size; container-name: agent-plugin-list; }
+@container agent-plugin-list (max-width: 560px) {
   .agent-plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
   .agent-plugin-row-summary { padding: 13px 14px 9px 17px; }
   /* The text column no longer has a stable left edge once the actions stack, so the detail panel
      returns to the row's own edge and reclaims the width for its chips. */
   .agent-plugin-row-detail { padding-left: 17px; }
   .agent-plugin-row-actions {
-    justify-content: flex-end; padding: 0 14px 13px 17px;
+    justify-content: flex-end; padding: 0 14px 11px 17px;
     /* Stacked, the zones are separated by their own stacking; a left border would now cut across
        the row's width rather than between two columns. */
     border-left: none; align-self: auto;
   }
-  .agent-plugin-state { min-width: 0; margin-right: auto; text-align: left; }
+  /* Keeps its 8px gap to the switch rather than being pushed to the far edge by a `margin-right:
+     auto`, which is what an earlier revision of this block did: at 440px that put the word 290px
+     from the control it labels, and a state word that far from its switch stops reading as its
+     label. It is signal 2 of 3 for applied state (see `.agent-plugin-row::before`) — it has to stay
+     legibly attached to the other two. Only the fixed `min-width` goes, since the column no longer
+     has a switch below it to stay aligned with. */
+  .agent-plugin-state { min-width: 0; text-align: right; }
 }
 
 /* Every transition above is feedback, not spectacle, and none of it is load-bearing — the switch

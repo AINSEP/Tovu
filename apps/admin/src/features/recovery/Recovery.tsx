@@ -249,12 +249,23 @@ function DisclosurePanel(props: {
           ))}
         </ul>
         <p className="recovery-loss-caveat">{t(locale, "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.")}</p>
-        {!props.disclosure.watermarkBaselineAvailable ? (
-          <p className="save-error" role="alert">
-            {baselineUnavailableMessage(locale)}
-          </p>
-        ) : null}
       </div>
+      {/* A SIBLING of the manifest, not a child of it (web-design pass #3, 2026-09-10). This is the
+          one sentence on the screen that changes what an operator should do — it says every figure
+          they just read is unverified — so it is the composition's rank-1 element and gets the
+          card's full width, the same full-bleed band treatment every other region here has. Nested
+          inside the manifest it rendered as a rounded red box floating inside a tinted box, which
+          is the boxes-in-boxes shape pass #2's own header says it set out to remove.
+
+          Order is unchanged and must stay unchanged: its own text reads "every count **above** is
+          shown as 'unknown'", so it has to follow the counts. That sentence is translated as one
+          static block in all 19 locales (`BASELINE_UNAVAILABLE_TEXT`), so moving it ahead of the
+          ledger would need 19 rewrites, not a reflow. */}
+      {!props.disclosure.watermarkBaselineAvailable ? (
+        <p className="save-error recovery-baseline-alarm" role="alert">
+          {baselineUnavailableMessage(locale)}
+        </p>
+      ) : null}
       <label id="recovery-ack-label" className="recovery-ack-gate">
         <input
           type="checkbox"

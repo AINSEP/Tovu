@@ -1162,19 +1162,40 @@ const UNKNOWN_DISCARD_COUNT_PREFIX: Record<string, string> = {
   bn: "কমপক্ষে অজানা সংখ্যক ",
 };
 
+/**
+ * The quantity and the category are separate elements (web-design pass #3, 2026-09-10) so the
+ * stylesheet can weight them independently. Not a copy change — every locale's words, and their
+ * order, are exactly what they were; only the element boundary between them is new, and the
+ * rendered `textContent` of the row is character-for-character identical.
+ *
+ * Why it was needed: pass #2 set the WHOLE line at 1.15rem/600 — the largest body text on the
+ * screen. On the `"unknown"` branch that is heading-weight type spent on a sentence carrying no
+ * magnitude, and the noun that distinguishes one row from the next ("posts/pages writes" vs
+ * "plugin-table rows") sits at the very END of it, so scanning two rows read "at least an unknown
+ * number of…" twice before reaching anything that differed. Split, `styles.css` can put the weight
+ * on the numeral when there IS one and on the category noun when there is not — see
+ * `.recovery-loss-qty`. `data-unknown` carries which case this is to CSS, so the distinction
+ * INV-05 requires (an `"unknown"` is never a `0`) is now visible in the type itself and not only
+ * in the words.
+ */
 export function discardCountLine(locale: string, count: number | "unknown", categoryLabelText: string): ReactNode {
   if (count === "unknown") {
     const prefix = UNKNOWN_DISCARD_COUNT_PREFIX[locale] ?? UNKNOWN_DISCARD_COUNT_PREFIX.en;
     return (
-      <span>
-        {prefix}
-        {categoryLabelText}
+      <span className="recovery-loss-row">
+        {/* Every locale's prefix already ends in its own trailing space, so the two spans still
+            render — and serialize — as the one sentence they were before. */}
+        <span className="recovery-loss-qty" data-unknown="true">
+          {prefix}
+        </span>
+        <span className="recovery-loss-what">{categoryLabelText}</span>
       </span>
     );
   }
   return (
-    <span>
-      {count} {categoryLabelText}
+    <span className="recovery-loss-row">
+      <span className="recovery-loss-qty">{count}</span>{" "}
+      <span className="recovery-loss-what">{categoryLabelText}</span>
     </span>
   );
 }
