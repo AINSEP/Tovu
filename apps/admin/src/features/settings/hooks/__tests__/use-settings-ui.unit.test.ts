@@ -41,15 +41,17 @@ describe("useSettingsUi — local view state", () => {
 });
 
 describe("useSettingsUi — once-per-mount ports stay referentially stable across re-renders", () => {
-  it("port/mediaProvidersPort/skillsPort keep the same object identity after an unrelated state update", () => {
+  // `mediaProvidersPort` dropped out of this assertion on 2026-09-10 with the Media providers tab
+  // itself — see `SettingsUi.tsx`'s header for why that inert duplicate was deleted rather than
+  // moved. `port` and `skillsPort` are the two once-per-mount refs this hook still owns.
+  it("port/skillsPort keep the same object identity after an unrelated state update", () => {
     const { result, rerender } = renderHook(() => useSettingsUi());
-    const { port, mediaProvidersPort, skillsPort } = result.current;
+    const { port, skillsPort } = result.current;
 
     act(() => result.current.setModalOpen(true));
     rerender();
 
     expect(result.current.port).toBe(port);
-    expect(result.current.mediaProvidersPort).toBe(mediaProvidersPort);
     expect(result.current.skillsPort).toBe(skillsPort);
   });
 });
@@ -75,12 +77,21 @@ describe("useSettingsUi — save state merge", () => {
   });
 });
 
-describe("useSettingsUi — composed sub-controllers are present", () => {
-  it("wires composio and externalMcp as real controllers, not stubs", () => {
+// The "composed sub-controllers are present" case that lived here MOVED, unchanged in what it
+// asserts, to `features/providers/hooks/__tests__/use-providers.unit.test.ts` — `composio` and
+// `externalMcp` are `useProviders`'s controllers now, not this hook's (2026-09-10, see
+// `SettingsUi.tsx`'s header). It was moved rather than re-authored so the guarantee it encodes
+// (real controllers, not stubs) survives the restructure intact.
+
+describe("useSettingsUi — the moved tabs' controllers are gone from this hook", () => {
+  it("no longer exposes composio, externalMcp or mediaProvidersPort", () => {
+    // A negative assertion, deliberately: the four tabs those fields fed left this screen, and a
+    // stray re-add here would silently re-mount a second live Composio/External MCP controller
+    // alongside the Providers page's own — two independent controllers writing the same sealed
+    // `composio_config` row and the same `external_mcp_servers` table.
     const { result } = renderHook(() => useSettingsUi());
-    expect(result.current.composio).toHaveProperty("save");
-    expect(result.current.composio).toHaveProperty("clear");
-    expect(result.current.externalMcp).toHaveProperty("dependencies");
-    expect(result.current.externalMcp).toHaveProperty("restartRequired");
+    expect(result.current).not.toHaveProperty("composio");
+    expect(result.current).not.toHaveProperty("externalMcp");
+    expect(result.current).not.toHaveProperty("mediaProvidersPort");
   });
 });

@@ -59,18 +59,31 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
-describe("Add-Ons nav section", () => {
-  it("exists with exactly Plugins, Agent Plugins in that order", () => {
-    const addOns = getNav().find((group) => group.label === "Add-Ons");
-    expect(addOns).toBeDefined();
+describe("Integrations nav section", () => {
+  // Renamed from "Add-Ons" 2026-09-10 (owner call) and widened from two rows to four: `providers`
+  // and `integrations` joined `plugins`/`agent-plugins` under one group split on direction of
+  // travel — see `panels.tsx`'s own comment on the `providers` panel for the full reasoning.
+  it("exists with exactly Providers, APIs & Webhooks, Plugins, Agent Plugins in that order", () => {
+    const integrations = getNav().find((group) => group.label === "Integrations");
+    expect(integrations).toBeDefined();
 
-    const ids = addOns!.items.map((item) => item.id);
-    expect(ids).toEqual(["plugins", "agent-plugins"]);
+    const ids = integrations!.items.map((item) => item.id);
+    expect(ids).toEqual(["providers", "integrations", "plugins", "agent-plugins"]);
+  });
+
+  // Regression guard: this exact row was mislabeled "Developer API" twice before landing on
+  // "APIs & Webhooks" — see `panels.tsx`'s own comment on the `integrations` panel entry.
+  it("the integrations panel is labeled 'APIs & Webhooks', not 'Developer API' or 'External APIs'", () => {
+    const integrations = getNav().find((group) => group.label === "Integrations");
+    const item = integrations!.items.find((i) => i.id === "integrations");
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe("APIs & Webhooks");
   });
 
   it("agent-plugins is a fully enabled link, not a soon/preview-gated one", () => {
-    const addOns = getNav().find((group) => group.label === "Add-Ons");
-    const item = addOns!.items.find((i) => i.id === "agent-plugins");
+    const integrations = getNav().find((group) => group.label === "Integrations");
+    const item = integrations!.items.find((i) => i.id === "agent-plugins");
 
     expect(item).toBeDefined();
     expect(item?.label).toBe("Agent Plugins");

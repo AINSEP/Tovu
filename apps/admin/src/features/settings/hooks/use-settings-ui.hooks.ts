@@ -1,13 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import {
-  createFakeMediaProvidersPort,
   createFakeSkillsPort,
-  createFakeSourceConfigDependencies,
   type ExecutionConfig,
   type MemoryTopTab,
   type NotificationsPreferences,
   type PrivacyConsentState,
-  type SourceConfigItem,
 } from "@jini-ai/ui";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -41,13 +38,11 @@ import {
   type AppearanceConfig,
 } from "@/lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
-import { useWiredComposioConfig, type ComposioConfigController } from "./use-composio-config.hooks";
-import { useExternalMcp, type ExternalMcpController } from "./use-external-mcp.hooks";
 import { areAnySlicesLoading, firstLoadError } from "../rules";
 
 /**
  * @file `SettingsUi`'s port/slice/save-merge bootstrap, so `SettingsUi` in `SettingsUi.tsx` is only
- * markup (the 13-tab `SettingsDialogTab[]` array and the shell mounts).
+ * markup (the 9-tab `SettingsDialogTab[]` array and the shell mounts).
  *
  * Extracted verbatim — same state, same declaration order, same slice configs. `ADMIN_LOCALES` and
  * `DEFAULT_INSTRUCTIONS` stay imported directly by `SettingsUi.tsx` rather than being threaded
@@ -57,10 +52,15 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * Six independent `useSettingsSlice` instances are mounted — one per ledger-backed tab (Execution,
  * Instructions, Notifications, Privacy, Dialog appearance, Language) — each with its own load,
  * debounce, save chain, and diff base (see `use-settings-slice.hooks.ts`'s own header for why that
- * independence matters). The remaining seven tabs (MCP server, Media providers, Connectors,
- * Memory, External MCP, Skills, About) have no Tovu backend and so mount no slice; their fake
- * ports/dependencies are still constructed here (via `useRef`, so each mounts once) since they are
- * the same kind of "stable thing the view needs a reference to" as the slices are.
+ * independence matters). The remaining three tabs (Memory, Skills, About) have no Tovu backend and
+ * so mount no slice; Skills' fake port is still constructed here (via `useRef`, so it mounts once)
+ * since it is the same kind of "stable thing the view needs a reference to" as the slices are.
+ *
+ * The Composio and External MCP controllers this hook used to expose left on 2026-09-10 with their
+ * tabs — see `SettingsUi.tsx`'s header. They are composed by
+ * `features/providers/hooks/use-providers.hooks.ts` now, which deliberately does NOT reuse this
+ * hook: neither controller was ever settings-ledger-backed, and mounting six unrelated slices to
+ * reach them would have put the Providers page behind five loads it never displays.
  */
 
 export interface SettingsUiController {
@@ -72,20 +72,7 @@ export interface SettingsUiController {
   setMemoryTopTab: (tab: MemoryTopTab) => void;
 
   port: ReturnType<typeof createExecutionPort>;
-  mediaProvidersPort: ReturnType<typeof createFakeMediaProvidersPort>;
   skillsPort: ReturnType<typeof createFakeSkillsPort>;
-  /**
-   * The External MCP tab's real transport, plus the Tovu-specific field specs and the
-   * restart-required flag. Backed by the `external_mcp_servers` table rather than the settings
-   * ledger, so it is not a `SettingsSlice` — see `use-external-mcp.hooks.ts`.
-   */
-  externalMcp: ExternalMcpController;
-
-  /**
-   * The Connectors tab's Composio API key. Not a `SettingsSlice` — it is backed by its own sealed
-   * `composio_config` row rather than the settings ledger; see `use-composio-config.hooks.ts`.
-   */
-  composio: ComposioConfigController;
 
   execution: SettingsSlice<ExecutionConfig>;
   instructions: SettingsSlice<string>;
@@ -123,20 +110,21 @@ export function useSettingsUi(): SettingsUiController {
       useAdminStoredCredential: true,
     }),
   );
-  // Fresh, empty in-memory ports for the three inert-wrapped backend-less
-  // tabs below (Media providers, Skills) — `useRef` so each mounts once, not
-  // once per render. `{ skills: [] }` overrides `createFakeSkillsPort`'s own
-  // sample-data default; without it the tab would show skills that don't
-  // exist in this Tovu install, which is exactly the fabricated-data problem
-  // these ports otherwise avoid.
-  const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
+  // A fresh, empty in-memory port for the one remaining inert-wrapped backend-less tab (Skills)
+  // — `useRef` so it mounts once, not once per render. `{ skills: [] }` overrides
+  // `createFakeSkillsPort`'s own sample-data default; without it the tab would show skills that
+  // don't exist in this Tovu install, which is exactly the fabricated-data problem this port
+  // otherwise avoids.
+  //
+  // The Media providers fake port that used to sit beside this one is gone with its tab (2026-09-10
+  // — see `SettingsUi.tsx`'s header): the real Media providers surface is on the Media screen over
+  // a real backend, and a second fake copy of it here was showing an inert control under a note
+  // claiming Tovu had no media-provider backend, which stopped being true.
   const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
   // Which segment of the inert-wrapped `MemorySettingsPanel` mount below is
   // showing. Local view state only — nothing here persists, matching every
   // other prop this tab's `inert` control feeds.
   const [memoryTopTab, setMemoryTopTab] = useState<MemoryTopTab>("memories");
-  const composio = useWiredComposioConfig();
-  const externalMcp = useExternalMcp();
 
   const execution = useSettingsSlice<ExecutionConfig>({
     load: loadExecutionConfig,
@@ -193,11 +181,7 @@ export function useSettingsUi(): SettingsUiController {
     setMemoryTopTab,
 
     port: port.current,
-    mediaProvidersPort: mediaProvidersPort.current,
     skillsPort: skillsPort.current,
-    externalMcp,
-
-    composio,
 
     execution,
     instructions,

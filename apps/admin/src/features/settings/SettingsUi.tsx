@@ -7,30 +7,48 @@
  * was that both stay available. `settings-raw/` was later deleted once `/settings` was judged to
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
- * 13 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
- * Dialog appearance, Language, MCP server, Media providers, Connectors,
- * Memory, External MCP, Skills, About. The shell is generic over its tab
- * array, so adding more is appending entries to `tabs` below — not
- * restructuring this file. Each ledger-backed tab owns one `useSettingsSlice`
- * instance (its own load, debounce, save chain and diff base); the page
- * chrome renders `mergeSaveStates` over all of them. The last five of the 13
- * (Media providers, Connectors, Memory, External MCP, Skills) have no Tovu
- * backend at all and so own no slice. All five mount their real `@jini-ai/ui`
- * component behind the same `settings-ui-inert-wrap`/`inert` pattern Privacy's
- * telemetry toggles use below, fed an empty/fresh fake port so nothing
- * fabricated is shown. Memory and External MCP had no ready-made `*Tab`
- * export upstream as of the previous pass over this file — `MemorySettingsPanel`
- * (composing `MemoryList`/`MemoryHowPanel` with a new header) was built for
- * that pass; see `packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx`
- * in Jini for its own doc comment. External MCP originally mounted Jini's own
- * `ExternalMcpTab` the same way, but that component takes a single static
- * `fieldSpecs` prop with no way to react to what the operator is currently
- * typing — fine while every server was `stdio`-only, not once a server's real
- * shape depends on a live transport/auth-mode choice (`stdio`/`streamable_http`,
- * `none`/`static_env`/`oauth`). It is now `./ExternalMcpSettingsPanel.tsx`, a
- * Tovu-owned recomposition of the SAME lower-level `@jini-ai/ui` pieces
- * `ExternalMcpTab` itself is built from — see that file's own doc comment for
- * the full reasoning.
+ * 9 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
+ * Dialog appearance, Language, Memory, Skills, About. The shell is generic
+ * over its tab array, so adding more is appending entries to `tabs` below —
+ * not restructuring this file. Each ledger-backed tab owns one
+ * `useSettingsSlice` instance (its own load, debounce, save chain and diff
+ * base); the page chrome renders `mergeSaveStates` over all of them. Memory
+ * and Skills have no Tovu backend at all and so own no slice; both mount
+ * their real `@jini-ai/ui` component behind the same
+ * `settings-ui-inert-wrap`/`inert` pattern Privacy's telemetry toggles use
+ * below, fed an empty/fresh fake port so nothing fabricated is shown. Memory
+ * had no ready-made `*Tab` export upstream as of an earlier pass over this
+ * file — `MemorySettingsPanel` (composing `MemoryList`/`MemoryHowPanel` with a
+ * new header) was built for it; see
+ * `packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx`
+ * in Jini for its own doc comment.
+ *
+ * ## Four tabs LEFT this file on 2026-09-10 (owner-approved nav restructure)
+ *
+ * MCP server, Media providers, Connectors and External MCP are no longer here.
+ * They were never "settings" in the sense the nine above are — three of them
+ * configure an outside service with a credential, and the fourth exposes this
+ * install to an MCP client — so they became two top-level nav rows under the
+ * new "Integrations" group instead of tabs an operator had to know to look for
+ * behind Settings:
+ *
+ * - MCP server  -> `features/integrations/DeveloperApi.tsx`, "MCP Server" tab.
+ * - Connectors  -> `features/providers/Providers.tsx`, "Composio" tab (relabelled to the vendor's
+ *                  own name; "Connectors" told an operator nothing about what they were setting up).
+ * - External MCP -> `features/providers/Providers.tsx`, "External MCP" tab.
+ * - Media providers -> DELETED outright, not moved. It was an `inert` mount over
+ *   `createFakeMediaProvidersPort()` under a note reading "Tovu doesn't have a media-provider
+ *   backend yet" — a claim that stopped being true when the REAL, persisted Media providers tab
+ *   shipped on the Media screen (`features/media/Media.tsx`, `?tab=media-providers`, backed by
+ *   `media-providers-port.ts` -> `api.getMediaProviders()` and the `media_provider_credentials`
+ *   table). Keeping a second, non-functional copy of a shipped screen would have been the more
+ *   confusing outcome, and `features/security/rules.ts` already deep-linked the media-provider
+ *   credential store to the real one.
+ *
+ * `ExternalMcpSettingsPanel.tsx`, `ComposioKeyField.tsx`, `connectors-port.ts` and their
+ * rules/i18n/hook files still physically live in THIS folder — see
+ * `features/providers/hooks/use-providers.hooks.ts` for why moving that file set is a deliberate
+ * follow-up rather than part of the restructure.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -47,13 +65,10 @@
 
 import {
   AppearanceTab,
-  ConnectorsBrowser,
   ExecutionTab,
   I18nProvider,
   InstructionsTab,
-  IntegrationsTab,
   LanguageTab,
-  MediaProvidersTab,
   MemorySettingsPanel,
   NotificationsTab,
   PrivacyTab,
@@ -61,7 +76,6 @@ import {
   SettingsDialogShell,
   SkillsTab,
   type ExecutionConfig,
-  type MediaProviderOption,
   type MemoryConfigFlagKey,
   type MemoryEntrySummary,
   type MemoryExtractionRecord,
@@ -72,15 +86,12 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
-import { ExternalMcpSettingsPanel } from "./ExternalMcpSettingsPanel";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
 import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
-import { ComposioKeyField } from "./ComposioKeyField";
-import { connectorsDependencies } from "./connectors-port";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
@@ -95,12 +106,6 @@ function TabIcon({ children }: { children: React.ReactNode }) {
     </svg>
   );
 }
-
-/** Stable empty catalog for the inert-wrapped `MediaProvidersTab` mount below
- *  — Tovu genuinely has zero configured providers, so an empty array is the
- *  honest state, not a stand-in for missing data. Module-level so it's the
- *  same array reference across renders. */
-const EMPTY_MEDIA_PROVIDER_CATALOG: readonly MediaProviderOption[] = [];
 
 /** Stable empty set for the inert-wrapped `SkillsTab` mount below — the tab
  *  is unusable inside its `inert` wrapper, so this never actually gets
@@ -490,109 +495,6 @@ export function SettingsUi(props: SettingsUiProps) {
       ),
     },
     {
-      id: "mcp",
-      label: t("MCP server"),
-      title: t("MCP server"),
-      // The component defaults to an in-memory fake port, so this renders and
-      // is explorable with no backend at all. Wiring a real McpIntegrationsPort
-      // to Tovu's daemon is its own piece of work.
-      subtitle: t("Connect an MCP client. Showing sample output — not yet wired to a live server."),
-      icon: (
-        <TabIcon>
-          <path d="M4 6.5h10M4 11.5h10" />
-          <circle cx="6.5" cy="6.5" r="1.5" />
-          <circle cx="11.5" cy="11.5" r="1.5" />
-        </TabIcon>
-      ),
-      panel: <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />,
-    },
-    {
-      id: "media-providers",
-      label: t("Media providers"),
-      title: t("Media providers"),
-      subtitle: t("API keys for image, video, and audio generation."),
-      icon: (
-        <TabIcon>
-          <path d="M3 4.5h12v9H3z" />
-          <circle cx="7" cy="8" r="1.4" />
-          <path d="M4 12l3.5-3 2 2 2.5-3 3 4" />
-        </TabIcon>
-      ),
-      /**
-       * No Tovu backend, but a real `*Tab` export exists — mirrors the
-       * Privacy tab's `inert`-wrap pattern (see that panel's comment below)
-       * rather than `ComingSoonPanel`: `MediaProvidersTab` renders and is
-       * genuinely explorable, just genuinely unusable. `catalog` is the
-       * empty, stable `EMPTY_MEDIA_PROVIDER_CATALOG` — Tovu really has zero
-       * configured providers, so the tab's own "No media providers
-       * configured yet." empty state is the honest state, not a stand-in.
-       */
-      panel: (
-        <div className="settings-ui-inert-wrap">
-          <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.",
-            )}
-          </p>
-          <div className="settings-ui-inert-control" inert>
-            <MediaProvidersTab port={s.mediaProvidersPort} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} agentHandle="settings-media-providers" />
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "connectors",
-      label: t("Connectors"),
-      title: t("Connectors"),
-      subtitle: t("Third-party accounts and APIs via Composio."),
-      icon: (
-        <TabIcon>
-          <path d="M4 5h10M4 9h10M4 13h10" />
-          <circle cx="7" cy="5" r="1.4" />
-          <circle cx="11" cy="9" r="1.4" />
-          <circle cx="6" cy="13" r="1.4" />
-        </TabIcon>
-      ),
-      /**
-       * LIVE, no longer `inert`. `dependencies` is Tovu's real `ConnectorsPort`
-       * (`connectors-port.ts`) over the `/connectors` admin routes, so the grid
-       * shows the provider's real 181-entry Composio catalog rather than the
-       * empty in-memory fake this tab used to fall back to.
-       *
-       * `unlocked` tracks whether a Composio API key is actually saved, so it
-       * is still Tovu's real state — just a state the operator can now change,
-       * via the `ComposioKeyField` above (the input OD had in its own page
-       * chrome and this component has never shipped).
-       *
-       * Connect/disconnect are fully wired: authorizing opens Composio's
-       * consent page in a popup and finishes at Tovu's own public callback
-       * route, which `postMessage`s this window (see `connectors-port.ts`).
-       * While still locked, `ConnectorGrid` masks the grid and disables every
-       * card, so those actions are unreachable until a key exists rather than
-       * merely failing.
-       *
-       * `ctaHref` points at Composio's real site (`app.composio.dev`, per
-       * `packages/ui/source-map.md`'s provenance note for this component).
-       */
-      panel: (
-        <>
-          <ComposioKeyField composio={s.composio} />
-          <ConnectorsBrowser
-            unlocked={s.composio.unlocked}
-            dependencies={connectorsDependencies}
-            catalogRefreshKey={s.composio.catalogRefreshKey}
-            gate={{
-              title: "Add your Composio API key to continue",
-              body: "Paste your key above to load available integrations.",
-              ctaLabel: "Get API Key",
-              ctaHref: "https://app.composio.dev",
-            }}
-            agentHandle="settings-connectors"
-          />
-        </>
-      ),
-    },
-    {
       id: "memory",
       label: t("Memory"),
       title: t("Memory"),
@@ -653,46 +555,6 @@ export function SettingsUi(props: SettingsUiProps) {
             />
           </div>
         </div>
-      ),
-    },
-    {
-      id: "external-mcp",
-      label: t("External MCP"),
-      title: t("External MCP"),
-      subtitle: t("Add MCP tools from external services."),
-      icon: (
-        <TabIcon>
-          <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
-          <path d="M9 13.5V16" />
-        </TabIcon>
-      ),
-      /**
-       * Tovu as MCP *client* — distinct from the "MCP server" tab above, where
-       * Tovu is the one being connected TO. Live since the `external_mcp_servers`
-       * store landed; this was previously an `inert` reference mount.
-       *
-       * `ExternalMcpSettingsPanel` (Tovu's own, `./ExternalMcpSettingsPanel.tsx`)
-       * computes its own field specs reactively from the transport/auth-mode the
-       * operator is currently choosing — see that file's own doc comment. See
-       * also `use-external-mcp.hooks.ts` for why the port carries an allowlist
-       * field at all (`mcp-federation/trust.ts` R2's default-deny means a saved
-       * server with none contributes zero tools).
-       *
-       * `saveStatusLabel` deliberately carries the restart notice instead of
-       * "All changes saved": a saved row is persisted but NOT live, because the
-       * admitted tool set is frozen at connect (R5). Telling an operator their
-       * change is saved, when the running assistant still cannot see the server,
-       * would be true and useless.
-       */
-      panel: (
-        <ExternalMcpSettingsPanel
-          dependencies={s.externalMcp.dependencies}
-          saveStatusLabel={
-            s.externalMcp.restartRequired
-              ? tCap("Saved — restart Tovu to connect")
-              : tCap("Changes apply when Tovu restarts")
-          }
-        />
       ),
     },
     {

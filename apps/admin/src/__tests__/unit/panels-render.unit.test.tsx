@@ -12,7 +12,8 @@ import { Comments } from "../../features/comments";
 import { Analytics } from "../../features/analytics";
 import { Media } from "../../features/media";
 import { Menus, MenuEditor } from "../../features/menus";
-import { Integrations, IntegrationDeliveries } from "../../features/integrations";
+import { DeveloperApi, IntegrationDeliveries } from "../../features/integrations";
+import { Providers } from "../../features/providers";
 import { Users } from "../../features/users";
 import { Authentication } from "../../features/authentication";
 import { Payments } from "../../features/commerce";
@@ -66,9 +67,12 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  it("has exactly 46 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(46);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
+  // 47 as of 2026-09-10: `providers` joined in the owner-approved Integrations nav restructure.
+  // `integrations` did NOT leave — it kept its id and its `/:subscriptionId` route and only
+  // changed nav label ("Integrations & API" -> "APIs & Webhooks") and group.
+  it("has exactly 47 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(47);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
   });
 });
 
@@ -124,6 +128,7 @@ const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["source-control", SourceControl],
   ["access-tokens", Security],
   ["settings", SettingsUi],
+  ["providers", Providers],
   // The nav-less `/appearance` alias for the SITE-themes screen (ADR-063) — its render has no
   // `ctx.view` switch of its own (unlike `themes` below, which also handles `theme-explore`), so it
   // fits this generic table even though it renders the same `Themes` component `themes` does.
@@ -297,8 +302,13 @@ describe("panel 'themes'", () => {
 });
 
 describe("panel 'integrations'", () => {
-  it("index route renders Integrations", () => {
-    expect((panel("integrations").render(ctx()) as ReactElement).type).toBe(Integrations);
+  // The panel id stays `integrations` while its nav label reads "APIs & Webhooks" — route ids are
+  // independent of nav labels throughout `panels.tsx`, so this asserts the id/route pairing that
+  // keeps every existing `/admin/integrations` bookmark working, not the label.
+  it("index route renders DeveloperApi, threading ?tab= through", () => {
+    const el = panel("integrations").render(ctx({ query: new URLSearchParams("tab=mcp-server") })) as ReactElement;
+    expect(el.type).toBe(DeveloperApi);
+    expect(el.props).toMatchObject({ tabId: "mcp-server" });
   });
 
   it("integration-deliveries view renders IntegrationDeliveries with subscriptionId", () => {

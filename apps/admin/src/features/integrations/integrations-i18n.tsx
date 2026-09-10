@@ -22,6 +22,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "¿Eliminar webhook?",
     Operations: "Operaciones",
     Integrations: "Integraciones",
+    "APIs & Webhooks": "API y Webhooks",
+    "MCP Server": "Servidor MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Cómo otras herramientas se comunican con este sitio: webhooks salientes y la conexión de un cliente MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Envía notificaciones webhook a servicios externos cuando el contenido de este sitio cambia.",
     "Add webhook": "Agregar webhook",
@@ -49,6 +54,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Hapus webhook?",
     Operations: "Operasi",
     Integrations: "Integrasi",
+    "APIs & Webhooks": "API & Webhooks",
+    "MCP Server": "Server MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Cara alat lain berkomunikasi dengan situs ini — webhook keluar dan menghubungkan klien MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Mengirim notifikasi webhook ke layanan eksternal saat konten di situs ini berubah.",
     "Add webhook": "Tambah webhook",
@@ -76,6 +86,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Webhook löschen?",
     Operations: "Betrieb",
     Integrations: "Integrationen",
+    "APIs & Webhooks": "API & Webhooks",
+    "MCP Server": "MCP-Server",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Wie andere Tools mit dieser Website kommunizieren – ausgehende Webhooks und die Verbindung eines MCP-Clients.",
     "Send webhook notifications to external services when content on this site changes.":
       "Sendet Webhook-Benachrichtigungen an externe Dienste, wenn sich Inhalte auf dieser Website ändern.",
     "Add webhook": "Webhook hinzufügen",
@@ -103,6 +118,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "删除 webhook?",
     Operations: "运维",
     Integrations: "集成",
+    "APIs & Webhooks": "API 与 Webhook",
+    "MCP Server": "MCP 服务器",
+    "Webhooks": "Webhook",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "其他工具如何与本站通信 — 出站 Webhook，以及连接 MCP 客户端。",
     "Send webhook notifications to external services when content on this site changes.":
       "当此站点上的内容发生变化时,向外部服务发送 webhook 通知。",
     "Add webhook": "添加 webhook",
@@ -130,6 +150,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "刪除 webhook?",
     Operations: "維運",
     Integrations: "整合",
+    "APIs & Webhooks": "API 與 Webhook",
+    "MCP Server": "MCP 伺服器",
+    "Webhooks": "Webhook",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "其他工具如何與本站通訊 — 外送 Webhook，以及連接 MCP 用戶端。",
     "Send webhook notifications to external services when content on this site changes.":
       "當此網站上的內容變更時,向外部服務傳送 webhook 通知。",
     "Add webhook": "新增 webhook",
@@ -157,6 +182,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Excluir webhook?",
     Operations: "Operações",
     Integrations: "Integrações",
+    "APIs & Webhooks": "API e Webhooks",
+    "MCP Server": "Servidor MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Como outras ferramentas se comunicam com este site — webhooks de saída e a conexão de um cliente MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Envia notificações de webhook para serviços externos quando o conteúdo deste site muda.",
     "Add webhook": "Adicionar webhook",
@@ -184,6 +214,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Удалить webhook?",
     Operations: "Эксплуатация",
     Integrations: "Интеграции",
+    "APIs & Webhooks": "API и Webhooks",
+    "MCP Server": "MCP-сервер",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Как другие инструменты взаимодействуют с этим сайтом — исходящие вебхуки и подключение MCP-клиента.",
     "Send webhook notifications to external services when content on this site changes.":
       "Отправляет webhook-уведомления во внешние сервисы при изменении контента на этом сайте.",
     "Add webhook": "Добавить webhook",
@@ -211,6 +246,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "حذف webhook؟",
     Operations: "عملیات",
     Integrations: "یکپارچه‌سازی‌ها",
+    "APIs & Webhooks": "API و Webhooks",
+    "MCP Server": "سرور MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "چگونه ابزارهای دیگر با این سایت ارتباط برقرار می‌کنند — وب‌هوک‌های خروجی و اتصال یک کلاینت MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "با تغییر محتوای این سایت، اعلان‌های webhook را به سرویس‌های خارجی ارسال می‌کند.",
     "Add webhook": "افزودن webhook",
@@ -238,6 +278,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "حذف الـ webhook؟",
     Operations: "العمليات",
     Integrations: "عمليات التكامل",
+    "APIs & Webhooks": "API و Webhooks",
+    "MCP Server": "خادم MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "كيف تتواصل الأدوات الأخرى مع هذا الموقع — الويب هوك الصادرة، وتوصيل عميل MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "يرسل إشعارات webhook إلى خدمات خارجية عند تغيّر المحتوى على هذا الموقع.",
     "Add webhook": "إضافة webhook",
@@ -265,6 +310,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "webhookを削除しますか?",
     Operations: "運用",
     Integrations: "連携",
+    "APIs & Webhooks": "APIとWebhook",
+    "MCP Server": "MCP サーバー",
+    "Webhooks": "Webhook",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "他のツールがこのサイトとやり取りする方法 — 送信 Webhook と MCP クライアントの接続。",
     "Send webhook notifications to external services when content on this site changes.":
       "このサイトのコンテンツが変更されたときに、外部サービスへwebhook通知を送信します。",
     "Add webhook": "webhookを追加",
@@ -292,6 +342,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "webhook을 삭제하시겠습니까?",
     Operations: "운영",
     Integrations: "통합",
+    "APIs & Webhooks": "API 및 Webhook",
+    "MCP Server": "MCP 서버",
+    "Webhooks": "Webhook",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "다른 도구가 이 사이트와 통신하는 방법 — 아웃바운드 웹훅과 MCP 클라이언트 연결.",
     "Send webhook notifications to external services when content on this site changes.":
       "이 사이트의 콘텐츠가 변경되면 외부 서비스로 webhook 알림을 보냅니다.",
     "Add webhook": "webhook 추가",
@@ -319,6 +374,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Usunąć webhook?",
     Operations: "Operacje",
     Integrations: "Integracje",
+    "APIs & Webhooks": "API i Webhooks",
+    "MCP Server": "Serwer MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Jak inne narzędzia komunikują się z tą witryną — wychodzące webhooki i podłączanie klienta MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Wysyła powiadomienia webhook do zewnętrznych usług, gdy treść w tej witrynie się zmienia.",
     "Add webhook": "Dodaj webhook",
@@ -346,6 +406,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Törli a webhookot?",
     Operations: "Üzemeltetés",
     Integrations: "Integrációk",
+    "APIs & Webhooks": "API és Webhooks",
+    "MCP Server": "MCP-kiszolgáló",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Hogyan kommunikálnak más eszközök ezzel a webhellyel – kimenő webhookok és MCP-kliens csatlakoztatása.",
     "Send webhook notifications to external services when content on this site changes.":
       "Webhook-értesítéseket küld külső szolgáltatásoknak, amikor a webhely tartalma megváltozik.",
     "Add webhook": "Webhook hozzáadása",
@@ -373,6 +438,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Supprimer le webhook ?",
     Operations: "Opérations",
     Integrations: "Intégrations",
+    "APIs & Webhooks": "API et Webhooks",
+    "MCP Server": "Serveur MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Comment d'autres outils communiquent avec ce site — webhooks sortants et connexion d'un client MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Envoie des notifications webhook à des services externes lorsque le contenu de ce site change.",
     "Add webhook": "Ajouter un webhook",
@@ -400,6 +470,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Видалити webhook?",
     Operations: "Експлуатація",
     Integrations: "Інтеграції",
+    "APIs & Webhooks": "API та Webhooks",
+    "MCP Server": "MCP-сервер",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Як інші інструменти взаємодіють із цим сайтом — вихідні вебхуки та підключення MCP-клієнта.",
     "Send webhook notifications to external services when content on this site changes.":
       "Надсилає webhook-сповіщення до зовнішніх сервісів, коли вміст цього сайту змінюється.",
     "Add webhook": "Додати webhook",
@@ -427,6 +502,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Webhook silinsin mi?",
     Operations: "Operasyonlar",
     Integrations: "Entegrasyonlar",
+    "APIs & Webhooks": "API ve Webhooks",
+    "MCP Server": "MCP Sunucusu",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Diğer araçlar bu siteyle nasıl konuşur — giden webhook'lar ve bir MCP istemcisi bağlama.",
     "Send webhook notifications to external services when content on this site changes.":
       "Bu sitedeki içerik değiştiğinde harici hizmetlere webhook bildirimleri gönderir.",
     "Add webhook": "Webhook ekle",
@@ -454,6 +534,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "ลบ webhook ใช่หรือไม่",
     Operations: "ปฏิบัติการ",
     Integrations: "การผสานการทำงาน",
+    "APIs & Webhooks": "API และ Webhook",
+    "MCP Server": "เซิร์ฟเวอร์ MCP",
+    "Webhooks": "Webhook",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "เครื่องมืออื่นสื่อสารกับไซต์นี้อย่างไร — เว็บฮุคขาออก และการเชื่อมต่อไคลเอ็นต์ MCP",
     "Send webhook notifications to external services when content on this site changes.":
       "ส่งการแจ้งเตือน webhook ไปยังบริการภายนอกเมื่อเนื้อหาในเว็บไซต์นี้เปลี่ยนแปลง",
     "Add webhook": "เพิ่ม webhook",
@@ -481,6 +566,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "Eliminare il webhook?",
     Operations: "Operazioni",
     Integrations: "Integrazioni",
+    "APIs & Webhooks": "API e Webhooks",
+    "MCP Server": "Server MCP",
+    "Webhooks": "Webhooks",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "Come altri strumenti comunicano con questo sito: webhook in uscita e connessione di un client MCP.",
     "Send webhook notifications to external services when content on this site changes.":
       "Invia notifiche webhook a servizi esterni quando i contenuti di questo sito cambiano.",
     "Add webhook": "Aggiungi webhook",
@@ -508,6 +598,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "वेबहुक हटाएं?",
     Operations: "संचालन",
     Integrations: "इंटीग्रेशन",
+    "APIs & Webhooks": "API और वेबहुक",
+    "MCP Server": "MCP सर्वर",
+    "Webhooks": "वेबहुक",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "अन्य टूल इस साइट से कैसे बात करते हैं — आउटबाउंड वेबहुक, और MCP क्लाइंट कनेक्ट करना।",
     "Send webhook notifications to external services when content on this site changes.":
       "जब इस साइट पर सामग्री बदलती है, तो बाहरी सेवाओं को वेबहुक सूचनाएं भेजें।",
     "Add webhook": "वेबहुक जोड़ें",
@@ -535,6 +630,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "ویب ہک حذف کریں؟",
     Operations: "کارروائیاں",
     Integrations: "انٹیگریشنز",
+    "APIs & Webhooks": "API اور ویب ہکس",
+    "MCP Server": "MCP سرور",
+    "Webhooks": "ویب ہکس",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "دوسرے ٹولز اس سائٹ سے کیسے بات کرتے ہیں — آؤٹ باؤنڈ ویب ہکس، اور MCP کلائنٹ کو جوڑنا۔",
     "Send webhook notifications to external services when content on this site changes.":
       "جب اس سائٹ پر مواد تبدیل ہو تو بیرونی سروسز کو ویب ہک اطلاعات بھیجیں۔",
     "Add webhook": "ویب ہک شامل کریں",
@@ -562,6 +662,11 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
     "Delete webhook?": "ওয়েবহুক মুছবেন?",
     Operations: "অপারেশনস",
     Integrations: "ইন্টিগ্রেশন",
+    "APIs & Webhooks": "API ও ওয়েবহুক",
+    "MCP Server": "MCP সার্ভার",
+    "Webhooks": "ওয়েবহুক",
+    "How other tools talk to this site — outbound webhooks, and connecting an MCP client.":
+      "অন্যান্য টুল কীভাবে এই সাইটের সঙ্গে যোগাযোগ করে — আউটবাউন্ড ওয়েবহুক, এবং একটি MCP ক্লায়েন্ট সংযুক্ত করা।",
     "Send webhook notifications to external services when content on this site changes.":
       "এই সাইটের কন্টেন্ট পরিবর্তিত হলে বাহ্যিক পরিষেবাগুলোতে ওয়েবহুক বিজ্ঞপ্তি পাঠায়।",
     "Add webhook": "ওয়েবহুক যোগ করুন",

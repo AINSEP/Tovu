@@ -11,7 +11,8 @@ import { Comments } from "./features/comments";
 import { Analytics } from "./features/analytics";
 import { Media } from "./features/media";
 import { Menus, MenuEditor } from "./features/menus";
-import { Integrations, IntegrationDeliveries } from "./features/integrations";
+import { DeveloperApi, IntegrationDeliveries } from "./features/integrations";
+import { Providers } from "./features/providers";
 import { Users } from "./features/users";
 import { Authentication } from "./features/authentication";
 import { Payments } from "./features/commerce";
@@ -571,7 +572,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
 
-  // --- Add-Ons ---
+  // --- Integrations ---
   // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
   // skills, design tokens — whereas plugins/agent-plugins are installed capabilities that extend
   // what the site can DO, which is a different axis.
@@ -584,21 +585,102 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // standard below.) The `.tovu-plugin` runtime family (this "Plugins" row) and the Agent Plugins
   // open standard (agent-plugins.org) are genuinely different systems that happen to share the word
   // "plugin" — the flat "Plugins" heading had already caused an agent to work in the wrong
-  // directory. "Plugins" and "Agent Plugins" are now two sibling rows under one "Add-Ons" umbrella
-  // label instead of one implying it contains the other.
+  // directory. "Plugins" and "Agent Plugins" are two sibling rows under one umbrella label instead
+  // of one implying it contains the other. All of that reasoning is UNCHANGED by the rename below;
+  // only the umbrella's NAME moved, not the decision to have one or what goes under it.
+  //
+  // 2026-09-10: group renamed "Add-Ons" -> "Integrations" (owner call) and widened from two rows to
+  // four. "Add-Ons" described installed capabilities only, which stopped covering the group once it
+  // took on both directions of the same outside-the-boundary concern:
+  //   - `providers`      — an outside service Tovu CONSUMES, configured with a credential.
+  //   - `integrations`   — other tools reaching Tovu, both directions at once (see below).
+  //   - `plugins` / `agent-plugins` — capabilities installed INTO Tovu (the original two rows).
+  // Renaming the group also resolved a real collision: the `integrations` panel's own old nav label
+  // was "Integrations & API", which would have read as a row named almost exactly like its own
+  // group.
+  //
+  // The `integrations` row's OWN label went through two wrong answers before landing on "APIs &
+  // Webhooks" (owner call, corrects an earlier pass that shipped "Developer API" twice): that row
+  // holds two tabs pointed in OPPOSITE directions — MCP Server (something else connects INTO Tovu,
+  // i.e. Tovu exposing an API) and Webhooks (Tovu pushes OUT to a subscriber's endpoint). "Developer
+  // API" only describes the inbound half; a webhook push is not "Tovu's API" from the receiving
+  // service's point of view. "External APIs" was considered too and rejected as backwards — it reads
+  // as Tovu CONSUMING outside APIs, which is `providers`' job, not this row's. "APIs & Webhooks"
+  // names both halves the row actually holds.
+  //
+  // "MCP" deliberately does NOT appear as a nav label at any level in this group (owner call). The
+  // protocol name appears only on TABS inside these pages, where the surrounding page context
+  // explains what it is — an operator who doesn't know the acronym can still find the screen.
+  {
+    id: "providers",
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs —
+    // same `?tab=` deep-linking convention as `deployment`'s and `settings`'s own entries elsewhere
+    // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen.
+    render: (ctx) => <Providers tabId={ctx.query.get("tab")} />,
+    nav: {
+      // First row in the group, ahead of APIs & Webhooks: this is the direction an operator reaches
+      // for far more often (wiring Tovu UP to an outside service) than the reverse.
+      label: "Providers",
+      group: "Integrations",
+      // An outlet/socket — "somewhere to plug an outside service in". Distinct from
+      // `agent-plugins`' radiating-node glyph and `plugins`' plug-into-a-box silhouette directly
+      // below, both of which describe something installed INTO Tovu rather than connected to it.
+      icon: '<rect x="2.5" y="4" width="13" height="10" rx="2"/><circle cx="6.5" cy="9" r="1.25"/><circle cx="11.5" cy="9" r="1.25"/>',
+    },
+    agentReachable: true,
+  },
+  {
+    // Moved here from Operations 2026-09-10 (owner call) and relabelled "Integrations & API" ->
+    // "APIs & Webhooks" (see the group comment above for why "Developer API" — this row's own first
+    // relabel — was wrong, and why "External APIs" was rejected too). Same panel, same screen, same
+    // URL space — this row is how OTHER TOOLS talk to this Tovu install, in both directions at once
+    // (an MCP client connecting in, and outbound webhooks going out), which is the opposite of
+    // `providers` above (Tovu reaching OUT to a service it consumes) and the reason both belong in
+    // one group.
+    //
+    // The panel **id** stays `integrations` even though the label no longer says "Integrations":
+    // the id IS the route (`/integrations`, plus the `/:subscriptionId` deliveries sub-route below)
+    // and the `agent-pages.ts` allowlist key, so renaming it to match the new label would break
+    // every existing deep link and bookmark for a cosmetic gain. Route ids are independent of nav
+    // labels throughout this file — `id: "access-tokens"` labelled "Secrets" is the same call, made
+    // for the same reason (see that entry's own comment).
+    id: "integrations",
+    // `?tab=` deep-linking as of the same pass: two tabs — MCP Server (Tovu as an MCP server
+    // something else connects TO) and Webhooks (outbound, Tovu pushing OUT). Guarded by
+    // `resolveDeveloperApiTabId` inside the screen, same convention as `deployment`/`settings`.
+    // The `integration-deliveries` sub-route below renders its OWN full screen rather than a tab,
+    // unchanged — it is a drill-down from one webhook row, not a peer of these two.
+    render: (ctx) => {
+      switch (ctx.view) {
+        case "integration-deliveries":
+          // Guaranteed present: this view only fires when `/:subscriptionId` matched.
+          return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
+        default:
+          return <DeveloperApi tabId={ctx.query.get("tab")} />;
+      }
+    },
+    nav: {
+      label: "APIs & Webhooks",
+      group: "Integrations",
+      icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
+    },
+    agentReachable: true,
+    routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
+  },
   {
     id: "plugins",
     render: (ctx) => <Plugins tabId={ctx.query.get("tab")} />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
-      // being marked `soon`. Label reverted to "Plugins" now that the group above is "Add-Ons", not
-      // "Plugins" — the OLD "Installed" relabel existed only to avoid "Plugins > Plugins" reading
-      // as a mistake, which is moot once the group itself is renamed. The panel **id** is
+      // being marked `soon`. Label reverted to "Plugins" once the group above stopped ALSO being
+      // called "Plugins" — the OLD "Installed" relabel existed only to avoid "Plugins > Plugins"
+      // reading as a mistake, which is moot under any other group name ("Add-Ons" then,
+      // "Integrations" now). The panel **id** is
       // deliberately unchanged: it is the route (`/plugins`) and the `agent-pages.ts` allowlist
       // key, so renaming it would break both for a cosmetic gain.
       label: "Plugins",
-      group: "Add-Ons",
+      group: "Integrations",
       icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
     },
     agentReachable: true,
@@ -607,7 +689,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "agent-plugins",
     render: () => <AgentPlugins />,
     nav: {
-      // Sibling row under "Add-Ons", alongside Plugins: surfaces the Agent Plugins open standard
+      // Sibling row alongside Plugins: surfaces the Agent Plugins open standard
       // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct
       // from the site-capability plugins the other row manages. Renders `AgentPlugins.tsx`, a real
       // screen reading real per-workspace data over `AGENT_PLUGINS_LIST`
@@ -616,7 +698,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // `.tovu-plugin` Marketplace nav row removed from the Plugins entry above (see that entry's
       // group comment).
       label: "Agent Plugins",
-      group: "Add-Ons",
+      group: "Integrations",
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
     },
     agentReachable: true,
@@ -745,25 +827,6 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
     },
     agentReachable: true,
-  },
-  {
-    id: "integrations",
-    render: (ctx) => {
-      switch (ctx.view) {
-        case "integration-deliveries":
-          // Guaranteed present: this view only fires when `/:subscriptionId` matched.
-          return <IntegrationDeliveries subscriptionId={ctx.params.subscriptionId} />;
-        default:
-          return <Integrations />;
-      }
-    },
-    nav: {
-      label: "Integrations & API",
-      group: "Operations",
-      icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
-    },
-    agentReachable: true,
-    routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
   {
     id: "recovery",

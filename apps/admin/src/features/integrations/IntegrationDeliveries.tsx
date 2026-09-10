@@ -33,7 +33,7 @@ export function IntegrationDeliveries({
       <a href="/admin/integrations">{t("← Integrations")}</a>
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Operations")}</p>
+          <p className="page-kicker">{t("Integrations")}</p>
           <h1 className="page-title">{t("Delivery log")}</h1>
           <p className="page-description">{t("Every delivery attempt logged for this webhook subscription.")}</p>
         </div>

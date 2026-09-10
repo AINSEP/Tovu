@@ -146,15 +146,22 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
   );
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">{t("Operations")}</p>
-          <h1 className="page-title">{t("Integrations")}</h1>
-          <p className="page-description">
-            {t("Send webhook notifications to external services when content on this site changes.")}
-          </p>
-        </div>
+    <div className="integrations-tab-body">
+      {/* No `page`/`page-header` of its own since 2026-09-10: this component is now a TAB BODY under
+          `DeveloperApi.tsx`'s single page shell, which draws the kicker, title and description for
+          the whole APIs & Webhooks page. A tab body that re-declared a page title directly beneath
+          the page title it sits under would read as a rendering bug — the same reason
+          `AccessTokensTab`/`SiteTokenTab` are headerless under `Security.tsx`'s one shell. The
+          description this header used to carry ("Send webhook notifications to external services
+          when content on this site changes.") is not lost — it moved to the tab's own intro line
+          below, where it still explains the tab without competing with the page title.
+
+          The "Add webhook" control moved with it, from `page-actions` into this row. Same button,
+          same handle, same behaviour — only its position changed. */}
+      <div className="integrations-tab-intro">
+        <p className="page-description">
+          {t("Send webhook notifications to external services when content on this site changes.")}
+        </p>
         <div className="page-actions">
           <button
             className={formOpen ? "btn-secondary" : undefined}
