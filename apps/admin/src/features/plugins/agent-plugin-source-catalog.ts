@@ -57,6 +57,32 @@ import siteComplianceReferencesCcpaCpraSource from "../../../../../content/agent
 import siteComplianceReferencesGdprEuUkSource from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/references/gdpr-eu-uk.md?raw";
 import siteComplianceReferencesWcag22Source from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/references/wcag-2-2.md?raw";
 
+// Same shape and same rationale as `site-compliance` above: a real, installed, enabled plugin at
+// `content/agent-plugins/tovu-deploy-fly/`, read directly rather than vendored.
+import tovuDeployFlyManifestSource from "../../../../../content/agent-plugins/tovu-deploy-fly/plugin.json?raw";
+import tovuDeployFlyMcpSource from "../../../../../content/agent-plugins/tovu-deploy-fly/mcp.json?raw";
+import tovuDeployFlySkillSource from "../../../../../content/agent-plugins/tovu-deploy-fly/skills/tovu-deploy-fly/SKILL.md?raw";
+import tovuDeployFlyReferencesFlyDeployTemplateSource from "../../../../../content/agent-plugins/tovu-deploy-fly/skills/tovu-deploy-fly/references/fly-deploy.template.yml?raw";
+import tovuDeployFlyReferencesFlyTemplateSource from "../../../../../content/agent-plugins/tovu-deploy-fly/skills/tovu-deploy-fly/references/fly.template.toml?raw";
+import tovuDeployFlyReferencesMachinesApiPathSource from "../../../../../content/agent-plugins/tovu-deploy-fly/skills/tovu-deploy-fly/references/machines-api-path.md?raw";
+
+// Same shape and same rationale, at `content/agent-plugins/higgsfield-media/`.
+import higgsfieldMediaManifestSource from "../../../../../content/agent-plugins/higgsfield-media/plugin.json?raw";
+import higgsfieldMediaMcpSource from "../../../../../content/agent-plugins/higgsfield-media/mcp.json?raw";
+import higgsfieldMediaSkillSource from "../../../../../content/agent-plugins/higgsfield-media/skills/higgsfield-media/SKILL.md?raw";
+import higgsfieldMediaReferencesFailureModesSource from "../../../../../content/agent-plugins/higgsfield-media/skills/higgsfield-media/references/failure-modes.md?raw";
+import higgsfieldMediaReferencesModelsAndPlanGatesSource from "../../../../../content/agent-plugins/higgsfield-media/skills/higgsfield-media/references/models-and-plan-gates.md?raw";
+
+// Same shape and same rationale, at `content/agent-plugins/github/` (added 2026-09-10, commit
+// a6264465 -- this catalog entry was written against that same commit's on-disk file set).
+import githubManifestSource from "../../../../../content/agent-plugins/github/plugin.json?raw";
+import githubMcpSource from "../../../../../content/agent-plugins/github/mcp.json?raw";
+import githubSkillSource from "../../../../../content/agent-plugins/github/skills/github/SKILL.md?raw";
+import githubReferencesActionsSource from "../../../../../content/agent-plugins/github/skills/github/references/actions.md?raw";
+import githubReferencesAuthAndTokensSource from "../../../../../content/agent-plugins/github/skills/github/references/auth-and-tokens.md?raw";
+import githubReferencesRepoFilesSource from "../../../../../content/agent-plugins/github/skills/github/references/repo-files.md?raw";
+import githubReferencesSourceControlSource from "../../../../../content/agent-plugins/github/skills/github/references/source-control.md?raw";
+
 export interface BundledAgentPluginSourceFile {
   readonly relativePath: string;
   readonly content: string;
@@ -172,12 +198,62 @@ export const SITE_COMPLIANCE_SOURCE_FILES: readonly BundledAgentPluginSourceFile
 ];
 
 /**
+ * Compile-time inventory of `content/agent-plugins/tovu-deploy-fly/`'s files -- see the import
+ * block above for why this reads that directory directly rather than through a vendored copy.
+ */
+export const TOVU_DEPLOY_FLY_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] = [
+  { relativePath: "plugin.json", content: tovuDeployFlyManifestSource },
+  { relativePath: "mcp.json", content: tovuDeployFlyMcpSource },
+  { relativePath: "skills/tovu-deploy-fly/SKILL.md", content: tovuDeployFlySkillSource },
+  {
+    relativePath: "skills/tovu-deploy-fly/references/fly-deploy.template.yml",
+    content: tovuDeployFlyReferencesFlyDeployTemplateSource,
+  },
+  { relativePath: "skills/tovu-deploy-fly/references/fly.template.toml", content: tovuDeployFlyReferencesFlyTemplateSource },
+  {
+    relativePath: "skills/tovu-deploy-fly/references/machines-api-path.md",
+    content: tovuDeployFlyReferencesMachinesApiPathSource,
+  },
+];
+
+/**
+ * Compile-time inventory of `content/agent-plugins/higgsfield-media/`'s files -- see the import
+ * block above for why this reads that directory directly rather than through a vendored copy.
+ */
+export const HIGGSFIELD_MEDIA_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] = [
+  { relativePath: "plugin.json", content: higgsfieldMediaManifestSource },
+  { relativePath: "mcp.json", content: higgsfieldMediaMcpSource },
+  { relativePath: "skills/higgsfield-media/SKILL.md", content: higgsfieldMediaSkillSource },
+  {
+    relativePath: "skills/higgsfield-media/references/failure-modes.md",
+    content: higgsfieldMediaReferencesFailureModesSource,
+  },
+  {
+    relativePath: "skills/higgsfield-media/references/models-and-plan-gates.md",
+    content: higgsfieldMediaReferencesModelsAndPlanGatesSource,
+  },
+];
+
+/**
+ * Compile-time inventory of `content/agent-plugins/github/`'s files -- see the import block above
+ * for why this reads that directory directly rather than through a vendored copy.
+ */
+export const GITHUB_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] = [
+  { relativePath: "plugin.json", content: githubManifestSource },
+  { relativePath: "mcp.json", content: githubMcpSource },
+  { relativePath: "skills/github/SKILL.md", content: githubSkillSource },
+  { relativePath: "skills/github/references/actions.md", content: githubReferencesActionsSource },
+  { relativePath: "skills/github/references/auth-and-tokens.md", content: githubReferencesAuthAndTokensSource },
+  { relativePath: "skills/github/references/repo-files.md", content: githubReferencesRepoFilesSource },
+  { relativePath: "skills/github/references/source-control.md", content: githubReferencesSourceControlSource },
+];
+
+/**
  * Closed lookup: unknown plugin ids expose no files and trigger no IO.
  *
- * NOTE: `github`, `higgsfield-media`, and `tovu-deploy-fly` are also real, installed, enabled
- * plugins (same `content/agent-plugins/<id>/` shape as `site-compliance`) and currently fall
- * through to `[]` here exactly as `site-compliance` did before this catalog entry was added --
- * same defect, not yet fixed. Each needs its own reviewed entry, the same way this one was added.
+ * Every plugin actually enabled in `activations.json` (`site-compliance`, `tovu-deploy-fly`,
+ * `higgsfield-media`, `github`) has a reviewed entry here as of 2026-09-10; `ui-ux-design` is the
+ * one entry with no installed counterpart -- an inert reference bundle, not a real plugin.
  */
 export function getBundledAgentPluginSourceFiles(pluginId: string): readonly BundledAgentPluginSourceFile[] {
   switch (pluginId) {
@@ -185,6 +261,12 @@ export function getBundledAgentPluginSourceFiles(pluginId: string): readonly Bun
       return UI_UX_DESIGN_SOURCE_FILES;
     case "site-compliance":
       return SITE_COMPLIANCE_SOURCE_FILES;
+    case "tovu-deploy-fly":
+      return TOVU_DEPLOY_FLY_SOURCE_FILES;
+    case "higgsfield-media":
+      return HIGGSFIELD_MEDIA_SOURCE_FILES;
+    case "github":
+      return GITHUB_SOURCE_FILES;
     default:
       return [];
   }

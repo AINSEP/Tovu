@@ -132,59 +132,72 @@ describe("ui-ux-design Agent Plugin package", () => {
   });
 });
 
-// Unlike `ui-ux-design` above, `site-compliance` is a real, executable Agent Plugin: it lives at
-// this repo's own `content/agent-plugins/site-compliance/` (not a separate checkout like Jini), is
-// walked by `seedBundledAgentPlugins()` on the server, and is installed-and-activated for every
-// site (see `sites/tovu-com/agent-plugins/ws/workspace-local/activations.json`, `enabled: true`).
-// Because it never needed a portability workaround, this reads it directly rather than through a
-// second vendored copy -- one source of truth, no drift risk between what ships and what the
-// inspector shows. Resolved from this file's own location for the same cwd-independence reason
-// `PLUGIN_ROOT` above is.
-const SITE_COMPLIANCE_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "..",
-  "..",
-  "..",
-  "..",
-  "content",
-  "agent-plugins",
-  "site-compliance",
-);
-const SITE_COMPLIANCE_SKILLS_ROOT = path.join(SITE_COMPLIANCE_ROOT, "skills");
+// Unlike `ui-ux-design` above, these are real, executable Agent Plugins: each lives at this repo's
+// own `content/agent-plugins/<id>/` (not a separate checkout like Jini), is walked by
+// `seedBundledAgentPlugins()` on the server, and is installed-and-activated for every site (see
+// `sites/tovu-com/agent-plugins/ws/workspace-local/activations.json`, all four `enabled: true` as
+// of 2026-09-10). Because none of them needed a portability workaround, the catalog reads each
+// directly rather than through a vendored copy -- one source of truth, no drift risk between what
+// ships and what the inspector shows.
+//
+// One parameterized contract instead of one copy-pasted describe block per plugin, so a plugin's
+// own test can't quietly drift out of step with what the others check (the exact gap that let
+// `site-compliance` alone get fixed while `github`/`higgsfield-media`/`tovu-deploy-fly` stayed
+// broken the same way -- see this file's own git history).
+function describeContentAgentPlugin(pluginId: string): void {
+  // Resolved from this file's own location for the same cwd-independence reason `PLUGIN_ROOT`
+  // above is -- passes regardless of the runner's working directory.
+  const pluginRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "..",
+    "..",
+    "..",
+    "content",
+    "agent-plugins",
+    pluginId,
+  );
+  const skillsRoot = path.join(pluginRoot, "skills");
 
-describe("site-compliance Agent Plugin package", () => {
-  it("uses a manifest whose name matches the catalog entry and is actually reachable from the inspector", () => {
-    const manifest = JSON.parse(readFileSync(path.join(SITE_COMPLIANCE_ROOT, "plugin.json"), "utf8")) as Record<
-      string,
-      unknown
-    >;
-    expect(manifest.name).toBe("site-compliance");
+  describe(`${pluginId} Agent Plugin package`, () => {
+    it("uses a manifest whose name matches the catalog entry and is actually reachable from the inspector", () => {
+      const manifest = JSON.parse(readFileSync(path.join(pluginRoot, "plugin.json"), "utf8")) as Record<
+        string,
+        unknown
+      >;
+      expect(manifest.name).toBe(pluginId);
 
-    // The bug this test was written to catch: `getBundledAgentPluginSourceFiles` returning `[]` for
-    // a real, installed, enabled plugin because the compile-time catalog never listed it.
-    expect(getBundledAgentPluginSourceFiles(manifest.name as string).length).toBeGreaterThan(0);
+      // The bug this test was written to catch: `getBundledAgentPluginSourceFiles` returning `[]`
+      // for a real, installed, enabled plugin because the compile-time catalog never listed it.
+      expect(getBundledAgentPluginSourceFiles(manifest.name as string).length).toBeGreaterThan(0);
+    });
+
+    it("exposes the full on-disk file set, with matching content, and rejects unknown or traversal-like paths", () => {
+      const sourceFiles = getBundledAgentPluginSourceFiles(pluginId);
+      const onDiskSkillFiles = listFilesRelativeTo(skillsRoot, pluginRoot);
+
+      // Set equality against a live directory walk, not a hardcoded list -- a catalog entry that
+      // silently dropped a reference file still has the wrong *set* even if some other file offsets
+      // the count.
+      expect(sourceFiles.map((file) => file.relativePath).sort()).toEqual(
+        ["plugin.json", "mcp.json", ...onDiskSkillFiles].sort(),
+      );
+
+      for (const file of sourceFiles) {
+        const resolved = path.resolve(pluginRoot, file.relativePath);
+        expect(resolved.startsWith(`${pluginRoot}${path.sep}`)).toBe(true);
+        expect(file.content).toBe(readFileSync(resolved, "utf8"));
+      }
+
+      expect(findBundledAgentPluginSourceFile(sourceFiles, "../../../../etc/passwd")).toBeNull();
+      expect(findBundledAgentPluginSourceFile(sourceFiles, `skills/${pluginId}/references/missing.md`)).toBeNull();
+    });
   });
+}
 
-  it("exposes the full on-disk file set, with matching content, and rejects unknown or traversal-like paths", () => {
-    const sourceFiles = getBundledAgentPluginSourceFiles("site-compliance");
-    const onDiskSkillFiles = listFilesRelativeTo(SITE_COMPLIANCE_SKILLS_ROOT, SITE_COMPLIANCE_ROOT);
-
-    // Set equality against a live directory walk, not a hardcoded list -- a catalog entry that
-    // silently dropped a reference file still has the wrong *set* even if some other file offsets
-    // the count.
-    expect(sourceFiles.map((file) => file.relativePath).sort()).toEqual(
-      ["plugin.json", "mcp.json", ...onDiskSkillFiles].sort(),
-    );
-
-    for (const file of sourceFiles) {
-      const resolved = path.resolve(SITE_COMPLIANCE_ROOT, file.relativePath);
-      expect(resolved.startsWith(`${SITE_COMPLIANCE_ROOT}${path.sep}`)).toBe(true);
-      expect(file.content).toBe(readFileSync(resolved, "utf8"));
-    }
-
-    expect(findBundledAgentPluginSourceFile(sourceFiles, "../../../../etc/passwd")).toBeNull();
-    expect(findBundledAgentPluginSourceFile(sourceFiles, "skills/site-compliance/references/missing.md")).toBeNull();
-  });
-});
+describeContentAgentPlugin("site-compliance");
+describeContentAgentPlugin("tovu-deploy-fly");
+describeContentAgentPlugin("higgsfield-media");
+describeContentAgentPlugin("github");
