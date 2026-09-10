@@ -95,11 +95,13 @@ import type { ToolContributor } from "#src/assistant/index";
  * and `tool-catalog.ts` (the FTS5 seed) weights `id` 6x `description` in `bm25()` — a 64-hex-char
  * digest folded into every id would only dilute that per-term signal for zero search benefit. That
  * tradeoff makes an ambiguous pluginId — two installed digests of the SAME plugin — a case this
- * loader REFUSES outright (see {@link loadInstalledAgentPluginToolSources}) rather than silently
- * picking one, the
+ * loader REFUSES rather than silently picking one: {@link loadInstalledAgentPluginToolSources}
+ * logs it loudly and excludes just that one plugin from the returned tool sources, the
  * same "loud, explicit ambiguity error" precedent `resolve-agent-plugin-refs.ts`'s own module doc
- * already establishes for a pinned ref that resolves to more than one digest. Adapted here from
- * per-(plugin,skill)-pair to per-plugin, since a plugin id is now the entire granularity of a tool.
+ * already establishes for a pinned ref that resolves to more than one digest — except scoped to the
+ * one ambiguous plugin rather than aborting every other installed plugin's tool along with it.
+ * Adapted here from per-(plugin,skill)-pair to per-plugin, since a plugin id is now the entire
+ * granularity of a tool.
  *
  * ---------------------------------------------------------------------------
  * The optional `skill` argument, and why the default is NOT "dump everything"
@@ -303,8 +305,9 @@ interface InstalledPluginIdentity {
  * {@link loadInstalledAgentPluginToolSources}'s loop so that loop is left with only the two things
  * it must do per plugin: check-and-record identity, then (if unique) resolve its tool source.
  *
- * @throws {Error} See {@link loadInstalledAgentPluginToolSources}'s own `@throws` doc — this is
- * where that error is actually thrown.
+ * @throws {Error} Caught per-plugin by {@link loadInstalledAgentPluginToolSources}'s own loop,
+ * which logs it and skips only this one plugin — the throw itself stays the loud, correct signal
+ * for this specific plugin's ambiguity; only where it is caught changed.
  */
 function assertSingleDigestPerPlugin(digestByPluginId: Map<string, string>, plugin: InstalledPluginIdentity): void {
   const priorDigest = digestByPluginId.get(plugin.pluginId);
@@ -374,11 +377,12 @@ function buildToolSource(pluginId: string, skills: readonly AgentPluginSkillDeta
 
 /**
  * Loads every installed Agent Plugin for one workspace, resolved into one tool-ready source per
- * plugin.
+ * plugin. Per-plugin failures are isolated: a pluginId installed under more than one digest (a
+ * genuine, actionable ambiguity — see this file's header for why the digest itself is not folded
+ * into the id) — or any other per-plugin resolution failure, e.g. an unreadable SKILL.md — is
+ * logged via `console.warn` and excluded from the returned array, but never aborts the whole load.
+ * One bad plugin install must not take every other installed plugin's tool down with it.
  *
- * @throws {Error} If a pluginId is installed under more than one digest — this loader registers one
- * tool id per plugin id (see this file's header for why the digest itself is not folded into the
- * id), so that case is a genuine, actionable ambiguity rather than something to silently resolve.
  * @complexity O(d * s) in installed-digest count times average skills-per-digest, dominated by
  * `listInstalledPlugins`'s own walk plus one `readInstalledSkillMarkdown` per skill.
  */
@@ -396,16 +400,34 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
   const active = filterActiveAgentPlugins(activations, installed, (plugin) => plugin.pluginId);
 
   const digestByPluginId = new Map<string, string>();
-  const sources: AgentPluginToolSource[] = [];
+  // Keyed by pluginId (not a plain array) so a LATER conflicting digest can retract an EARLIER
+  // digest's already-resolved source for the same plugin — `assertSingleDigestPerPlugin` only
+  // throws on the second digest it sees for a given id, so a plain per-iteration push would let
+  // ambiguity silently keep whichever digest happened to resolve first, which is exactly the
+  // "silently picking one" outcome this file's header says the ambiguity guard must refuse.
+  const sourceByPluginId = new Map<string, AgentPluginToolSource>();
+  const poisonedPluginIds = new Set<string>();
 
   for (const plugin of active) {
-    assertSingleDigestPerPlugin(digestByPluginId, plugin);
-    if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
+    if (poisonedPluginIds.has(plugin.pluginId)) continue; // already ruled ambiguous; stays excluded
 
-    const skills = await resolveSkillsForPlugin(plugin);
-    sources.push(buildToolSource(plugin.pluginId, skills));
+    try {
+      assertSingleDigestPerPlugin(digestByPluginId, plugin);
+      if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
+
+      const skills = await resolveSkillsForPlugin(plugin);
+      sourceByPluginId.set(plugin.pluginId, buildToolSource(plugin.pluginId, skills));
+    } catch (error) {
+      // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
+      // cannot take every OTHER installed plugin's tool down with it — see this file's header,
+      // "The install DIGEST is deliberately NOT part of the id", for why the digest-ambiguity case
+      // itself is still a genuine, actionable refusal, just scoped to this one plugin now.
+      sourceByPluginId.delete(plugin.pluginId);
+      poisonedPluginIds.add(plugin.pluginId);
+      console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — skipped`);
+    }
   }
-  return sources;
+  return [...sourceByPluginId.values()];
 }
 
 /** This module's own risk classification: every plugin tool is a pure read of already-installed,

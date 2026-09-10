@@ -374,15 +374,33 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
   });
 });
 
-test("two installed digests of the same plugin id refuse loudly instead of silently colliding", async () => {
+test("two installed digests of the same plugin id refuse that plugin loudly, without aborting the load", async () => {
   await withAgentPluginsDir(async () => {
     await installRealPackage(WORKSPACE_A, "ui-ux-design", { "ui-ux-design": "# Variant A\n" }, "archive-digest-a");
     await installRealPackage(WORKSPACE_A, "ui-ux-design", { "ui-ux-design": "# Variant B\n" }, "archive-digest-b");
 
-    await assert.rejects(
-      () => loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A }),
-      /installed under more than one digest/,
-    );
+    // The ambiguous plugin itself is excluded, loudly (a console.warn naming it), but the call as a
+    // whole no longer throws — see the isolation test below for why one bad plugin must not take
+    // down every other installed plugin's tool.
+    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    assert.deepEqual(sources, []);
+  });
+});
+
+test("a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source", async () => {
+  await withAgentPluginsDir(async () => {
+    await installRealPackage(WORKSPACE_A, "healthy-before", { "healthy-before": "# Healthy Before\n" }, "archive-isolation-before");
+    await installRealPackage(WORKSPACE_A, "conflicted-plugin", { "conflicted-plugin": "# Variant A\n" }, "archive-isolation-conflict-a");
+    await installRealPackage(WORKSPACE_A, "conflicted-plugin", { "conflicted-plugin": "# Variant B\n" }, "archive-isolation-conflict-b");
+    await installRealPackage(WORKSPACE_A, "healthy-after", { "healthy-after": "# Healthy After\n" }, "archive-isolation-after");
+
+    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const pluginIds = sources.map((source) => source.pluginId);
+
+    assert.ok(pluginIds.includes("healthy-before"), "a healthy plugin installed BEFORE the conflicted one must still get a tool source");
+    assert.ok(pluginIds.includes("healthy-after"), "a healthy plugin installed AFTER the conflicted one must still get a tool source");
+    assert.ok(!pluginIds.includes("conflicted-plugin"), "the ambiguous plugin itself must not produce a tool source");
+    assert.equal(sources.length, 2);
   });
 });
 
