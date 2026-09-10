@@ -205,26 +205,36 @@ install, and injection.
 
 `npx tsc -p tsconfig.json --noEmit` → **exit 0**.
 
+### Confirmed live, not only in tests
+
+The running API rebooted at 01:16Z and seeded the plugin into the real workspace on its own.
+`sites/tovu-com/agent-plugins/ws/workspace-local/activations.json` now carries:
+
+```json
+"higgsfield-media": {
+  "enabled": false,
+  "origin": "bundled",
+  "updatedAt": "2026-09-10T01:16:38.898Z",
+  "updatedBy": "system:seed"
+}
+```
+
+Inactive, bundled, seeded by the system — identical in shape to how `site-compliance` and
+`tovu-deploy-fly` arrived. Nothing was forced; the ordinary boot path did it.
+
 ---
 
 ## Still open
 
 1. **`bootstrap.ts:311` timeout bug** — above. Not mine to land unilaterally.
 2. **The bare `INTERNAL_ERROR` relay** on the delegated-tool path. Unowned, pre-existing.
-3. **One red test that is not mine.** `bundled-tovu-deploy-fly-package.unit.test.ts` →
-   *"SKILL.md keeps secrets out of fly.toml and names all three, with their real blocking status"*
-   fails on `expected: /Not boot-blocking/i`. Commit `1ffbbccc` made all three secrets
-   boot-blocking in that SKILL.md without updating the assertion. `content/agent-plugins/` is clean
-   in the working tree, so this is entirely from that committed change. Full agent-plugins suite:
-   **249 tests, 248 pass, 1 fail** — that one. Left untouched; it looks like
-   `fix-red-test-and-stale-docs`'s territory.
-4. **Live seeding not yet observed.** The tests prove seeding against the real bytes through the
-   real code path, but the running API (pid 15792) booted *before* the plugin directory existed,
-   and seeding runs at boot. It will appear in
-   `sites/tovu-com/agent-plugins/ws/workspace-local/activations.json` on the next API restart. I
-   did not force a restart — three other agents are working in this tree and a restart destroys a
-   live chat run.
-5. **The Higgsfield account is plan-limited.** `z_image` works; the better models need an upgrade.
+3. ~~**One red test that is not mine.**~~ **RESOLVED by `fix-red-test-and-stale-docs` while I was
+   writing this.** `bundled-tovu-deploy-fly-package.unit.test.ts` was failing on
+   `expected: /Not boot-blocking/i` because commit `1ffbbccc` made all three secrets boot-blocking
+   in that SKILL.md without updating the assertion. I did not touch it; I passed them the
+   diagnosis and they rewrote the assertion to the new invariant rather than relaxing the regex.
+   Full agent-plugins suite re-run after their fix: **252 tests, 252 pass, 0 fail.**
+4. **The Higgsfield account is plan-limited.** `z_image` works; the better models need an upgrade.
    Nothing in Tovu can change that.
 
 ## One thing worth someone owning (not mine — `apps/admin`)
