@@ -570,23 +570,31 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
 
-  // --- Plugins ---
+  // --- Add-Ons ---
   // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
-  // skills, design tokens — whereas plugins are installed capabilities that extend what the site
-  // can DO, which is a different axis. Splitting also gives Marketplace somewhere to live: as a
-  // Studio row it would have read as a fourth design tool.
+  // skills, design tokens — whereas plugins/agent-plugins are installed capabilities that extend
+  // what the site can DO, which is a different axis. Splitting also gives Marketplace somewhere to
+  // live: as a Studio row it would have read as a fourth design tool.
+  //
+  // 2026-09-09: group renamed "Plugins" -> "Add-Ons" (owner call). The `.tovu-plugin` runtime
+  // family (this "Plugins" row + Marketplace below) and the Agent Plugins open standard
+  // (agent-plugins.org) are genuinely different systems that happen to share the word "plugin" —
+  // the flat "Plugins" heading had already caused an agent to work in the wrong directory. "Plugins"
+  // and "Agent Plugins" are now two sibling rows under one "Add-Ons" umbrella label instead of one
+  // implying it contains the other.
   {
     id: "plugins",
     render: () => <Plugins />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
-      // being marked `soon`. Relabelled "Installed" now that it is one of two rows under a
-      // "Plugins" heading — "Plugins > Plugins" would have read as a mistake. The panel **id** is
+      // being marked `soon`. Label reverted to "Plugins" now that the group above is "Add-Ons", not
+      // "Plugins" — the OLD "Installed" relabel existed only to avoid "Plugins > Plugins" reading
+      // as a mistake, which is moot once the group itself is renamed. The panel **id** is
       // deliberately unchanged: it is the route (`/plugins`) and the `agent-pages.ts` allowlist
       // key, so renaming it would break both for a cosmetic gain.
-      label: "Installed",
-      group: "Plugins",
+      label: "Plugins",
+      group: "Add-Ons",
       icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
     },
     agentReachable: true,
@@ -596,7 +604,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     render: () => <Placeholder sectionId="plugins-marketplace" agentHandle="plugins-marketplace" />,
     nav: {
       label: "Marketplace",
-      group: "Plugins",
+      group: "Add-Ons",
       soon: true,
       icon: '<path d="M3 6.5h12l-1 8H4z"/><path d="M6.5 6.5a2.5 2.5 0 015 0"/>',
     },
@@ -609,13 +617,13 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "agent-plugins",
     render: () => <AgentPlugins />,
     nav: {
-      // Third row under "Plugins", alongside Installed and Marketplace: surfaces the Agent
+      // Sibling row under "Add-Ons", alongside Plugins and Marketplace: surfaces the Agent
       // Plugins open standard (agent-plugins.org, published 2026-08-06) — portable
       // skills/MCP-server bundles, distinct from the site-capability plugins the other two rows
       // manage. No backend yet, but `soonPreviewable: true` (owner request) so the row is a real
       // clickable link to a reminder note + the spec URL, not an inert "coming soon" label.
       label: "Agent Plugins",
-      group: "Plugins",
+      group: "Add-Ons",
       soon: true,
       soonPreviewable: true,
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
@@ -850,13 +858,16 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // `id: "access-tokens"`, not `"security"` — the panel `id` IS the URL segment (`matchRoute`
     // matches `panels.find(p => p.id === segment)`, `App.tsx`'s own comment on that function), and
     // the owner asked for this page at `/admin/access-tokens` specifically, not `/admin/security`.
-    // `nav.label` below is "Security" — the nav LABEL and the route id are independent, same as
-    // every other panel here (e.g. `id: "themes"` labels "Themes" while `id: "admin-appearance"`
-    // also renders a Themes-shaped screen under a different label).
+    // `nav.label` below is "Secrets" (renamed from "Security" 2026-09-09, owner naming decision:
+    // the most accurate label for what's actually on the page — access tokens, the site/root key,
+    // credentials — and matches what Fly/GitHub already call the same thing) — the nav LABEL and
+    // the route id are independent, same as every other panel here (e.g. `id: "themes"` labels
+    // "Themes" while `id: "admin-appearance"` also renders a Themes-shaped screen under a
+    // different label).
     id: "access-tokens",
     render: (ctx) => <Security tabId={ctx.query.get("tab")} />,
     nav: {
-      label: "Security",
+      label: "Secrets",
       group: "Operations",
       // A shield — distinct from Deployment's rocket-launch and Source Control's two-nodes-joined
       // glyph.
