@@ -280,3 +280,25 @@ test("idempotent under two concurrent failures for the SAME connection: only one
   surfaceExchanges.deliver({ exchangeId, params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
   await callA;
 });
+
+// ---------------------------------------------------------------------------
+// 500-redact defect (RED->GREEN): `parseReauthServerId` used to reject a missing/non-string `id`
+// with a bare `Error`, which `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` —
+// exactly the classification `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into
+// a message-stripped 500. It now throws `ToolInputError`, mirroring
+// `features/post/tool-registrations.ts`'s fix shape. Asserted through the real `ToolExecutor` this
+// file's other tests already drive — `errorKind` is the exact field the wire-level 400/500 split
+// reads.
+// ---------------------------------------------------------------------------
+
+test("external_mcp_reauth_prompt called with no 'id' fails with errorKind 'validation' (400), not a redacted 'internal' (500)", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  const executed = await toolExecutor.execute({ id: PRINCIPAL }, { id: "run-1" }, EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, {}, undefined, async () => {});
+
+  assert.equal(executed.status, "failed");
+  assert.equal(executed.errorKind, "validation", `expected 'validation', got ${JSON.stringify(executed)}`);
+  assert.match(executed.error ?? "", /'id' is required/);
+});

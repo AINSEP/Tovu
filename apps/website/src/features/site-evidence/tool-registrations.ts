@@ -9,6 +9,10 @@ import {
   type ToolRegistration,
   type UUID,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 
@@ -66,21 +70,21 @@ export interface SiteEvidenceToolDeps {
  * per-path `skipped` entries would bury the shape error inside a result that otherwise looks like a
  * successful run.
  *
- * @throws {Error} If `paths` is missing, not an array, empty, or contains a non-string.
+ * @throws {ToolInputError} If `paths` is missing, not an array, empty, or contains a non-string.
  * @complexity O(n) in the array's length.
  */
 export function readPathsArgument(input: Readonly<Record<string, unknown>>): readonly string[] {
   const raw = input.paths;
   if (!Array.isArray(raw)) {
-    throw new Error("'paths' is required and must be an array of site-relative path strings, e.g. ['/', '/legal/privacy']");
+    throw new ToolInputError("'paths' is required and must be an array of site-relative path strings, e.g. ['/', '/legal/privacy']");
   }
   if (raw.length === 0) {
-    throw new Error("'paths' must contain at least one site-relative path");
+    throw new ToolInputError("'paths' must contain at least one site-relative path");
   }
   const paths: string[] = [];
   for (const [index, value] of raw.entries()) {
     if (typeof value !== "string") {
-      throw new Error(`'paths[${index}]' must be a string, got ${typeof value}`);
+      throw new ToolInputError(`'paths[${index}]' must be a string, got ${typeof value}`);
     }
     paths.push(value);
   }
@@ -90,7 +94,7 @@ export function readPathsArgument(input: Readonly<Record<string, unknown>>): rea
 /**
  * Reads the optional `consentAcceptSelector` and `collectAccessibility` arguments.
  *
- * @throws {Error} If either is present with the wrong type.
+ * @throws {ToolInputError} If either is present with the wrong type.
  * @complexity O(1).
  */
 export function readOptionalEvidenceArguments(input: Readonly<Record<string, unknown>>): {
@@ -99,11 +103,11 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
 } {
   const selector = input.consentAcceptSelector;
   if (selector !== undefined && typeof selector !== "string") {
-    throw new Error("'consentAcceptSelector' must be a CSS selector string when provided");
+    throw new ToolInputError("'consentAcceptSelector' must be a CSS selector string when provided");
   }
   const collectAccessibility = input.collectAccessibility;
   if (collectAccessibility !== undefined && typeof collectAccessibility !== "boolean") {
-    throw new Error("'collectAccessibility' must be a boolean when provided");
+    throw new ToolInputError("'collectAccessibility' must be a boolean when provided");
   }
   return {
     ...(typeof selector === "string" && selector.trim().length > 0 ? { consentAcceptSelector: selector.trim() } : {}),

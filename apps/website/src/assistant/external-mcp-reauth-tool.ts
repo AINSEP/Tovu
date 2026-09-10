@@ -8,6 +8,10 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -205,12 +209,12 @@ async function resolveReauthAcknowledgement(
 
 /** Narrows and validates the tool call's `id` input. Split out purely to keep the handler's
  *  complexity under the shop ceiling.
- *  @throws {Error} `id` is missing or not a string. */
+ *  @throws {ToolInputError} `id` is missing or not a string. */
 function parseReauthServerId(ctx: Parameters<ToolHandler>[0]): string {
   const input = (ctx.input ?? {}) as Record<string, unknown>;
   const serverId = typeof input["id"] === "string" ? input["id"] : "";
   if (!serverId) {
-    throw new Error(`${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
+    throw new ToolInputError(`${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
   }
   return serverId;
 }

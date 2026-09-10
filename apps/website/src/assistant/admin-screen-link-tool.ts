@@ -8,6 +8,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 
 /**
  * @file The general navigation fallback: when the assistant has no in-chat tool that can perform an
@@ -161,16 +165,17 @@ const CATALOG_BY_ID = new Map(adminScreenLinkAgentToolCatalog.map((entry) => [en
  * 'access-tokens' as '/access-tokens', both naming the same screen, and rejecting the latter would
  * only push that normalization into every caller instead of doing it once here.
  *
- * @throws {Error} `input.path`, once its leading slashes are stripped, is empty — e.g. a bare `/` or
- *   `///`. `requireString` (`registerAdminScreenLink`'s own caller) already rejects an empty-or-absent
- *   `path` before this runs; this catches the narrower case that only becomes empty AFTER stripping.
+ * @throws {ToolInputError} `input.path`, once its leading slashes are stripped, is empty — e.g. a bare
+ *   `/` or `///`. `requireString` (`registerAdminScreenLink`'s own caller) already rejects an
+ *   empty-or-absent `path` before this runs; this catches the narrower case that only becomes empty
+ *   AFTER stripping.
  * @complexity O(n) in the length of `input.path`/`input.tab` — one trim, one strip, one encode.
  * @overallScore 100
  */
 export function buildAdminScreenPath(input: { path: string; tab?: string }): string {
   const segment = input.path.trim().replace(/^\/+/, "");
   if (segment.length === 0) {
-    throw new Error("'path' must name a screen segment, not just a leading slash");
+    throw new ToolInputError("'path' must name a screen segment, not just a leading slash");
   }
   const tab = input.tab?.trim();
   const query = tab ? `?tab=${encodeURIComponent(tab)}` : "";

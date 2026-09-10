@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "../../agent-tools.js";
@@ -103,6 +104,24 @@ test("readOptionalEvidenceArguments trims, drops empties, and rejects wrong type
   assert.deepEqual(readOptionalEvidenceArguments({ collectAccessibility: false }), { collectAccessibility: false });
   assert.throws(() => readOptionalEvidenceArguments({ consentAcceptSelector: 7 }), /must be a CSS selector string/);
   assert.throws(() => readOptionalEvidenceArguments({ collectAccessibility: "yes" }), /must be a boolean/);
+});
+
+// ---------------------------------------------------------------------------
+// 500-redact defect (RED->GREEN): both validators above used to reject with a bare `Error`, which
+// `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` — the classification
+// `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a message-stripped 500.
+// Both now throw `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
+// ---------------------------------------------------------------------------
+
+test("readPathsArgument's rejection is a ToolInputError (400), not a bare Error (redacted 500)", () => {
+  assert.throws(() => readPathsArgument({}), (err: unknown) => err instanceof ToolInputError);
+  assert.throws(() => readPathsArgument({ paths: [] }), (err: unknown) => err instanceof ToolInputError);
+  assert.throws(() => readPathsArgument({ paths: ["/ok", 7] }), (err: unknown) => err instanceof ToolInputError);
+});
+
+test("readOptionalEvidenceArguments's rejection is a ToolInputError (400), not a bare Error (redacted 500)", () => {
+  assert.throws(() => readOptionalEvidenceArguments({ consentAcceptSelector: 7 }), (err: unknown) => err instanceof ToolInputError);
+  assert.throws(() => readOptionalEvidenceArguments({ collectAccessibility: "yes" }), (err: unknown) => err instanceof ToolInputError);
 });
 
 test("the handler refuses a caller the authorizer denies", async () => {

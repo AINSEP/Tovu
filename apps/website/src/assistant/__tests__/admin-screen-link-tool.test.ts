@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolRegistration } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 
 import { ADMIN_SCREEN_LINK_TOOL_ID, buildAdminScreenLinkRegistrations, buildAdminScreenPath } from "../admin-screen-link-tool.js";
 
@@ -59,6 +60,14 @@ test("buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded", () =
 
 test("buildAdminScreenPath rejects a path that is nothing but slashes", () => {
   assert.throws(() => buildAdminScreenPath({ path: "///" }), /path/i);
+});
+
+// 500-redact defect (RED->GREEN): this used to reject with a bare `Error`, which
+// `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` — the classification
+// `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a message-stripped 500.
+// It now throws `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
+test("buildAdminScreenPath's rejection is a ToolInputError (400), not a bare Error (redacted 500)", () => {
+  assert.throws(() => buildAdminScreenPath({ path: "///" }), (err: unknown) => err instanceof ToolInputError);
 });
 
 test("the tool handler returns the relative path and no url when TOVU_PUBLIC_URL is unset", async () => {
