@@ -99,6 +99,17 @@
   --ok-bg:     oklch(93% 0.05 150);
   --danger:    oklch(52% 0.19 25);
   --danger-bg: oklch(95% 0.04 25);
+  /* Readable text ON `--danger` as a SOLID fill — the missing member of this file's ink set
+     (`--primary-ink`, `--link-ink`, `--ok-solid-ink` all already exist; danger did not). Its
+     absence is why nothing destructive in this admin has ever been rendered as a filled block:
+     every danger surface here is an outline over `--danger-bg`, which at 4% chroma is very nearly
+     white, so the strongest alarm the app could previously express was a pale pink box. Recovery's
+     baseline-unavailable warning is the first place that isn't enough.
+     Measured, not eyeballed (same WCAG 2.1 relative-luminance method as `--primary`, run through a
+     standalone oklch->sRGB script): `--danger` light is #be222a; white on it is **5.91:1**, clear
+     of the 4.5:1 AA floor. Flips to near-black in dark mode for the same reason `--link-ink` does
+     — see that token's own comment. */
+  --danger-ink: oklch(99% 0 0); /* 5.91:1 on --danger */
   /* Third tier between secondary/neutral and destructive — reversible but access-affecting
      actions (Users' Disable/Reset-password, per the MSG-14 hierarchy audit) that the existing
      secondary/danger split doesn't express. `--danger`'s hue is 25 (red); this sits at 80 (amber)
@@ -203,6 +214,11 @@
   --ok-solid-ink:  oklch(99% 0 0);
   --danger:    oklch(74% 0.16 25);
   --danger-bg: oklch(50% 0.12 25 / 0.22);
+  /* Dark mode's `--danger` is a LIGHT red (74% L, #ff7e76), so the ink inverts to near-black —
+     same flip `--link-ink` makes for the same reason. Measured: white on it is only **2.41:1**
+     (fails outright); near-black is **7.59:1**. Reusing the light-theme white here would have
+     produced an unreadable alarm in exactly the state that most needs reading. */
+  --danger-ink: oklch(18% 0.006 260); /* 7.59:1 on dark --danger */
   --warning:    oklch(76% 0.13 82);
   --warning-bg: oklch(50% 0.09 82 / 0.22);
 
@@ -2680,62 +2696,170 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 .recovery-degraded-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; justify-content: space-between; }
 
-/* Restore ceremony redesign (web-design pass, 2026-09-10 — owner, looking at the live page: "holy
-   shit that looks awful"). Three fixes, reusing only existing tokens/patterns:
-   1. `.recovery-ceremony-summary` groups the Trigger/Cost class/Kind facts with the heading above
-      them into one `.card`/`.card-title` (both already established elsewhere — Workspace,
-      Deployment) instead of a bare `<h2>` sitting over an isolated `.settings-layer-grid`.
-      `.settings-layer-grid`/`.settings-layer-cell`/`.settings-layer-label` themselves are UNTOUCHED
-      — shared with Workspace.tsx and Taxonomy.tsx.
-   2. Inside `.recovery-disclosure-panel` (DisclosurePanel's own doc comment: "the load-bearing,
-      blocking centerpiece of this screen"), the discard-count list now outweighs its own coverage
-      caveat instead of both rendering as identical `.notice`-inherited paragraphs: the list gets the
-      size/weight/color step up, the caveat right after it (`ul + p`) steps down to muted/small, and
-      the baseline-unavailable warning gets the same tinted-box treatment `.notice.error` already
-      uses elsewhere (scoped under this ancestor, not touching `.save-error`'s own shared rule) so it
-      reads as a real warning instead of one red sentence indistinguishable from the paragraph above
-      it. The checkbox becomes a full-width, bordered-off confirmation row — the gate the operator
-      must cross, not text with a tiny native box floating in it.
-   3. `.recovery-ceremony-step` replaces the full `.notice` box each ceremony step (idle/planned/
-      confirmed/done) used to wrap itself in. Two full bordered/shadowed cards stacked directly on
-      top of each other (disclosure panel, then a second one holding only a button) is what actually
-      read as "unstyled default HTML boxes" — a hairline divider reads as this card's next step
-      instead. `RestoreIdleStep`'s button also moves `.btn-ghost` (transparent bg AND transparent
-      border — no chrome at all, which is why the CTA looked perpetually broken/disabled even when
-      enabled) to `.btn-primary`, so the three reachable ceremony buttons now step up in weight with
-      the ceremony's own escalating commitment: primary (plan) -> `.btn-secondary` (confirm, already
-      correct) -> `.btn-danger` (execute, already correct). */
-.recovery-ceremony-summary h2 { margin: 0 0 var(--space-4); }
+/* ============================================================
+   Restore ceremony — "the discard manifest" (web-design pass #2, 2026-09-10)
+   ============================================================
+   Pass #1 (c2c8b218) kept the screen's structure — heading card, disclosure card, button — and
+   only retuned weights inside it, which the owner rejected on sight. The structure WAS the
+   problem: three separately-boxed, equally-weighted regions stacked down the page, so the single
+   most consequential screen in this admin scanned exactly like Settings.
 
-.recovery-disclosure-panel > p:first-child { margin: 0 0 var(--space-2); font-size: var(--text-md); color: var(--fg); }
-.recovery-disclosure-panel ul {
-  margin: var(--space-2) 0 var(--space-4); padding-left: 1.3rem;
-  display: flex; flex-direction: column; gap: var(--space-2);
-  font-size: var(--text-md); font-weight: 600; color: var(--fg);
+   This pass treats it as ONE object: an operator's docket for a decision they make once, fast,
+   probably mid-incident. `.recovery-restore-card` is a single `.card` with zero padding, and each
+   region below pads itself, so the loss manifest can run full-bleed edge to edge instead of
+   floating as a box inside a box. Reading order is the argument: where you're going (quiet) ->
+   what it costs (loud) -> sign here (deliberate) -> proceed.
+
+   Boldness is spent in exactly one place — the manifest — and everything around it stays neutral.
+   Three real strengths of the danger hue encode severity, so nothing needs an extra border to
+   look important: a 5% tint marks the loss region, a solid 3px spine bounds it, and the
+   baseline-unavailable alarm is the one fully-saturated fill on the page.
+
+   `.settings-layer-grid`/`-cell`/`-label` are no longer used by this screen at all (they stay
+   untouched for Workspace/Taxonomy). Dropping them also fixes a real defect visible in the
+   before-screenshot: `.settings-layer-cell` is a stretch-aligned flex column, which blew the
+   "Fast restore" `.status` pill out into a full-width green BAR. Taxonomy.tsx:411 still has that
+   same bug; fixing it there means touching the shared rule, which is out of this dispatch's
+   scope — flagged in the report instead. */
+.recovery-restore-docket { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+/* Pulls the ghost button's own left padding back so its label optically aligns with the card edge
+   below it, rather than sitting indented by a padding it doesn't visually own. */
+.recovery-back-link { margin-left: -0.95rem; }
+.recovery-restore-card { width: 100%; padding: 0; overflow: hidden; }
+/* The disclosure/ceremony error + loading states are `.notice` boxes rendered as direct children
+   of the card; without this they'd sit flush against its edges. */
+.recovery-restore-card > .notice { margin: var(--space-5) var(--space-6); }
+
+/* --- Region 1: where you're going. Deliberately the quiet part. --- */
+.recovery-ceremony-summary { padding: var(--space-6) var(--space-6) var(--space-5); }
+.recovery-restore-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+/* 1.75rem against the 26.4px page title and the 1.15rem `.card-title` used elsewhere — a real
+   step, not the near-tie `.card-title` produced here. The timestamp IS the fact this screen is
+   about, so it gets the display face and the tightest tracking on the page. */
+.recovery-restore-title {
+  margin: 0; font-family: var(--font-display); font-size: 1.75rem; font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.15; color: var(--fg); text-wrap: balance;
 }
-.recovery-disclosure-panel ul + p { font-size: var(--text-xs); color: var(--muted); margin: 0 0 var(--space-3); line-height: 1.5; }
-.recovery-disclosure-panel label {
-  display: flex; align-items: flex-start; gap: var(--space-3);
-  margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);
-  font-size: var(--text-sm); font-weight: 600; color: var(--fg); cursor: pointer;
+/* Trigger/Kind are reference metadata an operator reads only if something looks wrong — they do
+   NOT deserve the same treatment as the cost class, which is a reassurance about THIS action and
+   now sits inline with the heading as a real pill. One quiet line, no boxes, no uppercase
+   eyebrows, and no middle-dot separator: the gap does that job. */
+.recovery-restore-meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5);
+  margin: var(--space-3) 0 0; font-size: var(--text-sm); line-height: 1.5;
 }
-.recovery-disclosure-panel label input[type="checkbox"] {
-  width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; accent-color: var(--primary); cursor: pointer; flex-shrink: 0;
+.recovery-restore-meta > span { display: inline-flex; gap: 0.5ch; }
+.recovery-meta-key { color: var(--faint); }
+.recovery-meta-value { color: var(--fg-2); font-weight: 500; }
+
+/* --- Region 2: what it costs. The one place this screen raises its voice. --- */
+.recovery-loss-manifest {
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  background: color-mix(in oklch, var(--danger) 5%, var(--surface));
+  border-block: 1px solid color-mix(in oklch, var(--danger) 22%, var(--border));
+  /* The spine, as an inset shadow rather than a border-left so it doesn't shift the padding box. */
+  box-shadow: inset 3px 0 0 var(--danger);
 }
-.recovery-disclosure-panel .save-error, .recovery-ceremony-step .save-error {
-  margin: 0 0 var(--space-3); padding: var(--space-3) var(--space-4);
-  background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--r-sm);
-  font-weight: 600; font-size: var(--text-sm);
+.recovery-loss-lede { margin: 0; font-size: var(--text-md); line-height: 1.5; color: var(--fg-2); }
+.recovery-loss-lede strong { color: var(--fg); font-weight: 600; }
+/* A ledger, not a bulleted paragraph. Each discarded category is one ruled row at 1.15rem/600 —
+   the largest body text on the screen, and the only content that outweighs the heading block
+   above it, because it is the thing actually at stake. `list-style: none` because the rules
+   already separate the rows; a marker on top of them would be decoration. */
+.recovery-loss-list {
+  list-style: none; margin: var(--space-4) 0 0; padding: 0;
+  border-top: 1px solid color-mix(in oklch, var(--danger) 18%, var(--border));
 }
+.recovery-loss-list li {
+  margin: 0; padding: var(--space-3) 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--danger) 18%, var(--border));
+  font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; color: var(--fg);
+}
+/* Genuinely secondary — it qualifies the ledger's completeness, it is not itself a loss figure.
+   Steps all the way down to 12px/muted and takes a reading measure so it reads as a footnote. */
+.recovery-loss-caveat {
+  margin: var(--space-3) 0 0; max-width: 68ch;
+  font-size: var(--text-xs); line-height: 1.55; color: var(--muted);
+}
+/* The single most important sentence on this screen when it renders: every count above it is
+   unverified. `.save-error`'s shared rule is 13px `--danger` text on nothing — indistinguishable
+   from the paragraph above it — and pass #1's pale `--danger-bg` outline was barely better. This
+   is the one solid `--danger` fill in the app, which is exactly what `--danger-ink` was added
+   for (see that token). Two classes (0,2,0) beats `.save-error`'s own (0,1,0), so the shared rule
+   stays untouched for every other screen that uses it. */
+.recovery-disclosure-panel .save-error {
+  display: block; margin: var(--space-5) 0 0; padding: var(--space-4) var(--space-5);
+  background: var(--danger); color: var(--danger-ink); border-radius: var(--r-sm);
+  font-size: var(--text-base); font-weight: 600; line-height: 1.45;
+}
+.recovery-ceremony-step .save-error {
+  display: block; margin: 0; padding: var(--space-4) var(--space-5);
+  background: var(--danger); color: var(--danger-ink); border-radius: var(--r-sm);
+  font-size: var(--text-base); font-weight: 600; line-height: 1.45;
+}
+
+/* --- Region 3: the gate. The only thing between "safe" and "issuing a destructive plan". --- */
+/* Given its own tinted ground and full-bleed band rather than being a sentence with a 16px native
+   box in it. Turning `--ok` when satisfied is the whole point: it tells the operator why the
+   button below just became available, which nothing on the previous design did. */
+.recovery-ack-gate {
+  display: flex; align-items: flex-start; gap: var(--space-4);
+  margin: 0; padding: var(--space-5) var(--space-6);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+  font-size: var(--text-md); font-weight: 500; line-height: 1.45; color: var(--fg);
+  cursor: pointer; transition: background-color 0.14s ease;
+}
+/* Deliberately a much weaker green than `--ok-bg` itself: full-strength it sits directly beneath
+   the solid `--danger` alarm and the two saturated bands fight each other. The checkbox's own
+   `accent-color` carries the signal; this only needs to confirm the band's state changed. */
+.recovery-ack-gate:has(input:checked) {
+  background: color-mix(in oklch, var(--ok) 7%, var(--surface));
+  border-bottom-color: color-mix(in oklch, var(--ok) 25%, var(--border));
+}
+.recovery-ack-gate input[type="checkbox"] {
+  width: 1.35rem; height: 1.35rem; margin: 0.02rem 0 0;
+  accent-color: var(--ok); cursor: pointer; flex-shrink: 0;
+}
+/* This admin gives `button`/`a` an app-wide focus ring but never gave one to inputs. This control
+   gates a destructive action, so it does not get to be the keyboard-invisible one. */
+.recovery-ack-gate input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent-text); outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .recovery-ack-gate { transition: none; }
+}
+
+/* --- Region 4: proceed. Inside the same card, directly under the gate it depends on. --- */
+/* Pass #1 left this floating below the card as a detached button, so nothing visually connected
+   the checkbox to the control it unlocks. */
 .recovery-ceremony-step {
-  display: flex; flex-direction: column; gap: var(--space-3);
-  margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: var(--space-4);
+  margin: 0; padding: var(--space-5) var(--space-6);
 }
+.recovery-ceremony-step p { margin: 0; font-size: var(--text-md); line-height: 1.5; color: var(--fg-2); }
 /* Same flex-column stretch trap `.settings-scope-editor .btn-danger` documents above: without this,
    `align-items: stretch` (the default) blows every ceremony-step button out to the container's full
    width. The `<p>`s inside these steps still want the stretch (so their text wraps at the container
    width, not their own shrink-to-fit width) — only the button opts out. */
-.recovery-ceremony-step button { align-self: flex-start; }
+.recovery-ceremony-step button { align-self: flex-start; font-size: var(--text-md); padding: 0.62rem 1.2rem; }
+/* The global `button:disabled` mix puts a washed peach fill under near-white text — on this screen
+   that read as a half-rendered control rather than a locked one. Neutral and legibly OFF instead,
+   so "blocked by the gate above" is the message. (0,2,0) beats `button:disabled`'s (0,1,1). */
+.recovery-ceremony-step button:disabled {
+  background: var(--surface-2); border-color: var(--border-strong); color: var(--faint); cursor: not-allowed;
+}
+/* `.btn-danger` is an outline everywhere else in this admin, which is correct for a row-level
+   Delete sitting among ten other row actions. Here it is the TERMINAL control of a four-step
+   ceremony, and as an outline it rendered visibly lighter than the filled `.btn-primary` that
+   merely *starts* that ceremony — the one button in the product that actually discards data was
+   the weakest-looking thing on its own screen. Filled, the three reachable ceremony buttons now
+   escalate monotonically with commitment: primary fill (plan) -> neutral outline (confirm) ->
+   solid danger (execute). Scoped to this ceremony (0,2,0), so `.btn-danger`'s shared outline
+   treatment is unchanged for every other screen. */
+.recovery-ceremony-step .btn-danger {
+  background: var(--danger); color: var(--danger-ink); border-color: var(--danger);
+}
+.recovery-ceremony-step .btn-danger:hover { background: var(--danger); opacity: 0.88; }
 
 /* SEO — per-entry overrides + analyze (SPEC-037 REQ-06/07) */
 .seo-entry-section { margin-top: 1.6rem; }

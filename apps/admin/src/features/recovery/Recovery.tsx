@@ -240,20 +240,22 @@ function DisclosurePanel(props: {
   const categories = Object.entries(props.disclosure.counts);
 
   return (
-    <div className="notice recovery-disclosure-panel">
-      <p>{sinceDiscardMessage(locale, props.point.createdAt)}</p>
-      <ul>
-        {categories.map(([category, count]) => (
-          <li key={category}>{discardCountLine(locale, count, categoryLabel(category, locale))}</li>
-        ))}
-      </ul>
-      <p>{t(locale, "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.")}</p>
-      {!props.disclosure.watermarkBaselineAvailable ? (
-        <p className="save-error" role="alert">
-          {baselineUnavailableMessage(locale)}
-        </p>
-      ) : null}
-      <label id="recovery-ack-label">
+    <div className="recovery-disclosure-panel">
+      <div className="recovery-loss-manifest">
+        <p className="recovery-loss-lede">{sinceDiscardMessage(locale, props.point.createdAt)}</p>
+        <ul className="recovery-loss-list">
+          {categories.map(([category, count]) => (
+            <li key={category}>{discardCountLine(locale, count, categoryLabel(category, locale))}</li>
+          ))}
+        </ul>
+        <p className="recovery-loss-caveat">{t(locale, "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.")}</p>
+        {!props.disclosure.watermarkBaselineAvailable ? (
+          <p className="save-error" role="alert">
+            {baselineUnavailableMessage(locale)}
+          </p>
+        ) : null}
+      </div>
+      <label id="recovery-ack-label" className="recovery-ack-gate">
         <input
           type="checkbox"
           checked={props.acknowledged}
@@ -435,50 +437,52 @@ function RestoreFlow({
   } = useRestoreFlowHook({ point });
 
   return (
-    <div>
+    <div className="recovery-restore-docket">
       <button
         type="button"
-        className="btn-ghost"
+        className="btn-ghost recovery-back-link"
         onClick={onBack}
         {...agentHandle("recovery-back-to-list", { role: "button", label: "Back to the restore points list" })}
       >
         {t("← Restore points")}
       </button>
-      <div className="card recovery-ceremony-summary">
-        <h2 className="card-title">
-          {t("Restore to")} {formatTimestamp(point.createdAt)}
-        </h2>
-        <div className="settings-layer-grid">
-          <div className="settings-layer-cell">
-            <span className="settings-layer-label">{t("Trigger")}</span>
-            <span>{point.trigger}</span>
-          </div>
-          <div className="settings-layer-cell">
-            <span className="settings-layer-label">{t("Cost class")}</span>
+      <div className="card recovery-restore-card">
+        <div className="recovery-ceremony-summary">
+          <div className="recovery-restore-title-row">
+            <h2 className="recovery-restore-title">
+              {t("Restore to")} {formatTimestamp(point.createdAt)}
+            </h2>
+            <span className="visually-hidden">{t("Cost class")}</span>
             <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
           </div>
-          <div className="settings-layer-cell">
-            <span className="settings-layer-label">{t("Kind")}</span>
-            <span>{point.kind}</span>
-          </div>
+          <p className="recovery-restore-meta">
+            <span>
+              <span className="recovery-meta-key">{t("Trigger")}</span>
+              <span className="recovery-meta-value">{point.trigger}</span>
+            </span>
+            <span>
+              <span className="recovery-meta-key">{t("Kind")}</span>
+              <span className="recovery-meta-value">{point.kind}</span>
+            </span>
+          </p>
         </div>
+
+        <RestoreDisclosureStatus locale={locale} point={point} disclosure={disclosure} error={error} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
+
+        <RestoreCeremonySteps
+          locale={locale}
+          ceremonyError={ceremonyError}
+          step={step}
+          busy={busy}
+          acknowledged={acknowledged}
+          plan={plan}
+          confirmationToken={confirmationToken}
+          result={result}
+          onStart={startPlan}
+          onConfirm={doConfirm}
+          onExecute={doExecute}
+        />
       </div>
-
-      <RestoreDisclosureStatus locale={locale} point={point} disclosure={disclosure} error={error} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
-
-      <RestoreCeremonySteps
-        locale={locale}
-        ceremonyError={ceremonyError}
-        step={step}
-        busy={busy}
-        acknowledged={acknowledged}
-        plan={plan}
-        confirmationToken={confirmationToken}
-        result={result}
-        onStart={startPlan}
-        onConfirm={doConfirm}
-        onExecute={doExecute}
-      />
     </div>
   );
 }
