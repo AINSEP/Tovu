@@ -5,6 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { ToolInputError } from "@jini-ai/core";
+
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile.js";
 import { InMemoryDeploymentsReadRepo } from "../../repo.memory.js";
@@ -192,6 +194,12 @@ test("deployment_set_dockerfile refuses a stale ifMatch with a message the assis
     byId.get("deployment_set_dockerfile")!.handler(ctx({ contents: staleAttemptContents, ifMatch: initialRead.etag }) as never),
     (err: unknown) => {
       assert.ok(err instanceof Error);
+      // `ToolInputError`, not a bare `Error` (500-redact defect, RED->GREEN): `@jini-ai/daemon`'s
+      // `ToolExecutor` only tags a rejection `errorKind: 'validation'` (-> 400 with this message
+      // intact) when it is `instanceof ToolInputError`; anything else is 'internal' and
+      // `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts it into a message-stripped
+      // 500 — which would have stripped the exact recovery instructions this test asserts below.
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
       // The message is the model's ENTIRE channel for what to do next (see the handler's own
       // comment) — pin that it actually names the recovery path, not just that a rejection occurred.
       assert.match(err.message, /deployment_get_dockerfile/, "must point the assistant back at re-reading");
@@ -245,6 +253,23 @@ test("RouteDeps.exportSiteBound ignores a caller-forwarded 'routeDeps' key and a
   const report = await deps.exportSiteBound(maliciousOptions);
   assert.equal(report.routes.failed.length, 0, "the real, closed-over RouteDeps must be what exportSite actually uses — a forwarded 'routeDeps' key must never win");
   assert.ok(report.routes.succeeded.length > 0, "the hermetic fixture's own routes must have actually exported using the real RouteDeps, not the bogus forwarded one");
+});
+
+test("deployment_trigger_export: a non-object input is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  // Runs before any real export starts (no state touched — the check is this handler's very first
+  // line), so it is safe regardless of this file's own process-local `getExportRunSnapshot()`
+  // ordering discipline documented in the file header.
+  const registrations = buildDeploymentsRegistrations(grantingDeps());
+  const trigger = registrations.find((r) => r.descriptor.id === "deployment_trigger_export")!;
+
+  await assert.rejects(
+    trigger.handler(ctx("not-an-object") as never),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      assert.match((err as Error).message, /input must be an object/);
+      return true;
+    },
+  );
 });
 
 test("deployment_trigger_export starts a real run, a concurrent second call is refused, and status settles to completed", async (t) => {

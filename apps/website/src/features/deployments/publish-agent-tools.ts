@@ -111,7 +111,10 @@ import { askOnce, askThenReport, classifyConfirmationAnswer, SURFACE_DISMISSED_P
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`
 // helpers below can name their own `askThenReport`-shaped return type explicitly.
-import type { SurfaceEmission } from "@jini-ai/core";
+// `ToolInputError` alongside it — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
@@ -882,11 +885,11 @@ const VALID_STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetId[] = ["github-
 /** Shared `target` field validation for `deployment_preview_static_publish` and
  *  `deployment_execute_static_publish` — extracted so neither handler's own complexity carries this
  *  fixed 5-way check inline.
- *  @throws {Error} `raw.target` is not one of {@link VALID_STATIC_PUBLISH_TARGETS}. */
+ *  @throws {ToolInputError} `raw.target` is not one of {@link VALID_STATIC_PUBLISH_TARGETS}. */
 function requireStaticPublishTarget(raw: Record<string, unknown>): StaticPublishTargetId {
   const target = requireString(raw, "target");
   if (!VALID_STATIC_PUBLISH_TARGETS.includes(target as StaticPublishTargetId)) {
-    throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
+    throw new ToolInputError("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
   }
   return target as StaticPublishTargetId;
 }
@@ -1243,11 +1246,11 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
 /** Shared `protocol` field validation for `deployment_propose_custom_provider_credential` and
  *  `deployment_generate_bucket_hosting_setup` — both currently support only `'s3-compatible'`.
  *  @param toolId - Named explicitly (not inferred) so each tool's error message still names itself.
- *  @throws {Error} `raw.protocol` is not `'s3-compatible'`. */
+ *  @throws {ToolInputError} `raw.protocol` is not `'s3-compatible'`. */
 function requireS3CompatibleProtocol(raw: Record<string, unknown>, toolId: string): void {
   const protocol = requireString(raw, "protocol");
   if (protocol !== "s3-compatible") {
-    throw new Error(`${toolId}: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.`);
+    throw new ToolInputError(`${toolId}: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.`);
   }
 }
 
@@ -1508,7 +1511,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const config = buildPreviewConfig(raw);
       const validationError = validateStaticPublishConfig(config);
       if (validationError !== null) {
-        throw new Error(`deployment_execute_static_publish: ${validationError}`);
+        throw new ToolInputError(`deployment_execute_static_publish: ${validationError}`);
       }
 
       // Fail closed rather than degrade — see this handler's own doc comment above.

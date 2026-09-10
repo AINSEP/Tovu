@@ -13,6 +13,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
@@ -108,7 +112,7 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
 export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     deployment_trigger_export: async (ctx) => {
-      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new Error("input must be an object");
+      if (ctx.input !== undefined && !isRecord(ctx.input)) throw new ToolInputError("input must be an object");
       const input = isRecord(ctx.input) ? ctx.input : {};
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.export", entityType: "site-export" });
 
@@ -177,7 +181,14 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
         // bare "conflict" — and includes the current contents inline so the model can reconcile in
         // the same turn instead of spending a second tool call on deployment_get_dockerfile first
         // (it MAY still call it, e.g. to double-check nothing changed again in the meantime).
-        throw new Error(
+        //
+        // `ToolInputError`, not a bare `Error` — same reclassification `features/post/
+        // tool-registrations.ts`'s `toModelFacingUpdateError` applies to `PostVersionConflictError`:
+        // a stale `ifMatch` is exactly "the caller's input was the problem and a DIFFERENT input (the
+        // fresh etag echoed below) fixes it," which is what the marker means, not a trick to defeat
+        // the redaction. A bare `Error` here would reach the model as a message-stripped 500,
+        // discarding the one thing it needs — the current contents/etag to reconcile against.
+        throw new ToolInputError(
           `deployment_set_dockerfile: refused — the Dockerfile changed on the server since your 'ifMatch' ('${ifMatch}') was read; its current etag is now '${result.current.etag}'. ` +
             `The file's CURRENT contents (as of right now, echoed here so you don't have to call deployment_get_dockerfile again just to see them) are:\n\n${result.current.exists ? result.current.contents : "(the file does not exist)"}\n\n` +
             `Reconcile your intended change against these current contents, then retry deployment_set_dockerfile with contents built on top of them and ifMatch set to '${result.current.etag}'. If you want to confirm nothing has changed a second time before retrying, call deployment_get_dockerfile again first. This will not resolve on retry with the same ifMatch.`

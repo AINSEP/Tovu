@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -1355,6 +1355,39 @@ test("deployment_generate_bucket_hosting_setup rejects an unrecognized protocol 
   await assert.rejects(() => call(hostingSetupTool, { input: { protocol: "webhook", bucket: "b", region: "us-east-1" } }), /protocol/);
 });
 
+// 500-redact defect (RED->GREEN): `requireS3CompatibleProtocol` (shared by this tool and
+// `deployment_propose_custom_provider_credential`) used to reject with a bare `Error`, which
+// `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` — the classification
+// `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a message-stripped 500. It
+// now throws `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
+test("deployment_generate_bucket_hosting_setup: an unrecognized protocol is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  await assert.rejects(
+    () => call(hostingSetupTool, { input: { protocol: "webhook", bucket: "b", region: "us-east-1" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
+});
+
+test("deployment_propose_custom_provider_credential: an unrecognized protocol is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  await assert.rejects(
+    () => call(proposeTool, { input: { protocol: "webhook" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
+});
+
 test("blank/omitted endpoint infers plain AWS S3 and returns a bucket-substituted public-read policy JSON, no warning", async () => {
   const { deps } = fakeDeps();
   const surfaceExchanges = createSurfaceExchangeStore();
@@ -1447,6 +1480,58 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), /'target' must be one of/);
+});
+
+// 500-redact defect (RED->GREEN): `requireStaticPublishTarget` (shared by this tool and
+// `deployment_execute_static_publish`) used to reject with a bare `Error`, which
+// `@jini-ai/daemon`'s `ToolExecutor` tags `errorKind: 'internal'` — the classification
+// `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a message-stripped 500. It
+// now throws `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
+test("deployment_preview_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+
+  await assert.rejects(
+    () => call(preview, { input: { target: "bogus-provider" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
+});
+
+test("deployment_execute_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { target: "bogus-provider", projectName: "demo" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
+});
+
+test("deployment_execute_static_publish: an invalid config is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  // github-pages requires `owner`/`repo` — omitted here on purpose to trip validateStaticPublishConfig.
+  await assert.rejects(
+    () => call(executeTool, { input: { target: "github-pages", projectName: "demo" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      return true;
+    },
+  );
 });
 
 test("confirm: a partial outcome's deploymentId and basePath are both forwarded through to the tool result when the target reports them", async () => {

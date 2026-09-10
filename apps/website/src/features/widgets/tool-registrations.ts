@@ -30,6 +30,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
+// why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
+// redacting it into a message-stripped 500.
+import { ToolInputError } from "@jini-ai/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -389,15 +393,15 @@ export function buildWidgetsRegistrations(
       const input = requireInputRecord(ctx.input);
       const regionKey = requireString(input, "regionKey");
       const baseVersion = requireNumber(input, "baseVersion");
-      if (!Array.isArray(input.placements)) throw new Error("'placements' (array) is required");
+      if (!Array.isArray(input.placements)) throw new ToolInputError("'placements' (array) is required");
 
       const seenIds = new Set<string>();
       const placements: WidgetPlacementNode[] = input.placements.map((raw: unknown) => {
-        if (!isRecord(raw)) throw new Error("each placement must be an object");
+        if (!isRecord(raw)) throw new ToolInputError("each placement must be an object");
         const widgetEntryId = requireString(raw, "widgetEntryId");
-        if (typeof raw.enabled !== "boolean") throw new Error("each placement's 'enabled' must be a boolean");
+        if (typeof raw.enabled !== "boolean") throw new ToolInputError("each placement's 'enabled' must be a boolean");
         const placementId = typeof raw.placementId === "string" && raw.placementId.length > 0 ? raw.placementId : routeDeps.idGen.newId();
-        if (seenIds.has(placementId)) throw new Error(`duplicate placementId '${placementId}'`);
+        if (seenIds.has(placementId)) throw new ToolInputError(`duplicate placementId '${placementId}'`);
         seenIds.add(placementId);
         return { placementId, widgetEntryId, enabled: raw.enabled };
       });
@@ -446,10 +450,17 @@ export function buildWidgetsRegistrations(
 
     widgets_reorder_embeds: async (ctx) => {
       const input = requireInputRecord(ctx.input);
-      if (!Array.isArray(input.orderedWidgetEntryIds) || !input.orderedWidgetEntryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) {
-        throw new Error("'orderedWidgetEntryIds' (non-empty string array) is required");
-      }
+      // The `orderedWidgetEntryIds` shape check used to run BEFORE this `withSchemaOnRejection` call
+      // even started — a bare `Error` thrown there still reaches `ToolExecutor` as `errorKind:
+      // 'internal'` regardless of where it is thrown (that classification reads `instanceof
+      // ToolInputError`, not call-stack position), but it also never got this tool's own schema
+      // decoration a rejection caught INSIDE the wrap gets from `isWidgetsShapeRejection`. Moved
+      // inside so this validator is unremarkable among this handler's other shape checks rather than
+      // the one exception that bypasses the wrap every sibling rejection goes through.
       return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
+        if (!Array.isArray(input.orderedWidgetEntryIds) || !input.orderedWidgetEntryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) {
+          throw new ToolInputError("'orderedWidgetEntryIds' (non-empty string array) is required");
+        }
         const { entry } = await reorderWidgetEmbeds({
           deps: buildWidgetsDeps(routeDeps),
           input: {
