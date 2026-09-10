@@ -6,51 +6,47 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
+import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
-import { TOVU_BUNDLED_AGENT_PLUGINS, type BundledAgentPlugin } from "./agent-plugin-catalog";
+import { humanizeAgentPluginId } from "./rules";
 import { useWiredAgentPlugins } from "./hooks/use-agent-plugins.hooks";
 
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
 /**
- * One source-bundled plugin card. There is intentionally no Enable or Run control: exposing the
- * checked-in package in the Installed catalog is the only capability this slice implements.
+ * One installed Agent Plugin's card. There is intentionally no Enable/Disable toggle or Run
+ * control here — see `modules/agent-plugins.ts`'s own header: this dispatch wires a read path only,
+ * and an enable toggle is explicitly the visual-redesign workstream's scope, not this one's.
  */
 function AgentPluginCard(props: {
-  plugin: BundledAgentPlugin;
+  plugin: AdminAgentPlugin;
   t: (key: string) => string;
   onInspect: () => void;
   agentHandleBase: string;
 }) {
   const { plugin, t, onInspect, agentHandleBase } = props;
+  const displayName = humanizeAgentPluginId(plugin.pluginId);
 
   return (
-    <article className="jini-settings-section-card agent-plugin-card" aria-labelledby={`agent-plugin-${plugin.id}`}>
-      <h3 id={`agent-plugin-${plugin.id}`} className="jini-byok-card-title">{plugin.displayName}</h3>
-      <p className="jini-field-hint">{t(plugin.description)}</p>
-      {/* `.agent-plugin-meta` (styles.css), not `.jini-settings-privacy-disclosure` — that class is
-          the Privacy tab's own title+description pair (`dt` 13px/600/near-black, `dd` 12px/muted),
-          built for a bold heading followed by a caption. Borrowed here for a label/value fact, it
-          rendered backwards: "Source"/"Availability" outweighed the values they labeled. This is a
-          purpose-built label-over-value pair instead, using Jini's `--jini-*` tokens (not Tovu's
-          `--muted`/`--fg`) so it still resolves correctly under this screen's own
-          `data-theme="light"` pin — Tovu's own tokens only redefine at `:root[data-theme="dark"]`,
-          with no `[data-theme="light"]` reset, so they'd leak the dark value into this light-pinned
-          island when the admin's root theme is dark; Jini's tokens define both directions. */}
+    <article className="jini-settings-section-card agent-plugin-card" aria-labelledby={`agent-plugin-${plugin.pluginId}`}>
+      <h3 id={`agent-plugin-${plugin.pluginId}`} className="jini-byok-card-title">{displayName}</h3>
+      {plugin.description ? <p className="jini-field-hint">{plugin.description}</p> : null}
+      {/* `.agent-plugin-meta` (styles.css) — see `AgentPluginCard`'s prior revision for why this
+          purpose-built label/value pair exists rather than `.jini-settings-privacy-disclosure`.
+          Version/Keywords are real, installed-package facts, shown only when present (both are
+          genuinely optional in the Agent Plugins spec). "Source"/"Availability" rows this card used
+          to carry here are gone: they described the static `TOVU_BUNDLED_AGENT_PLUGINS` catalog's
+          one hand-authored entry, not anything this real installed-plugin data actually reports. */}
       <dl className="agent-plugin-meta">
         {plugin.version ? <div><dt>{t("Version")}</dt><dd>{plugin.version}</dd></div> : null}
-        <div><dt>{t("Source")}</dt><dd>{t(plugin.source)}</dd></div>
-        <div><dt>{t("Availability")}</dt><dd>{t(plugin.availability)}</dd></div>
+        <div><dt>{t("Status")}</dt><dd>{plugin.enabled ? t("Enabled") : t("Disabled")}</dd></div>
+        {plugin.keywords.length > 0 ? <div><dt>{t("Keywords")}</dt><dd>{plugin.keywords.join(", ")}</dd></div> : null}
       </dl>
-      {/* `.agent-plugin-skills` (styles.css), not `.jini-mcp-capabilities-card` — that class carries
-          its own border and `--jini-bg-panel` fill, the SAME fill and border as the outer
-          `.jini-settings-section-card` this sits inside, so it was a second identical box nested
-          inside the first for one list. Dropped the inner box; kept the uppercase label. Each skill
-          renders as its own name only — the list's one label already says these are skills, so
-          repeating the word on every line ("Skill: ui-ux-design", seven times) was the list's
-          section label doing the same job seven times over. */}
+      {/* Each skill renders as its own name only — the list's one label already says these are
+          skills, so repeating the word on every line was the list's section label doing the same
+          job seven times over (carried forward from this card's prior revision). */}
       <div className="agent-plugin-skills">
         <span className="agent-plugin-skills-label">{t("Portable components")}</span>
         <ul className="agent-plugin-skills-list">
@@ -59,17 +55,28 @@ function AgentPluginCard(props: {
           ))}
         </ul>
       </div>
+      {/* Reuses the same list markup/classes as the skills block above (no new visual treatment)
+          for the OTHER thing an installed Agent Plugin can contribute — see `AGENT_PLUGINS_LIST`'s
+          own header ("what it contributes: skills, MCP servers"). Only rendered when the package
+          actually declares one; most don't. */}
+      {plugin.mcpServerIds.length > 0 ? (
+        <div className="agent-plugin-skills">
+          <span className="agent-plugin-skills-label">{t("MCP servers")}</span>
+          <ul className="agent-plugin-skills-list">
+            {plugin.mcpServerIds.map((serverId) => (
+              <li key={serverId}><code>{serverId}</code></li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <button
         type="button"
         className="btn-secondary agent-plugin-inspect-btn"
         onClick={onInspect}
-        // "Inspect package files" reads identically on every bundled-plugin card — only one ships
-        // today, but the accessible name must not depend on that: a screen reader or a generic
-        // browser agent reading the accessibility tree (not this repo's own `agentHandle()`, whose
-        // `label` is a private `data-agent-label` attribute neither one can see) needs the
-        // plugin's own name to tell one card's button from another's the moment a second one ships.
-        aria-label={`${t("Inspect package files")} — ${plugin.displayName}`}
-        {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${plugin.displayName}" package files` })}
+        // "Inspect package files" reads identically on every card — see the identical note on this
+        // button's prior revision for why the plugin's own name must still be in the accessible name.
+        aria-label={`${t("Inspect package files")} — ${displayName}`}
+        {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${displayName}" package files` })}
       >
         {t("Inspect package files")}
       </button>
@@ -85,32 +92,37 @@ export interface AgentPluginsProps {
   useAgentPluginsHook?: typeof useWiredAgentPlugins;
 }
 
-/** Settings-style Agent Plugins catalog. Installed is source-backed; Marketplace is future-only. */
+/** Settings-style Agent Plugins catalog. Installed is read from `AGENT_PLUGINS_LIST` (real,
+ *  per-workspace installed state); Marketplace is future-only. */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
-  const { t, locale, inspectedPlugin, inspectPlugin, closeInspector } = useAgentPluginsHook();
-  // Bundled plugin ids are stable and unique, same per-row-handle derivation every other list on
-  // this workstream uses (`buildAgentListHandles`).
+  const { t, locale, agentPlugins, error, inspectedPlugin, inspectPlugin, closeInspector } = useAgentPluginsHook();
+  // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
+  // workstream uses (`buildAgentListHandles`).
   const cardHandles = buildAgentListHandles(
     "agent-plugin-card",
-    TOVU_BUNDLED_AGENT_PLUGINS.map((plugin) => plugin.id),
+    (agentPlugins ?? []).map((plugin) => plugin.pluginId),
   );
   const tabs: SettingsDialogTab[] = [
     {
       id: "installed",
       label: t("Installed"),
       title: t("Agent Plugins"),
-      subtitle: t("Portable packages bundled in Tovu's source tree."),
+      subtitle: t("Portable packages installed for this workspace."),
       panel: (
         <section className="jini-settings-section" aria-label={t("Installed Agent Plugins")}>
           <p className="settings-ui-inert-note" role="note">
-            {t("These packages are bundled with Tovu and catalogued as installed. Tovu does not execute Agent Plugins yet.")}
+            {t(
+              "These packages are bundled with Tovu and catalogued as installed. An installed plugin's skills reach the assistant once an operator enables it for this workspace.",
+            )}
           </p>
-          {TOVU_BUNDLED_AGENT_PLUGINS.map((plugin, index) => (
+          {error ? <p role="status">{error}</p> : null}
+          {!agentPlugins && !error ? <p role="status">{t("Loading Agent Plugins…")}</p> : null}
+          {agentPlugins?.map((plugin, index) => (
             <AgentPluginCard
-              key={plugin.id}
+              key={plugin.pluginId}
               plugin={plugin}
               t={t}
-              onInspect={() => inspectPlugin(plugin)}
+              onInspect={() => inspectPlugin({ id: plugin.pluginId, displayName: humanizeAgentPluginId(plugin.pluginId) })}
               agentHandleBase={cardHandles[index]!}
             />
           ))}

@@ -81,7 +81,8 @@ export interface BundledAgentPluginSourceFile {
  * under `content/agent-plugins/` (where `site-compliance` lives): that directory is walked by
  * `seedBundledAgentPlugins()` on the server and installs-and-activates-inactive whatever it finds
  * there as a real, executable Agent Plugin -- this package is meant to stay "catalogued, not
- * executed" (`agent-plugin-catalog.ts`'s own `availability` field), so it lives under this app's
+ * executed" — verified 2026-09-09: `AGENT_PLUGINS_LIST` never reports it as an installed package —
+ * so it lives under this app's
  * own `src/` instead, where nothing on the server side ever looks. It also is NOT part of this
  * app's TypeScript program or lint scope (`tsconfig.json`'s `exclude`, `eslint.config.mjs`'s
  * top-level `ignores`) -- its `.tsx` files are inert reference text this modal displays as a

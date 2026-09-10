@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { TOVU_BUNDLED_AGENT_PLUGINS } from "../agent-plugin-catalog";
 import {
   findBundledAgentPluginSourceFile,
   getBundledAgentPluginSourceFiles,
@@ -60,10 +59,13 @@ describe("ui-ux-design Agent Plugin package", () => {
     expect(Object.keys(manifest).every((field) => ALLOWED_MANIFEST_FIELDS.has(field))).toBe(true);
 
     // The package's manifest describes the whole 7-skill bundle and carries no `version` field
-    // (Jini's own choice, see packages/agent-plugins/README.md) -- Tovu's card metadata is deliberately
-    // its own hand-curated copy (displayName/version/description), not derived from this file, so
-    // only `id` is cross-checked against the manifest here.
-    expect(TOVU_BUNDLED_AGENT_PLUGINS[0]).toEqual(expect.objectContaining({ id: manifest.name }));
+    // (Jini's own choice, see packages/agent-plugins/README.md). `getBundledAgentPluginSourceFiles`
+    // below is keyed off this same literal id ("ui-ux-design"), which is what actually makes this
+    // vendored copy reachable from the inspector — there is no longer a separate hand-curated
+    // catalog entry to cross-check against (`TOVU_BUNDLED_AGENT_PLUGINS` was removed 2026-09-09:
+    // `ui-ux-design` is not a real installed Agent Plugin — see `agent-plugin-source-catalog.ts`'s
+    // own header).
+    expect(getBundledAgentPluginSourceFiles(manifest.name as string).length).toBeGreaterThan(0);
   });
 
   it("discovers exactly the 7 expected skills, each with a non-empty, name-matching SKILL.md", () => {

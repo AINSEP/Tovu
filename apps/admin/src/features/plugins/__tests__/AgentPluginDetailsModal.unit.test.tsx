@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
 import type { AgentPluginDetailsModalController } from "../hooks/use-agent-plugin-details-modal.hooks";
-import { TOVU_BUNDLED_AGENT_PLUGINS } from "../agent-plugin-catalog";
+import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
 
 /**
  * @file `AgentPluginDetailsModal`'s own rendering behavior is already covered end-to-end through
@@ -14,7 +14,9 @@ import { TOVU_BUNDLED_AGENT_PLUGINS } from "../agent-plugin-catalog";
  * the `ConfirmDialog dialog-hook injection` precedent every other seamed component carries.
  */
 
-const PLUGIN = TOVU_BUNDLED_AGENT_PLUGINS[0]!;
+// `AgentPluginDetailsModalProps.plugin` only reads `id`/`displayName` (see that component's own
+// narrowed prop type, 2026-09-09) — a plain literal is enough, no catalog import needed.
+const PLUGIN: InspectedAgentPlugin = { id: "ui-ux-design", displayName: "UI/UX Design" };
 
 describe("AgentPluginDetailsModal details-hook injection", () => {
   it("renders purely off an injected fake, proving useAgentPluginDetailsModal is not hardcoded", () => {

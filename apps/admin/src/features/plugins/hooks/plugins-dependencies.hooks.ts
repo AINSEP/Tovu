@@ -3,8 +3,8 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
  * @file The only place under `features/plugins`'s screen hook that reaches `lib/api` — see
- * `plugins-port.hooks.ts` for why the split exists. (`AgentPlugins.tsx`/`agent-plugin-catalog.ts`
- * are a separate feature — the Agent Plugins bundle catalog — and out of scope here.)
+ * `plugins-port.hooks.ts` for why the split exists. (`AgentPlugins.tsx` is a separate screen, with
+ * its own port at `agent-plugins-dependencies.hooks.ts` — out of scope here.)
  */
 
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies

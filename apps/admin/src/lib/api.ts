@@ -1783,6 +1783,22 @@ export interface AdminPlugin {
   errors: Array<{ code: string; file: string | null; message: string }>;
 }
 
+/** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
+ *  `AGENT_PLUGINS_LIST` per-plugin wire shape (2026-09-09). A DIFFERENT family from {@link
+ *  AdminPlugin} above: Agent Plugins (agent-plugins.org packages) versus the `.tovu-plugin`
+ *  site/runtime plugins `AdminPlugin` describes — see that route's own header. `version`/
+ *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
+ *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
+export interface AdminAgentPlugin {
+  pluginId: string;
+  version: string | null;
+  description: string | null;
+  keywords: string[];
+  enabled: boolean;
+  skills: Array<{ name: string; summary: string }>;
+  mcpServerIds: string[];
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -3456,6 +3472,10 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "PATCH", body: JSON.stringify({ enabled }) }
     ),
+
+  // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
+  // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
+  listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins`),
 
   // Deployment panel (`src/server/routes/admin/system/deployment-overview.ts` /
   // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.

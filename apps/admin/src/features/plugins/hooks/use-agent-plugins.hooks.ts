@@ -1,29 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
-import type { BundledAgentPlugin } from "../agent-plugin-catalog";
+import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
+import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file State for the Agent Plugins screen, so `AgentPlugins.tsx` is only markup — same split as
  * this directory's own `use-plugins.hooks.ts` (`Plugins.tsx`'s hook).
  *
- * No port, and no `<name>-port.hooks.ts`/`<name>-dependencies.hooks.ts` pair: this screen's only
- * data source, `TOVU_BUNDLED_AGENT_PLUGINS` (`agent-plugin-catalog.ts`), is a static, checked-in
- * constant with no host boundary — nothing here performs I/O, so per this migration's own ground
- * rule ("a hook with no I/O gets no port") a port would be ceremony with nothing to inject.
+ * REWRITTEN 2026-09-09: this hook used to return the static, checked-in `TOVU_BUNDLED_AGENT_PLUGINS`
+ * constant with no I/O at all (the module's own prior header said so explicitly: "a port would be
+ * ceremony with nothing to inject"). That premise is gone — `AGENT_PLUGINS_LIST`
+ * (`server/inbound/admin-http/routes/agent-plugins/list.ts`) now exists, so this hook has a real
+ * host boundary to inject, and gets the same `port` (`AgentPluginsPort`) / `useX(dependencies)` /
+ * `useWiredX()` split `use-plugins.hooks.ts` already uses for this feature's sibling screen.
  *
- * `t` (standing i18n rule, 2026-08-11 — see `use-plugins.hooks.ts`'s own header, this screen's
- * sibling in the same directory): resolved here from `useAdminLocale()` and returned as a bound
- * `t`, rather than `AgentPlugins.tsx` calling `useAdminLocale()`/`plugins-i18n` directly.
+ * `describeApiError` here is the shared default from `lib/api.ts`, not this feature's
+ * `rules.ts` override — that override's `PLUGIN_NOT_FOUND`/`PLUGIN_INVALID`/`PLUGIN_INCOMPATIBLE`
+ * codes belong to the `.tovu-plugin` enable/disable route this screen does not call; a plain read
+ * has no comparable error taxonomy to layer on top of the server's own message.
+ *
+ * `t` (standing i18n rule, 2026-08-11): resolved from `useAdminLocale()` in `useWiredAgentPlugins`
+ * and returned as a bound `t`, rather than `AgentPlugins.tsx` calling `useAdminLocale()`/
+ * `plugins-i18n` directly.
  */
 
+/** The minimal shape `AgentPluginDetailsModal` actually reads (`plugin.id`/`plugin.displayName`) —
+ *  see that component's own narrowed prop type. Kept here, not re-exported from the deleted
+ *  `agent-plugin-catalog.ts`, since nothing about it is bundle-specific anymore: any installed
+ *  plugin's id plus a human-readable label is enough to open the inspector. */
+export interface InspectedAgentPlugin {
+  readonly id: string;
+  readonly displayName: string;
+}
+
+export interface AgentPluginsDependencies {
+  port: AgentPluginsPort;
+  locale: string;
+  t: Translate;
+}
+
 export interface AgentPluginsController {
+  /** `null` until the initial load settles — the caller renders a loading state. */
+  agentPlugins: AdminAgentPlugin[] | null;
+  error: string | null;
   /** The plugin currently open in the read-only package inspector, or `null` when it's closed. */
-  inspectedPlugin: BundledAgentPlugin | null;
+  inspectedPlugin: InspectedAgentPlugin | null;
   /** Opens the inspector for `plugin`. */
-  inspectPlugin: (plugin: BundledAgentPlugin) => void;
+  inspectPlugin: (plugin: InspectedAgentPlugin) => void;
   /** Closes the inspector. */
   closeInspector: () => void;
   /** Bound translator — `AgentPlugins.tsx`'s only source of UI copy; see this file's own header. */
@@ -35,16 +62,26 @@ export interface AgentPluginsController {
 }
 
 /**
- * @param void — no arguments; there is no port to inject (see this file's own header).
- * @returns The inspector's open/closed plugin plus the bound translator.
- * @complexity Time/space: O(1) — one piece of UI state, no I/O.
+ * Loads the real installed Agent Plugins for this workspace once on mount.
+ *
+ * @complexity One GET on mount. No mutation yet — see `agent-plugins-port.hooks.ts`'s own doc for
+ * why `AgentPluginsPort` carries no write method.
  */
-export function useAgentPlugins(): AgentPluginsController {
-  const locale = useAdminLocale();
-  const t = (key: string): string => translatePlugins(locale, key);
-  const [inspectedPlugin, setInspectedPlugin] = useState<BundledAgentPlugin | null>(null);
+export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): AgentPluginsController {
+  const [agentPlugins, setAgentPlugins] = useState<AdminAgentPlugin[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [inspectedPlugin, setInspectedPlugin] = useState<InspectedAgentPlugin | null>(null);
+
+  useEffect(() => {
+    void port
+      .listAgentPlugins()
+      .then((r) => setAgentPlugins(r.agentPlugins))
+      .catch((e) => setError(describeApiError(e, translatePlugins(locale, "failed to load agent plugins"))));
+  }, []);
 
   return {
+    agentPlugins,
+    error,
     inspectedPlugin,
     inspectPlugin: setInspectedPlugin,
     closeInspector: () => setInspectedPlugin(null),
@@ -54,13 +91,15 @@ export function useAgentPlugins(): AgentPluginsController {
 }
 
 /**
- * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair this codebase uses
- * throughout. Kept as a one-line alias even though there is no port to bind — purely so
- * `AgentPlugins.tsx`'s `useAgentPluginsHook = useWiredAgentPlugins` default prop follows the same
- * grep-able naming every other converted screen in this batch uses.
+ * Binds the real `/api/.../agent-plugins` client and the real `useAdminLocale()` — see
+ * `agent-plugins-dependencies.hooks.ts`.
  *
- * @returns The same controller {@link useAgentPlugins} returns.
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `AgentPlugins.tsx` composes this and a test composes {@link useAgentPlugins} with
+ * `createFakeAgentPluginsPort`.
  */
 export function useWiredAgentPlugins(): AgentPluginsController {
-  return useAgentPlugins();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translatePlugins(locale, key);
+  return useAgentPlugins({ port: defaultAgentPluginsPort, locale, t });
 }

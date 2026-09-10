@@ -72,3 +72,22 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
 export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): string {
   return `${plugin.enabled ? t(locale, "Disable") : t(locale, "Enable")} ${plugin.name}`;
 }
+
+/**
+ * Title-cases a kebab-case Agent Plugin id into a human display name (`"site-compliance"` ->
+ * `"Site Compliance"`) — `AGENT_PLUGINS_LIST` (`server/inbound/admin-http/routes/agent-plugins/
+ * list.ts`) reports only `pluginId`, never a separate hand-curated `displayName` the way the old,
+ * now-deleted `TOVU_BUNDLED_AGENT_PLUGINS` catalog did, so `AgentPlugins.tsx` needs a pure
+ * formatting step rather than a stored field. Mirrors `tool-registrations.ts`'s server-side
+ * `humanize()` (same transform, independently kept per that file's own "private formatting helper
+ * of a sibling module" precedent — see its header).
+ *
+ * @complexity O(n) in `pluginId`'s length.
+ */
+export function humanizeAgentPluginId(pluginId: string): string {
+  return pluginId
+    .split("-")
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}

@@ -3,13 +3,13 @@ import { PreviewModalShell } from "@jini-ai/ui/renderers";
 import { agentHandle } from "@jini-ai/agentic";
 import { Fragment, useId, useState } from "react";
 
-import type { BundledAgentPlugin } from "./agent-plugin-catalog";
+import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import type { BundledAgentPluginSourceFile } from "./agent-plugin-source-catalog";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useAgentPluginDetailsModal } from "./hooks/use-agent-plugin-details-modal.hooks";
 
 export interface AgentPluginDetailsModalProps {
-  readonly plugin: BundledAgentPlugin;
+  readonly plugin: InspectedAgentPlugin;
   readonly onClose: () => void;
   /** Injectable seam for the file-tree selection state. Defaults to the real
    *  {@link useAgentPluginDetailsModal}; a test can pass a fake here to exercise the modal's
