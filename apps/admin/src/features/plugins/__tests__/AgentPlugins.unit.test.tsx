@@ -29,10 +29,20 @@ import type { AdminAgentPlugin } from "@/lib/api";
  * REWRITTEN 2026-09-09 (c): the single "Installed" tab split into Downloaded (every row
  * `agentPlugins` carries, unfiltered — this suite's OWN fixtures already mix one enabled and one
  * disabled plugin, so this was already what most tests below were driving) and Installed (only
- * `plugin.enabled === true`). Tests that exercise a row's controls (switch, expander, inspector,
- * uninstall affordance) stay on Downloaded, now the first/default tab, unchanged in every assertion
- * — Downloaded is the pre-split tab's exact content, retitled. The tab-identity test and the new
- * Installed-scoping tests below are what actually changed.
+ * `plugin.enabled === true`). At the time, Downloaded was the first/default tab, so tests that
+ * exercise a row's controls (switch, expander, inspector, uninstall affordance) stayed there
+ * unchanged in every assertion. Superseded by (d) below.
+ *
+ * REWRITTEN 2026-09-09 (d), owner correction to (c) the same day: Installed became the
+ * first/default tab (it is the "what's active" view, so it leads), and Downloaded's row traded its
+ * Enable/Disable switch for a single Remove ("Remove <name>", opens the same confirm dialog,
+ * reworded — see `AgentPluginDisableConfirmDialog`'s own header for the two `variant`s that
+ * follow)/Enable (a currently-disabled row, direct call, no confirm) action — showing the switch on
+ * both tabs repeated the same on/off fact Installed already conveys by which rows it lists at all.
+ * The switch's "off" state is consequently unreachable now: Installed excludes disabled rows by
+ * construction, and Downloaded has no switch at all. Tests that need a disabled-plugin control now
+ * navigate to Downloaded and use its Enable button; tests that need the switch stay on Installed
+ * (the default tab, no navigation needed) and only ever see it in the "on" state.
  */
 
 const SITE_COMPLIANCE: AdminAgentPlugin = {
@@ -93,16 +103,22 @@ function row(name: string): HTMLElement {
 }
 
 describe("AgentPlugins", () => {
-  it("renders the first horizontal tab as Downloaded, ahead of Installed and Marketplace, listing every downloaded plugin unfiltered", () => {
+  it("renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, scoped to enabled rows only", async () => {
     renderAgentPlugins();
-    const downloadedTab = screen.getByRole("button", { name: "Downloaded" });
     const installedTab = screen.getByRole("button", { name: "Installed" });
+    const downloadedTab = screen.getByRole("button", { name: "Downloaded" });
     const marketplaceTab = screen.getByRole("button", { name: "Marketplace" });
-    expect(downloadedTab).toHaveAttribute("aria-pressed", "true");
-    expect(downloadedTab.compareDocumentPosition(installedTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(installedTab.compareDocumentPosition(marketplaceTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(installedTab).toHaveAttribute("aria-pressed", "true");
+    expect(installedTab.compareDocumentPosition(downloadedTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(downloadedTab.compareDocumentPosition(marketplaceTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Installed is scoped to enabled rows only — TOVU_DEPLOY_FLY (`enabled: false`) belongs on
+    // Downloaded, not here.
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(row("Site Compliance")).toBeInTheDocument();
 
     // Downloaded is unfiltered — both the enabled and the disabled fixture plugin show up.
+    await userEvent.click(downloadedTab);
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     const compliance = row("Site Compliance");
     expect(within(compliance).getByText("v1.0.0")).toBeInTheDocument();
@@ -134,37 +150,52 @@ describe("AgentPlugins", () => {
     expect(screen.getByRole("listitem", { name: "Tovu Deploy Fly" })).toBeInTheDocument();
   });
 
-  it("reports each row's applied state with a switch AND a word, never colour alone", () => {
+  it("reports Installed's switch state with aria-checked AND a word, never colour alone", () => {
+    // Installed only ever lists enabled rows (see the tab-scoping test above), so the switch's
+    // "off" state is not reachable here, and Downloaded drops the switch entirely in favor of
+    // Remove/Enable — see the Downloaded-tab tests below for that row's own state reporting.
     renderAgentPlugins();
 
     const enabledSwitch = within(row("Site Compliance")).getByRole("switch");
     expect(enabledSwitch).toHaveAttribute("aria-checked", "true");
     expect(enabledSwitch).toHaveAccessibleName("Disable Site Compliance");
     expect(within(row("Site Compliance")).getByText("Enabled")).toBeInTheDocument();
-
-    const disabledSwitch = within(row("Tovu Deploy Fly")).getByRole("switch");
-    expect(disabledSwitch).toHaveAttribute("aria-checked", "false");
-    expect(disabledSwitch).toHaveAccessibleName("Enable Tovu Deploy Fly");
-    expect(within(row("Tovu Deploy Fly")).getByText("Disabled")).toBeInTheDocument();
   });
 
-  it("calls the controller with the row's own plugin when its switch is activated", async () => {
+  it("Downloaded's Enable button names the disabled plugin it would enable", async () => {
+    renderAgentPlugins();
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+
+    expect(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" })).toBeInTheDocument();
+  });
+
+  it("calls the controller with the row's own plugin when Downloaded's Enable button is activated", async () => {
     const onToggleEnabled = vi.fn(async () => {});
     renderAgentPlugins({ onToggleEnabled });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("switch"));
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" }));
 
     expect(onToggleEnabled).toHaveBeenCalledTimes(1);
     expect(onToggleEnabled).toHaveBeenCalledWith(TOVU_DEPLOY_FLY);
   });
 
-  it("disables only the in-flight row's switch, and marks it busy", () => {
-    renderAgentPlugins({ togglingIds: new Set(["tovu-deploy-fly"]) });
+  it("marks Installed's switch busy while its own toggle is in flight", () => {
+    renderAgentPlugins({ togglingIds: new Set(["site-compliance"]) });
 
-    const busy = within(row("Tovu Deploy Fly")).getByRole("switch");
+    const busy = within(row("Site Compliance")).getByRole("switch");
     expect(busy).toBeDisabled();
     expect(busy).toHaveAttribute("aria-busy", "true");
-    expect(within(row("Site Compliance")).getByRole("switch")).toBeEnabled();
+  });
+
+  it("marks Downloaded's Remove/Enable button busy while its own toggle is in flight, leaving other rows untouched", async () => {
+    renderAgentPlugins({ togglingIds: new Set(["tovu-deploy-fly"]) });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+
+    const busy = within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" })).toBeEnabled();
   });
 
   it("keeps the switch on the server-confirmed position when a toggle failed, and says so", () => {
@@ -187,8 +218,9 @@ describe("AgentPlugins", () => {
     expect(uninstall).toHaveAccessibleDescription(/ship with Tovu and are restored on the next restart/);
   });
 
-  it("keeps every per-plugin fact, moving keywords and components behind the row's own expander", () => {
+  it("keeps every per-plugin fact, moving keywords and components behind the row's own expander", async () => {
     const { rerender } = renderAgentPlugins();
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
     const summary = within(row("Site Compliance")).getByRole("button", { name: "Site Compliance v1.0.0" });
     expect(summary).toHaveAttribute("aria-expanded", "false");
@@ -198,6 +230,9 @@ describe("AgentPlugins", () => {
       return fakeController({ expandedIds: new Set(["site-compliance"]) });
     }
     rerender(<AgentPlugins useAgentPluginsHook={useExpanded} />);
+    // Defensive re-click: the active tab is internal state in a child component that should
+    // survive this rerender, but re-clicking an already-active tab is a harmless no-op either way.
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
     const expandedRow = row("Site Compliance");
     expect(within(expandedRow).getByRole("button", { name: "Site Compliance v1.0.0" })).toHaveAttribute("aria-expanded", "true");
@@ -216,6 +251,7 @@ describe("AgentPlugins", () => {
   it("calls the controller with the row's own id when the expander is activated", async () => {
     const onToggleExpanded = vi.fn();
     renderAgentPlugins({ onToggleExpanded });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
     await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Tovu Deploy Fly" }));
 
@@ -236,7 +272,9 @@ describe("AgentPlugins", () => {
 
   it("says what enabling actually does, and still offers no install or run action", () => {
     renderAgentPlugins();
-    expect(screen.getByText(/Enabling one puts its skills in the assistant's prompt/i)).toBeInTheDocument();
+    // Installed is the default tab now, so its own lede is what's on screen at load — not
+    // Downloaded's "Enabling one puts its skills..." text, which now requires navigating there.
+    expect(screen.getByText(/Their skills reach the assistant's prompt on every run/i)).toBeInTheDocument();
     // Kept from this suite's pre-redesign version. Enable is no longer in this list — the screen
     // now has a real one — but Install and Run remain things Tovu genuinely cannot do from here.
     for (const action of [/^Install$/i, /^Run$/i]) {
@@ -244,7 +282,7 @@ describe("AgentPlugins", () => {
     }
   });
 
-  it("keeps the default tab keyboard reachable", async () => {
+  it("keeps a tab button keyboard reachable", async () => {
     renderAgentPlugins();
     const tab = screen.getByRole("button", { name: "Downloaded" });
     tab.focus();
@@ -306,14 +344,51 @@ describe("AgentPlugins disable-confirm dialog", () => {
   });
 
   it("does not open a confirm dialog when enabling a disabled plugin — only disabling asks first", async () => {
+    // No switch is reachable for a disabled plugin anywhere anymore (Installed excludes it,
+    // Downloaded traded the switch for Remove/Enable) — this is now exercised through Downloaded's
+    // Enable button instead.
     const onToggleEnabled = vi.fn(async () => {});
     renderAgentPlugins({ onToggleEnabled });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
-    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("switch"));
+    await userEvent.click(within(row("Tovu Deploy Fly")).getByRole("button", { name: "Enable Tovu Deploy Fly" }));
 
     expect(onToggleEnabled).toHaveBeenCalledTimes(1);
     expect(onToggleEnabled).toHaveBeenCalledWith(TOVU_DEPLOY_FLY);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Downloaded's Remove opens a confirm dialog worded for Remove, and calls the controller once confirmed", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" }));
+
+    expect(onToggleEnabled).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Remove Site Compliance?" });
+    expect(within(dialog).getByText(/stays right here on Downloaded and can be enabled again/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/ships with Tovu/)).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+    expect(onToggleEnabled).toHaveBeenCalledTimes(1);
+    expect(onToggleEnabled).toHaveBeenCalledWith(SITE_COMPLIANCE);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Cancel on Downloaded's Remove dialog closes it without ever calling the controller", async () => {
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ onToggleEnabled });
+    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
+
+    await userEvent.click(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onToggleEnabled).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The row itself is untouched — Remove is still there, unfired.
+    expect(within(row("Site Compliance")).getByRole("button", { name: "Remove Site Compliance" })).toBeInTheDocument();
   });
 
   it("calls the controller only once Confirm is pressed, then closes the dialog", async () => {
