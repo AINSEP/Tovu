@@ -109,9 +109,9 @@ committed file:
 
 | Secret | Status | What happens without it |
 |---|---|---|
-| `TOVU_ADMIN_PASSWORD` | **Boot-blocking** | The production readiness gate refuses to boot. `hasDefaultOwnerPassword` is true whenever it is unset **or still equal to the default**, and that is one of the four `collectUnsafeDefaultFailures` checks. |
+| `TOVU_ADMIN_PASSWORD` | **Boot-blocking** | The production readiness gate refuses to boot. `hasDefaultOwnerPassword` is true whenever it is unset **or still equal to the default**, and that is one of the `collectUnsafeDefaultFailures` checks. |
 | `ANALYTICS_ROOT_KEY_SEED` | **Boot-blocking** | `hasDevSecretPlaceholder` is literally `!process.env.ANALYTICS_ROOT_KEY_SEED`. Unset means the app falls back to the dev placeholder seed, and the gate refuses to boot. |
-| `TOVU_INTEGRATIONS_ROOT_KEY` | **Not boot-blocking — and that is the danger.** See Rule 4. | Nothing fails at boot. Something much worse happens quietly. |
+| `TOVU_INTEGRATIONS_ROOT_KEY` | **Boot-blocking.** See Rule 4. | `hasMissingIntegrationsRootKey` is `!process.env.TOVU_INTEGRATIONS_ROOT_KEY`. Unset in production and the gate refuses to boot with `PRODUCTION_BOOT_UNSAFE_DEFAULT` (`missing-integrations-root-key`) — it must be set in fly secrets **before** the first deploy. |
 
 Both boot-blocking checks only run when `TOVU_RUNTIME_MODE=production`, which the template
 sets. Generate either value as 32 random bytes hex:
@@ -124,30 +124,40 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 write, a commit message, or your reply. If a secret value has to exist, the operator types it —
 into GitHub's secret form, or into `custom_credential_set_token`'s masked field.
 
-### Rule 4 — `TOVU_INTEGRATIONS_ROOT_KEY` must be set explicitly, or saved credentials die on every deploy.
+### Rule 4 — `TOVU_INTEGRATIONS_ROOT_KEY` must be set before the first deploy, or the boot refuses.
 
-This one is not a "recommended for completeness" item. Read what actually happens.
+**This is a boot-blocking prerequisite, not a footnote — read it before Step 4.** A production
+boot with this var unset now fails loudly (`PRODUCTION_BOOT_UNSAFE_DEFAULT`,
+`missing-integrations-root-key`), fixed 2026-09-09 after this used to fail silently — the
+history below is why it matters, not a description of today's behavior.
 
 `EnvOrFileKeyring.resolveRootKey()` resolves the master key in this order:
 
 1. `process.env.TOVU_INTEGRATIONS_ROOT_KEY`, hex-decoded. If present, done.
-2. Otherwise — and `allowFileFallback` defaults to **true** — it looks for
+2. Otherwise — and `allowFileFallback` defaults to **true** outside production — it looks for
    `~/.tovu/integrations-root-key.hex`.
-3. If that file does not exist, it **generates 32 random bytes, writes them to that path, and
-   uses them.** No error. No warning. No log.
+3. If that file does not exist, it generates 32 random bytes, writes them to that path, and uses
+   them.
 
 In the container, `USER node`, so `~` is `/home/node` — **not** on the volume, which is mounted
-at `/workspace/Tovu/sites`. The container filesystem is ephemeral. Therefore:
+at `/workspace/Tovu/sites`. The container filesystem is ephemeral, so step 2/3's fallback file
+never survives a redeploy. That used to matter silently: every deploy and every machine restart
+would generate a brand-new random master key, and every credential sealed under the previous key
+became permanently undecryptable, with nothing reporting it. The production readiness gate now
+closes exactly that gap by refusing to boot instead of falling back — the fallback itself still
+exists (for local dev, where it's harmless), it is just no longer reachable in production.
 
-> With `TOVU_INTEGRATIONS_ROOT_KEY` unset, every deploy and every machine restart generates a
-> **brand-new random master key**. Every credential sealed under the previous key becomes
-> permanently undecryptable, and nothing anywhere reports it. Boot succeeds. The failure surfaces
-> later as unrelated-looking 503s and auth errors from integrations that worked yesterday.
+So, before Step 4 or the first deploy, set it explicitly:
 
-So: **set it before the first deploy, and never rotate it casually.** Treat it as the one value
-whose loss is unrecoverable. If the operator has already deployed without it, say plainly that
-credentials saved on the server so far are gone and must be re-entered — do not imply they can
-be recovered.
+```
+fly secrets set TOVU_INTEGRATIONS_ROOT_KEY=$(openssl rand -hex 32) -a <app>
+```
+
+**Never rotate it casually once set.** Treat it as the one value whose loss is unrecoverable —
+every credential sealed under the old key becomes undecryptable the moment the key changes,
+boot-blocking gate or not. If the operator already deployed without it, before this fix shipped,
+say plainly that credentials saved on the server so far are gone and must be re-entered — do not
+imply they can be recovered.
 
 ### Rule 5 — Migrations apply themselves. Do not add a migration step.
 
@@ -251,8 +261,10 @@ Rule 3's table lists them. These go through fly secrets, not the committed file,
 operator supplies each value — you generate the random ones only if they ask you to, and even
 then the value goes to them, not into a file you write.
 
-Confirm all three are set before dispatching. The two boot-blocking ones fail loudly; Rule 4's
-fails silently, which is exactly why it needs a deliberate check rather than an assumption.
+Confirm all three are set before dispatching. All three are now boot-blocking and fail loudly if
+missing — but Rule 4's still deserves the deliberate check the others don't: a *rotated* key
+(set, but different from the one credentials were sealed under) boots fine and fails later,
+which the gate cannot distinguish from "never configured".
 
 ### Step 5 — Fire the workflow
 
