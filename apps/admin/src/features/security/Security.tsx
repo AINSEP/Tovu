@@ -10,6 +10,7 @@ import { SiteTokenTab } from "./SiteTokenTab";
 import { AccessTokensIcon, SiteTokenIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
+import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
 
 /**
  * @file The Security page (`/admin/access-tokens`) — a consolidation, not a new store: every token
@@ -74,16 +75,38 @@ import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
  * lists. `admin.security.tokens.manage`-gated separately from every verb above (`features/
  * identity/site-token-permission.ts`) — a narrower trust boundary than ordinary content admin,
  * deliberately not reusing this page's existing permission checks.
+ *
+ * ## The Site Token tab is affordance-hidden, not just protected server-side (2026-09-10)
+ *
+ * Every site-token route already re-checks `admin.security.tokens.manage` server-side
+ * (`site-token-permission.ts`'s own header) — that gate was never the gap. Until this pass, the
+ * TAB itself rendered for every logged-in admin-panel user regardless of role, so an editor/viewer
+ * saw a tab that would 403 on every action inside it. `useWiredSecurityPermissions` (`hooks/
+ * use-security-permissions.hooks.ts`) reads the same permission client-side, UX-only
+ * (`lib/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
+ * boundary): the tab entry, the rendered `<SiteTokenTab />`, and a direct `?tab=site-token` link all
+ * fall back to Access Tokens for a principal who does not hold it. `resolveSecurityTabId` treats a
+ * still-loading permission read as "not permitted" (`hasPermission` naturally returns `false` for
+ * empty/absent permissions), so the tab never flashes into view before disappearing.
  */
 
 const SECURITY_TAB_IDS = ["access-tokens", "site-token"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
-/** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value. Delegates to
+/** The tab-id list for a principal WITHOUT `admin.security.tokens.manage` — see this file's header
+ *  ("The Site Token tab is affordance-hidden") for why {@link resolveSecurityTabId} needs a second,
+ *  narrower list rather than only ever validating against {@link SECURITY_TAB_IDS}. */
+const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
+
+/** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value, delegating to
  *  the shared `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/
- *  `Database.tsx`/`Themes.tsx` all use. */
-function resolveSecurityTabId(tabId: string | null | undefined): SecurityTabId {
-  return resolveActiveTabId(tabId, SECURITY_TAB_IDS, "access-tokens");
+ *  `Database.tsx`/`Themes.tsx` all use — AND, since 2026-09-10, for a `?tab=site-token` link
+ *  followed by a principal who does not hold `admin.security.tokens.manage`: `validIds` narrows to
+ *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-token` reads as just as "unrecognized" as a
+ *  typo would, and they land on Access Tokens instead of an empty panel. */
+function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteToken: boolean): SecurityTabId {
+  const validIds: readonly SecurityTabId[] = canManageSiteToken ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
+  return resolveActiveTabId(tabId, validIds, "access-tokens");
 }
 
 export interface SecurityProps {
@@ -94,11 +117,22 @@ export interface SecurityProps {
   useAccessTokensHook?: typeof useWiredAccessTokens;
   /** DI seam for tests, threaded through to {@link SiteTokenTab} — same convention. */
   useSiteTokenHook?: typeof useWiredSiteToken;
+  /** DI seam for tests — decides whether the Site Token tab is even offered. See this file's
+   *  header ("The Site Token tab is affordance-hidden"). */
+  useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
+}
+
+function resolveSecurityPermissionsHook(
+  override: typeof useWiredSecurityPermissions | undefined
+): typeof useWiredSecurityPermissions {
+  return override ?? useWiredSecurityPermissions;
 }
 
 export function Security(props: SecurityProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveSecurityTabId(props.tabId);
+  const useSecurityPermissionsHook = resolveSecurityPermissionsHook(props.useSecurityPermissionsHook);
+  const { canManageSiteToken } = useSecurityPermissionsHook();
+  const activeTabId = resolveSecurityTabId(props.tabId, canManageSiteToken);
 
   const tabs: TabBarTab[] = [
     {
@@ -108,13 +142,17 @@ export function Security(props: SecurityProps) {
       handle: "security-tab-access-tokens",
       handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
     },
-    {
-      id: "site-token",
-      label: t(locale, "Site Token"),
-      icon: <SiteTokenIcon size={16} />,
-      handle: "security-tab-site-token",
-      handleLabel: "Switch to the Site Token tab — view and generate the root key file that decrypts webhook signing and newsletter tokens on a local install",
-    },
+    ...(canManageSiteToken
+      ? [
+          {
+            id: "site-token",
+            label: t(locale, "Site Token"),
+            icon: <SiteTokenIcon size={16} />,
+            handle: "security-tab-site-token",
+            handleLabel: "Switch to the Site Token tab — view and generate the root key file that decrypts webhook signing and newsletter tokens on a local install",
+          } satisfies TabBarTab,
+        ]
+      : []),
   ];
 
   function handleTabChange(nextTabId: string) {
