@@ -54,8 +54,15 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
   const parsed = parseAgentPluginManifest(JSON.parse(await readPackageFile("plugin.json")));
   assert.equal(parsed.ok, true);
   const keywords = new Set(parsed.ok ? (parsed.manifest.keywords ?? []) : []);
-  for (const expected of ["deploy", "fly.io", "flyctl", "hosting", "github-actions", "sqlite", "volume"]) {
+  for (const expected of ["deploy", "fly.io", "flyctl", "hosting", "sqlite", "volume"]) {
     assert.ok(keywords.has(expected), `plugin.json keywords must include '${expected}' — it is a primary discovery term`);
+  }
+
+  // The GitHub vocabulary moved OUT with the procedure it described (2026-09-10). Leaving these
+  // here would surface this plugin for a bare "github actions" query it can no longer answer, and
+  // would rank it against the `github` plugin that now owns exactly that.
+  for (const moved of ["ci", "github-actions", "workflow-dispatch"]) {
+    assert.ok(!keywords.has(moved), `plugin.json must NOT keyword '${moved}' — the bundled 'github' plugin owns that vocabulary now`);
   }
 });
 
@@ -192,6 +199,27 @@ test("SKILL.md documents the Machines API path as BLOCKED and never as a procedu
 
   const skill = await readSkill();
   assert.match(skill, /Do not improvise the Machines API path/i);
+});
+
+test("SKILL.md defers every GitHub step to the `github` plugin instead of restating the procedure", async () => {
+  const skill = await readSkill();
+
+  // Both plugins' skills reach the assistant's prompt at the SAME TIME, so the same rule written
+  // twice, slightly differently, is a contradiction rather than emphasis. The GitHub procedure moved
+  // out wholesale (2026-09-10); what stays here is a pointer plus the Fly-specific facts.
+  assert.match(skill, /`github` plugin/);
+  assert.match(skill, /does not describe the GitHub half|not repeated here|deliberately not repeated/i);
+
+  // The concrete procedure that moved. Its RE-APPEARANCE here is the drift this test exists to
+  // catch — a well-meaning edit that "helpfully" inlines the dispatch call again.
+  assert.ok(!skill.includes("api.github.com"), "SKILL.md must not hand-roll a GitHub API URL — the `github` plugin owns every GitHub call");
+  assert.ok(!/actions\/workflows\/[^\s]*\/dispatches/.test(skill), "the workflow-dispatch procedure belongs to the `github` plugin, not here");
+  assert.ok(!/204 with an empty body/.test(skill), "the 204-means-queued rule is the `github` plugin's — restating it here creates two sources of truth");
+
+  // And the dependency itself has to be stated in prose, because the manifest schema cannot carry
+  // it: `manifest.ts`'s KNOWN_MANIFEST_KEYS is $schema/name/version/description/author/license/
+  // keywords, with no dependency field to invent.
+  assert.match(skill, /no dependency\s+field/i);
 });
 
 test("SKILL.md never tells the assistant to handle a secret value itself", async () => {

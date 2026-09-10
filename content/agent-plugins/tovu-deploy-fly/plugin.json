@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "tovu-deploy-fly",
   "version": "1.0.0",
-  "description": "Deploys a Tovu instance to fly.io with no CLI installed anywhere — the assistant writes a fly.toml and a GitHub Actions workflow into the operator's repo, then fires it through the workspace's saved GitHub credential, so flyctl only ever runs on GitHub's runner. Encodes the four Tovu-specific rules generic fly.io knowledge gets wrong: exactly one machine (SQLite), the volume shadowing the image's entire sites/ tree, secrets never in fly.toml, and deploying shipping code rather than content.",
+  "description": "Deploys a Tovu instance to fly.io with no CLI installed anywhere — a fly.toml and a GitHub Actions workflow go into the operator's repo and the workflow is fired through the workspace's saved GitHub credential, so flyctl only ever runs on GitHub's runner. Encodes the Tovu-and-fly-specific rules generic fly.io knowledge gets wrong: exactly one machine (SQLite), the volume shadowing the image's entire sites/ tree, secrets never in fly.toml, the sealed-credential master key, and deploying shipping code rather than content. Every GitHub step it needs — writing the files, the repository secret, the dispatch, following the run — belongs to the separate bundled 'github' plugin and is deliberately not repeated here.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "keywords": [
@@ -15,12 +15,11 @@
     "release",
     "ship",
     "production",
-    "ci",
-    "github-actions",
-    "workflow-dispatch",
     "volume",
     "sqlite",
     "secrets",
-    "machines"
+    "machines",
+    "region",
+    "readyz"
   ]
 }

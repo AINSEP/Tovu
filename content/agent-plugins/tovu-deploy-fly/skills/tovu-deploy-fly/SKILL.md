@@ -1,6 +1,6 @@
 ---
 name: tovu-deploy-fly
-description: Deploy this Tovu instance to fly.io without the operator installing flyctl, Docker, or any other CLI. Writes a fly.toml and a GitHub Actions workflow into their repo, then fires that workflow through the workspace's saved GitHub credential so flyctl runs only on GitHub's runner. Encodes the Tovu-specific rules that generic fly.io knowledge gets wrong — one machine only (SQLite), the volume shadowing the image's whole sites/ tree, secrets never in fly.toml, the sealed-credential master key, and the fact that deploying ships code and not content.
+description: Deploy this Tovu instance to fly.io without the operator installing flyctl, Docker, or any other CLI. Encodes the Tovu-and-fly-specific rules that generic fly.io knowledge gets wrong — one machine only (SQLite), the volume shadowing the image's whole sites/ tree, secrets never in fly.toml, the sealed-credential master key, and the fact that deploying ships code and not content. The deploy runs through a GitHub Actions workflow, so flyctl only ever runs on GitHub's runner; every GitHub step it needs — writing the two files, the repository secret, the dispatch, following the run — belongs to the separate `github` plugin and is not repeated here.
 ---
 
 # Deploying Tovu to fly.io
@@ -37,10 +37,21 @@ job from this one. Do not improvise one inside a deploy.
 
 ## What this plugin does, and what it refuses to do
 
-It deploys via **CI**: you write `fly.toml` and `.github/workflows/fly-deploy.yml` into the
-operator's repo, they add one repository secret by hand, and you fire the workflow through the
-workspace's saved GitHub credential. `flyctl` runs on GitHub's runner. Fly's remote builder
-builds the image. **Nobody downloads or installs anything locally** — that is the whole point.
+It deploys via **CI**: two files go into the operator's repo (`fly.toml` and
+`.github/workflows/fly-deploy.yml`), the operator adds one repository secret by hand, and the
+workflow is fired through the workspace's saved GitHub credential. `flyctl` runs on GitHub's
+runner. Fly's remote builder builds the image. **Nobody downloads or installs anything locally** —
+that is the whole point.
+
+**This plugin does not describe the GitHub half.** Writing files into a repository, repository
+secrets, dispatching a workflow, following a run, and reading a failed run belong to the separate
+bundled **`github`** plugin, which owns all of it in one place. Read that plugin's skill for every
+GitHub step below; this document names *what* has to happen and *why it is Fly-specific*, and
+deliberately never restates *how*. (The Agent Plugins v1.0.0 manifest schema has no dependency
+field — `plugin.json` accepts only `$schema`, `name`, `version`, `description`, `author`,
+`license`, and `keywords` — so this paragraph is the dependency declaration. If the `github`
+plugin is not installed and enabled, say so and stop rather than improvising GitHub procedure
+from memory.)
 
 There is a second path in principle — driving the Machines API directly to create an app,
 volume, secrets, and machines with `config.image`. It is **not implemented here**, for one
@@ -126,8 +137,8 @@ into GitHub's secret form, or into `custom_credential_set_token`'s masked field.
 
 ### Rule 4 — `TOVU_INTEGRATIONS_ROOT_KEY` must be set before the first deploy, or the boot refuses.
 
-**This is a boot-blocking prerequisite, not a footnote — read it before Step 4.** A production
-boot with this var unset now fails loudly (`PRODUCTION_BOOT_UNSAFE_DEFAULT`,
+**This is a boot-blocking prerequisite, not a footnote — read it before you set app secrets.** A
+production boot with this var unset now fails loudly (`PRODUCTION_BOOT_UNSAFE_DEFAULT`,
 `missing-integrations-root-key`), fixed 2026-09-09 after this used to fail silently — the
 history below is why it matters, not a description of today's behavior.
 
@@ -147,7 +158,7 @@ became permanently undecryptable, with nothing reporting it. The production read
 closes exactly that gap by refusing to boot instead of falling back — the fallback itself still
 exists (for local dev, where it's harmless), it is just no longer reachable in production.
 
-So, before Step 4 or the first deploy, set it explicitly:
+So, before the first deploy, set it explicitly:
 
 ```
 fly secrets set TOVU_INTEGRATIONS_ROOT_KEY=$(openssl rand -hex 32) -a <app>
@@ -168,6 +179,9 @@ migration command to run before or after, and adding one to the workflow is wron
 ---
 
 ## Procedure
+
+Every GitHub step below is deliberately one line, naming *what* and pointing at the `github`
+plugin for *how*. Do not reconstruct the GitHub procedure here.
 
 ### Step 0 — Establish what you are deploying to, before you write anything
 
@@ -224,45 +238,41 @@ operator creates it, or you create it explicitly and say that you did — never 
 If a call comes back 401 or 403, read the `authDiagnostic` field before reporting a bare
 failure; follow the remedy it names, and retry at most **once**.
 
-### Step 2 — Write the two files
+### Step 2 — Write the two files into the repo
 
-Both templates live beside this file. Read them, then write them into the operator's repo:
+Both templates live beside this file:
 
 - `references/fly.template.toml` → the repo root, as `fly.toml`
 - `references/fly-deploy.template.yml` → `.github/workflows/fly-deploy.yml`
 
-Every value the operator must decide is marked `<<PLACEHOLDER: ...>>`. **Replace every one of
-them** with the values from Step 0. Then re-read what you wrote and confirm no `<<PLACEHOLDER`
-marker survives — a leftover marker is a deploy that fails confusingly, or worse, one that
-succeeds against the wrong app.
+**How to write them into the repository is the `github` plugin's job** — including the
+read-before-replace rule when a file already exists, and the extra confirmation a
+`.github/workflows/` path carries.
 
-Two details in the workflow that are load-bearing and must not be dropped:
+What is Fly-specific, and what this document is responsible for:
 
-- `--build-arg TOVU_BUILD_SHA=${{ github.sha }}` — the build context sent to the remote builder
-  excludes `.git`, so without this the runtime manifest records no provenance at all.
-- `--build-arg TOVU_INSTALL_BROWSER=0` — skips a ~150MB headless Chromium download.
-
-Both have been silently lost once already, in a history force-push, and two deploys failed
-before anyone noticed. If you are editing an existing workflow rather than writing a fresh one,
-**diff modified files, not just added and deleted ones.**
+- Every value the operator must decide is marked `<<PLACEHOLDER: ...>>`. **Replace every one of
+  them** with the values from Step 0, then re-read what you wrote and confirm no `<<PLACEHOLDER`
+  marker survives — a leftover marker is a deploy that fails confusingly, or worse, one that
+  succeeds against the wrong app.
+- Two build args in the workflow are load-bearing and must never be dropped:
+  `--build-arg TOVU_BUILD_SHA=${{ github.sha }}` (the build context sent to the remote builder
+  excludes `.git`, so without this the runtime manifest records no provenance at all) and
+  `--build-arg TOVU_INSTALL_BROWSER=0` (skips a ~150MB headless Chromium download). Both have
+  been silently lost once already, in a history force-push, and two deploys failed before anyone
+  noticed. If you are editing an existing workflow rather than writing a fresh one, this is the
+  concrete thing the `github` plugin's diff-the-modified-files rule is protecting.
 
 ### Step 3 — The operator adds `FLY_API_TOKEN` by hand
 
-**You cannot do this step, and you should not try.**
+**You cannot do this step, and you should not try.** Setting a repository secret would require
+the token to pass through your context; the `github` plugin states the full rule and the exact
+words to give the operator.
 
-Creating a GitHub Actions secret through the API requires encrypting the value against the
-repo's public key — which means the fly token would have to pass through your context to get
-there. The entire saved-credential design exists so that never happens. Setting a token you can
-read is not a shortcut; it is the failure mode.
-
-Tell them, exactly:
-
-> Go to **Settings → Secrets and variables → Actions → New repository secret** in
-> `<owner>/<repo>`. Name it exactly `FLY_API_TOKEN`. The value is a fly.io deploy token. Paste
-> only the value — do not commit it anywhere, and do not paste it into this chat.
-
-Then wait. Do not fire the workflow until they confirm. A dispatch without the secret fails on
-the runner in a way that reads like a config problem rather than a missing secret.
+What is Fly-specific: the secret's name is exactly `FLY_API_TOKEN`, and its value is a fly.io
+deploy token. Then **wait** — do not fire the workflow until they confirm it is set. A dispatch
+without the secret fails on the runner in a way that reads like a config problem rather than a
+missing secret.
 
 ### Step 4 — Set the app secrets
 
@@ -275,46 +285,17 @@ missing — but Rule 4's still deserves the deliberate check the others don't: a
 (set, but different from the one credentials were sealed under) boots fine and fails later,
 which the gate cannot distinguish from "never configured".
 
-### Step 5 — Fire the workflow
+### Step 5 — Fire the workflow, then watch it land
 
-Commit and push the two files to the repo's **default branch** — the workflow triggers on
-`push: [main]` and on `workflow_dispatch`. A push to any other branch will not trigger it.
+The two files must be on the branch the workflow's own trigger names; the template triggers on
+`push: [main]` and on `workflow_dispatch`. **Dispatching and polling the run are the `github`
+plugin's procedure** — including the rule that a 204 means queued and never deployed, and how to
+find the failing step when a run fails.
 
-Then dispatch through the saved GitHub credential:
-
-```
-custom_credential_make_request({
-  label: "github",
-  method: "POST",
-  url: "https://api.github.com/repos/<owner>/<repo>/actions/workflows/fly-deploy.yml/dispatches",
-  headers: { "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
-  body: "{\"ref\":\"main\"}"
-})
-```
-
-A successful dispatch returns **204 with an empty body**. That means *queued*, not *deployed* —
-do not report success here.
-
-### Step 6 — Watch it land
-
-```
-custom_credential_make_request({
-  label: "github",
-  method: "GET",
-  url: "https://api.github.com/repos/<owner>/<repo>/actions/workflows/fly-deploy.yml/runs?per_page=1"
-})
-```
-
-Poll a few times with a gap between calls. Report `status` and `conclusion` as they actually
-come back. The workflow is concurrency-limited to one deploy at a time and **queues rather than
-cancels**, so a run sitting in `queued` behind another deploy is normal, not stuck.
-
-When it reaches `success`, confirm the app itself is actually serving before you say it is
-deployed — `/readyz` returns 503 until migrations and seeding finish, which makes it a real
-readiness signal where `/health` is only liveness.
-
-If the run fails, report the failure and the step that failed. Do not re-dispatch on a hunch;
-a second deploy queued behind a broken one wastes the operator's time and tells you nothing new.
+What is Fly-specific, once the run reaches `success`: **confirm the app itself is actually
+serving before you say it is deployed.** `/readyz` returns 503 until migrations and seeding
+finish, which makes it a real readiness signal where `/health` is only liveness. A green workflow
+plus a 503 `/readyz` is a deploy that has not landed yet, not a deploy that failed.
 
 ---
 
@@ -333,3 +314,6 @@ a second deploy queued behind a broken one wastes the operator's time and tells 
 - `references/fly-deploy.template.yml` — the workflow to write, placeholders marked.
 - `references/machines-api-path.md` — the CLI-free Machines API path, what it would take, and
   the one thing that blocks it today. Read this before proposing it; do not implement it.
+- The bundled **`github`** plugin's skill — every GitHub step this procedure names. It is a
+  separate plugin on purpose: its rules are not Fly's, and repeating them here would turn one
+  instruction into two slightly different ones.
