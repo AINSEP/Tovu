@@ -2385,7 +2385,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    that is a DIRECT child of `.page`, while a plain `.page .tab-bar` descendant selector would have
    matched the nested case too and broken it.
 
-   No consumer nests `.tab-bar` this way today — the one that used to,
+   A consumer nests `.tab-bar` this way TODAY, so this is protecting a live screen rather than a
+   hypothetical one: `StaticSiteTab.tsx`'s "Publish target" tab bar renders inside
+   `.deployment-card-body`, itself inside Deployment's own tab panel. Do not relax the child
+   combinator. A second consumer that used to nest this way,
    `ExternalMcpSettingsPanel.tsx`'s per-row Connection/Tools tab bar (nested inside
    `.external-mcp-source`, itself inside the Providers `.page`), was replaced by a per-server Tools
    button + modal in `14f94e9c` and no longer exists. Kept scoped to the child combinator anyway,
