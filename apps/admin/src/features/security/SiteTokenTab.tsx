@@ -93,17 +93,24 @@ function SiteTokenBody({ controller }: { controller: SiteTokenController }) {
 /** The always-visible "what this covers" disclosure — see this file's header. Rendered
  *  unconditionally, not just on failure: the fact it states is true whether or not anything has
  *  gone wrong, and the owner's own "self-contained" framing is exactly what this exists to make
- *  precise before anyone clicks anything. */
+ *  precise before anyone clicks anything.
+ *
+ *  Rewritten 2026-09-09 per the owner's live review ("the site token content needs to be simpler
+ *  ... users are not gonna know what this even is"): leads with one plain sentence any operator
+ *  can act on, keeps the production-only storage tradeoff visible (it changes what someone should
+ *  do, not just background trivia), and demotes the webhook/newsletter exception to a de-emphasized
+ *  note — same `.jini-field-hint` convention `AgentPlugins.tsx`'s section footnotes use — since it's
+ *  a real but secondary caveat, not something a first-time reader needs to parse up front. */
 function SiteTokenScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "production" | "local"; t: Translate }) {
   return (
     <div className="notice warning site-token-scope-notice" {...agentHandle("security-site-token-scope-notice", { role: "status", label: "What this root key does and does not cover" })}>
-      <ul className="site-token-scope-list">
-        <li>{translate("This protects your saved provider credentials (API keys, publish/source-control tokens, media provider keys, etc.), including in production.")}</li>
-        <li>{translate("It does NOT cover webhook signing or newsletter unsubscribe tokens in production — those still require the environment variable there, even after generating a key here.")}</li>
-        {runtimeMode === "production" ? (
-          <li>{translate("A key file now lives on the same storage volume as your database. Anyone with a backup or snapshot of that volume has both the data and the key that opens it — the same protection setting the environment variable instead would not have.")}</li>
-        ) : null}
-      </ul>
+      <p>{translate("This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.")}</p>
+      {runtimeMode === "production" ? (
+        <p>{translate("On a live site, this key is stored right next to your database. Anyone who gets a full backup of your server would get both your data and the key that unlocks it.")}</p>
+      ) : null}
+      <p className="jini-field-hint site-token-scope-detail">
+        {translate("One exception: webhook signing and newsletter unsubscribe links stay protected separately on your live site, whether or not you generate a key here.")}
+      </p>
     </div>
   );
 }
@@ -140,31 +147,34 @@ function siteTokenStatusBadgeLabel(active: boolean, source: "env" | "file" | "no
 
 /** The source-specific explanatory line under the badge — one sentence per case, no `{path}`
  *  template needed (the path is rendered as its own `<code>`, not interpolated into translated
- *  prose). @complexity O(1). */
+ *  prose). Reworded 2026-09-09 alongside {@link SiteTokenScopeNotice} so the badge's
+ *  "environment variable" vs. "key file" distinction is explained in plain terms here rather than
+ *  assumed — the badge itself stays terse, this line carries the plain-language context. The
+ *  `TOVU_INTEGRATIONS_ROOT_KEY` variable name stays in the invalid-env case since fixing it requires
+ *  that exact name. @complexity O(1). */
 function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" | "none"; invalid?: boolean; keyFilePath: string }, translate: Translate) {
   if (status.invalid) {
-    return (
+    return status.source === "env" ? (
+      <>{translate("A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_INTEGRATIONS_ROOT_KEY environment variable to resolve this.")}</>
+    ) : (
       <>
-        {status.source === "env"
-          ? translate("TOVU_INTEGRATIONS_ROOT_KEY is set but isn't valid hex — this app will fail to use it.")
-          : translate("The key file exists but isn't valid hex — this app will fail to use it.")}{" "}
-        <code>{status.keyFilePath}</code>
+        {translate("The key file at")} <code>{status.keyFilePath}</code> {translate("isn't in a usable format, so Tovu can't use it. It will need to be replaced.")}
       </>
     );
   }
   if (status.source === "env") {
-    return <>{translate("Set in this process's environment. It always takes precedence over a key file — there is no control here that can change it; update it where this server runs and restart.")}</>;
+    return <>{translate("This key was set up directly on the server rather than as a file, and it's already active — there's nothing to do here. Changing it means updating it on the server and restarting.")}</>;
   }
   if (status.source === "file") {
     return (
       <>
-        {translate("Stored at")} <code>{status.keyFilePath}</code>
+        {translate("Stored in a file on this server, at")} <code>{status.keyFilePath}</code>
       </>
     );
   }
   return (
     <>
-      {translate("No key file exists yet. Generating one writes to")} <code>{status.keyFilePath}</code>.
+      {translate("No key has been created yet. Generating one saves it to")} <code>{status.keyFilePath}</code> {translate("on this server.")}
     </>
   );
 }
@@ -246,7 +256,7 @@ function SiteTokenGenerateErrorNote({ failure, t: translate }: { failure: SiteTo
   const locale = useAdminLocale();
   const text =
     failure.kind === "env-active"
-      ? translate("TOVU_INTEGRATIONS_ROOT_KEY is already set as an environment variable, which always takes precedence. Generating a file here would not become the active key.")
+      ? translate("A key is already set up directly on the server for this install, and that one always wins. Generating one here wouldn't actually take effect.")
       : failure.kind === "already-exists"
         ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
         : siteTokenGenerateErrorMessage(locale, failure.detail);
