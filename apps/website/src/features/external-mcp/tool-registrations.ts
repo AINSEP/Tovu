@@ -11,6 +11,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/cms/core";
+import { ToolInputError } from "@jini-ai/core";
 
 import {
   SURFACE_DISMISSED_PARAM,
@@ -87,9 +88,30 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * external-mcp/oauth-callback-url.ts` would need a `Request` this file cannot supply and would pull
  * an `assistant -> server` edge into a domain module, reopening the exact composition-root/domain
  * cycle the tool-contribution registry (`tool-contribution-registry.ts`'s own header) exists to keep
- * closed. Unset `TOVU_PUBLIC_URL` is a hard refusal here (unlike `admin-screen-link-tool.ts`'s
- * "degrade to a relative path" choice): with no absolute origin, there is no OAuth authorization to
- * start at all, so the honest outcome is a clear, actionable error rather than a broken call.
+ * closed.
+ *
+ * ### 2026-09-09: an unset `TOVU_PUBLIC_URL` no longer blocks EVERY grant
+ *
+ * This handler used to resolve a redirect URI UNCONDITIONALLY and refuse when the env var was unset.
+ * That was wrong for `device_code`, which uses no redirect URI at all (RFC 8628: the human types a
+ * code at the provider; nothing redirects back) — so the one grant that needed nothing was refused
+ * along with the one that did, and in dev (`TOVU_PUBLIC_URL` unset by default) that was every
+ * connect. Worse, the refusal was a bare `Error`, which `@jini-ai/daemon` redacts: the message
+ * naming the env var never reached the model, making it a silent refusal in practice.
+ *
+ * Both are fixed WITHOUT weakening anything. The redirect URI is now resolved best-effort and PASSED
+ * ONLY WHEN IT EXISTS; `beginConnect` — the only place that knows the grant — decides whether one is
+ * required, and refuses `authorization_code` with a message naming `TOVU_PUBLIC_URL` and what to set
+ * it to. PKCE is untouched and no redirect target is accepted from input; the origin still comes
+ * only from operator configuration.
+ *
+ * Deliberately NOT done: deriving a localhost origin in dev. A redirect URI must match what the
+ * provider was registered with, so a guessed one fails at the VENDOR with an error about the client
+ * — strictly harder to act on than a refusal naming the variable. And it would not even help here:
+ * `deps.ts`'s own "cross-process caveat" records that an `authorization_code` connect started from
+ * the spawned agent-daemon mints a `pending` record the public callback route's process cannot see,
+ * so that grant cannot complete from a chat tool call regardless of the origin used. Pointing the
+ * operator at Settings → External MCP is the honest answer, and the message does.
  */
 
 const CATALOG_BY_ID = indexCatalogById(externalMcpAgentToolCatalog);
@@ -121,21 +143,16 @@ function resolveConfiguredPublicOrigin(): string | undefined {
 }
 
 /**
- * Builds `external_mcp_oauth_connect`'s redirect URI for one server id.
+ * Builds `external_mcp_oauth_connect`'s redirect URI for one server id, or `undefined` when no
+ * public origin is configured.
  *
- * @throws {Error} `TOVU_PUBLIC_URL` is not configured — see this file's header for why that is a
- * hard refusal here rather than a degrade.
+ * `undefined` rather than a throw, and rather than a derived localhost guess — see this file's
+ * header ("an unset TOVU_PUBLIC_URL no longer blocks EVERY grant") for both halves of that choice.
  * @complexity O(1).
  */
-function resolveExternalMcpOAuthRedirectUri(serverId: string): string {
+function resolveExternalMcpOAuthRedirectUri(serverId: string): string | undefined {
   const origin = resolveConfiguredPublicOrigin();
-  if (!origin) {
-    throw new Error(
-      "external_mcp_oauth_connect: TOVU_PUBLIC_URL is not configured, so no absolute OAuth redirect URL can be " +
-        "built from a chat tool call (unlike Settings, this call has no live browser request to derive one " +
-        "from). Ask an operator to set TOVU_PUBLIC_URL, or connect this server from Settings → External MCP instead.",
-    );
-  }
+  if (!origin) return undefined;
   return `${origin}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(serverId)}`;
 }
 
@@ -442,7 +459,19 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
         );
       }
 
-      return routeDeps.externalMcpOAuth.beginConnect({ serverId: id, redirectUri: resolveExternalMcpOAuthRedirectUri(id) });
+      const redirectUri = resolveExternalMcpOAuthRedirectUri(id);
+      try {
+        return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, ...(redirectUri === undefined ? {} : { redirectUri }) });
+      } catch (error) {
+        // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
+        // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,
+        // or (since 2026-09-09) an authorization_code grant with no configured public origin. As a
+        // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
+        // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
+        // messages beyond the server id the caller already sent.
+        if (error instanceof ExternalMcpValidationError) throw new ToolInputError(error.message);
+        throw error;
+      }
     },
 
     external_mcp_oauth_poll_device: async (ctx) => {

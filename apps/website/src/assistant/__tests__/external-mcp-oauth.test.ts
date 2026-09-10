@@ -551,6 +551,56 @@ test("the device grant returns a user code and verification URL, and never expos
   }
 });
 
+/**
+ * ---------------------------------------------------------------------------
+ * `redirectUri` is optional, and the GRANT decides whether one is needed
+ * ---------------------------------------------------------------------------
+ * `beginConnect` used to take a required `redirectUri: string`, which pushed the "do we have a
+ * public origin?" question up to every caller — and the caller that has no live HTTP request to
+ * derive one from (`features/external-mcp/tool-registrations.ts`'s `external_mcp_oauth_connect`)
+ * therefore refused EVERY connect when `TOVU_PUBLIC_URL` was unset, including the device grant,
+ * which never uses a redirect URI at all. The grant is the only thing that knows, so it decides here.
+ */
+
+test("the device grant needs no redirect URI at all — beginConnect starts without one", async () => {
+  const { service } = await makeHarness({
+    grant: "device_code",
+    script: [
+      {
+        json: {
+          device_code: "device-secret",
+          user_code: "WDJB-MJHT",
+          verification_uri: "https://auth.example.com/activate",
+          expires_in: 900,
+          interval: 5,
+        },
+      },
+    ],
+  });
+
+  const started = await service.beginConnect({ serverId: SERVER });
+
+  assert.equal(started.kind, "device_code");
+  if (started.kind === "device_code") assert.equal(started.userCode, "WDJB-MJHT");
+});
+
+test("the authorization-code grant with no redirect URI is refused with a message naming TOVU_PUBLIC_URL", async () => {
+  const { service } = await makeHarness({ grant: "authorization_code", script: [{ json: {} }] });
+
+  await assert.rejects(
+    () => service.beginConnect({ serverId: SERVER }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error, `expected an Error, got ${String(error)}`);
+      assert.match(
+        (error as Error).message,
+        /TOVU_PUBLIC_URL/,
+        "an authorization-code redirect genuinely IS required — the refusal has to say what to set, not just refuse",
+      );
+      return true;
+    },
+  );
+});
+
 test("polling a device authorization reports pending, then connects, and stores the token", async () => {
   const { repo, service } = await makeHarness({
     grant: "device_code",

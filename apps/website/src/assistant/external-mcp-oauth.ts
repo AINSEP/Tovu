@@ -246,10 +246,21 @@ export interface ExternalMcpOAuthService {
    *
    * @param input.redirectUri - The absolute public callback URL, built by the route from the
    *   request so a reverse-proxied deployment gets the origin the browser actually used.
-   * @throws {ExternalMcpValidationError} When the server is unknown or is not OAuth-authenticated.
+   *
+   *   OPTIONAL, because whether one is needed at all is a property of the GRANT, and only this
+   *   function knows the grant: `device_code` never uses a redirect URI (RFC 8628 — the human types
+   *   a code at the provider; nothing redirects back), while `authorization_code` cannot proceed
+   *   without one. Requiring it here pushed that decision up to every caller, and the caller with no
+   *   live HTTP request to derive an origin from (`external_mcp_oauth_connect`) consequently refused
+   *   EVERY grant whenever `TOVU_PUBLIC_URL` was unset — including the one that needed nothing. So:
+   *   omit it when there is genuinely no origin. Never pass a guessed one — a redirect URI the
+   *   provider was not registered with fails at the vendor with an error about the client, which is
+   *   far harder to act on than a refusal that names the env var to set.
+   * @throws {ExternalMcpValidationError} When the server is unknown, is not OAuth-authenticated, or
+   *   uses a grant that requires a redirect URI and none was supplied.
    * @throws {OAuthError} Bounded, terminal, never retried — see this file's header.
    */
-  beginConnect(input: { serverId: string; redirectUri: string }): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string }): Promise<ExternalMcpConnectStart>;
   /**
    * Finishes an authorization-code handshake from the public callback route.
    *
@@ -485,7 +496,8 @@ function registrationGrantTypes(record: ExternalMcpServerRecord): readonly strin
  *
  * @param input.redirectUri - Registered as this client's only callback. A server that pins redirect
  *   URIs will refuse an authorization whose `redirect_uri` was not registered, so the value used at
- *   authorization time is the value registered here — not a re-derived one.
+ *   authorization time is the value registered here — not a re-derived one. `undefined` registers no
+ *   callback at all, which is correct (and the only honest option) for a device-grant client.
  * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the authorization server offers no registration
  *   endpoint, which is the point at which an operator genuinely does have to supply a client id.
  * @complexity O(1) — one bounded outbound request.
@@ -494,7 +506,7 @@ async function mintClientForConnection(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
   discovered: DiscoveredOAuthConfiguration,
-  input: { readonly redirectUri: string; readonly scopes: readonly string[] },
+  input: { readonly redirectUri: string | undefined; readonly scopes: readonly string[] },
 ) {
   const registrationEndpoint = discovered.server.registrationEndpoint;
   if (registrationEndpoint === null) {
@@ -509,7 +521,11 @@ async function mintClientForConnection(
     {
       registrationEndpoint,
       clientName: record.label ?? record.serverId,
-      redirectUris: [input.redirectUri],
+      // Empty for a device-only client: RFC 7591 requires `redirect_uris` only for a client that
+      // registers a redirect-based grant, and `registrationGrantTypes` below registers none for
+      // `device_code`. Registering a placeholder instead would mint a client pinned to a callback
+      // nothing serves.
+      redirectUris: input.redirectUri === undefined ? [] : [input.redirectUri],
       scopes: input.scopes,
       grantTypes: registrationGrantTypes(record),
       timeoutMs: CONNECT_TIMEOUT_MS,
@@ -572,7 +588,7 @@ async function persistSelfConfiguration(
 async function selfConfigureConnection(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
-  redirectUri: string,
+  redirectUri: string | undefined,
 ): Promise<ExternalMcpServerRecord> {
   const stored = readStoredEndpoints(record);
   const mustDiscover = needsEndpointDiscovery(record, stored);
@@ -850,6 +866,21 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
           expiresAt: authorization.expiresAt,
           intervalSeconds: authorization.intervalSeconds,
         };
+      }
+
+      // Every path below this line is redirect-based, so the requirement is real rather than
+      // defensive — and it is stated where it can name both the grant and the fix, instead of being
+      // a blanket precondition a caller had to satisfy before it knew which grant it had.
+      if (input.redirectUri === undefined) {
+        throw new ExternalMcpValidationError(
+          `external MCP server '${record.serverId}' uses the authorization_code grant, which needs an absolute callback URL ` +
+            `Tovu can be reached at. Set TOVU_PUBLIC_URL to this instance's public origin (for example ` +
+            `https://your-site.example.com) and try again, or start this connection from Settings → External MCP, which derives ` +
+            `the origin from the browser's own request. Nothing was changed.`,
+          // The field an operator would change to fix it is the environment's, not a form's — the
+          // nearest honest answer this error's shape allows, and the one the message names.
+          "redirectUri",
+        );
       }
 
       const started = beginAuthorizationCode(

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
+import { ExternalMcpValidationError } from "../external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { externalMcpAgentToolCatalog, type AgentToolDefinition as ExternalMcpAgentToolDefinition, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";
@@ -557,23 +558,62 @@ test("external_mcp_oauth_poll_device: with no OAuth service wired, fails closed"
   );
 });
 
-test("external_mcp_oauth_connect: with TOVU_PUBLIC_URL unset, refuses before ever calling the OAuth service — no absolute redirect URL to build", async () => {
+/**
+ * 2026-09-09 — this used to assert the OPPOSITE ("refuses before ever calling the OAuth service"),
+ * and that was the bug: the handler resolved a redirect URI UNCONDITIONALLY, so an unset
+ * `TOVU_PUBLIC_URL` (the dev default) blocked every grant — including `device_code`, which uses no
+ * redirect URI at all. The grant is the only thing that knows whether one is needed, so the decision
+ * moved into `beginConnect` and this handler now passes the origin only when it genuinely has one.
+ */
+test("external_mcp_oauth_connect: with TOVU_PUBLIC_URL unset, still reaches the OAuth service — with no redirect URI, not a fabricated one", async () => {
   const originalPublicUrl = process.env.TOVU_PUBLIC_URL;
   delete process.env.TOVU_PUBLIC_URL;
   try {
-    const beginConnectCalls: unknown[] = [];
+    const beginConnectCalls: Array<{ serverId: string; redirectUri?: string }> = [];
     const oauth: Pick<ExternalMcpOAuthService, "beginConnect"> = {
       async beginConnect(input) {
         beginConnectCalls.push(input);
-        return { kind: "redirect_required", authorizationUrl: "https://example.test/authorize", expiresAt: NOW };
+        return { kind: "device_code", userCode: "WDJB-MJHT", verificationUri: "https://auth.example.test/activate", verificationUriComplete: null, expiresAt: NOW, intervalSeconds: 5 };
       },
     };
     const { deps } = fakeDeps({ externalMcpOAuth: oauth as ExternalMcpOAuthService });
+
+    const out = (await call(tool(externalMcpRegistrations(deps), "external_mcp_oauth_connect"), { input: { id: "higgsfield" } })) as { kind: string };
+
+    assert.equal(out.kind, "device_code", "the device grant must not be gated on an origin it never uses");
+    assert.equal(beginConnectCalls.length, 1);
+    assert.equal(beginConnectCalls[0]?.redirectUri, undefined, "no origin means NO redirect URI — never an invented one");
+  } finally {
+    if (originalPublicUrl === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = originalPublicUrl;
+  }
+});
+
+test("external_mcp_oauth_connect: a 'redirect URI required' refusal reaches the MODEL, naming TOVU_PUBLIC_URL, instead of being redacted", async () => {
+  const originalPublicUrl = process.env.TOVU_PUBLIC_URL;
+  delete process.env.TOVU_PUBLIC_URL;
+  try {
+    const oauth: Pick<ExternalMcpOAuthService, "beginConnect"> = {
+      async beginConnect() {
+        throw new ExternalMcpValidationError(
+          "external MCP server 'higgsfield' uses the authorization_code grant, which needs an absolute callback URL. Set TOVU_PUBLIC_URL.",
+          "redirectUri",
+        );
+      },
+    };
+    const { deps } = fakeDeps({ externalMcpOAuth: oauth as ExternalMcpOAuthService });
+
     await assert.rejects(
       () => call(tool(externalMcpRegistrations(deps), "external_mcp_oauth_connect"), { input: { id: "higgsfield" } }),
-      /TOVU_PUBLIC_URL is not configured/,
+      (error: unknown) => {
+        // A bare `Error` out of a tool handler is redacted by the daemon into an opaque failure, so
+        // the one message that tells an operator what to set would never arrive. `ToolInputError` is
+        // the honest classification AND the one that survives the trip.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${(error as Error)?.constructor?.name}`);
+        assert.match((error as Error).message, /TOVU_PUBLIC_URL/);
+        return true;
+      },
     );
-    assert.equal(beginConnectCalls.length, 0, "must refuse before ever reaching the OAuth service");
   } finally {
     if (originalPublicUrl === undefined) delete process.env.TOVU_PUBLIC_URL;
     else process.env.TOVU_PUBLIC_URL = originalPublicUrl;
