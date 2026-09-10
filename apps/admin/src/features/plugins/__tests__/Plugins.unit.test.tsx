@@ -133,23 +133,66 @@ describe("REQ-12/AC-18: Downloaded tab renders every PLUGINS_LIST record, unfilt
   });
 });
 
-describe("row-action split: Installed carries the toggle, Downloaded carries Remove", () => {
-  it("Installed's row shows the Enable/Disable toggle and no Remove control", async () => {
+describe("row-action split: Installed carries the toggle, Downloaded carries Remove (enabled row) or Enable (disabled row)", () => {
+  it("Installed's row shows the Enable/Disable toggle and no Remove/Enable action", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
 
     const row = await screen.findByRole("listitem", { name: "Word Count" });
     expect(within(row).getByRole("button", { name: "Disable Word Count" })).toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Enable/ })).not.toBeInTheDocument();
   });
 
-  it("Downloaded's row shows Remove and no Enable/Disable toggle", async () => {
+  it("Downloaded's row for an ENABLED plugin shows Remove and no Enable", async () => {
+    const response = {
+      plugins: [
+        { id: "site-plugin-enabled", name: "Site Plugin Enabled", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] },
+      ],
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(response));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Site Plugin Enabled" });
+    expect(within(row).getByRole("button", { name: "Remove Site Plugin Enabled" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Enable/ })).not.toBeInTheDocument();
+  });
+
+  it("Downloaded's row for a DISABLED plugin shows Enable and no Remove — the re-enable path this fix adds", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins tabId="downloaded" />);
 
+    // "Valid Site Plugin" is enabled: false in the fixture.
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
-    expect(within(row).getByRole("button", { name: "Remove Valid Site Plugin" })).toBeInTheDocument();
-    expect(within(row).queryByRole("button", { name: /^(Enable|Disable)/ })).not.toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "Enable Valid Site Plugin" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
+  });
+
+  it("clicking Enable on a disabled Downloaded row PATCHes {enabled:true} directly, with no confirm dialog", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)) // initial GET
+      .mockResolvedValueOnce(
+        jsonResponse({ plugin: { id: "valid-site-plugin", version: "1.0.0", enabled: true, updatedAt: "now" }, changeSetId: "cs-2" }),
+      ) // PATCH
+      .mockResolvedValueOnce(
+        jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)) }),
+      ); // re-fetch GET
+
+    render(<Plugins tabId="downloaded" />);
+    const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+    const button = within(row).getByRole("button", { name: "Enable Valid Site Plugin" });
+
+    await user.click(button);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(patchCall).toBeTruthy();
+    expect(JSON.parse(String(patchCall![1].body))).toEqual({ enabled: true });
+
+    await waitFor(() => {
+      expect(within(screen.getByRole("listitem", { name: "Valid Site Plugin" })).getByRole("button", { name: "Remove Valid Site Plugin" })).toBeInTheDocument();
+    });
   });
 });
 
@@ -243,11 +286,13 @@ describe("automatic plugin quarantine", () => {
 
     expect(within(row).getByText("Quarantined after 3 consecutive failures")).toBeVisible();
     expect(within(row).getByText(/save blocker/)).toBeVisible();
-    // Word Count is now quarantined AND disabled: it no longer appears on Installed (enabled-only),
-    // and Downloaded's own action slot is Remove — honestly disabled here too, since Word Count is
-    // built-in. There is currently no re-enable control anywhere on this screen for a quarantined
-    // plugin (flagged in the handoff as a real gap, not asserted as a positive requirement here).
-    expect(within(row).queryByRole("button", { name: /^Enable/ })).not.toBeInTheDocument();
+    // Word Count is now quarantined AND disabled: it no longer appears on Installed (enabled-only).
+    // Downloaded's row-state split (2026-09-10 fix) gives a disabled row Enable regardless of
+    // `source` — unlike Remove, re-enabling isn't destructive, so a built-in row gets the same
+    // direct control a site-sourced one would. This is the re-enable path that was previously
+    // entirely missing for a quarantined plugin.
+    expect(within(row).getByRole("button", { name: "Enable Word Count" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
   });
 });
 
@@ -341,9 +386,18 @@ describe("REQ-13/AC-19/AC-20/EC-11: Installed's toggle interaction — redirecte
 });
 
 describe("Downloaded tab: Remove is gated behind a confirm dialog before the real DELETE call fires", () => {
+  // Remove only ever shows for an ENABLED row (a disabled one shows Enable instead — see the
+  // row-action-split describe block above), so these two tests need "Valid Site Plugin" enabled,
+  // unlike the base AC11 fixture. Built locally rather than mutating AC11_PLUGINS_RESPONSE itself:
+  // other tests in this file rely on that fixture's "Valid Site Plugin" staying disabled (e.g. the
+  // Installed-tab-scope test's "exactly one enabled row" count).
+  const enabledSitePluginResponse = {
+    plugins: AC11_PLUGINS_RESPONSE.plugins.map((p) => (p.id === "valid-site-plugin" ? { ...p, enabled: true } : p)),
+  };
+
   it("opens a confirm dialog naming the plugin and does not call DELETE until Confirm is pressed", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    fetchMock.mockResolvedValueOnce(jsonResponse(enabledSitePluginResponse));
     render(<Plugins tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
@@ -356,7 +410,7 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
 
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ pluginId: "valid-site-plugin", clearedWorkspaceIds: [] }))
-      .mockResolvedValueOnce(jsonResponse({ plugins: AC11_PLUGINS_RESPONSE.plugins.filter((p) => p.id !== "valid-site-plugin") }));
+      .mockResolvedValueOnce(jsonResponse({ plugins: enabledSitePluginResponse.plugins.filter((p) => p.id !== "valid-site-plugin") }));
 
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
@@ -371,7 +425,7 @@ describe("Downloaded tab: Remove is gated behind a confirm dialog before the rea
 
   it("Cancel closes the dialog without ever calling DELETE", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    fetchMock.mockResolvedValueOnce(jsonResponse(enabledSitePluginResponse));
     render(<Plugins tabId="downloaded" />);
 
     const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });

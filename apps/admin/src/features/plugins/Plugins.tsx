@@ -29,12 +29,14 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  *  - **Installed** — `plugin.enabled === true` only. Carries the Enable/Disable toggle unchanged
  *    from the pre-split table (`pluginToggleControl`/`onToggleEnabled`).
  *  - **Downloaded** — every plugin `PLUGINS_LIST` returns, unfiltered (this workspace's on-disk
- *    set). Carries Remove instead of the toggle — showing the same switch on both tabs would be
- *    redundant once Downloaded already answers "is it on disk", and unlike `AgentPlugins.tsx`'s own
- *    Downloaded tab (which has no real uninstall route and only relabels its toggle), this Remove
- *    drives the REAL `PLUGIN_UNINSTALL` route: it deletes the plugin's on-disk artifact, gated
- *    behind `PluginRemoveConfirmDialog`. A built-in plugin's Remove is honestly disabled — see
- *    `pluginRemoveAriaLabel`/the section note below.
+ *    set). Row-state-dependent action (2026-09-10 fix): an enabled row carries Remove instead of
+ *    the toggle — showing the same switch on both tabs would be redundant once Downloaded already
+ *    answers "is it on disk", and unlike `AgentPlugins.tsx`'s own Downloaded tab (which has no real
+ *    uninstall route and only relabels its toggle), this Remove drives the REAL `PLUGIN_UNINSTALL`
+ *    route: it deletes the plugin's on-disk artifact, gated behind `PluginRemoveConfirmDialog`. A
+ *    built-in plugin's Remove is honestly disabled — see `pluginRemoveAriaLabel`/the section note
+ *    below. A disabled row instead carries a direct, unconfirmed Enable — the only lever on this
+ *    screen to re-activate a plugin once it's off, since Installed only ever lists enabled rows.
  *  - **Marketplace** — a designed empty state; nothing is fetched, listed, or installable (REQ-02:
  *    install is a filesystem operation, placing files under this site's plugin install directory,
  *    not an HTTP one — `api.spec.md` §1 lists no install/marketplace route for this family either).
@@ -109,9 +111,17 @@ function InstalledPluginRows({
   );
 }
 
-/** The Downloaded tab's own row list — Remove instead of the toggle; see this file's own header for
- *  why. A built-in plugin's Remove is honestly disabled, `aria-describedby` pointing at
- *  `removeNoteId`, the section-wide reason. */
+/** The Downloaded tab's own row list — context-sensitive by row state, mirroring the identical split
+ *  `AgentPluginRow`'s `"remove-or-enable"` variant already made for the sibling `AgentPlugins.tsx`
+ *  screen (2026-09-09, `9eb2b4ab`/`b65d1695`): an enabled row keeps Remove (confirm-gated, see this
+ *  file's own header), a disabled row gets a direct, unconfirmed Enable instead. Before this split
+ *  (2026-09-10 fix), Downloaded's action slot was unconditionally Remove, and since Installed only
+ *  ever lists `enabled: true` rows, there was no control anywhere on this screen to re-enable a
+ *  plugin once disabled — including a quarantined one — short of removing and reinstalling it.
+ *
+ *  Enable is offered regardless of `source`: unlike Remove (irreversibly destructive for a real
+ *  on-disk artifact, so a built-in row's Remove stays honestly disabled), turning a plugin back on
+ *  has no comparable cost, so a built-in row gets the same direct control a site-sourced one does. */
 function DownloadedPluginRows({
   plugins,
   controller,
@@ -129,12 +139,28 @@ function DownloadedPluginRows({
   removeNoteId: string;
   onRequestRemove: (plugin: AdminPlugin) => void;
 }) {
-  const { t, locale, rowSavingId } = controller;
+  const { t, locale, rowSavingId, onToggleEnabled } = controller;
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
         const builtIn = plugin.source === "built-in";
         const busy = rowSavingId === plugin.id;
+        const action = plugin.enabled ? (
+          <button
+            type="button"
+            className="plugin-icon-btn"
+            disabled={builtIn || busy}
+            onClick={() => onRequestRemove(plugin)}
+            aria-label={pluginRemoveAriaLabel(plugin, locale)}
+            aria-describedby={builtIn ? removeNoteId : undefined}
+          >
+            <PluginTrashIcon />
+          </button>
+        ) : (
+          <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel(plugin, locale)}>
+            {t("Enable")}
+          </button>
+        );
         return (
           <PluginRow
             key={plugin.id}
@@ -143,18 +169,7 @@ function DownloadedPluginRows({
             expanded={expandedIds.has(plugin.id)}
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
             agentHandleBase={rowHandleById.get(plugin.id)!}
-            action={
-              <button
-                type="button"
-                className="plugin-icon-btn"
-                disabled={builtIn || busy}
-                onClick={() => onRequestRemove(plugin)}
-                aria-label={pluginRemoveAriaLabel(plugin, locale)}
-                aria-describedby={builtIn ? removeNoteId : undefined}
-              >
-                <PluginTrashIcon />
-              </button>
-            }
+            action={action}
           />
         );
       })}
