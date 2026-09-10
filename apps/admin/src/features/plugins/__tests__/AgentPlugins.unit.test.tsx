@@ -461,11 +461,13 @@ describe("AgentPlugins inspector (stateful)", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Site Compliance package files preview/i });
     expect(dialog).toHaveAttribute("aria-modal", "true");
-    // `site-compliance` is not the vendored `ui-ux-design` bundle, so the compile-time source
-    // catalog honestly reports nothing to browse — proving the inspector still opens (not that it
-    // has files) is this test's job; `AgentPluginDetailsModal.unit.test.tsx` already covers the
-    // empty-catalog message itself via its own `useDetails` seam.
-    expect(within(dialog).getByRole("status")).toHaveTextContent("No source files are catalogued for this package.");
+    // `site-compliance` now has its own catalog entry in `agent-plugin-source-catalog.ts` (it is a
+    // real, installed, enabled plugin — see that file's own header), so the inspector shows its
+    // real manifest instead of the empty-catalog message. That empty-catalog rendering itself is
+    // still covered directly, via its own `useDetails` seam, by `AgentPluginDetailsModal.unit.test.tsx`.
+    expect(within(dialog).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "plugin.json" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "plugin.json" })).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

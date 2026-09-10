@@ -131,3 +131,60 @@ describe("ui-ux-design Agent Plugin package", () => {
     expect(getBundledAgentPluginSourceFiles("unknown.plugin")).toEqual([]);
   });
 });
+
+// Unlike `ui-ux-design` above, `site-compliance` is a real, executable Agent Plugin: it lives at
+// this repo's own `content/agent-plugins/site-compliance/` (not a separate checkout like Jini), is
+// walked by `seedBundledAgentPlugins()` on the server, and is installed-and-activated for every
+// site (see `sites/tovu-com/agent-plugins/ws/workspace-local/activations.json`, `enabled: true`).
+// Because it never needed a portability workaround, this reads it directly rather than through a
+// second vendored copy -- one source of truth, no drift risk between what ships and what the
+// inspector shows. Resolved from this file's own location for the same cwd-independence reason
+// `PLUGIN_ROOT` above is.
+const SITE_COMPLIANCE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "..",
+  "..",
+  "..",
+  "content",
+  "agent-plugins",
+  "site-compliance",
+);
+const SITE_COMPLIANCE_SKILLS_ROOT = path.join(SITE_COMPLIANCE_ROOT, "skills");
+
+describe("site-compliance Agent Plugin package", () => {
+  it("uses a manifest whose name matches the catalog entry and is actually reachable from the inspector", () => {
+    const manifest = JSON.parse(readFileSync(path.join(SITE_COMPLIANCE_ROOT, "plugin.json"), "utf8")) as Record<
+      string,
+      unknown
+    >;
+    expect(manifest.name).toBe("site-compliance");
+
+    // The bug this test was written to catch: `getBundledAgentPluginSourceFiles` returning `[]` for
+    // a real, installed, enabled plugin because the compile-time catalog never listed it.
+    expect(getBundledAgentPluginSourceFiles(manifest.name as string).length).toBeGreaterThan(0);
+  });
+
+  it("exposes the full on-disk file set, with matching content, and rejects unknown or traversal-like paths", () => {
+    const sourceFiles = getBundledAgentPluginSourceFiles("site-compliance");
+    const onDiskSkillFiles = listFilesRelativeTo(SITE_COMPLIANCE_SKILLS_ROOT, SITE_COMPLIANCE_ROOT);
+
+    // Set equality against a live directory walk, not a hardcoded list -- a catalog entry that
+    // silently dropped a reference file still has the wrong *set* even if some other file offsets
+    // the count.
+    expect(sourceFiles.map((file) => file.relativePath).sort()).toEqual(
+      ["plugin.json", "mcp.json", ...onDiskSkillFiles].sort(),
+    );
+
+    for (const file of sourceFiles) {
+      const resolved = path.resolve(SITE_COMPLIANCE_ROOT, file.relativePath);
+      expect(resolved.startsWith(`${SITE_COMPLIANCE_ROOT}${path.sep}`)).toBe(true);
+      expect(file.content).toBe(readFileSync(resolved, "utf8"));
+    }
+
+    expect(findBundledAgentPluginSourceFile(sourceFiles, "../../../../etc/passwd")).toBeNull();
+    expect(findBundledAgentPluginSourceFile(sourceFiles, "skills/site-compliance/references/missing.md")).toBeNull();
+  });
+});

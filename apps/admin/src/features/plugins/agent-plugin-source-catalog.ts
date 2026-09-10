@@ -43,6 +43,20 @@ import vercelWebDesignGuidelinesSkillSource from "./bundled/ui-ux-design/skills/
 import webComplianceSkillSource from "./bundled/ui-ux-design/skills/web-compliance/SKILL.md?raw";
 import webComplianceReferencesAuditEvidenceSource from "./bundled/ui-ux-design/skills/web-compliance/references/audit-evidence.md?raw";
 
+// `site-compliance` is a real, executable Agent Plugin (unlike the inert `ui-ux-design` catalog
+// entry above): it lives at this repo's own `content/agent-plugins/site-compliance/`, gets walked
+// by `seedBundledAgentPlugins()` on the server, and is installed-and-activated for every site. It
+// never needed the Jini-checkout portability workaround `ui-ux-design` did (that content isn't a
+// separate, maybe-absent checkout -- it's part of this same repo, at a fixed path, on every clone
+// and every build), so these import it directly instead of through a second vendored copy that
+// could drift from what actually ships.
+import siteComplianceManifestSource from "../../../../../content/agent-plugins/site-compliance/plugin.json?raw";
+import siteComplianceMcpSource from "../../../../../content/agent-plugins/site-compliance/mcp.json?raw";
+import siteComplianceSkillSource from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/SKILL.md?raw";
+import siteComplianceReferencesCcpaCpraSource from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/references/ccpa-cpra.md?raw";
+import siteComplianceReferencesGdprEuUkSource from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/references/gdpr-eu-uk.md?raw";
+import siteComplianceReferencesWcag22Source from "../../../../../content/agent-plugins/site-compliance/skills/site-compliance/references/wcag-2-2.md?raw";
+
 export interface BundledAgentPluginSourceFile {
   readonly relativePath: string;
   readonly content: string;
@@ -144,9 +158,36 @@ export const UI_UX_DESIGN_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] 
   { relativePath: "skills/web-compliance/references/audit-evidence.md", content: webComplianceReferencesAuditEvidenceSource },
 ];
 
-/** Closed lookup: unknown plugin ids expose no files and trigger no IO. */
+/**
+ * Compile-time inventory of `content/agent-plugins/site-compliance/`'s files -- see the import
+ * block above for why this reads that directory directly rather than through a vendored copy.
+ */
+export const SITE_COMPLIANCE_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] = [
+  { relativePath: "plugin.json", content: siteComplianceManifestSource },
+  { relativePath: "mcp.json", content: siteComplianceMcpSource },
+  { relativePath: "skills/site-compliance/SKILL.md", content: siteComplianceSkillSource },
+  { relativePath: "skills/site-compliance/references/ccpa-cpra.md", content: siteComplianceReferencesCcpaCpraSource },
+  { relativePath: "skills/site-compliance/references/gdpr-eu-uk.md", content: siteComplianceReferencesGdprEuUkSource },
+  { relativePath: "skills/site-compliance/references/wcag-2-2.md", content: siteComplianceReferencesWcag22Source },
+];
+
+/**
+ * Closed lookup: unknown plugin ids expose no files and trigger no IO.
+ *
+ * NOTE: `github`, `higgsfield-media`, and `tovu-deploy-fly` are also real, installed, enabled
+ * plugins (same `content/agent-plugins/<id>/` shape as `site-compliance`) and currently fall
+ * through to `[]` here exactly as `site-compliance` did before this catalog entry was added --
+ * same defect, not yet fixed. Each needs its own reviewed entry, the same way this one was added.
+ */
 export function getBundledAgentPluginSourceFiles(pluginId: string): readonly BundledAgentPluginSourceFile[] {
-  return pluginId === "ui-ux-design" ? UI_UX_DESIGN_SOURCE_FILES : [];
+  switch (pluginId) {
+    case "ui-ux-design":
+      return UI_UX_DESIGN_SOURCE_FILES;
+    case "site-compliance":
+      return SITE_COMPLIANCE_SOURCE_FILES;
+    default:
+      return [];
+  }
 }
 
 /** Exact allowlist lookup: traversal-like or otherwise unknown paths never resolve. */
