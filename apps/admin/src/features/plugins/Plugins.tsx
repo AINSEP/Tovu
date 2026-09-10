@@ -179,22 +179,18 @@ function DownloadedPluginRows({
 
 export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
   const controller = usePluginsHook();
-  const { plugins, error, rowError, t } = controller;
+  const { plugins, error, rowError, t, expandedIds, onToggleExpanded } = controller;
   const activeTabId = resolvePluginsTabId(tabId);
 
-  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
+  // Which plugin (by id) is waiting on the Remove confirm dialog, or `null` when it's closed. Stays
+  // here rather than moving into `use-plugins.hooks.ts` alongside `expandedIds` — this is
+  // presentation flow ("has the operator confirmed yet"), not a network mutation, the same
+  // reasoning `AgentPlugins.tsx`'s own `pendingDisable` and `ExternalMcpSettingsPanel.tsx`'s
+  // `confirmRemoveId` give for the identical shape of interstitial. An id rather than a plugin
+  // object so the confirmed row is always looked up fresh against the current `plugins`.
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const pendingRemovePlugin = plugins?.find((plugin) => plugin.id === pendingRemoveId) ?? null;
   const removeNoteId = "plugins-remove-unavailable-note";
-
-  function onToggleExpanded(id: string) {
-    setExpandedIds((ids) => {
-      const next = new Set(ids);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function handleTabChange(nextTabId: string) {
     navigate(`/plugins?tab=${nextTabId}`, { replace: true });

@@ -28,6 +28,12 @@ import type { Translate } from "@/lib/dictionary-translator";
  * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import): injected so `Plugins.tsx` sources its UI
  * copy from this hook instead of its own `useAdminLocale()`/`plugins-i18n` import.
+ *
+ * `expandedIds`/`onToggleExpanded` moved here (2026-09-10) from a bare `useState` directly in
+ * `Plugins.tsx` — this admin's own rule that component logic belongs in `hooks/`, not `.tsx`, same
+ * split the sibling `use-agent-plugins.hooks.ts` already draws for `AgentPlugins.tsx`.
+ * `Plugins.tsx`'s OTHER `useState` (`pendingRemoveId`) deliberately did NOT move alongside it — see
+ * that file's own comment on why a pending-confirm id is presentation flow, not hook state.
  */
 
 export interface PluginsDependencies {
@@ -52,11 +58,30 @@ export interface PluginsController {
    *  `"built-in"` plugin or one still enabled somewhere; either refusal lands in `rowError` via the
    *  same `describeApiError` path `onToggleEnabled` already uses. */
   onRemovePlugin: (plugin: AdminPlugin) => Promise<void>;
+  /** Plugin ids whose row detail panel (quarantine/errors) is open. Same shape and home as the
+   *  sibling `use-agent-plugins.hooks.ts`'s `AgentPluginsController.expandedIds` — moved here
+   *  (2026-09-10) from a bare `useState` in `Plugins.tsx`, which this admin's own rule reserves for
+   *  presentation-only interstitial state (see `Plugins.tsx`'s `pendingRemoveId` for the kind of
+   *  state that legitimately stays there instead). */
+  expandedIds: ReadonlySet<string>;
+  /** Opens or closes one row's detail panel. */
+  onToggleExpanded: (id: string) => void;
   /** Bound translator — `Plugins.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
   /** The raw resolved locale — exposed only because `rules.ts`'s `pluginToggleControl` genuinely
    *  needs it, not `t`. */
   locale: string;
+}
+
+/** Adds or removes one id, returning a new `Set` — so React sees an identity change. Same helper,
+ *  independently kept, as `use-agent-plugins.hooks.ts`'s own `withId` — this feature's established
+ *  precedent (`rules.ts`'s `humanizeAgentPluginId`) is a private per-screen copy over a shared
+ *  cross-screen import for a two-line pure function. */
+function withId(ids: ReadonlySet<string>, id: string, present: boolean): ReadonlySet<string> {
+  const next = new Set(ids);
+  if (present) next.add(id);
+  else next.delete(id);
+  return next;
 }
 
 /**
@@ -74,6 +99,7 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
 
   function reload(): Promise<void> {
     return port
@@ -118,7 +144,18 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     }
   }
 
-  return { plugins, error, rowError, rowSavingId, onToggleEnabled, onRemovePlugin, t, locale };
+  return {
+    plugins,
+    error,
+    rowError,
+    rowSavingId,
+    onToggleEnabled,
+    onRemovePlugin,
+    expandedIds,
+    onToggleExpanded: (id: string) => setExpandedIds((ids) => withId(ids, id, !ids.has(id))),
+    t,
+    locale,
+  };
 }
 
 /**
