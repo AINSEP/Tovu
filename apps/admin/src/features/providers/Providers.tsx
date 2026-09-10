@@ -103,6 +103,17 @@ function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId
   return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "external-mcp");
 }
 
+/** Tab ids hidden from the {@link TabBar} row without touching {@link PROVIDERS_TAB_IDS} —
+ *  `composio` was hidden 2026-09-10 at the owner's request: Composio is a vendor she does not want
+ *  surfaced to operators yet. This is a HIDE, not a removal — the panel body below (`activeTabId ===
+ *  "composio"`) and {@link resolveProvidersTabId}'s acceptance of `"composio"` are both untouched, so
+ *  `/providers?tab=composio` keeps resolving and rendering exactly as before. That deep link is still
+ *  live: `features/security/rules.ts`'s `composio-project` and `composio-connector` rows both point
+ *  `screenPath` at `/providers?tab=composio`, and removing the id from `PROVIDERS_TAB_IDS` instead of
+ *  listing it here would strand both rules on a tab that falls back to `external-mcp` instead of
+ *  opening the panel they name. To restore the tab button, remove `"composio"` from this array. */
+const HIDDEN_PROVIDERS_TAB_IDS: readonly ProvidersTabId[] = ["composio"];
+
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data — same helper shape
  *  `SettingsUi.tsx` and `DeveloperApi.tsx` both used for their own tab icons. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -240,7 +251,7 @@ export function Providers(props: ProvidersProps) {
         </div>
         <TabBar
           ariaLabel={t(locale, "Integrations")}
-          tabs={tabs}
+          tabs={tabs.filter((tab) => !HIDDEN_PROVIDERS_TAB_IDS.includes(tab.id as ProvidersTabId))}
           activeId={activeTabId}
           onChange={handleTabChange}
           containerHandle="providers-tab-bar"
