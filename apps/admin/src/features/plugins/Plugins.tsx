@@ -14,7 +14,7 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
 /**
  * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
  * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling
- * screen for the unrelated agent-plugins.org standard — see `panels.tsx`'s own "Add-Ons" group
+ * screen for the unrelated agent-plugins.org standard — see `panels.tsx`'s own "Integrations" group
  * comment for why these two are deliberately not the same system) already has, but independent of
  * it: nothing here imports from `AgentPlugins.tsx`/`AgentPluginRow.tsx`, and neither can this file's
  * behavior change by editing those.
@@ -222,7 +222,7 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Add-Ons")}</p>
+          <p className="page-kicker">{t("Integrations")}</p>
           <h1 className="page-title">{t("Plugins")}</h1>
           <p className="page-description">
             {t("Enable or disable plugins discovered in this site's plugin install directory.")}

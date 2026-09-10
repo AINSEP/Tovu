@@ -16,7 +16,7 @@ import {
   SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
 } from "../source-control/rules";
-import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
+import { MEDIA_PROVIDER_CATALOG } from "../providers/media-provider-catalog";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,
@@ -838,8 +838,8 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "media",
     purposeLabel: "Media",
     supportsReplace: true,
-    screenLabel: "Media · Providers",
-    screenPath: "/media",
+    screenLabel: "Providers · Media",
+    screenPath: "/providers?tab=media",
   },
   {
     id: "composio-project",
@@ -847,8 +847,8 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "ops",
     purposeLabel: "Ops",
     supportsReplace: true,
-    screenLabel: "Settings · Connectors",
-    screenPath: "/settings?tab=connectors",
+    screenLabel: "Providers · Composio",
+    screenPath: "/providers?tab=composio",
   },
   {
     id: "composio-connector",
@@ -856,8 +856,8 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "ops",
     purposeLabel: "Ops",
     supportsReplace: false,
-    screenLabel: "Settings · Connectors",
-    screenPath: "/settings?tab=connectors",
+    screenLabel: "Providers · Composio",
+    screenPath: "/providers?tab=composio",
   },
   {
     id: "external-mcp",
@@ -865,8 +865,8 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "ai",
     purposeLabel: "AI",
     supportsReplace: false,
-    screenLabel: "Settings · External MCP",
-    screenPath: "/settings?tab=external-mcp",
+    screenLabel: "Providers · External MCP",
+    screenPath: "/providers?tab=external-mcp",
   },
 ] as const;
 
@@ -889,8 +889,8 @@ export function otherCredentialMatchesQuery(store: OtherCredentialStoreInfo, ite
 }
 
 /** A media provider's human catalog label (e.g. `"grok"` → `"xAI Grok Imagine"`) — same
- *  `MEDIA_PROVIDER_CATALOG` lookup `Media.tsx` itself uses, so a media-provider row on this page
- *  reads with the identical name an operator already sees on the Media → Providers screen. Falls
+ *  `MEDIA_PROVIDER_CATALOG` lookup `Providers.tsx` itself uses, so a media-provider row on this page
+ *  reads with the identical name an operator already sees on the Providers → Media tab. Falls
  *  back to the raw provider id for one this workspace has a stored key under but the catalog no
  *  longer lists (a removed vendor) — a stale id is still a fact worth showing, not a reason to hide
  *  the row. @complexity O(n) in the catalog's own (small, fixed) size. */

@@ -38,11 +38,12 @@
  * - External MCP -> `features/providers/Providers.tsx`, "External MCP" tab.
  * - Media providers -> DELETED outright, not moved. It was an `inert` mount over
  *   `createFakeMediaProvidersPort()` under a note reading "Tovu doesn't have a media-provider
- *   backend yet" — a claim that stopped being true when the REAL, persisted Media providers tab
- *   shipped on the Media screen (`features/media/Media.tsx`, `?tab=media-providers`, backed by
+ *   backend yet" — a claim that stopped being true once the REAL, persisted Media providers tab
+ *   existed (first on the Media screen, then moved again the same day onto
+ *   `features/providers/Providers.tsx`'s "Media" tab — see that file's own header — backed by
  *   `media-providers-port.ts` -> `api.getMediaProviders()` and the `media_provider_credentials`
- *   table). Keeping a second, non-functional copy of a shipped screen would have been the more
- *   confusing outcome, and `features/security/rules.ts` already deep-linked the media-provider
+ *   table throughout). Keeping a second, non-functional copy of a shipped screen would have been
+ *   the more confusing outcome, and `features/security/rules.ts` deep-links the media-provider
  *   credential store to the real one.
  *
  * `ExternalMcpSettingsPanel.tsx`, `ComposioKeyField.tsx`, `connectors-port.ts` and their

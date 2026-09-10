@@ -15,7 +15,7 @@ import { api } from "../../lib/api";
  * @file The real `ConnectorsPort` — Tovu's implementation of the transport `@jini-ai/ui`'s
  * connectors feature declares but deliberately does not ship (the package ships only
  * `createFakeConnectorsPort`, an empty in-memory double). Same convention as
- * `features/media/media-providers-port.ts`.
+ * `features/providers/media-providers-port.ts`.
  *
  * The full port is real, including the OAuth half. Authorization is a TWO-GESTURE flow, by design:
  *

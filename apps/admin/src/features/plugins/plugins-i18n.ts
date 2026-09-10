@@ -12,7 +12,11 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     Enable: "Activar",
     Disable: "Desactivar",
     "Inspect package files": "Inspeccionar los archivos del paquete",
-    "Add-Ons": "Complementos",
+    // "Add-Ons" -> "Integrations" 2026-09-10: the nav group this page's kicker names was renamed
+    // (see `panels.tsx`'s own comment on the group). Only `es` has ever carried a value for this
+    // key — a pre-existing gap, not introduced by this rename — so every other locale still falls
+    // through to the English key itself via `createDictionaryTranslator`'s fallback.
+    Integrations: "Integraciones",
     Plugins: "Plugins",
     "Loading plugins…": "Cargando plugins…",
     "Enable or disable plugins discovered in this site's plugin install directory.":

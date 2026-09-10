@@ -1,4 +1,4 @@
-import { ConnectorsBrowser, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { ConnectorsBrowser, I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -12,6 +12,8 @@ import { connectorsDependencies } from "../settings/connectors-port";
 import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
+import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
+import { mediaProvidersPort } from "./media-providers-port";
 
 /**
  * @file The Providers page (`/admin/providers`) — every outside service this install CONSUMES,
@@ -26,6 +28,15 @@ import { useProviders } from "./hooks/use-providers.hooks";
  * anything Tovu itself does. That is one job, and it is the mirror image of `DeveloperApi.tsx`'s:
  * this page is Tovu reaching OUT, that one is other tools reaching IN. The new "Integrations" nav
  * group holds both directions, which is what makes the pair legible as a group at all.
+ *
+ * Media joined the same day from a different origin: not a Settings tab, but its own tab on the
+ * Media screen (`features/media/Media.tsx`, `?tab=media-providers`) — a REAL, persisted surface
+ * (`media_provider_credentials`, not a fake), unlike Connectors/External MCP which were genuinely
+ * inert on Settings before this move. It belongs here for the same reason Composio and External MCP
+ * do — a credentialed connection to an outside service — even though it never lived on Settings.
+ * `media-provider-catalog.ts`/`media-providers-port.ts` moved here verbatim from `features/media/`;
+ * see those files' own headers for why the catalog is keyed off the generation engine's spellings,
+ * not `@jini-ai/ui`'s sample one.
  *
  * ## Naming
  *
@@ -55,15 +66,18 @@ import { useProviders } from "./hooks/use-providers.hooks";
 
 /** Tab ids are independent of tab LABELS, the same way panel ids are independent of nav labels
  *  throughout `panels.tsx`. `composio` names the vendor rather than the old "Connectors" wording so
- *  a deep link says what it opens. */
-const PROVIDERS_TAB_IDS = ["composio", "external-mcp"] as const;
+ *  a deep link says what it opens. `media` first, matching the owner-approved tab order (Media |
+ *  Composio | External MCP) and this file's own default (see {@link resolveProvidersTabId}). */
+const PROVIDERS_TAB_IDS = ["media", "composio", "external-mcp"] as const;
 type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
 
-/** Falls back to the Composio tab for an absent or unrecognized `?tab=` value, delegating to the
- *  shared `../../lib/resolve-active-tab-id` guard `Security.tsx`/`Deployment.tsx`/`Database.tsx`/
- *  `Themes.tsx` all use — a stale bookmark or a typo must open on a real tab, never a blank panel. */
+/** Falls back to the Media tab (first in {@link PROVIDERS_TAB_IDS}) for an absent or unrecognized
+ *  `?tab=` value — same "fall back to the first tab" convention `DeveloperApi.tsx`'s own resolver
+ *  follows, delegating to the shared `../../lib/resolve-active-tab-id` guard `Security.tsx`/
+ *  `Deployment.tsx`/`Database.tsx`/`Themes.tsx` all use — a stale bookmark or a typo must open on a
+ *  real tab, never a blank panel. */
 function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
-  return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "composio");
+  return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "media");
 }
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data — same helper shape
@@ -99,6 +113,19 @@ export function Providers(props: ProvidersProps) {
   const activeTabId = resolveProvidersTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
+    {
+      id: "media",
+      label: t(locale, "Media"),
+      // A cloud — the generic shape of "hosted elsewhere". No vendor mark: this admin draws zero
+      // brand logos (see `source-control-visuals.tsx`'s header), and this tab lists several.
+      icon: (
+        <TabIcon>
+          <path d="M5.5 13.5h7a2.75 2.75 0 0 0 .35-5.48A3.75 3.75 0 0 0 5.9 6.3 2.75 2.75 0 0 0 5.5 13.5z" />
+        </TabIcon>
+      ),
+      handle: "providers-tab-media",
+      handleLabel: "Switch to the Media tab — API keys for image, video, and audio generation providers",
+    },
     {
       id: "composio",
       // The vendor's own name, not the old Settings tab's generic "Connectors" label — see this
@@ -174,6 +201,19 @@ export function Providers(props: ProvidersProps) {
           onChange={handleTabChange}
           containerHandle="providers-tab-bar"
         />
+
+        {activeTabId === "media" ? (
+          // `media-providers-panel` is the class `styles.css`'s "Media providers tab: neutralize
+          // Jini's warm 'paper' tokens" section overrides `--jini-bg-panel`/`--jini-bg-elevated` on
+          // (owner report: the cards and their fields sat on a warm cream tone, not this admin's own
+          // neutral white) — kept byte-for-byte from `Media.tsx`'s own mount so that CSS, a pure
+          // class-name selector, keeps applying unmoved. `MediaProvidersTab`/the catalog/the port are
+          // all verbatim from `Media.tsx`'s old "Media providers" tab too — same real backend
+          // (`media_provider_credentials`), only the address changed.
+          <div className="media-providers-panel" data-theme="light">
+            <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
+          </div>
+        ) : null}
 
         {activeTabId === "composio" ? (
           <>

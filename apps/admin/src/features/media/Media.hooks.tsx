@@ -64,16 +64,6 @@ export function VideosIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-/** Media providers — a cloud, the generic shape of "hosted elsewhere". No vendor mark: this admin
- *  draws zero brand logos (see `source-control-visuals.tsx`'s header), and this tab lists several. */
-export function MediaProvidersIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M7.5 18.5h9.25a3.75 3.75 0 0 0 .6-7.45A5.5 5.5 0 0 0 6.8 9.6 4.25 4.25 0 0 0 7.5 18.5z" />
-    </svg>
-  );
-}
-
 /** Which icon each `MEDIA_TABS` id carries — a lookup rather than a field on `MEDIA_TABS` itself,
  *  because that constant lives in a `.hooks.ts` file (no JSX) and is the URL contract
  *  `use-media-tabs.hooks.ts` resolves `?tab=` against; the icons are presentation. */
@@ -81,11 +71,10 @@ const MEDIA_TAB_ICONS = {
   all: <AllMediaIcon />,
   images: <ImagesIcon />,
   videos: <VideosIcon />,
-  "media-providers": <MediaProvidersIcon />,
 } as const;
 
 /**
- * The four tabs in the shape `TabBar` takes, from the same `MEDIA_TABS` list the URL resolver uses
+ * The three tabs in the shape `TabBar` takes, from the same `MEDIA_TABS` list the URL resolver uses
  * — one source for which tabs exist and in what order.
  *
  * `handle`/`handleLabel` reproduce, byte for byte, the `agentHandle()` the old inline buttons

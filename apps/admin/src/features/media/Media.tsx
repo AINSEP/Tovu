@@ -2,12 +2,8 @@ import { useRef } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { MediaProvidersTab } from "@jini-ai/ui";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
-import { mediaProvidersPort } from "./media-providers-port";
-import "@jini-ai/ui/settings-dialog.css";
 import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
@@ -867,8 +863,7 @@ function resolveMediaTabsHook(useMediaTabsHook: typeof useMediaTabs | undefined)
  * same reason `MediaToolbar`/`MediaPurgeDialog` above already are: `visibleMedia.length === 0`'s
  * nested tab-kind ternary was one of that component's own independent branches (and, per
  * `sonarjs/no-nested-conditional`, a nested ternary in its own right); scored here in its own scope
- * instead. Never rendered for the `media-providers` tab, so `activeTab` excludes it here even
- * though `Media`'s own `activeTab` is the full `MediaTabId`.
+ * instead.
  */
 function MediaGridOrEmpty({
   activeTab,
@@ -882,7 +877,7 @@ function MediaGridOrEmpty({
   onTrash,
   onRequestPurge,
 }: {
-  activeTab: Exclude<MediaTabId, "media-providers">;
+  activeTab: MediaTabId;
   visibleMedia: AdminMedia[];
   mediaExpandHandles: string[];
   editingId: string | null;
@@ -944,9 +939,7 @@ function MediaGridOrEmpty({
  * Everything the "all"/"images"/"videos" tabs render — split out of `Media` for the same
  * "independent branches scored in their own scope" reasoning as `MediaToolbar`/`MediaPurgeDialog`/
  * `MediaGridOrEmpty` above: the error notice, edit-panel, and untyped-note ternaries were three
- * more of that component's own branches. Never rendered for the `media-providers` tab (see
- * `Media`'s own render below), so `activeTab` excludes it here for the same reason
- * `MediaGridOrEmpty` does.
+ * more of that component's own branches.
  *
  * Takes `Media`'s own controller spread rather than 20 individual props (`{...controller}` at the
  * call site below) — `media` is overridden with the already-null-checked value, since `Media` has
@@ -955,7 +948,7 @@ function MediaGridOrEmpty({
 function MediaLibraryPanel(
   props: Omit<MediaController, "media"> & {
     media: AdminMedia[];
-    activeTab: Exclude<MediaTabId, "media-providers">;
+    activeTab: MediaTabId;
     visibleMedia: AdminMedia[];
     mediaExpandHandles: string[];
   },
@@ -1138,43 +1131,24 @@ export function Media(props: MediaProps) {
           Control, Database, Sites, Themes and Pages use, replacing the pill row this screen used
           to draw itself (`media.css`'s retired `.media-tabs`). Tabs, ids, order, the translated
           labels and every per-tab agent handle are unchanged — `Media.hooks.tsx`'s
-          `resolveMediaTabs` builds them from the same `MEDIA_TABS` list. "Media providers" mounts
-          `@jini-ai/ui`'s component against Tovu's own backend: credentials persist per workspace
-          in `media_provider_credentials` and survive a reload. Both the port and the catalog are
-          module-level constants, so neither needs a `useRef` to stay stable across renders. */}
+          `resolveMediaTabs` builds them from the same `MEDIA_TABS` list.
+          "Media providers" LEFT this screen 2026-09-10 (owner-approved Integrations nav restructure)
+          — it is now the Media tab on `features/providers/Providers.tsx`, alongside Composio and
+          External MCP, all outside-service connections under one nav row. Only "all"/"images"/
+          "videos" render here now, so this tab bar is back to the three-tab grid-filter row it was
+          before that tab existed. */}
       <TabBar ariaLabel="Media" tabs={resolveMediaTabs(t)} activeId={activeTab} onChange={resolveMediaTabChange(setActiveTab)} />
 
-      {activeTab === "media-providers" ? (
-        // `data-theme="light"` is REQUIRED, not cosmetic — same trap `AiAssistant.tsx` and
-        // `PlaceholderTabs.tsx` already document at their own mounts of `@jini-ai/ui/settings-
-        // dialog.css` content: with no `data-theme` ancestor, the stylesheet falls through to its
-        // `@media (prefers-color-scheme: dark)` variant, so this tab renders dark on any OS/browser
-        // set to dark mode while the rest of the (light-only) admin shell stays light. This screen
-        // has no appearance control of its own, so pin to light rather than leave it themable.
-        //
-        // `media-providers-panel` is the hook `styles.css`'s "Media providers tab" section
-        // overrides `--jini-bg-panel`/`--jini-bg-elevated` on — see that comment for why (owner
-        // report: the cards and their fields sat on a warm cream tone, not this admin's own
-        // neutral white). The class exists purely to out-specify Jini's own bare
-        // `[data-theme='light']` token rule regardless of stylesheet load order; it carries no
-        // rules of its own.
-        <div className="media-providers-panel" data-theme="light">
-          <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
-        </div>
-      ) : (
-        // "all", "images" and "videos" all render the SAME grid, differing only in which items
-        // reach it — one code path, so a card looks and behaves identically whichever tab it is
-        // viewed from, and the lightbox/edit/row-menu wiring below cannot drift per tab.
-        // `activeTab` is narrowed here (TS control flow) to exclude "media-providers", matching
-        // `MediaLibraryPanel`'s own prop type.
-        <MediaLibraryPanel
-          {...controller}
-          media={media}
-          activeTab={activeTab}
-          visibleMedia={visibleMedia}
-          mediaExpandHandles={mediaExpandHandles}
-        />
-      )}
+      {/* "all", "images" and "videos" all render the SAME grid, differing only in which items reach
+          it — one code path, so a card looks and behaves identically whichever tab it is viewed
+          from, and the lightbox/edit/row-menu wiring below cannot drift per tab. */}
+      <MediaLibraryPanel
+        {...controller}
+        media={media}
+        activeTab={activeTab}
+        visibleMedia={visibleMedia}
+        mediaExpandHandles={mediaExpandHandles}
+      />
     </div>
   );
 }

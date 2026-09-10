@@ -1,12 +1,11 @@
 import { navigate } from "@/lib/router";
 
-export type MediaTabId = "all" | "images" | "videos" | "media-providers";
+export type MediaTabId = "all" | "images" | "videos";
 
 export const MEDIA_TABS: readonly { id: MediaTabId; label: string }[] = [
   { id: "all", label: "All" },
   { id: "images", label: "Images" },
   { id: "videos", label: "Videos" },
-  { id: "media-providers", label: "Media providers" },
 ];
 
 const MEDIA_TAB_IDS = MEDIA_TABS.map((tab) => tab.id) as readonly string[];
