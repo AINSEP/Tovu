@@ -206,6 +206,7 @@ import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/r
 import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
 import { registerAdminVendorCredentialsRoutes } from "../../inbound/admin-http/routes/system/vendor-credentials.js";
+import { registerAdminSiteTokenRoutes } from "../../inbound/admin-http/routes/system/site-token.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { registerAdminDeploymentsListRoute } from "../../inbound/admin-http/routes/deployments/list.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
@@ -1083,6 +1084,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // permission — see that route file's own header for why neither `system.publish` nor
   // `source-control.credentials.write` fits a table that now serves both domains.
   registerAdminVendorCredentialsRoutes(app, routeDeps);
+  // Security panel → Site Token tab: view/generate the TOVU_INTEGRATIONS_ROOT_KEY root key's
+  // generated-file fallback. `admin.security.tokens.manage`-gated on both verbs — see that route
+  // file's own header for exactly what this does and does not cover (it does NOT seal any stored
+  // credential, and does NOT help a production boot with the env var unset).
+  registerAdminSiteTokenRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.

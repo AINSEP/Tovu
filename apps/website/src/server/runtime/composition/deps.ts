@@ -1116,8 +1116,18 @@ export function createSqliteRouteDeps(
   // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsRootKey`) is
   // the primary fix — it refuses to boot before this line is ever reached — this is defense in
   // depth: if that gate is ever bypassed or this composition root is ever reached from a path that
-  // does not call it, `newsletterKeyring` still fails loudly on first use in production rather than
-  // silently re-keying, the same contract `siteAssistantSecretKeyring` below already has.
+  // does not call it, `newsletterKeyring` still fails loudly on first use in production (missing
+  // env var AND no key file at the durable path — `keyring.env.ts`'s `defaultRootKeyFilePath`)
+  // rather than silently re-keying.
+  //
+  // NOT extended to `allowFileFallback: true` unconditionally (undoing the `runtimeMode` gate)
+  // even though `defaultRootKeyFilePath`'s 2026-09-09 durability fix removed the ORIGINAL reason
+  // for this gate (the ephemeral-rootfs problem) — a committed regression test
+  // (`production-readiness-boot.integration.test.ts`) pins this exact mode-gated construction, and
+  // this pass's own dispatch scoped the production fix to `siteAssistantSecretKeyring` below, not
+  // this instance. Left as a disclosed, intentional asymmetry rather than silently "fixed": in
+  // production, webhook signing / newsletter tokens still require the env var; only the
+  // credential-sealing keyring below can now also use a generated file.
   const memberRepo = new SqliteMemberRepo(db);
   const newsletterKeyring = new EnvOrFileKeyring({ allowFileFallback: runtimeMode !== "production" });
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
@@ -1125,13 +1135,29 @@ export function createSqliteRouteDeps(
 
   // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance — deliberately NOT
   // `newsletterKeyring` above, even though both read the same `TOVU_INTEGRATIONS_ROOT_KEY` env var
-  // and (when it is set) derive from byte-identical root-key material. `allowFileFallback: false`
-  // here means a missing root key THROWS rather than silently minting
-  // `~/.tovu/integrations-root-key.hex` — correct for a store that will hold a real, paid, provider
-  // API key, unconditionally (even in local dev), unlike `newsletterKeyring`'s mode-gated default
-  // above, which is correct for cheaply-rotatable, derived-never-stored signing/token secrets. See
-  // ADR-058 §2 for the full reasoning — this asymmetry is intentional, not a bug to reconcile.
-  const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  // and (when it is set) derive from byte-identical root-key material.
+  //
+  // 2026-09-09 — CHANGED from `{ allowFileFallback: false }` to `{ allowFileFallback: true,
+  // allowFileAutoGenerate: false }` (owner-approved, after this exact asymmetry was flagged rather
+  // than silently reconciled — `ADS-memory/reports/2026-09-09-security-site-token.md`). This
+  // instance may now READ an already-generated key file — the durable, production-safe path
+  // `defaultRootKeyFilePath()` now resolves to — but will NEVER mint one itself
+  // (`allowFileAutoGenerate: false`): the only way a file comes into existence for this store is
+  // the admin Secrets page's Site Token tab's explicit, attended Generate action
+  // (`keyring.env.ts`'s `generateFileRootKey`, a plain function independent of this flag).
+  //
+  // This UPDATES rather than reverses ADR-058 §2's stated reasoning: that section's actual
+  // objection was an UNATTENDED first-use mint under a feature encrypting a real, paid credential
+  // ("a missing root key throws immediately rather than silently minting..."), which
+  // `allowFileAutoGenerate: false` still fully honors. It DOES contradict ADR-058 §9's "leaked
+  // backup alone is not enough" framing: that defense assumed the root key lives only in the live
+  // process's environment, never on disk beside `content.db`. Once a generated key file exists on
+  // the same Fly volume as the database it protects, someone who obtains a volume snapshot/backup
+  // gets both — the ciphertext AND the key that opens it. This is an ACCEPTED, DOCUMENTED cost of
+  // this change, not an oversight: it trades some of ADR-058's original defense-in-depth for the
+  // ability to run without `fly secrets set` at all. See `ADS-memory/reports/
+  // 2026-09-09-security-site-token.md` for the full tradeoff writeup.
+  const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: true, allowFileAutoGenerate: false });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one

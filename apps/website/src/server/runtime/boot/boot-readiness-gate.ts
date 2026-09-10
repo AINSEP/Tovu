@@ -1,6 +1,7 @@
 import { runProductionReadinessGate } from "./production-readiness-gate.js";
 import { CAPABILITY_INVENTORY } from "../configuration/capability-inventory.js";
 import { DEFAULT_OWNER_PASSWORD } from "../../../features/identity/wiring.js";
+import { inspectRootKeyMaterial } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -52,10 +53,22 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // the owner account. Imported from that module so this can never drift out of sync with what
       // the seeder actually did.
       hasDefaultOwnerPassword: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
-      // True when `TOVU_INTEGRATIONS_ROOT_KEY` is unset — see `EnvSnapshot.hasMissingIntegrationsRootKey`'s
-      // own doc (`production-readiness-gate.ts`) for why an unset var is unsafe specifically in a
-      // container deploy, not just "missing config".
-      hasMissingIntegrationsRootKey: !process.env.TOVU_INTEGRATIONS_ROOT_KEY,
+      // True when NEITHER the env var NOR a valid key file resolves to usable root-key material —
+      // `inspectRootKeyMaterial()` is the SAME env-first/file-second check `EnvOrFileKeyring`'s own
+      // `resolveRootKey()` uses, called here with its defaults so this reads the identical
+      // `defaultRootKeyFilePath()` any instance would (which is mode-aware — the durable
+      // `<cwd>/sites/.tovu/...` path in production, not `homedir()`; see that function's own doc).
+      //
+      // 2026-09-09 (durability fix, second pass): this used to check ONLY `process.env.
+      // TOVU_INTEGRATIONS_ROOT_KEY`, which made a valid, already-generated key file invisible to
+      // this gate — the exact chicken-and-egg the admin Site Token tab's Generate action would
+      // otherwise hit (boot refuses before the admin UI that could "fix" it in-app is ever
+      // reachable). A key file that exists but is not valid hex still counts as missing here
+      // (`inspectRootKeyMaterial().active` is `false` for that case too, via its own `invalid`
+      // branch) — this gate does not currently distinguish "absent" from "present but corrupt" in
+      // its own failure code (`missing-integrations-root-key` either way); both are equally unsafe
+      // to boot on, so the coarser signal is still correct, just not maximally specific.
+      hasMissingIntegrationsRootKey: !inspectRootKeyMaterial().active,
     },
   });
 

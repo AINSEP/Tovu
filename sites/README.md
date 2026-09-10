@@ -30,6 +30,28 @@ sites/<name>/
 `out/` is grouped separately on purpose: it is the only part of a site that can be thrown away and
 rebuilt. Everything beside it is irreplaceable.
 
+## `.tovu/` — a sibling of every `sites/<name>/`, not inside one
+
+```
+sites/
+  .tovu/
+    integrations-root-key.hex   generated fallback for TOVU_INTEGRATIONS_ROOT_KEY (production)
+  <name>/                       one folder per site, as above
+```
+
+2026-09-09: `EnvOrFileKeyring`'s generated-file fallback (`apps/website/src/features/webhooks/
+keyring.env.ts`) writes here in production mode, specifically so it lands on this volume (durable
+across a redeploy) rather than the container's `homedir()` (ephemeral rootfs). Deliberately a
+SIBLING of every site folder, never nested inside one: the "Backing a site up" section above copies
+`sites/<name>/` alone as a complete, self-contained backup, and this key must never ride along with
+that copy (ADR-012 install-dir portability) — it protects data across every site this install
+holds, not just one. `.` is outside `SITE_NAME_PATTERN`'s charset, so no real site can ever be
+named `.tovu` and collide with it.
+
+This does trade away part of the original defense: a snapshot/backup of the WHOLE `sites/` volume
+now carries both the database and the key that opens it. See `keyring.env.ts`'s own header and
+`composition/deps.ts`'s `siteAssistantSecretKeyring` construction comment for the full tradeoff.
+
 ## Why `themes/` lives here and not in `src/`
 
 Until 2026-08-27 a site's themes lived at `src/themes/` — inside the package. Upgrading Tovu

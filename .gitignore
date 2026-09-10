@@ -91,6 +91,16 @@ sites/*/ops/*.db
 sites/*/ops/*.db-wal
 sites/*/ops/*.db-shm
 
+# 2026-09-09: `EnvOrFileKeyring`'s generated-file fallback for TOVU_INTEGRATIONS_ROOT_KEY
+# (`apps/website/src/features/webhooks/keyring.env.ts`) now defaults to `sites/.tovu/
+# integrations-root-key.hex` in production (a SIBLING of every sites/<name>/ folder, never inside
+# one — see sites/README.md's own section on why). `sites/` itself is TRACKED as of 2026-08-31
+# (comment above) so a git-based deploy carries seed CONTENT — this is the opposite: real secret
+# material that must never reach git, whether from a git-based deploy's own working tree or a
+# local run with TOVU_RUNTIME_MODE=production set for testing. Ignored wholesale, not just the
+# key file itself, in case this directory ever grows a second file.
+sites/.tovu/
+
 # `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
 # disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be
 # committed. ARCH-001 (2026-08-19): two of these were swept into a commit by a broad `git add` and
