@@ -1559,6 +1559,15 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
+/* Recovery's two top-of-screen notices (2026-09-10, owner: read as plain text, not boxed cards) —
+   `RestoreCapabilityNotice`/`DegradedBannerView` in `Recovery.tsx`. Scoped modifier rather than
+   touching `.notice`/`.card` themselves, which stay card-shaped everywhere else in this admin.
+   `.notice.recovery-plain-notice` matches `.notice.warning`/`.notice.error`'s own specificity
+   (two classes) and is declared after both, so it wins the box-model tie — background/border/
+   shadow/padding/margin all go to nothing — but it deliberately never sets `color`, so a toned
+   banner (amber warning / red error) still carries that tone as its text color: the owner asked for
+   the box gone, not the visual weight a real, disclosed limitation like this one still needs. */
+.notice.recovery-plain-notice { background: transparent; border: none; box-shadow: none; padding: 0; border-radius: 0; margin: 0; }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
 .list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }

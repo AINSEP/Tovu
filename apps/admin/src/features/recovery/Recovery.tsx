@@ -100,7 +100,7 @@ function RestoreCapabilityNotice(props: { locale: string; status: AdminRecoveryS
   const { locale, status } = props;
   const explanation = costClassExplanation(status.costClass, locale);
   return (
-    <div className="notice">
+    <div className="notice recovery-plain-notice">
       {t(locale, "Restore capability:")} <span className={`status status-${status.costClass}`}>{costClassLabel(status.costClass, locale)}</span>
       {explanation ? <InfoTip label={explanation} /> : null}
     </div>
@@ -120,7 +120,11 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
   const tone = recoveryBannerTone(banner);
 
   return (
-    <div className={`notice ${tone} recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
+    <div
+      className={`notice ${tone} recovery-degraded-banner recovery-plain-notice`}
+      role={assertive ? "alert" : undefined}
+      aria-live={assertive ? "assertive" : "polite"}
+    >
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
         <a
