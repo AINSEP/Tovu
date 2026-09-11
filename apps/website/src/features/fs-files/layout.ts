@@ -114,6 +114,12 @@ export interface ResolveFsRootsOptional {
   readonly cwd?: string;
   /** Defaults to `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
+  /** Which workspace's persisted `custom` root to resolve (`custom-root-store.ts` keys its map by
+   *  this). Omitted — as every pre-existing call in `layout.test.ts` that only cares about `repo`/
+   *  `site` does — `custom` resolves to `undefined`, the same as an operator who has never set one,
+   *  rather than guessing a workspace to look up. `tool-registrations.ts`'s default resolver always
+   *  passes `routeDeps.workspaceId` here. */
+  readonly workspaceId?: string;
 }
 
 /**
@@ -121,22 +127,29 @@ export interface ResolveFsRootsOptional {
  *
  * `repo`/`site` each do not need to exist on disk — `fs-files.ts`'s own `listFsFiles` treats a
  * missing root as an empty listing, matching `listThemeFiles`'s identical "not created yet" handling.
- * `custom` is `undefined` until an operator has set one this process (see `custom-root-store.ts`);
- * unlike a merely-not-yet-created `repo`/`site` directory, an unset `custom` is not a valid root to
- * resolve a path against at all, so `tool-registrations.ts`'s `resolveRootPathOrThrow` refuses it
- * outright rather than treating it as an empty directory.
+ * `custom` is `undefined` until an operator has set one for `optional.workspaceId` (see
+ * `custom-root-store.ts`) — including when a previously-set one has since vanished, see that file's
+ * `getCustomFsRoot`/`getCustomFsRootStatus` doc; unlike a merely-not-yet-created `repo`/`site`
+ * directory, an unresolvable `custom` is not a valid root to resolve a path against at all, so
+ * `tool-registrations.ts`'s `resolveRootPathOrThrow` refuses it outright rather than treating it as an
+ * empty directory.
  *
- * @complexity O(1) — `custom` is one in-memory read; `repo`/`site` are unchanged from before.
+ * @complexity O(1) — `custom` is one small file read plus one `stat`; `repo`/`site` are unchanged from
+ *   before.
  */
 export function resolveFsRoots(optional: ResolveFsRootsOptional = {}): Record<FsRootId, string | undefined> {
-  const { cwd, env } = optional;
+  const { cwd, env, workspaceId } = optional;
   // `resolveProductRoot` walks up from ITS OWN module location by default, which is correct in both
   // the source (tsx) and compiled (dist) trees — see that function's own header. It takes no
   // `cwd`/`env` override because the product root is a fact about where this package's own code is
   // installed, not about which site is active.
+  const siteDir = resolveSiteRoot({ cwd, env });
   return {
     repo: resolveProductRoot(),
-    site: resolveSiteRoot({ cwd, env }),
-    custom: getCustomFsRoot(),
+    site: siteDir,
+    // `getCustomFsRoot` is given the SAME resolved `siteDir` this call already computed for `site`,
+    // rather than re-deriving it from `cwd`/`env` independently — one site-root resolution per call,
+    // matching `custom-root-store.ts`'s "no independent env parsing" design.
+    custom: workspaceId === undefined ? undefined : getCustomFsRoot(workspaceId, { siteDir }),
   };
 }

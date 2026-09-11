@@ -86,7 +86,9 @@ function resolveRootPathOrThrow(routeDeps: FsFilesToolDeps, root: string): strin
   if (!isFsRootId(root)) {
     throw new FsRootNotFoundError(`'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}`);
   }
-  const roots = (routeDeps.resolveRoots ?? resolveFsRoots)();
+  // The real resolver needs `workspaceId` to look up THIS workspace's persisted `custom` root
+  // (`custom-root-store.ts` keys its map by it) — a test's own `resolveRoots` override ignores it.
+  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ workspaceId: routeDeps.workspaceId })))();
   const rootPath = roots[root];
   if (rootPath === undefined) {
     throw new FsRootNotFoundError(`no folder has been set for the '${root}' root yet — ask the operator to set one from the chat composer, then retry`);

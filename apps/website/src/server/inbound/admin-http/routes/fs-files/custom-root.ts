@@ -3,7 +3,12 @@ import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
-import { CustomFsRootError, getCustomFsRoot, setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
+import {
+  CustomFsRootError,
+  getCustomFsRootStatus,
+  setCustomFsRoot,
+  type CustomFsRootStoreOptional,
+} from "#src/features/fs-files/custom-root-store";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -12,8 +17,13 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
  *
  * Shape copied from `routes/system/site-token.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize">`
- * deps slice (no settings ledger, no repo — the value lives in `custom-root-store.ts`'s in-memory
- * module state), the same `rejectUnlessAuthorized` two-step, one file for every verb.
+ * deps slice (no settings ledger, no repo — the value is persisted by `custom-root-store.ts`, keyed
+ * by `workspaceId`), the same `rejectUnlessAuthorized` two-step, one file for every verb.
+ *
+ * `storeOptional` (2026-09-10, restart-persistence follow-up) is the one addition beyond that copied
+ * shape: a test-only seam so this route's own tests can point `custom-root-store.ts` at a temp site
+ * directory instead of the real one — see that field's own doc. Every real caller leaves it unset and
+ * gets the real site directory, exactly as before this field existed.
  *
  * `FS_FILES_READ_PERMISSION` (`content.read`) gates every verb here, the SAME permission that gates
  * `fs_list_files`/`fs_read_file` themselves — whoever may already direct the assistant to read files
@@ -23,7 +33,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * is explicit that only the path and a single `stat` are involved. The route inherits that property
  * rather than re-deriving it.
  */
-export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
+export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
+  /** Test seam — defaults to the real site directory (`custom-root-store.ts`'s own default). Set
+   *  only by this route's own tests, to a temp directory, so they never read or write the real site's
+   *  `.fs-custom-root.json`. */
+  readonly storeOptional?: CustomFsRootStoreOptional;
+};
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root";
 
@@ -46,7 +61,11 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminFs
 export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    res.status(200).json({ path: getCustomFsRoot() ?? null });
+    const status = getCustomFsRootStatus(deps.workspaceId, deps.storeOptional);
+    // `vanished`/`vanishedPath` are only present (never `false`/absent-by-omission) when a
+    // previously-set folder no longer stats as a directory — additive beyond the original
+    // `{ path }` shape, so an existing caller reading only `path` sees no change.
+    res.status(200).json(status.vanished ? { path: null, vanished: true, vanishedPath: status.vanishedPath } : { path: status.path ?? null });
   });
 
   app.put(BASE_PATH, async (req, res) => {
@@ -59,8 +78,8 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
     }
 
     try {
-      setCustomFsRoot(path);
-      res.status(200).json({ path: getCustomFsRoot() });
+      setCustomFsRoot(deps.workspaceId, path, deps.storeOptional);
+      res.status(200).json({ path: getCustomFsRootStatus(deps.workspaceId, deps.storeOptional).path });
     } catch (err) {
       if (err instanceof CustomFsRootError) {
         res.status(400).json({ error: err.message, code: "INVALID_PATH" });
@@ -72,7 +91,7 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
 
   app.delete(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    setCustomFsRoot(null);
+    setCustomFsRoot(deps.workspaceId, null, deps.storeOptional);
     res.status(200).json({ path: null });
   });
 }
