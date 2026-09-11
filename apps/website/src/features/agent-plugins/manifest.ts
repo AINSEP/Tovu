@@ -22,11 +22,31 @@
  * - Unknown top-level `plugin.json` fields produce warnings but do not block loading — this module
  *   returns them as `warnings`, never as a rejection reason.
  * - `mcp.json`'s top-level shape is `{ "$schema": ..., "mcpServers": { "<server-id>": {...} } }` —
- *   `mcpServers` MUST be an object whose member names identify servers. This module does not
- *   validate the per-transport (`stdio` / `streamable-http` / `sse`) field shape inside each server
- *   entry: nothing in this feature slice launches an MCP server yet (see `capability-projection.ts`
- *   — every MCP capability descriptor is `execute: { kind: "unavailable" }` by construction), so a
- *   transport-shape validator would be speculative generality with no caller to exercise it against.
+ *   `mcpServers` MUST be an object whose member names identify servers.
+ * - Each server entry MUST carry a `type` discriminator matching exactly one of three CLOSED
+ *   variants (re-verified live against `agent-plugins.org/schemas/1.0.0/mcp.schema.json` and
+ *   `/specification`, 2026-09-10 — superseding this file's earlier "not validated, no caller needs
+ *   it" note, which is now false: `capability-projection.ts`'s MCP-server descriptors are no longer
+ *   unconditionally `execute: { kind: "unavailable" }`, and launching a server needs its real
+ *   transport config, not just its id):
+ *     - `stdio`: requires `command` (non-empty string); optional `args` (string[]), `env`
+ *       (string-valued object — MUST NOT set `PLUGIN_ROOT`/`PLUGIN_DATA`, which the spec reserves),
+ *       `cwd` (plugin-relative path).
+ *     - `streamable-http` / `sse`: requires `url` (non-empty string); optional `headers`
+ *       (string-valued object).
+ * - **The spec defines NO auth-related field on a server entry at all.** Verbatim from
+ *   `/specification`: "Agent Plugins v1 defines no OAuth configuration or portable
+ *   credential-reference fields. Authorization discovery, user interaction, and credential storage
+ *   are client-managed." A plugin therefore cannot declare "this server needs OAuth" using any
+ *   spec-defined field — Tovu is the client the spec defers that decision to. This module accepts
+ *   one Tovu-specific, non-spec, purely-additive extension key, `tovuAuthMode: "oauth" | "none"`,
+ *   on `streamable-http`/`sse` entries only, so a plugin author who KNOWS their server requires
+ *   OAuth (Higgsfield's own `mcp.json` sets it) can say so; a strictly spec-conformant client
+ *   ignores an unknown property on an object with no `additionalProperties: false` and loses
+ *   nothing. Absent, it defaults to `"none"` wherever it is consulted
+ *   (`capability-projection.ts`'s `resolveAgentPluginMcpAuthMode`). A malformed per-server entry
+ *   (wrong/missing `type`, missing required field) does not fail the whole file — see
+ *   `ParseAgentPluginMcpConfigResult`'s own doc for the fail-open contract this preserves.
  *
  * Architectural role:
  * Pure, no-I/O parsing over an already-`JSON.parse`d value — mirrors `plugin-runtime/manifest.ts`'s
@@ -138,20 +158,122 @@ export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManife
   return { ok: true, manifest, warnings };
 }
 
+/** The three closed transport variants `mcp.schema.json` v1.0.0 defines. See this file's header for
+ * the verified field shape of each. */
+export const MCP_SERVER_TRANSPORTS = ["stdio", "streamable-http", "sse"] as const;
+export type McpServerTransport = (typeof MCP_SERVER_TRANSPORTS)[number];
+
+/** Reserved by the spec — a `stdio` server's `env` MUST NOT set either, since the client (Tovu)
+ * owns them. Checked defensively; nothing upstream of this parser fills them in yet, so this is a
+ * spec-conformance check today rather than one guarding a real collision. */
+const RESERVED_STDIO_ENV_KEYS = ["PLUGIN_ROOT", "PLUGIN_DATA"];
+
+export interface StdioMcpServerConfig {
+  readonly type: "stdio";
+  readonly command: string;
+  readonly args?: readonly string[];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly cwd?: string;
+}
+
+/** `streamable-http` and `sse` share an identical field shape (`url` + optional `headers`); only
+ * their `type` differs, and both are handled by the one remote branch below. */
+export interface RemoteMcpServerConfig {
+  readonly type: "streamable-http" | "sse";
+  readonly url: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  /** Tovu-specific extension, not part of the spec — see this file's header for why it exists and
+   * what a strictly spec-conformant client does with it (ignores it). */
+  readonly tovuAuthMode?: "oauth" | "none";
+}
+
+export type McpServerConfig = StdioMcpServerConfig | RemoteMcpServerConfig;
+
 export interface AgentPluginMcpConfig {
   /** `mcpServers`' own member names, in declaration order — the identity a future admission record
-   * pins to (`serverId` in the debate's own admission shape). This module does not parse each
-   * entry's transport fields; see this file's header for why. */
+   * pins to (`serverId` in the debate's own admission shape). Includes every declared key
+   * regardless of whether that entry's transport shape validated — see {@link servers} for the
+   * validated subset — so a discovery caller that only ever needed ids (`search_agent_plugin_local`)
+   * sees no behavior change from before this module parsed transports at all. */
   readonly serverIds: readonly string[];
+  /** Only the entries whose transport shape validated against one of the three closed variants.
+   * A `serverId` present in {@link serverIds} but absent here declared an unrecognized `type` or was
+   * missing a required field for the `type` it declared — fail-open per this file's header, not an
+   * error for the whole `mcp.json`. */
+  readonly servers: Readonly<Record<string, McpServerConfig>>;
 }
 
 export type ParseAgentPluginMcpConfigResult =
   | { readonly ok: true; readonly config: AgentPluginMcpConfig }
   | { readonly ok: false; readonly errors: readonly string[] };
 
+/** `value` narrowed to an object whose own values are all strings, or `undefined` for anything
+ *  else — the shared shape `env`/`headers` both need. */
+function isStringRecord(value: unknown): value is Readonly<Record<string, string>> {
+  return isJsonObject(value) && Object.values(value).every((entry) => typeof entry === "string");
+}
+
+/**
+ * Validates one `type: "stdio"` server entry.
+ *
+ * @returns The parsed config, or `null` for any shape violation (missing/empty `command`, a
+ * malformed `args`/`env`/`cwd`, or an `env` setting a reserved key) — the caller folds `null` into
+ * "this one server is excluded from `servers`", never into a whole-file rejection.
+ * @complexity O(k) in the entry's own field count.
+ */
+function parseStdioServerConfig(raw: Readonly<Record<string, unknown>>): StdioMcpServerConfig | null {
+  if (typeof raw.command !== "string" || raw.command.length === 0) return null;
+
+  const { args, env, cwd } = raw;
+  if (args !== undefined && !(Array.isArray(args) && args.every((entry): entry is string => typeof entry === "string"))) return null;
+  if (env !== undefined && (!isStringRecord(env) || RESERVED_STDIO_ENV_KEYS.some((key) => Object.hasOwn(env, key)))) return null;
+  if (cwd !== undefined && typeof cwd !== "string") return null;
+
+  return {
+    type: "stdio",
+    command: raw.command,
+    ...(args !== undefined ? { args: args as readonly string[] } : {}),
+    ...(env !== undefined ? { env } : {}),
+    ...(cwd !== undefined ? { cwd } : {}),
+  };
+}
+
+/**
+ * Validates one `type: "streamable-http"` or `type: "sse"` server entry — the two remote transports
+ * share this one implementation because they share every field (see {@link RemoteMcpServerConfig}).
+ *
+ * @returns The parsed config, or `null` for any shape violation. Same fold-into-exclusion contract
+ * as {@link parseStdioServerConfig}.
+ * @complexity O(k) in the entry's own field count.
+ */
+function parseRemoteServerConfig(type: "streamable-http" | "sse", raw: Readonly<Record<string, unknown>>): RemoteMcpServerConfig | null {
+  if (typeof raw.url !== "string" || raw.url.length === 0) return null;
+
+  const { headers, tovuAuthMode } = raw;
+  if (headers !== undefined && !isStringRecord(headers)) return null;
+  if (tovuAuthMode !== undefined && tovuAuthMode !== "oauth" && tovuAuthMode !== "none") return null;
+
+  return {
+    type,
+    url: raw.url,
+    ...(headers !== undefined ? { headers } : {}),
+    ...(tovuAuthMode !== undefined ? { tovuAuthMode } : {}),
+  };
+}
+
+/** Dispatches one raw `mcpServers` entry to its transport's validator by `type`, or `null` for a
+ *  non-object entry or a `type` outside {@link MCP_SERVER_TRANSPORTS}. */
+function parseMcpServerConfig(value: unknown): McpServerConfig | null {
+  if (!isJsonObject(value)) return null;
+  if (value.type === "stdio") return parseStdioServerConfig(value);
+  if (value.type === "streamable-http" || value.type === "sse") return parseRemoteServerConfig(value.type, value);
+  return null;
+}
+
 /**
  * Validates an already-`JSON.parse`d `mcp.json` value against the v1.0.0 top-level shape:
- * `{ "$schema": ..., "mcpServers": { "<server-id>": {...} } }`.
+ * `{ "$schema": ..., "mcpServers": { "<server-id>": {...} } }`, then validates each declared
+ * server's own transport shape (see this file's header for the three variants).
  *
  * @throws Nothing — see {@link parseAgentPluginManifest}.
  * @complexity O(s) in the number of declared servers.
@@ -173,5 +295,12 @@ export function parseAgentPluginMcpConfig(value: unknown): ParseAgentPluginMcpCo
 
   if (errors.length > 0) return { ok: false, errors };
 
-  return { ok: true, config: { serverIds: Object.keys(mcpServers as Record<string, unknown>) } };
+  const entries = Object.entries(mcpServers as Record<string, unknown>);
+  const servers: Record<string, McpServerConfig> = {};
+  for (const [serverId, rawServer] of entries) {
+    const parsed = parseMcpServerConfig(rawServer);
+    if (parsed) servers[serverId] = parsed;
+  }
+
+  return { ok: true, config: { serverIds: entries.map(([serverId]) => serverId), servers } };
 }

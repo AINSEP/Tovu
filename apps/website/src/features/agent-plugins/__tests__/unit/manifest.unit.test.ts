@@ -107,3 +107,115 @@ test("mcp.json: the $schema VERSION segment must match plugin.json's (spec: a mi
   );
   assert.equal(result.ok, false);
 });
+
+test("mcp.json: a stdio server's full transport config is parsed, not just its id", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: {
+      main: { type: "stdio", command: "./server/index.js", args: ["--flag"], env: { API_KEY: "x" }, cwd: "./data" },
+    },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.servers.main, {
+    type: "stdio",
+    command: "./server/index.js",
+    args: ["--flag"],
+    env: { API_KEY: "x" },
+    cwd: "./data",
+  });
+});
+
+test("mcp.json: a streamable-http server's url and headers are parsed", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: {
+      remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", headers: { "X-Trace": "1" } },
+    },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.servers.remote, {
+    type: "streamable-http",
+    url: "https://mcp.example.com/mcp",
+    headers: { "X-Trace": "1" },
+  });
+});
+
+test("mcp.json: an sse server's url is parsed (legacy transport, same field shape as streamable-http)", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { legacy: { type: "sse", url: "https://mcp.example.com/sse" } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.servers.legacy, { type: "sse", url: "https://mcp.example.com/sse" });
+});
+
+test("mcp.json: the non-spec tovuAuthMode extension passes through on a remote server", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "oauth" } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal((result.config.servers.remote as { tovuAuthMode?: string }).tovuAuthMode, "oauth");
+});
+
+test("mcp.json: a server with an unrecognized type still counts toward serverIds but is excluded from servers (fail-open)", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { mystery: { type: "carrier-pigeon", command: "x" } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.serverIds, ["mystery"]);
+  assert.equal(Object.hasOwn(result.config.servers, "mystery"), false);
+});
+
+test("mcp.json: a stdio entry missing 'command' is excluded from servers but keeps its serverId (fail-open)", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { broken: { type: "stdio" } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.serverIds, ["broken"]);
+  assert.equal(Object.hasOwn(result.config.servers, "broken"), false);
+});
+
+test("mcp.json: a remote entry missing 'url' is excluded from servers but keeps its serverId (fail-open)", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { broken: { type: "streamable-http" } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.config.serverIds, ["broken"]);
+  assert.equal(Object.hasOwn(result.config.servers, "broken"), false);
+});
+
+test("mcp.json: a stdio entry setting the reserved PLUGIN_ROOT env key is excluded from servers", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: { broken: { type: "stdio", command: "x", env: { PLUGIN_ROOT: "/tmp" } } },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(Object.hasOwn(result.config.servers, "broken"), false);
+});
+
+test("mcp.json: several servers of mixed transports and validity all resolve independently", () => {
+  const result = parseAgentPluginMcpConfig({
+    $schema: MCP_SCHEMA_1_0_0,
+    mcpServers: {
+      local: { type: "stdio", command: "fly-mcp" },
+      remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
+      broken: { type: "stdio" },
+    },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual([...result.config.serverIds].sort(), ["broken", "local", "remote"]);
+  assert.deepEqual(Object.keys(result.config.servers).sort(), ["local", "remote"]);
+});
