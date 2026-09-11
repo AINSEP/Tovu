@@ -14,7 +14,6 @@ import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
-import { FsFolderIndicator } from "./FsFolderIndicator";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
@@ -567,15 +566,13 @@ export function AssistantDock({
         // something introduced here. Using this top-level prop instead (unused by this component
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
-        // `FsFolderIndicator` renders first (a persistent, always-visible control) with the
-        // per-message plugin chips beneath it — see that component's own header for why it is a
-        // sibling here rather than folded into `SelectedAgentPluginTray` itself.
-        leadingAccessory={
-          <>
-            <FsFolderIndicator />
-            <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
-          </>
-        }
+        //
+        // `FsFolderIndicator` used to render here, above the plugin chips, as an always-visible
+        // "No folder set" control. Unpinned 2026-09-10 on the owner's call: a persistent chip for a
+        // capability most sessions never use is clutter on the one surface that must stay quiet.
+        // ONLY the mount is removed — the component, its route, and the `custom` fs root all still
+        // work (`features/fs-files/`), so restoring this is re-adding the element, nothing more.
+        leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
         // through it. Append-only by contract, so a transcript can never clobber a half-written
         // message — see `use-composer-voice-input.hooks.ts`.
