@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
+import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
 import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
 import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
 
@@ -65,16 +66,31 @@ test("plugin.json's keywords carry the vocabulary an operator would actually sea
   }
 });
 
-test("mcp.json declares ZERO servers — the higgsfield connection is the OPERATOR's, not this package's", async () => {
+/**
+ * 2026-09-10: OWNER-OVERRULED. This test used to assert mcp.json declared ZERO servers, on the
+ * premise that a plugin's own mcp.json was structurally inert (`capability-projection.ts`'s old
+ * unconditional `execute: { kind: "unavailable" }`) and that only an operator-typed Settings row
+ * could express the real connection. That premise is gone — see
+ * `capability-projection.ts`'s header for the full argument. This package now DECLARES the
+ * connection Higgsfield's own verified discovery metadata establishes (streamable-http,
+ * `https://mcp.higgsfield.ai/mcp`, OAuth-only, no API key, a public client per its own
+ * `token_endpoint_auth_methods_supported: [..., "none"]` — see
+ * `ADS-memory/reports/2026-09-10-higgsfield-mcp-research.md`), and `federate-mcp.ts` auto-creates
+ * the external-MCP row when an operator enables this plugin — no more hand-typing the URL.
+ */
+test("mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust", async () => {
   const parsed = parseAgentPluginMcpConfig(JSON.parse(await readPackageFile("mcp.json")));
   assert.equal(parsed.ok, true);
-  assert.deepEqual(
-    parsed.ok ? parsed.config.serverIds : ["unreachable"],
-    [],
-    "declaring higgsfield here would be inert AND misleading: a plugin's own mcp.json is not executable in " +
-      "this release (capability-projection.ts), and the real connection is an OAuth-authenticated row the " +
-      "operator created in Settings -> External MCP — which no static manifest can express or replace",
-  );
+  if (!parsed.ok) return;
+
+  assert.deepEqual(parsed.config.serverIds, ["higgsfield"]);
+  const server = parsed.config.servers.higgsfield;
+  assert.deepEqual(server, { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" });
+
+  // Remote + oauth carries no secret and no local execution, so it auto-admits — never requires the
+  // stdio confirmation gate. This is the one classification `federate-mcp.ts`'s wiring depends on.
+  assert.ok(server, "expected the server to have parsed");
+  if (server) assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
 });
 
 test("the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name", async () => {
