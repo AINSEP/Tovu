@@ -53,6 +53,7 @@ import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
 import {
   seededPosts,
@@ -481,6 +482,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // and read it back from the other.
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
 
+  // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
+  // (six `..` from `runtime/composition/` back to the repo root, same as this file's own
+  // `distDir`/`agent-icons` fallbacks a few hundred lines down) — this hermetic root backs the same
+  // live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its fallback origin must be derived
+  // the same way rather than silently differing.
+  const REPO_ROOT_FOR_ORIGIN = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
+  const derivedPublicOrigin = `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
+
   // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory
   // repo starts empty every time, so hydrating it could only ever install the same empty config
   // the provider is already constructed with.
@@ -553,6 +562,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       pending: createPendingAuthorizationStore({ clock }),
       devices: createDeviceAuthorizationStore(),
     }),
+    derivedPublicOrigin,
     composioConfigRepo,
     composioConnectors,
     executionSettingsReady,

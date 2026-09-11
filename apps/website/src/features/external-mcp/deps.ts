@@ -57,4 +57,12 @@ export interface ExternalMcpToolDeps {
   siteAssistantSecretKeyring: KeyringPort;
   /** See this file's own header for why this is optional here but required for the two OAuth tools. */
   externalMcpOAuth?: ExternalMcpOAuthService;
+  /**
+   * This process's own best-effort public origin, absent an operator-set `TOVU_PUBLIC_URL` — see
+   * `routes/types.ts`'s `derivedPublicOrigin` doc for the full derivation and
+   * `tool-registrations.ts`'s `resolveExternalMcpOAuthRedirectUri` for the one reader. Optional for
+   * the same structural reason `externalMcpOAuth` above is: a caller that never sets it (a narrower
+   * test double, say) just gets no fallback, not a broken build.
+   */
+  derivedPublicOrigin?: string;
 }

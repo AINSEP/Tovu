@@ -253,9 +253,13 @@ export interface ExternalMcpOAuthService {
    *   without one. Requiring it here pushed that decision up to every caller, and the caller with no
    *   live HTTP request to derive an origin from (`external_mcp_oauth_connect`) consequently refused
    *   EVERY grant whenever `TOVU_PUBLIC_URL` was unset — including the one that needed nothing. So:
-   *   omit it when there is genuinely no origin. Never pass a guessed one — a redirect URI the
-   *   provider was not registered with fails at the vendor with an error about the client, which is
-   *   far harder to act on than a refusal that names the env var to set.
+   *   omit it when there is genuinely no origin. Never pass one built from anything the CALLER
+   *   supplied (a form field, a tool-call argument) — only from operator configuration or this
+   *   process's own known bind origin (`features/external-mcp/tool-registrations.ts`'s
+   *   `resolveExternalMcpOAuthRedirectUri`, 2026-09-10, covers both). A redirect URI the provider was
+   *   not registered with still fails at the vendor with an error about the client, so this is not a
+   *   license to guess from arbitrary caller input — it is what makes a value trustworthy enough to
+   *   pass at all.
    * @throws {ExternalMcpValidationError} When the server is unknown, is not OAuth-authenticated, or
    *   uses a grant that requires a redirect URI and none was supplied.
    * @throws {OAuthError} Bounded, terminal, never retried — see this file's header.
@@ -874,7 +878,8 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       if (input.redirectUri === undefined) {
         throw new ExternalMcpValidationError(
           `external MCP server '${record.serverId}' uses the authorization_code grant, which needs an absolute callback URL ` +
-            `Tovu can be reached at. Set TOVU_PUBLIC_URL to this instance's public origin (for example ` +
+            `Tovu can be reached at, and none could be found: TOVU_PUBLIC_URL is not set, and this execution context has no ` +
+            `derived origin either. Set TOVU_PUBLIC_URL to this instance's public origin (for example ` +
             `https://your-site.example.com) and try again, or start this connection from Settings → External MCP, which derives ` +
             `the origin from the browser's own request. Nothing was changed.`,
           // The field an operator would change to fix it is the environment's, not a form's — the

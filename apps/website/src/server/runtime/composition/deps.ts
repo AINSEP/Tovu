@@ -1287,6 +1287,11 @@ export function createSqliteRouteDeps(
       pending: createPendingAuthorizationStore({ clock }),
       devices: createDeviceAuthorizationStore(),
     }),
+    // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
+    // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
+    // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only
+    // part of that resolution this needs.
+    derivedPublicOrigin: `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`,
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
     composioConfigRepo,
     composioConnectors,

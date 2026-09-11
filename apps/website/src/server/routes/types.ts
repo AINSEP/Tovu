@@ -326,6 +326,25 @@ export interface CredentialsDeps {
    */
   externalMcpOAuth?: ExternalMcpOAuthService;
   /**
+   * This process's own best-effort public origin (`"https://localhost:3000"`-shaped) — the scheme
+   * from whether THIS process terminates TLS itself (`server/runtime/boot/dev-tls.ts`) and the port
+   * from `PORT`, host assumed `localhost` since a composition root has no live client request to
+   * read a `Host` header from. Computed once per boot by both composition roots
+   * (`server/runtime/composition/{deps,app}.ts`), mirroring the identical `devCapabilityScheme`
+   * derivation already there.
+   *
+   * FALLBACK ONLY, and optional for the same reason `externalMcpOAuth` above is: a caller that never
+   * sets it (a narrower test double, say) just gets no fallback rather than a broken build.
+   * `features/external-mcp/tool-registrations.ts`'s `resolveExternalMcpOAuthRedirectUri` is the one
+   * reader today — `TOVU_PUBLIC_URL`, when configured, always wins over this (a real deployment
+   * behind a proxy or custom domain needs that override to keep working; this field only fills the
+   * gap for the chat tool call that has no live request of its own to derive an origin from, the
+   * identical gap `resolvePublicOrigin(req)` closes for the admin HTTP route). 2026-09-10: closes the
+   * defect where a non-technical user's OAuth connect refused outright just because nobody had set an
+   * env var.
+   */
+  derivedPublicOrigin?: string;
+  /**
    * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
    * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
    * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`

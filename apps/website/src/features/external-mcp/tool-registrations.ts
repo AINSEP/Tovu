@@ -99,19 +99,36 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * connect. Worse, the refusal was a bare `Error`, which `@jini-ai/daemon` redacts: the message
  * naming the env var never reached the model, making it a silent refusal in practice.
  *
- * Both are fixed WITHOUT weakening anything. The redirect URI is now resolved best-effort and PASSED
- * ONLY WHEN IT EXISTS; `beginConnect` — the only place that knows the grant — decides whether one is
- * required, and refuses `authorization_code` with a message naming `TOVU_PUBLIC_URL` and what to set
- * it to. PKCE is untouched and no redirect target is accepted from input; the origin still comes
- * only from operator configuration.
+ * ### 2026-09-10: `authorization_code` no longer refuses just because the env var is unset either
  *
- * Deliberately NOT done: deriving a localhost origin in dev. A redirect URI must match what the
- * provider was registered with, so a guessed one fails at the VENDOR with an error about the client
- * — strictly harder to act on than a refusal naming the variable. And it would not even help here:
- * `deps.ts`'s own "cross-process caveat" records that an `authorization_code` connect started from
- * the spawned agent-daemon mints a `pending` record the public callback route's process cannot see,
- * so that grant cannot complete from a chat tool call regardless of the origin used. Pointing the
- * operator at Settings → External MCP is the honest answer, and the message does.
+ * The previous fix still left every `authorization_code` connect refusing outright in dev (the env
+ * var is unset by default) and, worse, in the Electron desktop app, whose non-technical owner has no
+ * way to set an environment variable at all — the exact case a 2026-09-09 product review flagged: "it
+ * should be automatic". `resolveExternalMcpOAuthRedirectUri` now falls back to
+ * `routeDeps.derivedPublicOrigin` — this PROCESS's own known bind origin (`server/routes/types.ts`'s
+ * own doc has the derivation), populated by the composition root — when `TOVU_PUBLIC_URL` is unset.
+ * Precedence is explicit and one-directional: the operator override always wins when present, the
+ * derived origin only fills the gap when it is absent, never the reverse.
+ *
+ * This reopens a case an earlier version of this file's header rejected as "deriving a localhost
+ * origin in dev", on the reasoning that a guessed redirect URI not matching what the provider was
+ * registered with fails at the vendor with a confusing error, strictly harder to act on than a
+ * refusal naming the variable. That reasoning does not change here — a redirect URI still has to
+ * match the provider's registration to work — but the derived origin is no longer a blind guess: it
+ * is this process's OWN bind origin, the one thing that matches "what the provider was registered
+ * with" in precisely the two cases this fallback ever runs (local dev, and the desktop app's fixed
+ * loopback origin). A real deployment behind a proxy or custom domain sets `TOVU_PUBLIC_URL`, per the
+ * precedence above, so the derived guess never even reaches that case.
+ *
+ * NOT fixed by this: `deps.ts`'s own "cross-process caveat" — an `authorization_code` connect started
+ * from the spawned agent-daemon still mints a `pending` record the public callback route's process
+ * (the main web server) cannot see, so that grant still cannot complete from a chat tool call running
+ * in the daemon, regardless of how correct the redirect URI is. That is a separate, pre-existing,
+ * still-open gap this change does not touch; `beginConnect`'s in-process BYOK path is unaffected by
+ * it. The last-resort refusal (still naming `TOVU_PUBLIC_URL`, now also naming the derived attempt)
+ * fires only when a caller's `ExternalMcpToolDeps` never wires `derivedPublicOrigin` at all — in every
+ * real composition root today, it always does, so the honest case for that refusal is a future
+ * composition root that forgot to, not "the operator forgot an env var".
  */
 
 const CATALOG_BY_ID = indexCatalogById(externalMcpAgentToolCatalog);
@@ -143,15 +160,20 @@ function resolveConfiguredPublicOrigin(): string | undefined {
 }
 
 /**
- * Builds `external_mcp_oauth_connect`'s redirect URI for one server id, or `undefined` when no
- * public origin is configured.
+ * Builds `external_mcp_oauth_connect`'s redirect URI for one server id, or `undefined` when NEITHER
+ * an operator-configured origin nor a derived one is available.
  *
- * `undefined` rather than a throw, and rather than a derived localhost guess — see this file's
- * header ("an unset TOVU_PUBLIC_URL no longer blocks EVERY grant") for both halves of that choice.
+ * @param derivedPublicOrigin - `routeDeps.derivedPublicOrigin` — this process's own best-effort
+ *   origin, read only when `TOVU_PUBLIC_URL` is unset. See this file's header ("2026-09-10") for why
+ *   the precedence is one-directional: the operator override always wins when present.
+ *
+ * `undefined` rather than a throw — see this file's header ("an unset TOVU_PUBLIC_URL no longer
+ * blocks EVERY grant") for why `beginConnect`, not this function, is what decides whether the
+ * caller's grant actually needs one.
  * @complexity O(1).
  */
-function resolveExternalMcpOAuthRedirectUri(serverId: string): string | undefined {
-  const origin = resolveConfiguredPublicOrigin();
+function resolveExternalMcpOAuthRedirectUri(serverId: string, derivedPublicOrigin: string | undefined): string | undefined {
+  const origin = resolveConfiguredPublicOrigin() ?? (derivedPublicOrigin || undefined);
   if (!origin) return undefined;
   return `${origin}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(serverId)}`;
 }
@@ -459,7 +481,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
         );
       }
 
-      const redirectUri = resolveExternalMcpOAuthRedirectUri(id);
+      const redirectUri = resolveExternalMcpOAuthRedirectUri(id, routeDeps.derivedPublicOrigin);
       try {
         return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, ...(redirectUri === undefined ? {} : { redirectUri }) });
       } catch (error) {
