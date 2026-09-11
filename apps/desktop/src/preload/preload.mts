@@ -11,12 +11,12 @@
  * this file. The fleet window cannot use that preload (it needs `tovuRunner` too), so rather than
  * dropping one bridge it re-exposes both, and the mic keeps working inside the ported UI.
  *
- * **The two speech channel names below are INLINED, not imported from `speech-ipc.cjs`.** That
- * module is main-process code: it pulls in `mac-on-device-transcriber.cjs` and therefore
+ * **The two speech channel names below are INLINED, not imported from `speech-ipc.js`.** That
+ * module is main-process code: it pulls in `mac-on-device-transcriber.js` and therefore
  * `child_process`, which has no business being resolved from a preload even an unsandboxed one.
  * The same rule `preload-speech.cjs` already follows, for a different reason (see its header on
- * the sandboxed `require` polyfill). `preload.test.cjs` guards these two literals against drifting
- * from `speech-ipc.cjs`'s own exports, which stay the source of truth.
+ * the sandboxed `require` polyfill). `preload.test.js` guards these two literals against drifting
+ * from `speech-ipc.js`'s own exports, which stay the source of truth.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
  * preload is unsandboxed, so a relative import resolves, and the contracts are pure constant/type
@@ -44,10 +44,10 @@ import {
 } from '../contracts/fleet-conversations.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 
-/** Mirrors `src/speech/speech-ipc.cjs`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header
+/** Mirrors `src/speech/speech-ipc.js`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header
  *  for why this is a literal instead of an import. */
 const IPC_CHANNEL_IS_AVAILABLE = 'tovu:speech:isAvailable';
-/** Mirrors `src/speech/speech-ipc.cjs`'s own `IPC_CHANNEL_TRANSCRIBE` — see this file's header for
+/** Mirrors `src/speech/speech-ipc.js`'s own `IPC_CHANNEL_TRANSCRIBE` — see this file's header for
  *  why this is a literal instead of an import. */
 const IPC_CHANNEL_TRANSCRIBE = 'tovu:speech:transcribe';
 

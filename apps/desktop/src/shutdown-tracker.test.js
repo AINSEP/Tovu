@@ -1,0 +1,109 @@
+/**
+ * @file Behavioural proof for `shutdown-tracker.js` — the drain that `main.js`'s `before-quit`
+ * needs so closing the last site window cannot quit the app out from under an unfinished
+ * `server.stop()`. See that file's header for the defect (D-09).
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { createShutdownTracker } from "./shutdown-tracker.js";
+
+/** A promise plus its own settle handles — lets a test hold a teardown open and prove the drain
+ *  is genuinely blocked on it rather than merely slow. */
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+test("an empty tracker reports nothing pending and drains immediately", async () => {
+  const tracker = createShutdownTracker();
+  assert.equal(tracker.size, 0);
+  await tracker.drain();
+});
+
+test("a tracked teardown is reported pending until it settles", async () => {
+  const tracker = createShutdownTracker();
+  const teardown = deferred();
+  tracker.track(teardown.promise);
+  assert.equal(tracker.size, 1, "before-quit must be able to see that a teardown is still running");
+
+  teardown.resolve();
+  await tracker.drain();
+  assert.equal(tracker.size, 0);
+});
+
+test("drain does not resolve while a teardown is still running", async () => {
+  // The load-bearing property. Without it `app.quit()` proceeds while `server.stop()` has not even
+  // sent its SIGTERM, and the detached `tovu serve` outlives the app with no registry row naming it.
+  const tracker = createShutdownTracker();
+  const teardown = deferred();
+  tracker.track(teardown.promise);
+
+  let drained = false;
+  const draining = tracker.drain().then(() => {
+    drained = true;
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false, "drain resolved while the teardown had not finished");
+
+  teardown.resolve();
+  await draining;
+  assert.equal(drained, true);
+});
+
+test("a REJECTED teardown is still waited for, and still lets the drain finish", async () => {
+  // A failed logout must not hang the quit: the app would then never exit at all, which is worse
+  // than the leak this module closes.
+  const tracker = createShutdownTracker();
+  const teardown = deferred();
+  tracker.track(teardown.promise);
+
+  let drained = false;
+  const draining = tracker.drain().then(() => {
+    drained = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false);
+
+  teardown.reject(new Error("logout refused"));
+  await draining;
+  assert.equal(drained, true);
+  assert.equal(tracker.size, 0);
+});
+
+test("a teardown registered WHILE draining is waited for too", async () => {
+  // Draining one site's stop is exactly what can let another window's `closed` handler run, so a
+  // single `Promise.all` over one snapshot would quit with that second teardown still in flight.
+  const tracker = createShutdownTracker();
+  const first = deferred();
+  const second = deferred();
+  tracker.track(first.promise);
+
+  let drained = false;
+  const draining = tracker.drain().then(() => {
+    drained = true;
+  });
+
+  tracker.track(second.promise);
+  first.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false, "the late teardown was not waited for");
+
+  second.resolve();
+  await draining;
+  assert.equal(drained, true);
+});
+
+test("track returns a promise a caller can await without it rejecting", async () => {
+  const tracker = createShutdownTracker();
+  await tracker.track(Promise.reject(new Error("stop failed")));
+  assert.equal(tracker.size, 0);
+});

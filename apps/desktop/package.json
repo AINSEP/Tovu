@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
-  "main": "main.cjs",
+  "main": "main.js",
   "scripts": {
     "dev": "electron .",
     "attach": "electron .",
@@ -12,7 +12,7 @@
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json",
-    "test": "node --test \"src/**/*.test.cjs\" && node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --test \"src/**/*.test.js\" && node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@jini-ai/chat": "^0.3.7"

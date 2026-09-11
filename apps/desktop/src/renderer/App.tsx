@@ -463,7 +463,7 @@ function ProjectWorkspaces({
  *
  * The guest is an Electron `<webview>` rather than an `<iframe>` so it runs in its own process —
  * this renderer holds `window.tovuRunner`, which can create and delete any project in the fleet,
- * and a site has no business executing beside it. `main.cjs`'s `openFleetWindow` enables the tag
+ * and a site has no business executing beside it. `main.js`'s `openFleetWindow` enables the tag
  * and pins the guest's `webPreferences` from `will-attach-webview`.
  *
  * The embed OPENS on the site's ADMIN rather than its public front end: the admin is the surface
@@ -474,12 +474,12 @@ function ProjectWorkspaces({
  * navigation on a redirect is a visible flash on every open.
  *
  * `partition` is set explicitly to the project's own `sitePartition` (`contracts/project.ts`,
- * `desktop-auth.cjs`) — a deliberate departure from Tovu-Runner's own `ProjectWorkspace`, which
- * sets no `partition` at all. Tovu's own `desktop-auth.cjs` documents why this shell cannot skip
+ * `desktop-auth.js`) — a deliberate departure from Tovu-Runner's own `ProjectWorkspace`, which
+ * sets no `partition` at all. Tovu's own `desktop-auth.js` documents why this shell cannot skip
  * it: cookies ignore port, so two sites both answering on `127.0.0.1` would otherwise share one
  * cookie jar and each open would overwrite the other's session — the exact bug that motivated
  * `sitePartition` for the per-project `BrowserWindow` model in the first place. Setting the same
- * partition string here is what makes the boot-session cookie `main.cjs`'s `openSiteServer` already
+ * partition string here is what makes the boot-session cookie `main.js`'s `openSiteServer` already
  * seeded into that partition visible to THIS guest.
  *
  * `hidden` is a CSS concern, not a mount one. See the <main> body in `App` for why.
@@ -593,7 +593,7 @@ function ProjectWorkspace({
         // retry, so the guest stays mounted for as long as it might still be right and `stalled`
         // only toggles an overlay on top of it.
         <div className="workspace__guest">
-          {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.cjs`
+          {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.js`
               denies every window-open request a guest makes, handing the url to the operator's own
               browser only when it targets a site this launch supervises. Without the attribute
               Electron sets `disablePopups` on the guest and the request never leaves its renderer,
@@ -938,7 +938,7 @@ function MainContent({
       {lastCreated && (
         <p className="creation-notice" role="status">
           <span className="creation-notice__dot" aria-hidden="true" />
-          {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.cjs`) only
+          {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.js`) only
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Port 0 is otherwise

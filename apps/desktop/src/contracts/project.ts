@@ -30,7 +30,7 @@ export interface ProjectRecord {
   installDir: string;
   port: number;
   /**
-   * This project's own Electron session-partition string (`desktop-auth.cjs`'s `sitePartition`,
+   * This project's own Electron session-partition string (`desktop-auth.js`'s `sitePartition`,
    * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `ProjectWorkspace`) sets this
    * as its `<webview partition>` so the guest's cookie jar is the exact one main seeded with a
    * signed-in session — see that function's own header, property 2, on why one jar per site is a
@@ -48,7 +48,7 @@ export interface ProjectRecord {
    * What `RUNNER_PROJECT_CHANNELS.delete` will actually DO to this project's folder: `true` erases
    * the install directory, `false` only drops the row and leaves every byte where it is.
    *
-   * Main decides it (`project-delete-guard.cjs`) and sends the ANSWER, never the inputs, so the
+   * Main decides it (`project-delete-guard.js`) and sends the ANSWER, never the inputs, so the
    * renderer cannot re-derive the rule and drift from the one main enforces. The renderer's only job
    * is to say which of the two a click will do — see `ProjectGrid.hooks.ts`'s `deleteActionCopy`.
    */
@@ -86,17 +86,17 @@ export const RUNNER_PROJECT_CHANNELS = {
   /**
    * A project tab's own answer to "not running yet": ensure the site's `tovu serve` is up
    * (spawning it, or reusing it if another tab already has it open), then return its fresh
-   * `ProjectRecord`. Real (`project-ipc.cjs`'s `handleStart`/`openSiteServer`) — not a stub — as
+   * `ProjectRecord`. Real (`project-ipc.js`'s `handleStart`/`openSiteServer`) — not a stub — as
    * of the embedded-tab model; nothing here creates a `BrowserWindow`.
    */
   start: 'runner:projects:start',
   /**
    * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
-   * no stored answer about, and return the refreshed list. Real (`project-ipc.cjs`'s
-   * `rescanProjects`); `main.cjs` runs the same pass once at boot.
+   * no stored answer about, and return the refreshed list. Real (`project-ipc.js`'s
+   * `rescanProjects`); `main.js` runs the same pass once at boot.
    *
    * A project the operator REMOVED is never brought back by this, however many times it is
-   * pressed — see `adoptDiscoveredProjects` in `project-registry.cjs`. Their way back is the
+   * pressed — see `adoptDiscoveredProjects` in `project-registry.js`. Their way back is the
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:projects:rescan',
