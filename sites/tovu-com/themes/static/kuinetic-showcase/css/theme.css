@@ -1,0 +1,674 @@
+/* Shared showcase system — paper-white / near-black / acid-lime.
+   Extracted from index.html so CSS Animation pages can adopt the same
+   header, type, button, and footer language without re-authoring it.
+   Page-specific content (hero variants, demo grids) stays in each page's
+   own <style> block; only truly shared chrome lives here. */
+
+:root,
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --fg: #000000;
+  --muted: #666666;
+  --border: #e4e4e2;
+  /* One brand yellow, both themes. This was #d0d300 in light and #e4f222 in dark, which meant the
+     site had two different yellows depending on the page: `index.html` declares its own tokens and
+     has always used #e4f222 in *both*, so the hero the owner points at as "the" yellow was never
+     the one the other seven pages were painting. The darker value read as olive next to it.
+
+     `--accent` is the fill token — things that carry `--accent-ink` (black) on top, where #e4f222
+     measures 17:1. */
+  --accent: #e4f222;
+  --accent-ink: #000000;
+  /* Also #e4f222, not a darker gold, as of the second consolidation pass. This token used to carry
+     its own darker value (#8a6d00) specifically because raw #e4f222 measures ~1.2:1 on white and is
+     unreadable as running text — that reasoning was sound, but the owner rejected having two
+     visually different "brand yellows" in the system at all, even one reserved for text. The fix is
+     no longer a second colour: every consumer of this token now either sits on a dark backing
+     (`--accent-ink`) so the light yellow reads on it, or was never really accent-branded text to
+     begin with and reads `--fg` instead. See the per-consumer comments below and in the pages that
+     still define this token locally (the four-file "index family" and `style.css`) for the call
+     made in each case. */
+  --accent-text: #e4f222;
+  --shadow-float: 0 20px 48px rgb(8 9 10 / 0.10);
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --bg: #000000;
+  --surface: #000000;
+  --fg: #ffffff;
+  --muted: #8a8f98;
+  --border: #333333;
+  --accent: #e4f222;
+  --accent-ink: #000000;
+  --accent-text: #e4f222;
+  --shadow-float: 0 20px 48px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}
+
+/* `border-draw` paints with `--kui-border-draw-color`, which falls back to the site `--accent` —
+   acid-lime here, and near-invisible as a 2px stroke on a white light-mode card. Point it at the
+   ink colour instead: `--fg` is already black in light mode and white in dark, so the stroke reads
+   as deliberate in both themes without a second rule. */
+/* Every pin on every page clears the floating header, set once.
+
+   The header is a sticky pill at `top: 16px` with a 58px box, so its underside is at 74px. A pin
+   defaults to `top: 0`, which parked pinned sections, videos and cards *under* that pill and held
+   them there for the whole pin — measured on `scroll.html`'s `pin-spacer` video and its
+   `pin-section` rotate card. The library's own default is `0px` and stays that way; `--kui-pin-offset`
+   is the hook it reads, and this is the one place the showcase answers it. 5.5rem = 88px, so 14px
+   of air below the pill.
+
+   Per-element `offset:` still wins, which is what `stacking-cards` uses for its per-card stagger.
+   Page-authored sticky viewports read the same token — see `.scrub-viewport` in scroll.html — so
+   "how far down does a held thing sit" is one number for the whole showcase. */
+:root { --kui-pin-offset: 5.5rem; }
+
+/* The other half of that number, and the one every page kept forgetting.
+   `--kui-pin-offset` reserves 88px at the top of the scrollport for the entire hold, so a pinned
+   box does not get the viewport — it gets the viewport minus the offset. Nothing knew that. Pages
+   sized their pinned boxes against `100dvh`, `70vh`, `92vh` or nothing at all, which fails in both
+   directions at once: a box sized to `100dvh` hangs exactly one offset past the fold (measured on
+   `scroll.html`'s `.pin-section-card` at 414x896 — top 88, bottom 984, viewport 896), and a box
+   shorter than the room dumps all of its slack at the bottom, because `position: sticky` pins the
+   top edge and nothing centres what is left (the same page's rotate card: 362px held in 808px of
+   room, 446px of dead space under it).
+   `--kui-pin-room` is that room. Size a pinned box against it, or give the box this height and
+   centre the real content inside it — the second form is the one to reach for when the held thing
+   has an aspect ratio of its own, because stretching a media card to fill the room does not centre
+   it, it inflates it. */
+:root { --kui-pin-room: calc(100dvh - var(--kui-pin-offset)); }
+
+:root { --kui-border-draw-color: var(--fg); }
+
+:root[data-theme='dark'] main h1,
+:root[data-theme='dark'] main h2 { color: var(--accent); }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body, 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  font-feature-settings: 'cv01' on, 'ss03' on, 'zero' on;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+@media (min-width: 768px) { .wrap { padding: 0 2.5rem; } }
+
+section { padding: clamp(3.5rem, 5vw + 1rem, 6rem) 0; border-top: 1px solid var(--border); }
+section:first-of-type { border-top: none; }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 510; }
+p { margin: 0; }
+
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+a { color: inherit; }
+/* The `:not([data-kui-fx*='underline'])` is load-bearing. The `underline-slide`/`underline-center`
+   presets draw their own rule with a `::after` and reset `text-decoration: none` themselves — but
+   they do it from inside `@layer kui.effects`, and an unlayered page rule beats any layer no
+   matter how specific. Without this exclusion the static underline below stayed painted and the
+   effect animated a second rule underneath one that never moved: the link looked permanently
+   underlined and the hover appeared to do nothing.
+
+   Excluded here rather than answered with a second, more specific rule: this selector is already
+   (0,3,1) and a plain `a[data-kui-fx~='...']` override is only (0,1,1), so the obvious-looking fix
+   silently loses. Carving the exception out of the one rule that causes it avoids that whole
+   specificity race. */
+a:not(.btn):not(.nav-link):not(.chip):not([data-kui-fx*='underline']) {
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+button, a.btn { font-family: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- header / nav ---------- */
+/* `header-hide-on-scroll` (src/effects/navigation) publishes `data-kui-hidden` on scroll-down and
+   clears it on scroll-up; the library's own rule already answers it with `translate: 0 -100%` and
+   the 220ms ease-out the preset compiles into `--kui-transition`, so neither the distance nor the
+   timing is invented here. Only the *amount* needs a rule, and only because this header is a
+   floating pill rather than a flush bar: `-100%` is exactly the pill's own height, which parks its
+   bottom edge on `top: 1rem` — 16px of pill, plus `--shadow-float` under it, still showing. The
+   extra 1.5rem clears both. Same channel the library uses (`translate`), so the transition it
+   already declared is the one that runs.
+
+   Here and not in a page's own `<style>`, for the reason the show-code chip lives here: every page
+   generates this header from `scripts/generate-nav-header.mjs`, so every page publishes the
+   attribute, and a header that means the same thing everywhere should move the same way
+   everywhere. A page that needs to differ overrides the one property that differs. */
+.site-header[data-kui-hidden='true'] { translate: 0 calc(-100% - 1.5rem); }
+
+/* ...except while the mobile menu is open. The panel and its backdrop are children of this pill,
+   so hiding it would drag an open menu off the top of the screen — and `translate` makes the pill
+   the containing block for the `position: fixed` backdrop, collapsing a full-viewport scrim into a
+   58px pill on the way out. nav.js keeps `aria-expanded` on the hamburger as the single open/closed
+   fact, so that is what this reads. */
+.site-header:has([data-nav-hamburger][aria-expanded='true'])[data-kui-hidden='true'] { translate: none; }
+
+.site-header {
+  position: sticky;
+  top: 1rem;
+  z-index: 100;
+  margin: 1rem auto 0;
+  max-width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 1.25rem;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-float);
+}
+.logo { display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none !important; }
+.logo-mark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  flex: none;
+}
+.logo-dot {
+  position: absolute; top: -1.5px; left: 50%;
+  width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  /* transform-origin only. The rotation itself is `data-kui="orbit 3.5s"` on the element —
+     the hand-written @keyframes that used to live here was duplicated verbatim in index.html and
+     docs.html, and reduced-motion had to be re-declared by hand in all three. The library's own
+     policy layer handles that now. */
+  transform-origin: 2.5px 11.5px;
+}
+.wordmark { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+.wordmark b { font-weight: 800; }
+
+.nav-links { display: flex; align-items: center; gap: 1.25rem; font-size: 0.9rem; }
+/* The unconditional display:flex above is an author rule, so it always beats the UA's
+   [hidden]{display:none} at equal specificity regardless of source order (author origin wins
+   over user-agent origin outright) — without this, nav.js setting .hidden=true on mobile close
+   never actually hides the panel. */
+.nav-links[hidden] { display: none; }
+.kui-nav-dropdown { position: relative; }
+.kui-nav-dropdown-trigger {
+  font: inherit; font-size: 0.9rem; font-weight: 500; color: var(--fg);
+  background: none; border: none; padding: 0; cursor: pointer;
+}
+/* `--fg`, not `--accent-text`: this is a state indicator on the nav pill's own `--bg`, and with
+   `--accent-text` now the same light yellow as `--accent` (see the `:root` comment), painting it
+   here would be unreadable in light mode. The trigger's own `.is-active` rule already carries the
+   "this is current" signal via weight; hover/expanded reuse that instead of a colour that cannot
+   read on this surface. */
+.kui-nav-dropdown-trigger:hover,
+.kui-nav-dropdown-trigger[aria-expanded='true'] { color: var(--fg); font-weight: 600; }
+.kui-nav-dropdown-trigger.is-active { font-weight: 600; }
+.kui-nav-coming-soon {
+  display: block; padding: 0.45rem 0.6rem; font-size: 0.85rem;
+  font-style: italic; color: var(--muted); opacity: 0.7;
+}
+.kui-nav-dropdown-menu {
+  position: absolute; top: calc(100% + 0.7rem); left: 0; flex-direction: column;
+  min-width: 160px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.6rem 0.35rem; box-shadow: var(--shadow-float);
+}
+.kui-nav-dropdown-menu a {
+  display: block; padding: 0.5rem 0.65rem; border-radius: 5px;
+  font-size: 0.85rem; color: var(--fg); text-decoration: none !important;
+}
+/* `--fg`, not `--accent-text` — same reasoning as the trigger above: `--accent-text` is now the
+   light yellow `--accent` value and unreadable on this menu's `--bg`. `background: var(--surface)`
+   on hover is a pre-existing no-op wherever `--surface` equals `--bg` (true here since system.css
+   has always been the flat vocabulary) — left as-is; restyling the hover feedback itself is outside
+   a token-only pass. */
+.kui-nav-dropdown-menu a:hover,
+.kui-nav-dropdown-menu a:focus-visible { color: var(--fg); background: var(--surface); font-weight: 600; }
+.kui-nav-dropdown-menu a[aria-current='page'] { color: var(--fg); font-weight: 600; }
+/* `hamburger-to-x` (src/css/svg.css) owns the open/closed transition, keyed off the
+   `aria-expanded` nav.js already maintains — this rule only owns bar geometry, which the
+   effect deliberately leaves to the author. Sized to match the three-`<line>` icon this
+   replaced: 20x20 box, 15px bars, 2px thick, 5px between centers (`--kui-bar-gap`), so the
+   swap changes nothing about how the icon looks or sits until it actually opens. */
+.kui-nav-toggle {
+  display: none; width: 2.4rem; height: 2.4rem; padding: 0;
+  color: var(--muted); background: none; border: none; flex: none;
+  --kui-bar-gap: 5px;
+}
+.kui-nav-toggle:hover, .kui-nav-toggle[aria-expanded='true'] { color: var(--fg); }
+.kui-nav-toggle .kui-bar {
+  width: 15px; height: 2px; border-radius: 1px;
+  background: currentColor; flex: none;
+}
+/* Desktop nav must not depend on nav.js having run: opacity alone (the old rule) never
+   overrides [hidden]'s display:none, so if the script is ever blocked or delayed the header
+   silently ships with no links at desktop widths too. Forcing display here makes the nav
+   correct on first paint even with zero JS; nav.js only owns the mobile collapse/expand. */
+@media (min-width: 721px) { .nav-links[hidden] { display: flex; } }
+@media (max-width: 720px) {
+  /* flex column, not grid: with a single `place-items: center` cell every one of the three
+     `.kui-bar` children would land in the same cell and stack directly on top of each other. */
+  .kui-nav-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .kui-nav-backdrop {
+    position: fixed; inset: 0; z-index: 1;
+    /* No backdrop-filter here: this is the full-screen scrim behind the mobile nav panel, and a
+       blur on a fixed inset:0 layer showed its own hard-edged corners on the owner's phone —
+       `blur()` clips at the element's box rather than feathering into it. The 70%-opaque
+       color-mix background already dims the page enough on its own; dropping the filter removes
+       the artifact without losing legibility. Don't confuse this with `.site-header`'s
+       `blur(14px)` above — that's the nav pill's own always-on glass treatment, not this scrim,
+       and stays untouched. */
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+  }
+  .nav-links {
+    position: absolute; top: calc(100% + 0.6rem); left: 0; right: 0; z-index: 2;
+    flex-direction: column; align-items: stretch; gap: 0.2rem;
+    padding: 0.9rem; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow-float);
+  }
+  .nav-links .kui-nav-dropdown-trigger { display: flex; align-items: center; width: 100%; min-height: 44px; }
+  .nav-links .kui-nav-dropdown-menu { position: static; box-shadow: none; margin-top: 0.1rem; padding: 0.3rem; }
+  .nav-links .kui-nav-dropdown-menu a { min-height: 44px; display: flex; align-items: center; }
+}
+@media (max-width: 420px) {
+  .site-header { gap: 0.65rem; padding: 0.5rem 0.5rem 0.5rem 1rem; }
+  .site-header > .nav-cta { display: none; }
+}
+
+.theme-toggle {
+  width: 2.4rem; height: 2.4rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--fg);
+  color: var(--bg);
+  display: grid; place-items: center;
+  padding: 0;
+  flex: none;
+}
+.theme-toggle:hover { opacity: 0.85; }
+
+/* ---------- demo hero ---------- */
+/* The pull-up + full-viewport pairing every demo page's hero shares. Each page keeps its own
+   hero layout local (a two-column grid on most, a centered flex column on scroll.html); only
+   these two declarations were byte-identical on all seven, so only these two live here.
+
+   `.site-header` is `position: sticky`, so it still reserves its own box in normal flow — without
+   the pull-up the hero sat below a header-shaped gap of dead space on top of its own padding.
+   Pulling up by roughly the header's reserved height (its margin + box) lets the header float
+   over the hero instead of pushing it down.
+
+   `min-height` then buys the hero one full viewport, so whatever section follows starts at the
+   fold instead of peeking in under a hero shorter than the screen. `min-height`, not `height`:
+   hero content taller than the viewport (a narrow phone stacking everything) still grows past it
+   rather than clipping. `dvh`, not `vh`: `vh` counts the mobile address bar's height, which is
+   exactly the sliver that used to read as the next section bleeding in. */
+/* The padding that pays back the pull-up lives here too, next to the pull itself.
+   It was a local `clamp(3.5rem, 5vw + 1.5rem, 6.5rem)` copied into all eleven showcase pages, and
+   it did not clear the header it was compensating for: the pull is a flat 70.4px, but the clamp is
+   viewport-scaled, so below ~1440px the preferred term falls under that and the 3.5rem floor takes
+   over at 56px. The header then sat on the hero's own eyebrow — measured on a 390px viewport, the
+   header's underside at 72px against an eyebrow top of 64px, an 8px overlap, and reported on
+   reveals.html, text.html and ambient-feedback.html alike because all eleven carried the same
+   number.
+   A fixed header wants a fixed clearance, so the floor is what matters and 6rem is what it should
+   have been: 96px, clearing the header by 32px — the same generous margin over "just clears it"
+   that `index.html`'s own mobile hero was tuned to. The preferred and max terms are kept so very
+   wide screens still open up a little. Change this and the margin above together. */
+.demo-hero {
+  margin-top: calc(-1 * (1rem + 3.4rem));
+  min-height: 100dvh;
+  padding-top: clamp(6rem, 5vw + 1.5rem, 6.5rem);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.8rem 1.4rem;
+  border-radius: 6px;
+  font-size: 0.95rem; font-weight: 700;
+  text-decoration: none !important;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); position: relative; overflow: hidden; }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
+
+/* Hero CTA pair. The primary is the neutral high-contrast fill so the accent stays reserved for
+   the docs CTA standing next to it: black on light, white on dark. Every other .btn-primary on
+   the page (demo buttons, in-card CTAs) keeps the accent fill and is untouched.
+
+   The dark half is new. It mirrors the light rule that was already here, and it exists because the
+   docs CTA stopped being a ghost: base `.btn-primary` is already `--accent`, so without this the
+   hero showed two identical yellow buttons in dark mode and no hierarchy at all. */
+:root[data-theme='light'] .demo-hero-actions .btn-primary { background: #000000; color: #ffffff; }
+:root[data-theme='light'] .demo-hero-actions .btn-primary:hover { background: #222222; }
+:root[data-theme='dark'] .demo-hero-actions .btn-primary { background: #ffffff; color: #000000; }
+:root[data-theme='dark'] .demo-hero-actions .btn-primary:hover { background: #e6e6e6; }
+
+/* A solid accent button that stays accent everywhere, unlike `.btn-primary`, which the hero rule
+   above deliberately neutralises. Used for the "Read the catalog docs" CTA on all seven demo
+   pages, which was a `.btn-ghost`: a transparent fill with a body-coloured label, i.e. black text
+   on the page background inside a hairline box. That reads as a bordered paragraph rather than a
+   control, and it is the weakest thing on a page whose one job is to send you to the docs.
+
+   Identical in both themes on purpose — the accent pair is built to carry black ink in both
+   (`--accent-ink` is #000 in light and dark), so one rule is correct for each rather than a
+   theme-specific fudge. Measured: #d0d300 light and #e4f222 dark, black on each, both far past
+   the 4.5:1 floor. */
+.btn-accent { background: var(--accent); color: var(--accent-ink); position: relative; overflow: hidden; }
+.btn-accent:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
+
+.btn-ghost { background: transparent; color: var(--fg); border-color: var(--border); position: relative; overflow: hidden; }
+.btn-ghost:hover { border-color: var(--fg); }
+
+/* ---------- kicker / eyebrow ---------- */
+/* Was `var(--muted)` — the same grey as every other secondary label on the page, which read as
+   "disabled" rather than as a category tag. Owner's call: yellow in light mode, white in dark.
+   Not literal `--accent` in light mode though — that near-yellow-green is a fill color, tuned to
+   sit behind black ink (the logo dot, the show-code chip), not to be read as text on white; as
+   text it measures well under WCAG AA. `#a16207` is the same hue pushed dark enough to read,
+   still unambiguously gold/yellow rather than brown. Dark mode has no such problem — white on
+   near-black is high-contrast on its own. `currentColor` on the dot keeps it locked to whichever
+   one is active without a second override. */
+.kicker {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #a16207; margin-bottom: 1rem;
+}
+.kicker::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+:root[data-theme='dark'] .kicker { color: #ffffff; }
+
+/* ---------- footer ---------- */
+footer { padding: 3rem 0 4rem; border-top: 1px solid var(--border); }
+.foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.foot-note { font-size: 0.85rem; color: var(--muted); }
+.back-top { font-size: 0.85rem; color: var(--muted); text-decoration: none !important; }
+.back-top:hover { color: var(--fg); }
+
+/* ---------- replay fab ---------- */
+.kui-replay-fab {
+  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 60;
+  width: 52px; height: 52px; padding: 0; border: none; border-radius: 50%;
+  background: var(--fg); color: var(--bg); display: grid; place-items: center; cursor: pointer;
+  box-shadow: var(--shadow-float);
+}
+.kui-replay-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* "Show code" button and modal */
+/* ---------- "Show code": one chip, every page ----------
+   This shipped as a 200px-wide filled --accent block, which is fine on a page mounting three or
+   four of them and wrong on a page mounting thirty over full-bleed screenshots whose entire job is
+   to be looked at. At that density a chartreuse slab per card stops reading as a control and
+   becomes the loudest colour on the page, above the work it is captioning. It then went through an
+   outline-chip phase — accent ring at rest, filling with accent on hover — which fixed the density
+   problem but reopened the readability one: the resting label was `--accent-text`, and the whole
+   reason `--accent-text` existed as a second, darker yellow was that raw #e4f222 fails on a light
+   surface. Keeping that chip legible meant tracking *which* surface it sat on and swapping its ink
+   accordingly — `--kui-chip-ink`, set per caption-bar convention across six pages.
+
+   The owner then rejected the second yellow outright: one brand accent, full stop (see the `:root`
+   comment on `--accent-text`). A transparent chip cannot survive that on its own — there is no
+   single ink colour that reads on every surface a transparent box inherits. A **filled** chip can:
+   give it its own background and the surface underneath stops mattering.
+
+   So: solid `--accent-ink` fill, `--accent` label — the same pair every accent-filled button on
+   this page already uses, just inverted. Both tokens are fixed values (`#000000` / `#e4f222`) in
+   both themes, so the chip is the same dark pill with the same bright label on a white card, a
+   black card, or a caption already painted solid `--accent` — a dark pill on a bright fill is still
+   a dark pill, unlike a transparent ring, which vanished into it. Measured: --accent on
+   --accent-ink is ~17:1 in both themes. That removes the entire surface-detection problem this
+   comment used to document — `--kui-chip-ink` and the six pages' worth of per-caption overrides
+   that kept it correct are gone with it. Hover/focus inverts the pair — accent fill, ink-coloured
+   label — which is the outline design's old resting state, so the interaction still reads as "the
+   accent comes forward on contact." */
+.kui-show-code-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  align-self: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  color: var(--accent);
+  background: var(--accent-ink);
+  /* A ring, not a hard edge: on a surface that is itself solid `--accent-ink` (a dark-theme card,
+     a black caption bar) a same-colour fill would have no visible boundary of its own — only the
+     label would show. The ring is a fixed blend of the pair rather than either endpoint, so it
+     stays visible against a black backdrop, a yellow one, or anything between. */
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--accent-ink));
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.kui-show-code-toggle:hover,
+.kui-show-code-toggle:focus-visible {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: none;
+}
+
+/* The caption layout show-code.js used to write as inline styles. Identical result, but now an
+   ordinary rule, so a page can override it with its own selector instead of fighting inline. */
+.kui-has-toggle {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+figure .kui-show-code-toggle {
+  margin: 0;
+}
+
+.matrix-group > .kui-show-code-toggle {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.kui-code-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  place-items: center;
+  padding: 2rem;
+  /* Undimmed and click-through on purpose: the whole point of the draggable panel is to edit a
+     `data-kui` value and watch the real element behind it react, which a dimming, event-swallowing
+     overlay makes impossible. Escape and the × still close it; the panel itself re-enables its own
+     pointer events below. */
+  pointer-events: none;
+  background: none;
+}
+
+.kui-code-modal {
+  position: relative;
+  max-width: 720px;
+  max-height: 80vh;
+  width: 100%;
+  overflow: auto;
+  pointer-events: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
+}
+
+/* Three equal-weight tracks with the label in the middle one, rather than flex: the label is then
+   centred on the dialog itself and does not shift when the close button changes size. Under
+   `space-between` it sat hard left, and under the `flex-end` the inline copies used it sat jammed
+   against the ×; neither read as a title. */
+.kui-code-modal-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  /* The header is the drag handle. `touch-action: none` keeps a touch drag from being stolen by
+     the browser's own pan gesture before the pointermove handler ever sees it. */
+  cursor: grab;
+  touch-action: none;
+  margin: -0.9rem -0.9rem 0.6rem 0;
+}
+
+.kui-code-modal-close {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+}
+
+.kui-code-modal-close:hover {
+  color: var(--fg);
+}
+
+.kui-code-modal-header > .kui-code-modal-grip { grid-column: 2; }
+.kui-code-modal-header > .kui-code-modal-close { grid-column: 3; justify-self: end; }
+
+.kui-code-modal-grip {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  /* The whole header is the drag handle, so the label just has to advertise it. */
+  cursor: grab;
+  user-select: none;
+}
+
+.kui-code-modal-header.is-dragging,
+.kui-code-modal-header.is-dragging .kui-code-modal-grip {
+  cursor: grabbing;
+}
+
+.kui-code-tryit {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.kui-code-tryit-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+
+.kui-code-tryit-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.kui-code-tryit-copy,
+.kui-code-tryit-apply,
+.kui-code-tryit-reset {
+  flex: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+}
+
+.kui-code-tryit-copy {
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  color: var(--muted);
+}
+
+.kui-code-tryit-copy.is-copied {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.kui-code-tryit-copy:hover,
+.kui-code-tryit-apply:hover,
+.kui-code-tryit-reset:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.kui-code-modal pre {
+  margin: 0;
+  padding: 0;
+}
+
+/* `<mark>` for the semantics — this is highlighted text, and a screen reader should say so — and
+   now for the look as well: an actual highlighter band, not recoloured letters.
+
+   This used to be `background: none` with `--accent-text` type, on the reasoning that a block fill
+   is wrong inside a code panel. It reads worse than that reasoning predicted. Recolouring letters
+   inside a panel that is *already* full of syntax-ish colour asks the eye to notice a hue shift in
+   a monospace line; a band behind the line is pre-attentive — you see which rows are marked before
+   you read a character of them. It is also the thing a highlighter actually is, which is the
+   metaphor the reader arrives with. That legibility difference is why the legend sentence could be
+   deleted at all: the mark no longer needs a caption to explain it.
+
+   The letters go back to plain `--fg`, so contrast is the panel's own black-on-white or
+   white-on-black and never a question. The band carries the accent instead, at 32% of #e4f222
+   on the light panel's white.
+
+   Dark mode cannot reuse that percentage: `--accent` is itself a near-white, high-luminance
+   yellow-green, so mixing it into black scales its luminance down along with everything else —
+   at 22% the band measured under 2:1 contrast against the panel's own black, i.e. next to
+   invisible, not "crushed glyphs" (the white text sitting on top of it was never the problem).
+   45% clears roughly 3:1 against black, which is what a highlighter band needs to read as a
+   band at all; white text on top of it still clears 5:1. `box-decoration-break: clone` so a
+   line long enough to wrap gets the padding and radius on every fragment rather than one long
+   band with two square ends in the middle of the text. */
+.kui-code-key {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  color: var(--fg);
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 0.1em 0.25em;
+  margin: 0 -0.25em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+:root[data-theme='dark'] .kui-code-key {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.kui-code-modal code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  background: none;
+  border: none;
+  padding: 0;
+}

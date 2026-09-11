@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tovuize-site",
+  "version": "1.0.0",
+  "description": "Converts an existing static website (plain HTML/CSS/JS, no Tovu, no CMS) into a Tovu static-tier theme. Encodes the theme-format rules a generic HTML-to-CMS port gets wrong: apiVersion 2's render/pages+render/partials+css/theme.css+scripts layout, which of tokens.json/tokens.light.json holds which palette regardless of the source's own default, the publishedPages allow-list that leaves every non-index page unreachable until explicitly turned on, the narrow href=/src= sentinel rewrite that never touches a JS fetch() call, and the hard boundary around binary assets that no agent tool in this product can copy. No new tools — the whole conversion runs on fs_read_file/fs_list_files plus the existing theme_* file tools.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "keywords": [
+    "theme",
+    "themes",
+    "static-site",
+    "migration",
+    "import",
+    "convert",
+    "conversion",
+    "onboarding",
+    "html",
+    "static",
+    "port"
+  ]
+}

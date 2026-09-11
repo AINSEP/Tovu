@@ -1,0 +1,17 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "kuinetic-showcase",
+  "name": "kUInetic Showcase",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "Tovu-ized port of the kUInetic animation library's own live demo site (kuinetic.com) — proving case for the tovuize-site conversion skill. Home, a reveal-animation gallery, and the docs viewer. Plain HTML/CSS/JS, no build step.",
+  "modes": ["light", "dark"],
+  "defaultMode": "light",
+  "pages": ["index", "reveals", "docs"],
+  "slots": {
+    "nav": { "source": "nav.html", "honorsCurrentPage": true },
+    "footer": { "source": "footer.html" }
+  },
+  "publishedPages": ["reveals", "docs"]
+}
