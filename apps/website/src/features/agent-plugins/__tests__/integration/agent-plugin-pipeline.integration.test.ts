@@ -82,12 +82,14 @@ test("install -> parse mcp.json -> project capabilities, end to end, for a plugi
     const parsedMcp = parseAgentPluginMcpConfig(JSON.parse(mcpConfigRaw));
     assert.equal(parsedMcp.ok, true);
     const mcpServerIds = parsedMcp.ok ? parsedMcp.config.serverIds : [];
+    const mcpServers = parsedMcp.ok ? parsedMcp.config.servers : {};
     assert.deepEqual(mcpServerIds, ["main"]);
 
     const descriptors = await projectInstalledAgentPluginCapabilities({
       installed,
       readSkillMarkdown: (skillPath) => readInstalledSkillMarkdown(installed.packageRoot, skillPath),
       mcpServerIds,
+      mcpServers,
     });
 
     const skillDescriptor = descriptors.find((d) => d.kind === "agent-plugin-skill");
@@ -98,10 +100,10 @@ test("install -> parse mcp.json -> project capabilities, end to end, for a plugi
       assert.equal(skillDescriptor.execute.markdown, skillMarkdown);
     }
 
-    // The end-to-end proof of the FINAL decision's core rule: even after a real mcp.json round-trips
-    // through parsing and the server id reaches the projector, the descriptor it produces is still
-    // structurally inert — this is not a unit-level assertion about a fixture, it is the same
-    // guarantee holding across the real install -> parse -> project pipeline.
+    // End-to-end proof that a real mcp.json round-trips through parsing into the same trust
+    // classification a unit test would predict: this fixture declares a `stdio` server, which
+    // `classifyAgentPluginMcpServerTrust` always classifies as "requires-confirmation" — never
+    // auto-run from a downloaded plugin package — so the projected descriptor stays inert.
     assert.equal(mcpDescriptor?.execute.kind, "unavailable");
 
     // Re-installing the SAME archive bytes (as a second workspace "installing" the same plugin@version

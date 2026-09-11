@@ -6,11 +6,19 @@ import { resolveComposerDiscoveryOutcome } from "@/components/AssistantDock/Assi
 
 /**
  * @file Reconciliation coverage for the Agent Plugins adapter's candidate descriptor shape
- * (`src/features/agent-plugins/capability-projection.ts`, commit `7431b50`) against this
- * projection's `TovuComposerCapability` contract. Fixtures mirror real descriptors that module's
- * own `projectInstalledAgentPluginCapabilities` produces (verified against source, not invented) —
- * see `agent-plugin-capability-adapter.ts`'s module doc for why the type is a hand-kept shadow
- * rather than an import.
+ * (`src/features/agent-plugins/capability-projection.ts`) against this projection's
+ * `TovuComposerCapability` contract. Fixtures mirror real descriptors that module's own
+ * `projectInstalledAgentPluginCapabilities` produces (verified against source, not invented) — see
+ * `agent-plugin-capability-adapter.ts`'s module doc for why the type is a hand-kept shadow rather
+ * than an import.
+ *
+ * 2026-09-10: `mcpServerDescriptor` below now models an AUTO-ADMITTED remote server
+ * (`execute: { kind: "federated" }`), reflecting the owner-overruled FINAL decision. A second
+ * fixture, `stdioMcpServerDescriptor`, models the one case that still stays `execute: { kind:
+ * "unavailable" }` — a `stdio` server, which always requires explicit operator confirmation before
+ * Tovu will run it. Both stay composer-inert (no `resolve`), which is the property this file's
+ * tests actually exist to prove — see `agent-plugin-capability-adapter.ts`'s header for why neither
+ * kind gets a composer binding.
  */
 
 function skillDescriptor(overrides: Partial<AgentPluginCapabilityDescriptor> = {}): AgentPluginCapabilityDescriptor {
@@ -39,10 +47,28 @@ function mcpServerDescriptor(overrides: Partial<AgentPluginCapabilityDescriptor>
     revision: "sha256:def456",
     preview: { kind: "none" },
     execute: {
-      kind: "unavailable",
+      kind: "federated",
       reason:
-        "Agent Plugin MCP servers are not executable in this release — a plugin's own mcp.json has no independent " +
-        "author, and no operator-reviewed admission record exists yet for this server.",
+        "this remote MCP server is wired into the assistant's tool set automatically — it carries no local " +
+        "execution and no secret this plugin could have embedded, so no separate confirmation is required.",
+    },
+    ...overrides,
+  };
+}
+
+function stdioMcpServerDescriptor(overrides: Partial<AgentPluginCapabilityDescriptor> = {}): AgentPluginCapabilityDescriptor {
+  return {
+    id: "agent-plugin:some-plugin:mcp:local-cli",
+    kind: "agent-plugin-mcp-server",
+    label: "local-cli",
+    description: "MCP server declared by the 'some-plugin' Agent Plugin",
+    keywords: ["mcp", "some-plugin", "local-cli"],
+    pluginId: "some-plugin",
+    revision: "sha256:def456",
+    preview: { kind: "none" },
+    execute: {
+      kind: "unavailable",
+      reason: "this server launches a local process ('stdio') from a downloaded plugin package — that requires explicit operator confirmation.",
     },
     ...overrides,
   };
@@ -74,16 +100,26 @@ describe("toTovuComposerCapability — Skills get a real executable binding", ()
   });
 });
 
-describe("toTovuComposerCapability — MCP servers are structurally inert, no promotion path", () => {
-  it("never sets resolve for an unavailable MCP-server descriptor", () => {
+describe("toTovuComposerCapability — MCP servers are composer-structurally-inert, whether auto-admitted or not", () => {
+  it("never sets resolve for a federated (auto-admitted) MCP-server descriptor", () => {
     const capability = toTovuComposerCapability(mcpServerDescriptor());
     expect(capability.resolve).toBeUndefined();
   });
 
-  it("folds the inert reason into the item description rather than any executable binding", () => {
+  it("never sets resolve for an unavailable (stdio, unconfirmed) MCP-server descriptor", () => {
+    const capability = toTovuComposerCapability(stdioMcpServerDescriptor());
+    expect(capability.resolve).toBeUndefined();
+  });
+
+  it("folds the federated reason into the item description rather than any executable binding", () => {
     const capability = toTovuComposerCapability(mcpServerDescriptor());
     expect(capability.item.description).toContain("MCP server declared by the 'some-plugin' Agent Plugin");
-    expect(capability.item.description).toContain("not executable in this release");
+    expect(capability.item.description).toContain("wired into the assistant's tool set automatically");
+  });
+
+  it("folds the unavailable reason into the item description for a stdio descriptor", () => {
+    const capability = toTovuComposerCapability(stdioMcpServerDescriptor());
+    expect(capability.item.description).toContain("requires explicit operator confirmation");
   });
 
   it("carries no preview for an MCP-server descriptor (preview: none)", () => {
@@ -92,20 +128,27 @@ describe("toTovuComposerCapability — MCP servers are structurally inert, no pr
   });
 
   /**
-   * Adversarial case mirroring the Agent Plugins module's own "no promotion path exists" test
-   * (`capability-projection.unit.test.ts`): even a descriptor whose OTHER fields look admitted —
-   * a real revision, real keywords, a non-empty label — still resolves to nothing selectable if
-   * `execute.kind` is `"unavailable"`. There is no field on this side of the boundary that can
-   * override that either.
+   * Adversarial case: even a descriptor whose OTHER fields look admitted — a real revision, real
+   * keywords, a non-empty label — still resolves to nothing selectable on THIS side of the
+   * boundary. Unlike before 2026-09-10, `execute.kind` genuinely CAN vary now (`"federated"` vs.
+   * `"unavailable"`) — what stays true, and what this test actually proves, is that neither value
+   * of it (nor any other field) ever produces a `resolve` binding here. The source-side promotion
+   * path this mirrors (`classifyAgentPluginMcpServerTrust`) lives in `capability-projection.ts`,
+   * not in this composer-discovery mapping.
    */
-  it("stays inert regardless of any other field looking admitted", () => {
-    const descriptor = mcpServerDescriptor({
+  it("stays composer-inert regardless of any other field looking admitted, for either execute kind", () => {
+    const federated = mcpServerDescriptor({
       label: "delete_everything",
       keywords: ["admitted", "trusted", "allowlisted"],
       description: "Looks admitted but isn't",
     });
-    const capability = toTovuComposerCapability(descriptor);
-    expect(capability.resolve).toBeUndefined();
+    const unavailable = stdioMcpServerDescriptor({
+      label: "delete_everything",
+      keywords: ["admitted", "trusted", "allowlisted"],
+      description: "Looks admitted but isn't",
+    });
+    expect(toTovuComposerCapability(federated).resolve).toBeUndefined();
+    expect(toTovuComposerCapability(unavailable).resolve).toBeUndefined();
   });
 });
 

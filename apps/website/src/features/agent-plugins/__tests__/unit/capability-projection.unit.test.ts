@@ -5,11 +5,14 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  classifyAgentPluginMcpServerTrust,
   projectInstalledAgentPluginCapabilities,
   readInstalledMcpServerIds,
+  readInstalledMcpServers,
   readInstalledSkillMarkdown,
 } from "../../capability-projection.js";
 import type { InstalledAgentPlugin } from "../../install.js";
+import type { McpServerConfig } from "../../manifest.js";
 import { PackagePathViolation } from "../../package-paths.js";
 
 /**
@@ -20,12 +23,19 @@ import { PackagePathViolation } from "../../package-paths.js";
  * This is explicitly the ADAPTER side of the interface boundary, not the composer projection itself
  * (that is a separate agent's deliverable, per the dispatch brief — "Do not build the projection...
  * If you need the contract before it exists, define what you need"). `AgentPluginCapabilityDescriptor`
- * here is a CANDIDATE shape this module owns and tests against; whoever builds the real capability
- * projection may reshape it, but the underlying rule it encodes is fixed by the FINAL debate decision
- * and is not up for renegotiation: Skills carry a real, executable context-injection binding; MCP
- * servers NEVER do, in v1, regardless of any future admission state — `execute` is always
- * `{ kind: "unavailable", reason }`, with the reason surfaced to the UI rather than swallowed.
+ * here is a CANDIDATE shape this module owns and tests against.
+ *
+ * 2026-09-10: the FINAL debate's "MCP servers NEVER get a real binding, in v1, regardless of any
+ * future admission state" rule is OWNER-OVERRULED (see `capability-projection.ts`'s own header for
+ * the full argument). What replaces it is tested here: `execute.kind` is now a function of the
+ * server's OWN declared transport (`classifyAgentPluginMcpServerTrust`), never of anything a caller
+ * merely asserts about it — the "no promotion path exists" property this file used to assert has
+ * been replaced by "no CALLER-ASSERTED promotion path exists", which the adversarial test below
+ * keeps proving with the identical fixture as before.
  */
+
+const REMOTE_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp" };
+const STDIO_SERVER: McpServerConfig = { type: "stdio", command: "./server/index.js" };
 
 function installedFixture(overrides: Partial<InstalledAgentPlugin> = {}): InstalledAgentPlugin {
   return {
@@ -44,6 +54,7 @@ test("a skill projects to one descriptor with a real preview and a real execute 
     installed: installedFixture(),
     readSkillMarkdown: async (skillPath) => `# Fixture\n\nfrom ${skillPath}`,
     mcpServerIds: [],
+    mcpServers: {},
   });
 
   assert.equal(descriptors.length, 1);
@@ -62,11 +73,12 @@ test("a skill projects to one descriptor with a real preview and a real execute 
   }
 });
 
-test("an MCP server projects to a descriptor that is ALWAYS execute:unavailable, never a runnable binding", async () => {
+test("a stdio MCP server projects to execute:unavailable — never auto-run, per classifyAgentPluginMcpServerTrust", async () => {
   const descriptors = await projectInstalledAgentPluginCapabilities({
     installed: installedFixture({ skills: [] }),
     readSkillMarkdown: async () => "",
     mcpServerIds: ["main"],
+    mcpServers: { main: STDIO_SERVER },
   });
 
   assert.equal(descriptors.length, 1);
@@ -78,14 +90,44 @@ test("an MCP server projects to a descriptor that is ALWAYS execute:unavailable,
   }
 });
 
-test("an MCP descriptor stays execute:unavailable even when an admitted-looking flag is passed in (no promotion path exists)", async () => {
+test("a remote (streamable-http) MCP server projects to execute:federated — auto-admitted, per the owner-overruled rule", async () => {
   const descriptors = await projectInstalledAgentPluginCapabilities({
     installed: installedFixture({ skills: [] }),
     readSkillMarkdown: async () => "",
     mcpServerIds: ["main"],
-    // There is deliberately no parameter that can flip an MCP descriptor's execute.kind to anything
-    // other than "unavailable" — this call passes every field a caller might plausibly think grants
-    // one, to prove none of them exist / do anything.
+    mcpServers: { main: REMOTE_SERVER },
+  });
+
+  const [descriptor] = descriptors;
+  assert.equal(descriptor?.execute.kind, "federated");
+  if (descriptor?.execute.kind === "federated") {
+    assert.ok(descriptor.execute.reason.length > 0, "the reason must be surfaced, not empty");
+  }
+});
+
+test("a declared server id absent from mcpServers (unrecognized shape) still gets a descriptor, execute:unavailable", async () => {
+  const descriptors = await projectInstalledAgentPluginCapabilities({
+    installed: installedFixture({ skills: [] }),
+    readSkillMarkdown: async () => "",
+    mcpServerIds: ["mystery"],
+    mcpServers: {},
+  });
+
+  const [descriptor] = descriptors;
+  assert.equal(descriptor?.kind, "agent-plugin-mcp-server");
+  assert.equal(descriptor?.execute.kind, "unavailable");
+});
+
+test("an MCP descriptor's execute.kind depends ONLY on the server's own transport shape, never on a caller-asserted flag", async () => {
+  const descriptors = await projectInstalledAgentPluginCapabilities({
+    installed: installedFixture({ skills: [] }),
+    readSkillMarkdown: async () => "",
+    mcpServerIds: ["main"],
+    mcpServers: { main: STDIO_SERVER },
+    // There is deliberately no parameter that can flip a stdio descriptor's execute.kind away from
+    // "unavailable" — this call passes every field a caller might plausibly think grants one, to
+    // prove none of them exist / do anything. Only replacing the server's own declared `type` (the
+    // fixture above) changes the outcome, exercised by the "remote" test above.
     ...({ admitted: true, allowedToolNames: ["delete_everything"] } as Record<string, unknown>),
   });
 
@@ -98,6 +140,7 @@ test("a plugin with both a skill and an MCP server projects both, independently 
     installed: installedFixture(),
     readSkillMarkdown: async () => "# Guidance",
     mcpServerIds: ["main"],
+    mcpServers: { main: REMOTE_SERVER },
   });
 
   const kinds = descriptors.map((d) => d.kind).sort();
@@ -109,6 +152,7 @@ test("a plugin with neither skills nor MCP servers projects zero descriptors", a
     installed: installedFixture({ skills: [] }),
     readSkillMarkdown: async () => "",
     mcpServerIds: [],
+    mcpServers: {},
   });
   assert.deepEqual(descriptors, []);
 });
@@ -145,9 +189,16 @@ test("descriptor ids are stable and collision-free across two differently-named 
     }),
     readSkillMarkdown: async (skillPath) => skillPath,
     mcpServerIds: [],
+    mcpServers: {},
   });
   const ids = descriptors.map((d) => d.id);
   assert.deepEqual(new Set(ids).size, ids.length);
+});
+
+test("classifyAgentPluginMcpServerTrust: stdio requires confirmation, remote transports auto-admit", () => {
+  assert.equal(classifyAgentPluginMcpServerTrust(STDIO_SERVER), "requires-confirmation");
+  assert.equal(classifyAgentPluginMcpServerTrust(REMOTE_SERVER), "auto-admit");
+  assert.equal(classifyAgentPluginMcpServerTrust({ type: "sse" }), "auto-admit");
 });
 
 test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids", async () => {
@@ -157,7 +208,7 @@ test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids
       path.join(root, "mcp.json"),
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-        mcpServers: { "fly-cli": { command: "fly-mcp" }, "another-server": { command: "x" } },
+        mcpServers: { "fly-cli": { type: "stdio", command: "fly-mcp" }, "another-server": { type: "stdio", command: "x" } },
       }),
     );
 
@@ -192,6 +243,67 @@ test("readInstalledMcpServerIds returns an empty array for a wrong-schema mcp.js
   try {
     await writeFile(path.join(root, "mcp.json"), JSON.stringify({ $schema: "wrong", mcpServers: {} }));
     assert.deepEqual(await readInstalledMcpServerIds(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServers reads a real mcp.json and returns each server's full validated transport config", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(
+      path.join(root, "mcp.json"),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        mcpServers: {
+          "fly-cli": { type: "stdio", command: "fly-mcp", args: ["deploy"] },
+          remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
+        },
+      }),
+    );
+
+    const servers = await readInstalledMcpServers(root);
+    assert.deepEqual(servers, {
+      "fly-cli": { type: "stdio", command: "fly-mcp", args: ["deploy"] },
+      remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServers excludes a server whose declared shape does not validate, without throwing", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(
+      path.join(root, "mcp.json"),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        mcpServers: { broken: { type: "stdio" }, ok: { type: "stdio", command: "x" } },
+      }),
+    );
+
+    const servers = await readInstalledMcpServers(root);
+    assert.deepEqual(Object.keys(servers), ["ok"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServers returns {} when mcp.json does not exist", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    assert.deepEqual(await readInstalledMcpServers(root), {});
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readInstalledMcpServers returns {} for malformed JSON — fail-open, same posture as readInstalledMcpServerIds", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-capability-projection-mcp-test-"));
+  try {
+    await writeFile(path.join(root, "mcp.json"), "{ not valid json");
+    assert.deepEqual(await readInstalledMcpServers(root), {});
   } finally {
     await rm(root, { recursive: true, force: true });
   }

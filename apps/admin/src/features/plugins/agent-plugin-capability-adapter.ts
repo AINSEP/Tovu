@@ -20,17 +20,25 @@ import type { ComposerHostBinding, TovuComposerCapability } from "./composer-cap
  * not a promise, so drift here means re-verifying against source, not assuming either side moved.
  *
  * ---------------------------------------------------------------------------
- * The non-negotiable rule this mapping preserves (FINAL decision, debate 3)
+ * What this mapping preserves, and what changed 2026-09-10
  * ---------------------------------------------------------------------------
  * A Skill's `execute: { kind: "context-injection" }` becomes a REAL, selectable
  * `ComposerHostBinding` — its markdown composed directly into the draft, since "context
  * injection" and "the next message the agent reads" are the same thing once a Skill's content
- * crosses into a chat draft. An MCP server's `execute: { kind: "unavailable" }` NEVER becomes a
- * binding — `resolve` is omitted entirely, so selecting it resolves to `undefined` through
- * `resolveComposerDiscoveryOutcome` (a documented no-op, not a silent bug). Its `reason` is
- * folded into the item's own `description` instead — "previewable but structurally inert" means
- * the reason is something an operator reads on the row, not text that could be sent to the
- * assistant as though it were a real instruction.
+ * crosses into a chat draft. That much is unchanged.
+ *
+ * The source's own FINAL-decision rule that EVERY MCP server stays `execute: { kind:
+ * "unavailable" }` forever is now owner-overruled there (see `capability-projection.ts`'s header)
+ * — an auto-admitted remote server now projects to `execute: { kind: "federated" }` instead. This
+ * file does not need to (and does not) distinguish the two on the composer side: NEITHER
+ * `"federated"` NOR `"unavailable"` ever becomes a `resolve` binding here — there is no markdown to
+ * compose for an MCP connection either way, admitted or not. `resolve` is omitted for both, so
+ * selecting either resolves to `undefined` through `resolveComposerDiscoveryOutcome` (a documented
+ * no-op, not a silent bug), and each kind's own `reason` is folded into the item's own
+ * `description` instead — something an operator reads on the row, never text that could be sent to
+ * the assistant as though it were a real instruction. What DOES change with a server's federation
+ * state is whether the assistant can actually call its tools, which is `mcp-federation/trust.ts`'s
+ * concern at connect time, not this composer-discovery mapping's.
  *
  * ---------------------------------------------------------------------------
  * What this file does NOT do
@@ -52,6 +60,10 @@ export type AgentPluginCapabilityPreview =
 
 export type AgentPluginCapabilityExecute =
   | { readonly kind: "context-injection"; readonly markdown: string }
+  /** An auto-admitted remote MCP server — see this module's header. Composer-inert, same as
+   *  `"unavailable"`; carried as its own kind only so this shadow type stays byte-for-byte aligned
+   *  with the source's real one. */
+  | { readonly kind: "federated"; readonly reason: string }
   | { readonly kind: "unavailable"; readonly reason: string };
 
 /** Verified-against-source shadow of `AgentPluginCapabilityDescriptor` — see this module's header. */
@@ -83,7 +95,7 @@ export function toTovuComposerCapability(descriptor: AgentPluginCapabilityDescri
   const executable = descriptor.execute.kind === "context-injection";
   const description = executable
     ? descriptor.description
-    : `${descriptor.description} — ${(descriptor.execute as Extract<AgentPluginCapabilityExecute, { kind: "unavailable" }>).reason}`;
+    : `${descriptor.description} — ${(descriptor.execute as Extract<AgentPluginCapabilityExecute, { kind: "federated" | "unavailable" }>).reason}`;
 
   return {
     groupId: "agent-plugins",

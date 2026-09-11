@@ -19,22 +19,27 @@
  *
  * `AgentPluginCapabilityDescriptor` below is therefore a CANDIDATE contract, owned and tested by this
  * module, not a promise about what the real projection's input type will be named or shaped like.
- * What is NOT negotiable — because it is the debate's own decided rule, not an implementation detail
- * — is the RELATIONSHIP it encodes: a Skill gets a real, executable binding; an MCP server's `execute`
- * is unconditionally `{ kind: "unavailable", reason }`. See the rule stated at length below.
  *
  * ---------------------------------------------------------------------------
- * Why MCP execute is unconditional, not merely "the current default"
+ * 2026-09-10: MCP servers are no longer unconditionally execute:unavailable (OWNER-OVERRULED)
  * ---------------------------------------------------------------------------
- * "MCP servers → previewable but structurally inert in v1" (FINAL decision). This is not a
- * placeholder waiting for an admission flag to flip it on — there is deliberately no parameter to
- * this module's projector that CAN promote an MCP descriptor to runnable (see the adversarial test
- * "no promotion path exists" in this module's own unit test). The debate's trust argument is that a
- * plugin's own `mcp.json` "has no independent author... the operator is that author," and until a
- * real operator-authored, workspace-scoped admission record exists (the debate's own deferred future
- * work — see this feature's handoff REMAINING section), there is no admission to consult, which is a
- * feature of this slice, not a gap: an adapter that accepted an "admitted" boolean from its caller
- * would just move the unauthenticated-classification problem one layer up rather than solving it.
+ * The FINAL debate's "MCP servers → previewable but structurally inert in v1" rule stood on one
+ * premise: a plugin's own `mcp.json` "has no independent author... the operator is that author," so
+ * with no operator-reviewed admission record, there was nothing to consult. The owner has explicitly
+ * overruled that premise for the case that premise never actually covered: a REMOTE server
+ * (`streamable-http`/`sse`) using `oauth` or no credential carries no secret and executes no local
+ * code — there is nothing here for an operator to review that Tovu's own existing default-deny
+ * federated-tool allowlist (`mcp-federation/trust.ts` R2) does not already gate independently, tool
+ * by tool, at connect time. What the old premise DID correctly identify as needing an operator's own
+ * say-so — a `stdio` server's `command`/`args`, i.e. arbitrary local code execution shipped inside a
+ * downloaded marketplace package — is preserved, not discarded: see `classifyAgentPluginMcpServerTrust`
+ * below, which is the one surviving piece of the old rule, now expressed as a real gate instead of a
+ * blanket refusal. See `ADS-memory/reports/2026-09-10-higgsfield-mcp-research.md` for the verified
+ * external facts (Higgsfield MCP: OAuth-only, no API key, a PUBLIC client per its own discovery
+ * document — no secret is ever stored) that made this tractable.
+ *
+ * A Skill's `execute` is still always `{ kind: "context-injection" }` — unaffected by any of this,
+ * since Skills never carried the MCP question in the first place.
  *
  * Architectural role:
  * Pure projection (`projectInstalledAgentPluginCapabilities`) plus one disk-reading helper
@@ -45,8 +50,32 @@
 import { readFile } from "node:fs/promises";
 
 import type { InstalledAgentPlugin } from "./install.js";
+import type { AgentPluginMcpConfig, McpServerConfig } from "./manifest.js";
 import { parseAgentPluginMcpConfig } from "./manifest.js";
 import { assertContainedOnDisk } from "./package-paths.js";
+
+/**
+ * The one surviving piece of the FINAL debate's old blanket MCP refusal (see this module's header):
+ * a plugin cannot make Tovu execute arbitrary local code on the operator's say-so alone.
+ *
+ * - `stdio` declares `command`/`args` — a downloaded marketplace package choosing what process to
+ *   spawn on this machine. That is exactly the local-code-execution case an operator must explicitly
+ *   confirm before it ever runs; there is no secret-based mitigation for it, because the risk is not
+ *   a leaked credential, it is arbitrary execution.
+ * - `streamable-http`/`sse` declare a URL Tovu calls over the network. There is no local execution,
+ *   and (per `manifest.ts`'s header) the spec allows no embedded secret Tovu would need to protect —
+ *   an `oauth`-mode connection mints its own token through Tovu's own RFC 8414/7591 flow, and a
+ *   `none`-mode connection carries no credential at all. Either way, `mcp-federation/trust.ts`'s R2
+ *   default-deny allowlist still gates every individual remote TOOL independently at connect time —
+ *   auto-admitting the SERVER here grants nothing beyond "this connection may be attempted."
+ *
+ * @returns `"requires-confirmation"` for `stdio` (never auto-run — see `readInstalledMcpServerIds`'s
+ * caller contract), `"auto-admit"` for a remote transport.
+ * @complexity O(1).
+ */
+export function classifyAgentPluginMcpServerTrust(server: Pick<McpServerConfig, "type">): "auto-admit" | "requires-confirmation" {
+  return server.type === "stdio" ? "requires-confirmation" : "auto-admit";
+}
 
 export type AgentPluginCapabilityKind = "agent-plugin-skill" | "agent-plugin-mcp-server";
 
@@ -56,6 +85,14 @@ export type AgentPluginCapabilityPreview =
 
 export type AgentPluginCapabilityExecute =
   | { readonly kind: "context-injection"; readonly markdown: string }
+  /** An auto-admitted (`classifyAgentPluginMcpServerTrust` === "auto-admit") remote MCP server. Not
+   * `context-injection` — there is no markdown to compose for a network connection — but distinct
+   * from `unavailable`: this server IS wired into the assistant's own tool federation automatically
+   * (Phase 4), so calling it inert here would misdescribe a server that may be actively answering
+   * tool calls. `reason` is operator-facing explanatory text, not a refusal. */
+  | { readonly kind: "federated"; readonly reason: string }
+  /** A `stdio` server, or one whose declared shape this module could not classify. Genuinely inert
+   * until an operator explicitly confirms it — see `classifyAgentPluginMcpServerTrust`. */
   | { readonly kind: "unavailable"; readonly reason: string };
 
 /** One capability an installed Agent Plugin contributes. See this module's header for what is and
@@ -81,11 +118,53 @@ export interface ProjectInstalledAgentPluginCapabilitiesRequired {
    * filesystem — `readInstalledSkillMarkdown` below is the real implementation a caller supplies. */
   readonly readSkillMarkdown: (skillPath: string) => Promise<string>;
   /** Server ids declared in the package's `mcp.json` (`manifest.ts`'s `parseAgentPluginMcpConfig`
-   * result) — empty when the package declares no `mcp.json` at all, which the spec makes optional. */
+   * result) — empty when the package declares no `mcp.json` at all, which the spec makes optional.
+   * A descriptor is produced for every id here, even one absent from {@link mcpServers} below (a
+   * declared-but-unparseable entry), matching this projector's pre-existing "one descriptor per
+   * declared id" contract regardless of whether the shape validated. */
   readonly mcpServerIds: readonly string[];
+  /** The subset of {@link mcpServerIds} whose transport shape validated (`manifest.ts`'s
+   * `AgentPluginMcpConfig.servers`) — what `classifyAgentPluginMcpServerTrust` classifies. A
+   * `mcpServerIds` entry absent here gets `execute: { kind: "unavailable" }` with a reason naming
+   * the parse failure rather than a trust classification, since there is no config to classify. */
+  readonly mcpServers: Readonly<Record<string, McpServerConfig>>;
 }
 
 export type ProjectInstalledAgentPluginCapabilitiesOptional = {};
+
+/**
+ * The `execute` half of one MCP-server descriptor — split out of {@link projectInstalledAgentPluginCapabilities}
+ * purely to keep that function's complexity under the shop ceiling.
+ *
+ * @param config - The server's validated transport config, or `undefined` when `serverId` was
+ * declared in `mcp.json` but its shape did not validate (see {@link ProjectInstalledAgentPluginCapabilitiesRequired.mcpServers}).
+ * @complexity O(1).
+ */
+function resolveAgentPluginMcpExecute(serverId: string, config: McpServerConfig | undefined): AgentPluginCapabilityExecute {
+  if (!config) {
+    return {
+      kind: "unavailable",
+      reason: `this plugin's mcp.json declares '${serverId}' with a shape this version of Tovu does not recognize, so it cannot be launched`,
+    };
+  }
+
+  if (classifyAgentPluginMcpServerTrust(config) === "auto-admit") {
+    return {
+      kind: "federated",
+      reason:
+        "this remote MCP server is wired into the assistant's tool set automatically — it carries no local " +
+        "execution and no secret this plugin could have embedded, so no separate confirmation is required. " +
+        "Individual tools it advertises are still gated by the operator's own allowlist at connect time.",
+    };
+  }
+
+  return {
+    kind: "unavailable",
+    reason:
+      "this server launches a local process ('stdio') from a downloaded plugin package — that requires explicit " +
+      "operator confirmation before Tovu will ever run it, which has not been given yet.",
+  };
+}
 
 /**
  * Projects one installed Agent Plugin's Skills and MCP servers into capability descriptors.
@@ -98,7 +177,7 @@ export async function projectInstalledAgentPluginCapabilities(
   required: ProjectInstalledAgentPluginCapabilitiesRequired,
   _optional: ProjectInstalledAgentPluginCapabilitiesOptional = {}
 ): Promise<readonly AgentPluginCapabilityDescriptor[]> {
-  const { installed, readSkillMarkdown, mcpServerIds } = required;
+  const { installed, readSkillMarkdown, mcpServerIds, mcpServers } = required;
   const descriptors: AgentPluginCapabilityDescriptor[] = [];
 
   for (const skill of installed.skills) {
@@ -129,12 +208,7 @@ export async function projectInstalledAgentPluginCapabilities(
       pluginId: installed.pluginId,
       revision: installed.archiveDigest,
       preview: { kind: "none" },
-      execute: {
-        kind: "unavailable",
-        reason:
-          "Agent Plugin MCP servers are not executable in this release — a plugin's own mcp.json has no independent " +
-          "author, and no operator-reviewed admission record exists yet for this server.",
-      },
+      execute: resolveAgentPluginMcpExecute(serverId, mcpServers[serverId]),
     });
   }
 
@@ -157,46 +231,76 @@ export async function readInstalledSkillMarkdown(packageRoot: string, skillPath:
 }
 
 /**
- * Reads and parses one installed package's `mcp.json`, returning the server ids it declares — same
- * containment guarantee as {@link readInstalledSkillMarkdown}, applied to a fixed, known-safe
- * filename rather than a caller-supplied `skillPath`.
+ * Reads and parses one installed package's `mcp.json` — same containment guarantee as
+ * {@link readInstalledSkillMarkdown}, applied to a fixed, known-safe filename rather than a
+ * caller-supplied `skillPath`. Shared by {@link readInstalledMcpServerIds} and
+ * {@link readInstalledMcpServers}, which each reduce a different projection of the same parse.
  *
  * `mcp.json` is OPTIONAL per the Agent Plugins spec (`manifest.ts`'s own header), so a missing file
  * is not an error — it means this package declares no MCP servers, the common case for a
  * skills-only package like the reference `ui-ux-design`/`site-compliance` installs. A present but
  * unparseable `mcp.json` (bad JSON, wrong `$schema`, malformed `mcpServers`) is ALSO tolerated rather
- * than thrown: this reader backs `search_agent_plugin_local`, a discovery tool whose whole purpose is
- * staying usable even when one installed package is imperfect — the same fail-open posture
- * `listInstalledPlugins` already takes for a digest that fails to index at all (skipped, not fatal to
- * every other plugin).
+ * than thrown: both readers back `search_agent_plugin_local`-adjacent discovery paths whose whole
+ * purpose is staying usable even when one installed package is imperfect — the same fail-open
+ * posture `listInstalledPlugins` already takes for a digest that fails to index at all (skipped, not
+ * fatal to every other plugin).
  *
- * Only server IDS are ever returned — never each entry's own transport config (`command`/`args`/
- * `env`, which MAY carry secrets for a real MCP server). This mirrors
- * `projectInstalledAgentPluginCapabilities`'s own restraint (it never surfaces transport fields
- * either) and `manifest.ts`'s own stated reason for not even validating that shape: nothing in this
- * feature launches an MCP server yet, so there is no legitimate reason for those fields to leave disk.
- *
+ * @returns `null` for a missing file, invalid JSON, or a `mcp.json` that fails top-level validation
+ * — every one of these collapses to the same "nothing to report" outcome for both callers.
  * @complexity O(s) in the declared server count (`parseAgentPluginMcpConfig`'s own bound) plus one
  * file read.
  */
-export async function readInstalledMcpServerIds(packageRoot: string): Promise<readonly string[]> {
+async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginMcpConfig | null> {
   let raw: string;
   try {
     const absolute = await assertContainedOnDisk(packageRoot, "mcp.json");
     raw = await readFile(absolute, "utf8");
   } catch {
-    return [];
+    return null;
   }
 
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(raw);
   } catch {
-    return [];
+    return null;
   }
 
   const result = parseAgentPluginMcpConfig(parsedJson);
-  return result.ok ? result.config.serverIds : [];
+  return result.ok ? result.config : null;
+}
+
+/**
+ * The server ids declared in one installed package's `mcp.json`, regardless of whether each one's
+ * own transport shape validated — see {@link readInstalledMcpConfig} for the shared fail-open
+ * contract. Kept as its own function for the callers that only need ids and should not pay for (or
+ * receive) transport configuration, mirroring the ids-only/full-config split
+ * {@link ProjectInstalledAgentPluginCapabilitiesRequired} draws between `mcpServerIds` and `mcpServers`.
+ *
+ * @complexity See {@link readInstalledMcpConfig}.
+ */
+export async function readInstalledMcpServerIds(packageRoot: string): Promise<readonly string[]> {
+  const config = await readInstalledMcpConfig(packageRoot);
+  return config?.serverIds ?? [];
+}
+
+/**
+ * The full, validated transport configuration of every server in one installed package's `mcp.json`
+ * whose shape validated — the sibling {@link readInstalledMcpServerIds} does not provide, needed by
+ * any caller that must actually LAUNCH a server rather than merely list it (capability projection's
+ * trust classification, and Phase 4's federation wiring). A server present in
+ * {@link readInstalledMcpServerIds}'s result but absent from this one declared an unrecognized
+ * `type` or was missing a required field for it — fail-open per `manifest.ts`'s own contract, not an
+ * error a caller here needs to handle specially.
+ *
+ * @returns `{}` under every condition {@link readInstalledMcpConfig} tolerates (no file, bad JSON,
+ * failed top-level validation) — the same empty-is-normal posture {@link readInstalledMcpServerIds}
+ * takes with `[]`.
+ * @complexity See {@link readInstalledMcpConfig}.
+ */
+export async function readInstalledMcpServers(packageRoot: string): Promise<Readonly<Record<string, McpServerConfig>>> {
+  const config = await readInstalledMcpConfig(packageRoot);
+  return config?.servers ?? {};
 }
 
 function humanize(value: string): string {

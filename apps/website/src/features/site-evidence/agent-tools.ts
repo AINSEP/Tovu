@@ -4,10 +4,12 @@
  * **Why this is a native first-party tool and not part of the `site-compliance` Agent Plugin.**
  * Two independent reasons, both load-bearing:
  *
- * 1. An Agent Plugin's tool-bearing surface is its `mcp.json`'s `mcpServers`, and nothing in this
- *    codebase spawns one — `agent-plugins/capability-projection.ts` marks every MCP capability
- *    `execute: { kind: "unavailable" }` by construction, with no promotion path. A tool declared
- *    inside the plugin would be inert decoration.
+ * 1. An Agent Plugin's tool-bearing surface is its `mcp.json`'s `mcpServers`, which declares a
+ *    remote or locally-spawned MCP server — never a first-party Tovu tool implementation like this
+ *    one (`agent-plugins/capability-projection.ts` now federates an auto-admitted REMOTE server's
+ *    own advertised tools; see its 2026-09-10 header — but that path exists for a plugin naming a
+ *    real MCP endpoint, not for embedding native code such as this domain's handler). A tool
+ *    implemented here has no `mcp.json` shape to declare itself under at all.
  * 2. Observing what a published page actually renders is not a compliance-only need. SEO checks,
  *    theme QA, link checking, and "did my page actually deploy" all want the same evidence.
  *    Burying it in a compliance package would strand a general capability in one silo and make the

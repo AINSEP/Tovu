@@ -74,8 +74,10 @@ export interface TovuComposerCapabilityPreview {
  * effect. `resolve` is omitted for an item with no execution beyond its own `insertText`/`label`
  * macro, an existing client-local route (e.g. `/mcp`), or a source-level decision that the item is
  * structurally inert (see `agent-plugin-capability-adapter.ts`'s handling of an MCP-server
- * descriptor's `execute: { kind: "unavailable" }`) — selecting such an item resolves to `undefined`
- * through `resolveComposerDiscoveryOutcome`, a documented no-op, not a silent bug.
+ * descriptor's `execute: { kind: "federated" | "unavailable" }` — neither kind ever composes text,
+ * whether or not the underlying server is auto-admitted into the assistant's own tool federation)
+ * — selecting such an item resolves to `undefined` through `resolveComposerDiscoveryOutcome`, a
+ * documented no-op, not a silent bug.
  *
  * `resolve` receives the invocation's `argument` exactly as `ComposerDiscoverySelection` carries
  * it (`undefined` for a plain item, `null` | `""` | the typed text for a `command`-bearing one) so
