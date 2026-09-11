@@ -1,35 +1,53 @@
-# Tovu Theme Authoring Guide v2 — Invariant Structure (Target Design)
+# Tovu Theme Authoring Guide v2 — Invariant Structure
 
-> ## STATUS — READ THIS BEFORE ANYTHING ELSE
+> ## STATUS — READ THIS BEFORE ANYTHING ELSE (corrected 2026-09-10)
 >
-> **This document describes a TARGET design that does not exist in the running system.**
+> **Most of this design shipped the day after this document was written, and this banner did not
+> keep up.** This document was created 2026-08-17 as a frozen, not-yet-built target design. Starting
+> the very next day, 2026-08-18, five same-day milestones landed nearly the whole thing:
 >
-> - No migration has run. No validator enforces anything in this document. No `render/` folder,
->   no `partials` manifest key, no `ai/` surface, no `AGENTS.md`-at-theme-root convention, no
->   `tests/cases.json` contract exists anywhere in `content/themes/` today.
-> - All ~10 themes currently on disk (`content/themes/static/*`, `content/themes/templated/storefront`,
->   `content/themes/declarative/basic-declarative`) use the shape documented in **v1**
->   (`development/docs/themes/theme-authoring-guide.md`), not this one.
-> - This is the settled output of a 3-round, multi-model design debate
->   (`ADS-memory/reports/swarm-consensus/runs/2026-08-17-tovu-theme-invariant-structure-consensus-report.md`),
->   corrected once against real shipped code (`ADR-020 §5`) after Round 2. It is frozen as a
->   design, not yet built.
-> - **Every claim below is tagged one of three ways:**
+> - **Milestone 2** (`a69632b5`) — a real validator, `validateThemePackage`
+>   (`apps/website/src/features/theme/validation/validate-theme-package.ts`), wired to both
+>   `tovu theme validate <dir> --profile author|publish|install` (`cli/commands/theme/validate.ts`)
+>   **and** the marketplace install path (`marketplace.ts:265`, `profile: "install"`) — a downloaded
+>   theme is validated before it is ever copied onto disk.
+> - **Milestone 3** — the `render/`-nested v2 folder layout (`render/pages/`, `render/partials/`,
+>   `css/theme.css`, `scripts/`) is real, `apiVersion`-driven, and load-bearing — see §11 — and
+>   `tovu theme migrate` (`26f19bf6`, `migration/migrate-theme.ts`) is a real, wired CLI that has
+>   already migrated every built-in static theme plus `basic-declarative` onto it.
+> - **Milestone 4** (`4af12853`) — `code-tier-asset-normalizer.ts` has a real caller:
+>   `tovu theme normalize-build <dir> --primary-stylesheet <file>` (`cli/commands/theme/normalize-build.ts`).
+> - **Milestone 5** — the generated `index.html` portability snapshot (§3) shipped the same day.
+>
+> **What is still genuinely unimplemented, verified 2026-09-10:** the `slots`→`partials` manifest key
+> rename (§10), the `engine`/`tokens` object restructures (§5), `license`/`authors`/`attributions`/
+> `category`/`tags`/`renderer`/`compatibility`/`assets.previewGallery`/`scripts.entries` (§5, §15), the
+> `ai/` agent surface (§12), `AGENTS.md`-at-theme-root and `tests/cases.json` (§13), and shipped `LICENSE`
+> files (§14). The validator (Milestone 2) actively polices this boundary: for an `apiVersion: 2`
+> manifest it flags every one of these still-unread fields with a `v2-*-unimplemented` finding — a
+> warning under `--profile author`, a hard error under `install`/`publish` — so "the validator accepts
+> it" does not mean "the runtime honors it." See §16.
+>
+> **Every claim below is tagged one of three ways:**
 >   - **`[REAL, path:line]`** — verified directly against code that exists in this repo today; the
 >     citation is load-bearing, re-check the line number against current `HEAD` before trusting it
->     verbatim in a future session.
->   - **`[TARGET]`** — part of the settled design, not yet implemented. Nothing reads or writes
->     this shape today.
+>     verbatim in a future session. Every real theme.json path/line citation in this document predates
+>     the 2026-08-28 `src/` → `apps/website/src/` rename (`708e81b2`) — read `src/...` citations below as
+>     `apps/website/src/...`; only line numbers move release to release, the prefix moved once, repo-wide.
+>   - **`[TARGET]`** — part of the settled design, still genuinely not implemented. Nothing reads or
+>     writes this shape today.
 >   - **`[NOT YET IMPLEMENTED]`** — called out explicitly where a reader would otherwise assume
->     something exists because it's described in detail (`ai/`, the validator, `AGENTS.md`).
+>     something exists because it's described in detail (`ai/`, `AGENTS.md`, `tests/`).
 >
-> If you are an agent about to write or edit an actual theme file in this repo right now, **read
-> v1, not this document** — v1 describes what the loader, renderer, and validator actually do.
-> Read this document only when: (a) you are implementing the migration/validator this design
-> describes, or (b) you are deliberately authoring against the v2 shape ahead of the migration
-> (not recommended — nothing will load it).
+> If you are an agent about to write or edit an actual theme file in this repo right now: for the
+> `static`/`templated`/`declarative`/`handlebars` folder layout (`render/pages/`, `render/partials/`,
+> `css/theme.css`, `scripts/`) and `apiVersion: 2`, THIS document is now the accurate one — every
+> built-in theme uses this shape. For the manifest FIELD shapes in §5 (`engine`, `tokens`, `partials`,
+> `license`, etc.), v1's flat fields are still what the loader reads — see each field's own tag below
+> before authoring against either shape.
 >
-> **v1 pointer:** `development/docs/themes/theme-authoring-guide.md` — the system as it runs today.
+> **v1 pointer:** `development/docs/themes/theme-authoring-guide.md` — descriptive of the loader's field
+> parsing; its own path citations have a different, unrelated staleness problem (see §22).
 
 ---
 
@@ -68,10 +86,22 @@ debate history, not just the resolved answer):
    see §6.
 
 Everything else in the debate's Round 2 convergence (`render/`, `data-tovu-agent`, `partials`,
-root `AGENTS.md`, structured license fields, `apiVersion`) is carried forward unchanged and is
-**all `[TARGET]`** — none of it exists in code yet.
+root `AGENTS.md`, structured license fields, `apiVersion`) is carried forward unchanged, but **is no
+longer uniformly `[TARGET]`** — corrected 2026-09-10. `render/` and `apiVersion` shipped 2026-08-18
+(§11) and are load-bearing on every built-in theme; `data-tovu-agent`, root `AGENTS.md`, and structured
+license fields are still genuinely unimplemented; `partials` (the `slots` rename) is still unread by the
+loader but is now schema-checked and unimplemented-flagged by the validator (§10, §16). Check each
+field's own tag rather than treating this list as one bucket.
 
-## 3. Full invariant folder tree — authored theme `[TARGET]`
+## 3. Full invariant folder tree — authored theme `[REAL for static/templated/declarative/handlebars folder shape; TARGET for AGENTS.md/LICENSE/ai/tests contents]`
+
+**Corrected 2026-09-10:** `render/pages/`, `render/partials/`, `css/theme.css`, and `scripts/` (renamed
+from `js/`) are real, `apiVersion`-driven paths — `theme-layout.ts`'s `V2_LAYOUT`, selected whenever
+`theme.json` declares `apiVersion: 2` (every built-in theme does; §11). `render`, `ai`, `tests`,
+`AGENTS.md`, `LICENSE`, `package.json`, and the generated `index.html` are all members of the
+validator's own approved-root allowlist (`validation/structure.ts`'s `V2_APPROVED_ROOTS`) — but
+"approved to exist" is not "populated": no theme on disk ships `ai/`, `tests/`, `AGENTS.md`, or
+`LICENSE` today (§12–§14 unchanged).
 
 ```
 <theme-id>/                        # folder name MUST equal theme.json "id"
@@ -135,19 +165,29 @@ dead scaffolding.
 ```
 
 This tree's TOP HALF (`theme.json`, `sourceDir` semantics, `artifactHashes` integrity) is `[REAL]`
-today — see §6 for citations. Its BOTTOM HALF (the generated tree using `render/`/`css/`/`scripts/`
-instead of today's flat `pages/`/`css/`/`js/` at the theme root) is `[TARGET]` — today a compiled
-theme's generated output uses the same flat layout as an authored `static` theme (§11).
+today — see §6 for citations. The BOTTOM HALF's status is **more real than originally stated, but still
+unverified end-to-end** (corrected 2026-09-10): `build-conformance.ts`'s per-page checks
+(`checkStylesheetSentinel`, `checkAssetPaths`) are themselves `apiVersion`-aware and expect
+`../scripts/` (not `../js/`) for a v2 compiled theme — so the code CAN check a `render/`-nested compiled
+output. But `validateThemePackage`'s v2-strict path explicitly does NOT run this conformance check at
+all yet (`validate-theme-package.ts`'s own header: "that checker's own file-discovery still scans v1's
+flat `pages/`/`css/`/`js/` layout"), and no theme on disk anywhere declares `build.source: "compiled"`,
+so nothing exercises this combination for real. Treat the bottom half as "partially wired, never
+run" rather than either fully `[REAL]` or fully `[TARGET]`.
 
 ## 5. `theme.json` schema v2 — field reference `[TARGET unless marked REAL]`
 
 ```jsonc
 {
-  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",  // [TARGET]
-  "apiVersion": 2,                                                    // [TARGET]
-  "id": "basic", "name": "Basic", "version": "0.1.0",                 // [REAL — theme.ts:102-106]
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",  // [TARGET — present on every shipped manifest, still unread]
+  "apiVersion": 2,                                    // [REAL, read AND consumed — theme.ts:792, theme-layout.ts;
+                                                        //   2026-09-10 correction, was marked TARGET]
+  "id": "basic", "name": "Basic", "version": "0.1.0",                 // [REAL — theme.ts:786-791]
   "tier": "static",                          // static | templated | declarative | code — [REAL, unchanged]
-  "engine": { "name": "liquid", "version": "1" },  // [TARGET restructure — REAL today is a bare number, theme.ts:110]
+  "engine": { "name": "liquid", "version": "1" },  // [TARGET restructure, STILL — theme.ts:794 only accepts a bare
+                                                    //   number and silently drops an object to the `1` default;
+                                                    //   `storefront`'s real, shipped theme.json ships this exact
+                                                    //   object shape today and it is silently discarded, not an error]
   "compatibility": { "tovu": ">=1.0.0" },     // [TARGET]
   "description": "…",                         // [REAL — theme.ts:122]
   "author": "…",                              // [REAL, free-text string, not the structured object below — theme.ts:111-118]
@@ -231,13 +271,16 @@ before assuming anything here is aspirational.
   `"framework": "astro"` in a manifest would mean "Astro produced this," never "any Astro build
   configuration is accepted." Do not imply broader framework support than this when writing about
   the `build` field elsewhere.
-- **`code-tier-asset-normalizer.ts` has ZERO production callers today.** Verified:
-  `grep -rn "normalizeBuildOutputDirectory" src/` matches only its own test file
-  (`src/features/theme/__tests__/code-tier-asset-normalizer.test.ts`). The module's own file header
-  says so explicitly (lines 90-105): no CLI entrypoint, no `package.json` script, no wiring from
-  `theme.ts` or the install-time gate. It is real, tested code for relocating a flat framework
-  build's `.css`/`.js`/`.mjs` (and their `.map` siblings) into Tovu's `css/`/`js/` asset-path
-  contract and rewriting references — but nothing in the live request or install path invokes it.
+- **`code-tier-asset-normalizer.ts` now has its one designed caller (corrected 2026-09-10, was "ZERO
+  production callers").** Milestone 4 (2026-08-18, `4af12853`) shipped
+  `tovu theme normalize-build <dir> --primary-stylesheet <file> [--pages <a,b>] [--json]`
+  (`apps/website/src/cli/commands/theme/normalize-build.ts`, wired into `cli/program.ts`), a real,
+  registered CLI subcommand that calls `normalizeBuildOutputDirectory` directly. This matches the
+  design this document's own §19 punch list (item 4) predicted: "most likely a standalone CLI a theme
+  author runs locally... after their own framework build." It is still never invoked automatically by
+  Tovu itself (no theme install/publish path calls it) — that remains correct and is the intended
+  design, not a gap: "Tovu never runs the build" (above). What changed is that the module is no longer
+  dead code with only a test exercising it.
 - **The `build.sourceDir`-collides-with-a-reserved-directory gap is FIXED (2026-08-17), not open.**
   `isSourceDirGeneratedConflict` (`src/features/theme/theme-files.ts`) is enforced in `loadTheme()`
   (`src/features/theme/theme.ts:653`, inside the `build.source === "compiled"` manifest check): a
@@ -362,30 +405,47 @@ earlier read of v1) assumed — `activeAttr` is accepted only as a legacy fallba
 (`theme.ts:230-238`, `373-375`). If you re-check this field against a checkout other than today's
 `HEAD`, re-verify — this is exactly the kind of field whose precise shape has moved recently.
 
-## 11. `render/` render-source folder `[TARGET]`
+## 11. `render/` render-source folder `[REAL — corrected 2026-09-10, was TARGET]`
 
-No theme on disk today has a `render/` folder. Every static theme keeps `pages/*.html` at its own
-root alongside `css/`, `js/`, `nav.html`, `footer.html` — the flat layout v1 §4 documents in full.
-A compiled theme's generated output (§4, §6) uses this same flat, non-`render/`-nested layout for
-its `pages/`/`css/`/`js/` today; `build.artifactHashes` keys observed in real fixtures are flat
-paths like `"css/styles.css"`, not `"render/pages/index.html"`-shaped ones.
+**This section's original claim is now false.** `render/` shipped 2026-08-18 (Milestone 3) and is the
+folder every built-in theme uses today, verified directly on disk and in the loader:
 
-The debate's rationale for `render/` (consensus report, disagreement A): `src/` is factually
-accurate but practically dangerous (every framework ecosystem trains authors to treat `src/` as
-"everything," colliding with `css/`/`scripts/`/`assets/` as deliberate top-level siblings);
-`templates/` is simply false for static HTML and framework components. `render/`'s one rule
-("everything the tier's renderer/adapter interprets lives here") is validator-checkable with no
-ambiguity — but nothing checks it yet.
+- `resolveThemeLayout(apiVersion)` (`apps/website/src/features/theme/theme-layout.ts`) is the one
+  `apiVersion`-aware map: `apiVersion: 2` gets `pagesDir: "render/pages"`, `partialsDir: "render/partials"`,
+  `scriptsDir: "scripts"`, `stylesheetFilename: "theme.css"`; anything else (including absent) gets v1's
+  flat `pages/`, theme-root partials, `js/`, `styles.css`. `loadStaticTierAssets` (`theme.ts:752-775`)
+  calls this to decide where to actually read pages/partials from — this is not cosmetic, a v2 theme's
+  nav/footer/pages genuinely will not load from the v1 paths and vice versa.
+- Non-static tiers get the same treatment independently: `loadTemplateSources` (`theme.ts:1026`) picks
+  `render/pages` over `templates/` for `templated`/`declarative`/`handlebars` themes the same way.
+- Every built-in static theme (`basic`, `basic-2`, `tailark-dusk`, `tailark-quartz-dark`,
+  `tailark-quartz-libre` — verified on disk, `content/themes/static/*` and
+  `sites/tovu-com/themes/static/*`), plus `declarative/basic-declarative` and both `templated/*` themes,
+  ships `apiVersion: 2` and a real `render/` folder (`render/pages/`, plus `render/partials/` for the
+  static ones) with NO flat `pages/`/root-partial files left behind — confirmed by direct directory
+  listing, not inferred from the manifest alone.
+- `tovu theme migrate` (`apps/website/src/features/theme/migration/migrate-theme.ts`, Milestone 3,
+  `26f19bf6`) is the real, wired tool that performs this migration: stage → validate (both the
+  Milestone-2 structural validator AND a real `loadTheme()` call) → atomic replace, with the pre-migration
+  copy kept as a `backupDir`. `planV2Migration` (`migration/theme-migration-plan.ts:277-282`) has a plan
+  for every tier except `code` (which has no runtime at all, §7).
+
+What is genuinely still `[TARGET]`: the debate's validator-checkability claim now has a real,
+partial answer rather than none — `validation/structure.ts`'s `checkApprovedRoots` enforces "everything
+lives under one of `render`, `css`, `scripts`, `ai`, `tests`, …" as an allowlist of top-level root
+names, but does not yet enforce the finer rule "everything the tier's renderer/adapter interprets lives
+under `render/`" for files inside other approved roots.
 
 ## 12. `ai/` — published-site agent surface `[NOT YET IMPLEMENTED]`
 
-Zero implementation anywhere in this codebase. Verified: no hits for `capabilities.json`,
-`elements.json`, or `scoring.json` anywhere under `src/`. No theme folder anywhere in this repo —
-live, catalog, or marketplace fixture — has an `ai/` directory. This is not a stub or a partial
-renderer (contrast §6's `code-tier-asset-normalizer.ts`, which is real code with zero callers); it
-is a folder name and three filenames that exist only in the debate's proposal text and in this
-document. Do not write code that reads or writes an `ai/` folder expecting existing scaffolding to
-build on — there is none.
+Zero implementation anywhere in this codebase, reverified 2026-09-10: no hits for `capabilities.json`,
+`elements.json`, or `scoring.json` anywhere under `apps/website/src/`. No theme folder anywhere in this
+repo — live, catalog, or marketplace fixture — has an `ai/` directory, though `ai` is now an approved
+(not required) root name in the validator's structure check (§3, §16). This is not a stub or a partial
+implementation (contrast §6's `code-tier-asset-normalizer.ts`, which now has a real CLI caller as of
+Milestone 4 — see §6, §19); it is a folder name and three filenames that exist only in the debate's
+proposal text and in this document. Do not write code that reads or writes an `ai/` folder expecting
+existing scaffolding to build on — there is none.
 
 ## 13. `AGENTS.md` (theme root) and `tests/` `[NOT YET IMPLEMENTED]`
 
@@ -395,7 +455,14 @@ return nothing. No theme ships dev-time agent instructions or a `tests/cases.jso
 (`{"event": "tovu:ready", "timeoutMs": ...}`, meant to fix `static/basic`'s own documented
 mid-animation screenshot bug) is design text only — no test runner in this repo consumes it.
 
-## 14. License / attribution / category / tags `[NOT YET IMPLEMENTED]`
+## 14. License / attribution / category / tags `[NOT YET IMPLEMENTED — but the requirement itself is now code-enforced, corrected 2026-09-10]`
+
+`validateThemePackage`'s `checkV2PublishReadiness` (`validation/validate-theme-package.ts:136-151`) now
+requires a non-empty `license` field, a non-empty `description`, and `assets/previews/card.webp` to
+exist, resolved to a hard `error` under `--profile publish` (a warning otherwise via `profiles.ts`'s
+severity table). No live theme satisfies this yet — none ships a `license` field or a `LICENSE` file —
+so the on-disk facts below are unchanged; what changed is that the requirement moved from prose in this
+document into an actual gate a real `tovu theme validate --profile publish` run will fail on.
 
 Verified: `find content/themes -iname "LICENSE"` returns nothing — no theme ships a `LICENSE` file
 today, structured or otherwise. `NOTICE.md` is the one REAL provenance mechanism in use today
@@ -425,40 +492,64 @@ proposes. `category`, `tags`, and `attributions` are parsed by nothing (`grep` f
 | `build.framework` | closed union `react\|vue\|angular` | **REAL but narrower than TARGET's open vocabulary** | `theme.ts:344-347` |
 | `fonts` (array of objects) | `fonts: string[]` (raw Google Fonts specs) | **REAL field exists, TARGET restructure** | `theme.ts:123-129`, `619` |
 | `regions` | same name, same shape (`string[]`) | **REAL, wired, zero live consumer theme** | `theme.ts:130-140`, `620`; `pages.ts:164`; `resolver-service.ts:72,180`; `render.ts:1579,1700,1752` |
-| `partials` | `slots` (different key, same per-entry shape) | **TARGET rename of a REAL field** | `theme.ts:216-247`, `629` — see §10 |
+| `partials` | `slots` (different key, same per-entry shape) | **TARGET rename of a REAL field — schema-checked and flagged `v2-partials-unimplemented` by the validator if present (§16)** | `theme.ts:495-508` (`parseSlots`, reads only `raw.slots`) — see §10 |
 | `partials.<x>.inputs` | — | **TARGET, unread** | proposal only |
 | `tokens` (nested object) | `modes: string[]` + `defaultMode: string`, both flat top-level | **REAL fields exist, TARGET restructure** | `theme.ts:190-207`, `627-628` |
 | `templates` | `templates: string[]` (2026-08-11 unification, superseded `postTemplate`/`pageTemplate`) | **REAL, read + validated** | `theme.ts:161-189`, `626`; `validateTemplateDeclarations`, `theme.ts:511-536` |
-| `apiVersion`, `$schema` | — | **TARGET, unread** | proposal only |
+| `apiVersion` | same name | **REAL, read + consumed (2026-09-10 correction, was TARGET)** — selects v1 vs. v2 folder layout | `theme.ts:792`, `theme-layout.ts` |
+| `$schema` | — | **TARGET, unread** — present on every shipped manifest, but no code reads its value | proposal only |
 | `ai` | — | **NOT YET IMPLEMENTED anywhere** | see §12 |
 | `assets.previewGallery` | — | **TARGET, unread** | proposal only |
 | `scripts.entries` | — (real themes ship `js/*.js`, discovered by convention, not manifest-declared) | **TARGET, unread** | proposal only |
 | `pages` (v1's own field) | — | **DEAD** (v1 §3.2) — `DiscoveredTheme.pages` comes from scanning `pages/` on disk, independent of this array | `theme.ts` (not parsed at all in v2's proposed shape either — carried as author documentation only if kept) |
 
-## 16. Machine-checkable rules `[NOT YET IMPLEMENTED — no validator exists]`
+`engine`, `tokens`, `partials`, and `renderer` get a stronger validator treatment than plain "unread":
+present-and-schema-valid still earns a `v2-<field>-unimplemented` finding (warning under `author`, hard
+error under `install`/`publish`) — see §16. `scripts`, `assets`, `ai`, and `pages` get the same
+unimplemented finding via a generic top-level-key sweep rather than a dedicated shape check.
 
-Every rule below assumes a future `tovu theme validate` step. None of these are enforced today
-except where noted "(already enforced)."
+## 16. Machine-checkable rules `[PARTIALLY REAL — corrected 2026-09-10, was "no validator exists"]`
 
-| Rule | Validator predicate (sketch) |
+**A real validator exists.** `validateThemePackage` (`apps/website/src/features/theme/validation/validate-theme-package.ts`,
+Milestone 2, `a69632b5`, 2026-08-18) is wired to `tovu theme validate <dir> --profile author|publish|install`
+(`cli/commands/theme/validate.ts`) **and** to the marketplace install path (`marketplace.ts:265`, always
+run at `profile: "install"` before a downloaded theme is copied onto disk). For a manifest with
+`apiVersion: 2` it runs a v2-strict path (`validation/manifest-v2.ts`'s `validateManifestV2`,
+`validation/structure.ts`'s `checkApprovedRoots`/`checkSourceDirContainment`,
+`validation/references.ts`'s `checkDeclaredReferences`); for any other manifest it defers to
+`loadTheme()`'s own existing errors. Markup checks (`validation/markup.ts`) run for both. Findings carry
+a `severity` resolved per-`profile` (`validation/profiles.ts`'s `resolveSeverity`) — the same finding can
+be a warning under `author` and a hard error under `publish`/`install`.
+
+| Rule | Status |
 |---|---|
-| A `declarative`-tier theme MUST NOT contain `scripts/` | `tier === "declarative" && exists("scripts/")` → reject |
-| `build.source: "compiled"` REQUIRES `tier: "static"` | **(already enforced)** — `theme.ts:643-645` |
-| `build.source: "compiled"` REQUIRES `build.sourceDir` (non-empty) | **(already enforced)** — `theme.ts:647-648` |
-| `build.source: "compiled"` REQUIRES non-empty `build.artifactHashes` | **(already enforced)** — `theme.ts:650-651` |
-| Every generated-tree file has a matching, correct `artifactHashes` entry; every listed hash resolves to a real file; no symlinks | **(already enforced)** — `checkBuiltThemeConformance`, `build-conformance.ts:435-460` |
-| `build.sourceDir` MUST NOT equal or nest inside a reserved generated directory name (e.g. `preview`) | **(already enforced)** — `isSourceDirGeneratedConflict`, `theme.ts:653` |
-| A theme-markup element MUST NOT carry `data-agent-element` (admin-only attribute) | `scan(html, /data-agent-element/) .length > 0` → reject |
-| `id` in `theme.json` MUST equal the folder name | **(already enforced)** — `theme.ts:631` |
-| A `templates` entry MUST resolve to a real `pages/<id>.html` with at least one `{"type":"content"}` marker | **(already enforced)** — `validateTemplateDeclarations`, `theme.ts:511-536` |
-| `defaultMode` MUST be listed in `modes` | **(already enforced)** — `theme.ts:635-639` |
-| Unknown top-level manifest fields REJECTED (fail-closed) | not enforced — `loadTheme()` silently drops any field it doesn't name (e.g. an unrecognized future key), it does not reject the manifest |
+| A `declarative`-tier theme MUST NOT contain `scripts/` | still **not enforced** — no rule in `structure.ts` or elsewhere checks this |
+| `build.source: "compiled"` REQUIRES `tier: "static"` | **(already enforced)** — `theme.ts:825-827` (`validateCompiledBuildManifest`) |
+| `build.source: "compiled"` REQUIRES `build.sourceDir` (non-empty) | **(already enforced)** — `theme.ts:828-829` |
+| `build.source: "compiled"` REQUIRES non-empty `build.artifactHashes` | **(already enforced)** — `theme.ts` (`validateCompiledBuildManifest`, artifactHashes branch) |
+| Every generated-tree file has a matching, correct `artifactHashes` entry; every listed hash resolves to a real file; no symlinks | **(already enforced, v1 layout only — §4)** — `checkBuiltThemeConformance`, `build-conformance.ts:535` |
+| `build.sourceDir` MUST NOT equal or nest inside a reserved generated directory name (e.g. `preview`) | **(already enforced)** — `isSourceDirGeneratedConflict`, `theme.ts:830` |
+| A theme-markup element MUST NOT carry `data-agent-element` (admin-only attribute) | **(already enforced, both schema versions)** — `checkMarkupFile`, `validation/markup.ts:51-57` |
+| `id` in `theme.json` MUST equal the folder name | **(already enforced, both schema versions)** — v1 via `theme.ts`; v2 via `checkV2ManifestIdMatch`, `validate-theme-package.ts:102-105` |
+| A `templates` entry MUST resolve to a real `pages/<id>.html` with at least one `{"type":"content"}` marker | **(already enforced)** — `validateTemplateDeclarations`, `theme.ts:615-641` |
+| `defaultMode` MUST be listed in `modes` | **(already enforced, v1 path)** — `theme.ts` (`validateManifestCrossFields`) |
+| Unknown top-level manifest fields REJECTED (fail-closed) | **(already enforced for `apiVersion: 2` manifests only, corrected 2026-09-10, was "not enforced")** — `validateManifestV2`'s `V2_TOP_LEVEL_KEYS` allowlist (`validation/manifest-v2.ts:81-`); a v1 (no-`apiVersion`) manifest is still unaffected — `loadTheme()` itself still silently drops unknown keys |
+| A `data-embed-config` marker's `type` MUST be a recognized value; the attribute MUST be single-quoted | **(already enforced, both schema versions — not in the original table)** — `checkMarkupFile`, `validation/markup.ts:59-83` |
+| Publish readiness: non-empty `license`, non-empty `description`, `assets/previews/card.webp` present | **(already enforced under `--profile publish`, not in the original table)** — `checkV2PublishReadiness`, `validate-theme-package.ts:136-151` — see §14 |
 
-## 17. Minimal worked example per tier — illustrative TARGET shape
+## 17. Minimal worked example per tier — partially runnable, corrected 2026-09-10
 
-These are NOT runnable. No loader in this repo reads `render/`, `partials`, or `apiVersion` today.
-They show the smallest complete file set schema v2 would require, for a future validator/migration
-implementer to check their work against.
+**These examples are more real than "NOT runnable" states.** `render/` and `apiVersion` are both read
+by `loadTheme()` today (§11), so 17.1's file tree would actually load as `status: "valid"` — but not
+quite for the reasons the manifest states. `loadTheme()` never reads the `license`, `tokens` (nested),
+or `partials` keys shown below; it would load nav/footer via `DEFAULT_THEME_SLOTS`'s fallback
+(`theme.ts:318-321`, `{source: "nav.html"}`/`{source: "footer.html"}`) resolved against `render/partials/`
+(the v2 `partialsDir`) — which happens to match this example's own `render/partials/nav.html`/
+`footer.html` files, so nav/footer would in fact resolve, coincidentally rather than because the
+manifest's `partials` block did anything. Running `tovu theme validate <dir> --profile author` against
+17.1 would report `v2-partials-unimplemented`/`v2-tokens-unimplemented` warnings (§16) for exactly the
+fields the runtime ignores — that command is the accurate way to check one of these examples now,
+where before there was nothing to run at all.
 
 ### 17.1 `static` tier (authored)
 
@@ -566,31 +657,33 @@ for this tier at all (v1 §2.5). Do not build against it.
   with `honorsCurrentPage`/`variants` sub-keys; a naive migration script renaming just the top-level
   key without checking `activeAttr`-spelled legacy entries (`theme.ts:230-238`) will silently drop
   themes still using the pre-2026-08-10 spelling.
-- **`ai/` and `code-tier-asset-normalizer.ts` are NOT the same kind of gap.** `ai/` is pure
-  proposal text with zero code anywhere. The normalizer is real, tested code with zero callers.
-  Don't describe them with the same language ("not implemented") — one needs to be built from
-  scratch, the other needs to be wired up.
+- **`ai/` and `code-tier-asset-normalizer.ts` are STILL NOT the same kind of gap, but the normalizer's
+  gap closed (corrected 2026-09-10).** `ai/` is pure proposal text with zero code anywhere. The
+  normalizer now has a real CLI caller (`tovu theme normalize-build`, Milestone 4, §6, §19) — it needed
+  wiring, and got it. Don't describe them with the same language ("not implemented") — `ai/` needs to be
+  built from scratch; the normalizer is done.
 - **A theme id is unique per folder, not globally**, in both today's system and this design —
   `static/nordic` and `handlebars/nordic` can both exist and both claim id `nordic`;
   `duplicateThemeIds()` (`theme.ts:965-973`) surfaces this rather than silently resolving it. This
   document's folder rules do not change that invariant.
 
-## 19. Open punch list — carried from the consensus report, not resolved by this document
+## 19. Open punch list — carried from the consensus report
 
 1. ~~Fix the `build.sourceDir`-collides-with-a-reserved-directory-name gap~~ — **DONE, 2026-08-17.**
-   `isSourceDirGeneratedConflict`, enforced in `loadTheme()` (`theme.ts:653`). See §6.
-2. **Write the validator.** §16 states rules; nothing enforces the unshipped ones yet. Without it,
-   this document is documentation, not a contract.
-3. **Write `tovu theme migrate`** for the ~10 existing themes — mechanical (folder renames + one
-   manifest rewrite pass) per every debate participant's assumption, but unverified against a real
-   theme. Smoke-test against `static/basic` (the most complex real theme) before assuming it holds.
-4. **Wire `code-tier-asset-normalizer.ts` into a real pipeline** — currently zero production
-   callers (§6). Decide who invokes it (most likely a standalone CLI a theme author runs after
-   their own framework build, consistent with "Tovu never runs the build").
-5. **Confirm which real framework build configurations the normalizer/gate actually support**
-   beyond the Angular spike (with its two required non-default flags) and the currently-FAILING
-   default-Astro case, before advertising broader framework compatibility anywhere else in the
-   docs.
+   `isSourceDirGeneratedConflict`, enforced in `loadTheme()`. See §6.
+2. ~~Write the validator.~~ — **DONE, 2026-08-18 (Milestone 2, `a69632b5`).** `validateThemePackage`,
+   wired to `tovu theme validate` and the marketplace install path. See §16.
+3. ~~Write `tovu theme migrate`~~ — **DONE, 2026-08-18 (Milestone 3, `26f19bf6`).** Not just built but
+   already run: every built-in `static` theme plus `basic-declarative` is migrated, verified on disk.
+   See §11.
+4. ~~Wire `code-tier-asset-normalizer.ts` into a real pipeline~~ — **DONE, 2026-08-18 (Milestone 4,
+   `4af12853`).** `tovu theme normalize-build`, exactly the "standalone CLI a theme author runs after
+   their own framework build" shape this item predicted. See §6.
+5. **Confirm which real framework build configurations the normalizer/gate actually support** — still
+   open, reverified 2026-09-10: `build.framework` is still a closed `react|vue|angular` union
+   (§6), the Astro conformance test still fails the same two ways, and no v2-declared compiled theme
+   exists to test the `render/`-nested conformance path at all (§4). Confirm before advertising broader
+   framework compatibility anywhere else in the docs.
 
 ## 20. Further reading
 
@@ -599,11 +692,17 @@ for this tier at all (v1 §2.5). Do not build against it.
 - `ADS-memory/reports/swarm-consensus/runs/2026-08-17-tovu-theme-invariant-structure-consensus-report.md`
   — the full debate trace this document's design is drawn from, including the two corrections in
   §2 above and every rejected alternative with its reasoning.
-- `src/features/theme/theme.ts`, `src/features/theme/build-conformance.ts`,
-  `src/features/theme/theme-files.ts`, `src/features/theme/code-tier-asset-normalizer.ts`,
-  `src/features/theme/marketplace.ts`, `src/contracts/core/embeds/marker.ts`,
-  `src/server/middleware/theme-static-assets.ts` — the real source every `[REAL]` claim in this
-  document cites. Re-check line numbers against current `HEAD` before trusting them verbatim.
+- `apps/website/src/features/theme/theme.ts`, `apps/website/src/features/theme/theme-layout.ts`,
+  `apps/website/src/features/theme/build-conformance.ts`, `apps/website/src/features/theme/theme-files.ts`,
+  `apps/website/src/features/theme/code-tier-asset-normalizer.ts`,
+  `apps/website/src/features/theme/marketplace.ts`,
+  `apps/website/src/features/theme/validation/{validate-theme-package,manifest-v2,structure,markup,references,profiles}.ts`,
+  `apps/website/src/features/theme/migration/{migrate-theme,theme-migration-plan}.ts`,
+  `apps/website/src/cli/commands/theme/{validate,migrate,normalize-build}.ts`,
+  `apps/website/src/contracts/core/embeds/marker.ts`,
+  `apps/website/src/server/middleware/theme-static-assets.ts` — the real source every `[REAL]` claim in
+  this document cites (paths corrected 2026-09-10 for the `src/` → `apps/website/src/` rename,
+  `708e81b2`, 2026-08-28). Re-check line numbers against current `HEAD` before trusting them verbatim.
 
 ## 21. `templates` content-template naming convention — `posts-*` / `pages-*` `[DECISION, layered on a REAL field]`
 
@@ -627,12 +726,23 @@ themes still ship the pre-convention names) are documented in the primary source
 `development/docs/themes/theme-authoring-guide.md` §7.3, and
 `ADS-memory/reports/architecture/ADR-065-content-template-naming-convention.md` — not duplicated here.
 
-**One correction to this document's own top banner, scoped narrowly:** the banner states "no `render/`
-folder … exists anywhere in `content/themes/` today" and "all ~10 themes currently on disk … use the
-shape documented in v1, not this one." As of 2026-09-03 that is no longer true for at least the
-`basic` theme — both `content/themes/static/basic/theme.json` and
-`sites/tovu-com/themes/static/basic/theme.json` carry `"apiVersion": 2` and ship a real
-`render/pages/` directory matching this document's §3 layout, verified directly on disk, not inferred.
-This section does not attempt to re-verify migration status for every other theme or rewrite the
-banner above — that is a larger, separate audit — but a reader relying on the banner's blanket "nothing
-has migrated" claim should treat it as stale for `basic` specifically.
+**Superseded 2026-09-10:** the narrow correction this paragraph made for `basic` alone (2026-09-03) has
+been folded into a full rewrite of the top banner and §§2–19 above — the migration turned out to cover
+every built-in theme, not just `basic`, and shipped 2026-08-18 (the day after this document was
+written), not 2026-09-03. This paragraph is kept for its own history; treat the top banner as the
+current, complete statement rather than re-deriving it from this section.
+
+## 22. v1's own staleness — a different kind of problem, noted but not fixed here
+
+Checked 2026-09-10 while re-grounding this document: v1 (`theme-authoring-guide.md`) does NOT share
+this document's "describes a design that doesn't exist" problem — its own status line correctly says
+it's descriptive, and its substantive claims about loader/renderer behavior were not re-verified line by
+line here (out of this pass's scope). But its path citations have a different, repo-wide staleness: v1
+cites bare `src/...` paths throughout (e.g. `src/server/deps.ts:143-145`, `src/features/theme/theme.ts:265-400`)
+that predate the 2026-08-28 `src/` → `apps/website/src/` rename (`708e81b2`) — that path no longer
+exists at all (verified: `ls src/features/theme/theme.ts` fails, `src/` is gone). v1 was still being
+edited as late as 2026-09-03 (the same `posts-*`/`pages-*` convention commit §21 cites) without this
+prefix ever being fixed, so every citation in that document needs the same mental `apps/website/` prefix
+this document's own citations now carry (see §20). Flagged for whoever next touches v1; not corrected
+here since fixing it properly means re-verifying v1's actual line numbers against current `HEAD`, not
+just prepending a string, and that is a separate, larger pass over a much longer document.
