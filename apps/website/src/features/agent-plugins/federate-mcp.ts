@@ -1,4 +1,4 @@
-import { saveExternalMcpServer, type ExternalMcpStoreDeps } from "#src/assistant/index";
+import { saveExternalMcpServer, type ExternalMcpServerRecord, type ExternalMcpStoreDeps } from "#src/assistant/index";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
@@ -20,28 +20,44 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * and write grants — created by hand, by an operator following the bundled skill's old instructions,
  * before this file existed. That row is the concrete case every rule below defends:
  *
- * 1. **NEVER CLOBBER AN EXISTING ROW.** {@link provisionAgentPluginMcpServers} calls
- *    `deps.repo.findByServerId` BEFORE ever calling {@link saveExternalMcpServer}. If a row already
- *    exists at the derived id — for ANY reason: an operator's own hand-configured connection, or a
- *    row this same plugin provisioned on a previous enable — it is left COMPLETELY untouched and
- *    reported in {@link ProvisionAgentPluginMcpServersResult.alreadyProvisioned}. This is why
+ * 1. **NEVER CLOBBER AN EXISTING ROW — ADOPT IT INSTEAD.** {@link provisionAgentPluginMcpServers}
+ *    calls `deps.repo.findByServerId` BEFORE ever calling {@link saveExternalMcpServer}. A row
+ *    already at the derived id is NEVER passed through {@link saveExternalMcpServer} — no field an
+ *    operator or an earlier boot wrote (url, transport, auth mode, allowlist, write grants, any
+ *    oauth/sealed column) is ever recomputed or overwritten here. This is why
  *    {@link deriveAgentPluginConnectionId} below no longer hashes or namespaces the id: an id
  *    genuinely equal to what an operator would have hand-typed (the plugin's own declared server
- *    key, e.g. `higgsfield`) is what lets this rule protect the ACTUAL pre-existing row, not some
- *    other, uniquely-derived id that would silently create a second, redundant connection beside it.
- *    The trade this accepts: two different plugins declaring the identical server key in the same
- *    workspace will collide on id, and whichever is provisioned FIRST wins — the second's server is
- *    reported `alreadyProvisioned` and never gets its own row. That is an acceptable, narrow
- *    trade for matching exactly what manual creation would have produced, and it fails in the safe
- *    direction (a missed provision, never a stomped one).
- *    KNOWN RACE: the existence check and the create are not one atomic operation (no compare-and-set
- *    primitive exists on `ExternalMcpServerRepoPort` today, unlike `tryClaimOAuthRefreshLease`'s
- *    purpose-built one). Two concurrent provisioning attempts for the SAME id are harmless — both
- *    derive and would write the identical disabled/empty-allowlist config. A provisioning attempt
- *    racing an operator's concurrent hand-edit of the same id is the one real gap, and it is the
- *    same class of risk any two concurrent saves to this store already have — not a new one, but
- *    also not eliminated by this file. Closing it fully needs a new repo primitive, deliberately not
- *    added here as disproportionate to this feature's scope.
+ *    key, e.g. `higgsfield`) is what lets this rule recognize the ACTUAL pre-existing row, rather
+ *    than shadowing it with a second, uniquely-derived connection beside it. There is deliberately no
+ *    hash-suffixed fallback id — one id, verbatim, always; a vendor's own SKILL.md documents
+ *    `mcp__<serverKey>__<tool>` and cannot predict any suffix Tovu might mint, so a fallback scheme
+ *    would defeat the exact "no guessing" goal this feature exists for.
+ *
+ *    A row already at that id splits into two cases, neither of which ever calls
+ *    `saveExternalMcpServer`:
+ *      - `provisionedByPluginId === input.pluginId` — this same plugin provisioned it on an earlier
+ *        enable; nothing has changed. Reported {@link ProvisionAgentPluginMcpServersResult
+ *        .alreadyProvisioned}.
+ *      - anything else (`null`, or a DIFFERENT plugin's id) — an operator's own hand-configured
+ *        connection (with its earned OAuth tokens, allowlist, and write grants), or another plugin's
+ *        row. This is ADOPTION: `deps.repo.upsert({ ...existing, provisionedByPluginId: input.pluginId })`
+ *        is called directly against the repo port — the raw record, spread, with only that one field
+ *        changed — never `saveExternalMcpServer`, which has no way to leave every other field
+ *        untouched while changing just this one (even its "tri-state" fields resolve a default the
+ *        caller must supply). Reported {@link ProvisionAgentPluginMcpServersResult.adopted}. The
+ *        operator's own configuration and any live tokens always outrank a package's declaration —
+ *        that is this rule, applied to the id-collision case specifically. Two different plugins
+ *        declaring the identical server key therefore share one row (whichever enabled most recently
+ *        owns `provisionedByPluginId`) rather than colliding or silently losing the association.
+ *    KNOWN RACE: the existence check and the create/adopt are not one atomic operation (no
+ *    compare-and-set primitive exists on `ExternalMcpServerRepoPort` today, unlike
+ *    `tryClaimOAuthRefreshLease`'s purpose-built one). Two concurrent provisioning attempts for the
+ *    SAME id are harmless — creation races write the identical disabled/empty-allowlist config, and
+ *    adoption races both write the same one field. A provisioning attempt racing an operator's
+ *    concurrent hand-edit of the same id is the one real gap, and it is the same class of risk any two
+ *    concurrent saves to this store already have — not a new one, but also not eliminated by this
+ *    file. Closing it fully needs a new repo primitive, deliberately not added here as disproportionate
+ *    to this feature's scope.
  *
  * 2. **SEED DISABLED, LIKE BUNDLED PLUGINS ALREADY DO.** Mirrors `activation.ts`'s
  *    `recordBundledAgentPluginIfAbsent`: idempotent, create-if-absent, and — because rule 1 already
@@ -249,9 +265,14 @@ export interface ProvisionAgentPluginMcpServersInput {
 export interface ProvisionAgentPluginMcpServersResult {
   /** Connection ids for which a brand-new, disabled row was created this call. */
   readonly provisioned: readonly string[];
-  /** Connection ids that already had a row (operator-created or provisioned earlier) and were left
-   *  completely untouched — rule 1. */
+  /** Connection ids that already had a row THIS SAME plugin provisioned on an earlier enable, left
+   *  completely untouched — rule 1's first case. */
   readonly alreadyProvisioned: readonly string[];
+  /** Connection ids that already had a row belonging to an operator or a DIFFERENT plugin, left
+   *  byte-identical except for `provisionedByPluginId`, which now names this plugin — rule 1's
+   *  adoption case. Every other field (url, transport, auth mode, allowlist, write grants, any
+   *  oauth/sealed column) is exactly what it was before this call. */
+  readonly adopted: readonly string[];
   readonly skipped: readonly SkippedAgentPluginMcpServer[];
   readonly failed: readonly SkippedAgentPluginMcpServer[];
 }
@@ -286,23 +307,56 @@ function buildProvisioningSaveInput(
   };
 }
 
+/** One outcome of handling a planned server for which rule 1's existence check found a row already
+ *  present — either case leaves every field but `provisionedByPluginId` untouched (see this file's
+ *  header). Split out of {@link provisionAgentPluginMcpServers} purely to keep that function's
+ *  complexity under the shop ceiling: the loop gets exactly one branch point per planned server
+ *  instead of a nested try/catch inline.
+ *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
+async function adoptOrRecognizeExistingAgentPluginMcpServer(
+  deps: Pick<ExternalMcpStoreDeps, "repo">,
+  existing: ExternalMcpServerRecord,
+  planned: PlannedAgentPluginMcpUpsert,
+  pluginId: string,
+): Promise<
+  | { readonly kind: "alreadyProvisioned" }
+  | { readonly kind: "adopted" }
+  | { readonly kind: "failed"; readonly reason: string }
+> {
+  if (existing.provisionedByPluginId === pluginId) {
+    return { kind: "alreadyProvisioned" };
+  }
+  try {
+    // Direct repo write, never `saveExternalMcpServer` — that function has no way to leave every
+    // other field untouched while changing only this one (even its "tri-state" fields resolve a
+    // default the caller must supply). Spreading `existing` and changing one property is the only
+    // way to guarantee byte-identical preservation of the operator's url/transport/auth/allowlist/
+    // write-grants/oauth state.
+    await deps.repo.upsert({ ...existing, provisionedByPluginId: pluginId });
+    return { kind: "adopted" };
+  } catch (err) {
+    return { kind: "failed", reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /**
  * Idempotently provisions one plugin's auto-admitted remote MCP servers into the external-MCP
  * store, called when an operator ENABLES the plugin (never on disable — see this file's header:
  * disabling a plugin has no effect on any row).
  *
- * Rule 1 is enforced per server, right here: `deps.repo.findByServerId` runs BEFORE any write, and a
- * hit means this server is reported `alreadyProvisioned` and `saveExternalMcpServer` is never
- * called for it — no field of an existing row, however it got there, is ever touched by this
- * function.
+ * Rule 1 is enforced per server, right here: `deps.repo.findByServerId` runs BEFORE any write. A row
+ * already at the derived id is NEVER passed through `saveExternalMcpServer` — it is either
+ * recognized as this same plugin's earlier work (`alreadyProvisioned`) or adopted, byte-identical
+ * except for `provisionedByPluginId`, via a direct `repo.upsert` (`adopted`). See
+ * {@link adoptOrRecognizeExistingAgentPluginMcpServer}.
  *
- * Per-server failures (a store validation error, an unconfigured secret store) are caught and
- * reported rather than thrown, matching `readEnabledExternalMcpConfigs`'s own fail-open posture: one
- * unwritable row must not stop every other server in the same plugin, or the plugin's own
- * activation, from succeeding.
+ * Per-server failures (a store validation error, an unconfigured secret store, an adoption's upsert
+ * failing) are caught and reported rather than thrown, matching `readEnabledExternalMcpConfigs`'s
+ * own fail-open posture: one unwritable row must not stop every other server in the same plugin, or
+ * the plugin's own activation, from succeeding.
  *
  * @complexity O(s) in the plugin's declared server count, each one an existence check plus at most
- * one create.
+ * one create or adopt.
  */
 export async function provisionAgentPluginMcpServers(
   deps: ExternalMcpStoreDeps,
@@ -311,12 +365,16 @@ export async function provisionAgentPluginMcpServers(
   const plan = planAgentPluginMcpFederation(input);
   const provisioned: string[] = [];
   const alreadyProvisioned: string[] = [];
+  const adopted: string[] = [];
   const failed: SkippedAgentPluginMcpServer[] = [];
 
   for (const planned of plan.toUpsert) {
     const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
     if (existing) {
-      alreadyProvisioned.push(planned.connectionId);
+      const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
+      if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
+      else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
+      else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
       continue;
     }
 
@@ -328,5 +386,5 @@ export async function provisionAgentPluginMcpServers(
     }
   }
 
-  return { provisioned, alreadyProvisioned, skipped: plan.skipped, failed };
+  return { provisioned, alreadyProvisioned, adopted, skipped: plan.skipped, failed };
 }

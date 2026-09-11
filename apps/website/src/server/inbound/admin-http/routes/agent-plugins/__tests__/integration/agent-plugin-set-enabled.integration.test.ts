@@ -7,6 +7,7 @@ import test from "node:test";
 
 import express from "express";
 
+import { saveExternalMcpServer } from "#src/assistant/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -279,11 +280,15 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin with a declared remote MCP ser
     assert.equal(federated?.transport, "streamable_http");
     assert.equal(federated?.url, "https://mcp.higgsfield.ai/mcp");
     assert.equal(federated?.authMode, "oauth");
-    assert.equal(federated?.enabled, true);
+    // Rule 2 (`federate-mcp.ts`'s header): a newly provisioned row is never auto-enabled. An operator
+    // must explicitly turn it on in Settings — the same reason `recordBundledAgentPluginIfAbsent`
+    // seeds bundled plugins disabled.
+    assert.equal(federated?.enabled, false, "a freshly provisioned row must start disabled, not auto-enabled by the plugin toggle");
+    assert.equal(federated?.provisionedByPluginId, "higgsfield-fixture");
   });
 });
 
-test("AGENT_PLUGIN_SET_ENABLED: disabling deactivates the plugin's federated MCP row without deleting it", async (t) => {
+test("AGENT_PLUGIN_SET_ENABLED: disabling a plugin never touches its already-federated MCP row", async (t) => {
   await withAgentPluginsDir(async () => {
     await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-b", {
       higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
@@ -295,12 +300,19 @@ test("AGENT_PLUGIN_SET_ENABLED: disabling deactivates the plugin's federated MCP
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
     assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+    const rowsBeforeDisable = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const rowBeforeDisable = rowsBeforeDisable.find((row) => row.label?.startsWith("higgsfield-fixture"));
+    assert.ok(rowBeforeDisable, "the row must exist after enabling, before this test's own disable");
+
     assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: false })).status, 200);
 
-    const rows = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
-    const federated = rows.find((row) => row.label?.startsWith("higgsfield-fixture"));
-    assert.ok(federated, "the row must still exist, only deactivated");
-    assert.equal(federated?.enabled, false);
+    // `set-enabled.ts`'s own header states disabling calls no federation code at all — this asserts
+    // that directly, rather than merely re-checking `enabled`, which would stay green even if a
+    // future change resurrected a disable-time write that happened to also leave enabled=false.
+    const rowsAfterDisable = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const rowAfterDisable = rowsAfterDisable.find((row) => row.label?.startsWith("higgsfield-fixture"));
+    assert.ok(rowAfterDisable, "the row must still exist — disabling a plugin never deletes its federated row");
+    assert.deepEqual(rowAfterDisable, rowBeforeDisable, "disabling must leave the row byte-identical, not merely still present");
   });
 });
 
@@ -323,6 +335,56 @@ test("AGENT_PLUGIN_SET_ENABLED: a plugin declaring only a stdio MCP server feder
       false,
       "a stdio server must never be auto-wired from a plugin activation",
     );
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row at the same server id rather than clobbering it", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-d", {
+      higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
+    });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
+
+    const { app, baseDeps } = buildTestApp();
+
+    // The operator hand-configured this connection BEFORE the plugin's own auto-provisioning ever
+    // ran — the same real store the route itself writes through, with the allowlist and write-grant
+    // shape `federate-mcp.ts`'s header names as exactly what adoption must protect.
+    await saveExternalMcpServer(
+      {
+        repo: baseDeps.externalMcpServerRepo,
+        sealer: baseDeps.siteAssistantSecretSealer,
+        keyring: baseDeps.siteAssistantSecretKeyring,
+        clock: baseDeps.clock,
+      },
+      {
+        workspaceId: WORKSPACE_A,
+        serverId: "higgsfield",
+        label: "My Own Higgsfield Connection",
+        transport: "streamable_http",
+        authMode: "static_env",
+        enabled: true,
+        command: "",
+        url: "https://operator-configured.example.com/mcp",
+        args: "",
+        allowedToolNames: "generate_image",
+        writeAllowedToolNames: "generate_image",
+        principalId: "operator-1",
+      },
+    );
+
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+
+    const rows = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const row = rows.find((r) => r.serverId === "higgsfield");
+    assert.ok(row, "the operator's row must still exist");
+    assert.equal(row?.url, "https://operator-configured.example.com/mcp", "the plugin's own declared URL must never override the operator's");
+    assert.equal(row?.enabled, true, "an operator-enabled row must not be forced back to disabled");
+    assert.deepEqual(JSON.parse(row?.allowedToolNames ?? "[]"), ["generate_image"]);
+    assert.deepEqual(JSON.parse(row?.writeAllowedToolNames ?? "[]"), ["generate_image"]);
+    assert.equal(row?.provisionedByPluginId, "higgsfield-fixture", "the association is recorded even though the row itself was untouched");
   });
 });
 
