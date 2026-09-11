@@ -19,8 +19,8 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
  * running only as defense in depth underneath it. The product owner reversed that on 2026-09-10: her
  * call is default-allow — the assistant should be able to read most of the repo/site tree without
  * anyone pre-listing a root — with the actual boundary moved onto an explicit denylist of what must
- * never be read. {@link FS_FILES_DENYLIST} below is that boundary now; `layout.ts`'s two roots
- * (`repo`, `site`) are deliberately broad, not a curated allowlist — see that file's own header for
+ * never be read. {@link FS_FILES_DENYLIST} below is that boundary now; `layout.ts`'s roots
+ * (`repo`, `site`, and the operator-set `custom`) are deliberately broad, not a curated allowlist — see that file's own header for
  * what widening them traded away (most notably: the site directory's `chat.db`/`content.db` are no
  * longer excluded by LOCATION, only by the `*.db` pattern below plus the binary sniff).
  *
@@ -259,7 +259,7 @@ function assertNoSymlinkEscape(base: string, path: string, relativePathForError:
  * re-`realpath`ed first, so a root reached through a symlink (this repo's own
  * `node_modules/@jini-ai/*` shape) still compares correctly rather than failing every read.
  *
- * @param required.rootPath - One of `layout.ts`'s two resolved root directories (`repo` or `site`).
+ * @param required.rootPath - One of `layout.ts`'s resolved root directories (`repo`, `site`, or the operator-set `custom`).
  * @param required.relativePath - The caller-supplied path, relative to that root.
  * @returns The absolute, verified-contained path.
  * @throws {FsFilePathError} On any escape, denylist match, or malformed input.
@@ -349,7 +349,7 @@ function walkFsDir(dir: string, depth: number, base: string, found: string[]): v
  * a denied filename pattern are silently excluded (not merely refused on read), so a listing never
  * advertises a secret file's existence in the first place.
  *
- * @param required.rootPath - One of `layout.ts`'s two resolved root directories (`repo` or `site`).
+ * @param required.rootPath - One of `layout.ts`'s resolved root directories (`repo`, `site`, or the operator-set `custom`).
  * @param required.relativePath - Optional subdirectory within the root to list; omit (or `""`) to
  *   list from the root itself.
  * @returns Relative paths, sorted, using `/` separators. Empty when the root (or subdirectory)

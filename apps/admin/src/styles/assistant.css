@@ -708,6 +708,99 @@
   line-height: 1;
 }
 
+/* --- Folder control (FsFolderIndicator.tsx) -------------------------------------------------
+ *
+ * The chat composer's always-visible indicator of which folder (if any) the assistant's
+ * `fs_list_files`/`fs_read_file` tools can currently reach outside this repo/site. A fresh, small
+ * class family rather than a reuse of `.jini-attachment-chip` above — that shape is a
+ * remove-only chip with no inline editor, built for a growing LIST of pinned items; this is a
+ * single always-present control with its own "type a path" affordance. No specificity trick is
+ * needed here (contrast the plugin tray's own comment two blocks down): `.tovu-fs-*` has no
+ * same-named counterpart in Jini's own injected stylesheet, so there is no cascade-order tie to
+ * win.
+ */
+.tovu-fs-folder-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 16px 10px;
+  border-bottom: 1px solid var(--jini-chat-border-soft);
+}
+
+.tovu-fs-folder-indicator__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-pill);
+  padding: 4px 10px 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.tovu-fs-folder-indicator__icon {
+  display: inline-flex;
+  color: var(--faint);
+}
+
+.tovu-fs-folder-indicator__label {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tovu-fs-folder-indicator__input {
+  flex: 1;
+  min-width: 140px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.tovu-fs-folder-indicator__input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.tovu-fs-folder-indicator__action {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tovu-fs-folder-indicator__action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tovu-fs-folder-indicator__remove {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  padding: 2px;
+  line-height: 1;
+}
+
+.tovu-fs-folder-indicator__error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 11px;
+}
+
 /* --- Pinned Agent Plugin tray (SelectedAgentPluginTray.tsx) ---------------------------------
  *
  * `SelectedAgentPluginTray` deliberately reuses Jini's own `.jini-attachment-tray`/`-chip`/

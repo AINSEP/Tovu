@@ -208,6 +208,7 @@ import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/
 import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
 import { registerAdminVendorCredentialsRoutes } from "../../inbound/admin-http/routes/system/vendor-credentials.js";
 import { registerAdminSiteTokenRoutes } from "../../inbound/admin-http/routes/system/site-token.js";
+import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { registerAdminDeploymentsListRoute } from "../../inbound/admin-http/routes/deployments/list.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
@@ -1095,6 +1096,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // file's own header for exactly what this does and does not cover (it does NOT seal any stored
   // credential, and does NOT help a production boot with the env var unset).
   registerAdminSiteTokenRoutes(app, routeDeps);
+  // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
+  // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
+  // same permission that gates those two tools themselves — see that route file's own header.
+  registerAdminFsFilesCustomRootRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.

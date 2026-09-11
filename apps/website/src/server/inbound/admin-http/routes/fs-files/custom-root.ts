@@ -1,0 +1,78 @@
+import type { Express, Request, Response } from "express";
+
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { FS_FILES_READ_PERMISSION } from "#src/features/fs-files/agent-tools";
+import { CustomFsRootError, getCustomFsRoot, setCustomFsRoot } from "#src/features/fs-files/custom-root-store";
+import type { RouteDeps } from "#src/server/routes/types";
+
+/**
+ * @file Admin chat composer's folder control: `GET`/`PUT`/`DELETE` on
+ * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` — the operator-facing surface for the
+ * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
+ *
+ * Shape copied from `routes/system/site-token.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize">`
+ * deps slice (no settings ledger, no repo — the value lives in `custom-root-store.ts`'s in-memory
+ * module state), the same `rejectUnlessAuthorized` two-step, one file for every verb.
+ *
+ * `FS_FILES_READ_PERMISSION` (`content.read`) gates every verb here, the SAME permission that gates
+ * `fs_list_files`/`fs_read_file` themselves — whoever may already direct the assistant to read files
+ * may decide which folder it reads them from; this is not a new, narrower grant layered on top.
+ *
+ * `PUT`/`DELETE` never read anything under the folder they accept — {@link setCustomFsRoot}'s own doc
+ * is explicit that only the path and a single `stat` are involved. The route inherits that property
+ * rather than re-deriving it.
+ */
+export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
+
+const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root";
+
+/** Shared workspace-path-param + permission check every verb below performs first — same shape
+ *  `site-token.ts`'s own `rejectUnlessAuthorized`. Returns `true` (response already written) iff the
+ *  caller should stop. */
+async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminFsFilesCustomRootDeps): Promise<boolean> {
+  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    res.status(404).json({ error: "workspace was not found" });
+    return true;
+  }
+  const principal = getAuthedPrincipal(res);
+  return !(await authorizeOrRespond(res, deps.authorize, {
+    principalId: principal.id,
+    permission: FS_FILES_READ_PERMISSION,
+    workspaceId: deps.workspaceId,
+  }));
+}
+
+export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
+  app.get(BASE_PATH, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    res.status(200).json({ path: getCustomFsRoot() ?? null });
+  });
+
+  app.put(BASE_PATH, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+
+    const path = req.body?.path;
+    if (typeof path !== "string" || path.length === 0) {
+      res.status(400).json({ error: "'path' is required and must be a non-empty string", code: "VALIDATION_ERROR" });
+      return;
+    }
+
+    try {
+      setCustomFsRoot(path);
+      res.status(200).json({ path: getCustomFsRoot() });
+    } catch (err) {
+      if (err instanceof CustomFsRootError) {
+        res.status(400).json({ error: err.message, code: "INVALID_PATH" });
+        return;
+      }
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
+  });
+
+  app.delete(BASE_PATH, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    setCustomFsRoot(null);
+    res.status(200).json({ path: null });
+  });
+}

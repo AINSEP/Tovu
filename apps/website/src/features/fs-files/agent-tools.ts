@@ -25,10 +25,12 @@ import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
  * pre-listing a root — with the real boundary moved onto an explicit denylist of what must never be
  * read.
  *
- * `layout.ts`'s two roots are now deliberately broad, not curated:
+ * `layout.ts`'s roots are now deliberately broad, not curated:
  * - `repo` — this installation's whole repository/product tree, outside the active site.
  * - `site` — THIS site's entire data folder, including `chat.db`/`content.db`/`config.json`/`ops/`,
  *   not merely its `agent-plugins`/`themes`/`skills`/`uploads` subdirectories as before.
+ * - `custom` — an operator-set folder anywhere on the machine, unrelated to this repo or site;
+ *   `undefined`/refused until an operator sets one from the chat composer (`layout.ts`'s own header).
  *
  * `fs-files.ts`'s `FS_FILES_DENYLIST` is now the PRIMARY gate, not defense in depth underneath an
  * allowlist: any path with a `secrets` segment at any depth, `.env`/`.env.*`, `*.pem`/`*.key`/`*.p12`,

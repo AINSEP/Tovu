@@ -156,3 +156,55 @@ test("a 'secrets' path segment is refused through the real handler", async () =>
     /denied path segment/,
   );
 });
+
+// ---------------------------------------------------------------------------
+// 4. The operator-set `custom` root.
+// ---------------------------------------------------------------------------
+
+test("root: 'custom' reads a real directory OUTSIDE both repo and site once an operator has set one", async () => {
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-custom-outside-"));
+  fs.writeFileSync(path.join(outsideDir, "notes.txt"), "hello from outside repo/site", "utf8");
+  const { roots } = makeFixtureRoots();
+  const deps = toolDeps({ resolveRoots: () => ({ ...roots, custom: outsideDir }) });
+  const registrations = buildFsFilesRegistrations(deps);
+
+  const listResult = (await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(
+    toolContext({ root: "custom" }, FS_LIST_FILES_TOOL_ID),
+  )) as { files: string[] };
+  assert.deepEqual(listResult.files, ["notes.txt"]);
+
+  const readResult = (await handlerFor(registrations, FS_READ_FILE_TOOL_ID)(
+    toolContext({ root: "custom", path: "notes.txt" }, FS_READ_FILE_TOOL_ID),
+  )) as { content: string };
+  assert.equal(readResult.content, "hello from outside repo/site");
+});
+
+test("root: 'custom' before an operator has set one is refused with actionable guidance, not a crash", async () => {
+  const { roots } = makeFixtureRoots();
+  const deps = toolDeps({ resolveRoots: () => ({ ...roots, custom: undefined }) });
+  const registrations = buildFsFilesRegistrations(deps);
+
+  await assert.rejects(
+    () => handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: "x.txt" }, FS_READ_FILE_TOOL_ID)),
+    /no folder has been set for the 'custom' root/,
+  );
+});
+
+test("the denylist still fires inside the 'custom' root — an .env file is refused and excluded from listing", async () => {
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-custom-denylist-"));
+  fs.writeFileSync(path.join(outsideDir, ".env"), "SECRET=1", "utf8");
+  fs.writeFileSync(path.join(outsideDir, "readme.md"), "# hi", "utf8");
+  const { roots } = makeFixtureRoots();
+  const deps = toolDeps({ resolveRoots: () => ({ ...roots, custom: outsideDir }) });
+  const registrations = buildFsFilesRegistrations(deps);
+
+  const listResult = (await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(
+    toolContext({ root: "custom" }, FS_LIST_FILES_TOOL_ID),
+  )) as { files: string[] };
+  assert.deepEqual(listResult.files, ["readme.md"]);
+
+  await assert.rejects(
+    () => handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: ".env" }, FS_READ_FILE_TOOL_ID)),
+    /denied filename pattern/,
+  );
+});

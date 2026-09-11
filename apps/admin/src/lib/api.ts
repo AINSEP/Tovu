@@ -3042,6 +3042,20 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(patch),
     }),
+  // The chat composer's folder control (`FsFolderIndicator.tsx`) — the operator-set `fs-files`
+  // `custom` root the assistant's `fs_list_files`/`fs_read_file` tools may reach outside this
+  // repo/site (`apps/website`'s `features/fs-files/custom-root-store.ts`). `path: null` means no
+  // folder has been set yet. `setFsFilesCustomRoot` can 400 with a message meant to be shown
+  // verbatim (not an absolute path, does not exist, or is a file rather than a directory) — callers
+  // read `ApiError.body.error` for that case rather than treating every rejection as unexpected.
+  getFsFilesCustomRoot: () => request<{ path: string | null }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`),
+  setFsFilesCustomRoot: (path: string) =>
+    request<{ path: string }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, {
+      method: "PUT",
+      body: JSON.stringify({ path }),
+    }),
+  clearFsFilesCustomRoot: () =>
+    request<{ path: null }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, { method: "DELETE" }),
   // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for
   // `features/ai-assistant/AiAssistant.tsx`'s "Admin AI Assistant" tab. `server/routes/admin/system/
   // assistant-daemon.ts`'s route is synchronous and answers as soon as a restart is INITIATED, never

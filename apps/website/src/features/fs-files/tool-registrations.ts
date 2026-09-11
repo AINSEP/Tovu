@@ -49,9 +49,11 @@ export interface FsFilesToolDeps {
    * directory, mirroring `SiteEvidenceToolDeps.siteEvidenceBrowser`'s identical "optional field,
    * real implementation by default" shape for the same reason: the real resolver reads
    * `process.cwd()`/`process.env` and this repo's own `content/` tree, neither of which a unit test
-   * should have to stage.
+   * should have to stage. A root mapped to `undefined` (only ever `custom`, unset — see
+   * `layout.ts`'s `resolveFsRoots` doc) is refused by {@link resolveRootPathOrThrow} rather than
+   * dereferenced.
    */
-  resolveRoots?: () => Record<FsRootId, string>;
+  resolveRoots?: () => Record<FsRootId, string | undefined>;
 }
 
 /** Raised when `root` does not name one of {@link FS_ROOT_IDS} — a different `root` is exactly what
@@ -76,14 +78,20 @@ function isShapeRejection(error: unknown): boolean {
 
 /**
  * Resolves `root` to its real absolute directory, refusing an unrecognized id outright rather than
- * letting an invalid string reach `resolveFsRoots`'s own record lookup as `undefined`.
+ * letting an invalid string reach `resolveFsRoots`'s own record lookup as `undefined` — and refusing
+ * a recognized id that resolved to `undefined` (today, only `custom` before an operator has set one)
+ * with a message that tells the caller what would fix it, rather than throwing a raw lookup failure.
  */
 function resolveRootPathOrThrow(routeDeps: FsFilesToolDeps, root: string): string {
   if (!isFsRootId(root)) {
     throw new FsRootNotFoundError(`'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}`);
   }
   const roots = (routeDeps.resolveRoots ?? resolveFsRoots)();
-  return roots[root];
+  const rootPath = roots[root];
+  if (rootPath === undefined) {
+    throw new FsRootNotFoundError(`no folder has been set for the '${root}' root yet — ask the operator to set one from the chat composer, then retry`);
+  }
+  return rootPath;
 }
 
 /**
