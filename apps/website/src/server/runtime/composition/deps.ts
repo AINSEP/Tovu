@@ -17,7 +17,7 @@ import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -1188,10 +1188,11 @@ export function createSqliteRouteDeps(
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
   // `routes/types.ts`'s `customCredentialsHttpClient` doc for why this is a genuinely separate
-  // CLIENT instance from the mailer's above rather than a shared one, even though both are built
-  // from the identical `SINGLE_HOP_HTTPS_EGRESS_POLICY`: no legitimate reason to redirect a
-  // fixed-method call to an operator-typed base URL either.
-  const customCredentialsHttpClient = createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY);
+  // CLIENT instance from the mailer's above. Built from its own `CUSTOM_CREDENTIALS_EGRESS_POLICY`
+  // (2026-09-10) rather than the mailer's `SINGLE_HOP_HTTPS_EGRESS_POLICY` — that policy's own doc
+  // has the live incident (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) that
+  // made a zero-redirect policy the wrong fit for this tool specifically.
+  const customCredentialsHttpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
 
   // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
   // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See

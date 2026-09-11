@@ -16,7 +16,7 @@ import {
   verifyCustomCredential,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 
 /**
  * @file `credentialed-request.ts` — the two capabilities that let the agent actually USE a saved
@@ -787,6 +787,35 @@ test("makeCredentialedRequest: a transport failure throws CredentialedRequestTra
   assert.equal(audit.entries.length, 1);
   assert.equal(audit.entries[0]!.status, 0);
   assert.equal(audit.entries[0]!.bodyBytes, 0);
+});
+
+// 2026-09-10: before this fix, `makeCredentialedRequest`'s catch block re-wrapped EVERY thrown
+// error — an `EgressRefusedError` included — into the identical `CredentialedRequestTransportError`
+// the test above asserts on, erasing the `instanceof` `tool-registrations.ts`'s
+// `isCredentialedRequestShapeRejection` depends on to tell a caller-fixable egress refusal (a
+// different URL would work) apart from an unclassified internal failure. This pins the fix: an
+// `EgressRefusedError` from the injected `HttpClientPort` (e.g. `platform/http/client.ts`'s
+// `assertNoPrivateAddress`, refusing a redirect to a private/loopback address) must reach the
+// caller with its OWN type intact, not folded into `CredentialedRequestTransportError`.
+test("makeCredentialedRequest: an EgressRefusedError from the http client passes through with its own type, not wrapped into CredentialedRequestTransportError", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([new EgressRefusedError("egress to 'api.name.com' (169.254.169.254) rejected: resolved address is link-local")]);
+  const audit = new InMemoryCredentialedRequestAuditLog();
+  const deps = makeDeps({ httpClient, audit }, writeDeps);
+
+  await assert.rejects(
+    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" }),
+    (err: unknown) => {
+      assert.ok(err instanceof EgressRefusedError, `expected EgressRefusedError, got ${(err as Error).constructor.name}`);
+      assert.ok(!(err instanceof CredentialedRequestTransportError), "must not also be re-wrapped");
+      assert.match((err as Error).message, /link-local/);
+      return true;
+    }
+  );
+  // The audit contract is unchanged by this fix: status:0 still means "never got a response",
+  // regardless of whether the cause was a refusal, a timeout, or a DNS failure.
+  assert.equal(audit.entries.length, 1);
+  assert.equal(audit.entries[0]!.status, 0);
 });
 
 test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structured line (including bodyBytes) and never the token", async () => {

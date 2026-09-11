@@ -12,7 +12,7 @@ import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/fea
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
-import { MEDIA_IMPORT_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { CUSTOM_CREDENTIALS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
@@ -792,9 +792,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
     // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps
     // this hermetic composition root's own tests exercising the real SSRF-guard/host-binding path.
-    // `SINGLE_HOP_HTTPS_EGRESS_POLICY`: the SAME shared policy `server/deps.ts` uses for its own
-    // instance — see that module's own export for why this used to be a third hand-copied literal.
-    customCredentialsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    // `CUSTOM_CREDENTIALS_EGRESS_POLICY`: the SAME policy `server/deps.ts` uses for its own instance
+    // (2026-09-10) — see that export's own doc for why this domain needed to follow a GET redirect
+    // (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) and could no longer share
+    // the mailer's zero-redirect `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
+    customCredentialsHttpClient: createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY),
     // 2026-09-06 — `features/media-import`'s `media_import_from_url`. Same reasoning as the line
     // above (a real guarded client, not a fake, so this hermetic composition root's own tests
     // exercise the real SSRF guard), built from `MEDIA_IMPORT_EGRESS_POLICY` instead — see

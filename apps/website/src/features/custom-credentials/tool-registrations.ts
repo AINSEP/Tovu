@@ -5,6 +5,7 @@ import {
   requireNoInput,
   requireString,
   requireToolPermission,
+  withSchemaOnRejection,
   type AgentToolSideEffect,
   type DerivedRiskByToolId,
   type ToolHandler,
@@ -19,11 +20,16 @@ import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, ty
 // can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
 // publish-agent-tools.ts`'s identical import for the same reason.
 import type { SurfaceEmission } from "@jini-ai/core";
-import type { HttpClientPort } from "../../platform/http/index.js";
+// `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
+// the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
+// anything; see {@link isCredentialedRequestShapeRejection}. Same pattern
+// `features/media-import/tool-registrations.ts`'s own identical import uses.
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { customCredentialsAgentToolCatalog } from "./agent-tools.js";
 import {
+  CredentialedRequestValidationError,
   makeCredentialedRequest,
   resolveRequestTarget,
   verifyCustomCredential,
@@ -252,6 +258,44 @@ const READ_PERMISSION = `${DOMAIN}.read`;
 /** Gates `custom_credential_make_request` — see this file's header for why a tool that can now issue
  *  a real external POST/PUT/PATCH/DELETE sits on the write permission, not read. */
 const WRITE_PERMISSION = `${DOMAIN}.write`;
+
+/**
+ * Decides which of `custom_credential_make_request`'s rejections are the CALLER's to fix — the same
+ * `withSchemaOnRejection` classification `features/media-import/tool-registrations.ts`'s own
+ * `isImportShapeRejection` established (2026-09-07, SEC-05) for the identical failure mode: an
+ * unclassified rejection reaches `@jini-ai/daemon`'s `ToolExecutor` as `errorKind: 'internal'`, which
+ * `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` SEC-005-redacts into a bare `INTERNAL_ERROR` —
+ * stripping the one piece of information (WHICH rule refused the call) a caller could actually act on.
+ *
+ * Two classes:
+ * - `CredentialedRequestValidationError` — a bad `method`/`url`/`headers`/`body` shape, OR a `url`
+ *   whose origin is not one of the credential's own saved hosts (`resolveAllowedRequestUrl`'s
+ *   allowlist refusal — the "off-allowlist host" case).
+ * - `EgressRefusedError` — the shared `HttpClientPort` (ADR-038) refused the target before ever
+ *   connecting: a non-public resolved address on the first hop or any re-verified redirect hop, a
+ *   disallowed scheme, or credentials embedded in the URL.
+ *
+ * Live incident (2026-09-10): GitHub's Actions job-logs endpoint answers with a 302 to a signed
+ * Azure Blob Storage URL. `credentialed-request.ts`'s own `makeCredentialedRequest` used to re-wrap
+ * EVERY thrown error — `EgressRefusedError` included — into `CredentialedRequestTransportError`
+ * before it ever reached this file, erasing the `instanceof` this predicate depends on; every egress
+ * refusal on this tool therefore collapsed into the same redacted 500 a genuine DNS/timeout failure
+ * gets, and an assistant diagnosing a failed deploy had no way to tell "this needs a different URL"
+ * from "something crashed". Fixed at the source (that function's catch block now rethrows
+ * `EgressRefusedError` unchanged — see its own doc); this predicate is the second half, recognizing
+ * the preserved type once it arrives here.
+ *
+ * Deliberately NOT `CredentialedRequestTransportError` (a DNS failure, timeout, or connection error
+ * is not a decision this process made, and a different URL does not reliably fix it — same reasoning
+ * `isImportShapeRejection`'s own doc gives for the identical class of failure) and NOT
+ * `CustomCredentialNotFoundError` (a different call shape — a wrong label — unrelated to this tool's
+ * egress/allowlist boundary and out of scope for this fix).
+ *
+ * @complexity O(1) — two `instanceof` checks.
+ */
+function isCredentialedRequestShapeRejection(error: unknown): boolean {
+  return error instanceof CredentialedRequestValidationError || error instanceof EgressRefusedError;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -954,10 +998,20 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
       if (method !== "DELETE") {
-        return makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body });
+        return withSchemaOnRejection(
+          { toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection },
+          () => makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body })
+        );
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
+      // Deliberately NOT wrapped in `withSchemaOnRejection` — unlike the two `makeCredentialedRequest`
+      // calls above/below, this pre-check's own `CredentialedRequestValidationError` already reaches
+      // the caller directly, with its own type and an exact, actionable message (pinned by
+      // `make-request-delete-confirmation.test.ts`'s "off-allowlist url" case); decorating it here
+      // would change that established, tested contract for a code path this fix's own incident
+      // (a GET hitting a redirect) never touches. Out of scope for this pass — see this file's
+      // header for a pointer if that daemon-boundary redaction is later confirmed to reach here too.
       const target = await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url });
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
@@ -987,7 +1041,10 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       }
       if (!decision.confirmed) return decision.result;
 
-      return makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body });
+      return withSchemaOnRejection(
+        { toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: isCredentialedRequestShapeRejection },
+        () => makeCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body })
+      );
     },
 
     // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS

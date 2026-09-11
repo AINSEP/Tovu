@@ -358,6 +358,40 @@ test("stops following redirects once maxRedirects is exhausted", async () => {
   assert.equal(transport.calls.length, 1);
 });
 
+// 2026-09-10 (`custom_credential_make_request` redirect-diagnosability fix): a shared
+// `HttpClientPort` instance backs GET/POST/PUT/PATCH/DELETE alike, so raising a policy's
+// `maxRedirects` for a "GET may need to follow a signed redirect" reason must not also let a
+// mutating method auto-replay its body against a redirect target. This is enforced here, once,
+// regardless of the policy — see `sendWithPolicy`'s own `canFollowRedirect` doc.
+for (const method of ["POST", "PUT", "PATCH", "DELETE"] as const) {
+  test(`does not follow a redirect for ${method}, even when the policy otherwise allows it`, async () => {
+    const transport = new ScriptedTransport([
+      { status: 302, headers: { location: "https://8.8.8.8/next" }, bodyText: "" },
+    ]);
+    const client = createHttpClient({ transport, policy: makePolicy({ maxRedirects: 3 }) });
+
+    const response = await client.send(makeRequest({ method, url: "https://example.com/" }));
+
+    assert.equal(response.status, 302, "the raw 3xx is returned, exactly as if maxRedirects were 0");
+    assert.equal(response.headers.location, "https://8.8.8.8/next");
+    assert.equal(transport.calls.length, 1, "the redirect target must never be contacted for this method");
+  });
+}
+
+test("still follows a redirect for GET when the policy allows it (sanity check against the method gate above)", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://8.8.8.8/next" }, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "final" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy({ maxRedirects: 3 }) });
+
+  const response = await client.send(makeRequest({ method: "GET", url: "https://example.com/" }));
+
+  assert.equal(response.status, 200);
+  assert.equal(response.bodyText, "final");
+  assert.equal(transport.calls.length, 2);
+});
+
 test("response body is truncated to the smaller of maxResponseBytes/maxDecompressedBytes", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "0123456789" }]);
   const client = createHttpClient({

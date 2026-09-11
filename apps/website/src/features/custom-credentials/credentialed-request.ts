@@ -5,7 +5,10 @@ import type { SecretSealerPort } from "../webhooks/index.js";
 import { detectSelfDescribingAuthScheme } from "./providers/index.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
-import type { HttpClientPort } from "../../platform/http/index.js";
+// `EgressRefusedError` is a runtime import (used for `instanceof` in `makeCredentialedRequest`'s
+// catch block, below), the ONE value this module takes from `platform/http` — the barrel is
+// otherwise types-only by design; see `tool-registrations.ts`'s identical import for why.
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 
 /**
  * @file Closes the "the agent can SAVE a custom credential but can never USE one" gap:
@@ -184,6 +187,18 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * is simpler — parse once with the standard WHATWG `URL` parser and compare `.origin`, rather than
  * re-deriving an origin from two separately-typed fields.
  *
+ * **This allowlist governs the ORIGINAL `url` only — not a redirect target (2026-09-10).**
+ * {@link resolveAllowedRequestUrl} runs exactly once, before any network call; a redirect hop
+ * `deps.httpClient.send()` may follow past that point is never re-checked against it. That is
+ * intentional, not a gap `custom_credential_make_request`'s own request could smuggle a URL through:
+ * a redirect is a value the ALREADY-allowlisted host chose to hand back, not one the caller supplied,
+ * and by the time it is followed the credential's own `Authorization` header has already been
+ * stripped for any cross-origin hop (`client.ts`'s `withStrippedSensitiveHeaders`) — the target
+ * receives neither a secret nor an attacker-chosen destination. See
+ * `platform/http/egress-policies.ts`'s `CUSTOM_CREDENTIALS_EGRESS_POLICY` doc for the full argument
+ * this rests on, including why the alternative (widening the GLOBAL scheme/address allowlist to the
+ * redirect target's host) was rejected.
+ *
  * **DELETE is human-gated; GET/POST/PUT/PATCH are not (2026-08-31, owner decision).** "He can already
  * POST from the site without a ceremony" — ceremony on every write method would not match what this
  * tool is FOR (parity with what a human can already do). DELETE is the one verb the owner named as
@@ -194,10 +209,13 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * **SSRF/loopback/link-local/metadata protection** is NOT reimplemented here — both functions route
  * every outbound call through the injected `HttpClientPort` (ADR-038, `platform/http/client.ts`),
  * which already resolves DNS, classifies every resolved address (denying private/loopback/
- * link-local/reserved, including `169.254.169.254`), pins the connection to the checked address, and
- * either strips auth on a cross-origin redirect or (per this module's own policy, set by the
- * composition root) never follows a redirect at all. This module's only NEW responsibility is the
- * per-credential host binding above, which `EgressPolicy` has no concept of on its own.
+ * link-local/reserved, including `169.254.169.254`) on the first hop AND on every re-verified
+ * redirect hop, pins each connection to the checked address, and strips auth on any cross-origin
+ * hop. Whether a redirect is followed at all is `client.ts`'s own call, not this module's: gated to
+ * GET only (`sendWithPolicy`'s `canFollowRedirect`) and bounded by the injected policy's own
+ * `maxRedirects` (`CUSTOM_CREDENTIALS_EGRESS_POLICY`, set by the composition root). This module's
+ * only NEW responsibility is the per-credential host binding above, which `EgressPolicy` has no
+ * concept of on its own.
  *
  * **This module never constructs an `HttpClientPort` itself.** `CredentialedRequestDeps.httpClient`
  * is a required, injected field — built ONLY by a composition root
@@ -226,9 +244,20 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  *  fields at save time): this class validates a REQUEST against an already-saved credential. */
 export class CredentialedRequestValidationError extends Error {}
 
-/** A network failure, timeout, or `EgressPolicy` refusal while sending the request — distinct from a
- *  request the provider itself answered (any real HTTP status, including an error one, resolves
- *  normally instead of throwing; see {@link makeCredentialedRequest}'s own doc). */
+/** A DNS failure, connect timeout, or other transport-level error while sending the request —
+ *  distinct from a request the provider itself answered (any real HTTP status, including an error
+ *  one, resolves normally instead of throwing; see {@link makeCredentialedRequest}'s own doc).
+ *
+ *  Deliberately NOT an `EgressPolicy` refusal (2026-09-10 — before this date it was: this class's
+ *  own doc used to list "or an `EgressPolicy` refusal" as a third cause). `makeCredentialedRequest`'s
+ *  catch block now rethrows `platform/http/errors.ts`'s `EgressRefusedError` UNCHANGED rather than
+ *  wrapping it here, so its `instanceof` identity survives to `tool-registrations.ts`'s
+ *  `isCredentialedRequestShapeRejection` — the property that lets an egress refusal (an off-allowlist
+ *  redirect target, an SSRF-denied address) reach the caller as a specific, actionable message
+ *  instead of collapsing into the same redacted `INTERNAL_ERROR` a genuine DNS/timeout failure gets.
+ *  See that predicate's own doc for the live incident this closes. The audit row `status: 0` this
+ *  module records is unchanged either way — a refusal stays distinguishable through the error TYPE
+ *  a caller catches, not through a new audit field. */
 export class CredentialedRequestTransportError extends Error {}
 
 /** Bounds one credentialed call — same order of magnitude as every other "an agent is waiting on
@@ -836,9 +865,14 @@ export interface MakeCredentialedRequestInput {
  *   `url`'s origin is not one of the credential's saved hosts.
  * @throws {CustomCredentialNotFoundError} No credential with this label exists in this workspace.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row exists but could not be decrypted.
- * @throws {CredentialedRequestTransportError} The request could not be sent (network failure,
- *   timeout, or an `EgressPolicy` refusal) — a real HTTP response, even an error one, resolves
- *   normally instead.
+ * @throws {CredentialedRequestTransportError} The request could not be sent for a reason unrelated
+ *   to the target (a DNS failure or connect timeout) — a real HTTP response, even an error one,
+ *   resolves normally instead.
+ * @throws {EgressRefusedError} The shared `HttpClientPort` (ADR-038) refused the target before ever
+ *   connecting — a non-public resolved address on the first hop or any re-verified redirect hop, a
+ *   disallowed scheme, or credentials embedded in the URL. Rethrown with its own identity intact
+ *   (2026-09-10) rather than folded into {@link CredentialedRequestTransportError} — see that class's
+ *   own doc for why the distinction is load-bearing at this function's caller.
  * @complexity O(1) beyond the credential resolution's own O(n) (see {@link resolveCredentialOrThrow})
  *   and the header validation's own O(n) in header count.
  */
@@ -918,6 +952,13 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
     });
   } catch (err) {
     audit.record({ label, host: url.hostname, method, status: 0, bodyBytes, at });
+    // `EgressRefusedError` rethrown UNCHANGED, never wrapped into `CredentialedRequestTransportError`
+    // below — see that class's own doc for why this `instanceof` identity is what lets
+    // `tool-registrations.ts`'s `isCredentialedRequestShapeRejection` recognize an egress refusal as
+    // the caller's to fix (a different URL/host) rather than an unclassified internal failure. The
+    // audit row above is unaffected either way: `status: 0` already meant "never got a response" for
+    // any of these causes, and stays that way.
+    if (err instanceof EgressRefusedError) throw err;
     throw new CredentialedRequestTransportError(`request to '${label}' failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 

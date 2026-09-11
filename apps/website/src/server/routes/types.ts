@@ -390,13 +390,16 @@ export interface CredentialsDeps {
    * `createResolvedMailer` ever needed it) — this one is stored here because the new registry-style
    * tool-contribution seam (`contribute<Domain>Tools()`) receives the SAME shared `RouteDeps` object
    * for every domain, so a domain's own `ToolDeps` interface can only pick up a field that genuinely
-   * lives on this bag. Built from `platform/http/egress-policies.ts`'s shared
-   * `SINGLE_HOP_HTTPS_EGRESS_POLICY` — the SAME named export the mailer client above, and
-   * `server/runtime/composition/app.ts`'s own hermetic double, both build from too, closing what
-   * used to be three independently hand-copied literals of the same shape (see that module's own
-   * header) — see `features/custom-credentials/credentialed-request.ts`'s own header for why every
-   * outbound call here needs the SSRF-guarded client rather than raw `fetch` (the target host is an
-   * arbitrary, operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
+   * lives on this bag. Built from `platform/http/egress-policies.ts`'s own
+   * `CUSTOM_CREDENTIALS_EGRESS_POLICY` (2026-09-10) — until then this shared the mailer client's
+   * `SINGLE_HOP_HTTPS_EGRESS_POLICY`, but a live GitHub-Actions-log-diagnosis incident showed a
+   * fixed-method, zero-redirect policy does not fit this domain: GitHub's own Actions job-logs
+   * endpoint answers with a 302 to a signed Azure Blob Storage URL, and a `custom_credential_make_request`
+   * GET could not follow it. See that policy's own doc for the full redirect-safety argument (GET
+   * only, every hop re-verified, auth stripped cross-origin, no allowlist widening needed) — see
+   * `features/custom-credentials/credentialed-request.ts`'s own header for why every outbound call
+   * here needs the SSRF-guarded client rather than raw `fetch` (the target host is an arbitrary,
+   * operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
    */
   customCredentialsHttpClient: HttpClientPort;
   /**

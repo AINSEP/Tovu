@@ -15,8 +15,10 @@ import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
  * no unguarded path. Every request goes through: scheme + credentials-in-URL rejection, DNS
  * resolution, address-family-complete private/loopback/link-local/reserved classification
  * (IPv4-mapped-IPv6 normalized first), peer pinning, a default `User-Agent` when the caller sent
- * none (2026-09-03 — see {@link DEFAULT_USER_AGENT}'s own doc), and — on any redirect — full
- * re-verification of the new target plus auth-header stripping on cross-origin hops.
+ * none (2026-09-03 — see {@link DEFAULT_USER_AGENT}'s own doc), and — on any GET redirect a
+ * policy's own `maxRedirects` permits (2026-09-10: gated to GET regardless of policy, see
+ * `sendWithPolicy`'s own `canFollowRedirect` doc) — full re-verification of the new target plus
+ * auth-header stripping on cross-origin hops.
  *
  * How it relates to the project:
  * - Wraps `./transport.fetch.ts`'s `FetchHttpTransportAdapter` (or any other
@@ -359,7 +361,21 @@ async function sendWithPolicy(
   // returns the deeper call's response untouched, which already carries the deeper hop's `finalUrl`.
   const cappedResponse: HttpResponse = { ...capResponse(response, effectiveCap), finalUrl: url.href };
 
-  if (!REDIRECT_STATUSES.has(cappedResponse.status) || redirectsFollowed >= policy.maxRedirects) {
+  // Redirects are followed for GET only, regardless of what `policy.maxRedirects` allows — a
+  // POLICY axis a future author could raise (as `CUSTOM_CREDENTIALS_EGRESS_POLICY`, 2026-09-10,
+  // does) without re-deriving this consequence: a 307/308 redirect is defined to RESEND the
+  // original method and body, so auto-following one for POST/PUT/PATCH/DELETE would replay a
+  // mutating call — request body included — against a location this process did not choose to
+  // trust with a write, one this policy's own author never had to think about because GET has no
+  // body to leak. Gating on the REQUEST's own method here, once, is what makes "only a safe,
+  // idempotent fetch ever auto-follows a redirect" true for every policy that sets
+  // `maxRedirects > 0`, not merely the ones a reviewer remembered to keep GET-only by convention.
+  // A non-GET request that hits a 3xx is returned exactly as if `maxRedirects` were 0 — the raw
+  // response, `Location` header and all — never a thrown refusal: the redirect target itself did
+  // nothing wrong, this process simply never attempts it for that method.
+  const canFollowRedirect =
+    request.method === "GET" && REDIRECT_STATUSES.has(cappedResponse.status) && redirectsFollowed < policy.maxRedirects;
+  if (!canFollowRedirect) {
     return cappedResponse;
   }
 
