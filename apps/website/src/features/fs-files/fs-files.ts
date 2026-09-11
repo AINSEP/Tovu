@@ -48,11 +48,19 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
  * The denylist, now the PRIMARY gate: {@link isDeniedFsPathSegment} refuses any path with a `secrets`
  * segment at any depth (refused on read, and never even descended into by the `fs_list_files` walk —
  * see {@link visitFsDirEntry}), and {@link isDeniedFsFileName} refuses a small, fixed set of basename
- * patterns — `.env*`, `*.pem`/`*.key`/`*.p12`, `*.db`/`*.db-wal`/`*.db-shm`. Both read
- * {@link FS_FILES_DENYLIST}, the one place meant for editing this list. Separately,
+ * patterns — `.env*`, `*.pem`/`*.key`/`*.p12`, `*.db`/`*.db-wal`/`*.db-shm`, `.mcp.json`/`.mcp.*.json`.
+ * Both read {@link FS_FILES_DENYLIST}, the one place meant for editing this list. Separately,
  * {@link EXCLUDED_LISTING_DIR_NAMES} keeps `node_modules`/`.git`/build output out of `fs_list_files`
  * results — that exclusion is ergonomics only, NOT part of the security boundary, and does not apply
  * to `fs_read_file` at all.
+ *
+ * The general principle {@link FS_FILES_DENYLIST} exists to enforce: this is a DENYLIST over a
+ * default-allow tree, not an allowlist with exceptions carved out. That means anything
+ * credential-bearing that does NOT already match one of its patterns is readable today, silently,
+ * until someone adds it here — the `.mcp.json`/`.mcp.jini-*.json` entry below was exactly that kind
+ * of gap (discovered, not designed in, after this domain's roots were widened) and is not likely to
+ * be the last one. Treat a new credential-shaped file discovered anywhere in `repo`/`site` as a
+ * denylist gap to close here, not a one-off.
  *
  * How it relates to the project:
  * Used only by `tool-registrations.ts`'s two handlers. Nothing else in the codebase reads a file
@@ -116,8 +124,24 @@ export const FS_FILES_DENYLIST = {
    *   `chat.db`/`content.db` now that `site` is a whole-directory root (see `layout.ts`'s header).
    *   Belt-and-braces for these three: they are binary, so {@link looksBinary} would refuse a read
    *   anyway, but naming them here also keeps them out of `fs_list_files` results.
+   * - `.mcp.json` and every `.mcp.*.json` variant — the agent daemon's own per-run MCP config
+   *   (`mcp-injection.ts` writes one `.mcp.jini-<runId>.json` per spawned CLI at the repo root; the
+   *   checked-in `.mcp.json` is the base config). NOT cosmetic filtering: every one of these files
+   *   carries a live `JINI_DAEMON_TOKEN`, gitignored (`.gitignore`) for the identical reason `.env`
+   *   is. Discovered as a gap AFTER `repo` became a whole-tree root (2026-09-10) — do not delete this
+   *   entry thinking it is redundant with `.env*`; it is a distinct credential shape the `.env`
+   *   pattern does not, and was not meant to, cover.
    */
-  filenamePatterns: [/^\.env(?:\..*)?$/i, /\.pem$/i, /\.key$/i, /\.p12$/i, /\.db$/i, /\.db-wal$/i, /\.db-shm$/i] as readonly RegExp[],
+  filenamePatterns: [
+    /^\.env(?:\..*)?$/i,
+    /\.pem$/i,
+    /\.key$/i,
+    /\.p12$/i,
+    /\.db$/i,
+    /\.db-wal$/i,
+    /\.db-shm$/i,
+    /^\.mcp(?:\..*)?\.json$/i,
+  ] as readonly RegExp[],
 } as const;
 
 /**

@@ -148,6 +148,26 @@ test("isDeniedFsFileName matches every .env variant, not just the literal '.env'
   assert.equal(isDeniedFsFileName("environment.ts"), false, "a name merely containing 'env' must not match");
 });
 
+test("isDeniedFsFileName matches .mcp.json and every .mcp.*.json variant — these carry a live JINI_DAEMON_TOKEN", () => {
+  for (const name of [".mcp.json", ".mcp.jini-0d069eb1-604e-4c77-a154-a2ae09991f4b.json", ".mcp.jini-abc123.json"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  for (const name of ["mcp.json", "package.json", ".mcpjson"]) {
+    assert.equal(isDeniedFsFileName(name), false, `expected '${name}' to be allowed`);
+  }
+});
+
+test("a .mcp.jini-*.json file is refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  const mcpFile = ".mcp.jini-0d069eb1-604e-4c77-a154-a2ae09991f4b.json";
+  fs.writeFileSync(path.join(root, mcpFile), JSON.stringify({ mcpServers: { jini: { env: { JINI_DAEMON_TOKEN: "secret" } } } }), "utf8");
+
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: mcpFile }), /denied filename pattern/);
+
+  const files = listFsFiles({ rootPath: root });
+  assert.equal(files.includes(mcpFile), false, "a .mcp.jini-*.json file must not appear in the listing");
+});
+
 test("reading a denied-pattern filename is refused even though it lives inside an allowed root", () => {
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, ".env"), "SECRET=1", "utf8");
