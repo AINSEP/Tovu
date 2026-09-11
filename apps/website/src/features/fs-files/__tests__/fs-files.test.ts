@@ -168,6 +168,77 @@ test("a .mcp.jini-*.json file is refused on read and excluded from listFsFiles",
   assert.equal(files.includes(mcpFile), false, "a .mcp.jini-*.json file must not appear in the listing");
 });
 
+// ---------------------------------------------------------------------------
+// 3c. Proactive defense-in-depth families — none of these exist in this repo today; added ahead of
+//     a real incident per the owner's standing "secrets/.env and that type of stuff" instruction.
+// ---------------------------------------------------------------------------
+
+test("isDeniedFsFileName matches the certificate/keystore family", () => {
+  for (const name of ["server.crt", "ca.cer", "site.cert", "app.pfx", "release.jks", "release.keystore", "key.jwk", "keys.jwks"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("notes.crtx"), false, "a name merely containing the extension as a substring must not match");
+});
+
+test("a certificate-family file is refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, "release.keystore"), "binary-ish", "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "release.keystore" }), /denied filename pattern/);
+  assert.equal(listFsFiles({ rootPath: root }).includes("release.keystore"), false);
+});
+
+test("isDeniedFsFileName matches .npmrc/.netrc but not an unrelated file merely containing the name", () => {
+  for (const name of [".npmrc", ".netrc"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("npmrc.txt"), false);
+});
+
+test(".npmrc is refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, ".npmrc"), "//registry.npmjs.org/:_authToken=secret", "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: ".npmrc" }), /denied filename pattern/);
+  assert.equal(listFsFiles({ rootPath: root }).includes(".npmrc"), false);
+});
+
+test("isDeniedFsFileName matches the id_rsa/id_dsa/id_ecdsa/id_ed25519 family and its variants, but NEVER the .pub public half", () => {
+  for (const name of ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "id_rsa_backup", "id_rsa2", "ID_RSA"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  // The over-denying trap: a public key is not a secret and must stay readable.
+  for (const name of ["id_rsa.pub", "id_dsa.pub", "id_ecdsa.pub", "id_ed25519.pub", "ID_RSA.PUB"]) {
+    assert.equal(isDeniedFsFileName(name), false, `expected '${name}' (a PUBLIC key) to be allowed`);
+  }
+});
+
+test("id_rsa is refused on read while id_rsa.pub reads cleanly", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, "id_rsa"), "-----BEGIN OPENSSH PRIVATE KEY-----", "utf8");
+  fs.writeFileSync(path.join(root, "id_rsa.pub"), "ssh-ed25519 AAAA...", "utf8");
+
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "id_rsa" }), /denied filename pattern/);
+  const result = readFsFile({ rootPath: root, relativePath: "id_rsa.pub" });
+  assert.equal(result.content, "ssh-ed25519 AAAA...");
+
+  const files = listFsFiles({ rootPath: root });
+  assert.equal(files.includes("id_rsa"), false, "the private half must not appear in the listing");
+  assert.equal(files.includes("id_rsa.pub"), true, "the public half must still appear in the listing");
+});
+
+test("isDeniedFsFileName matches credentials.json and the client_secret*.json family", () => {
+  for (const name of ["credentials.json", "Credentials.JSON", "client_secret.json", "client_secret_123.apps.googleusercontent.com.json"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("client.json"), false);
+});
+
+test("credentials.json is refused on read and excluded from listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.writeFileSync(path.join(root, "credentials.json"), '{"type":"service_account"}', "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "credentials.json" }), /denied filename pattern/);
+  assert.equal(listFsFiles({ rootPath: root }).includes("credentials.json"), false);
+});
+
 test("reading a denied-pattern filename is refused even though it lives inside an allowed root", () => {
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, ".env"), "SECRET=1", "utf8");

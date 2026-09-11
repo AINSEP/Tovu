@@ -131,6 +131,21 @@ export const FS_FILES_DENYLIST = {
    *   is. Discovered as a gap AFTER `repo` became a whole-tree root (2026-09-10) — do not delete this
    *   entry thinking it is redundant with `.env*`; it is a distinct credential shape the `.env`
    *   pattern does not, and was not meant to, cover.
+   * - `*.crt` / `*.cer` / `*.cert` / `*.pfx` / `*.jks` / `*.keystore` / `*.jwk` / `*.jwks` —
+   *   certificate and keystore material, the same family `*.pem`/`*.key`/`*.p12` above only partially
+   *   covers. None of these exist in this repo TODAY. Added anyway, proactively, per the owner's
+   *   standing "secrets/.env and that type of stuff is off-limits" instruction — do NOT delete this
+   *   entry because a grep for it comes up empty; empty is the point, not evidence it is dead weight.
+   * - `.npmrc` / `.netrc` (exact basenames, not a suffix family) — package-registry and generic
+   *   network auth tokens live in these by convention. Also currently absent from this repo; kept for
+   *   the same proactive reason as the certificate family above.
+   * - The `id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519` SSH private-key family, INCLUDING named variants
+   *   (`id_rsa_backup`, `id_rsa2`, ...) — but deliberately EXCLUDING their `*.pub` public halves,
+   *   which are not secret and are routinely shared. The trailing `(?<!\.pub)` is load-bearing: an
+   *   earlier, simpler version of this pattern would have denied `id_rsa.pub` too, which is the wrong
+   *   direction of mistake (over-denying is the easy trap here, not under-denying).
+   * - `credentials.json` (exact basename) and `client_secret*.json` — Google Cloud/OAuth
+   *   service-account and client-secret export conventions.
    */
   filenamePatterns: [
     /^\.env(?:\..*)?$/i,
@@ -141,6 +156,11 @@ export const FS_FILES_DENYLIST = {
     /\.db-wal$/i,
     /\.db-shm$/i,
     /^\.mcp(?:\..*)?\.json$/i,
+    /\.(?:crt|cer|cert|pfx|jks|keystore|jwk|jwks)$/i,
+    /^\.(?:npmrc|netrc)$/i,
+    /^id_(?:rsa|dsa|ecdsa|ed25519).*(?<!\.pub)$/i,
+    /^credentials\.json$/i,
+    /^client_secret.*\.json$/i,
   ] as readonly RegExp[],
 } as const;
 
