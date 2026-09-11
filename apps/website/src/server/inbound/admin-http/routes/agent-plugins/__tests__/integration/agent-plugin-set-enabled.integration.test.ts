@@ -93,19 +93,51 @@ async function installReal(pluginId: string, archiveSeed: string) {
   });
 }
 
-function buildTestApp(): express.Express {
+/** @returns The test app, plus the SAME `baseDeps` the route was wired with — 2026-09-10's MCP
+ *  federation tests below read `baseDeps.externalMcpServerRepo` directly to assert on what the
+ *  route actually wrote, the same way this file's other tests re-read `readAgentPluginActivations`
+ *  rather than trusting the response body alone. */
+function buildTestApp(): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
   // ONE `createRouteDeps()` call for both the auth stack and the route's deps — a second call
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
   const baseDeps = createRouteDeps();
-  const routeDeps: AgentPluginsRouteDeps = { workspaceId: baseDeps.workspaceId, authorize: baseDeps.authorize };
+  const routeDeps: AgentPluginsRouteDeps = {
+    workspaceId: baseDeps.workspaceId,
+    authorize: baseDeps.authorize,
+    clock: baseDeps.clock,
+    externalMcpServerRepo: baseDeps.externalMcpServerRepo,
+    siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
+    siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
+  };
 
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, baseDeps);
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginSetEnabledRoute(app, routeDeps);
-  return app;
+  return { app, baseDeps };
+}
+
+/** Same shape as {@link installReal}, plus a real `mcp.json` declaring the given servers — for the
+ *  2026-09-10 MCP-federation tests below, which need a plugin the route can actually federate. */
+async function installRealWithMcp(pluginId: string, archiveSeed: string, mcpServers: Record<string, unknown>) {
+  const entries: AgentPluginArchiveEntry[] = [
+    fileEntry("plugin.json", manifestJson(pluginId, { version: "1.0.0", description: `The ${pluginId} package.` })),
+    fileEntry(
+      "mcp.json",
+      JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers }),
+    ),
+  ];
+  const archive = new Uint8Array(Buffer.from(archiveSeed));
+  const digest = createHash("sha256").update(archive).digest("hex");
+  return installAgentPlugin({
+    archive,
+    expectedSha256: digest,
+    archiveReader: reader(entries),
+    layout: resolveAgentPluginLayout(),
+    workspaceId: WORKSPACE_A,
+  });
 }
 
 function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown) {
@@ -122,7 +154,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "test" });
 
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     const response = await patch(baseUrl, cookie, "site-compliance", { enabled: true });
 
     assert.equal(response.status, 200);
@@ -143,7 +175,7 @@ test("AGENT_PLUGIN_SET_ENABLED: the toggle actually gates an assistant run — r
     const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "site-compliance", enabled: false, actor: "test" });
 
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
 
     const beforeEnable = await resolveAgentPluginRefs(["site-compliance"], workspaceLayout);
     assert.equal(beforeEnable.ok, false, "a disabled plugin refuses the run before the toggle");
@@ -170,7 +202,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a toggle preserves the package's `origin` proven
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "system:seed" }, { origin: "bundled" });
 
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     assert.equal((await patch(baseUrl, cookie, "site-compliance", { enabled: true })).status, 200);
 
     const persisted = await readAgentPluginActivations(workspaceRoot);
@@ -184,7 +216,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an id that is not installed in this workspace is
     await installReal("site-compliance", "seed-set-enabled-d");
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
 
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     const response = await patch(baseUrl, cookie, "never-installed", { enabled: true });
 
     assert.equal(response.status, 404);
@@ -201,7 +233,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a non-boolean `enabled` is 400 VALIDATION_ERROR,
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
 
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
 
     for (const body of [{}, { enabled: "false" }, { enabled: 0 }]) {
       const response = await patch(baseUrl, cookie, "site-compliance", body);
@@ -217,7 +249,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a non-boolean `enabled` is 400 VALIDATION_ERROR,
 test("AGENT_PLUGIN_SET_ENABLED: requires an authenticated session", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-f");
-    const { baseUrl } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl } = await bootAuthenticated(buildTestApp().app, t);
 
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins/site-compliance`, {
       method: "PATCH",
@@ -228,10 +260,76 @@ test("AGENT_PLUGIN_SET_ENABLED: requires an authenticated session", async (t) =>
   });
 });
 
+test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin with a declared remote MCP server federates it into the external-MCP store", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-a", {
+      higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
+    });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
+
+    const { app, baseDeps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+
+    const rows = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const federated = rows.find((row) => row.label?.startsWith("higgsfield-fixture"));
+    assert.ok(federated, "activating the plugin must have created a federated row for its remote server — no hand-typed URL required");
+    assert.equal(federated?.transport, "streamable_http");
+    assert.equal(federated?.url, "https://mcp.higgsfield.ai/mcp");
+    assert.equal(federated?.authMode, "oauth");
+    assert.equal(federated?.enabled, true);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: disabling deactivates the plugin's federated MCP row without deleting it", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-b", {
+      higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
+    });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
+
+    const { app, baseDeps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: false })).status, 200);
+
+    const rows = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    const federated = rows.find((row) => row.label?.startsWith("higgsfield-fixture"));
+    assert.ok(federated, "the row must still exist, only deactivated");
+    assert.equal(federated?.enabled, false);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: a plugin declaring only a stdio MCP server federates nothing", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("stdio-fixture", "seed-set-enabled-mcp-c", {
+      local: { type: "stdio", command: "./server/index.js" },
+    });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "stdio-fixture", enabled: false, actor: "test" });
+
+    const { app, baseDeps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+    assert.equal((await patch(baseUrl, cookie, "stdio-fixture", { enabled: true })).status, 200);
+
+    const rows = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
+    assert.equal(
+      rows.some((row) => row.label?.startsWith("stdio-fixture")),
+      false,
+      "a stdio server must never be auto-wired from a plugin activation",
+    );
+  });
+});
+
 test("AGENT_PLUGIN_SET_ENABLED: a workspace id that does not match the route's own workspace is 404", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-g");
-    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
 
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/agent-plugins/site-compliance`, {
       method: "PATCH",

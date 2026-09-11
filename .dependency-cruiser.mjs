@@ -305,6 +305,16 @@ const HAND_WRITTEN_RULES = [
       // operations (`features/external-mcp/deps.ts`'s own header names this seam explicitly) — never
       // `registerToolContributor` itself, which this file does not call anywhere.
       //
+      // `apps/website/src/features/agent-plugins/federate-mcp.ts` (2026-09-10, plugin-declared MCP
+      // servers auto-wired into the same external-MCP store on activation) is exempted by name for
+      // the identical reasoning, verified the identical way (planted the file with this import, ran
+      // `npm run check:boundaries`, confirmed exactly one new `error` naming this rule and this file
+      // — `apps/website/src/features/agent-plugins/federate-mcp.ts →
+      // apps/website/src/assistant/index.ts` — then added this exemption and re-ran to confirm the
+      // error count dropped by exactly one with nothing else changing): it value-imports
+      // `saveExternalMcpServer`/`ExternalMcpStoreDeps`/`SaveExternalMcpServerInput` from the SAME
+      // barrel, for the same operation, never `registerToolContributor`.
+      //
       // `from` narrowed to just `^apps/website/src/features` (2026-08-27, Phase 1 domain-layer consolidation):
       // the seven other top-level alternatives it originally listed (analytics, identity, media,
       // navigation, origin, seo, widgets) each moved to `apps/website/src/features/<name>` one at a time this
@@ -323,6 +333,7 @@ const HAND_WRITTEN_RULES = [
           ".*/__tests__/.*",
           "^apps/website/src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
           "^apps/website/src/features/external-mcp/tool-registrations\\.ts$",
+          "^apps/website/src/features/agent-plugins/federate-mcp\\.ts$",
         ],
       },
       to: { path: "^apps/website/src/assistant", dependencyTypesNot: ["type-only"] },

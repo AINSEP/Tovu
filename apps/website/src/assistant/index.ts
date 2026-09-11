@@ -234,6 +234,11 @@ export type {
   SaveExternalMcpServerInput,
   // Added 2026-08-26, same reason as the value export above.
   ExternalMcpServerConfig,
+  // Added 2026-09-10 (features/agent-plugins/federate-mcp.ts, wiring a plugin's declared remote MCP
+  // servers into this same store on activation): same missing-re-export reasoning as
+  // `SaveExternalMcpServerInput` above — `saveExternalMcpServer`'s own first parameter had no
+  // re-export, forcing a deep import for no reason but this one gap.
+  ExternalMcpStoreDeps,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
 

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { UUID } from "@jini-ai/cms/core";
 
 /**
@@ -20,14 +21,25 @@ import type { UUID } from "@jini-ai/cms/core";
  * family already uses for the identical two operations. See `list.ts`'s own header for why reusing
  * them rather than minting `admin.agent-plugins.*` is correct.
  *
- * Still no `clock`/`idGen`/`changeSets`/`outbox` even though `set-enabled.ts` mutates: that
- * mutation is a single atomic JSON-file write with no repo and no entity type, so it is authorized
- * directly instead of being wrapped in `executeCommand`. That route's header states the trade and
- * its consequence for change-set history.
+ * Still no `idGen`/`changeSets`/`outbox` even though `set-enabled.ts` mutates: that mutation is a
+ * single atomic JSON-file write with no repo and no entity type, so it is authorized directly
+ * instead of being wrapped in `executeCommand`. That route's header states the trade and its
+ * consequence for change-set history.
+ *
+ * `clock`/`externalMcpServerRepo`/`siteAssistantSecretSealer`/`siteAssistantSecretKeyring` were
+ * added 2026-09-10, the same four-field slice `routes/external-mcp/deps.ts`'s `ExternalMcpRouteDeps`
+ * already carries: `set-enabled.ts` now also calls `features/agent-plugins/federate-mcp.ts`'s
+ * `applyAgentPluginMcpFederation`, which needs an `ExternalMcpStoreDeps` to write into the SAME
+ * external-MCP store those routes read from. `createAgentPluginsModule` already receives the full
+ * `RouteDeps` and passes it straight through, so this widening needs no composition-root change.
  */
 export interface AgentPluginsRouteDeps {
   workspaceId: UUID;
   authorize: AuthorizeFn;
+  clock: RouteDeps["clock"];
+  externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];
+  siteAssistantSecretSealer: RouteDeps["siteAssistantSecretSealer"];
+  siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];
 }
 
 export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;
