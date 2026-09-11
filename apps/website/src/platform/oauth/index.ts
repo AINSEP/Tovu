@@ -26,7 +26,14 @@ export type { OAuthErrorCode, OAuthErrorOptions } from "./errors.js";
 export { assertValidCodeVerifier, createPkcePair, deriveCodeChallenge } from "./pkce.js";
 export type { PkcePair } from "./pkce.js";
 
-export { createPendingAuthorizationStore } from "./pending-authorizations.js";
+export {
+  createPendingAuthorizationStore,
+  DEFAULT_MAX_ENTRIES as PENDING_AUTHORIZATION_DEFAULT_MAX_ENTRIES,
+  DEFAULT_TTL_MS as PENDING_AUTHORIZATION_DEFAULT_TTL_MS,
+  invalidState as invalidPendingAuthorizationState,
+  secureEquals as secureEqualsForOwnerBinding,
+  STATE_BYTES as PENDING_AUTHORIZATION_STATE_BYTES,
+} from "./pending-authorizations.js";
 export type { PendingAuthorization, PendingAuthorizationStore, PendingAuthorizationStoreDeps } from "./pending-authorizations.js";
 
 export { assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "./endpoint-safety.js";

@@ -481,6 +481,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
+  // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
+  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below — see that doc for
+  // why a second consumer of this root's `RouteDeps` (`agent-daemon-server.ts`'s own composition)
+  // must reuse these rather than building a second pair.
+  const externalMcpOAuthPending = createPendingAuthorizationStore({ clock });
+  const externalMcpOAuthDevices = createDeviceAuthorizationStore();
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
   // (six `..` from `runtime/composition/` back to the repo root, same as this file's own
@@ -559,9 +565,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       sealer: siteAssistantSecretSealer,
       keyring: siteAssistantSecretKeyring,
       clock,
-      pending: createPendingAuthorizationStore({ clock }),
-      devices: createDeviceAuthorizationStore(),
+      pending: externalMcpOAuthPending,
+      devices: externalMcpOAuthDevices,
     }),
+    externalMcpOAuthPending,
+    externalMcpOAuthDevices,
     derivedPublicOrigin,
     composioConfigRepo,
     composioConnectors,

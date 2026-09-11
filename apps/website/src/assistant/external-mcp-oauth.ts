@@ -147,13 +147,23 @@ export function externalMcpSettingsDeepLink(serverId: string): string {
   return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
 }
 
-/** One device authorization awaiting the operator's approval. Held in memory for the same reason
- *  `oauth/pending-authorizations.ts` gives: it is worthless after a restart, so persisting it would
- *  only keep a redeemable secret alive past the point where anyone is waiting on it. */
+/**
+ * One device authorization awaiting the operator's approval.
+ *
+ * `Promise`-returning for the same reason `oauth/pending-authorizations.ts`'s
+ * `PendingAuthorizationStore` is: the real adapter
+ * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `createSqliteDeviceAuthorizationStore`)
+ * persists to `content.db` and seals `deviceCode` through the same ADR-058 sealer/keyring every
+ * other secret there goes through, so both implementations share one async call shape. This file's
+ * own `createDeviceAuthorizationStore` below is the in-memory ADR-006 "second adapter" — used by
+ * tests and by any composition root with no persistent `content.db` — not the production path; see
+ * `pending-authorizations.ts`'s header for the full argument (which applies here verbatim) for why
+ * "worthless after a restart" was never the reason cross-process durability matters.
+ */
 export interface DeviceAuthorizationStore {
-  put(serverId: string, authorization: DeviceAuthorization): void;
-  get(serverId: string): DeviceAuthorization | undefined;
-  delete(serverId: string): void;
+  put(serverId: string, authorization: DeviceAuthorization): Promise<void>;
+  get(serverId: string): Promise<DeviceAuthorization | undefined>;
+  delete(serverId: string): Promise<void>;
 }
 
 /** Bounded by the per-workspace server cap, so no explicit eviction policy is needed beyond
@@ -161,11 +171,13 @@ export interface DeviceAuthorizationStore {
 export function createDeviceAuthorizationStore(): DeviceAuthorizationStore {
   const byServerId = new Map<string, DeviceAuthorization>();
   return {
-    put: (serverId, authorization) => {
+    async put(serverId, authorization) {
       byServerId.set(serverId, authorization);
     },
-    get: (serverId) => byServerId.get(serverId),
-    delete: (serverId) => {
+    async get(serverId) {
+      return byServerId.get(serverId);
+    },
+    async delete(serverId) {
       byServerId.delete(serverId);
     },
   };
@@ -784,10 +796,20 @@ async function setOAuthStatus(
  *
  * @returns The service plus its `tokenResolver`, which `readEnabledExternalMcpConfigs` takes.
  * @complexity Construction is O(1) and performs no I/O.
- * @tradeoffs `pending` and `devices` are in-memory, so the start of a handshake and its completion
- *   must land on the same process. That holds today — both are Express routes on the main web
- *   server, and the agent daemon serves neither — and is stated here because a future multi-process
- *   web tier turns it into a shared-store problem rather than an intermittent, unexplained failure.
+ * @tradeoffs Whether the start of a handshake and its completion can land on different processes
+ *   depends entirely on which `pending`/`devices` implementation the caller injects. The agent
+ *   daemon is NOT an idle bystander here — `external_mcp_oauth_connect` is an assistant tool, and
+ *   assistant tools execute inside the daemon, so `beginConnect` for a browser-redirect grant
+ *   genuinely runs there while the public callback that completes it runs in the main web server, a
+ *   separate OS process. The in-memory implementations
+ *   (`oauth/pending-authorizations.ts`'s `createPendingAuthorizationStore`,
+ *   this file's own `createDeviceAuthorizationStore`) cannot survive that split — a `Map` in one
+ *   process is invisible to the other. The DB-backed implementations
+ *   (`platform/db/sqlite/oauth-pending-store.sqlite.ts`) can, because both processes open the same
+ *   `content.db`. Every production composition root injects the DB-backed pair for exactly this
+ *   reason; the in-memory pair remains correct only for a caller that can guarantee both halves of
+ *   a handshake run in the same process (a narrow test double, or a composition root with no
+ *   persistent `content.db` at all).
  */
 export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): ExternalMcpOAuthService {
   const refresher = createTokenRefresher({
@@ -860,7 +882,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
           { provider, clock: deps.clock, ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
           { client, scopes, timeoutMs: CONNECT_TIMEOUT_MS },
         );
-        deps.devices.put(record.serverId, authorization);
+        await deps.devices.put(record.serverId, authorization);
         await setOAuthStatus(deps, record.serverId, "pending");
         return {
           kind: "device_code",
@@ -888,7 +910,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
         );
       }
 
-      const started = beginAuthorizationCode(
+      const started = await beginAuthorizationCode(
         { provider, pending: deps.pending },
         {
           ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
@@ -922,7 +944,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
 
     async pollDeviceAuthorization(input) {
       const record = await requireOAuthRecord(deps, input.serverId);
-      const authorization = deps.devices.get(input.serverId);
+      const authorization = await deps.devices.get(input.serverId);
       if (!authorization) {
         throw new OAuthError("OAUTH_INVALID_STATE", `no device authorization is in progress for '${input.serverId}'`, {
           operatorAction: "Start the connection again from Settings → External MCP.",
@@ -941,7 +963,7 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
             timeoutMs: CONNECT_TIMEOUT_MS,
           },
         );
-        deps.devices.delete(input.serverId);
+        await deps.devices.delete(input.serverId);
         await persistTokens(deps, record, tokens);
         return { status: "connected" };
       } catch (error) {
@@ -950,14 +972,14 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
         if (isOAuthError(error) && error.retryable) {
           return { status: "pending", retryAfterSeconds: error.retryAfterSeconds ?? authorization.intervalSeconds };
         }
-        deps.devices.delete(input.serverId);
+        await deps.devices.delete(input.serverId);
         await setOAuthStatus(deps, input.serverId, "disconnected");
         throw error;
       }
     },
 
     async disconnect(input) {
-      deps.devices.delete(input.serverId);
+      await deps.devices.delete(input.serverId);
       await setOAuthStatus(deps, input.serverId, "disconnected", { clearToken: true });
     },
 

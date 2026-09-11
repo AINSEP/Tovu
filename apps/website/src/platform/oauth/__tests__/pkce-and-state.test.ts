@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createPendingAuthorizationStore } from "../pending-authorizations.js";
 import { assertValidCodeVerifier, createPkcePair, deriveCodeChallenge } from "../pkce.js";
-import { assertOAuthThrows, createTestClock } from "./helpers.js";
+import { assertOAuthRejects, assertOAuthThrows, createTestClock } from "./helpers.js";
 
 /**
  * @file PKCE (RFC 7636) and the single-use `state` ledger — the two mechanisms that make a PUBLIC
@@ -52,60 +52,64 @@ test("a verifier outside the unreserved charset is refused rather than silently 
   assert.equal(error.message, "PKCE code verifier contains characters outside RFC 7636's unreserved set");
 });
 
-test("a state is single use — the second redemption fails", () => {
+test("a state is single use — the second redemption fails", async () => {
   const clock = createTestClock();
   const store = createPendingAuthorizationStore({ clock });
-  const entry = store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
+  const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
 
-  assert.equal(store.take({ state: entry.state, ownerKey: "ws:server" }).state, entry.state);
-  const error = assertOAuthThrows(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
+  assert.equal((await store.take({ state: entry.state, ownerKey: "ws:server" })).state, entry.state);
+  const error = await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
   assert.equal(error.message, "the authorization request could not be matched — it may have expired or already been used");
 });
 
-test("a state cannot be redeemed against a different connection", () => {
+test("a state cannot be redeemed against a different connection", async () => {
   const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const entry = store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
+  const entry = await store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
 
-  assertOAuthThrows(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
+  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
 });
 
-test("a failed owner check still consumes the state, so it cannot be used as a retry oracle", () => {
+test("a failed owner check still consumes the state, so it cannot be used as a retry oracle", async () => {
   const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const entry = store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
+  const entry = await store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
 
-  assertOAuthThrows(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
+  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
   // The CORRECT owner must now also fail: the entry is gone.
-  assertOAuthThrows(() => store.take({ state: entry.state, ownerKey: "ws:server-a" }), "OAUTH_INVALID_STATE");
+  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-a" }), "OAUTH_INVALID_STATE");
 });
 
-test("a state expires and is pruned rather than lingering redeemable", () => {
+test("a state expires and is pruned rather than lingering redeemable", async () => {
   const clock = createTestClock();
   const store = createPendingAuthorizationStore({ clock, ttlMs: 60_000 });
-  const entry = store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-  assert.equal(store.size(), 1);
+  const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
+  assert.equal(await store.size(), 1);
 
   clock.advance(60_001);
-  assertOAuthThrows(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
-  assert.equal(store.size(), 0);
+  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
+  assert.equal(await store.size(), 0);
 });
 
-test("the store is bounded — at the cap the oldest entry is evicted, never the newest refused", () => {
+test("the store is bounded — at the cap the oldest entry is evicted, never the newest refused", async () => {
   const store = createPendingAuthorizationStore({ clock: createTestClock(), maxEntries: 3 });
-  const entries = Array.from({ length: 4 }, (_unused, index) =>
-    store.put({ ownerKey: `ws:server-${index}`, providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] }),
-  );
+  // Sequential `await`s, not `Promise.all` — insertion order is what "oldest" below depends on.
+  const entries = [];
+  for (let index = 0; index < 4; index += 1) {
+    entries.push(
+      await store.put({ ownerKey: `ws:server-${index}`, providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] }),
+    );
+  }
 
   const [oldest, , , newest] = entries;
   assert.ok(oldest && newest);
-  assert.equal(store.size(), 3);
+  assert.equal(await store.size(), 3);
   // Oldest gone...
-  assertOAuthThrows(() => store.take({ state: oldest.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
+  await assertOAuthRejects(() => store.take({ state: oldest.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
   // ...newest still redeemable, which is the property that keeps one caller from wedging the flow.
-  assert.equal(store.take({ state: newest.state, ownerKey: "ws:server-3" }).ownerKey, "ws:server-3");
+  assert.equal((await store.take({ state: newest.state, ownerKey: "ws:server-3" })).ownerKey, "ws:server-3");
 });
 
-test("an unknown state is refused with the same message as an expired one", () => {
+test("an unknown state is refused with the same message as an expired one", async () => {
   const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const error = assertOAuthThrows(() => store.take({ state: "not-a-real-state", ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
+  const error = await assertOAuthRejects(() => store.take({ state: "not-a-real-state", ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
   assert.equal(error.message, "the authorization request could not be matched — it may have expired or already been used");
 });

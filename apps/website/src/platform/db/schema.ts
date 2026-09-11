@@ -2365,6 +2365,95 @@ export const externalMcpServers = sqliteTable(
 );
 
 /**
+ * The in-flight `state` ledger for authorization-code + PKCE handshakes, shared by every process
+ * that opens this `content.db` — the durable form of `src/platform/oauth/pending-authorizations.ts`'s
+ * `PendingAuthorizationStore` port. See that file's header for the four security properties every
+ * implementation of the port must hold (random `state`, single-use, expiring, owner-bound); this
+ * table is the SQLite adapter's storage, not a new set of rules.
+ *
+ * Cross-process by design, not by accident: `assistant/external-mcp-oauth.ts`'s `beginConnect` can
+ * run inside the agent daemon (the `external_mcp_oauth_connect` tool) while the public OAuth
+ * callback that completes the same handshake runs inside the main web server — two separate OS
+ * processes, each with its own in-memory space. A `Map` in either process is invisible to the
+ * other; a row in this table is visible to both the moment it commits.
+ *
+ * `code_verifier` is the RFC 7636 PKCE secret. Sealed with the SAME ADR-058 sealer/keyring
+ * `external_mcp_servers` above shares, AAD-bound to `owner_key` so a copied ciphertext cannot be
+ * replayed under a different connection's row even by someone with raw table access. Always sealed,
+ * never null — a provider with `usesPkce: false` still seals the empty string, so the shape needs no
+ * all-null-or-all-set CHECK the way `external_mcp_servers`' OPTIONAL sealed blobs do.
+ *
+ * No `workspace_id` column: `owner_key` already encodes `${workspaceId}:${serverId}`
+ * (`external-mcp-oauth.ts`'s `ownerKeyOf`), and `state` is a fresh 24-byte random value per row, so
+ * a second column to prevent cross-workspace collision would be redundant.
+ *
+ * Rows are ephemeral by design (a 10-minute default TTL) and pruned opportunistically on `put`
+ * rather than by a timer — the same "no background work" tradeoff the in-memory implementation this
+ * table replaced already made; `idx_oauth_pending_expires_at` is what keeps that prune an indexed
+ * range scan instead of a full table scan as rows accumulate between prunes.
+ */
+export const oauthPendingAuthorizations = sqliteTable(
+  "oauth_pending_authorizations",
+  {
+    /** 24 random bytes, base64url — see this table's header on why that alone authenticates the
+     *  public callback. */
+    state: text("state").primaryKey(),
+    /** `${workspaceId}:${serverId}` today, but this table (like its port) knows nothing about what
+     *  minted the key — see `pending-authorizations.ts`'s `PendingAuthorization.ownerKey` doc. */
+    ownerKey: text("owner_key").notNull(),
+    providerId: text("provider_id").notNull(),
+    /** `SealedSecret.keyId` for the sealed `code_verifier` below. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    sealedNonce: text("sealed_nonce").notNull(),
+    sealedAlg: text("sealed_alg").notNull(),
+    /** Replayed verbatim on the token exchange — see `PendingAuthorization.redirectUri`'s doc. */
+    redirectUri: text("redirect_uri").notNull(),
+    /** JSON array of requested scope strings. */
+    scopesJson: text("scopes_json").notNull(),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => [index("idx_oauth_pending_expires_at").on(table.expiresAt)]
+);
+
+/**
+ * One in-progress RFC 8628 device authorization per connection — the durable form of
+ * `assistant/external-mcp-oauth.ts`'s `DeviceAuthorizationStore` port, for the identical
+ * cross-process reason `oauthPendingAuthorizations` above exists (see that table's header).
+ *
+ * Composite-PK by `(workspace_id, server_id)`, matching `external_mcp_servers`'s own shape: unlike
+ * `state` above, `server_id` is an OPERATOR-CHOSEN string unique only within a workspace, so a bare
+ * `server_id` key would let two workspaces that happen to choose the same id collide.
+ *
+ * `device_code` is the RFC 8628 secret sent on every poll — sealed the same way `code_verifier` is
+ * above, AAD-bound to `${workspace_id}:${server_id}` for the identical replay-across-rows reason.
+ * `user_code` / `verification_uri` / `verification_uri_complete` are safe to render to an operator
+ * and stay plaintext, matching `DeviceAuthorization`'s own doc.
+ */
+export const oauthDeviceAuthorizations = sqliteTable(
+  "oauth_device_authorizations",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    serverId: text("server_id").notNull(),
+    userCode: text("user_code").notNull(),
+    verificationUri: text("verification_uri").notNull(),
+    verificationUriComplete: text("verification_uri_complete"),
+    intervalSeconds: integer("interval_seconds").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    /** `SealedSecret.keyId` for the sealed `device_code` above. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    sealedNonce: text("sealed_nonce").notNull(),
+    sealedAlg: text("sealed_alg").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.serverId] })]
+);
+
+/**
  * One connected third-party ACCOUNT per `(workspace_id, connector_id)` — what survives an OAuth
  * handshake, and what `connectors/connector-credential-store.ts` seals.
  *

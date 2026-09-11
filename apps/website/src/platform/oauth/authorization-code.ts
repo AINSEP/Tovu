@@ -9,9 +9,14 @@ import { requestOAuthToken, type TokenRequestDeps } from "./token-endpoint.js";
  * @file The authorization-code grant with PKCE (RFC 6749 §4.1 + RFC 7636) — the primary path.
  *
  * Two functions, deliberately split across the browser round trip they straddle:
- * {@link beginAuthorizationCode} is synchronous and performs no I/O (nothing has been asked of the
- * provider yet — the operator's browser does the asking), and
- * {@link completeAuthorizationCode} performs exactly one bounded POST.
+ * {@link beginAuthorizationCode} talks to no THIRD PARTY (nothing has been asked of the provider yet
+ * — the operator's browser does the asking), and {@link completeAuthorizationCode} performs exactly
+ * one bounded POST. `beginAuthorizationCode` is `async` because recording the pending authorization
+ * (`deps.pending.put`) now goes through a `Promise`-returning port — see
+ * `pending-authorizations.ts`'s header for why that port is async even for its in-memory
+ * implementation — but it is still the ONLY thing this function awaits: no network call, no
+ * unbounded wait, nothing that can hang. Connect-time provider downtime surfaces at
+ * {@link completeAuthorizationCode} rather than here, exactly as before.
  *
  * ## What arrives at `complete` is untrusted
  *
@@ -101,18 +106,20 @@ function assertGrantSupported(provider: OAuthProviderDescriptor, grant: "authori
 /**
  * Mints PKCE + `state`, records the pending authorization, and builds the URL to send the browser to.
  *
- * Performs NO I/O: at this point the provider has not been contacted, so there is nothing to time
- * out and nothing to fail slowly. That is why connect-time provider downtime surfaces at
- * {@link completeAuthorizationCode} rather than here.
+ * Contacts no THIRD PARTY: at this point the provider has not been asked anything, so there is
+ * nothing on the network to time out or fail slowly. `deps.pending.put` is the one `await` in this
+ * function, and it is a local persistence write (in-memory or `content.db`, never a network call) —
+ * see this function's own `@file` doc for why the port is `Promise`-returning at all. That is why
+ * connect-time provider downtime surfaces at {@link completeAuthorizationCode} rather than here.
  *
  * @throws {OAuthError} `OAUTH_UNSUPPORTED_GRANT`, `OAUTH_UNSAFE_ENDPOINT`, or
  *   `OAUTH_INVALID_REQUEST` for a reserved extra parameter or an unusable redirect URI.
  * @complexity O(1) plus the store's bounded prune.
  */
-export function beginAuthorizationCode(
+export async function beginAuthorizationCode(
   deps: BeginAuthorizationCodeDeps,
   input: BeginAuthorizationCodeInput,
-): BeginAuthorizationCodeResult {
+): Promise<BeginAuthorizationCodeResult> {
   const { provider } = deps;
   assertGrantSupported(provider, "authorization_code");
   if (!provider.authorizationEndpoint) {
@@ -129,7 +136,7 @@ export function beginAuthorizationCode(
 
   const scopes = input.scopes ?? provider.defaultScopes;
   const pkce = provider.usesPkce ? createPkcePair(deps.randomBytesFn) : undefined;
-  const entry = deps.pending.put({
+  const entry = await deps.pending.put({
     ownerKey: input.ownerKey,
     providerId: provider.providerId,
     // Recorded even when PKCE is off so the stored shape is uniform; `complete` sends it only when
@@ -194,7 +201,7 @@ export async function completeAuthorizationCode(
   assertGrantSupported(deps.provider, "authorization_code");
   assertCallbackShape(input.params);
 
-  const entry = deps.pending.take({ state: input.params.state, ownerKey: input.ownerKey });
+  const entry = await deps.pending.take({ state: input.params.state, ownerKey: input.ownerKey });
   if (entry.providerId !== deps.provider.providerId) {
     // The state was minted against a different provider descriptor. Treat exactly as an unknown
     // state: the caller must not learn that a valid state exists for something else.

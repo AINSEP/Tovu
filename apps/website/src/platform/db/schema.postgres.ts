@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 81
+ * Tables: 83
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -495,6 +495,7 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   workspaceId: text("workspace_id").notNull(),
   serverId: text("server_id").notNull(),
   label: text("label"),
+  provisionedByPluginId: text("provisioned_by_plugin_id"),
   transport: text("transport").notNull(),
   authMode: text("auth_mode").notNull().default("static_env"),
   enabled: boolean("enabled").notNull(),
@@ -795,6 +796,40 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     index("idx_newsletter_campaigns_workspace").on(t.workspaceId),
+  ]);
+
+export const oauthDeviceAuthorizations = pgTable("oauth_device_authorizations", {
+  workspaceId: text("workspace_id").notNull(),
+  serverId: text("server_id").notNull(),
+  userCode: text("user_code").notNull(),
+  verificationUri: text("verification_uri").notNull(),
+  verificationUriComplete: text("verification_uri_complete"),
+  intervalSeconds: bigint("interval_seconds", { mode: "number" }).notNull(),
+  expiresAt: text("expires_at").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.serverId] }),
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+  ]);
+
+export const oauthPendingAuthorizations = pgTable("oauth_pending_authorizations", {
+  state: text("state").primaryKey(),
+  ownerKey: text("owner_key").notNull(),
+  providerId: text("provider_id").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  redirectUri: text("redirect_uri").notNull(),
+  scopesJson: text("scopes_json").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+}, (t) => [
+    index("idx_oauth_pending_expires_at").on(t.expiresAt),
   ]);
 
 export const originSettings = pgTable("origin_settings", {

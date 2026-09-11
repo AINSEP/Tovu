@@ -179,8 +179,8 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#s
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
-import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
+import { createExternalMcpOAuthService } from "#src/assistant/index";
+import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
 /**
  * The one site folder this process serves — the root every other runtime path below derives from.
@@ -1163,6 +1163,15 @@ export function createSqliteRouteDeps(
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
   const externalMcpServerRepo = new SqliteExternalMcpServerRepo(db);
+  // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
+  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below — see that doc for
+  // why `agent-daemon-server.ts`'s own second `ExternalMcpOAuthService` instance must reuse these
+  // rather than building a second pair over a second, independently-opened `content.db` handle.
+  // Backed by THIS root's `db` — the same file the main web server's public OAuth callback route and
+  // the agent daemon's `external_mcp_oauth_connect` tool both open their own handle onto, which is
+  // what lets either process complete a handshake the other started.
+  const externalMcpOAuthPending = createSqlitePendingAuthorizationStore({ db, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
+  const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
 
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
   // literal below, because `mailer:` (built from it) is an earlier property than
@@ -1273,10 +1282,12 @@ export function createSqliteRouteDeps(
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
-     * pending-authorization and device-authorization stores are in-memory and must be shared by the
-     * connect route and the public callback route — two routes in the same module, one instance,
-     * and a composition root is where "one instance" is expressible. See
-     * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
+     * pending-authorization and device-authorization stores must be shared by the connect route and
+     * the public callback route — two routes in the same module, one instance, and a composition
+     * root is where "one instance" is expressible. See `routes/types.ts`'s `externalMcpOAuth` doc
+     * for why the field is optional at all, and its `externalMcpOAuthPending`/`externalMcpOAuthDevices`
+     * doc for why `pending`/`devices` below are the SAME locals exposed as their own fields rather
+     * than built fresh here.
      */
     externalMcpOAuth: createExternalMcpOAuthService({
       workspaceId,
@@ -1284,9 +1295,11 @@ export function createSqliteRouteDeps(
       sealer: siteAssistantSecretSealer,
       keyring: siteAssistantSecretKeyring,
       clock,
-      pending: createPendingAuthorizationStore({ clock }),
-      devices: createDeviceAuthorizationStore(),
+      pending: externalMcpOAuthPending,
+      devices: externalMcpOAuthDevices,
     }),
+    externalMcpOAuthPending,
+    externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
     // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
     // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only

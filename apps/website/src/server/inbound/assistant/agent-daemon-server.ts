@@ -1060,18 +1060,31 @@ frontendControl.httpExtension(app, { adapter });
  * @overallScore 100
  */
 /**
- * This process's OWN OAuth service.
+ * This process's OWN OAuth service — a SECOND `ExternalMcpOAuthService` instance, not
+ * `routeDeps.externalMcpOAuth` reused directly.
  *
- * Not `routeDeps.externalMcpOAuth` — that one lives in the web server, and this is a different
- * process. The two share the only thing they must: the database row, which is where the sealed
- * token, the plaintext expiry, and the cross-process refresh lease all live. Building a second
- * service here is therefore not duplication; it is the daemon holding its own handle to shared
- * state, and `tryClaimOAuthRefreshLease` is what keeps the two from redeeming one single-use
- * rotating refresh token twice.
+ * Not because `routeDeps.externalMcpOAuth` "lives in the web server" — it does not; `routeDeps`
+ * above is built by THIS process's own `createSqliteRouteDepsForWorkspace`/`createRouteDeps` call
+ * (this file is its own composition root, same as the main web server is its), so that field is
+ * every bit as much a daemon-process object as this one. The real reason for a second instance is
+ * narrower: `resolveStoredExternalMcpConnections`/`onAuthFailed` below need a token
+ * resolver/`reportAuthFailure` bound to THIS boot's federation setup, and building that inline here
+ * is simpler than threading a second construction parameter through `createSqliteRouteDeps` for a
+ * concern only the daemon has. The two instances share the only thing they must: the database row,
+ * which is where the sealed token, the plaintext expiry, and the cross-process refresh lease all
+ * live — `tryClaimOAuthRefreshLease` is what keeps the two from redeeming one single-use rotating
+ * refresh token twice.
  *
- * Its pending-authorization and device-authorization stores are constructed and never used: this
- * process serves no connect route and no callback route, so no handshake can start here. Only the
- * refresh half of the service is reachable from the daemon.
+ * `pending`/`devices` below are `routeDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` —
+ * the SAME two stores `routeDeps.externalMcpOAuth` was built with, not a second pair. They are
+ * still, in practice, unreachable through THIS instance specifically: `resolveStoredExternalMcpConnections`
+ * only reads `.tokenResolver`, and `onAuthFailed` only calls `.reportAuthFailure` — neither reaches
+ * `beginConnect`/`completeAuthorizationCallback`/`pollDeviceAuthorization`, which is where a
+ * handshake actually touches them. The assistant tool that DOES start a handshake from this process
+ * (`external_mcp_oauth_connect`, wired against `routeDeps.externalMcpOAuth` in
+ * `features/external-mcp/tool-registrations.ts`) uses the OTHER instance — and reusing the same
+ * store objects here rather than building a redundant in-memory pair is what keeps this file's own
+ * doc accurate instead of quietly wrong the next time something is wired through this local.
  */
 const externalMcpOAuth = createExternalMcpOAuthService({
   workspaceId: routeDeps.workspaceId,
@@ -1079,8 +1092,10 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   sealer: routeDeps.siteAssistantSecretSealer,
   keyring: routeDeps.siteAssistantSecretKeyring,
   clock: routeDeps.clock,
-  pending: createPendingAuthorizationStore({ clock: routeDeps.clock }),
-  devices: createDeviceAuthorizationStore(),
+  // Falls back to a fresh in-memory pair only if some future narrower `RouteDeps` builder leaves
+  // these unset (see `routes/types.ts`'s doc on both fields) — every real composition root sets them.
+  pending: routeDeps.externalMcpOAuthPending ?? createPendingAuthorizationStore({ clock: routeDeps.clock }),
+  devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
 });
 
 async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedConnection[]> {

@@ -23,31 +23,49 @@ import type { OAuthClock, OAuthRandomBytes } from "./ports.js";
  * - **Bound to an owner.** A `state` minted for one connection cannot be redeemed against another,
  *   even by a caller who legitimately holds it.
  *
- * ## Why in-memory
+ * ## Why this is an async port, and why an in-memory implementation still lives here
  *
- * A pending authorization is worthless after a restart — the operator's popup is gone with it — so
- * durability would only preserve a redeemable secret past the point where anyone is waiting on it.
- * The cost is that the START and the CALLBACK must land on the same process. That is true today
- * (both are Express routes on the main web server; the agent daemon serves neither), and it is
- * stated here because a future multi-process web tier turns this file into a shared-store problem
- * rather than a subtle intermittent failure.
+ * The port is `Promise`-returning even though this file's own `createPendingAuthorizationStore`
+ * implementation does no I/O at all: the REAL adapter
+ * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `createSqlitePendingAuthorizationStore`)
+ * persists every entry to `content.db` and seals `codeVerifier` through the same ADR-058
+ * sealer/keyring every other secret in that database goes through, and sealing is Promise-based
+ * everywhere else in this codebase (`SecretSealerPort.seal`/`.open`). A synchronous port would have
+ * to keep the two implementations' call shapes different, which is exactly the kind of asymmetry
+ * that stays unnoticed until a caller written against the memory adapter breaks against the real one.
+ *
+ * This in-memory implementation is now the ADR-006 rule-of-two "second adapter" — used by tests and
+ * by any composition root with no persistent `content.db` to attach a real store to — not the
+ * production path. It used to BE the production path, and the reasoning that justified that (a
+ * pending authorization is worthless after a restart, so durability buys nothing) was true but
+ * incomplete: it answered "does this need to survive a RESTART" and never asked "does this need to
+ * survive a different PROCESS reading it," which is the question that actually mattered. The start
+ * of a browser-redirect handshake (`external_mcp_oauth_connect`, an assistant tool that runs inside
+ * the agent daemon) and its completion (the public OAuth callback, an Express route on the main web
+ * server) are ALREADY two separate OS processes today — not a hypothetical future multi-process web
+ * tier — and an in-memory `Map` in either process was invisible to the other. That gap is what
+ * `oauth-pending-store.sqlite.ts` closes; this file's own store remains correct for the callers that
+ * still only need one process to see the whole handshake.
  */
 
-/** Same width as the Composio flow's state — see this file's header. */
-const STATE_BYTES = 24;
+/** Same width as the Composio flow's state — see this file's header. Exported so
+ *  `oauth-pending-store.sqlite.ts` mints `state` at the identical width rather than restating the
+ *  number. */
+export const STATE_BYTES = 24;
 /** Long enough for a human to complete a provider's consent screen including an MFA prompt, short
- *  enough that an abandoned attempt stops being redeemable while the operator is still at their desk. */
-const DEFAULT_TTL_MS = 10 * 60 * 1000;
+ *  enough that an abandoned attempt stops being redeemable while the operator is still at their desk.
+ *  Exported for the same reason {@link STATE_BYTES} is. */
+export const DEFAULT_TTL_MS = 10 * 60 * 1000;
 /**
  * Hard ceiling on live entries.
  *
  * The start route is authenticated and rate-limited, so this is not the primary control; it is the
- * bound that makes the memory cost of this map knowable regardless. At the cap the OLDEST entry is
- * evicted rather than the new one refused: refusing would let anyone who can reach the start route
- * wedge the flow shut for every other admin, which is a worse failure than one stale pending
- * authorization losing its slot.
+ * bound that makes the memory (or row) cost of this store knowable regardless. At the cap the OLDEST
+ * entry is evicted rather than the new one refused: refusing would let anyone who can reach the
+ * start route wedge the flow shut for every other admin, which is a worse failure than one stale
+ * pending authorization losing its slot. Exported for the same reason {@link STATE_BYTES} is.
  */
-const DEFAULT_MAX_ENTRIES = 256;
+export const DEFAULT_MAX_ENTRIES = 256;
 
 /** One authorization request that has been started and not yet completed. */
 export interface PendingAuthorization {
@@ -73,8 +91,9 @@ export interface PendingAuthorization {
 }
 
 export interface PendingAuthorizationStore {
-  /** Mints and records a pending authorization, returning it. */
-  put(input: Omit<PendingAuthorization, "state" | "createdAt" | "expiresAt">): PendingAuthorization;
+  /** Mints and records a pending authorization, returning it. `Promise`-returning because the real
+   *  adapter seals `codeVerifier` — see this file's header. */
+  put(input: Omit<PendingAuthorization, "state" | "createdAt" | "expiresAt">): Promise<PendingAuthorization>;
   /**
    * Redeems `state` for `ownerKey`, consuming it.
    *
@@ -82,9 +101,9 @@ export interface PendingAuthorizationStore {
    * bound to a different owner. One code for all four on purpose: distinguishing them would tell a
    * caller who guessed a state that it exists.
    */
-  take(input: { state: string; ownerKey: string }): PendingAuthorization;
+  take(input: { state: string; ownerKey: string }): Promise<PendingAuthorization>;
   /** Live, unexpired entries. Exposed for tests and for an operational counter. */
-  size(): number;
+  size(): Promise<number>;
 }
 
 export interface PendingAuthorizationStoreDeps {
@@ -96,14 +115,19 @@ export interface PendingAuthorizationStoreDeps {
 }
 
 /** Constant-time string comparison for the owner binding. Length is compared first because
- *  `timingSafeEqual` throws on a length mismatch; length is not the secret. */
-function secureEquals(a: string, b: string): boolean {
+ *  `timingSafeEqual` throws on a length mismatch; length is not the secret. Exported so
+ *  `oauth-pending-store.sqlite.ts` enforces the identical owner-binding check against a DB row
+ *  rather than restating (and risking drift from) the comparison. */
+export function secureEquals(a: string, b: string): boolean {
   const left = Buffer.from(a, "utf8");
   const right = Buffer.from(b, "utf8");
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function invalidState(): OAuthError {
+/** The one error every "this state cannot be redeemed" case throws — unknown, expired, replayed, or
+ *  wrong owner all look identical to the caller. Exported so the SQLite adapter raises the
+ *  byte-identical error rather than a second message a caller would have to learn to recognize too. */
+export function invalidState(): OAuthError {
   return new OAuthError("OAUTH_INVALID_STATE", "the authorization request could not be matched — it may have expired or already been used", {
     operatorAction: "Start the connection again from Settings → External MCP.",
   });
@@ -134,7 +158,7 @@ export function createPendingAuthorizationStore(deps: PendingAuthorizationStoreD
   };
 
   return {
-    put(input) {
+    async put(input) {
       const nowIso = deps.clock.nowIso();
       const nowMs = Date.parse(nowIso);
       pruneExpired(nowMs);
@@ -154,7 +178,7 @@ export function createPendingAuthorizationStore(deps: PendingAuthorizationStoreD
       return entry;
     },
 
-    take(input) {
+    async take(input) {
       const nowMs = Date.parse(deps.clock.nowIso());
       pruneExpired(nowMs);
 
@@ -167,7 +191,7 @@ export function createPendingAuthorizationStore(deps: PendingAuthorizationStoreD
       return entry;
     },
 
-    size() {
+    async size() {
       pruneExpired(Date.parse(deps.clock.nowIso()));
       return pending.size;
     },

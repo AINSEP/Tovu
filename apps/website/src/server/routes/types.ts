@@ -54,7 +54,8 @@ import type { ComposioConfigRepoPort } from "../../platform/connectors/composio-
 import type { ComposioConnectors } from "../../platform/connectors/composio-service.js";
 import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
-import type { ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
+import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
+import type { PendingAuthorizationStore } from "#src/platform/oauth/index";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -316,15 +317,42 @@ export interface CredentialsDeps {
    * The OAuth subsystem for `authMode: "oauth"` external MCP connections
    * (`assistant/external-mcp-oauth.ts`), or absent.
    *
-   * OPTIONAL, and the optionality is the contract rather than a convenience. The service holds
-   * in-memory pending-authorization and device-authorization state, so the start of a handshake and
-   * its completion must land on the SAME process — true for the main web server, which serves both
-   * the connect route and the public callback, and false for the agent daemon, which serves
-   * neither. A composition that cannot honour that must be able to leave this unset, and
-   * `modules/external-mcp.ts` then registers no OAuth routes at all: an unauthenticated public
-   * callback endpoint that can complete nothing should not exist.
+   * OPTIONAL. Not because the state it holds is process-bound (see
+   * `externalMcpOAuthPending`/`externalMcpOAuthDevices` below for why that claim used to be here and
+   * was wrong) — a caller with no persistent `content.db` to attach a real store to, or a narrow test
+   * double that has no reason to wire OAuth at all, may still leave this unset, and
+   * `modules/external-mcp.ts` then registers no OAuth routes: an unauthenticated public callback
+   * endpoint that can complete nothing should not exist.
    */
   externalMcpOAuth?: ExternalMcpOAuthService;
+  /**
+   * The pending-authorization / device-authorization stores `externalMcpOAuth` above is built from —
+   * exposed as their OWN fields, alongside the service, rather than only living inside it.
+   *
+   * Why: `agent-daemon-server.ts` builds its OWN, second `ExternalMcpOAuthService` instance (its own
+   * header explains why — the refresh/reportAuthFailure half of the service needs to run in that
+   * process too), and that second instance needs the SAME `pending`/`devices` stores this one uses,
+   * not a second pair pointed at the same table through a second, independently-opened `content.db`
+   * handle (which would re-run that file's `migrate()` a second time per boot — the exact hazard
+   * `toolAttemptAuditSink`'s own doc on this interface already argues against reintroducing). Built
+   * ONCE per composition root and threaded through both instances instead.
+   *
+   * These are what actually make `beginConnect`/`completeAuthorizationCallback`/
+   * `pollDeviceAuthorization` work across processes: `composition/deps.ts`'s `createSqliteRouteDeps`
+   * backs them with `platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `content.db`-backed
+   * adapters, so a handshake begun in the agent daemon (`external_mcp_oauth_connect` is an assistant
+   * tool — it runs there) can be completed by the public callback route running in the main web
+   * server. `composition/app.ts`'s hermetic root, which owns no `content.db` at all, backs them with
+   * the in-memory adapters instead — correct for that root, which never splits a handshake across
+   * two processes in the first place.
+   *
+   * OPTIONAL for the same structural reason `externalMcpOAuth` is: a narrower test double that never
+   * sets these gets no fallback rather than a broken build. A caller reading them without a
+   * composition root's guarantee that they are set (`agent-daemon-server.ts`, notably) falls back to
+   * building its own in-memory pair rather than crashing.
+   */
+  externalMcpOAuthPending?: PendingAuthorizationStore;
+  externalMcpOAuthDevices?: DeviceAuthorizationStore;
   /**
    * This process's own best-effort public origin (`"https://localhost:3000"`-shaped) — the scheme
    * from whether THIS process terminates TLS itself (`server/runtime/boot/dev-tls.ts`) and the port
