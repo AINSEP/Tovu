@@ -2251,6 +2251,20 @@ export const externalMcpServers = sqliteTable(
     /** Operator-chosen `[a-z0-9-]` id — see this table's header for why the charset is load-bearing. */
     serverId: text("server_id").notNull(),
     label: text("label"),
+    /**
+     * The Agent Plugin id that auto-provisioned this row (`features/agent-plugins/federate-mcp.ts`),
+     * or NULL for a row an operator created by hand through Settings → External MCP / the
+     * `external_mcp_save` tool. Lets the admin UI, and a future uninstall flow, tell the two apart.
+     *
+     * Set ONLY at row creation, by `federate-mcp.ts`'s own `saveExternalMcpServer` call — every other
+     * caller (the PUT route, the assistant tool) omits it, and `saveExternalMcpServer` PRESERVES an
+     * existing value when the field is absent, the same tri-state rule every other system-owned
+     * column here follows (`oauth_client_id`'s `clientAuth` is the precedent). A row a plugin
+     * provisions is never overwritten by a later provisioning attempt in the first place (Owner
+     * decision 2026-09-10: "the existing row wins" — see `federate-mcp.ts`'s header), so this column
+     * is written exactly once, at INSERT, for a plugin-provisioned row's entire lifetime.
+     */
+    provisionedByPluginId: text("provisioned_by_plugin_id"),
     /** `'stdio'` or `'streamable_http'` — see `assistant/external-mcp-store.ts`'s
      *  `SUPPORTED_EXTERNAL_MCP_TRANSPORTS`. Both are federatable. ORTHOGONAL to `auth_mode`: a
      *  stdio server can use OAuth, and an HTTP one can use a static token. */

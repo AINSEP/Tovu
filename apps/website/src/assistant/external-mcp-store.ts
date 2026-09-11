@@ -121,6 +121,9 @@ export interface ExternalMcpServerRecord {
   workspaceId: UUID;
   serverId: string;
   label: string | null;
+  /** The Agent Plugin id that auto-provisioned this row, or `null` for an operator-created one. See
+   *  `schema.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
+  provisionedByPluginId: string | null;
   transport: string;
   /** How credentials are obtained. Independent of `transport` — see this file's header. */
   authMode: string;
@@ -287,6 +290,9 @@ export interface ExternalMcpOAuthView {
 export interface ExternalMcpServerView {
   serverId: string;
   label: string;
+  /** Which Agent Plugin auto-provisioned this row, or `null` for one an operator created by hand —
+   *  what lets the admin tab (and a future uninstall flow) tell the two apart. */
+  provisionedByPluginId: string | null;
   transport: string;
   authMode: string;
   enabled: boolean;
@@ -598,6 +604,7 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
   return {
     serverId: record.serverId,
     label: record.label ?? record.serverId,
+    provisionedByPluginId: record.provisionedByPluginId,
     transport: record.transport,
     authMode: resolveExternalMcpAuthMode(record),
     enabled: record.enabled,
@@ -948,6 +955,15 @@ export interface SaveExternalMcpServerInput {
   /** Raw operator input, `KEY=VALUE` per line. `undefined` leaves an existing block untouched. */
   env?: string;
   oauth?: SaveExternalMcpOAuthInput;
+  /**
+   * Set ONLY by `features/agent-plugins/federate-mcp.ts`, on the ONE save that creates a brand-new
+   * plugin-provisioned row. Every other caller (the admin PUT route, the assistant's own
+   * `external_mcp_save` tool) omits this field entirely, and an omitted field PRESERVES whatever the
+   * row already has — the same three-state rule `env` establishes, minus the "empty string clears
+   * it" arm: nothing should ever intentionally clear this column once set, so no clear signal is
+   * defined for it. See `schema.ts`'s `provisioned_by_plugin_id` doc for the full rule.
+   */
+  provisionedByPluginId?: string;
   /**
    * The principal performing this save, threaded from `getAuthedPrincipal(res)` at the route. Used
    * ONLY to attribute a change to {@link writeAllowedToolNames} — see {@link
@@ -1685,6 +1701,7 @@ export async function saveExternalMcpServer(
     workspaceId: input.workspaceId,
     serverId,
     label: input.label?.trim() || null,
+    provisionedByPluginId: input.provisionedByPluginId ?? existing?.provisionedByPluginId ?? null,
     transport: input.transport,
     authMode,
     enabled: input.enabled,

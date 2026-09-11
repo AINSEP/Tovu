@@ -27,6 +27,7 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     workspaceId: WORKSPACE,
     serverId: "my-server",
     label: "My Server",
+    provisionedByPluginId: null,
     transport: "stdio",
     enabled: true,
     command: "npx",

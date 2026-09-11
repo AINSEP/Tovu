@@ -1,0 +1,1 @@
+ALTER TABLE `external_mcp_servers` ADD `provisioned_by_plugin_id` text;

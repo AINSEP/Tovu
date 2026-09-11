@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { applyAgentPluginMcpFederation, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
+import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -66,15 +66,20 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * HTTP status mapping.
  *
  * ---------------------------------------------------------------------------
- * 2026-09-10: this toggle also federates a plugin's auto-admitted MCP servers
+ * 2026-09-10: enabling this plugin also PROVISIONS its auto-admitted MCP servers
  * ---------------------------------------------------------------------------
- * After activation succeeds, this handler calls `features/agent-plugins/federate-mcp.ts`'s
- * `applyAgentPluginMcpFederation` to upsert (on enable) or deactivate (on disable) a row in the SAME
- * external-MCP store Settings → External MCP already owns, for every remote MCP server this plugin
- * declares that `classifyAgentPluginMcpServerTrust` auto-admits — see that module's own header for
- * the full argument and for why a `stdio` server never reaches this path at all.
+ * On a successful ENABLE only, this handler calls `features/agent-plugins/federate-mcp.ts`'s
+ * `provisionAgentPluginMcpServers` to create (if absent) a disabled row in the SAME external-MCP
+ * store Settings → External MCP already owns, for every remote MCP server this plugin declares that
+ * `classifyAgentPluginMcpServerTrust` auto-admits — see that module's own header for the full
+ * argument, its three collision rules (never clobber an existing row, seed disabled, provisioning is
+ * not authorization), and why a `stdio` server never reaches this path at all.
  *
- * Deliberately best-effort: a federation failure is logged, never thrown back to the client. The
+ * Disabling the plugin does NOT call this at all — there is nothing to provision on a disable, and
+ * `federate-mcp.ts`'s own header states explicitly that a provisioned row survives a disable (or an
+ * uninstall) rather than being deactivated or deleted by this route.
+ *
+ * Deliberately best-effort: a provisioning failure is logged, never thrown back to the client. The
  * plugin's own activation state (the thing this route is actually named for) must not fail because
  * one MCP row could not be written — the same fail-open posture `agent-daemon-server.ts`'s own
  * `resolveStoredExternalMcpConnections` takes for the identical store at boot. `plugins_set_enabled`
@@ -83,8 +88,9 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * deps this route now threads through `AgentPluginsRouteDeps`, which that tool's own call site does
  * not have today.
  *
- * A saved row does not take effect until the agent daemon restarts (`external-mcp/put.ts`'s own
- * doc states the same rule for an operator-typed row) — federation config is read once at boot.
+ * A provisioned row is created DISABLED and needs an assistant restart on top of that once an
+ * operator enables and authorizes it (`external-mcp/put.ts`'s own doc states the same restart rule
+ * for an operator-typed row) — federation config is read once at boot.
  */
 
 /** The `list.ts` row shape, for one plugin, so the client can replace a row in place rather than
@@ -109,26 +115,26 @@ function sendUpdatedRow(
 }
 
 /**
- * Best-effort: wires `pluginId`'s auto-admitted remote MCP servers into the external-MCP store for
- * `written.enabled`'s new state, logging rather than throwing on failure — see this file's own
- * header for why activation must not fail on a federation problem.
+ * Best-effort: provisions `pluginId`'s auto-admitted remote MCP servers into the external-MCP store
+ * (create-if-absent, never touching an existing row — see `federate-mcp.ts`'s header), logging
+ * rather than throwing on failure. Caller-gated to the enable path only; see this file's own header.
  */
-async function federateAgentPluginMcpServers(
+async function provisionAgentPluginMcpServersBestEffort(
   deps: AgentPluginsRouteDeps,
-  input: { readonly pluginId: string; readonly enabled: boolean; readonly principalId: string },
+  input: { readonly pluginId: string; readonly principalId: string },
 ): Promise<void> {
   try {
     const servers = await resolveAgentPluginMcpServers({ workspaceId: deps.workspaceId, pluginId: input.pluginId });
-    const result = await applyAgentPluginMcpFederation(
+    const result = await provisionAgentPluginMcpServers(
       { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
-      { workspaceId: deps.workspaceId, pluginId: input.pluginId, servers, enabled: input.enabled, principalId: input.principalId },
+      { workspaceId: deps.workspaceId, pluginId: input.pluginId, servers, principalId: input.principalId },
     );
     for (const failure of result.failed) {
-      console.warn(`[agent-plugins] '${input.pluginId}': MCP federation for server '${failure.serverKey}' failed — ${failure.reason}`);
+      console.warn(`[agent-plugins] '${input.pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}`);
     }
   } catch (error) {
     console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP federation could not be applied — ${error instanceof Error ? error.message : String(error)}`,
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -169,7 +175,11 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
 
       const written = await setAgentPluginEnabled({ workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
 
-      await federateAgentPluginMcpServers(deps, { pluginId, enabled: written.enabled, principalId: principal.id });
+      // Provisioning only ever runs on enable — disabling has nothing to provision, and a
+      // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).
+      if (written.enabled) {
+        await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
+      }
 
       sendUpdatedRow(res, candidate, written.enabled);
     } catch (error) {

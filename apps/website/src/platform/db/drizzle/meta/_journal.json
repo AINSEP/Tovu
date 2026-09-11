@@ -428,6 +428,13 @@
       "when": 1788804775766,
       "tag": "0060_fast_human_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1789096085920,
+      "tag": "0061_aspiring_vulcan",
+      "breakpoints": true
     }
   ]
 }
