@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { DragEvent } from "react";
 
 import { api, describeApiError } from "../../lib/api";
+import { folderPathsFromDataTransfer, getFsFolderDropPort } from "./fs-folder-drop";
 
 /**
  * @file State for the composer's folder control (`FsFolderIndicator.tsx`) — the operator-facing
@@ -12,6 +14,16 @@ import { api, describeApiError } from "../../lib/api";
  * This hook only ever sends a PATH — never a file, never a directory listing — to
  * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root`. Setting a folder here does not read
  * anything under it; see `custom-root-store.ts`'s own header for the full argument.
+ *
+ * `onDropCapture`/`onDragOver` (2026-09-10) add a second input method — dragging a folder onto
+ * this control — on top of that same PUT, following `apps/desktop`'s already-shipped fleet-chat
+ * pattern (`App.tsx`'s `RunnerChatPane.onDropCapture`): see `fs-folder-drop.ts`'s own header for
+ * the full capability-gate story. Both handlers are deliberate no-ops outside the desktop shell —
+ * they never call `preventDefault`/`stopPropagation` when `getFsFolderDropPort` returns `null` — so
+ * a plain browser tab's drag-and-drop behavior (today: `@jini-ai/chat`'s own attachment upload) is
+ * left completely alone. A drop reads no file content at any point: `folderPathsFromDataTransfer`
+ * only calls `webkitGetAsEntry().isDirectory` (metadata) and the synchronous `getPathForFile`
+ * bridge call, both independent of the dropped folder's size.
  */
 
 export interface UseFsFolderIndicator {
@@ -30,6 +42,12 @@ export interface UseFsFolderIndicator {
   readonly cancelEditing: () => void;
   readonly submit: () => void;
   readonly clear: () => void;
+  /** Capture-phase drop handler — attach as `onDropCapture` on every root this control renders.
+   *  See this file's own header for why capture phase and why it no-ops outside the desktop shell. */
+  readonly onDropCapture: (event: DragEvent<HTMLElement>) => void;
+  /** Only `preventDefault`s (so the browser will actually deliver the drop) when a drop could be
+   *  handled here — a plain browser tab's drag-over behavior is otherwise left untouched. */
+  readonly onDragOver: (event: DragEvent<HTMLElement>) => void;
 }
 
 /**
@@ -77,8 +95,13 @@ export function useFsFolderIndicator(): UseFsFolderIndicator {
     setError(null);
   }, []);
 
-  const submit = useCallback(() => {
-    const value = draft.trim();
+  /**
+   * The one PUT both `submit` (the editor's typed/pasted value) and `onDropCapture` (a
+   * drag-resolved value) send — factored out so a drop reuses exactly the same request, success,
+   * and error handling as typing, rather than a second copy of it.
+   */
+  const submitPath = useCallback((rawValue: string) => {
+    const value = rawValue.trim();
     if (value.length === 0) return;
     setPending(true);
     setError(null);
@@ -95,7 +118,47 @@ export function useFsFolderIndicator(): UseFsFolderIndicator {
       .finally(() => {
         if (mountedRef.current) setPending(false);
       });
-  }, [draft]);
+  }, []);
+
+  const submit = useCallback(() => {
+    submitPath(draft);
+  }, [draft, submitPath]);
+
+  /**
+   * Capture phase, deliberately not a bubble-phase `onDrop`: has to see the raw event BEFORE
+   * `@jini-ai/chat`'s own bubble-phase drop handler (attached further up this control, on the
+   * composer's drop-target wrapper) would expand a dropped folder into synthesized per-leaf `File`
+   * objects and stage them as attachments — see `fs-folder-drop.ts`'s doc on
+   * `folderPathsFromDataTransfer` for why that expansion loses the folder's own path. Mirrors
+   * `apps/desktop`'s `RunnerChatPane.onDropCapture` (`App.tsx`) exactly, one level down: that
+   * handler wraps the whole fleet chat pane and inserts the path as composer text; this one wraps
+   * just this control and PUTs the path instead, since the admin assistant reads files through the
+   * `fs-files` `custom` root rather than having raw filesystem access of its own.
+   *
+   * No bridge (`getFsFolderDropPort` returns `null`, i.e. a plain browser tab): returns without
+   * calling `preventDefault`/`stopPropagation`, so the event falls through to whatever handling
+   * already exists — today, `@jini-ai/chat`'s own attachment upload — completely unchanged. A drop
+   * that resolves to no folder (a loose file, a text drag) is left alone for the same reason: it
+   * becomes a real staged attachment via the composer's existing upload path, not a silently
+   * swallowed drop.
+   */
+  const onDropCapture = useCallback(
+    (event: DragEvent<HTMLElement>) => {
+      const port = getFsFolderDropPort(typeof window === "undefined" ? undefined : window);
+      if (port === null) return;
+      const [folderPath] = folderPathsFromDataTransfer(event.dataTransfer, port.getPathForFile);
+      if (folderPath === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      submitPath(folderPath);
+    },
+    [submitPath],
+  );
+
+  const onDragOver = useCallback((event: DragEvent<HTMLElement>) => {
+    if (getFsFolderDropPort(typeof window === "undefined" ? undefined : window) === null) return;
+    event.preventDefault();
+  }, []);
 
   const clear = useCallback(() => {
     setPending(true);
@@ -113,5 +176,18 @@ export function useFsFolderIndicator(): UseFsFolderIndicator {
       });
   }, []);
 
-  return { path, editing, draft, pending, error, setDraft, startEditing, cancelEditing, submit, clear };
+  return {
+    path,
+    editing,
+    draft,
+    pending,
+    error,
+    setDraft,
+    startEditing,
+    cancelEditing,
+    submit,
+    clear,
+    onDropCapture,
+    onDragOver,
+  };
 }

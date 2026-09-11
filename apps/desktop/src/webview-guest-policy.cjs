@@ -20,8 +20,10 @@
  *
  * Assigning the shell's own absolute path is strictly stronger than deleting: the page still cannot
  * choose, and the grant is the same one the standalone window already makes to the same origin. The
- * surface is two channels — `tovu:speech:isAvailable` and `tovu:speech:transcribe`, both on-device
- * with no filesystem or network reach (`speech-ipc.cjs`) — and `registerGuestNavigationPolicy`
+ * surface is two IPC channels — `tovu:speech:isAvailable` and `tovu:speech:transcribe`, both
+ * on-device with no filesystem or network reach (`speech-ipc.cjs`) — plus one synchronous, non-IPC
+ * call, `tovuFs.getPathForFile` (2026-09-10), which resolves a dropped `File`'s real OS path and
+ * touches no filesystem itself (see `preload-speech.cjs`'s own header). `registerGuestNavigationPolicy`
  * already confines the guest to its own origin.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as

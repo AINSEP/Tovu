@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import { FsFolderIndicator } from "../FsFolderIndicator";
 
@@ -8,10 +8,35 @@ import { FsFolderIndicator } from "../FsFolderIndicator";
  * @file First dedicated test file for `FsFolderIndicator.tsx`/`FsFolderIndicator.hooks.ts` — the
  * chat composer's folder control for the assistant's `fs-files` `custom` root. Covers the loading
  * gap (renders nothing until the initial GET settles), the unset/set display states, the inline
- * editor's set/cancel/clear round trips, and the server-rejection error path — all against a mocked
- * `../../lib/api`, same convention `use-access-tokens.unit.test.tsx` documents for this repo
- * ("mocking just those [named exports] keeps every other lib/api export real").
+ * editor's set/cancel/clear round trips, the server-rejection error path, and (2026-09-10) the
+ * drag-and-drop input method — all against a mocked `../../lib/api`, same convention
+ * `use-access-tokens.unit.test.tsx` documents for this repo ("mocking just those [named exports]
+ * keeps every other lib/api export real").
  */
+
+/**
+ * A minimal `DataTransfer`-shaped drop payload carrying one dropped FOLDER, matching what
+ * `folderPathsFromDataTransfer` (`../fs-folder-drop.ts`) reads: one `kind: "file"` item whose
+ * `webkitGetAsEntry()` reports `isDirectory: true`, aligned with one `File` in `.files`. `text`/
+ * `arrayBuffer` on that `File` throw — if `FsFolderIndicator`'s drop handling ever read the
+ * dropped folder's contents instead of only resolving its path, these tests would fail loudly
+ * rather than silently passing.
+ */
+function folderDropDataTransfer(): DataTransfer {
+  const file = {
+    name: "demo",
+    text: () => {
+      throw new Error("must not read a dropped folder's contents");
+    },
+    arrayBuffer: () => {
+      throw new Error("must not read a dropped folder's contents");
+    },
+  } as unknown as File;
+  return {
+    items: [{ kind: "file", webkitGetAsEntry: () => ({ isDirectory: true }) }],
+    files: [file],
+  } as unknown as DataTransfer;
+}
 
 const { getFsFilesCustomRoot, setFsFilesCustomRoot, clearFsFilesCustomRoot } = vi.hoisted(() => ({
   getFsFilesCustomRoot: vi.fn(),
@@ -118,5 +143,47 @@ describe("FsFolderIndicator", () => {
 
     await waitFor(() => expect(clearFsFilesCustomRoot).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("No folder set")).toBeInTheDocument();
+  });
+
+  describe("dropping a folder (desktop shell only)", () => {
+    afterEach(() => {
+      delete (window as { tovuFs?: unknown }).tovuFs;
+    });
+
+    it("resolves the dropped directory's real absolute path and PUTs it — the same request typed input uses", async () => {
+      const getPathForFile = vi.fn().mockReturnValue("/Users/la/Programming/kUInetic/demo");
+      window.tovuFs = { getPathForFile };
+      getFsFilesCustomRoot.mockResolvedValue({ path: null });
+      setFsFilesCustomRoot.mockResolvedValue({ path: "/Users/la/Programming/kUInetic/demo" });
+
+      const { container } = render(<FsFolderIndicator />);
+      await screen.findByText("No folder set");
+
+      fireEvent.drop(container.querySelector(".tovu-fs-folder-indicator")!, {
+        dataTransfer: folderDropDataTransfer(),
+      });
+
+      await waitFor(() => expect(setFsFilesCustomRoot).toHaveBeenCalledWith("/Users/la/Programming/kUInetic/demo"));
+      expect(await screen.findByText("demo")).toBeInTheDocument();
+      // The path came from the bridge, not read off the dropped File in any other way.
+      expect(getPathForFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("is a no-op in a plain browser tab — no window.tovuFs means no absolute path is obtainable, so typed/pasted input stays the only way in", async () => {
+      // window.tovuFs deliberately left unset — the browser case.
+      getFsFilesCustomRoot.mockResolvedValue({ path: null });
+      const { container } = render(<FsFolderIndicator />);
+      await screen.findByText("No folder set");
+
+      fireEvent.drop(container.querySelector(".tovu-fs-folder-indicator")!, {
+        dataTransfer: folderDropDataTransfer(),
+      });
+
+      // Nothing async to await for a deliberate no-op; flush one microtask turn so a wrongly-async
+      // handler would have had a chance to fire before the assertion below runs.
+      await Promise.resolve();
+      expect(setFsFilesCustomRoot).not.toHaveBeenCalled();
+      expect(screen.getByText("No folder set")).toBeInTheDocument();
+    });
   });
 });
