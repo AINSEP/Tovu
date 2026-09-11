@@ -136,10 +136,9 @@ if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
 }
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
- *  is what makes `window.tovuVoice` (and, since 2026-09-10, `window.tovuFs`) exist inside Electron
- *  at all; see `preload-speech.cjs`'s and `speech-ipc.cjs`'s own headers for the wiring gap this
- *  closes (both were built and tested with neither this path nor {@link registerSpeechIpc} ever
- *  called from here). */
+ *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
+ *  `speech-ipc.cjs`'s own headers for the wiring gap this closes (both were built and tested with
+ *  neither this path nor {@link registerSpeechIpc} ever called from here). */
 const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
 
 /** The built fleet renderer. `npm run build:renderer` produces it; `openFleetWindow` reports its

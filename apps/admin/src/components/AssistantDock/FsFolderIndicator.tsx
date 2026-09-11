@@ -16,14 +16,9 @@ import { useFsFolderIndicator } from "./FsFolderIndicator.hooks";
  * always-present indicator plus its own inline editor. New, minimal CSS lives in `assistant.css`
  * under `.tovu-fs-folder-indicator`.
  *
- * PATH ONLY: picking, typing, or dropping a folder here never uploads or reads its contents — see
+ * PATH ONLY: picking or typing a folder here never uploads or reads its contents — see
  * `FsFolderIndicator.hooks.ts` and `custom-root-store.ts`'s own headers. Nothing renders a file
  * tree or preview; the only round trip is the path string itself.
- *
- * Both rendered roots below (`<form>` while editing, `<div>` otherwise) carry the same
- * `onDropCapture`/`onDragOver` pair from the hook — a folder can be dropped straight onto this
- * control whether or not the inline editor is open. See `FsFolderIndicator.hooks.ts`'s header for
- * why capture phase, and why the handlers no-op outside the Electron desktop shell.
  */
 export function FsFolderIndicator() {
   const state = useFsFolderIndicator();
@@ -41,8 +36,6 @@ export function FsFolderIndicator() {
           e.preventDefault();
           state.submit();
         }}
-        onDropCapture={state.onDropCapture}
-        onDragOver={state.onDragOver}
       >
         <span className="tovu-fs-folder-indicator__icon">
           <Icon name="folder" size={14} />
@@ -73,7 +66,7 @@ export function FsFolderIndicator() {
   }
 
   return (
-    <div className="tovu-fs-folder-indicator" onDropCapture={state.onDropCapture} onDragOver={state.onDragOver}>
+    <div className="tovu-fs-folder-indicator">
       <button
         type="button"
         className="tovu-fs-folder-indicator__chip"
