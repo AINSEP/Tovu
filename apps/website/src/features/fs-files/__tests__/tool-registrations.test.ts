@@ -22,7 +22,9 @@ const PRINCIPAL_ID = "66666666-6666-4666-8666-666666666666";
 function makeFixtureRoots(): { roots: Record<FsRootId, string>; agentPluginsDir: string } {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-tool-"));
   const roots = Object.fromEntries(FS_ROOT_IDS.map((id) => [id, path.join(base, id)])) as Record<FsRootId, string>;
-  const agentPluginsDir = roots["site-agent-plugins"];
+  // `site` is now the whole site directory (not a narrow "agent-plugins only" root), so the fixture
+  // nests a realistic `agent-plugins/<plugin>/references/*` shape under it, same as production.
+  const agentPluginsDir = path.join(roots.site, "agent-plugins");
   fs.mkdirSync(path.join(agentPluginsDir, "site-compliance", "references"), { recursive: true });
   fs.writeFileSync(path.join(agentPluginsDir, "site-compliance", "references", "checklist.template.md"), "# Checklist", "utf8");
   return { roots, agentPluginsDir };
@@ -93,7 +95,7 @@ test("a denied authorize() refuses the call before any filesystem read happens",
   const registrations = buildFsFilesRegistrations(deps);
   const handler = handlerFor(registrations, FS_READ_FILE_TOOL_ID);
 
-  await assert.rejects(() => handler(toolContext({ root: "site-agent-plugins", path: "x.txt" }, FS_READ_FILE_TOOL_ID)));
+  await assert.rejects(() => handler(toolContext({ root: "site", path: "agent-plugins/x.txt" }, FS_READ_FILE_TOOL_ID)));
 });
 
 // ---------------------------------------------------------------------------
@@ -105,7 +107,7 @@ test("fs_list_files lists a real fixture file through the injected resolveRoots 
   const registrations = buildFsFilesRegistrations(deps);
   const handler = handlerFor(registrations, FS_LIST_FILES_TOOL_ID);
 
-  const result = (await handler(toolContext({ root: "site-agent-plugins" }, FS_LIST_FILES_TOOL_ID))) as {
+  const result = (await handler(toolContext({ root: "site", path: "agent-plugins" }, FS_LIST_FILES_TOOL_ID))) as {
     files: string[];
   };
   assert.deepEqual(result.files, ["site-compliance/references/checklist.template.md"]);
@@ -117,7 +119,7 @@ test("fs_read_file reads a real fixture file's content through the injected reso
   const handler = handlerFor(registrations, FS_READ_FILE_TOOL_ID);
 
   const result = (await handler(
-    toolContext({ root: "site-agent-plugins", path: "site-compliance/references/checklist.template.md" }, FS_READ_FILE_TOOL_ID),
+    toolContext({ root: "site", path: "agent-plugins/site-compliance/references/checklist.template.md" }, FS_READ_FILE_TOOL_ID),
   )) as { content: string };
   assert.equal(result.content, "# Checklist");
 });
@@ -139,7 +141,18 @@ test("a traversal attempt through the real handler (not just the unit-level reso
   const handler = handlerFor(registrations, FS_READ_FILE_TOOL_ID);
 
   await assert.rejects(
-    () => handler(toolContext({ root: "site-agent-plugins", path: "../../../etc/passwd" }, FS_READ_FILE_TOOL_ID)),
+    () => handler(toolContext({ root: "site", path: "../../../etc/passwd" }, FS_READ_FILE_TOOL_ID)),
     /resolves outside the allowed root/,
+  );
+});
+
+test("a 'secrets' path segment is refused through the real handler", async () => {
+  const deps = toolDeps();
+  const registrations = buildFsFilesRegistrations(deps);
+  const handler = handlerFor(registrations, FS_READ_FILE_TOOL_ID);
+
+  await assert.rejects(
+    () => handler(toolContext({ root: "site", path: "secrets/token.txt" }, FS_READ_FILE_TOOL_ID)),
+    /denied path segment/,
   );
 });

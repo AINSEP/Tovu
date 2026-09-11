@@ -10,18 +10,23 @@ import {
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 /**
- * @file Path containment and read-only file I/O for the `fs_list_files`/`fs_read_file` agent-tool
- * domain (`agent-tools.ts`/`tool-registrations.ts`).
+ * @file Path containment, the off-limits denylist, and read-only file I/O for the
+ * `fs_list_files`/`fs_read_file` agent-tool domain (`agent-tools.ts`/`tool-registrations.ts`).
  *
  * Purpose:
- * The domain's whole safety argument is "the assistant may look inside a fixed, named set of
- * directories (`layout.ts`'s five roots) and nowhere else." This module is where that is made true —
- * the only place here that resolves a caller-supplied string into a filesystem path — mirroring
- * `features/theme/theme-files.ts`'s identical role for the `theme_*` domain, whose own header this
- * one follows structurally (same three containment failure modes, same fix).
+ * This domain shipped (commit `68d7e525`) as a five-member named-root ALLOWLIST — the model was "the
+ * assistant may look inside a fixed, named set of directories and nowhere else," with a denylist
+ * running only as defense in depth underneath it. The product owner reversed that on 2026-09-10: her
+ * call is default-allow — the assistant should be able to read most of the repo/site tree without
+ * anyone pre-listing a root — with the actual boundary moved onto an explicit denylist of what must
+ * never be read. {@link FS_FILES_DENYLIST} below is that boundary now; `layout.ts`'s two roots
+ * (`repo`, `site`) are deliberately broad, not a curated allowlist — see that file's own header for
+ * what widening them traded away (most notably: the site directory's `chat.db`/`content.db` are no
+ * longer excluded by LOCATION, only by the `*.db` pattern below plus the binary sniff).
  *
- * Why containment is not a string prefix check — verbatim from `theme-files.ts`, because the same
- * three independently-exploitable defects apply to any "is this path inside that folder" check:
+ * Why containment is still not a string prefix check — verbatim from `theme-files.ts`, because the
+ * same three independently-exploitable defects apply to any "is this path inside that folder" check,
+ * and root selection getting broader does not change any of them:
  *   1. A prefix match admits a SIBLING directory whose name extends the root's own
  *      (`agent-plugins-evil` starts with `agent-plugins`).
  *   2. Comparing an un-normalized path compares the wrong string (`agent-plugins/../../etc/passwd`
@@ -40,12 +45,14 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
  * equivalent), so the safety argument that lets `theme_write_file` exist does not transfer here — see
  * `agent-tools.ts`'s own header.
  *
- * Secondary defense in depth, WITHIN an allowed root: {@link isDeniedFsFileName} refuses a small,
- * fixed set of filename patterns — `*.db`/`*.db-wal`/`*.db-shm`, `.env*`, `*.pem`/`*.key`/`*.p12` —
- * even though none of `layout.ts`'s five roots is expected to legitimately contain one. This is
- * explicitly NOT the primary gate (the root allowlist is, per this domain's own design brief: "never
- * a denylist of secrets") — it is a second, independent check that costs nothing if the allowlist
- * already holds and catches a future root whose directory grows a matching file nobody anticipated.
+ * The denylist, now the PRIMARY gate: {@link isDeniedFsPathSegment} refuses any path with a `secrets`
+ * segment at any depth (refused on read, and never even descended into by the `fs_list_files` walk —
+ * see {@link visitFsDirEntry}), and {@link isDeniedFsFileName} refuses a small, fixed set of basename
+ * patterns — `.env*`, `*.pem`/`*.key`/`*.p12`, `*.db`/`*.db-wal`/`*.db-shm`. Both read
+ * {@link FS_FILES_DENYLIST}, the one place meant for editing this list. Separately,
+ * {@link EXCLUDED_LISTING_DIR_NAMES} keeps `node_modules`/`.git`/build output out of `fs_list_files`
+ * results — that exclusion is ergonomics only, NOT part of the security boundary, and does not apply
+ * to `fs_read_file` at all.
  *
  * How it relates to the project:
  * Used only by `tool-registrations.ts`'s two handlers. Nothing else in the codebase reads a file
@@ -81,29 +88,69 @@ const MAX_LISTED_FILES = 2_000;
 const MAX_WALK_DEPTH = 12;
 
 /**
- * Filename patterns refused within an allowed root even though the root itself is already
- * allowlisted — see this file's own header for why this is defense in depth, not the primary gate.
- * Matched against the path's own BASENAME only (never a directory segment): a directory legitimately
- * named e.g. `keys/` is not itself a secret, only a leaf file matching one of these shapes is.
+ * THE off-limits list. Everything else in this module governs WHERE a read may occur (root selection
+ * in `layout.ts`, symlink containment below); this constant governs WHAT may never be read, no matter
+ * where it lives — the owner's own boundary: default to allowing most things, deny secrets and
+ * `.env`-shaped files specifically. This is the one place meant for editing it — add to it here, not
+ * by scattering a new check elsewhere in this file.
  */
-const DENIED_FILENAME_PATTERNS: readonly RegExp[] = [
-  /\.db$/i,
-  /\.db-wal$/i,
-  /\.db-shm$/i,
-  /^\.env(?:\..*)?$/i,
-  /\.pem$/i,
-  /\.key$/i,
-  /\.p12$/i,
-];
+export const FS_FILES_DENYLIST = {
+  /**
+   * Exact path SEGMENT names refused at any depth, matched case-insensitively against each segment
+   * of the caller-supplied path (never a substring — a directory named `not-secrets-actually` is not
+   * a match). `secrets` is the owner's explicit example: whatever a site or app tree names its
+   * credentials folder (`sites/**\/secrets/`, `apps/admin/**\/secrets/`, or anywhere else), it never
+   * becomes reachable through this domain. A denied segment is refused by {@link resolveFsFilePath}
+   * AND skipped entirely by the `fs_list_files` walk (see {@link visitFsDirEntry}) — its contents are
+   * never even enumerated, not merely refused once named.
+   */
+  segments: new Set(["secrets"]),
+  /**
+   * Basename patterns refused wherever they appear, matched against the path's final segment only (a
+   * directory legitimately named e.g. `keys/` is not itself a secret — only a leaf file matching one
+   * of these shapes is):
+   * - `.env` and every `.env.*` variant — this repo alone has `.env`, `.env.example`, and
+   *   `.env.bak-before-forbid-bash` today; the pattern matches the FAMILY, never one literal name.
+   * - `*.pem` / `*.key` / `*.p12` — private-key and certificate material.
+   * - `*.db` / `*.db-wal` / `*.db-shm` — SQLite data files, including the site directory's own
+   *   `chat.db`/`content.db` now that `site` is a whole-directory root (see `layout.ts`'s header).
+   *   Belt-and-braces for these three: they are binary, so {@link looksBinary} would refuse a read
+   *   anyway, but naming them here also keeps them out of `fs_list_files` results.
+   */
+  filenamePatterns: [/^\.env(?:\..*)?$/i, /\.pem$/i, /\.key$/i, /\.p12$/i, /\.db$/i, /\.db-wal$/i, /\.db-shm$/i] as readonly RegExp[],
+} as const;
 
 /**
- * Whether a bare filename (no directory component) matches one of {@link DENIED_FILENAME_PATTERNS}.
+ * Whether a bare filename (no directory component) matches one of
+ * {@link FS_FILES_DENYLIST}'s `filenamePatterns`.
  *
  * @complexity O(p) in the fixed, tiny pattern count.
  */
 export function isDeniedFsFileName(fileName: string): boolean {
-  return DENIED_FILENAME_PATTERNS.some((pattern) => pattern.test(fileName));
+  return FS_FILES_DENYLIST.filenamePatterns.some((pattern) => pattern.test(fileName));
 }
+
+/**
+ * Whether one path SEGMENT (not a full path) matches one of {@link FS_FILES_DENYLIST}'s `segments`,
+ * case-insensitively.
+ *
+ * @complexity O(1).
+ */
+export function isDeniedFsPathSegment(segmentName: string): boolean {
+  return FS_FILES_DENYLIST.segments.has(segmentName.toLowerCase());
+}
+
+/**
+ * Directory names {@link walkFsDir} never descends into — ERGONOMICS, not a security boundary. A
+ * listing under the now-broad `repo`/`site` roots that walked `node_modules`, `.git`, or a compiled
+ * `dist/` tree would bury the handful of files a caller actually wants inside thousands of irrelevant
+ * ones (and for `node_modules` specifically would likely burn through {@link MAX_LISTED_FILES} before
+ * reaching anything the caller cares about). `readFsFile`/`resolveFsFilePath` do NOT consult this set
+ * at all — a caller who already knows a path inside one of these directories (inspecting one specific
+ * vendored package's source, say) can still read it directly; only the LISTING walk stays out. Do not
+ * mistake this for the denylist above — nothing here is refused for being a secret.
+ */
+const EXCLUDED_LISTING_DIR_NAMES = new Set(["node_modules", ".git", "dist"]);
 
 /**
  * Collapse a root-relative path to comparable segments: `/` separators, no `.`, no `..`, no empty
@@ -159,19 +206,20 @@ function assertNoSymlinkEscape(base: string, path: string, relativePathForError:
 
 /**
  * Resolve one caller-supplied relative path against one allowed root, refusing anything that
- * escapes it or matches a denied filename pattern.
+ * escapes it or matches the denylist.
  *
- * Rejects, in order: an empty path, a NUL byte, an absolute path, a path whose basename matches
+ * Rejects, in order: an empty path, a NUL byte, an absolute path, a path with any segment matching
+ * {@link isDeniedFsPathSegment} (e.g. `secrets/`), a path whose basename matches
  * {@link isDeniedFsFileName}, a path that resolves outside the root (traversal), and a path whose
  * deepest existing ancestor `realpath`s outside the root (symlink escape). The root itself is also
  * re-`realpath`ed first, so a root reached through a symlink (this repo's own
  * `node_modules/@jini-ai/*` shape) still compares correctly rather than failing every read.
  *
- * @param required.rootPath - One of `layout.ts`'s five resolved root directories.
+ * @param required.rootPath - One of `layout.ts`'s two resolved root directories (`repo` or `site`).
  * @param required.relativePath - The caller-supplied path, relative to that root.
  * @returns The absolute, verified-contained path.
- * @throws {FsFilePathError} On any escape, denied-pattern match, or malformed input.
- * @complexity O(d) in the path's directory depth, for the existing-ancestor probe.
+ * @throws {FsFilePathError} On any escape, denylist match, or malformed input.
+ * @complexity O(d) in the path's directory depth, for the segment scan and the existing-ancestor probe.
  */
 export function resolveFsFilePath(required: { rootPath: string; relativePath: string }): string {
   const { rootPath, relativePath } = required;
@@ -187,7 +235,13 @@ export function resolveFsFilePath(required: { rootPath: string; relativePath: st
   }
 
   const normalized = normalizeFsRelativePath(relativePath);
-  const leafName = normalized.length === 0 ? "" : (normalized.split("/").pop() ?? "");
+  const segments = normalized.length === 0 ? [] : normalized.split("/");
+  for (const segment of segments) {
+    if (isDeniedFsPathSegment(segment)) {
+      throw new FsFilePathError(`path '${relativePath}' contains a denied path segment ('${segment}') and cannot be accessed`);
+    }
+  }
+  const leafName = segments.length === 0 ? "" : segments[segments.length - 1];
   if (leafName.length > 0 && isDeniedFsFileName(leafName)) {
     throw new FsFilePathError(`path '${relativePath}' matches a denied filename pattern and cannot be accessed`);
   }
@@ -210,8 +264,12 @@ export function resolveFsFilePath(required: { rootPath: string; relativePath: st
 /**
  * One directory entry's contribution to {@link walkFsDir}'s file listing: skip symlinks entirely
  * (neither descended nor reported — a link out of the root can neither enumerate nor leak anything
- * beyond it), recurse into real subdirectories, and record real files that do not match a denied
- * filename pattern. Verbatim shape of `theme-files.ts`'s `visitThemeDirEntry`.
+ * beyond it); never descend into a denied path segment (e.g. `secrets/`) or an
+ * {@link EXCLUDED_LISTING_DIR_NAMES} entry (e.g. `node_modules/`) — the former for security, the
+ * latter for noise, see each constant's own doc; recurse into every other real subdirectory; and
+ * record real files that do not match a denied filename pattern. Verbatim shape of
+ * `theme-files.ts`'s `visitThemeDirEntry`, plus the two directory-level skips this domain's broader
+ * roots now need.
  */
 function visitFsDirEntry(dir: string, name: string, depth: number, base: string, found: string[]): void {
   const full = resolve(dir, name);
@@ -222,6 +280,7 @@ function visitFsDirEntry(dir: string, name: string, depth: number, base: string,
   if (!stat) return;
   if (stat.isSymbolicLink()) return;
   if (stat.isDirectory()) {
+    if (isDeniedFsPathSegment(name) || EXCLUDED_LISTING_DIR_NAMES.has(name)) return;
     walkFsDir(full, depth + 1, base, found);
     return;
   }
@@ -246,7 +305,7 @@ function walkFsDir(dir: string, depth: number, base: string, found: string[]): v
  * a denied filename pattern are silently excluded (not merely refused on read), so a listing never
  * advertises a secret file's existence in the first place.
  *
- * @param required.rootPath - One of `layout.ts`'s five resolved root directories.
+ * @param required.rootPath - One of `layout.ts`'s two resolved root directories (`repo` or `site`).
  * @param required.relativePath - Optional subdirectory within the root to list; omit (or `""`) to
  *   list from the root itself.
  * @returns Relative paths, sorted, using `/` separators. Empty when the root (or subdirectory)

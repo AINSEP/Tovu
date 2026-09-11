@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   FsFilePathError,
   isDeniedFsFileName,
+  isDeniedFsPathSegment,
   listFsFiles,
   MAX_FS_FILE_BYTES,
   readFsFile,
@@ -138,6 +139,15 @@ test("isDeniedFsFileName matches every documented pattern", () => {
   }
 });
 
+test("isDeniedFsFileName matches every .env variant, not just the literal '.env'", () => {
+  // `.env.bak-before-forbid-bash` is a real file in this repo today — the pattern must match the
+  // FAMILY, not one hardcoded name.
+  for (const name of [".env", ".env.local", ".env.example", ".env.bak-before-forbid-bash", ".env.production"]) {
+    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+  }
+  assert.equal(isDeniedFsFileName("environment.ts"), false, "a name merely containing 'env' must not match");
+});
+
 test("reading a denied-pattern filename is refused even though it lives inside an allowed root", () => {
   const { root } = makeAllowedRoot();
   fs.writeFileSync(path.join(root, ".env"), "SECRET=1", "utf8");
@@ -149,6 +159,38 @@ test("a denied-pattern file is silently excluded from listFsFiles, not merely re
   fs.writeFileSync(path.join(root, "content.db"), "binary-ish", "utf8");
   const files = listFsFiles({ rootPath: root });
   assert.equal(files.includes("content.db"), false);
+});
+
+// ---------------------------------------------------------------------------
+// 3b. Denied path SEGMENTS — the new default-allow model's primary gate.
+// ---------------------------------------------------------------------------
+
+test("isDeniedFsPathSegment matches 'secrets' case-insensitively and nothing else", () => {
+  for (const name of ["secrets", "Secrets", "SECRETS"]) {
+    assert.equal(isDeniedFsPathSegment(name), true, `expected '${name}' to be denied`);
+  }
+  for (const name of ["not-secrets-actually", "secret", "secrets-archive", "keys"]) {
+    assert.equal(isDeniedFsPathSegment(name), false, `expected '${name}' to be allowed`);
+  }
+});
+
+test("a 'secrets/' segment is refused at any depth, not just at the root", () => {
+  const { root } = makeAllowedRoot();
+  for (const attempt of ["secrets/token.txt", "a/b/secrets/token.txt", "SECRETS/token.txt"]) {
+    assert.throws(() => resolveFsFilePath({ rootPath: root, relativePath: attempt }), /denied path segment/, `expected '${attempt}' to be refused`);
+  }
+});
+
+test("a 'secrets' directory is never descended into or reported by listFsFiles", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, "secrets"), { recursive: true });
+  fs.writeFileSync(path.join(root, "secrets", "token.txt"), "shh", "utf8");
+  const files = listFsFiles({ rootPath: root });
+  assert.equal(
+    files.some((f) => f.startsWith("secrets")),
+    false,
+    "a 'secrets' directory's contents must never be enumerated",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -206,4 +248,39 @@ test("listFsFiles on a root that does not exist yet returns an empty list, not a
 test("listFsFiles refuses a relativePath that resolves to a file, not a directory", () => {
   const { root } = makeAllowedRoot();
   assert.throws(() => listFsFiles({ rootPath: root, relativePath: "manifest.json" }), /is not a directory/);
+});
+
+// ---------------------------------------------------------------------------
+// 6. Default-allow: a normal source file reads cleanly, noise directories are excluded from
+//    listings only (never from reads) — the shape this domain now needs under the broad `repo`/
+//    `site` roots (`layout.ts`), which it never needed under the old five-member allowlist.
+// ---------------------------------------------------------------------------
+
+test("an ordinary source file with no special extension reads cleanly under the new default-allow model", () => {
+  const { root } = makeAllowedRoot();
+  fs.mkdirSync(path.join(root, "src"), { recursive: true });
+  fs.writeFileSync(path.join(root, "src", "app.ts"), "export const x = 1;\n", "utf8");
+  const result = readFsFile({ rootPath: root, relativePath: "src/app.ts" });
+  assert.equal(result.content, "export const x = 1;\n");
+});
+
+test("node_modules, .git, and dist are excluded from listFsFiles but not from fs_read_file itself", () => {
+  const { root } = makeAllowedRoot();
+  for (const dir of ["node_modules", ".git", "dist"]) {
+    fs.mkdirSync(path.join(root, dir), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, "noise.txt"), "noise", "utf8");
+  }
+
+  const files = listFsFiles({ rootPath: root });
+  for (const dir of ["node_modules", ".git", "dist"]) {
+    assert.equal(
+      files.some((f) => f.startsWith(`${dir}/`)),
+      false,
+      `expected '${dir}' to be excluded from the listing`,
+    );
+  }
+
+  // Ergonomics only, not security: a caller who already knows the path can still read it directly.
+  const result = readFsFile({ rootPath: root, relativePath: "node_modules/noise.txt" });
+  assert.equal(result.content, "noise");
 });
