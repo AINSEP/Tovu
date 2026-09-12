@@ -1,5 +1,5 @@
 /**
- * The project grid: one card per website, and each card's inline delete-confirm overlay. Split out
+ * The site grid: one card per website, and each card's inline delete-confirm overlay. Split out
  * of `App.tsx` as its own module — this family has a small, self-contained props surface
  * (`projects`, `onOpen`, `onDelete`) and no dependency on anything else `App.tsx` renders, which is
  * what makes it a real ownership boundary rather than just a line-count split.
@@ -16,8 +16,8 @@
  * instead — this grid is only ever asked to draw cards.
  */
 import { useDeleteConfirmation } from './App.hooks.js';
-import { databaseLabel, deleteActionCopy, isCardOpenKey, isCardOpenable, type DeleteActionCopy } from './ProjectGrid.hooks.js';
-import { STATUS_LABEL } from './project-status.js';
+import { databaseLabel, deleteActionCopy, isCardOpenKey, isCardOpenable, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { STATUS_LABEL } from './site-status.js';
 import type { ProjectRecord } from '../contracts/project.js';
 
 /**
@@ -31,11 +31,11 @@ import type { ProjectRecord } from '../contracts/project.js';
  * completion. A stub renders any of them directly. `typeof useDeleteConfirmation` is the type on
  * purpose: a stub that forgets `deletingId`, or takes no `onDelete`, fails `npm run typecheck`.
  *
- * The private components below (`ProjectCard`, `CardConfirmOverlay`) take no hooks of their own
+ * The private components below (`SiteCard`, `CardConfirmOverlay`) take no hooks of their own
  * and are not exported, so there is nothing to inject into them and no way for a test to mount
  * them directly — they are exercised through this grid, which is the boundary that owns them.
  */
-export function ProjectGrid({
+export function SiteGrid({
   projects,
   onOpen,
   onDelete,
@@ -52,7 +52,7 @@ export function ProjectGrid({
   return (
     <div className="grid">
       {projects.map((project) => (
-        <ProjectCard
+        <SiteCard
           key={project.id}
           project={project}
           confirming={pendingId === project.id}
@@ -68,7 +68,7 @@ export function ProjectGrid({
   );
 }
 
-function ProjectCard({
+function SiteCard({
   project,
   confirming,
   deleting,

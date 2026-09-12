@@ -39,7 +39,7 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { projectsFilePath } from "../src/project-registry.js";
+import { sitesFilePath } from "../src/project-registry.js";
 import { handleSitesMcpRequest } from "../src/sites-mcp-server.js";
 
 /**
@@ -198,7 +198,7 @@ function main() {
   serveMcpOverStdio({
     input: process.stdin,
     output: process.stdout,
-    context: { userDataDir, projectsPath: projectsFilePath(userDataDir), revealPath },
+    context: { userDataDir, projectsPath: sitesFilePath(userDataDir), revealPath },
   });
 }
 

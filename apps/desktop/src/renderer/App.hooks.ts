@@ -3,7 +3,7 @@
  *
  * Most of this is stateful/effectful logic that used to live inline inside `App()` or one of its
  * child components — polling, subscriptions, and view state. Splitting it out of the components is
- * what let `App()` and `ProjectGrid` drop back under the complexity ceiling without changing what
+ * what let `App()` and `SiteGrid` drop back under the complexity ceiling without changing what
  * either one does; see the header comment in `eslint.config.mjs` for why that ceiling exists. This
  * file carries no JSX and no rendering decisions of its own — those stay in `App.tsx`, unchanged
  * in shape.
@@ -16,7 +16,7 @@
  * they genuinely need.
  *
  * Components take these hooks as props with the real hook as the default (see `App`,
- * `ProjectGrid`, `CreateWebsiteOnboarding`), so a test can substitute a stub without the component
+ * `SiteGrid`, `CreateWebsiteOnboarding`), so a test can substitute a stub without the component
  * reaching for IPC, timers, or window listeners. The prop is always the hook FUNCTION, never its
  * result — a default of `useFoo()` would only run when the caller omits the prop, which makes hook
  * order depend on the call site. Biome's `correctness/useHookAtTopLevel` runs at error severity in
@@ -45,7 +45,7 @@ import { createRunnerChatTransport, type RunnerChatTransport } from './fleet-cha
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
-import type { CreateProjectInput, DatabaseProviderKind, ProjectRecord } from '../contracts/project.js';
+import type { CreateSiteInput, DatabaseProviderKind, ProjectRecord } from '../contracts/project.js';
 import type { RunnerConversationSummary } from '../contracts/fleet-conversations.js';
 
 /**
@@ -129,7 +129,7 @@ export function useProjectRescan(setProjects: Dispatch<SetStateAction<readonly P
     setRescanning(true);
     setRescanError(null);
     try {
-      setProjects(await bridge.rescanProjects());
+      setProjects(await bridge.rescanSites());
     } catch {
       setRescanError("Couldn't scan for sites.");
     } finally {
@@ -292,7 +292,7 @@ export interface ProjectMutationsState {
    */
   lastCreated: ProjectRecord | null;
   openCreateWebsite: () => void;
-  handleCreate: (input: CreateProjectInput) => Promise<void>;
+  handleCreate: (input: CreateSiteInput) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   /** Cancel's handler, not `stopCreating` directly — see `cancelCreate` below for why the two
    *  differ. */
@@ -357,7 +357,7 @@ export function useProjectMutations(deps: {
     deps.startCreating();
   };
 
-  const handleCreate = async (input: CreateProjectInput) => {
+  const handleCreate = async (input: CreateSiteInput) => {
     const bridge = runnerInventoryBridge();
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to create a website.');
@@ -403,7 +403,7 @@ export interface SitesHomeView {
   // one would advertise routes that section cannot take.
   inProjects: boolean;
   activeProject: ProjectRecord | undefined;
-  showProjectTab: boolean;
+  showSiteTab: boolean;
   showSitesHome: boolean;
   visibleWorkspaceId: string | null;
   // Whether the (permanently mounted, see `CreateWebsiteHost` in `App.tsx`) create form should be
@@ -442,11 +442,11 @@ export function deriveSitesHomeView(input: {
     input.activeTab === null ? undefined : openProjects.find((p) => p.id === input.activeTab);
   // Deriving this from `inProjects` as well — not from `activeTab` alone — is what makes a
   // project's workspace unreachable outside Projects rather than merely unlikely to be reached.
-  const showProjectTab = inProjects && activeProject !== undefined;
-  const showSitesHome = !showProjectTab;
+  const showSiteTab = inProjects && activeProject !== undefined;
+  const showSitesHome = !showSiteTab;
   // Every open project's workspace stays mounted (see `App`'s `<main>` body); this is the one that
   // is not hidden. Appearance layers over the whole content area, so it hides the workspace too.
-  const visibleWorkspaceId = !input.appearanceOpen && showProjectTab ? input.activeTab : null;
+  const visibleWorkspaceId = !input.appearanceOpen && showSiteTab ? input.activeTab : null;
   // The create form is a fourth layer competing for the same space as Appearance and a project's
   // workspace, so it is visible only when none of those are: not over Appearance, not over a
   // project tab, not over a non-Projects section.
@@ -456,7 +456,7 @@ export function deriveSitesHomeView(input: {
     openProjects,
     inProjects,
     activeProject,
-    showProjectTab,
+    showSiteTab,
     showSitesHome,
     visibleWorkspaceId,
     showCreateForm,
@@ -468,7 +468,7 @@ export function deriveSitesHomeView(input: {
  * nav, tab strip, fleet chat) gets out of the way. Owns both the state and the two rules that keep
  * it honest — it must never outlive the workspace it is immersing, and Escape must collapse it.
  */
-export function useExpandedMode(showProjectTab: boolean): {
+export function useExpandedMode(showSiteTab: boolean): {
   expanded: boolean;
   toggleExpanded: () => void;
 } {
@@ -478,8 +478,8 @@ export function useExpandedMode(showProjectTab: boolean): {
   // expanding. Closing the tab, deleting the project, or a `runner.navigate` call moving the nav
   // would otherwise leave the chrome hidden with nothing to be immersed in and no way back.
   useEffect(() => {
-    if (!showProjectTab) setExpanded(false);
-  }, [showProjectTab]);
+    if (!showSiteTab) setExpanded(false);
+  }, [showSiteTab]);
 
   // Escape collapses. This listener only sees keys pressed in Tovu's own chrome — a <webview>
   // is a separate browsing context and does not bubble its keydowns out to this document — so it
@@ -566,7 +566,7 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
 }
 
 /**
- * `ProjectStartPanel`'s start/pending/error state.
+ * `SiteStartPanel`'s start/pending/error state.
  *
  * Starting from here rather than only from the grid matters because this is where the operator
  * already is when they find out — the tab was opened expecting a site. Nothing is set locally on
@@ -1122,7 +1122,7 @@ export function buildCreateProjectInput(input: {
   customConnection: string;
   supabaseKey: string;
   customCredential: string;
-}): CreateProjectInput {
+}): CreateSiteInput {
   const endpoint =
     input.database === 'supabase'
       ? input.supabaseUrl.trim()
@@ -1198,7 +1198,7 @@ export interface CreateWebsiteFormState {
  * React holds no copy of a credential anywhere in state or a re-render.
  */
 export function useCreateWebsiteForm(
-  onCreate: (input: CreateProjectInput) => Promise<void>,
+  onCreate: (input: CreateSiteInput) => Promise<void>,
 ): CreateWebsiteFormState {
   const [name, setName] = useState('');
   const [database, setDatabase] = useState<DatabaseProviderKind>('sqlite');

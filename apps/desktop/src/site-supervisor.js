@@ -7,7 +7,7 @@
  * as "what is running". `startTovuServer`'s handle was built for boot-or-fail and discarded the
  * child's exit once ready, so after a crash:
  *
- * - `buildProjectRecord` (`project-ipc.js`) kept reporting `status: "running"` and the old port;
+ * - `buildSiteRecord` (`project-ipc.js`) kept reporting `status: "running"` and the old port;
  * - `useProjectsPolling`'s 4 s re-poll — whose own comment claims it is there to catch a crash —
  *   re-read a map that never changed, so the comment was false;
  * - `openSiteServer` (`main.js`) returned `already.server`, so "Start site" handed back the corpse

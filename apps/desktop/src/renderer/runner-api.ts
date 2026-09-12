@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
-import type { ProjectRecord, CreateProjectInput, OpenProjectViewInput } from '../contracts/project.js';
+import type { ProjectRecord, CreateSiteInput, OpenSiteSurfaceInput } from '../contracts/project.js';
 import type {
   RunnerChatEventMessage,
   RunnerChatReattachInput,
@@ -23,20 +23,20 @@ export interface RunnerInventoryBridge {
   listProjects: () => Promise<readonly ProjectRecord[]>;
   /** Adopts any untracked Tovu site found on disk and returns the refreshed list. Never resurrects
    *  a project the operator removed — see `RUNNER_PROJECT_CHANNELS.rescan`. */
-  rescanProjects: () => Promise<readonly ProjectRecord[]>;
+  rescanSites: () => Promise<readonly ProjectRecord[]>;
   /** "Add Tovu Website" — tracks a folder that ALREADY holds a site. Takes no argument: main owns
    *  the folder picker. The folder is only pointed at — never moved, copied, or written to, and no
    *  site is ever created — so an empty, half-initialized, or unrelated folder REJECTS with an
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<ProjectRecord>;
-  createProject: (input: CreateProjectInput) => Promise<ProjectRecord>;
+  createProject: (input: CreateSiteInput) => Promise<ProjectRecord>;
   startProject: (id: string) => Promise<ProjectRecord>;
   stopProject: (id: string) => Promise<ProjectRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */
   deleteProject: (id: string) => Promise<void>;
   /** Hands one of a project's surfaces to the default browser. Main derives the url from the id. */
-  openProjectExternal: (input: OpenProjectViewInput) => Promise<void>;
+  openSiteExternal: (input: OpenSiteSurfaceInput) => Promise<void>;
   chatStart: (input: RunnerChatStartInput) => Promise<RunnerChatStartResult>;
   chatReattach: (input: RunnerChatReattachInput) => Promise<void>;
   chatDetach: (subscriptionId: string) => Promise<void>;

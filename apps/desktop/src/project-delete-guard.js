@@ -6,13 +6,13 @@
  * `uploads/`, `themes/`, `agent-plugins/` — with no backup and no OS trash, because that is the
  * honest meaning of "delete this project" for a project the app itself provisioned. It is NOT the
  * honest meaning for a directory the app merely ADOPTED. `main.js` seeds the Projects screen with
- * `<repo>/sites/tovu-com` (`seedDevFallbackProject`), a git-tracked folder holding a real production
+ * `<repo>/sites/tovu-com` (`seedDevFallbackSite`), a git-tracked folder holding a real production
  * database that this app did not create a single byte of; the moment that folder classifies as a
  * site, a card for it appears and two clicks would destroy it.
  *
  * **Three independent tests, all of which must pass before anything is erased:**
  *
- * 1. *Provenance* ({@link PROJECT_ORIGIN}) — only a row this app recorded as `created` is erasable.
+ * 1. *Provenance* ({@link SITE_ORIGIN}) — only a row this app recorded as `created` is erasable.
  *    This is the general rule: it protects every adopted folder anywhere on the disk, not just the
  *    ones that happen to live in a checkout.
  * 2. *Containment* — nothing under `repoRoot` is erasable, whatever its row claims. This is the
@@ -43,7 +43,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { PROJECT_ORIGIN } from "./project-registry.js";
+import { SITE_ORIGIN } from "./project-registry.js";
 import { SITE_META_FILE } from "./site-dir-store.js";
 
 /**
@@ -139,13 +139,13 @@ function isInsideDirectory(target, container) {
 /**
  * Whether deleting `row`'s project may erase its directory from disk, or must only drop its card.
  *
- * The single authority for that decision. `handleDelete` calls it, and `buildProjectRecord` calls it
+ * The single authority for that decision. `handleDelete` calls it, and `buildSiteRecord` calls it
  * too so the renderer can label the button with what will actually happen — the UI must never be
  * left to re-derive this rule for itself and drift from it.
  *
- * @param {{siteDir: string, origin: string, siteId?: string}} row a row from `readTrackedProjects`,
+ * @param {{siteDir: string, origin: string, siteId?: string}} row a row from `readTrackedSites`,
  *   whose `origin` is already normalized fail-closed by that function. `siteId` is present only on
- *   rows `trackProject` wrote as `created` once identity recording existed.
+ *   rows `trackSite` wrote as `created` once identity recording existed.
  * @param {{repoRoot: string}} options
  * @param options.repoRoot the Tovu checkout root. A missing or non-string value refuses everything:
  *   containment cannot be PROVEN without it, and this module never permits what it cannot prove.
@@ -156,8 +156,8 @@ function isInsideDirectory(target, container) {
  * @complexity O(depth) — {@link isInsideDirectory}'s cost plus one file read, and only for a
  *   `created` row.
  */
-function mayEraseProjectDirectory(row, options) {
-  if (row?.origin !== PROJECT_ORIGIN.created) return false;
+function mayEraseSiteDirectory(row, options) {
+  if (row?.origin !== SITE_ORIGIN.created) return false;
   if (typeof options?.repoRoot !== "string" || options.repoRoot === "") return false;
   if (!isStillTheRecordedSite(row)) return false;
   return !isInsideDirectory(row.siteDir, options.repoRoot);
@@ -168,5 +168,5 @@ export {
   isInsideDirectory,
   readSiteIdentity,
   isStillTheRecordedSite,
-  mayEraseProjectDirectory,
+  mayEraseSiteDirectory,
 };

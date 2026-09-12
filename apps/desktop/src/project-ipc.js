@@ -21,8 +21,8 @@
 import path from "node:path";
 import fsp from "node:fs/promises";
 
-import { PROJECT_ORIGIN, readTrackedProjects, trackProject, untrackProject, discoverSiteDirs, adoptDiscoveredProjects } from "./project-registry.js";
-import { mayEraseProjectDirectory, readSiteIdentity } from "./project-delete-guard.js";
+import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./project-registry.js";
+import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.js";
 import { sitePartition } from "./desktop-auth.js";
 
 const RUNNER_PROJECT_CHANNELS = Object.freeze({
@@ -61,7 +61,7 @@ function describeLastExit(openSites, siteDir) {
  *
  * @complexity O(1).
  */
-function buildProjectRecord(row, deps) {
+function buildSiteRecord(row, deps) {
   const openEntry = deps.openSites.get(row.siteDir);
   const running = openEntry !== undefined;
   return {
@@ -89,23 +89,23 @@ function buildProjectRecord(row, deps) {
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
     // and label a button with a consequence that will not happen. See `project-delete-guard.js`.
-    deleteErasesFiles: mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot }),
+    deleteErasesFiles: mayEraseSiteDirectory(row, { repoRoot: deps.repoRoot }),
   };
 }
 
 /** @complexity O(n) in the tracked-project count. */
 function handleList(deps) {
-  return readTrackedProjects(deps.projectsPath).map((row) => buildProjectRecord(row, deps));
+  return readTrackedSites(deps.projectsPath).map((row) => buildSiteRecord(row, deps));
 }
 
 /**
- * "+ Create website" has no folder in its input — `CreateProjectInput` is a display name plus a
+ * "+ Create website" has no folder in its input — `CreateSiteInput` is a display name plus a
  * database choice, ported from Tovu-Runner's own provisioner-backed form. This shell has no such
  * provisioner, so creating a project here means the operator picks WHERE it lives, the same way
  * "Open Site…" already does; `input.displayName` becomes `tovu init`'s `--name`.
  *
  * **The database choice is REFUSED rather than ignored (D-02).** Knowing the field was dead and
- * narrowing it silently was the defect: `buildProjectRecord` hard-codes `{kind: "sqlite"}`, so an
+ * narrowing it silently was the defect: `buildSiteRecord` hard-codes `{kind: "sqlite"}`, so an
  * operator who chose Supabase — and whom `computeCanCreate` then FORCED to type a project URL and
  * an API key before the button would enable — got a local SQLite site reported back as a success,
  * with their credential discarded. A contract this process does not honour must fail loudly at its
@@ -140,7 +140,7 @@ async function handleCreate(input, deps) {
   // it ran `tovu init` into an empty folder or simply recognized a site that was already there. Only
   // the first of those is a directory this app made, and only that one may ever be erased again —
   // see `project-delete-guard.js`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
-  // only two classifications that reach `trackProject` are the two this maps.
+  // only two classifications that reach `trackSite` are the two this maps.
   const wasEmpty = deps.classifySiteDir(picked.filePaths[0]) === "empty";
   const siteDir = await deps.adoptSiteDir({
     dir: picked.filePaths[0],
@@ -149,14 +149,14 @@ async function handleCreate(input, deps) {
     name: input.displayName,
     cliMode: deps.cliMode,
   });
-  const origin = wasEmpty ? PROJECT_ORIGIN.created : PROJECT_ORIGIN.adopted;
+  const origin = wasEmpty ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
   // at a path, and a path is not an identity. See `project-delete-guard.js`'s test 3.
   const siteId = readSiteIdentity(siteDir);
-  trackProject(deps.projectsPath, siteDir, origin, { siteId });
-  return buildProjectRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
+  trackSite(deps.projectsPath, siteDir, origin, { siteId });
+  return buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
 }
 
 /**
@@ -197,10 +197,10 @@ async function handleAddSite(deps) {
   }
 
   const { siteDir } = deps.addSitePointer({ siteDir: picked.filePaths[0], projectsPath: deps.projectsPath });
-  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
+  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
-  return buildProjectRecord(row, deps);
+  return buildSiteRecord(row, deps);
 }
 
 /**
@@ -246,7 +246,7 @@ function liveForeignServers(deps, siteDir, ownPid) {
  *
  * That last word is load-bearing and is the whole reason this function consults
  * `project-delete-guard.js` rather than calling `fs.rm` on whatever id arrives. A tracked row can
- * point at a folder the app merely adopted (`seedDevFallbackProject` seeds exactly one such row,
+ * point at a folder the app merely adopted (`seedDevFallbackSite` seeds exactly one such row,
  * `<repo>/sites/tovu-com`, someone's real 44 MB site), and for those the delete means "take this
  * card off my Projects screen" — the row goes, every byte stays. The renderer says which of the two
  * a given card will do, from the same guard's answer carried on `ProjectRecord.deleteErasesFiles`,
@@ -287,11 +287,11 @@ async function handleDelete(id, deps) {
  * @complexity see {@link handleDelete}.
  */
 async function deleteProject(id, deps) {
-  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
+  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
-  const erasesFiles = mayEraseProjectDirectory(row, { repoRoot: deps.repoRoot });
+  const erasesFiles = mayEraseSiteDirectory(row, { repoRoot: deps.repoRoot });
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
@@ -323,7 +323,7 @@ async function deleteProject(id, deps) {
     if (openEntry.window && !openEntry.window.isDestroyed()) openEntry.window.destroy();
   }
 
-  untrackProject(deps.projectsPath, id);
+  untrackSite(deps.projectsPath, id);
   if (erasesFiles) {
     await fsp.rm(id, { recursive: true, force: true });
   }
@@ -372,12 +372,12 @@ async function handleOpenExternal(input, deps) {
  */
 async function handleStart(id, deps) {
   return await deps.serializer.run(id, async () => {
-    const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === id);
+    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
     await deps.openSiteServer(id, deps.ctx);
-    return buildProjectRecord(row, deps);
+    return buildSiteRecord(row, deps);
   });
 }
 
@@ -391,27 +391,27 @@ async function handleStart(id, deps) {
  * plainly it sat on disk. Runs once at boot (`main.js`) and again whenever the operator asks.
  *
  * **A directory the operator removed on purpose is never brought back**, however many times this
- * runs. That is `adoptDiscoveredProjects`' rule, not this function's, and the reason it lives down
+ * runs. That is `adoptDiscoveredSites`' rule, not this function's, and the reason it lives down
  * there is that the boot pass and the operator's button must not be able to disagree about it: a
  * rescan that resurrected deleted cards would be the same bug the seed guard exists to prevent,
  * and worse here, since a button can be pressed again. Their way back is the folder dialog, which
- * reaches `trackProject` directly — see that function's own comment on why only the explicit adder
+ * reaches `trackSite` directly — see that function's own comment on why only the explicit adder
  * clears a dismissal.
  *
- * @param deps.projectScanRoots directories whose immediate children are candidate sites.
+ * @param deps.siteScanRoots directories whose immediate children are candidate sites.
  * @param deps.recentSiteDirs `site-dir-store.js`'s recently-opened list, as a thunk — the sites
  *   own-server mode has been recording all along, which are the operator's by definition and
  *   generally do not live under any scan root.
  * @returns the same records {@link handleList} would return, after the pass.
  * @complexity O(n) in the scanned child count, times the registry size.
  */
-function rescanProjects(deps) {
+function rescanSites(deps) {
   const found = discoverSiteDirs({
-    scanRoots: deps.projectScanRoots,
+    scanRoots: deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
     classifySiteDir: deps.classifySiteDir,
   });
-  adoptDiscoveredProjects(deps.projectsPath, found);
+  adoptDiscoveredSites(deps.projectsPath, found);
   return handleList(deps);
 }
 
@@ -453,26 +453,26 @@ function rescanProjects(deps) {
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — seven registrations.
  */
-function registerProjectIpcHandlers(deps) {
+function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.list, () => handleList(deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.start, (_event, id) => handleStart(id, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.rescan, () => rescanProjects(deps));
+  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.rescan, () => rescanSites(deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.addSite, () => handleAddSite(deps));
 }
 
 export {
   RUNNER_PROJECT_CHANNELS,
   foreignServerMessage,
-  buildProjectRecord,
+  buildSiteRecord,
   handleList,
   handleAddSite,
   handleCreate,
   handleDelete,
   handleOpenExternal,
   handleStart,
-  rescanProjects,
-  registerProjectIpcHandlers,
+  rescanSites,
+  registerSiteIpcHandlers,
 };

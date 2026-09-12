@@ -15,7 +15,7 @@
  * unmounted volume, a folder they meant to pick the parent of), never an invitation to write into.
  * So this calls {@link classifySiteDir} directly and admits `"site"` and nothing else.
  *
- * The row is always `PROJECT_ORIGIN.adopted`, stated rather than defaulted — see
+ * The row is always `SITE_ORIGIN.adopted`, stated rather than defaulted — see
  * {@link addSitePointer}. A pointer can therefore never authorize `project-ipc.js`'s `fs.rm`.
  *
  * No `electron` import, so every path here is testable under plain `node --test` — the same
@@ -24,7 +24,7 @@
  */
 import path from "node:path";
 
-import { PROJECT_ORIGIN, isProjectDirKnown, readTrackedProjects, trackProject } from "./project-registry.js";
+import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite } from "./project-registry.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
 
 /**
@@ -120,11 +120,11 @@ function normalizeSiteDirPath(rawSiteDir, cwd) {
  * moves, copies, initializes, or opens anything — see this file's header.
  *
  * Idempotent: a folder that is already tracked reports `alreadyTracked: true` and leaves its row
- * untouched (`trackProject` neither duplicates nor bumps it), so a model retrying a call, a rescan
+ * untouched (`trackSite` neither duplicates nor bumps it), so a model retrying a call, a rescan
  * racing the button, and an operator double-clicking all converge on one row.
  *
  * A folder the operator previously REMOVED is added back, and that is deliberate rather than an
- * oversight: `trackProject` is `project-registry.js`'s explicit adder, and clearing the tombstone
+ * oversight: `trackSite` is `project-registry.js`'s explicit adder, and clearing the tombstone
  * there is documented as correct precisely because reaching it means the operator named the folder
  * themselves. `alreadyDismissed` is reported so a caller can say "this was one you removed" rather
  * than having the return resurrect a card with no explanation.
@@ -133,7 +133,7 @@ function normalizeSiteDirPath(rawSiteDir, cwd) {
  * @param input.projectsPath `project-registry.js`'s tracked-project JSON file.
  * @param input.cwd base for a relative `siteDir`. Defaults to `process.cwd()`.
  * @param input.classifySiteDir injected classifier, defaulting to `site-dir-store.js`'s
- *   throw-free form — injected for the same reason `seedDevFallbackProject` takes it, so the
+ *   throw-free form — injected for the same reason `seedDevFallbackSite` takes it, so the
  *   decision is testable without a real directory, and SAFE rather than throwing because a caller
  *   here is an MCP tool and a CLI, neither of which should turn an EACCES into a stack trace.
  * @returns `{siteDir, alreadyTracked, alreadyDismissed}` — `siteDir` normalized, so a caller
@@ -149,17 +149,17 @@ function addSitePointer(input) {
   const kind = classify(siteDir);
   if (kind !== "site") throw refusalFor(kind, siteDir);
 
-  // Read BEFORE the write, because afterwards both answers are gone: `trackProject` is idempotent
+  // Read BEFORE the write, because afterwards both answers are gone: `trackSite` is idempotent
   // and clears the tombstone, so a caller asking after the fact cannot tell a fresh add from a
   // no-op, nor an ordinary add from the restoration of a project the operator had removed.
-  const alreadyTracked = readTrackedProjects(input.projectsPath).some((row) => row.siteDir === siteDir);
-  const alreadyDismissed = !alreadyTracked && isProjectDirKnown(input.projectsPath, siteDir);
+  const alreadyTracked = readTrackedSites(input.projectsPath).some((row) => row.siteDir === siteDir);
+  const alreadyDismissed = !alreadyTracked && isSiteDirKnown(input.projectsPath, siteDir);
 
-  // ALWAYS `adopted`, and passed explicitly rather than left to `trackProject`'s default. This
+  // ALWAYS `adopted`, and passed explicitly rather than left to `trackSite`'s default. This
   // folder existed as a site before this app ever saw it — every byte under it is someone else's —
   // and `project-delete-guard.js` reads exactly this field to decide whether a later delete may
   // reach `fs.rm`. `created` here would hand a stranger's site to a recursive erase.
-  trackProject(input.projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+  trackSite(input.projectsPath, siteDir, SITE_ORIGIN.adopted);
 
   return { siteDir, alreadyTracked, alreadyDismissed };
 }

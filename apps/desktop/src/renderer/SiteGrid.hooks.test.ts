@@ -1,5 +1,5 @@
 /**
- * @file Behavioural tests for `ProjectGrid.hooks.ts`'s pure rules, plus one wiring guard that the
+ * @file Behavioural tests for `SiteGrid.hooks.ts`'s pure rules, plus one wiring guard that the
  * component actually routes through them. Run by the `*.test.ts` half of this package's `test`
  * script — see `App.hooks.test.ts`'s header for how that resolves `tsx`.
  */
@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { isCardOpenKey } from "./ProjectGrid.hooks.js";
+import { isCardOpenKey } from "./SiteGrid.hooks.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
  *  objects are a truthful model of it and no DOM is needed. */
@@ -39,8 +39,8 @@ test("the card's keydown handler routes through isCardOpenKey rather than checki
   // Source text, because the component itself has no runner in this package (see
   // `rescan-wiring.test.js`'s header). Without this, the predicate above could be correct and
   // simply not called — the exact shape of "correct primitive, unwired call site".
-  const tsx = fs.readFileSync(path.join(import.meta.dirname, "ProjectGrid.tsx"), "utf8");
-  assert.match(tsx, /import \{[^}]*\bisCardOpenKey\b[^}]*\} from '\.\/ProjectGrid\.hooks\.js'/);
+  const tsx = fs.readFileSync(path.join(import.meta.dirname, "SiteGrid.tsx"), "utf8");
+  assert.match(tsx, /import \{[^}]*\bisCardOpenKey\b[^}]*\} from '\.\/SiteGrid\.hooks\.js'/);
   assert.match(tsx, /onKeyDown=\{[\s\S]{0,400}?if \(!isCardOpenKey\(event\)\) return;/);
   assert.doesNotMatch(
     tsx,

@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, parseArgv, runTovuDesktopCli } from "../bin/tovu-desktop.mjs";
-import { PROJECT_ORIGIN, projectsFilePath, readTrackedProjects, untrackProject } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./project-registry.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cli-"));
@@ -48,7 +48,7 @@ test("add-site adds a real site and reports the path it recorded", () => {
   assert.ok(io.stdout().includes(siteDir));
   // Stated in the output because the promise is load-bearing and people do not read source.
   assert.match(io.stdout(), /not moved, copied, or changed/);
-  assert.equal(readTrackedProjects(projectsFilePath(userDataDir))[0].origin, PROJECT_ORIGIN.adopted);
+  assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0].origin, SITE_ORIGIN.adopted);
 });
 
 test("add-site ALWAYS announces which app-data directory it used", () => {
@@ -76,7 +76,7 @@ test("add-site EXITS NON-ZERO and writes nothing when the folder is not a site",
   // `!== 0`, so a usage bug cannot masquerade as a refusal.
   assert.equal(code, EXIT_REFUSED);
   assert.match(io.stderr(), /no Tovu site here to add/);
-  assert.deepEqual(readTrackedProjects(projectsFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
   // And nothing was initialized in the operator's folder.
   assert.deepEqual(fs.readdirSync(empty), []);
 });
@@ -99,7 +99,7 @@ test("add-site refuses an incomplete and an occupied folder with their own reaso
   assert.match(second.stderr(), /folder of unrelated files/);
   assert.match(second.stderr(), /subfolder/);
 
-  assert.deepEqual(readTrackedProjects(projectsFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
 });
 
 test("add-site with no path is a USAGE error, distinct from a refusal", () => {
@@ -123,7 +123,7 @@ test("add-site REFUSES several paths rather than silently adding only the first"
   assert.equal(code, EXIT_USAGE);
   assert.match(io.stderr(), /takes one path, but got 3/);
   assert.match(io.stderr(), /quote it/);
-  assert.deepEqual(readTrackedProjects(projectsFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
 });
 
 test("add-site is idempotent and says so on the second run", () => {
@@ -135,21 +135,21 @@ test("add-site is idempotent and says so on the second run", () => {
   const code = runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], io.io);
 
   assert.equal(code, EXIT_OK);
-  assert.match(io.stdout(), /Already in your Projects list/);
-  assert.equal(readTrackedProjects(projectsFilePath(userDataDir)).length, 1);
+  assert.match(io.stdout(), /Already in your websites/);
+  assert.equal(readTrackedSites(sitesFilePath(userDataDir)).length, 1);
 });
 
-test("add-site tells the operator when it is restoring a project they removed", () => {
+test("add-site tells the operator when it is restoring a website they removed", () => {
   const userDataDir = tempDir();
   const siteDir = siteFixture();
   runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], capture().io);
   // The operator removing it in the app writes a tombstone; naming the folder again clears it.
-  untrackProject(projectsFilePath(userDataDir), siteDir);
+  untrackSite(sitesFilePath(userDataDir), siteDir);
   const io = capture();
 
   runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], io.io);
 
-  assert.match(io.stdout(), /You had removed this project before/);
+  assert.match(io.stdout(), /You had removed this website before/);
 });
 
 test("--help exits zero, a bare invocation exits with a usage code", () => {

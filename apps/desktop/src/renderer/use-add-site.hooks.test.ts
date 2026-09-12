@@ -23,7 +23,7 @@ import type { ProjectRecord } from '../contracts/project.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appTsx = fs.readFileSync(path.join(here, 'App.tsx'), 'utf8');
-const gridTsx = fs.readFileSync(path.join(here, 'ProjectGrid.tsx'), 'utf8');
+const gridTsx = fs.readFileSync(path.join(here, 'SiteGrid.tsx'), 'utf8');
 const hookSource = fs.readFileSync(path.join(here, 'use-add-site.hooks.ts'), 'utf8');
 const pointerSource = fs.readFileSync(path.join(here, '..', 'add-site-pointer.js'), 'utf8');
 
@@ -157,7 +157,7 @@ test("a refused add is reported ALONGSIDE the grid, never in place of it", () =>
   assert.ok(ownBody.includes('if (loadError)'), 'loadError still owns the replace-the-grid path');
   const addRender = ownBody.indexOf('{addError &&');
   assert.ok(addRender !== -1, 'addError is not rendered at all');
-  assert.doesNotMatch(ownBody.slice(addRender, ownBody.indexOf('<ProjectGrid')), /\breturn\b/);
+  assert.doesNotMatch(ownBody.slice(addRender, ownBody.indexOf('<SiteGrid')), /\breturn\b/);
 });
 
 test("the redundant dashed add tile is GONE from the grid", () => {

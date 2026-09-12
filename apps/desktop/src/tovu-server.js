@@ -458,7 +458,7 @@ function describeBootFailure(output, fallback) {
  * The gap this closes (D-06): the only `exit` listener {@link startTovuServer} had fed its
  * single-settle `finish()`, which is a NO-OP once the boot line has already resolved the promise.
  * So nothing in this process observed a child dying AFTER it came up — `main.js`'s `openSites`
- * kept the dead handle, `buildProjectRecord` kept reporting `running`, and "Start site" handed the
+ * kept the dead handle, `buildSiteRecord` kept reporting `running`, and "Start site" handed the
  * corpse straight back instead of spawning a replacement.
  *
  * REPLAYING rather than just forwarding is the load-bearing part. A supervisor attaches its

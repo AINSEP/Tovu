@@ -20,7 +20,7 @@ test("dev mode reproduces exactly what main.js derived from REPO_ROOT before thi
   const roots = devRoots();
   assert.equal(roots.payloadRoot, REPO_ROOT);
   assert.equal(roots.devFallbackSiteDir, path.join(REPO_ROOT, "sites", "tovu-com"));
-  assert.deepEqual(roots.projectScanRoots, [path.join(REPO_ROOT, "sites")]);
+  assert.deepEqual(roots.siteScanRoots, [path.join(REPO_ROOT, "sites")]);
   assert.equal(roots.defaultCliMode, "source");
 });
 
@@ -47,8 +47,8 @@ test("a packaged app has no dev fallback site, so that precedence tier is absent
 
 test("a packaged app scans a user-writable root instead of the read-only payload", () => {
   const roots = packagedRoots();
-  assert.deepEqual(roots.projectScanRoots, [path.join(DOCUMENTS, "Tovu Sites")]);
-  for (const root of roots.projectScanRoots) {
+  assert.deepEqual(roots.siteScanRoots, [path.join(DOCUMENTS, "Tovu Sites")]);
+  for (const root of roots.siteScanRoots) {
     assert.ok(!root.startsWith(roots.payloadRoot), `${root} must not sit inside the read-only payload`);
   }
 });

@@ -8,7 +8,7 @@
  * at all. A missing link in this chain does not fail `npm run typecheck` either — an optional
  * bridge method that nothing declares is simply absent at runtime, and the button silently does
  * nothing. The behaviour behind the verb is covered where it lives, in `project-ipc.test.js`'s
- * `rescanProjects` tests; this file only checks that the click can get there.
+ * `rescanSites` tests; this file only checks that the click can get there.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,17 +24,17 @@ const runnerApi = read("runner-api.ts");
 const appHooks = read("App.hooks.ts");
 const appTsx = read("App.tsx");
 
-test("the preload bridges rescanProjects onto the contract's own rescan channel", () => {
-  assert.match(preload, /rescanProjects: \(\) => ipcRenderer\.invoke\(RUNNER_PROJECT_CHANNELS\.rescan\)/);
+test("the preload bridges rescanSites onto the contract's own rescan channel", () => {
+  assert.match(preload, /rescanSites: \(\) => ipcRenderer\.invoke\(RUNNER_PROJECT_CHANNELS\.rescan\)/);
 });
 
-test("runner-api declares rescanProjects, or the renderer cannot see the bridge method", () => {
-  assert.match(runnerApi, /rescanProjects: \(\) => Promise<readonly ProjectRecord\[\]>/);
+test("runner-api declares rescanSites, or the renderer cannot see the bridge method", () => {
+  assert.match(runnerApi, /rescanSites: \(\) => Promise<readonly ProjectRecord\[\]>/);
 });
 
 test("a hook owns the rescan call, not the component — this repo keeps logic out of .tsx", () => {
   assert.match(appHooks, /export function useProjectRescan\(/);
-  assert.match(appHooks, /rescanProjects\(\)/);
+  assert.match(appHooks, /rescanSites\(\)/);
 });
 
 test("the rescan result replaces the project list rather than waiting for the next poll", () => {
@@ -61,13 +61,13 @@ test("a rescan failure is reported ALONGSIDE the grid, never in place of it", ()
   assert.ok(ownBody.includes('if (loadError)'), 'loadError still owns the replace-the-grid path');
   // The INVARIANT is that `rescanError` renders additively, in the same branch that still draws the
   // websites — never through an early return that replaces them. Asserted structurally rather than
-  // by "the line immediately after it is `<ProjectGrid`": that earlier pattern also passed only
+  // by "the line immediately after it is `<SiteGrid`": that earlier pattern also passed only
   // while `rescanError` happened to be the last thing before the grid, so adding a SECOND additive
   // message (`addError`, same reasoning) broke the test without touching the property it protects.
   const rescanRender = ownBody.indexOf('{rescanError &&');
   assert.ok(rescanRender !== -1, 'rescanError is not rendered at all');
   const tail = ownBody.slice(rescanRender);
   // No early return between the message and the grid — that is what "in place of it" would look like.
-  assert.doesNotMatch(tail.slice(0, tail.indexOf('<ProjectGrid')), /\breturn\b/);
-  assert.ok(tail.includes('<ProjectGrid'), 'the grid is not rendered after the rescan message');
+  assert.doesNotMatch(tail.slice(0, tail.indexOf('<SiteGrid')), /\breturn\b/);
+  assert.ok(tail.includes('<SiteGrid'), 'the grid is not rendered after the rescan message');
 });

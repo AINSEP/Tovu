@@ -21,11 +21,11 @@ import {
   SERVER_INFO,
   handleSitesMcpRequest,
 } from "./sites-mcp-server.js";
-import { projectsFilePath } from "./project-registry.js";
+import { sitesFilePath } from "./project-registry.js";
 
 function fakeContext() {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-server-"));
-  return { userDataDir, projectsPath: projectsFilePath(userDataDir), revealPath: async () => {} };
+  return { userDataDir, projectsPath: sitesFilePath(userDataDir), revealPath: async () => {} };
 }
 
 test("initialize echoes the client's supported protocol version and declares tools", async () => {

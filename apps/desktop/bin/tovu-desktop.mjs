@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AddSitePointerError, addSitePointer } from "../src/add-site-pointer.js";
-import { projectsFilePath } from "../src/project-registry.js";
+import { sitesFilePath } from "../src/project-registry.js";
 import { resolveDesktopUserDataDir } from "../src/desktop-user-data-dir.js";
 
 const EXIT_OK = 0;
@@ -41,7 +41,7 @@ const USAGE = `tovu-desktop — point the Tovu desktop app at your existing webs
 Usage:
   tovu-desktop add-site <path-to-site-folder>
 
-  add-site   Add a Tovu website that already exists to the app's Projects list.
+  add-site   Add a Tovu website that already exists to the app's list of websites.
              The folder is only pointed at: nothing is moved, copied, or created,
              and a folder that is not already a complete Tovu site is refused.
 
@@ -83,7 +83,7 @@ function parseArgv(argv) {
  * with `--user-data-dir`.
  *
  * A directory that does not exist yet is reported rather than treated as an error: someone can
- * reasonably add a site before ever launching the app, and `trackProject` creates the directory.
+ * reasonably add a site before ever launching the app, and `trackSite` creates the directory.
  * But it is the single likeliest sign the path is wrong, so it is said plainly.
  *
  * @complexity O(1).
@@ -122,7 +122,7 @@ function runAddSite(positional, userDataDirOverride, io) {
   const userDataDir = resolveAnnouncedUserDataDir(userDataDirOverride, io.out);
 
   try {
-    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: projectsFilePath(userDataDir) });
+    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath(userDataDir) });
     io.out(describeAddSiteResult(result));
     return EXIT_OK;
   } catch (err) {
@@ -136,8 +136,8 @@ function runAddSite(positional, userDataDirOverride, io) {
 
 /** The operator-facing outcome line. @complexity O(1). */
 function describeAddSiteResult(result) {
-  if (result.alreadyTracked) return `Already in your Projects list: ${result.siteDir}\nNothing changed.\n`;
-  const restored = result.alreadyDismissed ? "\nYou had removed this project before; adding it by name brings it back.\n" : "\n";
+  if (result.alreadyTracked) return `Already in your websites: ${result.siteDir}\nNothing changed.\n`;
+  const restored = result.alreadyDismissed ? "\nYou had removed this website before; adding it by name brings it back.\n" : "\n";
   return `Added: ${result.siteDir}\nThe folder was not moved, copied, or changed.${restored}`;
 }
 

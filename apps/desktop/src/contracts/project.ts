@@ -4,7 +4,7 @@
  * no logic. DTOs here are deliberately redacted — no vendor DB credential or
  * connection-string field ever crosses this boundary in either direction.
  */
-export type ProjectLifecycleStatus =
+export type SiteLifecycleStatus =
   | 'provisioning'
   | 'starting'
   | 'running'
@@ -13,11 +13,11 @@ export type ProjectLifecycleStatus =
   | 'failed'
   | 'blocked';
 
-export type ProjectDesiredState = 'running' | 'stopped';
+export type SiteDesiredState = 'running' | 'stopped';
 
 export type DatabaseProviderKind = 'sqlite' | 'supabase' | 'custom';
 
-export interface ProjectDatabaseSummary {
+export interface SiteDatabaseSummary {
   kind: DatabaseProviderKind;
   /** Custom-provider display name (e.g. "Neon"). Absent for sqlite/supabase. */
   label?: string;
@@ -39,9 +39,9 @@ export interface ProjectRecord {
   partition: string;
   templateId: string;
   templateVersion: string | null;
-  database: ProjectDatabaseSummary;
-  desiredState: ProjectDesiredState;
-  status: ProjectLifecycleStatus;
+  database: SiteDatabaseSummary;
+  desiredState: SiteDesiredState;
+  status: SiteLifecycleStatus;
   /** Human-readable detail for the current status (e.g. a failure reason). Never a secret. */
   statusDetail: string | null;
   /**
@@ -50,14 +50,14 @@ export interface ProjectRecord {
    *
    * Main decides it (`project-delete-guard.js`) and sends the ANSWER, never the inputs, so the
    * renderer cannot re-derive the rule and drift from the one main enforces. The renderer's only job
-   * is to say which of the two a click will do — see `ProjectGrid.hooks.ts`'s `deleteActionCopy`.
+   * is to say which of the two a click will do — see `SiteGrid.hooks.ts`'s `deleteActionCopy`.
    */
   deleteErasesFiles: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateProjectDatabaseInput {
+export interface CreateSiteDatabaseInput {
   kind: DatabaseProviderKind;
   /** Custom-provider display name. Required (and meaningful) only when kind === 'custom'. */
   label?: string;
@@ -67,17 +67,17 @@ export interface CreateProjectDatabaseInput {
   credential?: string;
 }
 
-export interface CreateProjectInput {
+export interface CreateSiteInput {
   displayName: string;
-  database: CreateProjectDatabaseInput;
+  database: CreateSiteDatabaseInput;
 }
 
 /** Which of a project's two web surfaces a workspace is showing: its admin, or its public site. */
-export type ProjectView = 'admin' | 'site';
+export type SiteSurface = 'admin' | 'site';
 
-export interface OpenProjectViewInput {
+export interface OpenSiteSurfaceInput {
   projectId: string;
-  view: ProjectView;
+  view: SiteSurface;
 }
 
 export const RUNNER_PROJECT_CHANNELS = {
@@ -93,10 +93,10 @@ export const RUNNER_PROJECT_CHANNELS = {
   /**
    * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
    * no stored answer about, and return the refreshed list. Real (`project-ipc.js`'s
-   * `rescanProjects`); `main.js` runs the same pass once at boot.
+   * `rescanSites`); `main.js` runs the same pass once at boot.
    *
    * A project the operator REMOVED is never brought back by this, however many times it is
-   * pressed — see `adoptDiscoveredProjects` in `project-registry.js`. Their way back is the
+   * pressed — see `adoptDiscoveredSites` in `project-registry.js`. Their way back is the
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:projects:rescan',

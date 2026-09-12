@@ -73,5 +73,5 @@ test("each open project gets its OWN ProjectWorkspace instance, carrying its own
 
 test("ProjectRecord's partition field is a required string, not optional — a workspace cannot silently render with no partition at all", () => {
   const field = contracts.slice(contracts.indexOf("export interface ProjectRecord"));
-  assert.match(field.slice(0, field.indexOf("export interface CreateProjectDatabaseInput")), /\n  partition: string;\n/);
+  assert.match(field.slice(0, field.indexOf("export interface CreateSiteDatabaseInput")), /\n  partition: string;\n/);
 });

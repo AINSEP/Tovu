@@ -31,7 +31,7 @@ import path from "node:path";
  * user site and never will, so the rule is vacuous there rather than wrong. What it does NOT do is
  * protect a user's own site folders; that was never this rule's job (it only ever guarded the
  * developer's checkout), and the `origin === "created"` and `isStillTheRecordedSite` conditions in
- * `mayEraseProjectDirectory` remain the real gates. Flagged here because the boundary is
+ * `mayEraseSiteDirectory` remain the real gates. Flagged here because the boundary is
  * security-relevant and a future reader must not assume a packaged build inherits a protection it
  * does not.
  *
@@ -42,7 +42,7 @@ import path from "node:path";
  *   Read only when `isPackaged`.
  * @param {string} input.repoRoot the checkout root, as `main.js` derives it from `__dirname`.
  * @param {string} input.documentsDir `app.getPath("documents")`. Read only when `isPackaged`.
- * @returns {{payloadRoot: string, devFallbackSiteDir: string|null, projectScanRoots: string[], defaultCliMode: "source"|"compiled"}}
+ * @returns {{payloadRoot: string, devFallbackSiteDir: string|null, siteScanRoots: string[], defaultCliMode: "source"|"compiled"}}
  * @complexity O(1).
  */
 function resolveDesktopRoots(input) {
@@ -50,7 +50,7 @@ function resolveDesktopRoots(input) {
     return {
       payloadRoot: input.repoRoot,
       devFallbackSiteDir: path.join(input.repoRoot, "sites", "tovu-com"),
-      projectScanRoots: [path.join(input.repoRoot, "sites")],
+      siteScanRoots: [path.join(input.repoRoot, "sites")],
       // `tsx` over current TypeScript: a checkout's `dist/` is only as fresh as its last manual
       // `npm run build`, which is why source mode exists at all (see `resolveDevCliEntry`).
       defaultCliMode: "source",
@@ -67,7 +67,7 @@ function resolveDesktopRoots(input) {
     // is the user-writable place a site would plausibly live. Deliberately NOT created here —
     // `discoverSiteDirs` tolerates a missing root, and creating a folder in someone's Documents as
     // a side effect of launching is not this function's call to make.
-    projectScanRoots: [path.join(input.documentsDir, "Tovu Sites")],
+    siteScanRoots: [path.join(input.documentsDir, "Tovu Sites")],
     // A packaged app ships no `apps/website/src/` and no `tsx`, so source mode cannot work. It is
     // also what keeps the agent daemon off `npx`: `daemon-supervisor.ts` spawns `npx tsx` for a
     // `.ts` daemon path and `process.execPath` for a compiled `.js` one, so compiled mode is what

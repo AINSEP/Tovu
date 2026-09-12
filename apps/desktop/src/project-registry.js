@@ -7,7 +7,7 @@
  * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.js` is ground truth for
  * "running" — a status written to this file would go stale the moment Electron is killed hard,
  * exactly the failure mode `site-registry.js`'s crash-safety design exists to avoid for the
- * supervision side of the same problem. `buildProjectRecord` (`main.js`) is what joins one row here
+ * supervision side of the same problem. `buildSiteRecord` (`main.js`) is what joins one row here
  * with `openSites` to produce the `ProjectRecord` the renderer actually gets.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const PROJECTS_FILE_NAME = "desktop-projects.json";
+const SITES_FILE_NAME = "desktop-projects.json";
 
 /**
  * A tracked row's PROVENANCE — who made the directory it points at. Recorded because project delete
@@ -26,14 +26,14 @@ const PROJECTS_FILE_NAME = "desktop-projects.json";
  * Two values, and the split is exactly `classifySiteDir`'s: `handleCreate` classifies the picked
  * folder BEFORE `adoptSiteDir` runs, so `"empty"` (which `tovu init` is about to fill) is the one
  * case that becomes `created`, and a folder that was already a site becomes `adopted` — the same
- * value `seedDevFallbackProject` writes. `adoptSiteDir` alone cannot tell the two apart: it returns
+ * value `seedDevFallbackSite` writes. `adoptSiteDir` alone cannot tell the two apart: it returns
  * the same path either way.
  *
  * Not a boolean, because a boolean would have to be named for the CONSEQUENCE ("removable") and
  * would then have to change meaning if the deletion policy ever gains another rule. This records the
  * FACT; `project-delete-guard.js` owns the policy over it.
  */
-const PROJECT_ORIGIN = Object.freeze({
+const SITE_ORIGIN = Object.freeze({
   /** This app ran `tovu init` into an empty folder — every byte under it is ours. */
   created: "created",
   /** The directory already existed as a site when this app started tracking it. Never erased. */
@@ -41,26 +41,26 @@ const PROJECT_ORIGIN = Object.freeze({
 });
 
 /** @returns the tracked-projects file's path inside Electron's per-user `userData` directory. */
-function projectsFilePath(userDataDir) {
-  return path.join(userDataDir, PROJECTS_FILE_NAME);
+function sitesFilePath(userDataDir) {
+  return path.join(userDataDir, SITES_FILE_NAME);
 }
 
 /**
- * Coerce a row's stored `origin` to a known {@link PROJECT_ORIGIN} value, FAIL-CLOSED: anything that
+ * Coerce a row's stored `origin` to a known {@link SITE_ORIGIN} value, FAIL-CLOSED: anything that
  * is not literally `"created"` — absent (a row written before provenance existed), misspelled, or a
  * non-string a hand-edited file put there — reads as `adopted`, the value that never erases files.
  *
  * @complexity O(1).
  */
 function normalizeOrigin(origin) {
-  return origin === PROJECT_ORIGIN.created ? PROJECT_ORIGIN.created : PROJECT_ORIGIN.adopted;
+  return origin === SITE_ORIGIN.created ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
 }
 
 /**
  * Parse the registry file, or `undefined` when it is absent, unreadable, or not a JSON object.
  *
- * The one place the file is read from disk, so {@link readTrackedProjects} and
- * {@link readDismissedProjects} can never disagree about whether a given file exists — the
+ * The one place the file is read from disk, so {@link readTrackedSites} and
+ * {@link readDismissedSites} can never disagree about whether a given file exists — the
  * distinction between "no file at all" and "a file holding an empty list" is load-bearing for
  * {@link migrateLegacyDismissals}, and two independent readers would eventually drift on it.
  *
@@ -82,7 +82,7 @@ function readRegistryFile(projectsPath) {
  * is a convenience list over sites that still exist for real on disk, not the sites themselves, so a
  * truncated or corrupt copy should read as empty rather than crash the Projects screen.
  *
- * Every row comes back with a definite {@link PROJECT_ORIGIN} value: a row written before
+ * Every row comes back with a definite {@link SITE_ORIGIN} value: a row written before
  * provenance existed, or one carrying an unrecognized value, reads as `adopted`. That is the single
  * place the fail-closed rule lives, so no consumer has to remember to default it — see
  * {@link normalizeOrigin}.
@@ -90,7 +90,7 @@ function readRegistryFile(projectsPath) {
  * @returns rows shaped `{siteDir, createdAt, origin}`, oldest first.
  * @complexity O(n) in file size.
  */
-function readTrackedProjects(projectsPath) {
+function readTrackedSites(projectsPath) {
   const parsed = readRegistryFile(projectsPath);
   const rows = Array.isArray(parsed?.projects) ? parsed.projects : [];
   return rows
@@ -102,8 +102,8 @@ function readTrackedProjects(projectsPath) {
  * Directories the operator has REMOVED on purpose — the tombstone list, and the reason a removal
  * survives the row it removed.
  *
- * Nothing automatic may ever add a directory named here: not {@link seedDevFallbackProject}, not
- * {@link adoptDiscoveredProjects} on boot, not a rescan. Only {@link trackProject} — the explicit
+ * Nothing automatic may ever add a directory named here: not {@link seedDevFallbackSite}, not
+ * {@link adoptDiscoveredSites} on boot, not a rescan. Only {@link trackSite} — the explicit
  * adder, reached by the operator picking the folder themselves — clears an entry.
  *
  * A file with no `dismissed` key at all reads as an empty list here rather than as something
@@ -114,7 +114,7 @@ function readTrackedProjects(projectsPath) {
  * @returns the dismissed site dirs, in the order they were removed.
  * @complexity O(n) in file size.
  */
-function readDismissedProjects(projectsPath) {
+function readDismissedSites(projectsPath) {
   const dismissed = readRegistryFile(projectsPath)?.dismissed;
   return Array.isArray(dismissed) ? dismissed.filter((dir) => typeof dir === "string") : [];
 }
@@ -125,7 +125,7 @@ function readDismissedProjects(projectsPath) {
  *   failure mode that would quietly resurrect every dismissed project on the next scan.
  * @complexity O(n) in the row count.
  */
-function writeTrackedProjects(projectsPath, rows, dismissed = readDismissedProjects(projectsPath)) {
+function writeTrackedSites(projectsPath, rows, dismissed = readDismissedSites(projectsPath)) {
   fs.mkdirSync(path.dirname(projectsPath), { recursive: true });
   fs.writeFileSync(projectsPath, JSON.stringify({ projects: rows, dismissed }, null, 2));
 }
@@ -135,7 +135,7 @@ function writeTrackedProjects(projectsPath, rows, dismissed = readDismissedProje
  * the list unchanged rather than duplicating or bumping its row (and therefore never upgrades an
  * `adopted` row to `created` behind the operator's back).
  *
- * @param origin see {@link PROJECT_ORIGIN}. Defaults to `adopted` — the value that forbids erasing
+ * @param origin see {@link SITE_ORIGIN}. Defaults to `adopted` — the value that forbids erasing
  *   the directory — so a call site that forgets to state provenance fails CLOSED rather than
  *   handing a stranger's folder to `fs.rm`. Only a caller that positively knows this app created
  *   the directory may pass `created`.
@@ -149,32 +149,32 @@ function writeTrackedProjects(projectsPath, rows, dismissed = readDismissedProje
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function trackProject(projectsPath, siteDir, origin = PROJECT_ORIGIN.adopted, options = {}) {
-  const rows = readTrackedProjects(projectsPath);
+function trackSite(projectsPath, siteDir, origin = SITE_ORIGIN.adopted, options = {}) {
+  const rows = readTrackedSites(projectsPath);
   // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
   // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
   // dialog themselves, and picking a folder they once removed is them asking for it back. Every
-  // AUTOMATIC adder must consult `isProjectDirKnown` before calling this, so a dismissed directory
+  // AUTOMATIC adder must consult `isSiteDirKnown` before calling this, so a dismissed directory
   // never reaches this line by machine.
-  const dismissed = readDismissedProjects(projectsPath).filter((dir) => dir !== siteDir);
+  const dismissed = readDismissedSites(projectsPath).filter((dir) => dir !== siteDir);
   if (rows.some((row) => row.siteDir === siteDir)) {
-    if (dismissed.length !== readDismissedProjects(projectsPath).length) writeTrackedProjects(projectsPath, rows, dismissed);
+    if (dismissed.length !== readDismissedSites(projectsPath).length) writeTrackedSites(projectsPath, rows, dismissed);
     return rows;
   }
   const next = [...rows, buildTrackedRow(siteDir, normalizeOrigin(origin), options.siteId)];
-  writeTrackedProjects(projectsPath, next, dismissed);
+  writeTrackedSites(projectsPath, next, dismissed);
   return next;
 }
 
 /**
- * One row in the shape {@link readTrackedProjects} returns, with `siteId` present only when this
- * row is `created` AND a usable id was supplied — see {@link trackProject}'s own param doc.
+ * One row in the shape {@link readTrackedSites} returns, with `siteId` present only when this
+ * row is `created` AND a usable id was supplied — see {@link trackSite}'s own param doc.
  *
  * @complexity O(1).
  */
 function buildTrackedRow(siteDir, origin, siteId) {
   const row = { siteDir, createdAt: new Date().toISOString(), origin };
-  const stampable = origin === PROJECT_ORIGIN.created && typeof siteId === "string" && siteId !== "";
+  const stampable = origin === SITE_ORIGIN.created && typeof siteId === "string" && siteId !== "";
   return stampable ? { ...row, siteId } : row;
 }
 
@@ -185,12 +185,12 @@ function buildTrackedRow(siteDir, origin, siteId) {
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function untrackProject(projectsPath, siteDir) {
-  const rows = readTrackedProjects(projectsPath).filter((row) => row.siteDir !== siteDir);
+function untrackSite(projectsPath, siteDir) {
+  const rows = readTrackedSites(projectsPath).filter((row) => row.siteDir !== siteDir);
   // The removal is RECORDED, not just applied. Dropping the row alone was enough while the list was
   // the only thing that could add a project; with a boot scan and a rescan also adding, a bare
-  // deletion would be undone by the very next one. See {@link readDismissedProjects}.
-  writeTrackedProjects(projectsPath, rows, [...new Set([...readDismissedProjects(projectsPath), siteDir])]);
+  // deletion would be undone by the very next one. See {@link readDismissedSites}.
+  writeTrackedSites(projectsPath, rows, [...new Set([...readDismissedSites(projectsPath), siteDir])]);
   return rows;
 }
 
@@ -202,23 +202,23 @@ function untrackProject(projectsPath, siteDir) {
  *
  * @complexity O(n) in the row + dismissal count.
  */
-function isProjectDirKnown(projectsPath, siteDir) {
-  if (readTrackedProjects(projectsPath).some((row) => row.siteDir === siteDir)) return true;
-  return readDismissedProjects(projectsPath).includes(siteDir);
+function isSiteDirKnown(projectsPath, siteDir) {
+  if (readTrackedSites(projectsPath).some((row) => row.siteDir === siteDir)) return true;
+  return readDismissedSites(projectsPath).includes(siteDir);
 }
 
 /**
  * Convert a registry file written BEFORE removals were recorded into one that records them, once.
  *
  * This exists to preserve one property across the format change. The old
- * {@link seedDevFallbackProject} guard was `if (fs.existsSync(projectsPath)) return false;` — file
- * existence, deliberately, because `trackProject`/`untrackProject` both write unconditionally, so
+ * {@link seedDevFallbackSite} guard was `if (fs.existsSync(projectsPath)) return false;` — file
+ * existence, deliberately, because `trackSite`/`untrackSite` both write unconditionally, so
  * an operator who tracked and then removed every project still has a file (holding
  * `{projects: []}`) and must never be re-seeded against their will. Replacing that guard with a
  * per-directory question would, on its own, LOSE exactly that: an empty legacy file says nothing
  * about `devFallbackDir`, so the seed would fire again and hand back the card they deleted.
  *
- * So the fact is recovered before it is needed. `seedDevFallbackProject` is the ONLY mechanism that
+ * So the fact is recovered before it is needed. `seedDevFallbackSite` is the ONLY mechanism that
  * could have added a directory without being asked before this field existed, and `devFallbackDir`
  * is the only directory it could ever add. A legacy file that does not track it is therefore a file
  * whose operator removed it — the precise fact the existence check encoded — and it is written down
@@ -240,15 +240,15 @@ function migrateLegacyDismissals(projectsPath, devFallbackDir) {
   const parsed = readRegistryFile(projectsPath);
   if (parsed === undefined) return [];
   if (Array.isArray(parsed.dismissed)) return [];
-  const rows = readTrackedProjects(projectsPath);
+  const rows = readTrackedSites(projectsPath);
   const added = rows.some((row) => row.siteDir === devFallbackDir) ? [] : [devFallbackDir];
-  writeTrackedProjects(projectsPath, rows, added);
+  writeTrackedSites(projectsPath, rows, added);
   return added;
 }
 
 /**
  * Seed `devFallbackDir` as a tracked project unless the operator's stored state already answers for
- * it — see {@link isProjectDirKnown}, and {@link migrateLegacyDismissals} for how a file written
+ * it — see {@link isSiteDirKnown}, and {@link migrateLegacyDismissals} for how a file written
  * before dismissals existed still answers.
  *
  * The guard USED to be file existence, which also blocked every legitimate case: once anything at
@@ -262,10 +262,10 @@ function migrateLegacyDismissals(projectsPath, devFallbackDir) {
  * callers can test the seeding decision without a real directory on disk.
  *
  * @returns whether a row was seeded.
- * @complexity O(1) beyond `classifySiteDir`'s and `trackProject`'s own cost.
+ * @complexity O(1) beyond `classifySiteDir`'s and `trackSite`'s own cost.
  */
-function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
-  if (isProjectDirKnown(projectsPath, devFallbackDir)) return false;
+function seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir) {
+  if (isSiteDirKnown(projectsPath, devFallbackDir)) return false;
   // Guarded, not bare: this runs one line before `projectDeps` is built, inside the `whenReady()`
   // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
   // fallback to decline — never a launch to abort (D-01).
@@ -273,7 +273,7 @@ function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
   // ALWAYS `adopted`, and stated rather than left to the default: this row points at a folder that
   // already held a site before this app ever ran — `<repo>/sites/tovu-com` in a checkout, someone's
   // real content. Deleting its card must never delete it.
-  trackProject(projectsPath, devFallbackDir, PROJECT_ORIGIN.adopted);
+  trackSite(projectsPath, devFallbackDir, SITE_ORIGIN.adopted);
   return true;
 }
 
@@ -301,7 +301,7 @@ function seedDevFallbackProject(projectsPath, devFallbackDir, classifySiteDir) {
  *   skipped, not an error — `<repo>/sites` does not exist in a packaged app.
  * @param deps.knownDirs candidate directories themselves, already-known paths rather than parents.
  * @param deps.classifySiteDir `site-dir-store.js`'s classifier, injected — see
- *   {@link seedDevFallbackProject} on why this module takes it rather than requiring it.
+ *   {@link seedDevFallbackSite} on why this module takes it rather than requiring it.
  * @returns absolute site dirs, deduped and sorted.
  * @complexity O(n) in the roots' combined child count.
  */
@@ -351,7 +351,7 @@ function isDiscoverableSite(dir, classifySiteDir) {
  *
  * Separate from {@link isDiscoverableSite} because the two callers need different amounts of it.
  * A scan over candidates it found itself must also survive `statSync` (D-01, and the arm the old
- * guard got wrong); {@link seedDevFallbackProject} is asking about ONE named directory through a
+ * guard got wrong); {@link seedDevFallbackSite} is asking about ONE named directory through a
  * classifier that is injected exactly so the seeding decision can be tested without a real folder
  * on disk — adding a filesystem check there would break that contract to fix a throw.
  *
@@ -368,11 +368,11 @@ function classifiesAsSite(dir, classifySiteDir) {
 /**
  * Track every discovered directory the operator has no stored answer about.
  *
- * The merge rule, and the whole reason this is not just a loop over `trackProject`: a directory in
+ * The merge rule, and the whole reason this is not just a loop over `trackSite`: a directory in
  * the dismissal list is SKIPPED and stays dismissed. Discovery is automatic, and an automatic adder
  * that resurrected deliberately-removed projects would be the same bug the seed guard exists to
  * prevent, wearing a different hat — worse here, because a rescan can be triggered repeatedly. The
- * operator's way back is the folder dialog, which reaches {@link trackProject} directly and clears
+ * operator's way back is the folder dialog, which reaches {@link trackSite} directly and clears
  * the tombstone, because that one IS them asking.
  *
  * Every discovery is recorded `adopted`, never `created`: this app did not make any of these
@@ -381,31 +381,31 @@ function classifiesAsSite(dir, classifySiteDir) {
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
  * @complexity O(n * m) in the discovered count and the registry size.
  */
-function adoptDiscoveredProjects(projectsPath, siteDirs) {
+function adoptDiscoveredSites(projectsPath, siteDirs) {
   const adopted = [];
   for (const siteDir of siteDirs) {
-    if (isProjectDirKnown(projectsPath, siteDir)) continue;
-    trackProject(projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+    if (isSiteDirKnown(projectsPath, siteDir)) continue;
+    trackSite(projectsPath, siteDir, SITE_ORIGIN.adopted);
     adopted.push(siteDir);
   }
   return adopted;
 }
 
 export {
-  PROJECTS_FILE_NAME,
-  PROJECT_ORIGIN,
+  SITES_FILE_NAME,
+  SITE_ORIGIN,
   normalizeOrigin,
-  projectsFilePath,
-  readTrackedProjects,
-  writeTrackedProjects,
-  trackProject,
-  untrackProject,
-  seedDevFallbackProject,
-  readDismissedProjects,
-  isProjectDirKnown,
+  sitesFilePath,
+  readTrackedSites,
+  writeTrackedSites,
+  trackSite,
+  untrackSite,
+  seedDevFallbackSite,
+  readDismissedSites,
+  isSiteDirKnown,
   migrateLegacyDismissals,
   discoverSiteDirs,
   isDiscoverableSite,
   classifiesAsSite,
-  adoptDiscoveredProjects,
+  adoptDiscoveredSites,
 };

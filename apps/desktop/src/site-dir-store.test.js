@@ -483,7 +483,7 @@ test("classifySiteDirSafely answers 'unreadable' where classifySiteDir throws, a
 
 test("existingRecentSiteDirs skips a remembered path that is now a FILE instead of aborting", () => {
   // D-01, arm 1 — and the one with no guard at all. This list is `projectDeps.recentSiteDirs`,
-  // called from `rescanProjects` inside the `whenReady()` chain whose only handler is
+  // called from `rescanSites` inside the `whenReady()` chain whose only handler is
   // `reportBootFailure`: one bad MRU entry used to quit the app before any window existed.
   const statePath = tempStatePath();
   const alive = fakeSiteDir();

@@ -1,7 +1,7 @@
 /**
- * `ProjectGrid.tsx`'s derived logic.
+ * `SiteGrid.tsx`'s derived logic.
  *
- * Both functions below arrived from Tovu-Runner inside `ProjectGrid.tsx` itself. This repo keeps
+ * Both functions below arrived from Tovu-Runner inside `SiteGrid.tsx` itself. This repo keeps
  * functions and derived logic out of `.tsx` files — components render, a sibling `*.hooks.ts` owns
  * everything they derive — which is the same rule `App.tsx`/`App.hooks.ts` already follow. Moving
  * them also makes them directly assertable without mounting the grid: neither touches React,

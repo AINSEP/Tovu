@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITES_MCP_TOOLS, describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.js";
-import { PROJECT_ORIGIN, projectsFilePath, readTrackedProjects, trackProject } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./project-registry.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-tools-"));
@@ -40,7 +40,7 @@ function fakeContext(userDataDir = tempDir()) {
     revealed,
     context: {
       userDataDir,
-      projectsPath: projectsFilePath(userDataDir),
+      projectsPath: sitesFilePath(userDataDir),
       revealPath: async (target) => {
         revealed.push(target);
       },
@@ -85,8 +85,8 @@ test("describeSitesMcpTools publishes the table without leaking handlers", () =>
 test("list_sites reports the tracked sites and whether each folder still exists", async () => {
   const { context } = fakeContext();
   const present = siteFixture("live");
-  trackProject(context.projectsPath, present, PROJECT_ORIGIN.adopted);
-  trackProject(context.projectsPath, "/gone/missing-site", PROJECT_ORIGIN.adopted);
+  trackSite(context.projectsPath, present, SITE_ORIGIN.adopted);
+  trackSite(context.projectsPath, "/gone/missing-site", SITE_ORIGIN.adopted);
 
   const result = await runSitesMcpTool("list_sites", {}, context);
 
@@ -108,7 +108,7 @@ test("add_site_pointer tracks a real site as adopted", async () => {
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.siteDir, siteDir);
-  assert.equal(readTrackedProjects(context.projectsPath)[0].origin, PROJECT_ORIGIN.adopted);
+  assert.equal(readTrackedSites(context.projectsPath)[0].origin, SITE_ORIGIN.adopted);
 });
 
 test("add_site_pointer REFUSES an empty folder, writes no row, and initializes nothing", async () => {
@@ -120,7 +120,7 @@ test("add_site_pointer REFUSES an empty folder, writes no row, and initializes n
 
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.code, "SITE_DIR_EMPTY");
-  assert.deepEqual(readTrackedProjects(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites(context.projectsPath), []);
   // The assertion the whole tool exists to satisfy: no `tovu init` ran here.
   assert.deepEqual(fs.readdirSync(siteDir), []);
 });
@@ -139,7 +139,7 @@ test("add_site_pointer REFUSES an incomplete site and an occupied folder", async
 
   assert.equal(first.structuredContent.code, "SITE_DIR_INCOMPLETE");
   assert.equal(second.structuredContent.code, "SITE_DIR_OCCUPIED");
-  assert.deepEqual(readTrackedProjects(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites(context.projectsPath), []);
   assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
   assert.deepEqual(fs.readdirSync(occupied), ["taxes.pdf"]);
 });
@@ -154,7 +154,7 @@ test("add_site_pointer REFUSES a relative path rather than resolving it somewher
   const result = await runSitesMcpTool("add_site_pointer", { siteDir: path.basename(siteDir) }, context);
 
   assert.equal(result.isError, true);
-  assert.deepEqual(readTrackedProjects(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites(context.projectsPath), []);
 });
 
 test("add_site_pointer rejects a missing or non-string siteDir with a correctable message", async () => {
@@ -165,7 +165,7 @@ test("add_site_pointer rejects a missing or non-string siteDir with a correctabl
     assert.equal(result.isError, true, `accepted ${JSON.stringify(args)}`);
     assert.match(result.content[0].text, /'siteDir' is required/);
   }
-  assert.deepEqual(readTrackedProjects(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites(context.projectsPath), []);
 });
 
 test("add_site_pointer reports an already-tracked site without claiming it added one", async () => {
@@ -176,14 +176,14 @@ test("add_site_pointer reports an already-tracked site without claiming it added
   const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
 
   assert.equal(result.structuredContent.alreadyTracked, true);
-  assert.match(result.content[0].text, /was already in your Projects list/);
-  assert.equal(readTrackedProjects(context.projectsPath).length, 1);
+  assert.match(result.content[0].text, /was already in your websites/);
+  assert.equal(readTrackedSites(context.projectsPath).length, 1);
 });
 
 test("reveal_site_folder opens a tracked site's folder", async () => {
   const { context, revealed } = fakeContext();
   const siteDir = siteFixture();
-  trackProject(context.projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
 
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
 
@@ -198,7 +198,7 @@ test("reveal_site_folder REFUSES a path the app is not tracking and never reache
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir: untracked }, context);
 
   assert.equal(result.isError, true);
-  assert.match(result.content[0].text, /is not one of this app's Projects/);
+  assert.match(result.content[0].text, /is not one of this app's websites/);
   // The load-bearing half. Without the tracked-row check, `siteDir` is a model-supplied argument to
   // "show this to the operator" — an empty array is the only passing state.
   assert.deepEqual(revealed, []);
@@ -219,12 +219,12 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   const siteDir = siteFixture();
   const context = {
     userDataDir,
-    projectsPath: projectsFilePath(userDataDir),
+    projectsPath: sitesFilePath(userDataDir),
     revealPath: async () => {
       throw new Error("could not run 'open': ENOENT");
     },
   };
-  trackProject(context.projectsPath, siteDir, PROJECT_ORIGIN.adopted);
+  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
 
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
 

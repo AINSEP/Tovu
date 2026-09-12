@@ -5,7 +5,7 @@
  * and markup on top of that hook's return value.
  */
 import { useCreateWebsiteForm } from './App.hooks.js';
-import type { CreateProjectInput, DatabaseProviderKind } from '../contracts/project.js';
+import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
 import type { RefObject } from 'react';
 
 const TOVU_VERSION = '0.1.0';
@@ -167,7 +167,7 @@ export function CreateWebsiteOnboarding({
   useForm = useCreateWebsiteForm,
 }: {
   onBack: () => void;
-  onCreate: (input: CreateProjectInput) => Promise<void>;
+  onCreate: (input: CreateSiteInput) => Promise<void>;
   useForm?: typeof useCreateWebsiteForm;
 }) {
   const {

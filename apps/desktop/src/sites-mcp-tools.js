@@ -52,7 +52,7 @@
 import path from "node:path";
 
 import { AddSitePointerError, addSitePointer } from "./add-site-pointer.js";
-import { readTrackedProjects } from "./project-registry.js";
+import { readTrackedSites } from "./project-registry.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
 
 /**
@@ -116,7 +116,7 @@ const SITE_DIR_SCHEMA = Object.freeze({
  * @complexity O(n) in the tracked-row count, one `stat` pair per row.
  */
 function listSites(_args, context) {
-  const sites = readTrackedProjects(context.projectsPath).map((row) => ({
+  const sites = readTrackedSites(context.projectsPath).map((row) => ({
     siteDir: row.siteDir,
     name: path.basename(row.siteDir),
     origin: row.origin,
@@ -163,11 +163,11 @@ function addSitePointerTool(args, context) {
 /** {@link addSitePointerTool}'s operator-facing sentence, split out to keep that function's
  *  complexity under the shop ceiling. @complexity O(1). */
 function describeAddResult(result) {
-  if (result.alreadyTracked) return `${result.siteDir} was already in your Projects list — nothing changed.`;
+  if (result.alreadyTracked) return `${result.siteDir} was already in your websites — nothing changed.`;
   if (result.alreadyDismissed) {
-    return `Added ${result.siteDir} back to your Projects list. You had removed this website before; adding it by name brings it back.`;
+    return `Added ${result.siteDir} back to your websites. You had removed this website before; adding it by name brings it back.`;
   }
-  return `Added ${result.siteDir} to your Projects list. The folder was not moved, copied, or changed.`;
+  return `Added ${result.siteDir} to your websites. The folder was not moved, copied, or changed.`;
 }
 
 /**
@@ -190,10 +190,10 @@ function describeAddResult(result) {
 async function revealSiteFolder(args, context) {
   const requested = requireStringArg(args, "siteDir");
   const siteDir = path.resolve(path.sep, requested);
-  const tracked = readTrackedProjects(context.projectsPath).some((row) => row.siteDir === siteDir);
+  const tracked = readTrackedSites(context.projectsPath).some((row) => row.siteDir === siteDir);
   if (!tracked) {
     throw new ToolInputError(
-      `${siteDir} is not one of this app's Projects, so it will not be opened. Call 'list_sites' and use one of the 'siteDir' values it returns.`,
+      `${siteDir} is not one of this app's websites, so it will not be opened. Call 'list_sites' and use one of the 'siteDir' values it returns.`,
     );
   }
 
@@ -227,7 +227,7 @@ const SITES_MCP_TOOLS = Object.freeze([
   Object.freeze({
     name: "add_site_pointer",
     description:
-      "Add an EXISTING Tovu website to this app's Projects list by its folder path. The folder is " +
+      "Add an EXISTING Tovu website to this app's list of websites by its folder path. The folder is " +
       "only pointed at: it is never moved, copied, renamed, or written to, and no new site is ever " +
       "created — a folder that is empty or is not already a complete Tovu site is refused with the " +
       "reason. Use this when someone wants a site they already have to show up in the app.",
@@ -255,7 +255,7 @@ const SITES_MCP_TOOLS = Object.freeze([
       "Open a tracked site's folder in the operator's file manager so they can work with it " +
       "directly — this is how to help someone DELETE, move, back up, or inspect a site: take them " +
       "to it and let them do it. Changes nothing and deletes nothing. Only folders already in the " +
-      "Projects list can be opened.",
+      "app's list of websites can be opened.",
     inputSchema: SITE_DIR_SCHEMA,
     // `false` even though nothing is modified anywhere — see this file's header for the full
     // argument. Short version: a window appears on the operator's screen, so this is not "read-only"

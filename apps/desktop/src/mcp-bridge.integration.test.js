@@ -26,7 +26,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { PROJECT_ORIGIN, projectsFilePath, readTrackedProjects, trackProject } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./project-registry.js";
 
 const BRIDGE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "mcp-bridge.mjs");
 
@@ -163,7 +163,7 @@ test("two messages arriving in ONE write are handled as two", async () => {
 test("the bridge reads the registry named by --user-data-dir, not the real one", async () => {
   const userDataDir = tempDir();
   const siteDir = siteFixture("scoped-site");
-  trackProject(projectsFilePath(userDataDir), siteDir, PROJECT_ORIGIN.adopted);
+  trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
 
   const { stdout } = await driveBridge(
     ["--user-data-dir", userDataDir],
@@ -188,10 +188,10 @@ test("add_site_pointer through the real bridge writes the row the app will read"
   assert.equal(added.result.isError, undefined);
   // Read back through `project-registry.js` itself — the same reader the Projects screen uses — so
   // this proves the row is consumable, not merely that the tool claimed success.
-  const rows = readTrackedProjects(projectsFilePath(userDataDir));
+  const rows = readTrackedSites(sitesFilePath(userDataDir));
   assert.equal(rows.length, 1);
   assert.equal(rows[0].siteDir, siteDir);
-  assert.equal(rows[0].origin, PROJECT_ORIGIN.adopted);
+  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
 });
 
 test("add_site_pointer through the real bridge REFUSES an empty folder and initializes nothing", async () => {
@@ -209,7 +209,7 @@ test("add_site_pointer through the real bridge REFUSES an empty folder and initi
   assert.equal(refused.result.structuredContent.code, "SITE_DIR_EMPTY");
   // The whole point, proven at the outermost layer: no site was created in the operator's folder.
   assert.deepEqual(fs.readdirSync(empty), []);
-  assert.deepEqual(readTrackedProjects(projectsFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
 });
 
 test("the bridge refuses to start without a userData directory", async () => {

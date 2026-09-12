@@ -24,15 +24,15 @@ import {
 } from './App.hooks.js';
 import { folderPathsFromDataTransfer } from './folder-drop.js';
 import { useAddSite } from './use-add-site.hooks.js';
-import { ProjectGrid } from './ProjectGrid.js';
+import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
-import { STATUS_LABEL } from './project-status.js';
-import type { CreateProjectInput, ProjectRecord, ProjectView } from '../contracts/project.js';
+import { STATUS_LABEL } from './site-status.js';
+import type { CreateSiteInput, ProjectRecord, SiteSurface } from '../contracts/project.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 
 // Admin first because that is where a workspace opens. See `ProjectWorkspace` for why.
-const PROJECT_VIEWS: readonly ProjectView[] = ['admin', 'site'];
+const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
 /**
  * Runner's root component.
@@ -85,9 +85,9 @@ export function App({
     startCreating,
     stopCreating,
   } = useNav(setActiveTab);
-  const { openProjects, inProjects, showProjectTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
+  const { openProjects, inProjects, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
-  const { expanded, toggleExpanded } = useExpanded(showProjectTab);
+  const { expanded, toggleExpanded } = useExpanded(showSiteTab);
   useRunnerNavigation(setActiveId, setActiveTab);
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
     useProjectMutations({
@@ -117,7 +117,7 @@ export function App({
       {inProjects && !appearanceOpen && !expanded && (
         <TabStrip
           projects={openProjects}
-          activeTab={showProjectTab ? activeTab : null}
+          activeTab={showSiteTab ? activeTab : null}
           onSelectSitesHome={() => setActiveTab(null)}
           onSelectTab={setActiveTab}
           onCloseTab={closeProjectTab}
@@ -493,7 +493,7 @@ function ProjectWorkspace({
 }) {
   // Per workspace, not lifted into `App`: every open project stays mounted at once, so one shared
   // value would swing every other tab's guest at the same time.
-  const [view, setView] = useState<ProjectView>('admin');
+  const [view, setView] = useState<SiteSurface>('admin');
   // Remounting the guest IS the reload. The imperative `.reload()` would mean typing a ref
   // against Electron's element API for one call, and a key change gets the same fresh load.
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -514,7 +514,7 @@ function ProjectWorkspace({
   // between the last poll and this click, and that same poll is about to take the tab away.
   const openInBrowser = () => {
     void runnerInventoryBridge()
-      ?.openProjectExternal({ projectId: project.id, view })
+      ?.openSiteExternal({ projectId: project.id, view })
       .catch(() => undefined);
   };
 
@@ -531,7 +531,7 @@ function ProjectWorkspace({
           <span className="state__dot" />
         </span>
         <div className="workspace__views">
-          {PROJECT_VIEWS.map((option) => (
+          {SITE_SURFACES.map((option) => (
             <button
               type="button"
               key={option}
@@ -615,7 +615,7 @@ function ProjectWorkspace({
           />
           {stalled && (
             <div className="workspace__overlay">
-              <ProjectStartPanel
+              <SiteStartPanel
                 project={project}
                 body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
                 onStarted={() => setReloadNonce((nonce) => nonce + 1)}
@@ -628,13 +628,13 @@ function ProjectWorkspace({
         // guest just told us, as a fact rather than a guess, that its main frame would not load.
         // Nothing is left running underneath worth preserving, so this replaces the guest outright
         // rather than overlaying it the way `stalled` does above.
-        <ProjectStartPanel
+        <SiteStartPanel
           project={project}
           body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
           onStarted={() => setReloadNonce((nonce) => nonce + 1)}
         />
       ) : (
-        <ProjectStartPanel project={project} />
+        <SiteStartPanel project={project} />
       )}
     </section>
   );
@@ -653,7 +653,7 @@ function ProjectWorkspace({
  * success for a stopped project: `App`'s 4s poll flips `status` to `running`, which swaps this
  * panel for the webview on its own.
  */
-function ProjectStartPanel({
+function SiteStartPanel({
   project,
   body,
   onStarted,
@@ -678,8 +678,8 @@ function ProjectStartPanel({
       </p>
       {/* A blocked project is waiting on database-provider support Tovu does not have, so the
           only honest affordance is none — starting it would fail every time. Every project this
-          shell tracks is sqlite today (`buildProjectRecord`), so this branch is currently dead in
-          practice; kept because `ProjectLifecycleStatus` still declares `'blocked'` as a real
+          shell tracks is sqlite today (`buildSiteRecord`), so this branch is currently dead in
+          practice; kept because `SiteLifecycleStatus` still declares `'blocked'` as a real
           value the contract allows a future provider to reach. */}
       {project.status !== 'blocked' && (
         <button
@@ -726,7 +726,7 @@ function CreateWebsiteHost({
 }: {
   hidden: boolean;
   onBack: () => void;
-  onCreate: (input: CreateProjectInput) => Promise<void>;
+  onCreate: (input: CreateSiteInput) => Promise<void>;
 }) {
   return (
     <div className={`create-website-host ${hidden ? 'is-hidden' : ''}`} aria-hidden={hidden}>
@@ -917,7 +917,7 @@ function ProjectsBody({
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
       {addError && <p className="empty__body">{addError}</p>}
-      {projects.length === 0 ? <NoWebsitesYet /> : <ProjectGrid projects={projects} onOpen={onOpen} onDelete={onDelete} />}
+      {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} />}
     </>
   );
 }
@@ -925,7 +925,7 @@ function ProjectsBody({
 /**
  * What the Projects screen shows when nothing is tracked yet.
  *
- * Needed because deleting the grid's dashed "Add project" tile (see `ProjectGrid.tsx`'s header)
+ * Needed because deleting the grid's dashed "Add project" tile (see `SiteGrid.tsx`'s header)
  * also deleted the only thing an operator with no websites used to see — without this, a first
  * launch renders an empty page with no explanation and no visible way forward.
  *
@@ -993,7 +993,7 @@ function MainContent({
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Port 0 is otherwise
-              unreachable: `buildProjectRecord` only ever reports a real port for an open project. */}
+              unreachable: `buildSiteRecord` only ever reports a real port for an open project. */}
           {lastCreated.port === 0 ? (
             <>
               <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.

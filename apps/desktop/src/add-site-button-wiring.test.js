@@ -27,9 +27,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { registerProjectIpcHandlers } from "./project-ipc.js";
+import { registerSiteIpcHandlers } from "./project-ipc.js";
 import { addSitePointer } from "./add-site-pointer.js";
-import { PROJECT_ORIGIN, projectsFilePath, readTrackedProjects } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./project-registry.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
 import { readRegistry, isLiveServeRow } from "./site-registry.js";
 
@@ -70,7 +70,7 @@ function channelTheButtonInvokes() {
  * Register the real handlers against a fake `ipcMain` and return the one the button's channel got,
  * plus the registry path it writes to and a record of what the folder dialog was asked.
  *
- * `addSitePointer`, `classifySiteDirSafely`, `readTrackedProjects` and the registry file are all
+ * `addSitePointer`, `classifySiteDirSafely`, `readTrackedSites` and the registry file are all
  * REAL — the only fakes are `ipcMain` (a Map) and the folder dialog (which cannot be driven
  * headlessly). A test that also faked the adder would prove the wiring reaches a stub.
  */
@@ -78,9 +78,9 @@ function registerRealHandlers(pickedPath) {
   const handlers = new Map();
   const shown = [];
   const userDataDir = tempDir();
-  const projectsPath = projectsFilePath(userDataDir);
+  const projectsPath = sitesFilePath(userDataDir);
 
-  registerProjectIpcHandlers({
+  registerSiteIpcHandlers({
     ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
     dialog: {
       showOpenDialog: async (options) => {
@@ -104,7 +104,7 @@ function registerRealHandlers(pickedPath) {
     recordSiteClosed: () => {},
     readRegistry,
     isLiveServeRow,
-    projectScanRoots: [],
+    siteScanRoots: [],
     recentSiteDirs: () => [],
     ctx: {},
   });
@@ -137,11 +137,11 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
   assert.equal(record.installDir, siteDir);
   assert.equal(record.displayName, "my-real-website");
   // 2. A POINTER is on disk — read back through the same reader the Projects screen uses.
-  const rows = readTrackedProjects(projectsPath);
+  const rows = readTrackedSites(projectsPath);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].siteDir, siteDir);
   // 3. `adopted`, so a later delete can never erase someone else's website.
-  assert.equal(rows[0].origin, PROJECT_ORIGIN.adopted);
+  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
   assert.equal(record.deleteErasesFiles, false);
   // 4. Pointer semantics, proven rather than promised: the folder is byte-for-byte as it was found.
   assert.deepEqual(fs.readdirSync(siteDir).sort(), before);
@@ -158,7 +158,7 @@ test("CLICKING the button REFUSES an empty folder and creates nothing in it", as
   await assert.rejects(() => handlers.get(channelTheButtonInvokes())({}), /Create website/);
   // No site was initialized — the exact difference from "Create website", which WOULD init here.
   assert.deepEqual(fs.readdirSync(empty), []);
-  assert.deepEqual(readTrackedProjects(projectsPath), []);
+  assert.deepEqual(readTrackedSites(projectsPath), []);
 });
 
 test("CLICKING the button REFUSES a folder of unrelated files and an incomplete site", async () => {
@@ -174,8 +174,8 @@ test("CLICKING the button REFUSES a folder of unrelated files and an incomplete 
   const second = registerRealHandlers(incomplete);
   await assert.rejects(() => second.handlers.get(channelTheButtonInvokes())({}), /half-initialized or damaged/);
 
-  assert.deepEqual(readTrackedProjects(first.projectsPath), []);
-  assert.deepEqual(readTrackedProjects(second.projectsPath), []);
+  assert.deepEqual(readTrackedSites(first.projectsPath), []);
+  assert.deepEqual(readTrackedSites(second.projectsPath), []);
   assert.deepEqual(fs.readdirSync(occupied), ["taxes.pdf"]);
   assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
 });
@@ -195,5 +195,5 @@ test("a cancelled dialog rejects and writes nothing", async () => {
 
   await assert.rejects(() => handlers.get(channelTheButtonInvokes())({}), /No folder was chosen/);
 
-  assert.deepEqual(readTrackedProjects(projectsPath), []);
+  assert.deepEqual(readTrackedSites(projectsPath), []);
 });

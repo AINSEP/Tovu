@@ -115,8 +115,8 @@ import { createSelftestTracker } from "./src/selftest-tracker.js";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.js";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.js";
-import { projectsFilePath, seedDevFallbackProject, migrateLegacyDismissals } from "./src/project-registry.js";
-import { registerProjectIpcHandlers, rescanProjects } from "./src/project-ipc.js";
+import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals } from "./src/project-registry.js";
+import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.js";
 import { addSitePointer } from "./src/add-site-pointer.js";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.js";
 import { fileURLToPath } from "node:url";
@@ -213,9 +213,9 @@ const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS.devFallbackSiteDir;
  * A list because the shell has no single instances root to scan — unlike Tovu-Runner, whose
  * provisioner owns `<userData>/instances` and names every folder in it, this shell's
  * "+ Create website" asks the operator WHERE the site should live, so its projects are scattered
- * wherever they said. `rescanProjects` covers the rest through the recently-opened list.
+ * wherever they said. `rescanSites` covers the rest through the recently-opened list.
  */
-const PROJECT_SCAN_ROOTS = DESKTOP_ROOTS.projectScanRoots;
+const SITE_SCAN_ROOTS = DESKTOP_ROOTS.siteScanRoots;
 
 /**
  * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
@@ -1101,7 +1101,7 @@ app
         cliMode: resolveCliMode(),
         statePath: stateFilePath(app.getPath("userData")),
         registryPath: registryFilePath(app.getPath("userData")),
-        projectsPath: projectsFilePath(app.getPath("userData")),
+        projectsPath: sitesFilePath(app.getPath("userData")),
       };
       // Once, before the seed reads the file: a registry written before removals were RECORDED
       // cannot say whether the dev fallback below is absent because it was never seeded or because
@@ -1121,15 +1121,15 @@ app
       // now, not the old "has this file ever been written": that one also blocked every legitimate
       // case, so nothing could ever be seeded or discovered again after the first write. A project
       // the operator removed still stays removed, from the recorded dismissal rather than from the
-      // file's mere existence — see `seedDevFallbackProject`'s own doc.
-      // `classifySiteDirSafely`, not `classifySiteDir`: this line and `rescanProjects` below both
+      // file's mere existence — see `seedDevFallbackSite`'s own doc.
+      // `classifySiteDirSafely`, not `classifySiteDir`: this line and `rescanSites` below both
       // run inside this `whenReady()` chain, whose only handler is `reportBootFailure`, and both
       // run BEFORE `openSitesHomeWindow()`. The throwing form is for the folder PICKER, where the
       // dialog shows the operator the error; here one unreadable candidate quit the app before any
       // window existed, leaving no renderer for the Rescan button to live in (D-01).
-        seedDevFallbackProject(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
+        seedDevFallbackSite(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
       }
-      // Built once and shared: `rescanProjects` below needs the same `deps` the handlers get, and a
+      // Built once and shared: `rescanSites` below needs the same `deps` the handlers get, and a
       // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
       // `classifySiteDir`, the scan inputs) where drift is invisible until a site fails to appear.
       const projectDeps = {
@@ -1149,7 +1149,7 @@ app
         // whether this app CREATED the directory or merely adopted one that already existed — the
         // fact `project-delete-guard.js` needs before any delete may erase anything.
         //
-        // The SAFE form, because `rescanProjects` scans with this same value (D-01). `handleCreate`
+        // The SAFE form, because `rescanSites` scans with this same value (D-01). `handleCreate`
         // is unaffected: an unreadable pick classifies `"unreadable"` rather than `"empty"`, so the
         // row would be `adopted` — and it never gets written, because `adoptSiteDir` re-classifies
         // with the throwing form one line later and refuses the folder with its own message.
@@ -1164,7 +1164,7 @@ app
         // `project-ipc.js`'s `liveForeignServers`.
         readRegistry,
         isLiveServeRow,
-        projectScanRoots: PROJECT_SCAN_ROOTS,
+        siteScanRoots: SITE_SCAN_ROOTS,
         // A thunk, not the list: read fresh on every scan, so a site opened during this session is
         // found by a later rescan instead of being frozen out by a snapshot taken at boot.
         recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath),
@@ -1172,12 +1172,12 @@ app
       };
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
       // real handlers must claim their channels first — see `project-ipc.js`'s own header.
-      registerProjectIpcHandlers(projectDeps);
+      registerSiteIpcHandlers(projectDeps);
       // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
       // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
       // nothing else. Runs before `openSitesHomeWindow` so the first render already shows what is
       // really on disk rather than a list that fills in on the next 4s poll.
-      rescanProjects(projectDeps);
+      rescanSites(projectDeps);
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.
