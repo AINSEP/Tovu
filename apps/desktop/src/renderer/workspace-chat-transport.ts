@@ -2,7 +2,7 @@
  * `ChatTransport` over Electron IPC — the renderer half of the fleet chat.
  *
  * The port is written for a streaming transport, and Electron's `invoke` is not one. The shape that
- * closes the gap is documented on the main-process side (`main/fleet-chat-ipc.ts`); what matters
+ * closes the gap is documented on the main-process side (`main/workspace-chat-ipc.ts`); what matters
  * here is the consequence: every run's events arrive on ONE shared push channel, tagged with a
  * subscription id this module minted. So this module owns a demultiplexer — one channel listener,
  * installed once, fanning out to per-subscription records — rather than a listener per run. A
@@ -24,8 +24,8 @@ import type {
   ToolResultMediaBlock,
 } from '@jini-ai/chat/core';
 import type { RunAgentPayload, RunProtocolEvent } from '@jini-ai/protocol';
-import { runnerVerbForAgentToolName } from '../contracts/fleet-chat.js';
-import type { RunnerChatEventMessage, RunnerChatRunState } from '../contracts/fleet-chat.js';
+import { runnerVerbForAgentToolName } from '../contracts/workspace-chat.js';
+import type { WorkspaceChatEventMessage, WorkspaceChatRunState } from '../contracts/workspace-chat.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 
 interface SubscriptionRecord {
@@ -61,7 +61,7 @@ function mintSubscriptionId(): string {
 }
 
 /** `@jini-ai/protocol` spells it `cancelled`; `@jini-ai/chat` spells it `canceled`. One L, one place. */
-function toChatRunStatus(state: RunnerChatRunState): ChatRunStatus {
+function toChatRunStatus(state: WorkspaceChatRunState): ChatRunStatus {
   switch (state) {
     case 'queued':
     case 'starting':
@@ -247,7 +247,7 @@ function exitDescription(code: number | null, signal: string | null): string {
   return 'The agent run failed before producing a result.';
 }
 
-export interface RunnerChatTransport extends ChatTransport {
+export interface WorkspaceChatTransport extends ChatTransport {
   /**
    * Removes the shared run-event listener and detaches every live subscription in main.
    *
@@ -289,7 +289,7 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
  * The user may have hit stop while the start invoke was still in flight, in which case the abort
  * already fired against a run id nobody had yet. Honour it now that we have one. Takes `bridge`
  * explicitly rather than closing over the outer one, so this stays testable independent of
- * `createRunnerChatTransport`'s closure.
+ * `createWorkspaceChatTransport`'s closure.
  */
 function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSignal | undefined, runId: string): void {
   if (cancelSignal?.aborted === true) {
@@ -299,12 +299,12 @@ function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSign
   cancelSignal?.addEventListener('abort', () => void bridge.chatStop(runId).catch(() => {}), { once: true });
 }
 
-export function createRunnerChatTransport(bridge: RunnerInventoryBridge): RunnerChatTransport {
+export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): WorkspaceChatTransport {
   const records = new Map<string, SubscriptionRecord>();
 
-  // One listener per transport instance, installed at construction. `RunnerChatPane` memoizes the
+  // One listener per transport instance, installed at construction. `WorkspaceChatPane` memoizes the
   // transport, so this is one registration per pane lifetime, not per turn.
-  const offChatEvent = bridge.onChatEvent((message: RunnerChatEventMessage) => {
+  const offChatEvent = bridge.onChatEvent((message: WorkspaceChatEventMessage) => {
     const record = records.get(message.subscriptionId);
     if (record === undefined) return;
     if (message.kind === 'event') {

@@ -29,7 +29,7 @@
  * against that any more — the defense is the trust decision above (one operator, one machine, no
  * second party), not a narrower allowlist. If that premise ever stops being true — several people
  * sharing one Runner install, or Runner ever supervising a site it does not itself operate — this is
- * the file to come back to, and {@link FLEET_ONLY_VERBS}/{@link FLEET_ONLY_NAMESPACES} below are left
+ * the file to come back to, and {@link WORKSPACE_ONLY_VERBS}/{@link WORKSPACE_ONLY_NAMESPACES} below are left
  * in place, empty, as the seam to re-narrow through rather than a boundary already enforced.
  *
  * **The three runtime gates are unchanged, and there are still three.** `site-assistant-mcp.ts`
@@ -47,35 +47,35 @@ import { runnerToolNames, type RunnerToolName } from './sections.js';
 /**
  * Verbs to exclude again if this file is ever re-narrowed. Empty today — see the file header for
  * why. This is a seam, not a boundary: {@link SiteAssistantEligibleTool} still subtracts it (and
- * {@link FLEET_ONLY_NAMESPACES}) at the type level, so re-narrowing later is "add entries here and
+ * {@link WORKSPACE_ONLY_NAMESPACES}) at the type level, so re-narrowing later is "add entries here and
  * remove them from `SITE_ASSISTANT_TOOL_NAMES`'s source", not "invent the exclusion mechanism from
  * scratch".
  */
-export const FLEET_ONLY_VERBS = [] as const;
+export const WORKSPACE_ONLY_VERBS = [] as const;
 
-export type FleetOnlyVerb = (typeof FLEET_ONLY_VERBS)[number];
+export type WorkspaceOnlyVerb = (typeof WORKSPACE_ONLY_VERBS)[number];
 
 /**
  * Whole `runner.*` NAMESPACES to exclude again if this file is ever re-narrowed, verb by verb,
- * including verbs not yet declared. Empty today for the same reason {@link FLEET_ONLY_VERBS} is —
+ * including verbs not yet declared. Empty today for the same reason {@link WORKSPACE_ONLY_VERBS} is —
  * see the file header. Listing a namespace with no declared verbs is legal and expected, same as it
  * was before: the value of a namespace exclusion is landing BEFORE the verbs under it exist.
  */
-export const FLEET_ONLY_NAMESPACES = [] as const;
+export const WORKSPACE_ONLY_NAMESPACES = [] as const;
 
-export type FleetOnlyNamespace = (typeof FLEET_ONLY_NAMESPACES)[number];
+export type WorkspaceOnlyNamespace = (typeof WORKSPACE_ONLY_NAMESPACES)[number];
 
 /**
  * A declared `runner.*` verb a site assistant is *permitted to be granted*. With both exclusion
  * lists above empty, this resolves to every {@link RunnerToolName} — the `Exclude` is inert today,
- * but it is what lets a future entry in `FLEET_ONLY_VERBS`/`FLEET_ONLY_NAMESPACES` take effect at
+ * but it is what lets a future entry in `WORKSPACE_ONLY_VERBS`/`WORKSPACE_ONLY_NAMESPACES` take effect at
  * compile time (a verb re-added there stops satisfying this type, and anything still deriving
  * `SITE_ASSISTANT_TOOL_NAMES` from it fails `npm run typecheck`) without this type's definition, or
  * `SITE_ASSISTANT_TOOL_NAMES`'s, needing to change shape.
  */
 export type SiteAssistantEligibleTool = Exclude<
   RunnerToolName,
-  FleetOnlyVerb | `${FleetOnlyNamespace}${string}`
+  WorkspaceOnlyVerb | `${WorkspaceOnlyNamespace}${string}`
 >;
 
 /**
@@ -118,7 +118,7 @@ export function isSiteAssistantTool(toolId: string): boolean {
  * exactly the failure mode a confirmation gate exists to prevent.
  *
  * A verb listed here is NOT removed from {@link SITE_ASSISTANT_TOOL_NAMES} — this is not a second
- * {@link FLEET_ONLY_VERBS}. That list removes a verb from a site assistant's surface entirely:
+ * {@link WORKSPACE_ONLY_VERBS}. That list removes a verb from a site assistant's surface entirely:
  * unadvertised, refused at the bridge's `/call`, refused by the policy below. This list does not
  * remove the verb — the site assistant still sees it and may still attempt it — what it cannot do
  * is complete without a decision from somewhere other than its own arguments. No such
@@ -164,7 +164,7 @@ export function requiresOperatorConfirmation(toolId: string): boolean {
  * (ADR-061, Open/assumed/deferred). It is layered ON TOP of {@link SITE_ASSISTANT_TOOL_NAMES}, not a
  * narrowing of it — a verb stays exactly as reachable as `ba2e8ea`/`204f3e6` left it; this only
  * constrains WHICH project it may be pointed at, never which verbs exist. Re-narrowing the verb
- * surface itself is still {@link FLEET_ONLY_VERBS}'s job, unchanged.
+ * surface itself is still {@link WORKSPACE_ONLY_VERBS}'s job, unchanged.
  *
  * **Why every project-referencing verb, with no exemption:**
  * - `runner.project.stop` / `.restart` take a SIBLING site's process off the air — the exact

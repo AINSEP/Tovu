@@ -14,7 +14,7 @@
  * is nothing here". (`runner:sites:list`/`create`/`delete`/`open-external`/`start` are no
  * longer stubbed here — see `project-ipc.js` for their real handlers.)
  *
- * The two push channels — `runner:chat:event` and `runner:chat:navigate` — are deliberately absent.
+ * The two push channels — `workspace:chat:event` and `workspace:chat:navigate` — are deliberately absent.
  * They are main→renderer sends, not `invoke` targets, so there is no handler to register and no
  * stub to write: the renderer subscribes and simply never receives anything until phase 2.
  *
@@ -43,12 +43,12 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   // (`project-ipc.js`, registered in `main.js` before this module runs). `stop` stays stubbed —
   // no control in the per-project bar calls it yet; see `SITE_IPC_CHANNELS.stop`'s own doc.
   "runner:sites:stop",
-  // contracts/fleet-chat.ts — `event` and `navigate` are push-only, see this file's header
-  "runner:chat:start",
-  "runner:chat:reattach",
-  "runner:chat:detach",
-  "runner:chat:stop",
-  "runner:chat:status",
+  // contracts/workspace-chat.ts — `event` and `navigate` are push-only, see this file's header
+  "workspace:chat:start",
+  "workspace:chat:reattach",
+  "workspace:chat:detach",
+  "workspace:chat:stop",
+  "workspace:chat:status",
   // contracts/working-directory.ts
   "runner:working-directory:pick",
   "runner:working-directory:recent",
@@ -56,7 +56,7 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   "runner:working-directory:normalize",
   // contracts/chat-attachments.ts
   "runner:chat-attachments:save",
-  // contracts/fleet-conversations.ts
+  // contracts/workspace-conversations.ts
   "runner:conversations:list",
   "runner:conversations:create",
   "runner:conversations:rename",

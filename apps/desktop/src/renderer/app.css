@@ -1226,7 +1226,7 @@ button { font: inherit; color: inherit; }
    with the button itself — see `App.tsx`'s own comment where that button was for why a host-page
    FAB was worse than none: it advertised a chat with no main-process half, and being
    `position: fixed` over the `<webview>` it intercepted clicks meant for the site's real
-   assistant. The `.chat-fab`/`.chat-fab-open` rules above are kept for `RunnerChatPane`, which is
+   assistant. The `.chat-fab`/`.chat-fab-open` rules above are kept for `WorkspaceChatPane`, which is
    still unwired. */
 
 .runner-chat-pane {

@@ -16,7 +16,7 @@ import {
   useProjectTabs,
   useSiteRescan,
   useSitesPolling,
-  useRunnerChatTransport,
+  useWorkspaceChatTransport,
   useRunnerConversations,
   useRunnerNavigation,
   useSectionNav,
@@ -168,8 +168,8 @@ export function App({
           There used to be a disabled one here — a real `<button>` with `aria-disabled`, `tabIndex
           ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
           chat. Two things were wrong with it. It advertised a feature with no main-process half at
-          all: `RUNNER_CHAT_CHANNELS` (`contracts/fleet-chat.ts`) has no `ipcMain.handle` anywhere
-          in this app, so `runner:chat:start` reaches nothing, and `RunnerChatPane` below has zero
+          all: `WORKSPACE_CHAT_CHANNELS` (`contracts/workspace-chat.ts`) has no `ipcMain.handle` anywhere
+          in this app, so `workspace:chat:start` reaches nothing, and `WorkspaceChatPane` below has zero
           call sites. And because it was `position: fixed` on the HOST page while the real
           per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
           `z-index`, the decoy composited on top of it and swallowed every click meant for the
@@ -179,7 +179,7 @@ export function App({
           content database are. That leaves the sites home tab with no assistant, which is the intended
           trade: there is no site in view there to assist with. When a workspace-level chat is
           actually built it should be a PANEL reachable from this app's own chrome, not a second
-          floating button competing with the guest's. `RunnerChatPane` and the `.chat-fab*` rules
+          floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
           in `app.css` are kept for it. */}
     </div>
   );
@@ -1049,14 +1049,14 @@ function ThemeControl({
  * `startRun`'s own arguments: `ChatTransport.StartRunInput` carries `agentId` but nothing about how
  * that agent should be configured, and `context` is the port's designated opaque per-host payload.
  */
-const RUNNER_RUN_CONTEXT: ChatPaneRunContext = ({ selection }) => ({
+const WORKSPACE_RUN_CONTEXT: ChatPaneRunContext = ({ selection }) => ({
   ...(selection.model === undefined ? {} : { model: selection.model }),
   ...(selection.reasoning === undefined ? {} : { reasoning: selection.reasoning }),
 });
 
-function RunnerChatPane({ onClose }: { onClose: () => void }) {
+function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
   const { transport, runtimeAccess, workingDirectoryAccess, getPathForFile, uploadAttachments } =
-    useRunnerChatTransport();
+    useWorkspaceChatTransport();
   const conversations = useRunnerConversations();
   const deleteConfirmation = useConversationDeleteConfirmation();
   // The working-directory picker (native folder dialog + MRU list) — unrelated to, and untouched
@@ -1098,7 +1098,7 @@ function RunnerChatPane({ onClose }: { onClose: () => void }) {
       <header className="runner-chat-pane__head">
         <div>
           <p>Runner operator</p>
-          <h2>Fleet chat</h2>
+          <h2>Workspace chat</h2>
         </div>
         <div className="runner-chat-pane__head-actions">
           {/* The conversation switcher lives in the `<aside>`'s own header, not `ChatPane`'s (see
@@ -1156,7 +1156,7 @@ function RunnerChatPane({ onClose }: { onClose: () => void }) {
           key={conversations.paneKey}
           transport={transport}
           runtimeAccess={runtimeAccess}
-          runContext={RUNNER_RUN_CONTEXT}
+          runContext={WORKSPACE_RUN_CONTEXT}
           initialMessages={conversations.initialMessages}
           {...(conversations.activeId === null ? {} : { conversationId: conversations.activeId })}
           onMessagesChange={conversations.onMessagesChange}

@@ -7,7 +7,7 @@
  *
  * The drift one: `runner-ipc-stubs.js` inlines its channel literals because it is CommonJS
  * main-process code and the contracts are TypeScript (see that file's header). This test parses
- * `src/contracts/*.ts` for the real `RUNNER_*_CHANNELS` object literals and compares both
+ * `src/contracts/*.ts` for the real `*_CHANNELS` object literals and compares both
  * directions, so renaming a channel in a contract, or adding a new verb to one, fails here instead
  * of at runtime inside Electron.
  */
@@ -27,22 +27,23 @@ const CONTRACTS_DIR = path.join(__dirname, "contracts");
 /**
  * Channels declared by `src/contracts/*.ts`, minus the two push-only ones.
  *
- * Reads the `'runner:...'` string literals straight out of the contract sources rather than
- * importing them: these are `.ts` files with no compiled output guaranteed to exist at test time.
- * The match is anchored on the `runner:` prefix the whole IPC surface shares, so a channel added
- * to any contract file is picked up with no change here.
+ * Reads the `'runner:...'`/`'workspace:...'` string literals straight out of the contract sources
+ * rather than importing them: these are `.ts` files with no compiled output guaranteed to exist at
+ * test time. The match is anchored on the two namespace prefixes the IPC surface uses today —
+ * `runner:` for everything else, `workspace:` since the fleet-chat rename — so a channel added to
+ * any contract file under either prefix is picked up with no change here.
  */
 function declaredChannels() {
   const found = new Set();
   for (const entry of fs.readdirSync(CONTRACTS_DIR)) {
     if (!entry.endsWith(".ts")) continue;
     const source = fs.readFileSync(path.join(CONTRACTS_DIR, entry), "utf8");
-    for (const match of source.matchAll(/'(runner:[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]);
+    for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]);
   }
   // Main->renderer sends, not `invoke` targets: there is no handler to register for either, so
   // `runner-ipc-stubs.js` deliberately omits them.
-  found.delete("runner:chat:event");
-  found.delete("runner:chat:navigate");
+  found.delete("workspace:chat:event");
+  found.delete("workspace:chat:navigate");
   return found;
 }
 
@@ -87,8 +88,8 @@ test("no channel is both stubbed and implemented for real", () => {
 });
 
 test("the two push-only channels are NOT stubbed", () => {
-  assert.equal(RUNNER_STUB_CHANNELS.includes("runner:chat:event"), false);
-  assert.equal(RUNNER_STUB_CHANNELS.includes("runner:chat:navigate"), false);
+  assert.equal(RUNNER_STUB_CHANNELS.includes("workspace:chat:event"), false);
+  assert.equal(RUNNER_STUB_CHANNELS.includes("workspace:chat:navigate"), false);
 });
 
 test("registerRunnerIpcStubs registers one handler per channel", () => {

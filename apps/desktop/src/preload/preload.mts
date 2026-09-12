@@ -30,18 +30,18 @@ import {
   type OpenSiteSurfaceInput,
 } from '../contracts/project.js';
 import {
-  RUNNER_CHAT_CHANNELS,
-  type RunnerChatEventMessage,
-  type RunnerChatReattachInput,
-  type RunnerChatStartInput,
-} from '../contracts/fleet-chat.js';
+  WORKSPACE_CHAT_CHANNELS,
+  type WorkspaceChatEventMessage,
+  type WorkspaceChatReattachInput,
+  type WorkspaceChatStartInput,
+} from '../contracts/workspace-chat.js';
 import { RUNNER_WORKING_DIRECTORY_CHANNELS } from '../contracts/working-directory.js';
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS, type SaveChatAttachmentInput } from '../contracts/chat-attachments.js';
 import {
   RUNNER_CONVERSATION_CHANNELS,
   type RenameConversationInput,
   type SaveConversationMessageInput,
-} from '../contracts/fleet-conversations.js';
+} from '../contracts/workspace-conversations.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 
 /** Mirrors `src/speech/speech-ipc.js`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header
@@ -85,15 +85,15 @@ contextBridge.exposeInMainWorld(
     deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),
     openSiteExternal: (input: OpenSiteSurfaceInput) =>
       ipcRenderer.invoke(SITE_IPC_CHANNELS.openExternal, input),
-    chatStart: (input: RunnerChatStartInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.start, input),
-    chatReattach: (input: RunnerChatReattachInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.reattach, input),
-    chatDetach: (subscriptionId: string) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.detach, { subscriptionId }),
-    chatStop: (runId: string) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.stop, { runId }),
-    chatStatus: (runId: string) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.status, { runId }),
-    onChatEvent: (listener: (message: RunnerChatEventMessage) => void) =>
-      subscribe(RUNNER_CHAT_CHANNELS.event, listener),
+    chatStart: (input: WorkspaceChatStartInput) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.start, input),
+    chatReattach: (input: WorkspaceChatReattachInput) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.reattach, input),
+    chatDetach: (subscriptionId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.detach, { subscriptionId }),
+    chatStop: (runId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.stop, { runId }),
+    chatStatus: (runId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.status, { runId }),
+    onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) =>
+      subscribe(WORKSPACE_CHAT_CHANNELS.event, listener),
     onNavigate: (listener: (section: RunnerSectionId) => void) =>
-      subscribe(RUNNER_CHAT_CHANNELS.navigate, listener),
+      subscribe(WORKSPACE_CHAT_CHANNELS.navigate, listener),
     // Synchronous and in-process, deliberately not an `ipcRenderer.invoke` round trip: `webUtils`
     // only exists in the preload's Node-capable context, not the isolated page, so this function IS
     // the bridge rather than a proxy for one. Electron's contextBridge structured-clones `File`

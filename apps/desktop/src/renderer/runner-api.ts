@@ -2,19 +2,19 @@ import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
 import type { SiteRecord, CreateSiteInput, OpenSiteSurfaceInput } from '../contracts/project.js';
 import type {
-  RunnerChatEventMessage,
-  RunnerChatReattachInput,
-  RunnerChatRunSnapshot,
-  RunnerChatStartInput,
-  RunnerChatStartResult,
-} from '../contracts/fleet-chat.js';
+  WorkspaceChatEventMessage,
+  WorkspaceChatReattachInput,
+  WorkspaceChatRunSnapshot,
+  WorkspaceChatStartInput,
+  WorkspaceChatStartResult,
+} from '../contracts/workspace-chat.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 import type { SaveChatAttachmentInput, SaveChatAttachmentResult } from '../contracts/chat-attachments.js';
 import type {
   RenameConversationInput,
-  RunnerConversationSummary,
+  WorkspaceConversationSummary,
   SaveConversationMessageInput,
-} from '../contracts/fleet-conversations.js';
+} from '../contracts/workspace-conversations.js';
 
 export interface RunnerInventoryBridge {
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
@@ -37,16 +37,16 @@ export interface RunnerInventoryBridge {
   deleteSite: (id: string) => Promise<void>;
   /** Hands one of a project's surfaces to the default browser. Main derives the url from the id. */
   openSiteExternal: (input: OpenSiteSurfaceInput) => Promise<void>;
-  chatStart: (input: RunnerChatStartInput) => Promise<RunnerChatStartResult>;
-  chatReattach: (input: RunnerChatReattachInput) => Promise<void>;
+  chatStart: (input: WorkspaceChatStartInput) => Promise<WorkspaceChatStartResult>;
+  chatReattach: (input: WorkspaceChatReattachInput) => Promise<void>;
   chatDetach: (subscriptionId: string) => Promise<void>;
   chatStop: (runId: string) => Promise<void>;
-  chatStatus: (runId: string) => Promise<RunnerChatRunSnapshot | null>;
+  chatStatus: (runId: string) => Promise<WorkspaceChatRunSnapshot | null>;
   /** Writes one dropped/picked file's bytes into Runner's staging directory; resolves its absolute path. */
   saveChatAttachment: (input: SaveChatAttachmentInput) => Promise<SaveChatAttachmentResult>;
   /** The fleet chat's persisted conversation threads. Most-recently-active first. */
-  listConversations: () => Promise<readonly RunnerConversationSummary[]>;
-  createConversation: () => Promise<RunnerConversationSummary>;
+  listConversations: () => Promise<readonly WorkspaceConversationSummary[]>;
+  createConversation: () => Promise<WorkspaceConversationSummary>;
   renameConversation: (input: RenameConversationInput) => Promise<void>;
   /** Irreversible: drops the conversation row and every message in it. */
   deleteConversation: (id: string) => Promise<void>;
@@ -54,7 +54,7 @@ export interface RunnerInventoryBridge {
   /** Upserts one message by id into a conversation's persisted transcript. */
   saveConversationMessage: (input: SaveConversationMessageInput) => Promise<void>;
   /** Registers a run-event listener; returns its teardown. Every subscription multiplexes over this one channel. */
-  onChatEvent: (listener: (message: RunnerChatEventMessage) => void) => () => void;
+  onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) => () => void;
   /** Fires when the `runner.navigate` tool moves the top nav. */
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
   /**

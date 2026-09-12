@@ -68,20 +68,20 @@ test("the disabled-FAB style went with the button, so nothing is left to style a
 
 // Kept, because the pane is what a future workspace chat is built from and deleting it is a
 // separate decision from removing the button.
-test("RunnerChatPane survives the FAB's removal, unreferenced, for the panel that replaces it", () => {
-  assert.match(read("App.tsx"), /function RunnerChatPane\(/);
+test("WorkspaceChatPane survives the FAB's removal, unreferenced, for the panel that replaces it", () => {
+  assert.match(read("App.tsx"), /function WorkspaceChatPane\(/);
 });
 
 // A tripwire, not a prohibition. The FAB was removed BECAUSE the fleet chat has no main-process
-// half: nothing in `main.js` answers `runner:chat:start`, so the pane's transport reaches nothing.
+// half: nothing in `main.js` answers `workspace:chat:start`, so the pane's transport reaches nothing.
 // If someone wires those handlers, this fails on purpose — that is the moment to decide where the
 // now-real workspace chat is reached from, and the answer should be a panel in this app's own
 // chrome rather than a second floating button over the guest.
 test("the fleet chat still has no main-process half — if this fails, revisit where the workspace chat is reached from", () => {
   assert.doesNotMatch(
     mainJs,
-    /ipcMain\.handle\(\s*RUNNER_CHAT_CHANNELS/,
+    /ipcMain\.handle\(\s*WORKSPACE_CHAT_CHANNELS/,
     "main.js now handles the fleet chat channels. The chat is real; give it a panel entry point, not a second FAB over the <webview>.",
   );
-  assert.doesNotMatch(mainJs, /["']runner:chat:/);
+  assert.doesNotMatch(mainJs, /["']workspace:chat:/);
 });

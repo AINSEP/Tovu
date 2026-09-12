@@ -6,7 +6,7 @@
  * `project-registry.ts`'s header documents — never a second `openDatabase` call. Channel constants
  * and DTOs only, no logic.
  *
- * **Deliberately separate from `fleet-chat.ts`'s run-streaming channels, and from `RunLifecycle`
+ * **Deliberately separate from `workspace-chat.ts`'s run-streaming channels, and from `RunLifecycle`
  * entirely.** A conversation here is Runner's own durable record of what was said in the fleet
  * chat; it is not the live run that produced it. `runner-daemon.ts` keeps every turn grouped under
  * one constant `FLEET_CHAT_CONTEXT_REF` regardless of which conversation is active in the renderer
@@ -32,7 +32,7 @@ export const RUNNER_CONVERSATION_CHANNELS = {
   saveMessage: 'runner:conversations:save-message',
 } as const;
 
-export interface RunnerConversationSummary {
+export interface WorkspaceConversationSummary {
   id: string;
   /** `null` until a first user turn auto-titles it, or the operator renames it. */
   title: string | null;

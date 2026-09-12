@@ -41,12 +41,12 @@ import type {
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { ConversationListItem } from '@jini-ai/chat/react';
 import { runnerInventoryBridge } from './runner-api.js';
-import { createRunnerChatTransport, type RunnerChatTransport } from './fleet-chat-transport.js';
+import { createWorkspaceChatTransport, type WorkspaceChatTransport } from './workspace-chat-transport.js';
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 import type { CreateSiteInput, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
-import type { RunnerConversationSummary } from '../contracts/fleet-conversations.js';
+import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
 /**
  * Polls Runner's project inventory on a 4s interval.
@@ -715,12 +715,12 @@ export function useWebviewLoadFailure(
 }
 
 /**
- * Connects `RunnerChatPane` to the fleet chat transport: the bridge lookup, the transport built
+ * Connects `WorkspaceChatPane` to the fleet chat transport: the bridge lookup, the transport built
  * on top of it, and the runtime-access and working-directory surfaces `ChatPane` needs. All three
  * are one bridge lookup, so they live in one hook rather than one per concern.
  */
-export function useRunnerChatTransport(): {
-  transport: RunnerChatTransport | undefined;
+export function useWorkspaceChatTransport(): {
+  transport: WorkspaceChatTransport | undefined;
   runtimeAccess: ChatPaneRuntimeAccess | undefined;
   workingDirectoryAccess: ChatPaneWorkingDirectoryAccess | undefined;
   /** `undefined` only when the bridge itself is (no preload). See `RunnerInventoryBridge.getPathForFile`. */
@@ -754,7 +754,7 @@ export function useRunnerChatTransport(): {
   // One transport per pane lifetime. It installs the single run-event listener every subscription
   // multiplexes over, so rebuilding it per render would stack duplicate listeners on that channel.
   const transport = useMemo(
-    () => (bridge === undefined ? undefined : createRunnerChatTransport(bridge)),
+    () => (bridge === undefined ? undefined : createWorkspaceChatTransport(bridge)),
     [bridge],
   );
 
@@ -780,7 +780,7 @@ export function useRunnerChatTransport(): {
 }
 
 export interface UseRunnerConversations {
-  conversations: readonly RunnerConversationSummary[];
+  conversations: readonly WorkspaceConversationSummary[];
   activeId: string | null;
   /**
    * `ChatPane`'s `key`. Deliberately NOT `activeId`.
@@ -829,7 +829,7 @@ export interface UseRunnerConversations {
 export function useRunnerConversations(): UseRunnerConversations {
   const bridge = useMemo(() => runnerInventoryBridge(), []);
 
-  const [conversations, setConversations] = useState<readonly RunnerConversationSummary[]>([]);
+  const [conversations, setConversations] = useState<readonly WorkspaceConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [paneKey, setPaneKey] = useState('new');
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
@@ -849,7 +849,7 @@ export function useRunnerConversations(): UseRunnerConversations {
   const paneNonceRef = useRef(0);
   /** Mirrors the last `conversations` this hook committed, for `remove`'s fallback when its own
    *  `refresh()` lands stale — see `refresh`'s own note. */
-  const conversationsRef = useRef<readonly RunnerConversationSummary[]>([]);
+  const conversationsRef = useRef<readonly WorkspaceConversationSummary[]>([]);
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -859,7 +859,7 @@ export function useRunnerConversations(): UseRunnerConversations {
     adoptionGenRef.current += 1;
   }, []);
 
-  const refresh = useCallback(async (): Promise<readonly RunnerConversationSummary[]> => {
+  const refresh = useCallback(async (): Promise<readonly WorkspaceConversationSummary[]> => {
     if (bridge === undefined) return conversationsRef.current;
     try {
       const list = await bridge.listConversations();
@@ -1059,7 +1059,7 @@ export interface ConversationDeleteConfirmationState {
    * already paid for that lesson once, for project delete: a native modal blocks the whole
    * renderer, and in Electron that also freezes the IPC this window answers on (see
    * `useDeleteConfirmation`'s doc above). This returns a promise that resolves only when the
-   * operator answers the inline confirmation `RunnerChatPane` renders from `pendingTitle`.
+   * operator answers the inline confirmation `WorkspaceChatPane` renders from `pendingTitle`.
    */
   confirmDelete: (item: ConversationListItem) => Promise<boolean>;
   /** Answers the pending confirmation, if any. A no-op when nothing is pending. */
@@ -1069,7 +1069,7 @@ export interface ConversationDeleteConfirmationState {
 /**
  * The fleet chat's conversation-delete confirmation. `ConversationList` (`@jini-ai/chat/react`)
  * accepts a `confirmDelete` callback returning `boolean | Promise<boolean>` for exactly this
- * purpose — ours resolves it from a real operator click on `RunnerChatPane`'s own inline banner
+ * purpose — ours resolves it from a real operator click on `WorkspaceChatPane`'s own inline banner
  * rather than from a blocking native dialog. See commit `204f3e6` ("require operator confirmation
  * for project delete") for the precedent this follows.
  */

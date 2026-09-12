@@ -8,7 +8,7 @@
  *   - **Invoke channels** (`start`/`reattach`/`detach`/`stop`/`status`), renderer → main.
  *   - **Push channels** (`event`/`navigate`), main → renderer via `webContents.send`.
  *
- * A renderer subscription is identified by a renderer-minted {@link RunnerChatStartInput.subscriptionId},
+ * A renderer subscription is identified by a renderer-minted {@link WorkspaceChatStartInput.subscriptionId},
  * NOT by the run id, and the id is supplied on the way IN rather than handed back on the way out.
  * That ordering is load-bearing: main attaches its `RunLifecycle.stream()` subscription inside the
  * `start` handler, before the invoke resolves, so there is no window in which the run is live but
@@ -23,24 +23,24 @@
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import { runnerToolNames } from './sections.js';
 
-export const RUNNER_CHAT_CHANNELS = {
+export const WORKSPACE_CHAT_CHANNELS = {
   /** invoke: begin a turn and attach a subscription to it in one round trip. */
-  start: 'runner:chat:start',
+  start: 'workspace:chat:start',
   /** invoke: attach a subscription to an already-running (or already-finished) run. */
-  reattach: 'runner:chat:reattach',
-  /** invoke: drop a subscription. The run itself keeps going — see `RunnerChatTransport`. */
-  detach: 'runner:chat:detach',
+  reattach: 'workspace:chat:reattach',
+  /** invoke: drop a subscription. The run itself keeps going — see `WorkspaceChatTransport`. */
+  detach: 'workspace:chat:detach',
   /** invoke: request cancellation of a run. */
-  stop: 'runner:chat:stop',
+  stop: 'workspace:chat:stop',
   /** invoke: one-shot status read for a run id. */
-  status: 'runner:chat:status',
+  status: 'workspace:chat:status',
   /** push (main → renderer): one `RunProtocolEvent` for one subscription. */
-  event: 'runner:chat:event',
+  event: 'workspace:chat:event',
   /** push (main → renderer): the `runner.navigate` tool moved the top nav. */
-  navigate: 'runner:chat:navigate',
+  navigate: 'workspace:chat:navigate',
 } as const;
 
-export interface RunnerChatStartInput {
+export interface WorkspaceChatStartInput {
   /** Renderer-minted. Scopes every pushed event back to the pane that asked for it. */
   subscriptionId: string;
   /** The already-flattened transcript sent to the agent CLI as this turn's prompt. */
@@ -53,11 +53,11 @@ export interface RunnerChatStartInput {
   attachmentPaths?: readonly string[];
 }
 
-export interface RunnerChatStartResult {
+export interface WorkspaceChatStartResult {
   runId: string;
 }
 
-export interface RunnerChatReattachInput {
+export interface WorkspaceChatReattachInput {
   subscriptionId: string;
   runId: string;
   /**
@@ -68,7 +68,7 @@ export interface RunnerChatReattachInput {
 }
 
 /** Why a subscription stopped receiving events, pushed as the final message on its channel. */
-export type RunnerChatDetachReason =
+export type WorkspaceChatDetachReason =
   /** The run reached a terminal state. `end` was already delivered. */
   | 'terminal'
   /** The event log could not replay from the requested cursor — the renderer must restart the turn. */
@@ -76,20 +76,20 @@ export type RunnerChatDetachReason =
   /** The run id is unknown to this daemon (evicted, or never existed). */
   | 'unknown-run';
 
-export type RunnerChatEventMessage =
+export type WorkspaceChatEventMessage =
   | { subscriptionId: string; kind: 'event'; event: RunProtocolEvent }
-  | { subscriptionId: string; kind: 'closed'; reason: RunnerChatDetachReason };
+  | { subscriptionId: string; kind: 'closed'; reason: WorkspaceChatDetachReason };
 
 /**
  * `@jini-ai/protocol`'s `RunState`, restated here so the renderer never has to import a
  * Node-flavoured package to read one string. Kept in that vocabulary rather than
  * `@jini-ai/chat`'s (`'canceled'`, one L) so the mapping happens once, in the transport.
  */
-export type RunnerChatRunState = 'queued' | 'starting' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+export type WorkspaceChatRunState = 'queued' | 'starting' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
-export interface RunnerChatRunSnapshot {
+export interface WorkspaceChatRunSnapshot {
   runId: string;
-  state: RunnerChatRunState;
+  state: WorkspaceChatRunState;
 }
 
 /**
