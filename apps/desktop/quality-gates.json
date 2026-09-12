@@ -1,0 +1,17 @@
+{
+  "_comment": "The desktop quality gates. THIS FILE IS THE ONLY PLACE A GATE MAY BE TURNED OFF — never by deleting a workflow step, commenting out a line, or removing a script. `scripts/check-gates.mjs` runs every gate with `enabled` not false, and PRINTS EVERY GATE ON EVERY RUN including the off ones, so a disabled gate is a visible, dated decision rather than an absence nobody notices. Setting `enabled: false` requires `disabledReason` and `disabledOn` (YYYY-MM-DD) or the runner fails; a gate left off longer than `maxDisabledDays` fails until the date is re-confirmed. A `scripts/check-*.mjs` that no gate below runs also fails the runner — see `src/quality-gates.js`'s header for why each of those rules exists, and which real gate in this repo rotted for want of it.",
+  "_comment_2026_09_12_coverage_numbers": "Coverage percentages produced by this harness come from node's own `--experimental-test-coverage` lcov, whose LF counts EVERY line in a file including comments and blanks (verified: keyed-serializer.js LF:51 / wc -l 51; App.hooks.ts 1272/1272). This codebase is exceptionally comment-dense, so these line percentages read HIGHER than a statement-based tool would report and are NOT comparable to any c8, vitest or istanbul number — including `apps/admin`'s vitest coverage. Do not put a desktop number and an admin number in the same table and conclude anything from the difference.",
+  "maxDisabledDays": 30,
+  "gates": [
+    {
+      "id": "tests",
+      "run": "npm test",
+      "enabled": true
+    },
+    {
+      "id": "typecheck",
+      "run": "npm run typecheck",
+      "enabled": true
+    }
+  ]
+}

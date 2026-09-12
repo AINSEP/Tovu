@@ -14,8 +14,9 @@
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json",
     "test": "node --test \"src/**/*.test.js\" && node --import tsx --test \"src/**/*.test.ts\"",
+    "gates": "node scripts/check-gates.mjs",
     "stage": "node scripts/stage-payload.mjs",
-    "package": "npm run build && npm run stage && electron-builder --mac"
+    "package": "npm run gates && npm run build && npm run stage && electron-builder --mac"
   },
   "dependencies": {
     "@jini-ai/chat": "^0.3.7"

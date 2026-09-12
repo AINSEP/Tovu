@@ -1,0 +1,152 @@
+#!/usr/bin/env node
+/**
+ * @file The desktop quality-gate runner. Reads `quality-gates.json`, runs every ENABLED gate, and
+ * prints every gate — enabled, failing, or disabled — on every run.
+ *
+ * The policy it enforces lives in `../src/quality-gates.js` (and is tested there, under the normal
+ * `npm test` glob); this file is the part that touches the process table and the filesystem. The
+ * split exists so the rules can be tested without spawning anything.
+ *
+ * ## Exit-code discipline is the whole point of this file
+ *
+ * The 2026-09-12 survey that produced this harness found THREE separate exit-code hazards in the
+ * existing one, and every user-visible failure it explains was the same shape — a check that ran,
+ * found the problem, and reported success:
+ *
+ *  - `stage-payload.mjs`'s staleness check wrote a WARNING to stderr and let the script exit 0, so a
+ *    packaged app shipped a twelve-day-stale admin bundle and the package step said SUCCESS;
+ *  - ESLint exits 2 with EMPTY stdout when a config crashes, and a caller testing `rc !== 1` reads
+ *    that as a pass;
+ *  - reading an exit code through a shell pipe yields the PIPE's status, which is how
+ *    `npm run admin:build` was reported as "exits 0 while blocked" when it exits 1 correctly.
+ *
+ * So, here: no pipes, ever. `spawnSync` with `stdio: "inherit"` so a gate's own output goes straight
+ * to the terminal and its status comes back as a number rather than through a stream. A gate that
+ * yields no numeric status at all — killed by a signal, or a command that could not be spawned —
+ * is a FAILURE, never a pass (see `isFailure`). And `check-gates-exit-code.test.js` proves the
+ * non-zero actually reaches a caller, by running THIS file against deliberately-failing gates,
+ * rather than by anybody reading this comment and believing it.
+ *
+ * Usage: node scripts/check-gates.mjs
+ * Exit codes: 0 = every enabled gate passed and the manifest is sound.
+ *             1 = a gate failed, or the manifest is unsound (undocumented/stale disablement, or a
+ *                 gate script on disk that nothing runs).
+ */
+import { spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { validateManifest, detectGateDrift, formatSummary, isFailure } from "../src/quality-gates.js";
+
+const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/** This runner is not itself a gate, so it must not be counted as one — without this it would
+ *  report ITSELF as an unregistered gate script on every run. */
+const RUNNER_BASENAME = "check-gates.mjs";
+
+/** Gate scripts are `scripts/check-*.mjs` by convention — that convention is what makes property 3
+ *  (a script on disk that nothing runs is a hard failure) checkable at all.
+ *  @complexity O(n) in files in `scripts/`. */
+function gateScriptsOnDisk(scriptsDir) {
+  try {
+    return readdirSync(scriptsDir).filter(
+      (name) => name.startsWith("check-") && name.endsWith(".mjs") && name !== RUNNER_BASENAME
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Today as `YYYY-MM-DD`, in local time — the date a human would write in the manifest.
+ *  @complexity O(1). */
+function todayIso() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * Run one gate and return its exit status. `shell: true` because a gate's `run` is a command line
+ * (`npm test`), and `stdio: "inherit"` because the alternative — capturing and re-printing — is the
+ * pipe that swallows statuses.
+ *
+ * @returns the numeric exit code, or `null` when the process never produced one.
+ * @complexity O(1) plus the gate's own cost.
+ */
+function runGate(gate) {
+  process.stdout.write(`\n${"=".repeat(66)}\n>>> GATE: ${gate.id}\n${"=".repeat(66)}\n`);
+  const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: "inherit" });
+  if (result.error) {
+    process.stderr.write(`check-gates: gate "${gate.id}" could not be spawned: ${result.error.message}\n`);
+    return null;
+  }
+  if (result.signal) {
+    process.stderr.write(`check-gates: gate "${gate.id}" was killed by ${result.signal} — treating as FAILURE.\n`);
+    return null;
+  }
+  return result.status;
+}
+
+/** Prints the manifest problems and returns whether any were found. Kept separate so `main` stays
+ *  well under the complexity ceiling this harness itself enforces.
+ *  @complexity O(n). */
+function reportProblems(heading, problems) {
+  if (problems.length === 0) return false;
+  process.stderr.write(`\ncheck-gates: ${heading}\n`);
+  for (const problem of problems) process.stderr.write(`  - ${problem}\n`);
+  return true;
+}
+
+/**
+ * The manifest to run. `--manifest <path>` exists so `check-gates-exit-code.test.js` can point this
+ * runner at deliberately-broken manifests and assert the exit code that comes back — the one claim
+ * about this file that must be demonstrated rather than reasoned about.
+ *
+ * @complexity O(n) in argv.
+ */
+function flagValue(argv, flag, fallback) {
+  const at = argv.indexOf(flag);
+  if (at === -1 || !argv[at + 1]) return fallback;
+  return path.resolve(argv[at + 1]);
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  const manifestPath = flagValue(argv, "--manifest", path.join(DESKTOP_ROOT, "quality-gates.json"));
+  const scriptsDir = flagValue(argv, "--scripts-dir", path.join(DESKTOP_ROOT, "scripts"));
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const gates = manifest.gates ?? [];
+
+  const problems = validateManifest(manifest, todayIso());
+  const drift = detectGateDrift(gates, gateScriptsOnDisk(scriptsDir));
+  const driftProblems = drift.map(
+    (name) =>
+      `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
+      `how this repo ended up with 11 dead check scripts — register it or delete it.`
+  );
+
+  let unsound = reportProblems("quality-gates.json is not a sound description of this harness:", problems);
+  unsound = reportProblems("gate scripts on disk that nothing runs:", driftProblems) || unsound;
+
+  // Every enabled gate runs even after an earlier one fails: a run that halts at the first failure
+  // reports exactly one problem when several exist, which is the behaviour `ci-local.sh` was
+  // written to avoid for the same reason.
+  const outcomes = new Map();
+  for (const gate of gates) {
+    if (gate.enabled === false || !gate.id || !gate.run) continue;
+    outcomes.set(gate.id, runGate(gate));
+  }
+
+  process.stdout.write(`${formatSummary(gates, outcomes)}\n`);
+
+  const anyGateFailed = [...outcomes.values()].some(isFailure);
+  const missingOutcome = gates.some((gate) => gate.enabled !== false && gate.id && gate.run && !outcomes.has(gate.id));
+  if (anyGateFailed || missingOutcome || unsound) {
+    process.stderr.write("\ncheck-gates: FAILED\n");
+    process.exit(1);
+  }
+  process.stdout.write("\ncheck-gates: OK\n");
+}
+
+main();
