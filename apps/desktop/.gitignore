@@ -15,3 +15,12 @@ release/
 # a pack built against a QUIET tree is the only way to tell a clean archive from a corrupt one
 # -- see ADS-memory/reports/2026-09-12-packaging-asar-corruption.md.
 release-probe*/
+
+# Another such verification pack output dir -- `release-probe*/` above does not match this name.
+# Same posture: regenerable, never a source.
+release-verify/
+
+# `node --experimental-test-coverage`'s lcov output (`npm run gates`'s coverage gate). Regenerable
+# build output, never a source -- same posture as apps/admin/coverage/ and /coverage/ in the repo
+# root .gitignore.
+coverage/
