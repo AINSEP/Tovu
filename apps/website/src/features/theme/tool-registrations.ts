@@ -2,10 +2,13 @@
  * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
  * onto real filesystem reads/writes inside one theme's own folder, as `ToolRegistration`s
  * (`theme_list`/`theme_list_files`/`theme_read_file`/`theme_write_file`/`theme_edit_file`/
- * `theme_rename_file`/`theme_trash_file`/`theme_restore_trashed_file` as of 2026-08-30). The
- * catalog is wired in full — there is no `unwiredToolIds` set here, which means the kit treats ANY
- * future catalog entry added without a handler as a build failure. See `agent-tools.ts`'s own file
- * header for the operations deliberately never put in the catalog at all (hard file-delete,
+ * `theme_rename_file`/`theme_copy_file`/`theme_trash_file`/`theme_restore_trashed_file` as of
+ * 2026-09-12, when `theme_copy_file` closed one of the two gaps a read-only survey found against
+ * the human Explore screen's own file operations — see
+ * `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`). The catalog is wired in full —
+ * there is no `unwiredToolIds` set here, which means the kit treats ANY future catalog entry added
+ * without a handler as a build failure. See `agent-tools.ts`'s own file header for the operations
+ * deliberately never put in the catalog at all (hard file-delete,
  * rename/create/delete a whole theme's folder) and why.
  *
  * Authorization shape: nothing in `theme.ts`/`theme-files.ts` accepts an `authorize` dependency —
@@ -54,8 +57,10 @@ import {
   THEME_WRITE_PERMISSION,
 } from "./agent-tools.js";
 import {
+  copyThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
+  nextAvailableFileName,
   readThemeFile,
   renameThemeFile,
   resolveThemeFileWriteScope,
@@ -400,6 +405,9 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   ["theme_edit_file", "mutates-durable-state"],
   // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
   ["theme_rename_file", "mutates-durable-state"],
+  // -> copyThemeFile(): copyFileSync creating a NEW file on disk, then loadTheme() + in-place
+  //    replacement. Durable, same class as theme_write_file's own create-or-overwrite.
+  ["theme_copy_file", "mutates-durable-state"],
   // -> renameThemeFile() into .trash/: same durable move as theme_rename_file, just to a
   //    system-computed destination. Reversible (theme_restore_trashed_file), but still a disk write.
   ["theme_trash_file", "mutates-durable-state"],
@@ -596,6 +604,56 @@ export function buildThemesRegistrations(
           themeId,
           path: finalPath,
           renamedFrom: relativePath,
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    /**
+     * Duplicates one file inside a theme's folder — mirrors `explore.ts`'s own POST `.../file/copy`
+     * route exactly: the destination is always server-computed (`nextAvailableFileName`'s `name-1`,
+     * `name-2`, … suffix scheme), never operator-chosen, so unlike `theme_rename_file` there is no
+     * second input to validate. Offered for every file group, including `script`/`other` (read-only-
+     * to-EDIT, not read-only-to-copy) — duplicating bytes under a new name changes nothing about the
+     * original and nothing anything else references, so it carries none of the risk a script's
+     * content-edit block exists to prevent.
+     */
+    theme_copy_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const sourcePath = requireString(input, "path");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_copy_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        // Same refusal every other write-shaped tool in this domain checks — duplicating INTO a
+        // built theme's generated tree is a write, just phrased as "copy"; duplicating a file
+        // currently in `.trash/...` is refused too (restore it first), tightening the one case
+        // `explore.ts`'s own HTTP copy route does not itself check — see `assertThemeFileWritable`'s
+        // own doc for why one shared gate is what keeps every write-shaped tool here in agreement.
+        assertThemeFileWritable(theme, sourcePath);
+
+        const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
+        if (!existingPaths.has(sourcePath)) {
+          throw new ThemePathError(`file '${sourcePath}' was not found in this theme`);
+        }
+
+        const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
+        copyThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: destPath,
+          copiedFrom: sourcePath,
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),

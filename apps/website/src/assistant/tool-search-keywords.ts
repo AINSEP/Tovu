@@ -222,7 +222,15 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
+  // "theme_copy_file" added 2026-09-12, closing one of the two gaps
+  // ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md found against the human Explore
+  // screen's file operations. `theme_write_file`'s own "copy duplicate clone" keywords above predate
+  // this (2026-09-07, when no real copy tool existed and composing read+write was the only path) and
+  // are left in place rather than removed — they still describe a real, working composition, and
+  // `tool-search-keywords.theme-copy.test.ts` pins them — but a model should now be routed to the
+  // real, purpose-built tool first.
   theme_rename_file: "theme file rename renaming move name change filename css template stylesheet",
+  theme_copy_file: "theme file copy duplicate clone branch variant new name",
   theme_trash_file: "theme file delete remove trash soft delete",
   theme_restore_trashed_file: "theme file bring back undelete recover",
 

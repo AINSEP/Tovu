@@ -247,6 +247,16 @@ const TRASH_FILE_SCHEMA = {
   properties: { themeId: THEME_ID_PROPERTY, path: RELATIVE_PATH_PROPERTY },
 } as const;
 
+/** Same `{themeId, path}` shape again, for `theme_copy_file` — the destination name is always
+ *  server-computed (the next available `name-1`, `name-2`, … suffix), never operator input, so
+ *  unlike {@link RENAME_FILE_SCHEMA} there is no second field to add. */
+const COPY_FILE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["themeId", "path"],
+  properties: { themeId: THEME_ID_PROPERTY, path: RELATIVE_PATH_PROPERTY },
+} as const;
+
 const RESTORE_TRASHED_FILE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -324,6 +334,14 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RENAME_FILE_SCHEMA,
+    },
+    {
+      name: "theme_copy_file",
+      description:
+        "Duplicates one file inside a theme's folder, byte-for-byte, landing the copy in the SAME folder under the next available name (e.g. copying 'templates/home.liquid' produces 'templates/home-1.liquid', then '-2', … if earlier suffixes are already taken). The destination name is always computed for you, not chosen — pass only the source path. Use this to branch off a variant before experimenting (copy a template, then edit the copy with theme_write_file/theme_edit_file, leaving the original untouched as a fallback) or simply to duplicate any file, including a script or another read-only-to-edit file: copying changes nothing about the original and nothing that already references it by name. Refused if the source path does not exist in this theme, or falls inside a built theme's generated tree (that tree is restored as one release, never edited or copied file-by-file).",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: THEME_WRITE_PERMISSION },
+      inputSchema: COPY_FILE_SCHEMA,
     },
     {
       name: "theme_trash_file",
