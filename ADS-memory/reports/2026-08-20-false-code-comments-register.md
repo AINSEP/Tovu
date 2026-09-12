@@ -91,6 +91,47 @@ two analytics files only. It is a 12-file mechanical header fix with no behavior
 
 ## FIXED — recorded for the pattern, do not re-fix
 
+### F11. `apps/desktop/coverage-floors.json:22` (`_comment_knownUnmeasured`) — "two entries were repointed", when only one was
+
+The comment read: "Two entries were repointed 2026-09-12 when rename Commit 5 git-mv'd them
+(fleet-conversations.ts -> workspace-conversations.ts, fleet-chat-transport.ts ->
+workspace-chat-transport.ts)."
+
+**Why it was false:** `git show efbb6fb0 -- apps/desktop/coverage-floors.json` shows exactly **one**
+`knownUnmeasured` entry changed, `fleet-conversations.ts` -> `workspace-conversations.ts`. The
+nine-entry list in that same diff's before-state contains no chat-transport path under either name —
+`fleet-chat-transport.ts` was never in `knownUnmeasured`, so `workspace-chat-transport.ts` couldn't
+have been "repointed" from it. The second repoint the comment describes never happened.
+
+**Why it cost something rather than sitting inert:** the false sentence propagated into
+`ADS-memory/reports/2026-09-12-desktop-gate-harness-handoff.md` as a concrete work item — "remove
+`workspace-chat-transport.ts` from `knownUnmeasured` when its tests land" — for an entry that was
+never there. A later TDD dispatch wrote 48 tests for that file, reached 100% line and function
+coverage, then spent two verification passes (grepping the live array before and after its own
+commit) discovering there was nothing to remove, before reporting that back up.
+
+**How it was ruled out, not just observed absent:** `knownUnmeasured` means "no coverage record at
+all" — `!coverage.has(p)` in `src/coverage-floors.js:113,120`, checked as a plain `Set` membership
+test against files actually on disk. A file already reporting 1-of-23 functions covered has a
+coverage record, so it was never *eligible* for that list in the first place. That is a structural
+argument, not an empirical one — it holds regardless of what the array happens to contain right now,
+which is a stronger footing than "I grepped it and it wasn't there."
+
+**Fix:** `a3744d34`, 2026-09-12. Corrected to "One entry was repointed 2026-09-12 ... (fleet-conversations.ts
+-> workspace-conversations.ts)"; the surrounding text (the enumeration-not-a-count behavior, "shrink
+it, do not extend it", the tenth-entry-fails-the-gate rule) was accurate and left untouched.
+
+**Pattern to carry forward:** a comment describing "what a rename touched" is a claim about a diff,
+and diffs are exactly reproducible — `git show <sha> -- <path>` settles it in one command. Prefer that
+over trusting the count a comment gives you, especially when the comment is itself commentary on a
+mechanical, previously-verified event (the gate catching a rename) rather than a design judgment.
+
+**Found by:** the desktop `workspace-chat-transport.ts` TDD coverage dispatch, 2026-09-12, while
+verifying (per its own brief) that the `knownUnmeasured` entry it was told to remove actually existed
+before touching the file.
+
+---
+
 ### F10. `apps/website/src/platform/mail/ports.ts` (lines ~52-54) — "built now" / "named-next" for adapters that did not exist
 
 The two marker-type doc comments read: `export type SmtpMailerAdapter = MailerPort; // built now (nodemailer/SMTP)` and `export type HttpApiMailerAdapter = MailerPort; // named-next (Resend/Postmark/SES over HttpClientPort)`.
