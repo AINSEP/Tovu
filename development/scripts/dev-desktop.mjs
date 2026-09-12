@@ -31,7 +31,11 @@
  *
  * Process-group discipline follows `development/scripts/dev.mjs`: every child is spawned detached
  * into its own process group and torn down with `process.kill(-pid)`, so an `npm -> vite` or
- * `npm -> electron` chain dies as a whole instead of reparenting an orphan to PID 1. Not a process
+ * `npm -> electron` chain dies as a whole instead of reparenting an orphan to PID 1. That covers
+ * only what stays in the group. Each `tovu serve` the app opens is spawned `detached` into a group of
+ * its own, so the group kill never reaches it. Electron's `before-quit` drain stops it, which is why
+ * `main.js` routes the signal into that drain (`apps/desktop/src/quit-signals.js`) and why the
+ * SIGKILL escalation waits {@link HARD_KILL_GRACE_MS}. Not a process
  * manager: no restart-on-crash. If a child dies unexpectedly, the other is torn down too and this
  * script exits non-zero so the failure is visible.
  */
@@ -123,11 +127,21 @@ function killGroup(child) {
   }
 }
 
+/**
+ * How long `shutdown` waits after SIGTERM before SIGKILLing every child group. Must exceed
+ * `apps/desktop/src/tovu-server.js`'s `DEFAULT_STOP_GRACE_MS` (5 s): Electron's `before-quit` drain
+ * is the only thing that stops a `tovu serve`, spawned `detached` and so outside the group kill, and
+ * it escalates to SIGKILL only after that grace. At the old 1.5 s, a server slower than that to drain
+ * lost Electron mid-stop and was stranded with PPID 1. The timer is `unref`'d, so a normal quit that
+ * finishes sooner never waits this long. `dev-desktop.test.mjs` pins the relationship.
+ */
+const HARD_KILL_GRACE_MS = 7_000;
+
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const c of children) killGroup(c);
-  // Give groups a moment to exit cleanly, then hard-kill anything left and go.
+  // Give groups a chance to exit cleanly (see HARD_KILL_GRACE_MS), then hard-kill anything left and go.
   setTimeout(() => {
     for (const c of children) {
       try {
@@ -137,7 +151,7 @@ function shutdown(code) {
       }
     }
     process.exit(code);
-  }, 1500).unref();
+  }, HARD_KILL_GRACE_MS).unref();
 }
 
 function start(name, npmScript) {
@@ -208,4 +222,4 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   await main();
 }
 
-export { waitForFileStable };
+export { waitForFileStable, HARD_KILL_GRACE_MS };

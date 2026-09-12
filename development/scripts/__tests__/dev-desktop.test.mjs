@@ -4,7 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { waitForFileStable } from "../dev-desktop.mjs";
+import * as devDesktop from "../dev-desktop.mjs";
+import { DEFAULT_STOP_GRACE_MS } from "../../../apps/desktop/src/tovu-server.js";
+
+const { waitForFileStable } = devDesktop;
 
 /**
  * @file Regression test for `development/scripts/dev-desktop.mjs`'s launch-1-boots-the-previous-
@@ -61,6 +64,17 @@ test("waitForFileStable: sinceMs defaults to 0, so a freshly created file with n
   const filePath = makeTempIndexHtml("<html>only build this process has ever made</html>");
   const result = await waitForFileStable(filePath, { timeoutMs: 300, pollMs: 20, stableChecks: 2 });
   assert.equal(result, true);
+});
+
+test("the SIGKILL escalation waits longer than the desktop app's own tovu serve stop grace", () => {
+  // `tovu serve` is spawned `detached`, so the process-group kill below never reaches it: only
+  // Electron's before-quit drain stops it, escalating to SIGKILL after DEFAULT_STOP_GRACE_MS. A
+  // shorter hard kill SIGKILLs Electron first and strands any server still draining.
+  assert.equal(typeof devDesktop.HARD_KILL_GRACE_MS, "number", "dev-desktop.mjs must export its SIGKILL grace");
+  assert.ok(
+    devDesktop.HARD_KILL_GRACE_MS > DEFAULT_STOP_GRACE_MS,
+    `HARD_KILL_GRACE_MS (${devDesktop.HARD_KILL_GRACE_MS}) must exceed DEFAULT_STOP_GRACE_MS (${DEFAULT_STOP_GRACE_MS})`,
+  );
 });
 
 test("waitForFileStable: resolves false, not hung forever, when the file never appears at all", async () => {

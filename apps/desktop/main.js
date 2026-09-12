@@ -103,13 +103,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } from "electron";
 
-import { startTovuServer } from "./src/tovu-server.js";
+import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.js";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.js";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.js";
 import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.js";
 import { createKeyedSerializer } from "./src/keyed-serializer.js";
 import { createSiteSupervisor } from "./src/site-supervisor.js";
 import { createShutdownTracker } from "./src/shutdown-tracker.js";
+import { routeQuitSignals } from "./src/quit-signals.js";
 import { applyGuestWebPreferences } from "./src/webview-guest-policy.js";
 import { createSelftestTracker } from "./src/selftest-tracker.js";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
@@ -1204,6 +1205,17 @@ async function bootOwnServerMode() {
 app
   .whenReady()
   .then(async () => {
+    // First, before anything below can spawn a `tovu serve`: a termination signal must reach
+    // `before-quit`'s drain exactly once rather than kill Electron on its second copy. Here and not at
+    // module load, where Chromium's own one-shot handler replaces it. Three stop graces: the open
+    // sites' parallel stops, then a closing window's logout plus its own stop. See `quit-signals.js`.
+    routeQuitSignals({
+      processLike: process,
+      quit: () => app.quit(),
+      forceExit: () => app.exit(1),
+      deadlineMs: DEFAULT_STOP_GRACE_MS * 3,
+    });
+
     // Registered before either boot-mode branch below so a window's very first `isAvailable()`
     // call (fired from the preload the instant the page mounts) never races an unregistered
     // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
