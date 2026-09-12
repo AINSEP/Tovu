@@ -357,8 +357,112 @@ function readTerminalReason(raw: string | undefined, wrapped: boolean): string {
  * keeps a long-running chat from silently becoming the most expensive thing in the product.
  */
 function runPrompt(history: StartRunInput["history"]): string {
-  const recent = history.slice(-MAX_TRANSCRIPT_TURNS);
-  return buildTranscript(recent as ChatMessage[]);
+  // `historyForTranscript` first, THEN the cap: dropping failed rows before slicing means the 40
+  // turns that survive are 40 real ones, not 40 slots some of which are rows the agent never wrote.
+  const recent = historyForTranscript(history as ChatMessage[]).slice(-MAX_TRANSCRIPT_TURNS);
+  return buildTranscript(recent);
+}
+
+/**
+ * Whether an assistant message represents a turn the agent actually answered — the single
+ * definition both {@link historyForTranscript} and {@link undeliveredUserPrompt} key off.
+ *
+ * `undefined` counts as answered: rows written before `ai_chat_messages.run_status` existed carry
+ * no status at all, and treating those as unanswered would re-send the whole history of every
+ * legacy conversation on its next turn. Every non-`succeeded` status counts as unanswered —
+ * `failed` and `canceled` obviously, and `queued`/`running` because a run killed mid-flight (a
+ * daemon respawn, see `daemon-supervisor.ts`) never reaches a terminal status at all and leaves
+ * exactly such a row behind.
+ *
+ * Do not "simplify" this away by deleting the failed rows at the source instead. That was the first
+ * shape proposed for this fix and it is the wrong trade: `run_status='failed'` was ALREADY the
+ * explicit failed state, and the only thing missing was somewhere that skips it. The row's
+ * `events_json` is the sole durable record of why a run died (exit code, signal, the CLI's own
+ * stderr) once the daemon's in-memory event log is gone, and the pane renders it on reload — so
+ * dropping the row trades a history bug for a forensics hole. The skip belongs here, on the read
+ * side. See {@link historyForTranscript} and `assistant-chats.ts`'s `persistableMessages`.
+ */
+function isAnsweredAssistantTurn(message: ChatMessage): boolean {
+  return message.runStatus === undefined || message.runStatus === "succeeded";
+}
+
+/**
+ * The history a transcript may be built from: every user turn, and only those assistant turns the
+ * agent actually answered.
+ *
+ * Defect 3 of the 2026-09-11 chat-lifecycle repair. `ai_chat_messages` in
+ * `sites/tovu-com/chat.db` holds assistant rows with `run_status='failed'` and
+ * `length(content)=0` — the durable trace of a run that died before writing a token. Replayed
+ * through `buildTranscript` they become a `## assistant` block with nothing under it: the next run
+ * is told the agent replied when what actually happened is that it died, and a failure the user can
+ * see in the pane is laundered into an empty answer in the model's context.
+ *
+ * The rows themselves are deliberately NOT deleted, and this is the fix instead: their
+ * `events_json` carries the only surviving record of why the run failed (exit code, signal, the
+ * CLI's own stderr), the daemon's event log is in-memory and gone, and the pane renders that notice
+ * on reload. Partial output from a failed run stays stored as partial output for the same reason —
+ * it is visible to the user, and it is not the agent's answer, so it does not go back into a prompt.
+ *
+ * @param history - The pane's transcript, oldest first.
+ * @returns A new array; the input is never mutated.
+ * @complexity O(n) in history length, one pass, no allocation per message.
+ */
+export function historyForTranscript(history: readonly ChatMessage[]): ChatMessage[] {
+  return history.filter((message) => message.role !== "assistant" || isAnsweredAssistantTurn(message));
+}
+
+/**
+ * Prepended when more than one user turn is being sent at once, so the agent is not told the user
+ * typed all of it just now. Deliberately absent from the single-turn case — a note on every
+ * ordinary message would be a standing lie in the prompt of every turn in every conversation.
+ */
+const UNDELIVERED_TURNS_NOTE =
+  "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]";
+
+/**
+ * The user text a run must carry when the agent carries its own conversation memory: every user
+ * turn since the last one the agent actually answered, not only the newest.
+ *
+ * Defect 2 of the 2026-09-11 chat-lifecycle repair, and the half of it that was actually lossy. In
+ * `sites/tovu-com/chat.db` conversation `9289701c-…`, position 5's user text is present in
+ * `ai_chat_messages` and absent from every agent-session transcript: the run meant to answer it
+ * failed 140 ms after start, so no CLI ever read it — and because
+ * {@link resolveLocalCliPrompt} sends only the NEWEST user turn to a resume-capable agent, no later
+ * turn ever carried it either. The message was durable the whole time and still lost, permanently,
+ * with nothing anywhere saying so.
+ *
+ * Re-delivering costs a duplicate whenever the CLI did read the prompt before dying, which the
+ * agent can reconcile from its own session. Not re-delivering costs the user a message with no
+ * trace. The two are not symmetric, so this errs toward the duplicate.
+ *
+ * @param history - The pane's transcript, oldest first.
+ * @returns The prompt text — the bare newest turn in the ordinary case (the previous turn was
+ *   answered), or the unanswered turns joined oldest-first behind {@link UNDELIVERED_TURNS_NOTE}.
+ *   Falls back to the newest user turn when the history ends in an answered assistant turn and
+ *   there is therefore nothing pending.
+ * @complexity O(n) in history length — one forward scan for the boundary plus one slice/filter over
+ *   the tail. A backwards scan with an early exit would be O(1) in practice but needs `break`, and
+ *   `n` here is bounded by one conversation's transcript; this is not a hot path (once per turn).
+ *   The result is capped at {@link MAX_TRANSCRIPT_TURNS} for the pathological case of a
+ *   conversation whose every run has failed.
+ */
+export function undeliveredUserPrompt(history: readonly ChatMessage[]): string {
+  // `Array.prototype.findLastIndex` would say this in one call, but it is ES2023 and this app
+  // targets ES2022 (`apps/admin/tsconfig.json`), so the index is accumulated instead.
+  let lastAnsweredIndex = -1;
+  history.forEach((message, position) => {
+    if (message.role === "assistant" && isAnsweredAssistantTurn(message)) lastAnsweredIndex = position;
+  });
+
+  const pending = history
+    .slice(lastAnsweredIndex + 1)
+    .filter((message) => message.role === "user")
+    .map((message) => message.content)
+    .slice(-MAX_TRANSCRIPT_TURNS);
+
+  if (pending.length === 0) return latestUserPromptFromHistory(history as ChatMessage[]);
+  if (pending.length === 1) return pending[0] as string;
+  return `${UNDELIVERED_TURNS_NOTE}\n\n${pending.join("\n\n")}`;
 }
 
 /** `@jini-ai/protocol`'s `RunState` -> chat-core's flat `RunStatus` union (different spelling: `cancelled` vs `canceled`, `pending` vs `queued`). */
@@ -595,7 +699,11 @@ async function startByokRun(
   byokAbortControllers.set(runId, controller);
   input.signal?.addEventListener("abort", () => controller.abort());
 
-  const messages = (input.history as ChatMessage[])
+  // `historyForTranscript` first (Defect 3, 2026-09-11): the empty-content filter below already
+  // hides a failed run that produced nothing, but NOT one that emitted a few tokens before dying —
+  // that partial output would be sent to the provider as if it were the assistant's answer. This is
+  // the same defect as on the Local CLI path, reachable by a second route.
+  const messages = historyForTranscript(input.history as ChatMessage[])
     .filter((message) => message.content.trim().length > 0)
     .map((message) => ({ role: message.role, content: message.content }));
 
@@ -842,6 +950,18 @@ export interface CreateTovuAssistantTransportOptions {
    * smaller loss than a run that never happens.
    */
   ensureConversationId?: () => Promise<string | null>;
+  /**
+   * Writes one user message to durable storage — `useAssistantChats.persistUserTurn`
+   * (`hooks/use-assistant-chats.hooks.ts`), wired through `AssistantDock`'s `useAssistantTransport`.
+   * Awaited by `startRun` on the Local CLI path before `POST /api/runs`, so the user's words are on
+   * disk before the run that may fail to deliver them ever starts. See
+   * {@link persistUserTurnBeforeDispatch} for the defect and the idempotency contract.
+   *
+   * Optional so a transport built without it (every test, any non-dock consumer) keeps the
+   * pre-fix behavior — the delta-driven `flush` still writes the message, just not before dispatch.
+   * Its rejection is swallowed at the call site rather than failing the turn.
+   */
+  persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
 }
 
 /**
@@ -870,21 +990,68 @@ async function resolveRunConversationId(
 }
 
 /**
- * Resolves the prompt string `startRun`'s Local CLI branch sends: the full rendered transcript by
- * default, or just the newest user turn when `input.agentId` is present in `resumeCapableAgentIds` —
- * see `getResumeCapableAgentIds`'s own doc on {@link CreateTovuAssistantTransportOptions} for the
- * full contract this mirrors. Pulled out of `startRun` (2026-09-04, complexity pass) as its own pure
+ * Resolves the prompt string `startRun`'s Local CLI branch sends: the full rendered transcript
+ * ({@link runPrompt}) by default, or only what the agent has not already been given
+ * ({@link undeliveredUserPrompt}) when `input.agentId` is present in `resumeCapableAgentIds` — see
+ * `getResumeCapableAgentIds`'s own doc on {@link CreateTovuAssistantTransportOptions} for the full
+ * contract this mirrors. Pulled out of `startRun` (2026-09-04, complexity pass) as its own pure
  * step. `options.getResumeCapableAgentIds?.()` is still called at the same point in `startRun` as
  * before — only the "which agentIds carries own memory" branch itself moves here, so the "read fresh
  * on every call" convention that doc argues for is unchanged.
  */
 function resolveLocalCliPrompt(
   input: StartRunInput,
-  latestUserPrompt: string,
   resumeCapableAgentIds: ReadonlySet<string> | undefined,
 ): string {
   const carriesOwnMemory = input.agentId !== undefined && resumeCapableAgentIds?.has(input.agentId) === true;
-  return carriesOwnMemory ? latestUserPrompt : runPrompt(input.history);
+  // BEHAVIOR CHANGE (2026-09-11, Defect 2): the resume-capable branch was `latestUserPrompt` — the
+  // single newest user turn, on the assumption that everything before it is already inside the
+  // CLI's own session. That assumption holds only for turns the agent actually answered; a turn
+  // whose run died before the CLI read its prompt is in neither place, and nothing ever sent it
+  // again. `undeliveredUserPrompt` returns the identical single string in the ordinary case and
+  // differs only when there is genuinely something unanswered to catch up on. The
+  // `latestUserPrompt` parameter this used to take went with it: `startRun` still computes that
+  // string for its own send guard, but this branch has no use for it any more.
+  return carriesOwnMemory ? undeliveredUserPrompt(input.history as ChatMessage[]) : runPrompt(input.history);
+}
+
+/**
+ * Writes the newest user turn to durable storage before its run is dispatched, and never fails the
+ * turn over it.
+ *
+ * Defect 2 of the 2026-09-11 chat-lifecycle repair. Message persistence is a client-side
+ * `Promise.all` driven by `onMessagesChange` deltas (`use-assistant-chats.hooks.ts`'s `flush`) and
+ * run dispatch is a separate `POST /api/runs` here — nothing orders them and nothing makes them
+ * atomic, so a browser or daemon death in the window between them can leave a dispatched run whose
+ * prompt exists nowhere durable. Awaiting the write first closes that window in the one direction
+ * that matters: the user's words are on disk before anything can go wrong with the run.
+ *
+ * The idempotency key is the message's own id — `assistant-chats.ts`'s `saveMessage` PUTs to
+ * `/messages/<id>`, so this write and the `flush` that will race it converge on one row rather than
+ * two, and a retry of the same content is free. `useAssistantChats`'s own `persistUserTurn` also
+ * marks the id written, so in practice `flush` skips it entirely.
+ *
+ * @param input - `startRun`'s own input; the newest `role: "user"` message in its history is what
+ *   gets written.
+ * @param conversationId - The already-resolved conversation (see `resolveRunConversationId`), or
+ *   `undefined` when adoption failed — there is no row to write into in that case.
+ * @param persistUserTurn - `CreateTovuAssistantTransportOptions.persistUserTurn`, or `undefined`
+ *   for a transport built without it (every test and any non-dock consumer).
+ * @returns Nothing, always. The `.catch` is load-bearing and not defensive padding: losing the
+ *   durable copy of one message is a far smaller loss than refusing to send the user's turn at all,
+ *   which is the same trade `ensureConversationId` already makes one line above the call site.
+ * @complexity O(n) in history length for the newest-user-turn scan, plus one PUT.
+ */
+async function persistUserTurnBeforeDispatch(
+  input: StartRunInput,
+  conversationId: string | undefined,
+  persistUserTurn: ((conversationId: string, message: ChatMessage) => Promise<void>) | undefined,
+): Promise<void> {
+  if (conversationId === undefined || persistUserTurn === undefined) return;
+  const history = input.history as ChatMessage[];
+  const message = [...history].reverse().find((candidate) => candidate.role === "user");
+  if (message === undefined) return;
+  await persistUserTurn(conversationId, message).catch(() => undefined);
 }
 
 /**
@@ -948,11 +1115,19 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
 
       // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an
       // unresolved/absent agentId fails open to the full transcript rather than the bare message.
-      const prompt = resolveLocalCliPrompt(input, latestUserPrompt, options.getResumeCapableAgentIds?.());
+      const prompt = resolveLocalCliPrompt(input, options.getResumeCapableAgentIds?.());
       // Awaited BEFORE the POST, and only on this branch: session resume is a daemon-run concept, so
       // neither the BYOK nor the AG-UI path above has anything to file a session id under. See
       // `resolveRunConversationId` and `CreateTovuAssistantTransportOptions.ensureConversationId`.
-      const contextRef = buildLocalCliContextRef(input, prompt, await resolveRunConversationId(input, options.ensureConversationId));
+      const conversationId = await resolveRunConversationId(input, options.ensureConversationId);
+      // Also before the POST, and for the same reason it is awaited rather than fired off: the
+      // user's turn must be durable before a run that can fail to deliver it exists at all
+      // (Defect 2, 2026-09-11). Ordered after conversation adoption because it needs the id that
+      // adoption produces. Known gap, not an oversight: the BYOK and AG-UI branches above return
+      // before this point and resolve no conversation id of their own, so neither writes a durable
+      // user turn ahead of dispatch — closing that needs those paths to adopt a conversation first.
+      await persistUserTurnBeforeDispatch(input, conversationId, options.persistUserTurn);
+      const contextRef = buildLocalCliContextRef(input, prompt, conversationId);
 
       const response = await fetch(RUNS_URL, {
         method: "POST",

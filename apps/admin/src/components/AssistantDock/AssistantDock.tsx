@@ -388,6 +388,11 @@ export function AssistantDock({
   const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
     executionConfigRef,
     ensureConversationId: chats.ensureConversationId,
+    // Defect 2 (2026-09-11): the same reasoning one line up, for the message rather than the
+    // conversation. `startRun` awaits this before dispatching, so the user's turn is durable before
+    // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
+    // `use-assistant-chats.hooks.ts`.
+    persistUserTurn: chats.persistUserTurn,
   });
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);

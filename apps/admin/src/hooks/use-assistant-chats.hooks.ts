@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { HttpError, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
+import { activeRunStub, HttpError, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
 import { defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
 
@@ -247,6 +247,13 @@ export interface UseAssistantChats {
    * Resolves `null` (never rejects) when creation fails.
    */
   ensureConversationId: () => Promise<string | null>;
+  /**
+   * Writes one user turn durably, awaited by `assistant-transport.ts`'s `startRun` BEFORE it
+   * dispatches the run — see the implementation's own doc for the defect (a failed run's user
+   * message reaching no agent and no later prompt). Never rejects; a failed write releases the id
+   * so the delta-driven `flush` can still pick it up.
+   */
+  persistUserTurn: (conversationId: string, message: ChatMessage) => Promise<void>;
 }
 
 /**
@@ -258,9 +265,14 @@ export interface UseAssistantChats {
  * exemption reconfirmed against the new bar) **Score: this hook's own lexical scope is 1
  * cyclomatic / ~0 cognitive under ESLint — every closure inside it is independently ≤9/≤9 too
  * (`select`'s inner `commit` is 2/1, `remove` is 6/3, `rename` is 4/2, `flush` is 4/2,
- * `ensureConversationId` is 3/1, `onMessagesChange` is 3/2 — remeasured 2026-09-09, when adoption
- * moved out of `onMessagesChange` into `ensureConversationId`; see this file's own before/after
- * table in the session report for the original figures). What
+ * `ensureConversationId` is 3/1 — remeasured 2026-09-09, when adoption moved out of
+ * `onMessagesChange` into `ensureConversationId`; see this file's own before/after table in the
+ * session report for the original figures. `onMessagesChange` itself grew again on 2026-09-11 — the
+ * reattach investigation's active-run stub write, `persistRunStub` — and is no longer independently
+ * re-measured by hand here; `development/scripts/check-admin-complexity-drift.ts` is the actual gate
+ * and reported zero new violations in this file after that change, which is the claim worth trusting
+ * over a hand-counted number that will drift out of date again the next time this function changes).
+ * What
  * is exempted here is a DIFFERENT, unmeasurable-by-me number: the dispatch brief's owner-tool score
  * of 19/24, which rolls every nested closure's branches into the hook's total. Bar: ≤9/≤9 on
  * whichever view is scored — ESLint's view already clears it; the owner-tool aggregate does not,
@@ -333,6 +345,18 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
    * switching away and back does not resurrect stale ids.
    */
   const writtenRef = useRef<Map<string, Set<string>>>(new Map());
+  /**
+   * Message ids whose active-run stub has already been written, keyed by conversation — see
+   * {@link persistRunStub}'s own doc.
+   *
+   * Deliberately a SEPARATE map from {@link writtenRef}, not a shared one. `writtenRef` means "this
+   * exact settled payload is durable (or a write for it is in flight)"; this one means only "the
+   * early, non-terminal capture of this id's runId already went out". Sharing one set would make the
+   * stub write (empty/partial content, `runStatus: 'queued'`/`'running'`) permanently satisfy
+   * `flush`'s own dedup check for that id — the real terminal write, with the actual reply, would
+   * then never go out at all.
+   */
+  const runStubWrittenRef = useRef<Map<string, Set<string>>>(new Map());
   const activeIdRef = useRef<string | null>(null);
   /**
    * Monotonic token identifying the most recent switch intent.
@@ -731,6 +755,74 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   );
 
   /**
+   * Writes ONE user turn durably, right now, and reports nothing back but completion.
+   *
+   * Defect 2 of the 2026-09-11 chat-lifecycle repair. Until this existed, the only writer of a user
+   * turn was {@link flush} — driven asynchronously off `onMessagesChange` deltas, with no ordering
+   * relationship at all to `assistant-transport.ts`'s `POST /api/runs`. The two are not atomic: a
+   * run could be (and was) dispatched while the message it was dispatched for had not been written
+   * anywhere, so a failure in that window left the user's words in a browser tab and nowhere else.
+   * `startRun` awaits this first, which closes the window in the direction that matters.
+   *
+   * Shares `writtenRef` with `flush` deliberately — that is what makes the two writers cooperate
+   * rather than duplicate. The id is marked before the request for the same reason `flush` marks
+   * before its own resolves (a delta arriving mid-flight must not queue the same message again),
+   * and released again on a failure `saveWithRetry` has already given up on, so `flush` still gets
+   * its chance rather than the message being silently recorded as stored.
+   *
+   * @param conversationId - The conversation the turn belongs to. Supplied by the caller (which has
+   *   just resolved it through {@link ensureConversationId}) rather than read from `activeIdRef`,
+   *   so a run and its message can never land in two different conversations.
+   * @param message - The exact `ChatMessage` being sent. Its `id` is the idempotency key:
+   *   `saveMessage` PUTs to `/messages/<id>`, so writing the same message twice is one row.
+   * @returns Nothing, always — never rejects. A caller that cannot make the turn durable must still
+   *   be able to send it.
+   * @complexity O(1) plus one PUT and its retry ladder.
+   */
+  const persistUserTurn = useCallback(async (conversationId: string, message: ChatMessage): Promise<void> => {
+    const written = writtenRef.current.get(conversationId) ?? new Set<string>();
+    writtenRef.current.set(conversationId, written);
+    if (written.has(message.id)) return;
+    written.add(message.id);
+
+    const outcome = await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current);
+    // Same rule `summarizeFlushOutcomes` applies to a settled batch, for the same reason: only an
+    // outcome that could plausibly succeed later is worth handing back to `flush`. Re-queueing a
+    // permanent failure would make every later delta re-send a doomed request.
+    if (outcome !== "saved") written.delete(message.id);
+  }, []);
+
+  /**
+   * Writes the ONE extra durable row a future reattach needs: a non-terminal assistant message's
+   * `runId`, captured the moment it appears — see `assistant-chats.ts`'s {@link activeRunStub} for
+   * why this is not already covered by {@link flush}.
+   *
+   * Deliberately best-effort and silent on a PERMANENT failure, unlike {@link persistUserTurn}: a
+   * lost stub write only means a future reattach has nothing to find for this run, the same
+   * degraded-but-safe outcome as today (nothing reattaches yet regardless — see the 2026-09-11
+   * investigation this exists for). It must never surface as a chat-breaking error over what is, at
+   * worst, a missed optimization. A TRANSIENT failure (503, a dropped connection) is left for the
+   * next delta to retry for free: `id` is released so a later call with the same message id tries
+   * again, exactly like {@link persistUserTurn}'s own release-on-failure.
+   *
+   * No retry ladder of its own (unlike `persistUserTurn`'s `saveWithRetry`): the run is still
+   * streaming, so another `onMessagesChange` delta — and therefore another chance — arrives on its
+   * own within moments. A run that ends before any further delta fires has nothing left worth
+   * reattaching to anyway.
+   *
+   * @complexity O(1) plus at most one `PUT`.
+   */
+  const persistRunStub = useCallback((conversationId: string, message: ChatMessage): void => {
+    const written = runStubWrittenRef.current.get(conversationId) ?? new Set<string>();
+    runStubWrittenRef.current.set(conversationId, written);
+    if (written.has(message.id)) return;
+    written.add(message.id);
+    void portRef.current.saveMessage(conversationId, message).catch(() => {
+      written.delete(message.id);
+    });
+  }, []);
+
+  /**
    * This pane's conversation id, adopting one if that is what it takes — the single owner of lazy
    * adoption, awaited by {@link onMessagesChange} below and by `assistant-transport.ts`'s `startRun`
    * (via `AssistantDock`'s `useAssistantTransport`).
@@ -804,8 +896,13 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
 
   const onMessagesChange = useCallback(
     (messages: ChatMessage[]) => {
+      // Computed once up front, independent of which branch below actually runs — both need it, and
+      // it is O(1) (last element only, see `activeRunStub`'s own doc), so there is no cost to paying
+      // it on every delta even on the branch that turns out not to use it.
+      const stub = activeRunStub(messages);
       const conversationId = activeIdRef.current;
       if (conversationId) {
+        if (stub) persistRunStub(conversationId, stub);
         flush(conversationId, messages);
         return;
       }
@@ -822,15 +919,17 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
        * empty conversations. `startRun` now usually gets here first (see {@link ensureConversationId}),
        * in which case `??=` makes this await that same creation rather than starting a second.
        */
-      if (persistableMessages(messages).length === 0) return;
+      if (persistableMessages(messages).length === 0 && !stub) return;
 
       void ensureConversationId().then((id) => {
-        if (id) flush(id, messages);
+        if (!id) return;
+        if (stub) persistRunStub(id, stub);
+        flush(id, messages);
       });
     },
     // Adoption itself now lives in `ensureConversationId` (stable `useCallback`, see its own doc),
     // so `markListMutated`/`commitActiveId` are no longer read here.
-    [flush, ensureConversationId],
+    [flush, ensureConversationId, persistRunStub],
   );
 
   return {
@@ -844,6 +943,7 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     rename,
     onMessagesChange,
     ensureConversationId,
+    persistUserTurn,
   };
 }
 

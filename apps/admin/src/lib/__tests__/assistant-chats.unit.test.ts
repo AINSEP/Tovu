@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import {
+  activeRunStub,
   createConversation,
   deleteConversation,
   HttpError,
@@ -185,5 +186,48 @@ describe("persistableMessages", () => {
     const canceled: ChatMessage = { id: "6", role: "assistant", content: "", runStatus: "canceled" };
 
     expect(persistableMessages([running, queued, noStatus, succeeded, failed, canceled])).toEqual([succeeded, failed, canceled]);
+  });
+});
+
+describe("activeRunStub", () => {
+  it("returns null for an empty transcript", () => {
+    expect(activeRunStub([])).toBeNull();
+  });
+
+  it("returns null when the last message is a user turn", () => {
+    const messages: ChatMessage[] = [{ id: "1", role: "user", content: "hi" }];
+    expect(activeRunStub(messages)).toBeNull();
+  });
+
+  it("returns null when the last message has no runId yet — nothing to reattach to", () => {
+    // The window between `sendMessage` appending the placeholder and `run.start()` resolving with
+    // an id: `runStatus` is already 'queued' but there is no runId to durably record yet.
+    const messages: ChatMessage[] = [{ id: "a1", role: "assistant", content: "", runStatus: "queued" }];
+    expect(activeRunStub(messages)).toBeNull();
+  });
+
+  it.each(["succeeded", "failed", "canceled"] as const)(
+    "returns null once the run has reached a terminal status (%s) — persistableMessages already covers it",
+    (runStatus) => {
+      const messages: ChatMessage[] = [{ id: "a1", role: "assistant", content: "done", runId: "run-1", runStatus }];
+      expect(activeRunStub(messages)).toBeNull();
+    },
+  );
+
+  it.each(["queued", "running"] as const)(
+    "returns the last message when it is a non-terminal assistant turn carrying a runId (%s)",
+    (runStatus) => {
+      const stub: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus };
+      expect(activeRunStub([{ id: "u1", role: "user", content: "hi" }, stub])).toBe(stub);
+    },
+  );
+
+  it("ignores a non-terminal assistant message that is NOT the last one — a stale row from an earlier turn", () => {
+    // Only `useConversation.sendMessage`/`retry` append a fresh placeholder, and always last. A
+    // non-terminal row earlier in the array is not this pane's current turn, and writing it would
+    // be recording the wrong run's id.
+    const stale: ChatMessage = { id: "a0", role: "assistant", content: "...", runId: "run-0", runStatus: "running" };
+    const messages: ChatMessage[] = [stale, { id: "u1", role: "user", content: "another one" }];
+    expect(activeRunStub(messages)).toBeNull();
   });
 });

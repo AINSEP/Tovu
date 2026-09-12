@@ -739,9 +739,10 @@ export function useSelectedPluginChips(
  * const transport = useAssistantTransport({ executionConfigRef, ensureConversationId: chats.ensureConversationId });
  */
 export function useAssistantTransport(
-  { executionConfigRef, ensureConversationId }: {
+  { executionConfigRef, ensureConversationId, persistUserTurn }: {
     executionConfigRef: React.MutableRefObject<ExecutionConfig>;
     ensureConversationId?: () => Promise<string | null>;
+    persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
   },
 ): ReturnType<typeof createTovuAssistantTransport> {
   return useMemo(
@@ -753,6 +754,11 @@ export function useAssistantTransport(
         // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism and the
         // amnesia it caused.
         ...(ensureConversationId ? { ensureConversationId } : {}),
+        // Defect 2 (2026-09-11): awaited by `startRun` before `POST /api/runs`, so a run can never
+        // be dispatched for a message that exists nowhere durable. Same optional-spread shape as
+        // `ensureConversationId` above and for the same reason — a test that injects a `useChats`
+        // stub predating it still builds a working transport, just without the pre-dispatch write.
+        ...(persistUserTurn ? { persistUserTurn } : {}),
         // ADR-059's AG-UI canary — off by default, flipped per-tab via `localStorage` (see
         // `isAgUiTransportEnabled`'s own doc). Read fresh per `startRun` call, same as
         // `getExecutionConfig` above.
@@ -763,7 +769,7 @@ export function useAssistantTransport(
         // `fetchAgents`/`useRuntimeAccess`'s `rescanAgents` keep the set it reads current.
         getResumeCapableAgentIds,
       }),
-    [executionConfigRef, ensureConversationId],
+    [executionConfigRef, ensureConversationId, persistUserTurn],
   );
 }
 
@@ -1465,6 +1471,7 @@ export function useAssistantTransportSeam(
   input: {
     executionConfigRef: React.MutableRefObject<ExecutionConfig>;
     ensureConversationId?: () => Promise<string | null>;
+    persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
   },
 ): ReturnType<typeof createTovuAssistantTransport> {
   return (override ?? useAssistantTransport)(input);

@@ -145,6 +145,7 @@ function fakeChats(overrides: Partial<UseAssistantChats> = {}): UseAssistantChat
     remove: vi.fn(),
     rename: vi.fn(),
     onMessagesChange: vi.fn(),
+    persistUserTurn: vi.fn(async () => undefined),
     ensureConversationId: vi.fn(async () => null),
     ...overrides,
   };
