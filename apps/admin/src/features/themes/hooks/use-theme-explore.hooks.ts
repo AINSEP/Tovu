@@ -182,8 +182,11 @@ export interface ThemeExploreController {
   /**
    * True only while `source` holds the open file's text as last read, saved, or reset on the server.
    * False while that read is in flight, after it failed (a file past the 1 MB text-read limit), for a
-   * file that is not readable, and after a reset that returned no text. `dirty` and `save` both
-   * require it, so a buffer that is not the file on disk can never be written over it.
+   * file that is not readable — including one that WAS readable and lost that status while it stayed
+   * selected (2026-09-12 fix: the file-read effect's `selectedReadable === false` branch below now
+   * clears `loadedFile`, not just `source`/`savedSource`, so a stale marker from before the flip can't
+   * outlive it) — and after a reset that returned no text. `dirty` and `save` both require it, so a
+   * buffer that is not the file on disk can never be written over it.
    */
   sourceLoaded: boolean;
   saving: boolean;
@@ -702,6 +705,12 @@ export function useThemeExplore(
     if (selectedReadable === false) {
       setSource("");
       setSavedSource("");
+      // Also drop the loaded-file marker, not just the buffer: `loadedFile` otherwise still names
+      // this exact theme/path from BEFORE the flip (a full `files` refetch — rename/copy/delete of
+      // some other file — can bring the same selected path back reporting `readable: false`, with
+      // `selected` never asked to change), so `sourceLoaded` stayed wrongly true straight through the
+      // transition and `save`'s guard never caught it.
+      setLoadedFile(null);
       return;
     }
     let cancelled = false;
@@ -748,7 +757,10 @@ export function useThemeExplore(
   const save = useCallback(async () => {
     // Nothing is written unless `source` is the open file's own text. A read that is in flight or
     // failed, or a reset that returned no text, leaves some other buffer there (see `sourceLoaded`).
-    if (selected === null || !sourceLoaded) return;
+    // `selectedReadable === false` is checked too, as defence in depth: it is the same condition
+    // `sourceLoaded` is supposed to already rule out, but a save must never depend on the file-read
+    // effect's `loadedFile` clear being the only thing standing between a stale buffer and the server.
+    if (selected === null || !sourceLoaded || selectedReadable === false) return;
     setSaving(true);
     setError(null);
     try {
@@ -763,7 +775,7 @@ export function useThemeExplore(
       setSaving(false);
     }
     await refreshModifiedState();
-  }, [themeId, selected, sourceLoaded, source, port, refreshModifiedState]);
+  }, [themeId, selected, sourceLoaded, selectedReadable, source, port, refreshModifiedState]);
 
   /**
    * Restore the open file to its catalog original.

@@ -1319,6 +1319,68 @@ describe("useThemeExplore — save", () => {
 });
 
 /**
+ * A gap the 12232a2b fix (this file's own header — `sourceLoaded`) left open: that fix keyed
+ * `sourceLoaded` off `loadedFile` matching `themeId`/`selected`, on the assumption that the open
+ * file's `readable` flag never flips WITHOUT `selected` also changing. It can: a full `files`
+ * refetch (rename/copy/delete of some OTHER file, which all replace the whole list from the
+ * server) can bring back the SAME selected path now reporting `readable: false` — e.g. it grew past
+ * the 1 MB text-read limit in the meantime. The file-read effect's `selectedReadable === false`
+ * branch blanked `source`/`savedSource` for exactly this case already, but left `loadedFile`
+ * pointing at the still-selected path, so `sourceLoaded` stayed `true` straight through the
+ * transition, and `save`'s own guard (`!sourceLoaded`) never caught it.
+ */
+describe("useThemeExplore — save vs. a readable flip on the open file with no selection change", () => {
+  it("clears sourceLoaded (and refuses save) when a refetch reports the open file no longer readable", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "css/other.css", group: "style", readable: true, editable: true, resettable: true },
+      ],
+      contents: { "pages/index.html": "<h1>Home</h1>", "css/other.css": "body{}" },
+    });
+    const serverDetail = port.getThemeDetail;
+    let detailCalls = 0;
+    // First call is the initial load (both files readable). Every call after that — triggered below
+    // by deleting the OTHER file, which refetches the whole list — reports the OPEN file's `readable`
+    // flipped to false, with `selected` never asked to change.
+    port.getThemeDetail = async (themeId) => {
+      detailCalls += 1;
+      const r = await serverDetail(themeId);
+      if (detailCalls === 1) return r;
+      return { ...r, files: r.files.map((f) => (f.path === "pages/index.html" ? { ...f, readable: false } : f)) };
+    };
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    expect(result.current.sourceLoaded).toBe(true);
+
+    act(() => result.current.openDeleteConfirm("css/other.css"));
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+
+    // The open file is still selected — only its `readable` flag moved.
+    expect(result.current.selected).toBe("pages/index.html");
+    expect(result.current.files.find((f) => f.path === "pages/index.html")?.readable).toBe(false);
+    expect(result.current.source).toBe("");
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(themeExploreHtmlMode(result.current.files.find((f) => f.path === "pages/index.html"), result.current.sourceLoaded)).toBe(
+      "binary"
+    );
+
+    // Whatever ends up in the buffer next (typed, or left over) must never reach the server: the file
+    // on disk is not what `source` holds.
+    act(() => result.current.setSource("<h1>Typed after the flip</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(result.current.sourceLoaded).toBe(false);
+  });
+});
+
+/**
  * `reset` — restore the open file to its catalog original. No existing suite ever called it before
  * this describe block: `resetConfirmOpen`'s own guard is a UI dialog concern (`ThemeExplore.tsx`),
  * not something this hook enforces itself, so this drives `reset()` directly.
