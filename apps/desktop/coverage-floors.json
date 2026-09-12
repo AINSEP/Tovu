@@ -4,18 +4,20 @@
   "coverageInclude": ["src/**", "bin/**", "main.js"],
   "areas": [
     {
-      "id": "src .js/.cjs",
+      "id": "src main-process",
+      "_comment_role_cut": "Cut by ROLE, not extension (2026-09-12, TypeScript migration Phase 1): every source file under src except the renderer, contracts and preload trees. The extension list spans both the current .js/.cjs and the planned .ts/.cts on purpose, so the .js-to-.ts rename cannot move a file out of these floors; narrow it once no .js remains. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 1.",
       "dirs": ["src"],
-      "extensions": [".js", ".cjs"],
+      "excludeDirs": ["src/renderer", "src/contracts", "src/preload"],
+      "extensions": [".js", ".cjs", ".ts", ".cts"],
       "minFilesOnDisk": 27,
       "floors": { "line": 96, "branch": 90, "funcs": 90 },
       "_comment_knownUnmeasured": "preload-speech.cjs is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.js reads it as source text, the same convention main.js uses. Grandfathered 2026-09-12; this list is printed on every run and a SECOND entry fails the gate.",
       "knownUnmeasured": ["src/speech/preload-speech.cjs"]
     },
     {
-      "id": "src .ts",
+      "id": "src renderer+contracts",
       "_comment_no_funcs_floor": "Deliberately NO funcs floor. Measured 22.54% on 2026-09-12, and a floor set at a measured-but-terrible number locks in the badness and makes it invisible — the same disease this harness exists to treat. The real gate for this area today is the knownUnmeasured list below, which is printed every run and cannot grow. Set a funcs floor once the pure-function tests exist.",
-      "dirs": ["src"],
+      "dirs": ["src/renderer", "src/contracts"],
       "extensions": [".ts"],
       "minFilesOnDisk": 18,
       "floors": { "line": 76, "branch": 88 },
@@ -23,9 +25,9 @@
       "knownUnmeasured": ["src/contracts/chat-attachments.ts", "src/contracts/workspace-conversations.ts", "src/contracts/project.ts", "src/contracts/runtime-inventory.ts", "src/contracts/site-assistant-tools.ts", "src/contracts/working-directory.ts", "src/renderer/site-status.ts", "src/renderer/theme.ts"]
     },
     {
-      "id": "bin .mjs",
+      "id": "bin",
       "dirs": ["bin"],
-      "extensions": [".mjs"],
+      "extensions": [".mjs", ".ts"],
       "minFilesOnDisk": 2,
       "floors": { "line": 85, "branch": 80, "funcs": 62 },
       "knownUnmeasured": []
@@ -34,7 +36,7 @@
   "notMeasured": [
     {
       "what": "main.js",
-      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.js, shutdown-tracker.js, speech-ipc.js are why the .js area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
+      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.js, shutdown-tracker.js, speech-ipc.js are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
     },
     {
       "what": "src/renderer/*.tsx",

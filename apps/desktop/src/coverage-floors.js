@@ -27,6 +27,13 @@
  * actually measured; the unmeasured set is reported alongside, every run, so a gap is a listed,
  * bounded, dated fact rather than an absence.
  *
+ * ## Areas are cut by ROLE, not by file extension
+ *
+ * An area's `dirs` scan recurses, so `dirs: ["src"]` alone would sweep the renderer into the
+ * main-process floors. `excludeDirs` ({@link isInExcludedDir}) carves those trees back out. The cut
+ * is by role on purpose: while areas were cut by extension, the planned `.js`-to-`.ts` rename would
+ * have moved every main-process file out of the 96/90/90 area and into the renderer's 76/88 one.
+ *
  * ## Why `knownUnmeasured` is a ratchet and not a red gate
  *
  * Nine desktop `.ts` files genuinely have no test today. A gate that is red from birth gets
@@ -59,6 +66,19 @@ export function isMeasurableSource(relPath) {
   return true;
 }
 
+/** Whether `relPath` is one of `excludeDirs` or lies anywhere beneath one. Anchored at the start and
+ *  matched on a whole directory segment, so `src/renderer` excludes `src/renderer/x.ts` but never
+ *  `src/renderer-foo/x.js`: a bare `startsWith` would move a main-process file out of its area with
+ *  no failure. Both sides are desktop-root-relative and `/`-separated; a trailing `/` on a
+ *  configured directory is ignored.
+ *  @complexity O(d) in excluded directories. */
+export function isInExcludedDir(relPath, excludeDirs = []) {
+  return excludeDirs.some((dir) => {
+    const base = dir.replace(/\/+$/, "");
+    return relPath === base || relPath.startsWith(`${base}/`);
+  });
+}
+
 /** Sums the six lcov counters across a set of file records.
  *  @complexity O(n). */
 function total(records) {
@@ -76,8 +96,8 @@ function total(records) {
 
 /**
  * Which declared floors this area misses. Only the axes the area actually configures are checked —
- * the `.ts` area deliberately sets no `funcs` floor, because its measured 22.54% would lock in the
- * badness and make it invisible, which is the disease rather than the cure.
+ * the renderer+contracts area deliberately sets no `funcs` floor, because its measured 22.54% would
+ * lock in the badness and make it invisible, which is the disease rather than the cure.
  *
  * @complexity O(1).
  */

@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { evaluateArea, formatArea, pct, isMeasurableSource } from "./coverage-floors.js";
+import { evaluateArea, formatArea, pct, isMeasurableSource, isInExcludedDir } from "./coverage-floors.js";
 
 const perfect = { lf: 100, lh: 100, brf: 10, brh: 10, fnf: 5, fnh: 5 };
 const poor = { lf: 100, lh: 50, brf: 10, brh: 5, fnf: 5, fnh: 1 };
@@ -30,6 +30,41 @@ test("test files and .d.ts files are not production source", () => {
   assert.equal(isMeasurableSource("src/a.spec.ts"), false);
   assert.equal(isMeasurableSource("src/a.d.ts"), false);
   assert.equal(isMeasurableSource("src/renderer/electron-webview.d.ts"), false);
+});
+
+// --- excludeDirs: cutting an area by role, not by extension --------------------------------------
+
+test("a path inside an excluded directory, at any depth, is excluded", () => {
+  assert.equal(isInExcludedDir("src/renderer/App.hooks.ts", ["src/renderer"]), true);
+  assert.equal(isInExcludedDir("src/renderer/deep/nested/x.ts", ["src/renderer"]), true);
+  assert.equal(isInExcludedDir("src/contracts/project.ts", ["src/renderer", "src/contracts"]), true);
+});
+
+test("the excluded directory itself counts as excluded, so a walk can prune it", () => {
+  assert.equal(isInExcludedDir("src/renderer", ["src/renderer"]), true);
+});
+
+test("a sibling that merely SHARES the prefix is not excluded — the match is on a directory boundary", () => {
+  // A bare startsWith would put src/renderer-foo/ and src/renderer.js in the renderer role, and a
+  // main-process file would silently leave the 96/90/90 area it belongs to.
+  assert.equal(isInExcludedDir("src/renderer-foo/x.js", ["src/renderer"]), false);
+  assert.equal(isInExcludedDir("src/renderer.js", ["src/renderer"]), false);
+  assert.equal(isInExcludedDir("src/rendererx/y.ts", ["src/renderer"]), false);
+});
+
+test("the match is anchored at the start of the path, not anywhere inside it", () => {
+  assert.equal(isInExcludedDir("src/speech/src/renderer/x.js", ["src/renderer"]), false);
+});
+
+test("a trailing slash in the configured directory changes nothing, including the boundary", () => {
+  assert.equal(isInExcludedDir("src/renderer/x.ts", ["src/renderer/"]), true);
+  assert.equal(isInExcludedDir("src/renderer", ["src/renderer/"]), true);
+  assert.equal(isInExcludedDir("src/renderer-foo/x.ts", ["src/renderer/"]), false);
+});
+
+test("no excludeDirs — absent or empty — excludes nothing", () => {
+  assert.equal(isInExcludedDir("src/renderer/x.ts", []), false);
+  assert.equal(isInExcludedDir("src/renderer/x.ts", undefined), false);
 });
 
 // --- the core trap: percentages cannot see their own scope shrinking ---------------------------
@@ -124,7 +159,7 @@ test("an area below its line floor fails and names the axis", () => {
   assert.ok(result.failures.some((f) => /funcs 20\.00% < floor 90%/.test(f)));
 });
 
-test("an axis with NO configured floor is never a failure — the .ts area sets no funcs floor", () => {
+test("an axis with NO configured floor is never a failure — the renderer+contracts area sets no funcs floor", () => {
   const area = { id: "ts", floors: { line: 40, branch: 40 } };
   const result = evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", poor]]));
 
