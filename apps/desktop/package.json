@@ -16,7 +16,7 @@
     "test": "node --test \"src/**/*.test.js\" && node --import tsx --test \"src/**/*.test.ts\"",
     "gates": "node scripts/check-gates.mjs",
     "stage": "node scripts/stage-payload.mjs",
-    "package": "npm run gates && npm run build && npm run stage && electron-builder --mac"
+    "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.mjs"
   },
   "dependencies": {
     "@jini-ai/chat": "^0.3.7"
