@@ -1,7 +1,7 @@
 /**
- * @file Filesystem-reading/writing helpers `scripts/stage-payload.mjs` uses to walk source trees,
+ * @file Filesystem-reading/writing helpers `scripts/stage-payload.ts` uses to walk source trees,
  * resolve Jini's pnpm-hoisted transitive dependencies, and verify the staged tree is complete —
- * extracted for the same reason `shell-staleness.js` was: `stage-payload.mjs` itself runs its
+ * extracted for the same reason `shell-staleness.ts` was: `stage-payload.ts` itself runs its
  * entire staging pipeline (real `rmSync`/`cpSync` against the live repo) the moment it is
  * imported, so nothing defined inside it can be exercised by a test that imports the script
  * directly. **This module has no import-time side effects at all** — importing it does nothing to
@@ -9,7 +9,7 @@
  * supplies.
  *
  * `stageTransitiveDependencies` and `assertClosureComplete` (added in later commits) take `outDir`
- * as an explicit parameter rather than closing over `scripts/stage-payload.mjs`'s module-level
+ * as an explicit parameter rather than closing over `scripts/stage-payload.ts`'s module-level
  * constant of the same name, so a test can point them at a throwaway `fs.mkdtempSync` directory
  * instead of the real `staging/tovu-payload` tree.
  */
@@ -136,7 +136,7 @@ function resolveDependencyEdge(
  * — that exist only inside Jini's pnpm store. Tovu never names them, so the caller's own
  * `productionDependencyPaths()` never sees them and stages none of them.
  *
- * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.mjs`'s module-level
+ * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.ts`'s module-level
  * constant of the same name) so a test can point it at a throwaway directory.
  */
 export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }): number {
@@ -176,11 +176,11 @@ export function stagedPackageDirs(modulesDir: string): string[] {
  *
  * Deliberately excluded packages are exempt — they are absent on purpose, not by accident.
  *
- * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.mjs`'s module-level
+ * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.ts`'s module-level
  * constant of the same name) so a test can point it at a throwaway directory.
  *
  * Throws a plain `Error` on an incomplete closure, rather than calling
- * `scripts/stage-payload.mjs`'s own `fail()` (which writes to stderr and calls `process.exit(1)`) —
+ * `scripts/stage-payload.ts`'s own `fail()` (which writes to stderr and calls `process.exit(1)`) —
  * `process.exit` inside a function under test kills the test runner itself. The script's own call
  * site catches this and forwards the same message to `fail()`, so ITS observable behavior — stderr
  * text, exit code — is unchanged; only how the message gets there changed.

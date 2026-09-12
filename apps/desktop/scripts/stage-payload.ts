@@ -38,7 +38,7 @@
  *   source. This shell spawns Electron's own Node (`ELECTRON_RUN_AS_NODE=1`), so there is no
  *   system-Node version to agree with.
  * - Runner's source `tovuDir` indirection — the source here IS this repo.
- * - `playwright`. See `EXCLUDED_PACKAGES` in `../src/stage-payload-lib.js`.
+ * - `playwright`. See `EXCLUDED_PACKAGES` in `../src/stage-payload-lib.ts`.
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
@@ -271,7 +271,7 @@ function failIfDistIsStale(): void {
 
 /**
  * Refuse a shell whose build output is OLDER than its own source. The comparison itself lives in
- * `../src/shell-staleness.js` (and is tested there, against the real 2026-09-12 incident); this
+ * `../src/shell-staleness.ts` (and is tested there, against the real 2026-09-12 incident); this
  * function is only the filesystem half.
  *
  * BEHAVIOUR CHANGE, deliberately: anyone packaging from a checkout whose shells are behind their
