@@ -17,6 +17,7 @@ import {
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
+  themeExploreHtmlMode,
   useWiredThemeExplore,
   type ThemeExploreDetail,
   type ThemeExploreFile,
@@ -221,39 +222,26 @@ function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
 }
 
 /**
- * Which of the HTML tab's three renderings applies to a file.
+ * The HTML tab's body for the selected file — binary (no source, Preview tab instead), unloaded (the
+ * file's text is not in the buffer), read-only (script/`other`, visible but not saveable), or a normal
+ * editable textarea. `themeExploreHtmlMode` (`use-theme-explore.hooks.ts`) picks which.
  *
- * `undefined` (nothing selected yet) intentionally maps to `"editable"`, matching the pre-existing
- * fallback behavior: an empty textarea, not a binary notice, is what rendered here before this
- * file/kind concept existed.
- *
- * @complexity O(1) — three independent boolean checks, no iteration.
- */
-function themeExploreHtmlMode(file: ThemeExploreFile | undefined): "binary" | "readonly" | "editable" {
-  if (!file) return "editable";
-  if (!file.readable) return "binary";
-  if (!file.editable) return "readonly";
-  return "editable";
-}
-
-/**
- * The HTML tab's body for the selected file — binary (no source, Preview tab instead), read-only
- * (script/`other`, visible but not saveable), or a normal editable textarea.
- *
- * @complexity O(1) — renders exactly one of three fixed shapes.
+ * @complexity O(1) — renders exactly one of four fixed shapes.
  */
 function ThemeExploreHtmlPane({
   file,
   source,
+  sourceLoaded,
   setSource,
   t,
 }: {
   file: ThemeExploreFile | undefined;
   source: string;
+  sourceLoaded: boolean;
   setSource: (value: string) => void;
   t: Translate;
 }) {
-  const mode = themeExploreHtmlMode(file);
+  const mode = themeExploreHtmlMode(file, sourceLoaded);
 
   if (mode === "binary") {
     // Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and saving that back
@@ -262,6 +250,21 @@ function ThemeExploreHtmlPane({
       <div className="notice">
         {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
       </div>
+    );
+  }
+
+  if (mode === "unloaded") {
+    // The open file's text is not in the buffer: its read is in flight or failed (a file past the
+    // 1 MB text-read limit), or a reset returned no text. Whatever the buffer holds is not this file,
+    // so it is neither shown nor editable. The error toast carries the reason.
+    return (
+      <textarea
+        className="page-html-source"
+        value=""
+        readOnly
+        spellCheck={false}
+        aria-label={t("Theme file source (read-only)")}
+      />
     );
   }
 
@@ -1043,6 +1046,7 @@ function ThemeExploreMainPane({
   previewWidth,
   selectedFile,
   source,
+  sourceLoaded,
   setSource,
   t,
 }: {
@@ -1051,11 +1055,14 @@ function ThemeExploreMainPane({
   previewWidth: number;
   selectedFile: ThemeExploreFile | undefined;
   source: string;
+  sourceLoaded: boolean;
   setSource: (value: string) => void;
   t: Translate;
 }) {
   if (view === "html") {
-    return <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />;
+    return (
+      <ThemeExploreHtmlPane file={selectedFile} source={source} sourceLoaded={sourceLoaded} setSource={setSource} t={t} />
+    );
   }
   if (previewSrc === null) {
     return <div className="notice">{themeExplorePreviewNotice(t)}</div>;
@@ -1142,6 +1149,7 @@ export function ThemeExplore({
     source,
     setSource,
     dirty,
+    sourceLoaded,
     saving,
     error,
     dismissError,
@@ -1347,6 +1355,7 @@ export function ThemeExplore({
             previewWidth={previewWidth}
             selectedFile={selectedFile}
             source={source}
+            sourceLoaded={sourceLoaded}
             setSource={setSource}
             t={t}
           />

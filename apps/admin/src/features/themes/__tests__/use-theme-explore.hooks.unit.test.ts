@@ -10,6 +10,7 @@ import {
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
+  themeExploreHtmlMode,
   useThemeExplore,
   useWiredThemeExplore,
   withServerModifiedState,
@@ -1237,6 +1238,84 @@ describe("useThemeExplore — save", () => {
 
     expect(result.current.error).toBe("failed to save file");
   });
+
+  it("does not write the previous file's buffer into a newly selected file whose read failed", async () => {
+    const bigTooLarge = "file 'pages/big.html' exceeds the 1000000-byte readable limit";
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "pages/big.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const serverRead = port.getThemeFile;
+    port.getThemeFile = (themeId, path) =>
+      path === "pages/big.html" ? Promise.reject(new Error(bigTooLarge)) : serverRead(themeId, path);
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.select("pages/big.html"));
+    await waitFor(() => expect(result.current.error).toBe(bigTooLarge));
+    act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("does not write the previous file's buffer into a newly selected file whose read is still in flight", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+      contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
+    });
+    const serverRead = port.getThemeFile;
+    port.getThemeFile = (themeId, path) => (path === "pages/about.html" ? new Promise(() => {}) : serverRead(themeId, path));
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.setSource("<h1>Home</h1><p>unsaved</p>"));
+    act(() => result.current.select("pages/about.html"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("does not write a file's buffer into the same path of a newly opened theme whose read is still in flight", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Theme A</h1>" },
+    });
+    const serverRead = port.getThemeFile;
+    port.getThemeFile = (themeId, path) => (themeId === "b" ? new Promise(() => {}) : serverRead(themeId, path));
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result, rerender } = renderHook(
+      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      { initialProps: { themeId: "a" } }
+    );
+    await waitFor(() => expect(result.current.source).toBe("<h1>Theme A</h1>"));
+
+    act(() => result.current.setSource("<h1>Theme A</h1><p>edited</p>"));
+    rerender({ themeId: "b" });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(result.current.dirty).toBe(false);
+  });
 });
 
 /**
@@ -1265,6 +1344,7 @@ describe("useThemeExplore — reset", () => {
       contents: { "pages/index.html": "<h1>Changed</h1>" },
     });
     port.resetThemeFile = () => Promise.resolve({ content: "<h1>Original</h1>" });
+    const getThemeFileSpy = vi.spyOn(port, "getThemeFile");
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
     act(() => result.current.setSource("<h1>Edited</h1>"));
@@ -1276,30 +1356,75 @@ describe("useThemeExplore — reset", () => {
     });
 
     expect(result.current.source).toBe("<h1>Original</h1>");
+    expect(result.current.sourceLoaded).toBe(true);
     expect(result.current.dirty).toBe(false);
     expect(result.current.notice).toBe("Reset pages/index.html to the original");
     expect(result.current.previewNonce).toBe(nonceBefore + 1);
     expect(result.current.resetConfirmOpen).toBe(false);
     expect(result.current.resetting).toBe(false);
+    // Text came back with the reset, so the file is not read again.
+    expect(getThemeFileSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("empties the editor when the server returns content: null (a file past the text-read limit)", async () => {
+  /** GET `/file`'s refusal for a file past the 1 MB text-read limit — `readThemeFile`'s exact message. */
+  const TOO_LARGE = "file 'pages/index.html' exceeds the 1000000-byte readable limit";
+
+  /**
+   * A port whose reset restores a file past the text-read limit: reset answers `content: null`, and
+   * every read after the first one is refused the way GET `/file` refuses that file.
+   */
+  function oversizedResetPort() {
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Changed</h1>" },
     });
     port.resetThemeFile = () => Promise.resolve({ content: null });
+    const serverRead = port.getThemeFile;
+    const getThemeFileSpy = vi.fn(serverRead);
+    getThemeFileSpy.mockImplementationOnce(serverRead).mockRejectedValue(new Error(TOO_LARGE));
+    port.getThemeFile = getThemeFileSpy;
+    return { port, getThemeFileSpy };
+  }
+
+  it("after a content: null reset, re-reads the file and lands unloaded on GET /file's refusal", async () => {
+    const { port, getThemeFileSpy } = oversizedResetPort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+    act(() => result.current.setSource("<h1>Edited</h1>"));
+    act(() => result.current.openResetConfirm());
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe(TOO_LARGE));
+    expect(result.current.notice).toBe("Reset pages/index.html to the original");
+    expect(result.current.resetConfirmOpen).toBe(false);
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(result.current.source).toBe("");
+    expect(result.current.dirty).toBe(false);
+    expect(themeExploreHtmlMode(result.current.files[0], result.current.sourceLoaded)).toBe("unloaded");
+    expect(getThemeFileSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("Save after a content: null reset does not call putThemeFile, even with a changed buffer", async () => {
+    const { port } = oversizedResetPort();
+    const putSpy = vi.spyOn(port, "putThemeFile");
     const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
 
     await act(async () => {
       await result.current.reset();
     });
+    act(() => result.current.setSource("<h1>Typed over the restored file</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
 
-    expect(result.current.source).toBe("");
+    expect(putSpy).not.toHaveBeenCalled();
     expect(result.current.dirty).toBe(false);
+    expect(result.current.saving).toBe(false);
     expect(result.current.notice).toBe("Reset pages/index.html to the original");
-    expect(result.current.error).toBeNull();
   });
 
   it("surfaces an Error rejection from resetThemeFile as error and leaves the confirm dialog open", async () => {
@@ -1460,7 +1585,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     expect(getThemeFileSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("does not re-read the file after a reset, so a file past the text-read limit stays error-free", async () => {
+  it("marks a file past the text-read limit unmodified after reset and leaves it unloaded on the read's refusal", async () => {
     const port = trackingPort("<h1>Changed</h1>");
     const serverReset = port.resetThemeFile;
     port.resetThemeFile = async (themeId, path) => {
@@ -1478,10 +1603,11 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
       await result.current.reset();
     });
 
+    await waitFor(() => expect(result.current.error).toBe("file too large"));
     expect(openFile(result).modified).toBe(false);
     expect(result.current.source).toBe("");
-    expect(result.current.error).toBeNull();
-    expect(getThemeFileSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.sourceLoaded).toBe(false);
+    expect(getThemeFileSpy).toHaveBeenCalledTimes(2);
   });
 
   it("reports a failed refresh as its own error, leaving the save itself done", async () => {
@@ -2451,5 +2577,44 @@ describe("selectedFileLabel", () => {
 
   it("returns '' when no file is selected", () => {
     expect(selectedFileLabel(undefined)).toBe("");
+  });
+});
+
+describe("themeExploreHtmlMode", () => {
+  function file(overrides: Partial<ThemeExploreFile>): ThemeExploreFile {
+    return {
+      path: "pages/index.html",
+      label: "index",
+      kind: "page",
+      readable: true,
+      editable: true,
+      resettable: true,
+      modified: false,
+      published: null,
+      collidingContent: null,
+      ...overrides,
+    };
+  }
+
+  it("is editable when no file is selected", () => {
+    expect(themeExploreHtmlMode(undefined, false)).toBe("editable");
+  });
+
+  it("is binary for a file that is not readable, loaded or not", () => {
+    expect(themeExploreHtmlMode(file({ readable: false, editable: false }), false)).toBe("binary");
+    expect(themeExploreHtmlMode(file({ readable: false, editable: false }), true)).toBe("binary");
+  });
+
+  it("is unloaded for a readable file whose source is not loaded, editable or not", () => {
+    expect(themeExploreHtmlMode(file({}), false)).toBe("unloaded");
+    expect(themeExploreHtmlMode(file({ editable: false }), false)).toBe("unloaded");
+  });
+
+  it("is readonly for a loaded file that is readable but not editable", () => {
+    expect(themeExploreHtmlMode(file({ editable: false }), true)).toBe("readonly");
+  });
+
+  it("is editable for a loaded file that is readable and editable", () => {
+    expect(themeExploreHtmlMode(file({}), true)).toBe("editable");
   });
 });

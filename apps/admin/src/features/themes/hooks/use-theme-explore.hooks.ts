@@ -176,8 +176,16 @@ export interface ThemeExploreController {
   /** Working copy of the open file — what the HTML tab edits. */
   source: string;
   setSource: (value: string) => void;
-  /** True when `source` differs from what was last loaded or saved. */
+  /** True when the source is loaded ({@link sourceLoaded}) and `source` differs from what was last
+   *  loaded or saved. */
   dirty: boolean;
+  /**
+   * True only while `source` holds the open file's text as last read, saved, or reset on the server.
+   * False while that read is in flight, after it failed (a file past the 1 MB text-read limit), for a
+   * file that is not readable, and after a reset that returned no text. `dirty` and `save` both
+   * require it, so a buffer that is not the file on disk can never be written over it.
+   */
+  sourceLoaded: boolean;
   saving: boolean;
   error: string | null;
   /** Manually clear `error` — the toast's own close button, so a dismissed message cannot resurface
@@ -388,6 +396,40 @@ export function isThemeFileModified(file: ThemeExploreFile): boolean {
 }
 
 /**
+ * Which rendering the HTML tab uses for `file`. `undefined` (nothing selected yet) is `"editable"`,
+ * an empty textarea. A file that is not readable is `"binary"` whether or not anything loaded. A
+ * readable file whose source is not loaded ({@link ThemeExploreController.sourceLoaded}) is
+ * `"unloaded"`: an empty read-only source, so a buffer that is not the file on disk is neither shown
+ * nor typed into.
+ *
+ * @complexity O(1).
+ */
+export function themeExploreHtmlMode(
+  file: ThemeExploreFile | undefined,
+  sourceLoaded: boolean
+): "binary" | "unloaded" | "readonly" | "editable" {
+  if (!file) return "editable";
+  if (!file.readable) return "binary";
+  if (!sourceLoaded) return "unloaded";
+  if (!file.editable) return "readonly";
+  return "editable";
+}
+
+/**
+ * Whether `loaded`, the theme and path the editor buffer was last set from, is the open file. A
+ * `null` selection never matches.
+ *
+ * @complexity O(1).
+ */
+function isOpenFileLoaded(
+  loaded: { themeId: string; path: string } | null,
+  themeId: string,
+  selected: string | null
+): boolean {
+  return loaded !== null && loaded.themeId === themeId && loaded.path === selected;
+}
+
+/**
  * `files` with each entry's `resettable` and `modified` taken from the entry at the same path in
  * `serverFiles`, a fresh detail read. Entries `serverFiles` lacks keep their own object, and nothing
  * is added or removed: a rename, copy or delete that settled while the read was in flight owns the
@@ -562,6 +604,13 @@ export function useThemeExplore(
   const [view, setView] = useState<ThemeExploreView>("preview");
   const [source, setSource] = useState("");
   const [savedSource, setSavedSource] = useState("");
+  // The theme and path `source`/`savedSource` were last set from by a read, save or text-returning
+  // reset (see `sourceLoaded`). Keyed by theme too, so opening another theme at the same path does not
+  // count as loaded before that theme's own read lands.
+  const [loadedFile, setLoadedFile] = useState<{ themeId: string; path: string } | null>(null);
+  // Bumped to read the open file again without changing the selection: only after a reset that
+  // returned no text.
+  const [fileReadNonce, setFileReadNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -641,7 +690,9 @@ export function useThemeExplore(
   // toggle, a rename or delete of another file) must not re-read the open file: that would overwrite
   // `source` and discard edits typed since.
   const selectedReadable = files.find((f) => f.path === selected)?.readable;
+  const sourceLoaded = isOpenFileLoaded(loadedFile, themeId, selected);
 
+  // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read.
   useEffect(() => {
     if (selected === null) return;
     // Non-text files are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake,
@@ -660,6 +711,7 @@ export function useThemeExplore(
         if (cancelled) return;
         setSource(r.content);
         setSavedSource(r.content);
+        setLoadedFile({ themeId, path: selected });
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "failed to read file");
@@ -667,7 +719,7 @@ export function useThemeExplore(
     return () => {
       cancelled = true;
     };
-  }, [themeId, selected, selectedReadable, port]);
+  }, [themeId, selected, selectedReadable, port, fileReadNonce]);
 
   // Same stale-settlement guard as `renameSettlement` above: two saves, or a save then a reset, can
   // have their detail reads land out of order, and the older read must not overwrite the newer one.
@@ -694,7 +746,9 @@ export function useThemeExplore(
   }, [themeId, port, modifiedRefreshSettlement]);
 
   const save = useCallback(async () => {
-    if (selected === null) return;
+    // Nothing is written unless `source` is the open file's own text. A read that is in flight or
+    // failed, or a reset that returned no text, leaves some other buffer there (see `sourceLoaded`).
+    if (selected === null || !sourceLoaded) return;
     setSaving(true);
     setError(null);
     try {
@@ -709,7 +763,7 @@ export function useThemeExplore(
       setSaving(false);
     }
     await refreshModifiedState();
-  }, [themeId, selected, source, port, refreshModifiedState]);
+  }, [themeId, selected, sourceLoaded, source, port, refreshModifiedState]);
 
   /**
    * Restore the open file to its catalog original.
@@ -726,10 +780,19 @@ export function useThemeExplore(
       const r = await port.resetThemeFile(themeId, selected);
       // Adopt the server's returned content rather than re-fetching: it is the text of the bytes just
       // restored, so the editor cannot briefly show the pre-reset source. `null` means the file is
-      // past the server's text-read limit, which GET `/file` refuses too, so the editor is emptied.
-      const restored = r.content ?? "";
-      setSource(restored);
-      setSavedSource(restored);
+      // past the server's text-read limit. Its bytes are restored, but there is no text to edit, so
+      // the editor is emptied and left unloaded, and the file is read again: GET `/file` refuses it,
+      // which lands on the same error and the same unsaveable state as opening that file directly.
+      if (r.content === null) {
+        setSource("");
+        setSavedSource("");
+        setLoadedFile(null);
+        setFileReadNonce((n) => n + 1);
+      } else {
+        setSource(r.content);
+        setSavedSource(r.content);
+        setLoadedFile({ themeId, path: selected });
+      }
       setNotice(`Reset ${selected} to the original`);
       setPreviewNonce((n) => n + 1);
       setResetConfirmOpen(false);
@@ -984,7 +1047,7 @@ export function useThemeExplore(
     [themeId, selected, files, port]
   );
 
-  const dirty = source !== savedSource;
+  const dirty = sourceLoaded && source !== savedSource;
 
   /**
    * ⌘S / Ctrl+S saves the open file.
@@ -1019,6 +1082,7 @@ export function useThemeExplore(
     source,
     setSource,
     dirty,
+    sourceLoaded,
     saving,
     error,
     dismissError: () => setError(null),

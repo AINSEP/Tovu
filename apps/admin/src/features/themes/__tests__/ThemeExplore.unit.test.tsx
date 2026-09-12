@@ -79,6 +79,7 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     source: "<p>hi</p>",
     setSource: vi.fn(),
     dirty: false,
+    sourceLoaded: true,
     saving: false,
     error: null,
     dismissError: vi.fn(),
@@ -1131,6 +1132,16 @@ describe("editable HTML source textarea", () => {
     await user.type(textarea, "x");
 
     expect(setSource).toHaveBeenCalledWith("x");
+  });
+
+  it("shows an empty read-only source, never the editable textarea, while the source is not loaded", () => {
+    renderExplore({ view: "html", selected: "pages/index.html", source: "<p>stale</p>", sourceLoaded: false });
+
+    expect(screen.queryByRole("textbox", { name: "Theme file source" })).not.toBeInTheDocument();
+    const textarea = screen.getByLabelText("Theme file source (read-only)");
+    expect(textarea).toHaveAttribute("readonly");
+    expect(textarea).toHaveValue("");
+    expect(screen.queryByText("This file type is read-only in Explore.")).not.toBeInTheDocument();
   });
 });
 
