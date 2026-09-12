@@ -610,19 +610,43 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
 }
 
 /**
+ * Refuses a write over `existing` when it is not a regular file, or when it is past the
+ * {@link MAX_THEME_FILE_BYTES} read limit and `overwriteOversized` is false. {@link readThemeFile}
+ * refuses a file that size, so a body sent for it was never an edit of its text: checking only the new
+ * body's size let a short body replace the whole file. `undefined` (no file yet) always passes.
+ *
+ * @throws {ThemePathError} On either refusal.
+ * @complexity O(1).
+ */
+function assertOverwritableTarget(existing: Stats | undefined, relativePath: string, overwriteOversized: boolean): void {
+  if (!existing) return;
+  if (!existing.isFile()) {
+    throw new ThemePathError(`path '${relativePath}' exists and is not a regular file`);
+  }
+  if (existing.size > MAX_THEME_FILE_BYTES && !overwriteOversized) {
+    throw new ThemePathError(
+      `file '${relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit; overwriting it requires overwriteOversized: true`
+    );
+  }
+}
+
+/**
  * Write (create or overwrite) one file inside a theme's folder, creating any
  * intermediate directories — which are themselves inside the folder, since the
  * resolved path already passed containment.
  *
+ * @param optional.overwriteOversized - Must be `true` to replace an existing file past the
+ * {@link MAX_THEME_FILE_BYTES} read limit. The admin editor never sets it.
  * @returns The absolute path written.
- * @throws {ThemePathError} On any containment failure, an oversized body, or a
- * target that exists and is not a regular file.
+ * @throws {ThemePathError} On any containment failure, an oversized body, a
+ * target that exists and is not a regular file, or an existing target past the
+ * {@link MAX_THEME_FILE_BYTES} read limit without `overwriteOversized`.
  * @complexity O(s) in the content size.
  * @overallScore 100/100
  */
 export function writeThemeFile(
   required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
-  _optional: Record<string, never> = {}
+  optional: { overwriteOversized?: boolean } = {}
 ): string {
   const target = resolveThemeFilePath(required);
   if (Buffer.byteLength(required.content, "utf8") > MAX_THEME_FILE_BYTES) {
@@ -635,9 +659,7 @@ export function writeThemeFile(
   // symlink pointing to a real file inside the theme is meant to be overwritten through, exactly like
   // any other existing target.
   const existing = statOrThemePathError(target, required.relativePath);
-  if (existing && !existing.isFile()) {
-    throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
-  }
+  assertOverwritableTarget(existing, required.relativePath, optional.overwriteOversized === true);
   mkdirSync(dirname(target), { recursive: true });
   writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"));
   return target;

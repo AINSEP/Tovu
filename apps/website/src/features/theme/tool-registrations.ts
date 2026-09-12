@@ -545,6 +545,8 @@ export function buildThemesRegistrations(
       const themeId = requireString(input, "themeId");
       const relativePath = requireString(input, "path");
       const content = requireString(input, "content");
+      // Only the boolean `true` opts in, the same way `theme_edit_file` reads `replaceAll`.
+      const overwriteOversized = input.overwriteOversized === true;
       await requireToolPermission(routeDeps, {
         principalId: ctx.principal.id,
         permission: THEME_WRITE_PERMISSION,
@@ -560,7 +562,7 @@ export function buildThemesRegistrations(
         // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
         assertThemeFileWritable(theme, relativePath);
 
-        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content });
+        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized });
 
         // Re-validate through the SAME `loadTheme()` a boot-time discovery uses — the whole point of
         // this domain's safety argument is that an agent-authored file is validated identically to a

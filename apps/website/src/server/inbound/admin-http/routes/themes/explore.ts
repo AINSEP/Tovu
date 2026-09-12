@@ -534,12 +534,17 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
 
 /** The PUT body's `path`/`content` fields, validated just enough to know `content` is writable
  *  text — `ok: false` covers only the one shape check this route 400s on (`content` not a string);
- *  every other validation (writability, generated-tree, …) happens once `path`/`content` exist. */
-function parseThemeFilePutBody(req: { body: unknown }): { ok: true; path: string; content: string } | { ok: false } {
+ *  every other validation (writability, generated-tree, …) happens once `path`/`content` exist.
+ *  `overwriteOversized` is true only for the boolean `true`; any other value, the string "true"
+ *  included, keeps `writeThemeFile`'s refusal to replace a file past the read limit. The admin editor
+ *  never sends it. */
+function parseThemeFilePutBody(
+  req: { body: unknown }
+): { ok: true; path: string; content: string; overwriteOversized: boolean } | { ok: false } {
   const path = bodyStringField(req.body, "path");
-  const content = bodyRecord(req.body).content;
-  if (typeof content !== "string") return { ok: false };
-  return { ok: true, path, content };
+  const body = bodyRecord(req.body);
+  if (typeof body.content !== "string") return { ok: false };
+  return { ok: true, path, content: body.content, overwriteOversized: body.overwriteOversized === true };
 }
 
 /**
@@ -619,7 +624,10 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
         return;
       }
 
-      writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content });
+      writeThemeFile(
+        { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content },
+        { overwriteOversized: parsedBody.overwriteOversized }
+      );
 
       // Re-read from disk after writing, or the save is invisible. See `reloadTheme`.
       reloadTheme(deps, theme.manifest.id);

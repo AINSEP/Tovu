@@ -209,6 +209,85 @@ test("PUT of a WRITABLE-extension path that still escapes the theme folder via t
   assert.equal(body.code, "INVALID_THEME_PATH");
 });
 
+/** Writes a file one byte past the 1 MB text-read limit at `css/huge.css` and returns its path and text. */
+function writeOversizedCss(themesDir: string): { target: string; original: string } {
+  const target = path.join(themesDir, "static", "plain", "css", "huge.css");
+  const original = "x".repeat(1_000_001);
+  fs.writeFileSync(target, original, "utf8");
+  return { target, original };
+}
+
+const OVERSIZED_OVERWRITE_REFUSAL = {
+  error: "file 'css/huge.css' exceeds the 1000000-byte readable limit; overwriting it requires overwriteOversized: true",
+  code: "INVALID_THEME_PATH",
+};
+
+test("PUT over an existing file past the 1 MB text-read limit, without overwriteOversized, 400s and leaves its bytes on disk", async (t) => {
+  // GET /file refuses this file, so the admin editor never holds its text and never sends the flag.
+  // Checking only the NEW body's size let a short body replace the whole file.
+  const themesDir = makePlainThemesRoot();
+  const { target, original } = writeOversizedCss(themesDir);
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/huge.css", content: "body{}" }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), OVERSIZED_OVERWRITE_REFUSAL);
+  assert.equal(fs.readFileSync(target, "utf8"), original);
+});
+
+test("PUT over an oversized file with overwriteOversized as the STRING 'true' is still refused -- only the boolean true opts in", async (t) => {
+  const themesDir = makePlainThemesRoot();
+  const { target, original } = writeOversizedCss(themesDir);
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/huge.css", content: "body{}", overwriteOversized: "true" }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), OVERSIZED_OVERWRITE_REFUSAL);
+  assert.equal(fs.readFileSync(target, "utf8"), original);
+});
+
+test("PUT over an oversized file with overwriteOversized: true replaces it", async (t) => {
+  const themesDir = makePlainThemesRoot();
+  const { target } = writeOversizedCss(themesDir);
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/huge.css", content: "body{}", overwriteOversized: true }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { path: "css/huge.css", bytes: 6 });
+  assert.equal(fs.readFileSync(target, "utf8"), "body{}");
+});
+
+test("PUT over an existing file of exactly 1 MB succeeds without the flag -- GET /file can still read it", async (t) => {
+  const themesDir = makePlainThemesRoot();
+  const target = path.join(themesDir, "static", "plain", "css", "at-limit.css");
+  fs.writeFileSync(target, "x".repeat(1_000_000), "utf8");
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/at-limit.css", content: "body{}" }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(fs.readFileSync(target, "utf8"), "body{}");
+});
+
 test("PUT that fails for a reason OTHER than ThemePathError 500s via sendThemeFileError's generic branch", async (t) => {
   // Deny write permission on the TARGET FILE itself (writeFileSync opens an existing file with the
   // "w" flag, which needs write permission on the file, not its parent directory) so

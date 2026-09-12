@@ -186,6 +186,10 @@ const WRITE_FILE_SCHEMA = {
       maxLength: MAX_THEME_FILE_BYTES,
       description: `The file's complete new contents as UTF-8 text. This is an overwrite, not a patch — send the whole file. Up to ${MAX_THEME_FILE_BYTES} bytes. For a small change to a large file, theme_edit_file is usually cheaper and safer: it replaces one exact substring instead of requiring you to re-send the entire file.`,
     },
+    overwriteOversized: {
+      type: "boolean",
+      description: `Set to true only to replace an EXISTING file larger than ${MAX_THEME_FILE_BYTES} bytes. theme_read_file cannot read a file that size, so without this flag the write is refused instead of discarding contents you never saw. Not needed for a new file or one within the limit.`,
+    },
   },
 } as const;
 
@@ -324,7 +328,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_write_file",
       description:
-        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected.",
+        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: WRITE_FILE_SCHEMA,

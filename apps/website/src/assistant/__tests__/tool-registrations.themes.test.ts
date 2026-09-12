@@ -349,6 +349,41 @@ test("theme_write_file writes the file and reports the theme still valid", async
   assert.equal(fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8"), "body{color:red}");
 });
 
+test("theme_write_file refuses to overwrite an existing file past the 1 MB read limit without overwriteOversized, and leaves its bytes", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const target = path.join(themesDir, "plain", "styles.css");
+  const original = "x".repeat(1_000_001);
+  fs.writeFileSync(target, original, "utf8");
+
+  await assert.rejects(
+    () => wired(deps, "theme_write_file").handler(executionContext({ themeId: "plain", path: "styles.css", content: "body{}" })),
+    (err: Error) =>
+      err.message.includes("file 'styles.css' exceeds the 1000000-byte readable limit; overwriting it requires overwriteOversized: true")
+  );
+  assert.equal(fs.readFileSync(target, "utf8"), original);
+});
+
+test("theme_write_file with overwriteOversized: true replaces an existing file past the 1 MB read limit", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const target = path.join(themesDir, "plain", "styles.css");
+  fs.writeFileSync(target, "x".repeat(1_000_001), "utf8");
+
+  const result = (await wired(deps, "theme_write_file").handler(
+    executionContext({ themeId: "plain", path: "styles.css", content: "body{}", overwriteOversized: true })
+  )) as { status: string; bytesWritten: number };
+
+  assert.equal(result.status, "valid");
+  assert.equal(result.bytesWritten, 6);
+  assert.equal(fs.readFileSync(target, "utf8"), "body{}");
+});
+
+test("theme_write_file's published schema and description carry the overwriteOversized flag", () => {
+  const entry = catalogEntry("theme_write_file");
+  const properties = (entry.inputSchema as { properties: Record<string, { type: string }> }).properties;
+  assert.equal(properties.overwriteOversized?.type, "boolean");
+  assert.match(entry.description, /overwriteOversized: true/);
+});
+
 test("writing INVALID JSON reports status 'invalid' with a naming error — the immediate feedback an editing agent needs", async () => {
   const { deps } = fakeRouteDeps();
   const result = (await wired(deps, "theme_write_file").handler(
