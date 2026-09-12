@@ -12,6 +12,8 @@ import {
   selectedFilePublishState,
   useThemeExplore,
   useWiredThemeExplore,
+  withServerModifiedState,
+  type ThemeExploreController,
   type ThemeExploreFile,
 } from "../hooks/use-theme-explore.hooks";
 
@@ -1337,6 +1339,348 @@ describe("useThemeExplore — reset", () => {
   });
 });
 
+/**
+ * After a Save or Reset, the open file's `modified`/`resettable` must be the server's answer, not the
+ * value loaded with the page. `trackingPort` models `explore.ts`'s `describeThemeFile`: the listing
+ * compares the live content with a catalog original, and PUT/reset change the live content, so every
+ * detail read after a mutation says what the real server would.
+ */
+describe("useThemeExplore — modified state after Save and Reset", () => {
+  const PATH = "pages/index.html";
+  const ORIGINAL = "<h1>Home</h1>";
+
+  function trackingPort(live: string) {
+    let current = live;
+    const port = createFakeThemeExplorePort({ files: [], contents: {} });
+    port.getThemeDetail = async () => ({
+      id: "basic",
+      name: "Basic",
+      tier: "static",
+      status: "active",
+      errors: [],
+      lineage: null,
+      hasOriginal: true,
+      files: [{ path: PATH, group: "page", readable: true, editable: true, resettable: true, modified: current !== ORIGINAL }],
+    });
+    port.getThemeFile = async () => ({ content: current });
+    port.putThemeFile = async (_themeId, path, content) => {
+      current = content;
+      return { path, bytes: content.length };
+    };
+    port.resetThemeFile = async () => {
+      current = ORIGINAL;
+      return { content: ORIGINAL };
+    };
+    return port;
+  }
+
+  function openFile(result: { current: ThemeExploreController }): ThemeExploreFile {
+    const found = result.current.files.find((f) => f.path === result.current.selected);
+    if (!found) throw new Error("no open file");
+    return found;
+  }
+
+  it("saving an untouched file marks it modified and offers Reset", async () => {
+    const port = trackingPort(ORIGINAL);
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    expect(openFile(result).modified).toBe(false);
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(openFile(result).modified).toBe(true);
+    expect(openFile(result).resettable).toBe(true);
+    expect(isThemeFileModified(openFile(result))).toBe(true);
+    expect(canResetThemeFile(openFile(result))).toBe(true);
+  });
+
+  it("resetting a modified file marks it unmodified and hides Reset", async () => {
+    const port = trackingPort("<h1>Changed</h1>");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+    expect(openFile(result).modified).toBe(true);
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(openFile(result).modified).toBe(false);
+    expect(openFile(result).resettable).toBe(true);
+    expect(isThemeFileModified(openFile(result))).toBe(false);
+    expect(canResetThemeFile(openFile(result))).toBe(false);
+  });
+
+  it("saving a modified file's original content back marks it unmodified and hides Reset", async () => {
+    const port = trackingPort("<h1>Changed</h1>");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+    expect(openFile(result).modified).toBe(true);
+
+    act(() => result.current.setSource(ORIGINAL));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(openFile(result).modified).toBe(false);
+    expect(openFile(result).resettable).toBe(true);
+    expect(isThemeFileModified(openFile(result))).toBe(false);
+    expect(canResetThemeFile(openFile(result))).toBe(false);
+  });
+
+  it("keeps edits typed while the post-save refresh is in flight, and never re-reads the open file", async () => {
+    const port = trackingPort(ORIGINAL);
+    const getThemeFileSpy = vi.spyOn(port, "getThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    const serverDetail = port.getThemeDetail;
+    let releaseDetail: (() => void) | undefined;
+    port.getThemeDetail = (themeId) =>
+      new Promise((resolve) => {
+        releaseDetail = () => resolve(serverDetail(themeId));
+      });
+
+    act(() => result.current.setSource("<h1>Saved</h1>"));
+    let saved: Promise<void> | undefined;
+    act(() => {
+      saved = result.current.save();
+    });
+    await waitFor(() => expect(releaseDetail).toBeDefined());
+    act(() => result.current.setSource("<h1>Saved</h1><p>typed after</p>"));
+    await act(async () => {
+      releaseDetail!();
+      await saved;
+    });
+
+    expect(openFile(result).modified).toBe(true);
+    expect(result.current.source).toBe("<h1>Saved</h1><p>typed after</p>");
+    expect(result.current.dirty).toBe(true);
+    expect(getThemeFileSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-read the file after a reset, so a file past the text-read limit stays error-free", async () => {
+    const port = trackingPort("<h1>Changed</h1>");
+    const serverReset = port.resetThemeFile;
+    port.resetThemeFile = async (themeId, path) => {
+      await serverReset(themeId, path);
+      return { content: null };
+    };
+    const serverRead = port.getThemeFile;
+    const getThemeFileSpy = vi.fn(serverRead);
+    getThemeFileSpy.mockImplementationOnce(serverRead).mockRejectedValue(new Error("file too large"));
+    port.getThemeFile = getThemeFileSpy;
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(openFile(result).modified).toBe(false);
+    expect(result.current.source).toBe("");
+    expect(result.current.error).toBeNull();
+    expect(getThemeFileSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a failed refresh as its own error, leaving the save itself done", async () => {
+    const port = trackingPort(ORIGINAL);
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    port.getThemeDetail = () => Promise.reject(new Error("detail failed"));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("detail failed");
+    expect(result.current.notice).toBe("Saved pages/index.html");
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.saving).toBe(false);
+    expect(openFile(result).modified).toBe(false);
+  });
+
+  it("falls back to a generic message when a post-reset refresh rejection is not an Error instance", async () => {
+    const port = trackingPort("<h1>Changed</h1>");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+    port.getThemeDetail = () => Promise.reject("nope");
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe("failed to refresh file list");
+    expect(result.current.notice).toBe("Reset pages/index.html to the original");
+    expect(result.current.resetting).toBe(false);
+  });
+
+  /**
+   * Two saves whose post-save detail reads settle in reverse order. Each read snapshots the server's
+   * state when it is REQUESTED, so the first read is stale by the time it lands: it says modified
+   * (after `<h1>Changed</h1>`), while the second says unmodified (the original saved back).
+   */
+  async function saveTwiceWithReadsPending(
+    result: { current: ThemeExploreController },
+    port: ReturnType<typeof trackingPort>
+  ) {
+    const serverDetail = port.getThemeDetail;
+    const pending: Array<{ resolve: () => void; reject: (reason: unknown) => void }> = [];
+    port.getThemeDetail = (themeId) =>
+      new Promise((resolve, reject) => {
+        const snapshot = serverDetail(themeId);
+        pending.push({ resolve: () => resolve(snapshot), reject });
+      });
+    const saves: Array<Promise<void>> = [];
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    act(() => {
+      saves.push(result.current.save());
+    });
+    await waitFor(() => expect(pending).toHaveLength(1));
+    act(() => result.current.setSource(ORIGINAL));
+    act(() => {
+      saves.push(result.current.save());
+    });
+    await waitFor(() => expect(pending).toHaveLength(2));
+    return { pending, saves };
+  }
+
+  it("a stale post-save refresh settling after a newer one does not overwrite the newer modified state", async () => {
+    const port = trackingPort(ORIGINAL);
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    const { pending, saves } = await saveTwiceWithReadsPending(result, port);
+
+    await act(async () => {
+      pending[1]!.resolve();
+      await saves[1];
+    });
+    expect(openFile(result).modified).toBe(false);
+    await act(async () => {
+      pending[0]!.resolve();
+      await saves[0];
+    });
+
+    expect(openFile(result).modified).toBe(false);
+    expect(canResetThemeFile(openFile(result))).toBe(false);
+  });
+
+  it("a stale post-save refresh failing after a newer one succeeded surfaces no error", async () => {
+    const port = trackingPort(ORIGINAL);
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    const { pending, saves } = await saveTwiceWithReadsPending(result, port);
+
+    await act(async () => {
+      pending[1]!.resolve();
+      await saves[1];
+    });
+    await act(async () => {
+      pending[0]!.reject(new Error("stale read failed"));
+      await saves[0];
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(openFile(result).modified).toBe(false);
+  });
+
+  it("does not refresh the file list after a failed save", async () => {
+    const port = trackingPort(ORIGINAL);
+    const getThemeDetailSpy = vi.spyOn(port, "getThemeDetail");
+    port.putThemeFile = () => Promise.reject(new Error("write failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("write failed");
+    expect(getThemeDetailSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not refresh the file list after a failed reset", async () => {
+    const port = trackingPort("<h1>Changed</h1>");
+    const getThemeDetailSpy = vi.spyOn(port, "getThemeDetail");
+    port.resetThemeFile = () => Promise.reject(new Error("reset failed"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe("reset failed");
+    expect(getThemeDetailSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Copy and Rename already refetch the whole detail. These pin that the new path's `modified`/
+ * `resettable` come from that refetch: the server has no catalog original at a copied or renamed
+ * path, so it reports `resettable: false, modified: null` there, whatever the source file said.
+ */
+describe("useThemeExplore — modified state after Copy and Rename", () => {
+  const MODIFIED_STYLE = {
+    path: "css/a.css",
+    group: "style" as const,
+    readable: true,
+    editable: true,
+    resettable: true,
+    modified: true,
+  };
+
+  function withNoOriginalAt(port: ReturnType<typeof createFakeThemeExplorePort>, newPath: string) {
+    const serverDetail = port.getThemeDetail;
+    port.getThemeDetail = async (themeId) => {
+      const detail = await serverDetail(themeId);
+      return {
+        ...detail,
+        files: detail.files.map((f) => (f.path === newPath ? { ...f, resettable: false, modified: null } : f)),
+      };
+    };
+  }
+
+  it("a copy of a modified file lists as not resettable, with modified null", async () => {
+    const port = createFakeThemeExplorePort({ files: [MODIFIED_STYLE], contents: { "css/a.css": "body{}" } });
+    withNoOriginalAt(port, "css/a-1.css");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    await act(async () => {
+      await result.current.copyFile("css/a.css");
+    });
+
+    const copy = result.current.files.find((f) => f.path === "css/a-1.css");
+    expect(copy?.resettable).toBe(false);
+    expect(copy?.modified).toBeNull();
+    expect(canResetThemeFile(copy)).toBe(false);
+    expect(result.current.files.find((f) => f.path === "css/a.css")?.modified).toBe(true);
+  });
+
+  it("a renamed modified file lists as not resettable, with modified null", async () => {
+    const port = createFakeThemeExplorePort({ files: [MODIFIED_STYLE], contents: { "css/a.css": "body{}" } });
+    withNoOriginalAt(port, "css/b.css");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).toBe("css/a.css"));
+
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("b.css"));
+    await act(async () => {
+      result.current.commitRename();
+    });
+
+    await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b.css"));
+    const renamed = result.current.files.find((f) => f.path === "css/b.css");
+    expect(renamed?.resettable).toBe(false);
+    expect(renamed?.modified).toBeNull();
+    expect(canResetThemeFile(renamed)).toBe(false);
+  });
+});
+
 describe("useThemeExplore — performRename failure and the non-selected-file ternary", () => {
   const FILES = [
     { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
@@ -2026,6 +2370,32 @@ describe("isThemeFileModified", () => {
 
   it("is false for modified: null — no original means nothing to be modified from", () => {
     expect(isThemeFileModified(file({ resettable: false, modified: null }))).toBe(false);
+  });
+});
+
+describe("withServerModifiedState", () => {
+  it("takes resettable and modified from the server's entry at the same path", () => {
+    const index = file({ path: "pages/index.html", label: "index", resettable: true, modified: false });
+    const style = file({ path: "css/a.css", label: "a.css", kind: "style", resettable: true, modified: true });
+    const server = [
+      file({ path: "pages/index.html", label: "index", resettable: true, modified: true }),
+      file({ path: "css/a.css", label: "a.css", kind: "style", resettable: false, modified: null }),
+    ];
+
+    expect(withServerModifiedState([index, style], server)).toEqual([
+      { ...index, resettable: true, modified: true },
+      { ...style, resettable: false, modified: null },
+    ]);
+  });
+
+  it("keeps an entry the server's list lacks as the same object, and adds none the local list lacks", () => {
+    const renamed = file({ path: "css/b.css", label: "b.css", kind: "style", resettable: false, modified: null });
+    const server = [file({ path: "css/a.css", label: "a.css", kind: "style", resettable: true, modified: true })];
+
+    const next = withServerModifiedState([renamed], server);
+
+    expect(next).toHaveLength(1);
+    expect(next[0]).toBe(renamed);
   });
 });
 

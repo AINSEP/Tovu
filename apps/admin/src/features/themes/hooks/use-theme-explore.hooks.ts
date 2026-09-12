@@ -388,6 +388,22 @@ export function isThemeFileModified(file: ThemeExploreFile): boolean {
 }
 
 /**
+ * `files` with each entry's `resettable` and `modified` taken from the entry at the same path in
+ * `serverFiles`, a fresh detail read. Entries `serverFiles` lacks keep their own object, and nothing
+ * is added or removed: a rename, copy or delete that settled while the read was in flight owns the
+ * list's shape, and a slower read must not undo it.
+ *
+ * @complexity O(n + m) in `files.length` and `serverFiles.length` — one Map build, one pass.
+ */
+export function withServerModifiedState(files: ThemeExploreFile[], serverFiles: ThemeExploreFile[]): ThemeExploreFile[] {
+  const serverByPath = new Map(serverFiles.map((f) => [f.path, f]));
+  return files.map((f) => {
+    const server = serverByPath.get(f.path);
+    return server ? { ...f, resettable: server.resettable, modified: server.modified } : f;
+  });
+}
+
+/**
  * Owner-reported bug (2026-08-12): clicking a `.liquid` template in Explore downloaded it instead of
  * previewing it. Originally patched HERE, client-side (overriding `readable` to `true` for any
  * `.liquid` path regardless of what the listing route reported), because the GET-file route
@@ -620,13 +636,19 @@ export function useThemeExplore(
     // where it does move.
   }, [themeId, port, pageId, fileId]);
 
+  // The effect below keys off the open file's `readable` flag, not the whole `files` array. A list
+  // update that leaves that flag alone (the modified-state refresh after a save or reset, a publish
+  // toggle, a rename or delete of another file) must not re-read the open file: that would overwrite
+  // `source` and discard edits typed since.
+  const selectedReadable = files.find((f) => f.path === selected)?.readable;
+
   useEffect(() => {
     if (selected === null) return;
     // Non-text files are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake,
     // and saving that back would genuinely corrupt the file — so the request is not made at all
     // rather than made and then guarded against in the UI. Gated on `readable`, NOT `editable`: a
     // script is not editable but IS readable, and still needs its source fetched to be viewed.
-    if (files.find((f) => f.path === selected)?.readable === false) {
+    if (selectedReadable === false) {
       setSource("");
       setSavedSource("");
       return;
@@ -645,7 +667,31 @@ export function useThemeExplore(
     return () => {
       cancelled = true;
     };
-  }, [themeId, selected, files, port]);
+  }, [themeId, selected, selectedReadable, port]);
+
+  // Same stale-settlement guard as `renameSettlement` above: two saves, or a save then a reset, can
+  // have their detail reads land out of order, and the older read must not overwrite the newer one.
+  // Dropping it loses nothing, since the newer read carries every file's state.
+  const modifiedRefreshSettlement = useSettlementGeneration();
+
+  /**
+   * Re-read every file's `modified`/`resettable` after a Save or Reset changed a file's bytes.
+   * Neither response can answer it: PUT returns only `path`/`bytes`, and reset's `wasModified` is the
+   * state BEFORE the reset. The client never infers it either, because saving a file's original bytes
+   * back makes it unmodified. Merged through {@link withServerModifiedState}. A failed read is its own
+   * error: the save or reset already succeeded and stays reported as done.
+   */
+  const refreshModifiedState = useCallback(async () => {
+    const generation = modifiedRefreshSettlement.next();
+    try {
+      const { files: serverFiles } = await fetchThemeExploreState(themeId, port);
+      if (!modifiedRefreshSettlement.isCurrent(generation)) return;
+      setFiles((prev) => withServerModifiedState(prev, serverFiles));
+    } catch (e) {
+      if (!modifiedRefreshSettlement.isCurrent(generation)) return;
+      setError(e instanceof Error ? e.message : "failed to refresh file list");
+    }
+  }, [themeId, port, modifiedRefreshSettlement]);
 
   const save = useCallback(async () => {
     if (selected === null) return;
@@ -658,10 +704,12 @@ export function useThemeExplore(
       setPreviewNonce((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to save file");
+      return;
     } finally {
       setSaving(false);
     }
-  }, [themeId, selected, source, port]);
+    await refreshModifiedState();
+  }, [themeId, selected, source, port, refreshModifiedState]);
 
   /**
    * Restore the open file to its catalog original.
@@ -687,10 +735,12 @@ export function useThemeExplore(
       setResetConfirmOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to reset file");
+      return;
     } finally {
       setResetting(false);
     }
-  }, [themeId, selected, port]);
+    await refreshModifiedState();
+  }, [themeId, selected, port, refreshModifiedState]);
 
   /**
    * Actually perform a rename against the server and reconcile local state — the one place both the
