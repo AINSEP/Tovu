@@ -437,25 +437,10 @@ function openSitesHomeWindow() {
      * Floors, not a preference — a window with no minimum can be dragged to a width nothing has
      * an answer for.
      *
-     * **This number is now conservative, and deliberately so until it is measured.** When it was
-     * chosen, `app.css` declared exactly one width rule (`@media (max-width: 680px)`) and the
-     * header row was a title plus three `nowrap` buttons in a no-wrap flex row, which overflowed
-     * at roughly a 408px content column — so 960 was picked to keep that row intact even with the
-     * operator chat open (a grid COLUMN, `width: min(27rem, 40vw)`, which narrows `.main` while
-     * the viewport does not move — the reason a viewport-keyed breakpoint could never protect it).
-     *
-     * Both of those facts changed. `.main__head`/`.main__tools` now wrap, so that row reflows at
-     * whatever width it stops fitting rather than overflowing, and the create-website form moved
-     * to `@container onboarding (max-width: 520px)`, keyed to its own width instead of the
-     * viewport's. The remaining floor is whatever cannot reflow — chiefly `.topnav`, a
-     * `max-width: fit-content` pill of brand plus icon links with no wrap.
-     *
-     * That floor is almost certainly well below 960, but lowering it on an estimate would repeat
-     * the mistake this comment exists to record: the original 960 came from the stylesheet's
-     * arithmetic rather than from a resized window. Lower it once someone has actually dragged
-     * this window narrow and watched where it breaks.
+     * 480 is the owner's choice as of 2026-09-12, made after they verified the previous 960 in the
+     * real window. Layout between 480 and 960 has not been measured.
      */
-    minWidth: 960,
+    minWidth: 480,
     minHeight: 600,
     title: "Tovu",
     show: !SELFTEST,

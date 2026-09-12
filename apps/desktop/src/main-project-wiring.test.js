@@ -155,9 +155,8 @@ test("the sites home window declares width AND height minimums", () => {
   // viewport does not move, which is precisely what a viewport media query cannot see.
   //
   // So the remaining floor is whatever cannot reflow — chiefly `.topnav`, a `max-width: fit-content`
-  // pill of brand plus icon links that has no wrap. Asserting a specific number here would be
-  // asserting an estimate; this asserts the property that matters (both minimums exist, and are
-  // large enough to be deliberate) and leaves the value to `main.js`'s own comment.
+  // pill of brand plus icon links that has no wrap. This asserts both minimums exist and clear the
+  // card-column floor, and pins the width to the owner's chosen value below.
   //
   // Scoped to `openSitesHomeWindow`'s own body, not the whole file — `createWindow` builds a
   // second BrowserWindow at the same 1360x900 for a SITE's surfaces, whose responsive behaviour
@@ -171,6 +170,8 @@ test("the sites home window declares width AND height minimums", () => {
   // one card column at `minmax(214px, 1fr)` plus `.grid`'s 1.75rem side padding (28px each).
   const minWidth = Number(/minWidth: (\d+)/.exec(own)[1]);
   assert.ok(minWidth >= 270, `minWidth must fit at least one card column (214 + 2x28), got ${minWidth}`);
+  // Not derived from the stylesheet: the owner chose 480 on 2026-09-12 after 960 worked in the real window.
+  assert.equal(minWidth, 480, `minWidth must be the owner's chosen 480, got ${minWidth}`);
   assert.ok(Number(/minHeight: (\d+)/.exec(own)[1]) >= 400, "minHeight must leave room for a card row");
 });
 
