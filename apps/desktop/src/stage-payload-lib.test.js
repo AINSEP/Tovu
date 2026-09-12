@@ -1,16 +1,17 @@
 /**
- * @file Direct tests for `stage-payload-lib.js`'s `newestMtime` (and, transitively, its private
- * `isWalkable` filter). Real directories and real mtimes throughout — `newestMtime`'s whole job is
- * to walk a real filesystem tree and compare real timestamps, and only the filesystem can produce
- * those honestly (see `project-delete-guard.test.js`'s header for the same reasoning).
+ * @file Direct tests for `stage-payload-lib.js`. Real directories throughout — `newestMtime` and
+ * `stageTransitiveDependencies` each walk a real filesystem tree, and only the filesystem can
+ * produce that honestly (see `project-delete-guard.test.js`'s header for the same reasoning).
+ * Every fixture lives under a fresh `fs.mkdtempSync` directory; nothing here ever touches the real
+ * `apps/desktop/staging/tovu-payload` tree `scripts/stage-payload.mjs` uses.
  *
- * `touch()` returns the mtime the filesystem actually stored rather than the millisecond value it
- * was asked to set: `fs.utimesSync` round-trips some millisecond values through a lossy
- * seconds-as-a-double conversion (verified empirically — 555555 came back as 555554.999, 9999999 as
- * 9999998.999, while 8888888 and every whole-second value came back exact, with no predictable
- * pattern across those). Comparing against the actually-stored value keeps every assertion an EXACT
- * equality — never "greater than 0" or "changed" — without depending on which millisecond values
- * happen to survive the round trip on this filesystem.
+ * `newestMtime` section: `touch()` returns the mtime the filesystem actually stored rather than the
+ * millisecond value it was asked to set. `fs.utimesSync` round-trips some millisecond values through
+ * a lossy seconds-as-a-double conversion (verified empirically — 555555 came back as 555554.999,
+ * 9999999 as 9999998.999, while 8888888 and every whole-second value came back exact, with no
+ * predictable pattern across those). Comparing against the actually-stored value keeps every
+ * assertion an EXACT equality — never "greater than 0" or "changed" — without depending on which
+ * millisecond values happen to survive the round trip on this filesystem.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -18,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { newestMtime } from "./stage-payload-lib.js";
+import { newestMtime, stageTransitiveDependencies } from "./stage-payload-lib.js";
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));
@@ -31,6 +32,12 @@ function touch(filePath, mtimeMs) {
   fs.writeFileSync(filePath, "x");
   fs.utimesSync(filePath, new Date(mtimeMs), new Date(mtimeMs));
   return fs.statSync(filePath).mtimeMs;
+}
+
+/** Writes a real `package.json` naming `dependencies`, the shape `declaredDependencies` reads. */
+function writePackage(dir, dependencies = {}) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: path.basename(dir), dependencies }));
 }
 
 test("returns 0 for a path that does not exist", () => {
@@ -106,4 +113,119 @@ test("returns 0 for an empty directory", () => {
   const dir = tempDir();
   fs.mkdirSync(dir, { recursive: true });
   assert.equal(newestMtime(dir), 0);
+});
+
+test("stageTransitiveDependencies: stages nothing and returns 0 when a root declares no dependencies", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, {});
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 0);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules")), false);
+});
+
+test("stageTransitiveDependencies: stages a single declared dependency found one node_modules level down", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { foo: "^1.0.0" });
+  const fooDir = path.join(pkgA, "node_modules", "foo");
+  writePackage(fooDir, {});
+  fs.writeFileSync(path.join(fooDir, "marker.txt"), "real-foo");
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 1);
+  const stagedFoo = path.join(outDir, "node_modules", "foo");
+  assert.equal(fs.existsSync(path.join(stagedFoo, "package.json")), true);
+  assert.equal(fs.readFileSync(path.join(stagedFoo, "marker.txt"), "utf8"), "real-foo");
+});
+
+test("stageTransitiveDependencies: follows a multi-level dependency chain, staging every link", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { foo: "^1" });
+  const fooDir = path.join(pkgA, "node_modules", "foo");
+  writePackage(fooDir, { bar: "^1" });
+  const barDir = path.join(fooDir, "node_modules", "bar");
+  writePackage(barDir, {});
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 2);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "package.json")), true);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar", "package.json")), true);
+});
+
+test("stageTransitiveDependencies: does not loop on a dependency cycle, staging each package exactly once", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { foo: "^1" });
+  const fooDir = path.join(pkgA, "node_modules", "foo");
+  writePackage(fooDir, { bar: "^1" });
+  const barDir = path.join(fooDir, "node_modules", "bar");
+  writePackage(barDir, { foo: "^1" }); // cycles back to foo, already visited
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 2); // foo + bar, each staged exactly once despite the cycle
+});
+
+test("stageTransitiveDependencies: skips an excluded package before ever resolving it", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { playwright: "^1" });
+  // A REAL, resolvable playwright package sits right where findPackageDir would find it — proving
+  // the skip happens at the exclusion check, not merely because resolution failed.
+  writePackage(path.join(pkgA, "node_modules", "playwright"), {});
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 0);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "playwright")), false);
+});
+
+test("stageTransitiveDependencies: does not re-copy a dependency whose staged destination already exists, but still walks its own dependencies", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { foo: "^1" });
+  const fooDir = path.join(pkgA, "node_modules", "foo");
+  writePackage(fooDir, { bar: "^1" });
+  fs.writeFileSync(path.join(fooDir, "marker.txt"), "real-foo");
+  writePackage(path.join(fooDir, "node_modules", "bar"), {});
+  const outDir = path.join(tmp, "out");
+
+  // Pre-stage a STUB foo at the destination — proves the real foo is never copied over it.
+  const stagedFoo = path.join(outDir, "node_modules", "foo");
+  fs.mkdirSync(stagedFoo, { recursive: true });
+  fs.writeFileSync(path.join(stagedFoo, "marker.txt"), "stub-foo");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 1); // only bar counted; foo's destination already existed
+  assert.equal(fs.readFileSync(path.join(stagedFoo, "marker.txt"), "utf8"), "stub-foo"); // untouched
+  // foo's own dependency (bar) was still walked and staged, despite foo itself being skipped.
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar", "package.json")), true);
+});
+
+test("stageTransitiveDependencies: does not stage a dependency that resolves to one of the roots itself", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  const pkgB = path.join(tmp, "pkgB");
+  writePackage(pkgB, {});
+  writePackage(pkgA, { pkgB: "^1" });
+  fs.mkdirSync(path.join(pkgA, "node_modules"), { recursive: true });
+  fs.symlinkSync(pkgB, path.join(pkgA, "node_modules", "pkgB"));
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA, pkgB], outDir });
+
+  assert.equal(count, 0);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "pkgB")), false);
 });

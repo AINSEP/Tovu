@@ -13,10 +13,88 @@
  * constant of the same name, so a test can point them at a throwaway `fs.mkdtempSync` directory
  * instead of the real `staging/tovu-payload` tree.
  */
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { isBundleInput } from "./shell-staleness.js";
+
+/**
+ * Top-level `node_modules` entries never staged, each for a reason that was checked rather than
+ * assumed:
+ *
+ * - `playwright` / `playwright-core` / `@playwright` — a production dependency of Tovu, but its ONLY
+ *   importer is `apps/website/src/features/site-evidence/playwright-browser.ts:144`, which reaches
+ *   it through a DYNAMIC `await import("playwright")` inside a try/catch and degrades to
+ *   `{available: false, reason}`. A static import would crash the server at load; a dynamic one
+ *   does not. The driver is ~12 MB and the browser it drives is a separate ~150 MB download that a
+ *   desktop app has no business shipping.
+ * - `@oven` — 132 MB of Bun runtimes, `optionalDependencies` of `@modelcontextprotocol/ext-apps`,
+ *   which uses Bun only to build and test ITSELF. Reached only through the `@jini-ai/*` pnpm store.
+ * - `@rollup` — same package, same root cause: every `@rollup/rollup-<platform>` native listed under
+ *   its `optionalDependencies`.
+ */
+export const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup"]);
+
+export function isExcluded(name) {
+  const [head] = name.split(path.sep);
+  return EXCLUDED_PACKAGES.has(head) || EXCLUDED_PACKAGES.has(name);
+}
+
+export function stageDir(src, dest, dropNestedModules) {
+  mkdirSync(path.dirname(dest), { recursive: true });
+  cpSync(src, dest, {
+    recursive: true,
+    dereference: true,
+    filter: dropNestedModules ? (from) => path.basename(from) !== "node_modules" : undefined,
+  });
+}
+
+export function declaredDependencies(packageDir) {
+  const manifestPath = path.join(packageDir, "package.json");
+  if (!existsSync(manifestPath)) return [];
+  return Object.keys(JSON.parse(readFileSync(manifestPath, "utf8")).dependencies ?? {});
+}
+
+/** Node's own upward `node_modules` walk — the only way to find a package in pnpm's store. */
+export function findPackageDir(fromDir, depName) {
+  let dir = fromDir;
+  for (;;) {
+    const candidate = path.join(dir, "node_modules", depName);
+    if (existsSync(path.join(candidate, "package.json"))) return realpathSync(candidate);
+    const parent = path.dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
+/**
+ * Jini's packages declare ordinary npm dependencies of their own — `@jini-ai/devops` needs `undici`
+ * — that exist only inside Jini's pnpm store. Tovu never names them, so the caller's own
+ * `productionDependencyPaths()` never sees them and stages none of them.
+ *
+ * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.mjs`'s module-level
+ * constant of the same name) so a test can point it at a throwaway directory.
+ */
+export function stageTransitiveDependencies({ roots, outDir }) {
+  const visited = new Set(roots);
+  const queue = [...roots];
+  let count = 0;
+  while (queue.length > 0) {
+    const from = queue.pop();
+    for (const dep of declaredDependencies(from)) {
+      if (isExcluded(dep)) continue;
+      const resolved = findPackageDir(from, dep);
+      if (resolved === undefined || visited.has(resolved)) continue;
+      visited.add(resolved);
+      queue.push(resolved);
+      const dest = path.join(outDir, "node_modules", dep);
+      if (existsSync(dest)) continue;
+      stageDir(resolved, dest, true);
+      count += 1;
+    }
+  }
+  return count;
+}
 
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */

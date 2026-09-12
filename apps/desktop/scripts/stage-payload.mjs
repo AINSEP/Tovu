@@ -38,13 +38,19 @@
  *   source. This shell spawns Electron's own Node (`ELECTRON_RUN_AS_NODE=1`), so there is no
  *   system-Node version to agree with.
  * - Runner's source `tovuDir` indirection — the source here IS this repo.
- * - `playwright`. See {@link EXCLUDED_PACKAGES}.
+ * - `playwright`. See `EXCLUDED_PACKAGES` in `../src/stage-payload-lib.js`.
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
 import { shellStalenessFailure } from "../src/shell-staleness.js";
-import { newestMtime } from "../src/stage-payload-lib.js";
+import {
+  declaredDependencies,
+  isExcluded,
+  newestMtime,
+  stageDir,
+  stageTransitiveDependencies,
+} from "../src/stage-payload-lib.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -85,31 +91,9 @@ const STAGED_SHELLS = [
   },
 ];
 
-/**
- * Top-level `node_modules` entries never staged, each for a reason that was checked rather than
- * assumed:
- *
- * - `playwright` / `playwright-core` / `@playwright` — a production dependency of Tovu, but its ONLY
- *   importer is `apps/website/src/features/site-evidence/playwright-browser.ts:144`, which reaches
- *   it through a DYNAMIC `await import("playwright")` inside a try/catch and degrades to
- *   `{available: false, reason}`. A static import would crash the server at load; a dynamic one
- *   does not. The driver is ~12 MB and the browser it drives is a separate ~150 MB download that a
- *   desktop app has no business shipping.
- * - `@oven` — 132 MB of Bun runtimes, `optionalDependencies` of `@modelcontextprotocol/ext-apps`,
- *   which uses Bun only to build and test ITSELF. Reached only through the `@jini-ai/*` pnpm store.
- * - `@rollup` — same package, same root cause: every `@rollup/rollup-<platform>` native listed under
- *   its `optionalDependencies`.
- */
-const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup"]);
-
 function fail(message) {
   process.stderr.write(`stage-payload: ${message}\n`);
   process.exit(1);
-}
-
-function isExcluded(name) {
-  const [head] = name.split(path.sep);
-  return EXCLUDED_PACKAGES.has(head) || EXCLUDED_PACKAGES.has(name);
 }
 
 /** Tovu's production dependency closure, as package paths relative to its `node_modules`. */
@@ -132,15 +116,6 @@ function productionDependencyPaths() {
     fail(`npm ls listed no packages under ${repoModulesDir}. Has \`npm install\` run at the repo root?`);
   }
   return names;
-}
-
-function stageDir(src, dest, dropNestedModules) {
-  mkdirSync(path.dirname(dest), { recursive: true });
-  cpSync(src, dest, {
-    recursive: true,
-    dereference: true,
-    filter: dropNestedModules ? (from) => path.basename(from) !== "node_modules" : undefined,
-  });
 }
 
 function stagePackage(name) {
@@ -185,50 +160,6 @@ function stageJiniPackages() {
     stageDir(src, dest, true);
   }
   return roots;
-}
-
-function declaredDependencies(packageDir) {
-  const manifestPath = path.join(packageDir, "package.json");
-  if (!existsSync(manifestPath)) return [];
-  return Object.keys(JSON.parse(readFileSync(manifestPath, "utf8")).dependencies ?? {});
-}
-
-/** Node's own upward `node_modules` walk — the only way to find a package in pnpm's store. */
-function findPackageDir(fromDir, depName) {
-  let dir = fromDir;
-  for (;;) {
-    const candidate = path.join(dir, "node_modules", depName);
-    if (existsSync(path.join(candidate, "package.json"))) return realpathSync(candidate);
-    const parent = path.dirname(dir);
-    if (parent === dir) return undefined;
-    dir = parent;
-  }
-}
-
-/**
- * Jini's packages declare ordinary npm dependencies of their own — `@jini-ai/devops` needs `undici`
- * — that exist only inside Jini's pnpm store. Tovu never names them, so `productionDependencyPaths()`
- * never sees them and nothing above stages them.
- */
-function stageTransitiveDependencies(roots) {
-  const visited = new Set(roots);
-  const queue = [...roots];
-  let count = 0;
-  while (queue.length > 0) {
-    const from = queue.pop();
-    for (const dep of declaredDependencies(from)) {
-      if (isExcluded(dep)) continue;
-      const resolved = findPackageDir(from, dep);
-      if (resolved === undefined || visited.has(resolved)) continue;
-      visited.add(resolved);
-      queue.push(resolved);
-      const dest = path.join(outDir, "node_modules", dep);
-      if (existsSync(dest)) continue;
-      stageDir(resolved, dest, true);
-      count += 1;
-    }
-  }
-  return count;
 }
 
 /**
@@ -414,7 +345,10 @@ for (const shell of STAGED_SHELLS) {
 }
 
 const jiniRoots = stageJiniPackages();
-const staged = productionDependencyPaths().filter(stagePackage).length + jiniRoots.length + stageTransitiveDependencies(jiniRoots);
+const staged =
+  productionDependencyPaths().filter(stagePackage).length +
+  jiniRoots.length +
+  stageTransitiveDependencies({ roots: jiniRoots, outDir });
 
 if (!existsSync(path.join(outDir, "node_modules", "better-sqlite3"))) {
   fail("staged tree has no better-sqlite3 — Tovu's CLI cannot open a site database without it.");
