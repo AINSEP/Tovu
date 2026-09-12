@@ -48,6 +48,22 @@ import {
   isInExcludedDir,
   isMeasurableSource,
 } from "../src/coverage-floors.ts";
+import type { CoverageArea, LcovCounters, TestPass } from "../src/coverage-floors.ts";
+
+/** `coverage-floors.json`, as far as this file reads it. `_comment*` keys exist in the file but are
+ *  never read here. */
+interface CoverageConfig {
+  coverageInclude?: readonly string[];
+  areas: readonly CoverageArea[];
+  notMeasured?: readonly { what: string; why: string }[];
+}
+
+/** One test pass's outcome. `status` is `null` when the process never produced a numeric exit code
+ *  (nothing to spawn, or killed by a signal) — never a pass. */
+interface SuiteResult {
+  status: number | null;
+  message?: string;
+}
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG_PATH = path.join(DESKTOP_ROOT, "coverage-floors.json");
@@ -56,11 +72,11 @@ const CONFIG_PATH = path.join(DESKTOP_ROOT, "coverage-floors.json");
  *  `excludeDirs`, repo-relative to the desktop root, sorted. This is the DENOMINATOR — the lcov
  *  never gets to decide what exists. An excluded directory is pruned, not walked.
  *  @complexity O(n) in files walked. */
-function filesOnDisk(dir, exts, excludeDirs) {
+function filesOnDisk(dir: string, exts: readonly string[], excludeDirs: readonly string[]): string[] {
   const root = path.join(DESKTOP_ROOT, dir);
   if (!existsSync(root)) return [];
-  const out = [];
-  const walk = (abs) => {
+  const out: string[] = [];
+  const walk = (abs: string) => {
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
       const next = path.join(abs, entry.name);
       const rel = path.relative(DESKTOP_ROOT, next).split(path.sep).join("/");
@@ -79,16 +95,16 @@ function filesOnDisk(dir, exts, excludeDirs) {
 /** Parse an lcov into `Map<relPath, counters>`. Paths outside this package (Jini's dist, anything
  *  reached through a symlink) are dropped rather than counted.
  *  @complexity O(n) in lcov records. */
-function parseLcov(text) {
-  const byFile = new Map();
+function parseLcov(text: string): Map<string, LcovCounters> {
+  const byFile = new Map<string, LcovCounters>();
   for (const record of text.split(/^end_of_record$/m)) {
     const sf = /^SF:(.*)$/m.exec(record);
     if (!sf) continue;
-    let rel = sf[1].trim();
+    let rel = sf[1]!.trim(); // !: the SF: capture group matched, so group 1 exists
     if (path.isAbsolute(rel)) rel = path.relative(DESKTOP_ROOT, rel);
     rel = rel.split(path.sep).join("/");
     if (rel.startsWith("..") || rel.includes("node_modules")) continue;
-    const num = (key) => {
+    const num = (key: string): number => {
       const m = new RegExp(`^${key}:(\\d+)$`, "m").exec(record);
       return m ? Number(m[1]) : 0;
     };
@@ -104,8 +120,8 @@ function parseLcov(text) {
  *  uses it — a status read through a pipe is the pipe's. A pass whose globs match no test file is
  *  refused before spawning, because node itself would report it as a clean pass of zero tests.
  *  @complexity O(n) in test files globbed, plus the suite's own cost. */
-function runSuite(pass, includes, lcovPath) {
-  const testFiles = globSync(pass.globs, { cwd: DESKTOP_ROOT, exclude: (name) => name === "node_modules" });
+function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string): SuiteResult {
+  const testFiles = globSync(pass.globs as string[], { cwd: DESKTOP_ROOT, exclude: (name) => name === "node_modules" });
   if (testFiles.length === 0) {
     return { status: null, message: `no test file matches ${pass.globs.join(" ")}, which node would pass as 0 tests` };
   }
@@ -130,8 +146,8 @@ function runSuite(pass, includes, lcovPath) {
 /** Reads every pass's lcov into one `Map<relPath, counters>`, keeping the better image when more
  *  than one pass measured a file.
  *  @complexity O(n) in lcov records. */
-function mergeCoverage(lcovPaths) {
-  const coverage = new Map();
+function mergeCoverage(lcovPaths: readonly string[]): Map<string, LcovCounters> {
+  const coverage = new Map<string, LcovCounters>();
   for (const file of lcovPaths) {
     if (!existsSync(file)) continue;
     for (const [rel, counters] of parseLcov(readFileSync(file, "utf8"))) {
@@ -146,9 +162,10 @@ function mergeCoverage(lcovPaths) {
  *  SUITE itself passed — coverage numbers from a failed run are not evidence, so that is reported
  *  separately from the floors.
  *  @complexity O(p) in passes, plus the suites' own cost. */
-function produceCoverage(config, lcovPaths) {
+function produceCoverage(config: CoverageConfig, lcovPaths: readonly string[]): boolean {
   const includes = config.coverageInclude ?? [];
-  const results = TEST_PASSES.map((pass, i) => ({ id: pass.id, ...runSuite(pass, includes, lcovPaths[i]) }));
+  const results = TEST_PASSES.map((pass, i) => ({ id: pass.id, ...runSuite(pass, includes, lcovPaths[i]!) }));
+  // !: lcovPaths is built as `TEST_PASSES.map(...)` in main, so it has exactly TEST_PASSES's length.
   if (results.every((r) => r.status === 0)) return true;
   const summary = results.map((r) => `${r.id}=${r.message ?? r.status}`).join(", ");
   process.stderr.write(
@@ -160,11 +177,13 @@ function produceCoverage(config, lcovPaths) {
 
 /** Evaluates and prints every configured area. Returns true if any failed.
  *  @complexity O(n) in areas. */
-function evaluateAreas(config, coverage) {
+function evaluateAreas(config: CoverageConfig, coverage: ReadonlyMap<string, LcovCounters>): boolean {
   process.stdout.write("\n" + "=".repeat(66) + "\nDESKTOP COVERAGE FLOORS\n" + "=".repeat(66) + "\n");
   let failed = false;
   for (const area of config.areas) {
-    const onDisk = area.dirs.flatMap((dir) => filesOnDisk(dir, area.extensions, area.excludeDirs ?? []));
+    // !: every area entry in coverage-floors.json sets both dirs and extensions; the type leaves
+    // them optional because CoverageArea also describes narrower future config shapes.
+    const onDisk = area.dirs!.flatMap((dir) => filesOnDisk(dir, area.extensions!, area.excludeDirs ?? []));
     const result = evaluateArea(area, onDisk, coverage);
     process.stdout.write(`${formatArea(result, area)}\n`);
     if (result.failures.length > 0) failed = true;
@@ -175,20 +194,20 @@ function evaluateAreas(config, coverage) {
 /** Printed every run, by name. An excluded file nobody is told about is the trap; an excluded file
  *  in every run's output is a decision.
  *  @complexity O(n). */
-function printNotMeasured(config) {
+function printNotMeasured(config: CoverageConfig): void {
   if (!config.notMeasured?.length) return;
   process.stdout.write("\n  NOT MEASURED — no floor applies, and this is deliberate:\n");
   for (const entry of config.notMeasured) process.stdout.write(`    - ${entry.what}: ${entry.why}\n`);
 }
 
-function main() {
+function main(): void {
   if (!existsSync(CONFIG_PATH)) {
     process.stderr.write(
       `check-coverage: FAIL — no ${path.relative(DESKTOP_ROOT, CONFIG_PATH)}. This gate cannot pass without one.\n`
     );
     process.exit(1);
   }
-  const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
+  const config: CoverageConfig = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
   const tmp = mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cov-"));
   const lcovPaths = TEST_PASSES.map((pass) => path.join(tmp, `${pass.id}.lcov`));
 

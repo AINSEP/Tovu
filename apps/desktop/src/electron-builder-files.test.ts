@@ -59,7 +59,7 @@ const PRE_FIX_PATTERNS = ["main.ts", "package.json", "dist/**", "src/**", "!**/*
  *
  * @complexity O(n) in the pattern count.
  */
-function shipsPath(patterns, relPath) {
+function shipsPath(patterns: readonly string[], relPath: string): boolean {
   const containsOnlyIgnore = patterns.length > 0 && patterns.every((pattern) => pattern.startsWith("!"));
   const effective = patterns.length === 0 || containsOnlyIgnore ? ["**/*", ...patterns] : patterns;
 
@@ -75,10 +75,12 @@ function shipsPath(patterns, relPath) {
   return included;
 }
 
-function configuredFilePatterns() {
-  const config = yaml.load(fs.readFileSync(CONFIG_PATH, "utf8"));
+function configuredFilePatterns(): string[] {
+  // `as`: js-yaml's `load` returns `unknown` (the YAML could hold anything); the assert right below
+  // is this file's actual runtime check that `files` is really an array, same as before annotation.
+  const config = yaml.load(fs.readFileSync(CONFIG_PATH, "utf8")) as { files?: unknown };
   assert.ok(Array.isArray(config.files), "electron-builder.yml must declare a files: array");
-  return config.files;
+  return config.files as string[];
 }
 
 test("the packaged app ships bin/mcp-bridge.ts, which the generated MCP launcher execs", () => {
@@ -116,7 +118,7 @@ test("the files: list still excludes test files it is meant to exclude", () => {
  *
  * @complexity O(n) in the pattern count.
  */
-function shipsNodeModulePath(patterns, relPath) {
+function shipsNodeModulePath(patterns: readonly string[], relPath: string): boolean {
   return shipsPath(["**/*", ...patterns.filter((pattern) => pattern.startsWith("!"))], relPath);
 }
 

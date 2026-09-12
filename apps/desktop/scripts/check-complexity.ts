@@ -38,6 +38,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { evaluateRun, rejectUnusableEslintRun } from "../src/complexity-debt.ts";
+import type { ComplexityViolation, EslintFileResult } from "../src/complexity-debt.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
@@ -66,7 +67,7 @@ const RULE_OVERRIDE = JSON.stringify({
 /** Runs ESLint at the strict ceiling and returns its raw stdout plus status. Runs from the REPO
  *  root because `eslint.config.mjs` and its relative plugin paths live there.
  *  @complexity O(1) plus ESLint's own cost. */
-function lintAtCeiling() {
+function lintAtCeiling(): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(
     "npx",
     [
@@ -88,14 +89,14 @@ function lintAtCeiling() {
 /** Rewrites each result's absolute `filePath` to a repo-relative, forward-slash path, so the debt
  *  file is portable across machines and checkouts.
  *  @complexity O(n). */
-function toRepoRelative(results) {
+function toRepoRelative(results: readonly EslintFileResult[]): EslintFileResult[] {
   return results.map((result) => ({
     filePath: path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/"),
     messages: result.messages,
   }));
 }
 
-function writeBaseline(violations) {
+function writeBaseline(violations: readonly ComplexityViolation[]): void {
   const payload = {
     _comment:
       "Grandfathered apps/desktop complexity violations, keyed PER VIOLATION (rule, file, message) " +
@@ -109,7 +110,7 @@ function writeBaseline(violations) {
   process.stdout.write(`check-complexity — wrote ${violations.length} violation(s) to complexity-debt.json\n`);
 }
 
-function main() {
+function main(): void {
   const update = process.argv.includes("--update");
   const run = lintAtCeiling();
 

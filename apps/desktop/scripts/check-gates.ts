@@ -38,6 +38,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateManifest, detectGateDrift, formatSummary, isFailure } from "../src/quality-gates.ts";
+import type { GateEntry, GateExitCode, GateManifest } from "../src/quality-gates.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -48,7 +49,7 @@ const RUNNER_BASENAME = "check-gates.ts";
 /** Gate scripts are `scripts/check-*.mjs` by convention — that convention is what makes property 3
  *  (a script on disk that nothing runs is a hard failure) checkable at all.
  *  @complexity O(n) in files in `scripts/`. */
-function gateScriptsOnDisk(scriptsDir) {
+function gateScriptsOnDisk(scriptsDir: string): string[] {
   try {
     return readdirSync(scriptsDir).filter(
       (name) => name.startsWith("check-") && name.endsWith(".ts") && name !== RUNNER_BASENAME
@@ -60,9 +61,9 @@ function gateScriptsOnDisk(scriptsDir) {
 
 /** Today as `YYYY-MM-DD`, in local time — the date a human would write in the manifest.
  *  @complexity O(1). */
-function todayIso() {
+function todayIso(): string {
   const now = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
+  const pad = (n: number) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
@@ -74,7 +75,7 @@ function todayIso() {
  * @returns the numeric exit code, or `null` when the process never produced one.
  * @complexity O(1) plus the gate's own cost.
  */
-function runGate(gate) {
+function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
   process.stdout.write(`\n${"=".repeat(66)}\n>>> GATE: ${gate.id}\n${"=".repeat(66)}\n`);
   const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: "inherit" });
   if (result.error) {
@@ -91,7 +92,7 @@ function runGate(gate) {
 /** Prints the manifest problems and returns whether any were found. Kept separate so `main` stays
  *  well under the complexity ceiling this harness itself enforces.
  *  @complexity O(n). */
-function reportProblems(heading, problems) {
+function reportProblems(heading: string, problems: readonly string[]): boolean {
   if (problems.length === 0) return false;
   process.stderr.write(`\ncheck-gates: ${heading}\n`);
   for (const problem of problems) process.stderr.write(`  - ${problem}\n`);
@@ -105,22 +106,24 @@ function reportProblems(heading, problems) {
  *
  * @complexity O(n) in argv.
  */
-function flagValue(argv, flag, fallback) {
+function flagValue(argv: readonly string[], flag: string, fallback: string): string {
   const at = argv.indexOf(flag);
   if (at === -1 || !argv[at + 1]) return fallback;
-  return path.resolve(argv[at + 1]);
+  return path.resolve(argv[at + 1]!); // !: non-empty already checked on the line above
 }
 
 /** True when a gate is one this run should execute. A gate missing `id` or `run` is already
- *  reported by `validateManifest`; skipping it here avoids a second, noisier complaint.
+ *  reported by `validateManifest`; skipping it here avoids a second, noisier complaint. A type
+ *  predicate, not just `boolean`, so every caller's `if (isRunnable(gate))` narrows `gate.id` and
+ *  `gate.run` to `string` instead of needing a separate assertion at each call site.
  *  @complexity O(1). */
-function isRunnable(gate) {
+function isRunnable(gate: GateEntry): gate is GateEntry & { id: string; run: string } {
   return gate.enabled !== false && Boolean(gate.id) && Boolean(gate.run);
 }
 
 /** Reports every way the manifest fails to describe this harness honestly. Returns whether any did.
  *  @complexity O(n) in gates. */
-function reportManifestProblems(manifest, gates, scriptsDir) {
+function reportManifestProblems(manifest: GateManifest, gates: readonly GateEntry[], scriptsDir: string): boolean {
   const driftProblems = detectGateDrift(gates, gateScriptsOnDisk(scriptsDir)).map(
     (name) =>
       `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
@@ -133,19 +136,21 @@ function reportManifestProblems(manifest, gates, scriptsDir) {
   return reportProblems("gate scripts on disk that nothing runs:", driftProblems) || unsound;
 }
 
-function main() {
+function main(): void {
   const argv = process.argv.slice(2);
   const manifestPath = flagValue(argv, "--manifest", path.join(DESKTOP_ROOT, "quality-gates.json"));
   const scriptsDir = flagValue(argv, "--scripts-dir", path.join(DESKTOP_ROOT, "scripts"));
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const gates = manifest.gates ?? [];
+  const manifest: GateManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  // `as`: validateManifest (called by reportManifestProblems, below) reports it by name when this
+  // is not actually a GateEntry[]; either way the run ends in FAILED, never a silent pass.
+  const gates = manifest.gates as GateEntry[] ?? [];
 
   const unsound = reportManifestProblems(manifest, gates, scriptsDir);
 
   // Every enabled gate runs even after an earlier one fails: a run that halts at the first failure
   // reports exactly one problem when several exist, which is the behaviour `ci-local.sh` was
   // written to avoid for the same reason.
-  const outcomes = new Map();
+  const outcomes = new Map<string | undefined, GateExitCode>();
   for (const gate of gates) {
     if (isRunnable(gate)) outcomes.set(gate.id, runGate(gate));
   }

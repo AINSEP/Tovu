@@ -20,6 +20,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { treeQuietProblems } from "../src/tree-quiet.ts";
+import type { TreeQuietSignals } from "../src/tree-quiet.ts";
+
+/** A cheap fingerprint of one path, as {@link snapshot} produces it. */
+interface Snapshot {
+  exists: boolean;
+  fileCount: number;
+  newestMtimeMs: number;
+}
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
@@ -37,13 +45,14 @@ const SNAPSHOT_WINDOW_SECONDS = 0.8;
 /** True when a `vite build --watch` is live. `pgrep` exits 1 for "no match", which is a normal "not
  *  running" outcome, not a script failure — only a non-1 exit is a real error worth surfacing.
  *  @complexity O(1) plus pgrep's own cost. */
-function isViteWatchRunning() {
+function isViteWatchRunning(): boolean {
   try {
     execFileSync("pgrep", ["-f", "vite build --watch"], { stdio: "pipe" });
     return true;
   } catch (error) {
-    if (error.status === 1) return false;
-    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${error.message}`);
+    // `as`: execFileSync throws a plain Error decorated with the spawned process's own `status`.
+    if ((error as { status?: number }).status === 1) return false;
+    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${(error as Error).message}`);
   }
 }
 
@@ -51,7 +60,7 @@ function isViteWatchRunning() {
  *  bare `git status`, so this reads exactly the files the backstop half will later check. On a fresh
  *  CI checkout this is empty by construction: there is nothing to diff against yet.
  *  @complexity O(1) plus git's own cost. */
-function gitDirtyPaths() {
+function gitDirtyPaths(): string[] {
   const output = execFileSync(
     "git",
     ["-C", REPO_ROOT, "status", "--porcelain", "--", ...VERIFIED_RELATIVE_PATHS],
@@ -69,7 +78,7 @@ function gitDirtyPaths() {
  *  between — deliberately not a content hash, since this needs to run twice in under a second, not
  *  walk-and-hash a multi-hundred-file tree twice.
  *  @complexity O(n) in files under `absPath`. */
-function snapshot(absPath) {
+function snapshot(absPath: string): Snapshot {
   let stat;
   try {
     stat = statSync(absPath);
@@ -95,7 +104,7 @@ function snapshot(absPath) {
   return { exists: true, fileCount, newestMtimeMs };
 }
 
-function snapshotsDiffer(a, b) {
+function snapshotsDiffer(a: Snapshot, b: Snapshot): boolean {
   return a.exists !== b.exists || a.fileCount !== b.fileCount || a.newestMtimeMs !== b.newestMtimeMs;
 }
 
@@ -104,15 +113,17 @@ function snapshotsDiffer(a, b) {
  *  output (`dist/renderer`). Blocks synchronously via the `sleep` binary rather than `setTimeout`, so
  *  this stays a single straight-line script with no async plumbing for what is a one-shot check.
  *  @complexity O(n) in files under the verified surface, twice. */
-function movingPaths() {
+function movingPaths(): string[] {
   const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(REPO_ROOT, rel)));
   execFileSync("sleep", [String(SNAPSHOT_WINDOW_SECONDS)]);
   const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(REPO_ROOT, rel)));
-  return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer(before[i], after[i]));
+  return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer(before[i]!, after[i]!));
+  // !: `before`/`after` are both mapped from VERIFIED_RELATIVE_PATHS with .map, so they share its
+  // length and `i` (from the same filter over VERIFIED_RELATIVE_PATHS) is always in bounds of both.
 }
 
-function main() {
-  const signals = {
+function main(): void {
+  const signals: TreeQuietSignals = {
     viteWatchRunning: isViteWatchRunning(),
     gitDirtyPaths: gitDirtyPaths(),
     movingPaths: movingPaths(),

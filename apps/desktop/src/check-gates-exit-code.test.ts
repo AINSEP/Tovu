@@ -25,6 +25,13 @@ import { fileURLToPath } from "node:url";
 
 const RUNNER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "check-gates.ts");
 
+/** One `runWith` call's outcome, read directly off the child process — never through a pipe. */
+interface RunResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
 /**
  * Writes a throwaway manifest and runs the real runner against it. Output is captured for
  * assertions, but `status` is read off the returned object — never through a shell pipe.
@@ -33,8 +40,12 @@ const RUNNER = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", 
  * so the property-3 drift check is exercised against a known set rather than against whatever
  * `apps/desktop/scripts/` happens to contain today — which would make this test's result depend on
  * unrelated commits.
+ *
+ * `manifest` is deliberately untyped beyond `unknown`: each test below writes a different
+ * quality-gates.json shape (some deliberately unsound), so the type this function could honestly
+ * declare is quality-gates.json's own on-disk shape, which is `unknown` until validated.
  */
-function runWith(manifest, scriptNames = []) {
+function runWith(manifest: unknown, scriptNames: readonly string[] = []): RunResult {
   const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-gates-"));
   const manifestPath = path.join(dir, "quality-gates.json");
   const scriptsDir = path.join(dir, "scripts");
@@ -53,9 +64,9 @@ function runWith(manifest, scriptNames = []) {
   }
 }
 
-const today = () => {
+const today = (): string => {
   const n = new Date();
-  const p = (x) => String(x).padStart(2, "0");
+  const p = (x: number) => String(x).padStart(2, "0");
   return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
 };
 
