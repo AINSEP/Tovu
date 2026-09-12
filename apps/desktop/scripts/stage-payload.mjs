@@ -42,6 +42,8 @@
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+
+import { shellStalenessFailure } from "../src/shell-staleness.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,8 +63,25 @@ const repoModulesDir = path.join(repoRoot, "node_modules");
  * Asserting the wrong marker would have hard-failed staging on a perfectly good build.
  */
 const STAGED_SHELLS = [
-  { relative: path.join("apps", "admin", "dist"), marker: "index.html", buildWith: "npm run admin:install && npm run admin:build" },
-  { relative: path.join("apps", "site-chat", "dist"), marker: "site-assistant.js", buildWith: "npm --prefix apps/site-chat run build" },
+  {
+    relative: path.join("apps", "admin", "dist"),
+    marker: "index.html",
+    // NOT `npm run admin:build`. That chains through `check-no-linked-jini.mjs`, which correctly
+    // refuses to build while any @jini-ai/* package is npm-linked -- a guard that exists for
+    // DISTRIBUTABLE builds. Refreshing a shell for a local package run is not that, and the direct
+    // vite invocation is the command that actually works on a linked checkout. Do not suggest
+    // `npm run unlink:jini` here: it swaps the whole tree to published Jini for no benefit.
+    buildWith: "cd apps/admin && npx vite build",
+    sourceDirs: [path.join("apps", "admin", "src")],
+    sourceFiles: [path.join("apps", "admin", "package.json")],
+  },
+  {
+    relative: path.join("apps", "site-chat", "dist"),
+    marker: "site-assistant.js",
+    buildWith: "cd apps/site-chat && npx vite build",
+    sourceDirs: [path.join("apps", "site-chat", "src")],
+    sourceFiles: [path.join("apps", "site-chat", "package.json")],
+  },
 ];
 
 /**
@@ -323,16 +342,56 @@ function countMigrations(dir) {
   return existsSync(dir) ? readdirSync(dir).filter((entry) => entry.endsWith(".sql")).length : 0;
 }
 
-function warnIfDistIsStale() {
+function failIfDistIsStale() {
   const source = countMigrations(path.join(repoRoot, "apps", "website", "src", "platform", "db", "drizzle"));
   const built = countMigrations(path.join(outDir, "dist", "src", "platform", "db", "drizzle"));
   if (built < source) {
-    process.stderr.write(
-      `stage-payload: WARNING — the staged dist/ carries ${built} migrations but source has ${source}. ` +
-        `This payload is built from a stale dist/ and will reject any site created from current source with ` +
-        `SITE_NEWER_THAN_RUNTIME. Re-run \`npm run build\` at the repo root for a shippable payload.\n`,
+    fail(
+      `the staged dist/ carries ${built} migrations but source has ${source}. This payload is built ` +
+        `from a stale dist/ and will reject any site created from current source with ` +
+        `SITE_NEWER_THAN_RUNTIME. Re-run \`npm run build\` at the repo root for a shippable payload.`
     );
   }
+}
+
+/** Newest mtime under a directory tree, or 0 if it does not exist.
+ *  @complexity O(n) in files walked. */
+function newestMtime(abs) {
+  if (!existsSync(abs)) return 0;
+  const stat = statSync(abs);
+  if (!stat.isDirectory()) return stat.mtimeMs;
+  let newest = 0;
+  for (const entry of readdirSync(abs, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+    newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));
+  }
+  return newest;
+}
+
+/**
+ * Refuse a shell whose build output is OLDER than its own source. The comparison itself lives in
+ * `../src/shell-staleness.js` (and is tested there, against the real 2026-09-12 incident); this
+ * function is only the filesystem half.
+ *
+ * BEHAVIOUR CHANGE, deliberately: anyone packaging from a checkout whose shells are behind their
+ * source now hits a HARD STOP where they previously got a shipped-but-wrong artifact.
+ *
+ * mtime is the floor, not the ceiling. A build-provenance record (git HEAD sha plus a dirty flag,
+ * written at build time and asserted here) would be stricter — but a matching `head_sha` is NOT
+ * proof of freshness if the build came from a dirty tree, so such a record must carry the dirty
+ * flag and staging must refuse a dirty-built payload. Otherwise it becomes another
+ * green-for-the-wrong-reason check, which is the failure class this guard exists to end.
+ *
+ * @complexity O(n) in source files under the shell's own tree.
+ */
+function failIfShellIsStale(shell) {
+  const builtAt = newestMtime(path.join(repoRoot, shell.relative, shell.marker));
+  let sourceAt = 0;
+  for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, newestMtime(path.join(repoRoot, dir)));
+  for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, newestMtime(path.join(repoRoot, file)));
+
+  const failure = shellStalenessFailure(builtAt, sourceAt, shell);
+  if (failure) fail(failure);
 }
 
 const manifest = readRuntimeManifest(repoRoot);
@@ -352,6 +411,8 @@ for (const shell of STAGED_SHELLS) {
   if (!existsSync(path.join(repoRoot, shell.relative, shell.marker))) {
     fail(`no built shell at ${path.join(repoRoot, shell.relative, shell.marker)}. Run \`${shell.buildWith}\` at ${repoRoot} first.`);
   }
+  // Existence was never enough -- see failIfShellIsStale's header for the bundle this missed.
+  failIfShellIsStale(shell);
 }
 
 rmSync(outDir, { recursive: true, force: true });
@@ -385,7 +446,7 @@ for (const shell of STAGED_SHELLS) {
     fail(`staged tree has no shell at ${path.join(outDir, shell.relative, shell.marker)} — the copy must have gone wrong.`);
   }
 }
-warnIfDistIsStale();
+failIfDistIsStale();
 
 const size = execFileSync("du", ["-sh", outDir], { encoding: "utf8" }).split("\t")[0];
 process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${outDir} (${size})\n`);
