@@ -2471,6 +2471,10 @@ export const api = {
          *  (`script`, `other`) even though those stay `readable`. */
         editable: boolean;
         resettable: boolean;
+        /** Whether the live file's bytes differ from its catalog original — `null` exactly when
+         *  `resettable` is false (no original to compare against). Optional so an older cached client
+         *  response (before this field existed) still parses. */
+        modified?: boolean | null;
         /** `null` for every file the publish question does not apply to at all — every non-page
          *  file, plus a page that is `index`/`404` or a declared Post/Page template shell. Only a
          *  real standalone page gets `true`/`false`. Optional so an older cached client response
@@ -2520,6 +2524,7 @@ export const api = {
       readable: boolean;
       editable: boolean;
       resettable: boolean;
+      modified: boolean | null;
       copiedFrom: string;
     }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/copy`, {
       method: "POST",
@@ -2538,6 +2543,7 @@ export const api = {
       readable: boolean;
       editable: boolean;
       resettable: boolean;
+      modified: boolean | null;
       renamedFrom: string;
     }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/rename`, {
       method: "POST",

@@ -13,7 +13,7 @@
  * `assistant-chats-port.hooks.ts`'s own minimalism (see that file's doc comment): `getThemeDetail`
  * drops the real route's `pages`/`partials` fields (never read here — the hook derives its own
  * page/partial grouping from `files`), and `copyThemeFile`/`renameThemeFile` drop
- * `group`/`readable`/`editable`/`resettable`/`copiedFrom`/`renamedFrom` (the hook only reads the
+ * `group`/`readable`/`editable`/`resettable`/`modified`/`copiedFrom`/`renamedFrom` (the hook only reads the
  * returned `path`, then refetches the whole detail via `getThemeDetail` for everything else — see
  * `performRename`'s/`copyFile`'s own comments on why a full refetch, not a targeted patch).
  *
@@ -45,6 +45,10 @@ export interface ThemeExploreFileEntry {
   readable: boolean;
   editable: boolean;
   resettable: boolean;
+  /** Whether the file's bytes differ from its catalog original; `null` exactly when `resettable` is
+   *  false. See `use-theme-explore.hooks.ts`'s `ThemeExploreFile.modified` for the full contract.
+   *  Optional here for the same "older cached response" reason `published` below documents. */
+  modified?: boolean | null;
   /** `null`/absent for every file the publish question does not apply to — see
    *  `use-theme-explore.hooks.ts`'s `ThemeExploreFile.published` for the full contract. Optional here
    *  (not on the client-normalized `ThemeExploreFile`) so a fixture or an older cached response that

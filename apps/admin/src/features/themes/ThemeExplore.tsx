@@ -12,6 +12,8 @@ import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hook
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
+  canResetThemeFile,
+  isThemeFileModified,
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
@@ -318,6 +320,27 @@ function handleFileRowRenameKeyDown(
 }
 
 /**
+ * The file list's modified marker: a dot beside a file whose bytes differ from its catalog original
+ * ({@link isThemeFileModified}), nothing for any other file. `role="img"` with an `aria-label` gives
+ * the dot an accessible name, so the signal is not colour alone; `title` shows sighted users the same
+ * meaning on hover. Rendered as a sibling of the filename button, not inside it, so the button's
+ * ellipsis truncation cannot clip it.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreModifiedMarker({ file, t }: { file: ThemeExploreFile; t: Translate }) {
+  if (!isThemeFileModified(file)) return null;
+  return (
+    <span
+      className="theme-explore-file-modified"
+      role="img"
+      aria-label={t("Modified")}
+      title={t("Modified from the original")}
+    />
+  );
+}
+
+/**
  * One sidebar row: the filename control (or its inline-rename replacement) plus the ⋮ overflow menu
  * — 2026-08-11 owner ask (Copy/Rename).
  *
@@ -398,6 +421,7 @@ function ThemeExploreFileRow({
           {file.label}
         </button>
       )}
+      <ThemeExploreModifiedMarker file={file} t={t} />
       {/* Copy is unconditional — see the hook's own `copyFile` doc comment for why duplicating bytes
           carries none of the risk editing does. Rename and Delete are always offered too: a LOCKED
           file (pages/index.html, theme.json, tokens.json, or any script/`other`-group file — see
@@ -752,12 +776,13 @@ function ThemeExploreToolbarButtons({
           {themeExploreSaveLabel({ saving, dirty, file: selectedFile }, t)}
         </button>
       ) : null}
-      {/* Hidden entirely, not disabled, when the file has no original to restore from — same
-          reasoning as Save's own absence above. Reset stays reachable for a read-only file, though:
-          it can only ever write back the file's ORIGINAL bytes, never operator-authored content, so
-          "read-only" here means "cannot be AUTHORED from this screen," not "cannot be restored" — the
-          restriction Save enforces has no bearing on what Reset does. */}
-      {selectedFile?.resettable ? (
+      {/* Hidden entirely, not disabled, when the file has no original to restore from, or when its
+          bytes still match that original (2026-09-12 owner decision: a reset would change nothing) —
+          same reasoning as Save's own absence above. See `canResetThemeFile`. Reset stays reachable
+          for a read-only file, though: it can only ever write back the file's ORIGINAL bytes, never
+          operator-authored content, so "read-only" here means "cannot be AUTHORED from this screen,"
+          not "cannot be restored" — the restriction Save enforces has no bearing on what Reset does. */}
+      {canResetThemeFile(selectedFile) ? (
         <button
           type="button"
           className="btn-danger"

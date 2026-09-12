@@ -25,35 +25,38 @@ const FILES: ThemeExploreFile[] = [
   // `null`, but NOT "no control at all" — `index` is never its own reachable page
   // (`NON_ROUTABLE_THEME_PAGE_IDS`, `theme.ts`), so it shows a LOCKED, disabled switch (always ON,
   // with a reason) rather than nothing — see the "publish toggle" describe block below.
-  { path: "pages/index.html", label: "index", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  // `modified: true` on exactly `index`, `about` and `styles.css` — the three files whose bytes differ
+  // from their catalog original, so the only ones that get a Reset button and a modified marker. Every
+  // other resettable file is `modified: false`; every non-resettable one is `modified: null`.
+  { path: "pages/index.html", label: "index", kind: "page", readable: true, editable: true, resettable: true, modified: true, published: null, collidingContent: null },
   // Same shape as `index` above — the OTHER non-routable id, and the exact case that cost real
   // operator confusion before this: the owner selected `404`, saw no control at all, and concluded
   // the publish feature hadn't shipped.
-  { path: "pages/404.html", label: "404", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "pages/404.html", label: "404", kind: "page", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
   // A declared Post/Page template shell (`ThemeManifest.templates`) — the THIRD non-candidate shape,
   // and the one with no independent public route at all, so its locked switch shows OFF rather than
   // ON (unlike `index`/`404` above) — see `lockedPublishReason`'s own doc for why.
-  { path: "pages/blog-post.html", label: "blog-post", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "pages/blog-post.html", label: "blog-post", kind: "page", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
   // A real candidate page, currently PUBLISHED — see the "publish toggle" describe block below.
-  { path: "pages/about.html", label: "about", kind: "page", readable: true, editable: true, resettable: true, published: true, collidingContent: null },
-  { path: "nav.html", label: "nav", kind: "partial", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
-  { path: "footer.html", label: "footer", kind: "partial", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
-  { path: "css/styles.css", label: "styles.css", kind: "style", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "pages/about.html", label: "about", kind: "page", readable: true, editable: true, resettable: true, modified: true, published: true, collidingContent: null },
+  { path: "nav.html", label: "nav", kind: "partial", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
+  { path: "footer.html", label: "footer", kind: "partial", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
+  { path: "css/styles.css", label: "styles.css", kind: "style", readable: true, editable: true, resettable: true, modified: true, published: null, collidingContent: null },
   // Editable (2026-08-29 owner ask, reversing the 2026-08-11 one recorded in this fixture's own git
   // history: "we need the ability to edit CSS and JS for the themes"). Still `IDENTITY_LOCKED_GROUPS`
   // for rename/delete — see the "per-file overflow menu" describe block below.
-  { path: "js/main.js", label: "main.js", kind: "script", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "js/main.js", label: "main.js", kind: "script", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
   // The `other` catch-all group — also read-only-to-edit, but for a different reason (never asked to
   // be edited here at all, not "the owner doesn't want it edited").
-  { path: "NOTICE.md", label: "NOTICE.md", kind: "other", readable: true, editable: false, resettable: false, published: null, collidingContent: null },
+  { path: "NOTICE.md", label: "NOTICE.md", kind: "other", readable: true, editable: false, resettable: false, modified: null, published: null, collidingContent: null },
   // Binary + author-added: the two cases that must NOT offer an editor or a Reset respectively.
-  { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true, published: null, collidingContent: null },
+  { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true, modified: false, published: null, collidingContent: null },
   // A real candidate page, currently OFF — the other half of the "publish toggle" describe block below.
-  { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false, published: false, collidingContent: null },
+  { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false, modified: null, published: false, collidingContent: null },
   // A templated-tier Liquid source file — `other` group (no `templates/` case in `fileGroup`), but
   // readable (2026-08-12, `TEXT_READABLE_EXTENSIONS`) and, unlike `NOTICE.md` below, gets its own
   // real rendered preview — see the "preview src — pages, partials, and templates" describe block.
-  { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true, published: null, collidingContent: null },
+  { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true, modified: false, published: null, collidingContent: null },
 ];
 
 function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExploreController {
@@ -159,7 +162,7 @@ describe("preview src — pages, partials, and templates", () => {
 
   it("points a non-readable OTHER-group file's preview at the same raw URL — the broadened case, not just assets", () => {
     renderExplore({
-      files: [...FILES, { path: "vendor.bin", label: "vendor.bin", kind: "other", readable: false, editable: false, resettable: false, published: null, collidingContent: null }],
+      files: [...FILES, { path: "vendor.bin", label: "vendor.bin", kind: "other", readable: false, editable: false, resettable: false, modified: null, published: null, collidingContent: null }],
       selected: "vendor.bin",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
@@ -190,7 +193,7 @@ describe("preview src — pages, partials, and templates", () => {
 
   it("points a readable CONFIG (JSON) file's preview at the raw /theme-assets/ URL, not null", () => {
     renderExplore({
-      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true, published: null, collidingContent: null }],
+      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null }],
       selected: "theme.json",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
@@ -405,6 +408,33 @@ describe("reset to original", () => {
     // Absent rather than disabled: a greyed-out Reset invites "why can't I?", absence just means
     // the option does not apply.
     expect(screen.queryByRole("button", { name: /^reset/i })).not.toBeInTheDocument();
+  });
+
+  it("offers no Reset for a resettable file whose bytes still match its original", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "nav.html" })}
+      />
+    );
+    // `nav.html` has a catalog original (`resettable: true`) but `modified: false`: a reset would
+    // change nothing, so the button is absent for the same reason it is for an author-added file.
+    expect(screen.queryByRole("button", { name: /^reset/i })).not.toBeInTheDocument();
+  });
+
+  it("marks exactly the modified files in the file list, with a tooltip saying why", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const list = screen.getByRole("navigation", { name: "Theme files" });
+    expect(within(list).getAllByRole("img", { name: "Modified" })).toHaveLength(3);
+    for (const label of ["index", "about", "styles.css"]) {
+      const row = within(list).getByRole("button", { name: label }).closest("li") as HTMLElement;
+      expect(within(row).getByRole("img", { name: "Modified" })).toHaveAttribute("title", "Modified from the original");
+    }
+    // Resettable-but-identical (`nav`) and no-original-at-all (`mine`): neither is marked.
+    for (const label of ["nav", "mine"]) {
+      const row = within(list).getByRole("button", { name: label }).closest("li") as HTMLElement;
+      expect(within(row).queryByRole("img", { name: "Modified" })).not.toBeInTheDocument();
+    }
   });
 });
 

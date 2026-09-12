@@ -59,6 +59,14 @@ export interface ThemeExploreFile {
   /** False for files the author added, which have no original to restore from. */
   resettable: boolean;
   /**
+   * Whether the file's bytes differ from its catalog original — `null` exactly when `resettable` is
+   * false, since with no original there is nothing to be modified FROM. Straight from the server's
+   * byte comparison (`explore.ts`'s `describeThemeFile`), so a CRLF-only difference counts. Decides
+   * whether Reset is offered ({@link canResetThemeFile}) and whether the file list marks the file
+   * ({@link isThemeFileModified}).
+   */
+  modified: boolean | null;
+  /**
    * Whether this file is currently a publicly reachable page — `null` for every file the question
    * does not apply to at all (every non-page file, plus a page that is `index`/`404` or a declared
    * Post/Page template shell), so the publish-row control (`ThemeExplore.tsx`) can tell "no publish
@@ -358,6 +366,28 @@ export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
 }
 
 /**
+ * Whether the toolbar offers Reset for `file`: only when it has a catalog original to restore
+ * (`resettable`) AND its bytes actually differ from that original (`modified`). Resetting an
+ * unmodified file would change nothing, so offering it would only lead to a confirmation dialog for
+ * a no-op. `undefined` (nothing selected yet) is `false`.
+ *
+ * @complexity O(1).
+ */
+export function canResetThemeFile(file: ThemeExploreFile | undefined): boolean {
+  return file?.resettable === true && file.modified === true;
+}
+
+/**
+ * Whether the file list marks `file` as modified from its catalog original. `null` (no original)
+ * is not modified: there is nothing for it to differ from.
+ *
+ * @complexity O(1).
+ */
+export function isThemeFileModified(file: ThemeExploreFile): boolean {
+  return file.modified === true;
+}
+
+/**
  * Owner-reported bug (2026-08-12): clicking a `.liquid` template in Explore downloaded it instead of
  * previewing it. Originally patched HERE, client-side (overriding `readable` to `true` for any
  * `.liquid` path regardless of what the listing route reported), because the GET-file route
@@ -383,6 +413,8 @@ function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
     readable: f.readable,
     editable: f.editable,
     resettable: f.resettable,
+    // Same absent/undefined normalization as `published` just below, same reason.
+    modified: f.modified ?? null,
     // `?? null` normalizes an absent/undefined wire value (an older cached response, or a fixture
     // that predates this field) into the same "no publish state" meaning `null` already carries —
     // `ThemeExploreFile.published` is never `undefined`, so every reader gets one two-valued-plus-null

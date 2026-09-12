@@ -68,6 +68,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       readable: true,
       editable: true,
       resettable: false,
+      modified: null,
       renamedFrom: "pages/old.html",
     });
     await expect(defaultThemeExplorePort.renameThemeFile("basic", "pages/old.html", "about.html")).resolves.toMatchObject({
@@ -83,6 +84,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       readable: true,
       editable: true,
       resettable: false,
+      modified: null,
       copiedFrom: "pages/about.html",
     });
     await expect(defaultThemeExplorePort.copyThemeFile("basic", "pages/about.html")).resolves.toMatchObject({

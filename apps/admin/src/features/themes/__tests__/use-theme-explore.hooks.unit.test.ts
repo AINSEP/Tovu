@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import {
+  canResetThemeFile,
+  isThemeFileModified,
   lockedPublishReason,
   readOnlyReason,
   selectedFileLabel,
@@ -539,6 +541,34 @@ describe("useThemeExplore — collidingContent mapping", () => {
     // `undefined`, and only a strict check can tell "normalized to null" apart from "the ?? was
     // silently dropped and this is still undefined".
     expect(result.current.files[0].published).toBeNull();
+  });
+});
+
+describe("useThemeExplore — modified mapping", () => {
+  it("passes a wire-provided modified: true and modified: false through unchanged", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [
+        { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true, modified: true },
+        { path: "css/theme.css", group: "style" as const, readable: true, editable: true, resettable: true, modified: false },
+      ],
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    expect(result.current.files.map((f) => [f.path, f.modified])).toEqual([
+      ["pages/index.html", true],
+      ["css/theme.css", false],
+    ]);
+  });
+
+  it("normalizes an absent modified to null, the same ?? null idiom as published", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/mine.html", group: "page" as const, readable: true, editable: true, resettable: false }],
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    expect(result.current.files[0].modified).toBeNull();
   });
 });
 
@@ -1941,11 +1971,44 @@ function file(overrides: Partial<ThemeExploreFile> = {}): ThemeExploreFile {
     readable: true,
     editable: true,
     resettable: true,
+    modified: false,
     published: null,
     collidingContent: null,
     ...overrides,
   };
 }
+
+describe("canResetThemeFile", () => {
+  it("is false when nothing is selected", () => {
+    expect(canResetThemeFile(undefined)).toBe(false);
+  });
+
+  it("is true only for a resettable file that is modified", () => {
+    expect(canResetThemeFile(file({ resettable: true, modified: true }))).toBe(true);
+  });
+
+  it("is false for a resettable file whose bytes still match its original", () => {
+    expect(canResetThemeFile(file({ resettable: true, modified: false }))).toBe(false);
+  });
+
+  it("is false for a file with no original, where modified is null", () => {
+    expect(canResetThemeFile(file({ resettable: false, modified: null }))).toBe(false);
+  });
+});
+
+describe("isThemeFileModified", () => {
+  it("is true for modified: true", () => {
+    expect(isThemeFileModified(file({ modified: true }))).toBe(true);
+  });
+
+  it("is false for modified: false", () => {
+    expect(isThemeFileModified(file({ modified: false }))).toBe(false);
+  });
+
+  it("is false for modified: null — no original means nothing to be modified from", () => {
+    expect(isThemeFileModified(file({ resettable: false, modified: null }))).toBe(false);
+  });
+});
 
 describe("readOnlyReason", () => {
   it("returns the untranslated reason string — the caller applies t()", () => {
