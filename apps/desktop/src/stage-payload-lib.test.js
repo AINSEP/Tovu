@@ -19,7 +19,16 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { assertClosureComplete, newestMtime, stageTransitiveDependencies, strippableReason, stripNonRuntimeFiles } from "./stage-payload-lib.js";
+import {
+  assertClosureComplete,
+  newestMtime,
+  prebuildTarget,
+  pruneNativePrebuilds,
+  resolveTargets,
+  stageTransitiveDependencies,
+  strippableReason,
+  stripNonRuntimeFiles,
+} from "./stage-payload-lib.js";
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));
@@ -452,4 +461,194 @@ test("stripNonRuntimeFiles: never reaches outside node_modules — dist/ and app
   assert.deepEqual(tally, { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 });
   assert.ok(fs.existsSync(path.join(outDir, "dist", "src", "cli", "main.d.ts")));
   assert.ok(fs.existsSync(path.join(outDir, "apps", "admin", "dist", "app.js.map")));
+});
+
+/** The exact eight prebuilds `better-sqlite3@13.0.3` ships, as flat `.node` files. */
+const BETTER_SQLITE3_PREBUILDS = [
+  "darwin-arm64.node",
+  "darwin-x64.node",
+  "linux-arm64.node",
+  "linux-x64.node",
+  "linuxmusl-arm64.node",
+  "linuxmusl-x64.node",
+  "win32-arm64.node",
+  "win32-x64.node",
+];
+
+/** Stages a fake better-sqlite3 (flat prebuild files) and argon2 (prebuild DIRECTORIES) under `outDir`. */
+function stageNativePackages(outDir, { sqlitePrebuilds = BETTER_SQLITE3_PREBUILDS } = {}) {
+  const modulesDir = path.join(outDir, "node_modules");
+  const sqlite = path.join(modulesDir, "better-sqlite3");
+  writePackage(sqlite, {});
+  writeStagedFiles(outDir, [
+    ...sqlitePrebuilds.map((file) => path.join("better-sqlite3", "prebuilds", file)),
+    path.join("better-sqlite3", "lib", "binding.js"),
+    path.join("better-sqlite3", "deps", "sqlite3", "sqlite3.c"),
+    path.join("better-sqlite3", "binding.gyp"),
+  ]);
+  writePackage(path.join(modulesDir, "argon2"), {});
+  writeStagedFiles(outDir, [
+    path.join("argon2", "prebuilds", "darwin-x64", "argon2.glibc.node"),
+    path.join("argon2", "prebuilds", "darwin-arm64", "argon2.armv8.glibc.node"),
+    path.join("argon2", "prebuilds", "freebsd-x64", "argon2.glibc.node"),
+    path.join("argon2", "prebuilds", "linux-arm", "argon2.glibc.node"),
+    path.join("argon2", "argon2.cjs"),
+  ]);
+  return modulesDir;
+}
+
+const listPrebuilds = (modulesDir, pkg) => fs.readdirSync(path.join(modulesDir, pkg, "prebuilds")).sort();
+
+test("prebuildTarget: parses both prebuildify layouts, a flat .node file and a directory", () => {
+  assert.deepEqual(prebuildTarget("darwin-x64.node"), { platform: "darwin", architectures: ["x64"] });
+  assert.deepEqual(prebuildTarget("darwin-x64"), { platform: "darwin", architectures: ["x64"] });
+  assert.deepEqual(prebuildTarget("linuxmusl-arm64.node"), { platform: "linuxmusl", architectures: ["arm64"] });
+  assert.deepEqual(prebuildTarget("linux-arm"), { platform: "linux", architectures: ["arm"] });
+});
+
+test("prebuildTarget: a multi-architecture tag is a LIST, the way node-gyp-build's parseTuple splits it", () => {
+  // Read as the single arch "x64+arm64" it would match no target, and the universal binary serving
+  // every target would be the one thing deleted.
+  assert.deepEqual(prebuildTarget("darwin-x64+arm64"), { platform: "darwin", architectures: ["x64", "arm64"] });
+  assert.deepEqual(prebuildTarget("darwin-x64+arm64.node"), { platform: "darwin", architectures: ["x64", "arm64"] });
+});
+
+test("prebuildTarget: an unrecognized shape is undefined, never a guessed platform", () => {
+  assert.equal(prebuildTarget("node-v127-darwin-x64"), undefined);
+  assert.equal(prebuildTarget("README.md"), undefined);
+  assert.equal(prebuildTarget("darwin"), undefined);
+  assert.equal(prebuildTarget("-x64.node"), undefined);
+  assert.equal(prebuildTarget("darwin-.node"), undefined);
+  assert.equal(prebuildTarget("darwin-x64+.node"), undefined);
+});
+
+test("resolveTargets: defaults to the host, which is what electron-builder packs with no arch flag", () => {
+  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "x64" }]);
+  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "arm64" }), [{ platform: "darwin", arch: "arm64" }]);
+});
+
+test("resolveTargets: an explicit env target overrides the host, so a cross-arch build is not packed for the wrong machine", () => {
+  // The case the brief named: an x64 host building for arm64 must NOT keep the host's x64 binary.
+  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "arm64" }, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "arm64" }]);
+  assert.deepEqual(resolveTargets({ TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, { platform: "darwin", arch: "arm64" }), [
+    { platform: "linux", arch: "x64" },
+  ]);
+});
+
+test("resolveTargets: universal keeps BOTH macOS architectures", () => {
+  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }), [
+    { platform: "darwin", arch: "x64" },
+    { platform: "darwin", arch: "arm64" },
+  ]);
+});
+
+test("pruneNativePrebuilds: an x64 target keeps exactly darwin-x64, in both layouts", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+
+  const tally = pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] });
+
+  assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-x64.node"]);
+  assert.deepEqual(listPrebuilds(modulesDir, "argon2"), ["darwin-x64"]);
+  assert.equal(tally.prebuilds, 7 + 3);
+  assert.ok(tally.bytes > 0);
+});
+
+test("pruneNativePrebuilds: an arm64 target keeps darwin-arm64 — the filter follows the target, not the host", () => {
+  // Run on whatever machine this is: the result must not depend on process.arch.
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+
+  pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "arm64" }] });
+
+  assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-arm64.node"]);
+  assert.deepEqual(listPrebuilds(modulesDir, "argon2"), ["darwin-arm64"]);
+});
+
+test("pruneNativePrebuilds: a universal target keeps both macOS binaries and nothing else", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+
+  pruneNativePrebuilds({ outDir, targets: resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }) });
+
+  assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-arm64.node", "darwin-x64.node"]);
+});
+
+test("pruneNativePrebuilds: a linux target also keeps the musl build, whose libc is only known at runtime", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+
+  // argon2's fixture has no linux-x64, so give it nothing to refuse on: only better-sqlite3 is asserted.
+  fs.mkdirSync(path.join(modulesDir, "argon2", "prebuilds", "linux-x64"), { recursive: true });
+  pruneNativePrebuilds({ outDir, targets: [{ platform: "linux", arch: "x64" }] });
+
+  assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["linux-x64.node", "linuxmusl-x64.node"]);
+});
+
+test("pruneNativePrebuilds: keeps a multi-architecture binary that serves the target", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir, { sqlitePrebuilds: ["darwin-x64+arm64.node", "win32-x64.node"] });
+
+  pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "arm64" }] });
+
+  assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-x64+arm64.node"]);
+});
+
+test("pruneNativePrebuilds: removes the from-source build inputs but not the runtime JS beside them", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+
+  const tally = pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] });
+
+  assert.ok(!fs.existsSync(path.join(modulesDir, "better-sqlite3", "deps")));
+  assert.ok(!fs.existsSync(path.join(modulesDir, "better-sqlite3", "binding.gyp")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "better-sqlite3", "lib", "binding.js")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "argon2", "argon2.cjs")));
+  assert.equal(tally.buildInputs, 2);
+});
+
+test("pruneNativePrebuilds: a package with NO prebuilds/ keeps its binding.gyp — it may compile at install", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "compiles-itself"), {});
+  writeStagedFiles(outDir, [path.join("compiles-itself", "binding.gyp"), path.join("compiles-itself", "deps", "lib.c")]);
+
+  const tally = pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] });
+
+  assert.ok(fs.existsSync(path.join(modulesDir, "compiles-itself", "binding.gyp")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "compiles-itself", "deps", "lib.c")));
+  assert.deepEqual(tally, { prebuilds: 0, buildInputs: 0, bytes: 0 });
+});
+
+test("pruneNativePrebuilds: an entry it cannot identify is kept, never read as a mismatch", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = stageNativePackages(outDir);
+  writeStagedFiles(outDir, [path.join("better-sqlite3", "prebuilds", "node-v127-darwin-x64.node")]);
+
+  pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] });
+
+  assert.ok(fs.existsSync(path.join(modulesDir, "better-sqlite3", "prebuilds", "node-v127-darwin-x64.node")));
+});
+
+test("pruneNativePrebuilds: refuses a target no prebuild serves, with the exact message, rather than shipping an unloadable app", () => {
+  const outDir = path.join(tempDir(), "out");
+  stageNativePackages(outDir);
+
+  assert.throws(
+    () => pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "ppc64" }] }),
+    (err) => {
+      assert.equal(
+        err.message,
+        "argon2 ships no prebuild for darwin-ppc64, so the packaged app could not load it. Set TOVU_TARGET_PLATFORM / TOVU_TARGET_ARCH to the architecture electron-builder will pack."
+      );
+      return true;
+    }
+  );
+});
+
+test("pruneNativePrebuilds: a staged tree with no node_modules at all is a no-op, not a crash", () => {
+  const outDir = path.join(tempDir(), "out");
+  fs.mkdirSync(outDir, { recursive: true });
+
+  assert.deepEqual(pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "x64" }] }), { prebuilds: 0, buildInputs: 0, bytes: 0 });
 });

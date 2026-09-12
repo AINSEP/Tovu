@@ -274,6 +274,145 @@ export function stripNonRuntimeFiles({ outDir }) {
   return tally;
 }
 
+/**
+ * The platform half of every prebuildify-style tag seen in the staged tree, plus the other values
+ * `process.platform` can take. A `prebuilds/` entry whose prefix is not in here is left ALONE — see
+ * {@link prebuildTarget} for why an unrecognized shape must never be read as "wrong architecture".
+ */
+const PREBUILD_PLATFORMS = new Set(["aix", "android", "darwin", "freebsd", "linux", "linuxmusl", "openbsd", "sunos", "win32"]);
+
+/**
+ * The `{platform, arch}` a `prebuilds/` entry was built for, or `undefined` when its name is not a
+ * `<platform>-<arch>` tag this code recognizes.
+ *
+ * Both layouts in the payload share the tag: `better-sqlite3/prebuilds/darwin-x64.node` (a file,
+ * resolved by `lib/binding.js:44` as `` `${target}.node` ``) and `argon2/prebuilds/darwin-x64/`
+ * (a directory, resolved by `node-gyp-build`).
+ *
+ * `architectures` is a LIST because prebuildify writes a multi-architecture binary as one tag joined
+ * by `+` — `darwin-x64+arm64` — and `node-gyp-build`'s own `parseTuple` splits it the same way
+ * (`arr[1].split('+')`) before asking `architectures.includes(arch)`. Reading that as the single
+ * arch `"x64+arm64"` would match no target and DELETE a binary that serves every one of them.
+ *
+ * `undefined` is the fail-safe answer. A future package naming its prebuilds differently
+ * (`node-v127-darwin-x64`, say) must be kept whole rather than misread as a mismatch and deleted —
+ * the pruner may only remove what it can positively identify as built for somewhere else.
+ *
+ * @complexity O(1).
+ */
+export function prebuildTarget(entryName) {
+  const tag = entryName.endsWith(".node") ? entryName.slice(0, -".node".length) : entryName;
+  const split = tag.indexOf("-");
+  if (split <= 0) return undefined;
+  const platform = tag.slice(0, split);
+  const architectures = tag.slice(split + 1).split("+");
+  if (!PREBUILD_PLATFORMS.has(platform) || !architectures.every(Boolean)) return undefined;
+  return { platform, architectures };
+}
+
+/**
+ * Whether a prebuild for `built` can load on any of `targets`. `linuxmusl` is accepted for a `linux`
+ * target because `better-sqlite3` picks it at runtime on an Alpine-style host (`isLinuxMusl()`), and
+ * which libc the app lands on is not knowable at staging time.
+ *
+ * @complexity O(t) in targets.
+ */
+function prebuildServesTarget(built, targets) {
+  return targets.some(
+    (target) =>
+      built.architectures.includes(target.arch) &&
+      (target.platform === built.platform || (target.platform === "linux" && built.platform === "linuxmusl"))
+  );
+}
+
+/**
+ * The architectures a staging run must keep prebuilds for.
+ *
+ * electron-builder decides the architecture at PACK time, from its CLI flags, and
+ * `electron-builder.yml` declares no `arch` to read. Staging runs first (`package.json`'s `package`
+ * script: `... npm run stage && electron-builder --mac`), so it cannot ask electron-builder what it
+ * is about to build. With no flag, electron-builder packs for the host — confirmed on
+ * `release-probe2/mac/Tovu.app`, whose `Contents/MacOS/Tovu` is `lipo`-reported `x86_64` on this
+ * `x86_64` machine — and the host is therefore the default here too.
+ *
+ * A cross-architecture or universal build MUST say so: `TOVU_TARGET_ARCH=arm64`, or
+ * `TOVU_TARGET_ARCH=universal` for `electron-builder --universal`, which needs BOTH macOS
+ * architectures. Getting this wrong does not produce a warning — it produces an app whose
+ * `better-sqlite3` cannot find its binding on the other half of the fleet — which is why
+ * {@link pruneNativePrebuilds} refuses a target it cannot serve rather than shipping one.
+ *
+ * @complexity O(1).
+ */
+export function resolveTargets(env, host) {
+  const platform = env.TOVU_TARGET_PLATFORM || host.platform;
+  const arch = env.TOVU_TARGET_ARCH || host.arch;
+  if (arch === "universal") return [{ platform, arch: "x64" }, { platform, arch: "arm64" }];
+  return [{ platform, arch }];
+}
+
+/**
+ * Inputs `node-gyp` reads to compile an addon from source. With a matching prebuild present, and
+ * `electron-builder.yml`'s `npmRebuild: false`, nothing ever compiles — so these can never be read.
+ * `better-sqlite3/deps/` alone is 9.8 MB: the SQLite amalgamation plus its gyp files.
+ */
+const NATIVE_BUILD_INPUTS = ["deps", "binding.gyp"];
+
+/** Prunes one `prebuilds/` directory in place. Throws if nothing left in it serves the target.
+ *  @complexity O(e) in entries of that one directory. */
+function prunePrebuildDir(packageDir, targets, modulesDir, tally) {
+  const prebuildsDir = path.join(packageDir, "prebuilds");
+  let servesTarget = false;
+  for (const entry of readdirSync(prebuildsDir)) {
+    const built = prebuildTarget(entry);
+    if (built === undefined) continue;
+    if (prebuildServesTarget(built, targets)) {
+      servesTarget = true;
+      continue;
+    }
+    const full = path.join(prebuildsDir, entry);
+    tally.bytes += diskBytes(full);
+    tally.prebuilds += 1;
+    rmSync(full, { recursive: true, force: true });
+  }
+  if (!servesTarget) {
+    const wanted = targets.map((target) => `${target.platform}-${target.arch}`).join(", ");
+    throw new Error(
+      `${path.relative(modulesDir, packageDir)} ships no prebuild for ${wanted}, so the packaged app could not load it. ` +
+        `Set TOVU_TARGET_PLATFORM / TOVU_TARGET_ARCH to the architecture electron-builder will pack.`
+    );
+  }
+}
+
+/**
+ * Keep only the native prebuilds the target can load, and drop the from-source build inputs that
+ * only a failed prebuild lookup would ever reach for.
+ *
+ * Only packages that HAVE a `prebuilds/` directory are touched at all, so a package that builds its
+ * addon at install time — and genuinely needs `binding.gyp` — keeps it.
+ *
+ * @throws {Error} naming the package, when a `prebuilds/` directory has nothing for the target.
+ *   Deliberately a hard stop: this runs before signing and notarizing, which is the cheap end of
+ *   discovering it.
+ * @complexity O(n) in staged packages plus their prebuild entries.
+ */
+export function pruneNativePrebuilds({ outDir, targets }) {
+  const modulesDir = path.join(outDir, "node_modules");
+  const tally = { prebuilds: 0, buildInputs: 0, bytes: 0 };
+  if (!existsSync(modulesDir)) return tally;
+  for (const packageDir of stagedPackageDirs(modulesDir)) {
+    if (!existsSync(path.join(packageDir, "prebuilds"))) continue;
+    prunePrebuildDir(packageDir, targets, modulesDir, tally);
+    for (const input of NATIVE_BUILD_INPUTS) {
+      const full = path.join(packageDir, input);
+      if (!existsSync(full)) continue;
+      tally.bytes += diskBytes(full);
+      tally.buildInputs += 1;
+      rmSync(full, { recursive: true, force: true });
+    }
+  }
+  return tally;
+}
+
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */
 function isWalkable(entry) {

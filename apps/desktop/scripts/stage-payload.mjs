@@ -49,6 +49,8 @@ import {
   isExcluded,
   newestMtime,
   stageDir,
+  pruneNativePrebuilds,
+  resolveTargets,
   stageTransitiveDependencies,
   stripNonRuntimeFiles,
 } from "../src/stage-payload-lib.js";
@@ -322,7 +324,11 @@ assertNoSymlinks(outDir);
 // BEFORE assertClosureComplete, deliberately: the closure is then verified against the tree that
 // actually ships, not against a fuller one the strip has yet to touch.
 const stripped = stripNonRuntimeFiles({ outDir });
+// See `resolveTargets` for why this is the host unless TOVU_TARGET_ARCH says otherwise.
+const targets = resolveTargets(process.env, process);
+let pruned;
 try {
+  pruned = pruneNativePrebuilds({ outDir, targets });
   assertClosureComplete({ outDir });
 } catch (err) {
   fail(err.message);
@@ -345,4 +351,9 @@ process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${m
 process.stdout.write(
   `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
     `${stripped.coverage} coverage reports (${(stripped.bytes / 1048576).toFixed(1)} MB on disk)\n`
+);
+process.stdout.write(
+  `stage-payload: native prebuilds kept for ${targets.map((target) => `${target.platform}-${target.arch}`).join(" + ")} only; ` +
+    `removed ${pruned.prebuilds} other-architecture prebuilds and ${pruned.buildInputs} from-source build inputs ` +
+    `(${(pruned.bytes / 1048576).toFixed(1)} MB on disk)\n`
 );
