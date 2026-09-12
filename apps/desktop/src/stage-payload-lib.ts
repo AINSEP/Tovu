@@ -14,9 +14,45 @@
  * instead of the real `staging/tovu-payload` tree.
  */
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 
 import { isBundleInput } from "./shell-staleness.ts";
+
+/** One `{platform, arch}` a staging run targets, or a prebuild was built for (see {@link prebuildTarget}). */
+interface Target {
+  platform: string;
+  arch: string;
+}
+
+/** The two fields {@link resolveTargets} reads off its `host` argument — real callers pass `process`
+ *  itself, tests pass a plain object, and both satisfy this shape structurally. */
+interface HostInfo {
+  platform: string;
+  arch: string;
+}
+
+/** Byte/count tally shared by {@link stripGeneratedFiles} and {@link stripCoverageReports}, returned
+ *  from {@link stripNonRuntimeFiles}. */
+interface StripTally {
+  declaration: number;
+  sourceMap: number;
+  coverage: number;
+  bytes: number;
+}
+
+/** Byte/count tally shared by {@link prunePrebuildDir}, returned from {@link pruneNativePrebuilds}. */
+interface PruneTally {
+  prebuilds: number;
+  buildInputs: number;
+  bytes: number;
+}
+
+/** What {@link prebuildTarget} parses a `prebuilds/` entry name into. */
+interface PrebuildBuilt {
+  platform: string;
+  architectures: string[];
+}
 
 /**
  * Top-level `node_modules` entries never staged, each for a reason that was checked rather than
@@ -40,12 +76,13 @@ import { isBundleInput } from "./shell-staleness.ts";
  */
 export const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup", "lucide-react"]);
 
-export function isExcluded(name) {
+export function isExcluded(name: string): boolean {
+  // `!`: `split` always returns at least one element, even for a separator-free string.
   const [head] = name.split(path.sep);
-  return EXCLUDED_PACKAGES.has(head) || EXCLUDED_PACKAGES.has(name);
+  return EXCLUDED_PACKAGES.has(head!) || EXCLUDED_PACKAGES.has(name);
 }
 
-export function stageDir(src, dest, dropNestedModules) {
+export function stageDir(src: string, dest: string, dropNestedModules: boolean): void {
   mkdirSync(path.dirname(dest), { recursive: true });
   cpSync(src, dest, {
     recursive: true,
@@ -54,14 +91,14 @@ export function stageDir(src, dest, dropNestedModules) {
   });
 }
 
-export function declaredDependencies(packageDir) {
+export function declaredDependencies(packageDir: string): string[] {
   const manifestPath = path.join(packageDir, "package.json");
   if (!existsSync(manifestPath)) return [];
   return Object.keys(JSON.parse(readFileSync(manifestPath, "utf8")).dependencies ?? {});
 }
 
 /** Node's own upward `node_modules` walk — the only way to find a package in pnpm's store. */
-export function findPackageDir(fromDir, depName) {
+export function findPackageDir(fromDir: string, depName: string): string | undefined {
   let dir = fromDir;
   for (;;) {
     const candidate = path.join(dir, "node_modules", depName);
@@ -79,7 +116,11 @@ export function findPackageDir(fromDir, depName) {
  * resolved package's real directory plus whether staging it actually copied anything (as opposed
  * to finding it already there).
  */
-function resolveDependencyEdge(from, dep, { outDir, visited }) {
+function resolveDependencyEdge(
+  from: string,
+  dep: string,
+  { outDir, visited }: { outDir: string; visited: Set<string> }
+): { resolved: string; staged: boolean } | undefined {
   if (isExcluded(dep)) return undefined;
   const resolved = findPackageDir(from, dep);
   if (resolved === undefined || visited.has(resolved)) return undefined;
@@ -98,12 +139,13 @@ function resolveDependencyEdge(from, dep, { outDir, visited }) {
  * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.mjs`'s module-level
  * constant of the same name) so a test can point it at a throwaway directory.
  */
-export function stageTransitiveDependencies({ roots, outDir }) {
+export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }): number {
   const visited = new Set(roots);
   const queue = [...roots];
   let count = 0;
   while (queue.length > 0) {
-    const from = queue.pop();
+    // `!`: the loop guard proves the queue is non-empty here.
+    const from = queue.pop()!;
     for (const dep of declaredDependencies(from)) {
       const edge = resolveDependencyEdge(from, dep, { outDir, visited });
       if (edge === undefined) continue;
@@ -114,7 +156,7 @@ export function stageTransitiveDependencies({ roots, outDir }) {
   return count;
 }
 
-export function stagedPackageDirs(modulesDir) {
+export function stagedPackageDirs(modulesDir: string): string[] {
   return readdirSync(modulesDir)
     .filter((entry) => !entry.startsWith("."))
     .flatMap((entry) => {
@@ -145,9 +187,9 @@ export function stagedPackageDirs(modulesDir) {
  *
  * @throws {Error} listing every `pkg -> dep` pair that did not resolve.
  */
-export function assertClosureComplete({ outDir }) {
+export function assertClosureComplete({ outDir }: { outDir: string }): void {
   const modulesDir = path.join(outDir, "node_modules");
-  const unresolved = (packageDir, dep) => {
+  const unresolved = (packageDir: string, dep: string) => {
     const hoisted = path.join(modulesDir, dep, "package.json");
     const nested = path.join(packageDir, "node_modules", dep, "package.json");
     return !existsSync(hoisted) && !existsSync(nested);
@@ -199,17 +241,18 @@ const DECLARATION_PATTERN = /\.d\.[cm]?ts(\.map)?$/;
  *
  * @complexity O(1).
  */
-export function strippableReason(relPath) {
+export function strippableReason(relPath: string): "declaration" | "sourceMap" | undefined {
   const name = path.posix.basename(relPath);
   if (DECLARATION_PATTERN.test(name)) return "declaration";
   if (!name.endsWith(".map")) return undefined;
-  return SOURCE_MAP_KEEP_SCOPES.has(relPath.split("/")[0]) ? undefined : "sourceMap";
+  // `!`: `split` always returns at least one element.
+  return SOURCE_MAP_KEEP_SCOPES.has(relPath.split("/")[0]!) ? undefined : "sourceMap";
 }
 
 /** On-disk bytes of a file or tree — `st_blocks`, not `st_size`, because that is what the installed
  *  app costs. The payload's declarations average 4 KB apparent but a full block each.
  *  @complexity O(n) in entries walked. */
-export function diskBytes(abs) {
+export function diskBytes(abs: string): number {
   const stat = lstatSync(abs);
   if (!stat.isDirectory()) return stat.blocks * 512;
   let total = 0;
@@ -219,8 +262,8 @@ export function diskBytes(abs) {
 
 /** Deletes every file under `modulesDir` that {@link strippableReason} condemns, tallying by reason.
  *  @complexity O(n) in entries walked. */
-function stripGeneratedFiles(modulesDir, tally) {
-  const walk = (dir) => {
+function stripGeneratedFiles(modulesDir: string, tally: StripTally): void {
+  const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -249,7 +292,7 @@ function stripGeneratedFiles(modulesDir, tally) {
  *
  * @complexity O(n) in staged packages.
  */
-function stripCoverageReports(modulesDir, tally) {
+function stripCoverageReports(modulesDir: string, tally: StripTally): void {
   for (const packageDir of stagedPackageDirs(modulesDir)) {
     const coverage = path.join(packageDir, "coverage");
     if (!existsSync(coverage) || !statSync(coverage).isDirectory()) continue;
@@ -270,9 +313,9 @@ function stripCoverageReports(modulesDir, tally) {
  * @returns counts by reason plus the on-disk bytes freed.
  * @complexity O(n) in files under the staged `node_modules`.
  */
-export function stripNonRuntimeFiles({ outDir }) {
+export function stripNonRuntimeFiles({ outDir }: { outDir: string }): StripTally {
   const modulesDir = path.join(outDir, "node_modules");
-  const tally = { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 };
+  const tally: StripTally = { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 };
   if (!existsSync(modulesDir)) return tally;
   stripCoverageReports(modulesDir, tally);
   stripGeneratedFiles(modulesDir, tally);
@@ -305,7 +348,7 @@ const PREBUILD_PLATFORMS = new Set(["aix", "android", "darwin", "freebsd", "linu
  *
  * @complexity O(1).
  */
-export function prebuildTarget(entryName) {
+export function prebuildTarget(entryName: string): PrebuildBuilt | undefined {
   const tag = entryName.endsWith(".node") ? entryName.slice(0, -".node".length) : entryName;
   const split = tag.indexOf("-");
   if (split <= 0) return undefined;
@@ -322,9 +365,9 @@ export function prebuildTarget(entryName) {
  *
  * @complexity O(t) in targets.
  */
-function prebuildServesTarget(built, targets) {
+function prebuildServesTarget(built: PrebuildBuilt, targets: readonly Target[]): boolean {
   return targets.some(
-    (target) =>
+    (target: Target) =>
       built.architectures.includes(target.arch) &&
       (target.platform === built.platform || (target.platform === "linux" && built.platform === "linuxmusl"))
   );
@@ -348,7 +391,7 @@ function prebuildServesTarget(built, targets) {
  *
  * @complexity O(1).
  */
-export function resolveTargets(env, host) {
+export function resolveTargets(env: NodeJS.ProcessEnv, host: HostInfo): Target[] {
   const platform = env.TOVU_TARGET_PLATFORM || host.platform;
   const arch = env.TOVU_TARGET_ARCH || host.arch;
   if (arch === "universal") return [{ platform, arch: "x64" }, { platform, arch: "arm64" }];
@@ -364,7 +407,7 @@ const NATIVE_BUILD_INPUTS = ["deps", "binding.gyp"];
 
 /** Prunes one `prebuilds/` directory in place. Throws if nothing left in it serves the target.
  *  @complexity O(e) in entries of that one directory. */
-function prunePrebuildDir(packageDir, targets, modulesDir, tally) {
+function prunePrebuildDir(packageDir: string, targets: readonly Target[], modulesDir: string, tally: PruneTally): void {
   const prebuildsDir = path.join(packageDir, "prebuilds");
   let servesTarget = false;
   for (const entry of readdirSync(prebuildsDir)) {
@@ -380,7 +423,7 @@ function prunePrebuildDir(packageDir, targets, modulesDir, tally) {
     rmSync(full, { recursive: true, force: true });
   }
   if (!servesTarget) {
-    const wanted = targets.map((target) => `${target.platform}-${target.arch}`).join(", ");
+    const wanted = targets.map((target: Target) => `${target.platform}-${target.arch}`).join(", ");
     throw new Error(
       `${path.relative(modulesDir, packageDir)} ships no prebuild for ${wanted}, so the packaged app could not load it. ` +
         `Set TOVU_TARGET_PLATFORM / TOVU_TARGET_ARCH to the architecture electron-builder will pack.`
@@ -400,9 +443,9 @@ function prunePrebuildDir(packageDir, targets, modulesDir, tally) {
  *   discovering it.
  * @complexity O(n) in staged packages plus their prebuild entries.
  */
-export function pruneNativePrebuilds({ outDir, targets }) {
+export function pruneNativePrebuilds({ outDir, targets }: { outDir: string; targets: readonly Target[] }): PruneTally {
   const modulesDir = path.join(outDir, "node_modules");
-  const tally = { prebuilds: 0, buildInputs: 0, bytes: 0 };
+  const tally: PruneTally = { prebuilds: 0, buildInputs: 0, bytes: 0 };
   if (!existsSync(modulesDir)) return tally;
   for (const packageDir of stagedPackageDirs(modulesDir)) {
     if (!existsSync(path.join(packageDir, "prebuilds"))) continue;
@@ -420,14 +463,14 @@ export function pruneNativePrebuilds({ outDir, targets }) {
 
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */
-function isWalkable(entry) {
+function isWalkable(entry: Dirent): boolean {
   if (entry.name === "node_modules" || entry.name.startsWith(".")) return false;
   return isBundleInput(entry.isDirectory() ? `${entry.name}/` : entry.name);
 }
 
 /** Newest mtime under a directory tree, or 0 if it does not exist.
  *  @complexity O(n) in files walked. */
-export function newestMtime(abs) {
+export function newestMtime(abs: string): number {
   if (!existsSync(abs)) return 0;
   const stat = statSync(abs);
   if (!stat.isDirectory()) return isBundleInput(abs) ? stat.mtimeMs : 0;

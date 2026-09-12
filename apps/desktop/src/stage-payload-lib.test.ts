@@ -36,7 +36,7 @@ function tempDir() {
 
 /** Writes a file (creating parent directories), stamps it with `mtimeMs`, and returns the mtime the
  *  filesystem actually stored — see the file header for why that can differ from `mtimeMs`. */
-function touch(filePath, mtimeMs) {
+function touch(filePath: string, mtimeMs: number): number {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, "x");
   fs.utimesSync(filePath, new Date(mtimeMs), new Date(mtimeMs));
@@ -44,7 +44,7 @@ function touch(filePath, mtimeMs) {
 }
 
 /** Writes a real `package.json` naming `dependencies`, the shape `declaredDependencies` reads. */
-function writePackage(dir, dependencies = {}) {
+function writePackage(dir: string, dependencies: Record<string, string> = {}): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: path.basename(dir), dependencies }));
 }
@@ -271,7 +271,8 @@ test("assertClosureComplete: throws with the exact pkg -> dep message when a dep
 
   assert.throws(() => assertClosureComplete({ outDir }), (err) => {
     assert.equal(
-      err.message,
+      // `as`: assertClosureComplete only ever throws a plain Error.
+      (err as Error).message,
       "staged tree is missing 1 declared dependencies, so the packaged app would fail once installed outside this repo:\n  pkgA -> missingDep"
     );
     return true;
@@ -304,7 +305,8 @@ test("assertClosureComplete: walks a scoped (@scope/name) staged package and nam
 
   assert.throws(() => assertClosureComplete({ outDir }), (err) => {
     assert.equal(
-      err.message,
+      // `as`: assertClosureComplete only ever throws a plain Error.
+      (err as Error).message,
       `staged tree is missing 1 declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${path.join("@scope", "pkg")} -> missingDep`
     );
     return true;
@@ -330,7 +332,8 @@ test("assertClosureComplete: preserves declaration order across multiple missing
 
   assert.throws(() => assertClosureComplete({ outDir }), (err) => {
     assert.equal(
-      err.message,
+      // `as`: assertClosureComplete only ever throws a plain Error.
+      (err as Error).message,
       "staged tree is missing 2 declared dependencies, so the packaged app would fail once installed outside this repo:\n  pkgA -> zeta\n  pkgA -> alpha"
     );
     return true;
@@ -348,7 +351,7 @@ test("assertClosureComplete: ignores dotfile-prefixed entries under node_modules
 });
 
 /** Writes `files` (paths relative to `<outDir>/node_modules`) and returns that modules directory. */
-function writeStagedFiles(outDir, files) {
+function writeStagedFiles(outDir: string, files: readonly string[]): string {
   const modulesDir = path.join(outDir, "node_modules");
   for (const relative of files) {
     const full = path.join(modulesDir, relative);
@@ -358,7 +361,7 @@ function writeStagedFiles(outDir, files) {
   return modulesDir;
 }
 
-const survives = (relative) => strippableReason(relative) === undefined;
+const survives = (relative: string) => strippableReason(relative) === undefined;
 
 test("strippableReason: every declaration extension is condemned, in any scope", () => {
   assert.equal(strippableReason("drizzle-orm/index.d.ts"), "declaration");
@@ -499,7 +502,7 @@ const BETTER_SQLITE3_PREBUILDS = [
 ];
 
 /** Stages a fake better-sqlite3 (flat prebuild files) and argon2 (prebuild DIRECTORIES) under `outDir`. */
-function stageNativePackages(outDir, { sqlitePrebuilds = BETTER_SQLITE3_PREBUILDS } = {}) {
+function stageNativePackages(outDir: string, { sqlitePrebuilds = BETTER_SQLITE3_PREBUILDS }: { sqlitePrebuilds?: readonly string[] } = {}): string {
   const modulesDir = path.join(outDir, "node_modules");
   const sqlite = path.join(modulesDir, "better-sqlite3");
   writePackage(sqlite, {});
@@ -520,7 +523,7 @@ function stageNativePackages(outDir, { sqlitePrebuilds = BETTER_SQLITE3_PREBUILD
   return modulesDir;
 }
 
-const listPrebuilds = (modulesDir, pkg) => fs.readdirSync(path.join(modulesDir, pkg, "prebuilds")).sort();
+const listPrebuilds = (modulesDir: string, pkg: string) => fs.readdirSync(path.join(modulesDir, pkg, "prebuilds")).sort();
 
 test("prebuildTarget: parses both prebuildify layouts, a flat .node file and a directory", () => {
   assert.deepEqual(prebuildTarget("darwin-x64.node"), { platform: "darwin", architectures: ["x64"] });
@@ -661,7 +664,8 @@ test("pruneNativePrebuilds: refuses a target no prebuild serves, with the exact 
     () => pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "ppc64" }] }),
     (err) => {
       assert.equal(
-        err.message,
+        // `as`: pruneNativePrebuilds only ever throws a plain Error.
+        (err as Error).message,
         "argon2 ships no prebuild for darwin-ppc64, so the packaged app could not load it. Set TOVU_TARGET_PLATFORM / TOVU_TARGET_ARCH to the architecture electron-builder will pack."
       );
       return true;

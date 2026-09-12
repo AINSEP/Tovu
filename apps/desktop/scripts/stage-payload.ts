@@ -44,6 +44,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
 import { shellStalenessFailure } from "../src/shell-staleness.ts";
+import type { StalenessShell } from "../src/shell-staleness.ts";
 import {
   assertClosureComplete,
   isExcluded,
@@ -56,6 +57,18 @@ import {
 } from "../src/stage-payload-lib.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+/** One `dist/runtime-manifest.json`, as far as this script reads it — see {@link readRuntimeManifest}. */
+interface RuntimeManifest {
+  cliEntry: string;
+}
+
+/** One `STAGED_SHELLS` entry. `sourceDirs`/`sourceFiles` stay optional to match the defensive
+ *  `?? []` reads in {@link failIfShellIsStale}. */
+interface ShellEntry extends StalenessShell {
+  sourceDirs?: string[];
+  sourceFiles?: string[];
+}
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(scriptDir, "..");
@@ -72,7 +85,7 @@ const repoModulesDir = path.join(repoRoot, "node_modules");
  * bundle loaded by a `<script>` tag, not an app with client-side routing (`app.ts:1336-1338`).
  * Asserting the wrong marker would have hard-failed staging on a perfectly good build.
  */
-const STAGED_SHELLS = [
+const STAGED_SHELLS: ShellEntry[] = [
   {
     relative: path.join("apps", "admin", "dist"),
     marker: "index.html",
@@ -94,14 +107,17 @@ const STAGED_SHELLS = [
   },
 ];
 
-function fail(message) {
+// `never`, not `void`: the body always ends in `process.exit(1)`, which @types/node itself types as
+// `never` — so this only states what already happens, and every call site below is understood as
+// unreachable-after by the same control-flow analysis a `throw` gets.
+function fail(message: string): never {
   process.stderr.write(`stage-payload: ${message}\n`);
   process.exit(1);
 }
 
 /** Tovu's production dependency closure, as package paths relative to its `node_modules`. */
-function productionDependencyPaths() {
-  let stdout;
+function productionDependencyPaths(): string[] {
+  let stdout: string;
   try {
     stdout = execFileSync("npm", ["ls", "--omit=dev", "--parseable", "--all"], {
       cwd: repoRoot,
@@ -111,7 +127,8 @@ function productionDependencyPaths() {
   } catch (err) {
     // `npm ls` exits non-zero on any tree quibble (the linked `@jini-ai/*` produce several) while
     // still printing a complete, usable tree on stdout.
-    stdout = err.stdout ?? "";
+    // `as`: `execFileSync`'s thrown error carries the same `stdout` it would have returned.
+    stdout = (err as { stdout?: string }).stdout ?? "";
   }
   const prefix = `${repoModulesDir}${path.sep}`;
   const names = [...new Set(stdout.split("\n").filter((line) => line.startsWith(prefix)).map((line) => line.slice(prefix.length)))].sort();
@@ -121,7 +138,7 @@ function productionDependencyPaths() {
   return names;
 }
 
-function stagePackage(name) {
+function stagePackage(name: string): boolean {
   if (isExcluded(name)) return false;
   const src = path.join(repoModulesDir, name);
   const dest = path.join(outDir, "node_modules", name);
@@ -145,14 +162,14 @@ function stagePackage(name) {
  *
  * @returns the real source directory of each staged package, to seed the dependency closure.
  */
-function stageJiniPackages() {
+function stageJiniPackages(): string[] {
   const anchor = path.join(repoModulesDir, "@jini-ai", "core");
   if (!existsSync(anchor)) {
     fail(`no @jini-ai/core under ${repoModulesDir}; cannot locate the Jini packages.`);
   }
   // Derived from the link itself so it cannot drift from wherever Jini really is.
   const packagesDir = path.dirname(realpathSync(anchor));
-  const roots = [];
+  const roots: string[] = [];
   for (const entry of readdirSync(packagesDir)) {
     const src = path.join(packagesDir, entry);
     const manifest = path.join(src, "package.json");
@@ -174,7 +191,7 @@ function stageJiniPackages() {
  * `codesign --verify --deep --strict` rejects that outright ("invalid destination for symbolic link
  * in bundle"), and on any other machine it would simply dangle.
  */
-function materializeSymlinks(dir) {
+function materializeSymlinks(dir: string): number {
   let replaced = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -197,7 +214,7 @@ function materializeSymlinks(dir) {
   return replaced;
 }
 
-function assertNoSymlinks(dir) {
+function assertNoSymlinks(dir: string): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isSymbolicLink()) fail(`staged tree still contains a symlink after materialization: ${full}`);
@@ -211,7 +228,7 @@ function assertNoSymlinks(dir) {
  * `dist/src/cli/main.js`, since that literal is exactly what broke once already when `src/` was
  * renamed (2026-08-27 restructure).
  */
-function readRuntimeManifest(dir) {
+function readRuntimeManifest(dir: string): RuntimeManifest {
   const manifestPath = path.join(dir, "dist", "runtime-manifest.json");
   if (!existsSync(manifestPath)) {
     fail(`no ${manifestPath}. Run \`npm run build\` at ${repoRoot} first.`);
@@ -227,7 +244,7 @@ function readRuntimeManifest(dir) {
  * recorded. Two independently-derived paths that are allowed to disagree are exactly the failure
  * `runtime-manifest.json` was introduced to prevent, so assert they match instead of picking one.
  */
-function assertCliEntryAgreement(manifest) {
+function assertCliEntryAgreement(manifest: RuntimeManifest): void {
   const binEntry = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8")).bin?.tovu;
   if (binEntry !== manifest.cliEntry) {
     fail(`the root package.json's bin.tovu ("${binEntry}") and dist/runtime-manifest.json's cliEntry ("${manifest.cliEntry}") disagree. Re-run \`npm run build\`.`);
@@ -236,11 +253,11 @@ function assertCliEntryAgreement(manifest) {
 
 /** Count `.sql` migrations on both sides — a stale `dist/` is the single likeliest reason a
  *  packaged app rejects a site with `SITE_NEWER_THAN_RUNTIME`, and it is invisible otherwise. */
-function countMigrations(dir) {
+function countMigrations(dir: string): number {
   return existsSync(dir) ? readdirSync(dir).filter((entry) => entry.endsWith(".sql")).length : 0;
 }
 
-function failIfDistIsStale() {
+function failIfDistIsStale(): void {
   const source = countMigrations(path.join(repoRoot, "apps", "website", "src", "platform", "db", "drizzle"));
   const built = countMigrations(path.join(outDir, "dist", "src", "platform", "db", "drizzle"));
   if (built < source) {
@@ -268,7 +285,7 @@ function failIfDistIsStale() {
  *
  * @complexity O(n) in source files under the shell's own tree.
  */
-function failIfShellIsStale(shell) {
+function failIfShellIsStale(shell: ShellEntry): void {
   const builtAt = newestMtime(path.join(repoRoot, shell.relative, shell.marker));
   let sourceAt = 0;
   for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, newestMtime(path.join(repoRoot, dir)));
@@ -331,7 +348,8 @@ try {
   pruned = pruneNativePrebuilds({ outDir, targets });
   assertClosureComplete({ outDir });
 } catch (err) {
-  fail(err.message);
+  // `as`: assertClosureComplete and pruneNativePrebuilds only ever throw a plain Error.
+  fail((err as Error).message);
 }
 
 const stagedManifest = readRuntimeManifest(outDir);
