@@ -10,7 +10,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { evaluateArea, formatArea, pct, isMeasurableSource, isInExcludedDir } from "./coverage-floors.js";
+import {
+  evaluateArea,
+  formatArea,
+  pct,
+  isMeasurableSource,
+  isInExcludedDir,
+  parseNodeTestScript,
+  runnerSplitDrift,
+} from "./coverage-floors.js";
 
 const perfect = { lf: 100, lh: 100, brf: 10, brh: 10, fnf: 5, fnh: 5 };
 const poor = { lf: 100, lh: 50, brf: 10, brh: 5, fnf: 5, fnh: 1 };
@@ -159,7 +167,7 @@ test("an area below its line floor fails and names the axis", () => {
   assert.ok(result.failures.some((f) => /funcs 20\.00% < floor 90%/.test(f)));
 });
 
-test("an axis with NO configured floor is never a failure — the renderer+contracts area sets no funcs floor", () => {
+test("an axis with NO configured floor is never a failure", () => {
   const area = { id: "ts", floors: { line: 40, branch: 40 } };
   const result = evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", poor]]));
 
@@ -191,4 +199,57 @@ test("an axis with no floor is rendered as such rather than as a silent pass", (
   const area = { id: "ts", floors: { line: 70 } };
   const text = formatArea(evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", perfect]])), area);
   assert.match(text, /funcs.*no floor/);
+});
+
+// --- runner split: package.json's test script and TEST_PASSES must agree -------------------------
+
+const SCRIPT = 'node --test "src/**/*.test.js" "src/*.test.ts" && node --import tsx --test "src/renderer/**/*.test.ts"';
+const AGREEING_PASSES = [
+  { id: "node", nodeArgs: [], globs: ["src/*.test.ts", "src/**/*.test.js"] },
+  { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts"] },
+];
+
+test("a chained node --test script parses into one pass per command, quotes stripped", () => {
+  assert.deepEqual(parseNodeTestScript(SCRIPT), [
+    { nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts"] },
+    { nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts"] },
+  ]);
+});
+
+test("the same globs under the same runners report no drift, whatever the glob order", () => {
+  assert.deepEqual(runnerSplitDrift(AGREEING_PASSES, parseNodeTestScript(SCRIPT)), []);
+});
+
+test("a glob moved from bare node to tsx is drift on both runners, by name", () => {
+  // The deliberately mismatched copy. It holds the same globs overall, so a comparison of all globs
+  // regardless of runner would pass it.
+  const moved = [
+    { id: "node", nodeArgs: [], globs: ["src/**/*.test.js"] },
+    { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/*.test.ts"] },
+  ];
+  assert.deepEqual(runnerSplitDrift(moved, parseNodeTestScript(SCRIPT)), [
+    'package.json runs src/*.test.ts under "node"; TEST_PASSES does not',
+    'TEST_PASSES runs src/*.test.ts under "node --import tsx"; package.json does not',
+  ]);
+});
+
+test("a glob only one side runs is drift, whichever side it is on", () => {
+  // Two passes on one runner must merge, not replace each other: a replaced set would also report
+  // src/renderer/**/*.test.ts here.
+  const extra = [...AGREEING_PASSES, { id: "tsx2", nodeArgs: ["--import", "tsx"], globs: ["src/contracts/**/*.test.ts"] }];
+  assert.deepEqual(runnerSplitDrift(extra, parseNodeTestScript(SCRIPT)), [
+    'TEST_PASSES runs src/contracts/**/*.test.ts under "node --import tsx"; package.json does not',
+  ]);
+  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]], parseNodeTestScript(SCRIPT)), [
+    'package.json runs src/renderer/**/*.test.ts under "node --import tsx"; TEST_PASSES does not',
+  ]);
+});
+
+test("a command the guard cannot read throws instead of comparing as zero globs", () => {
+  assert.throws(() => parseNodeTestScript('node --test "src/**/*.test.js" && vitest run'), {
+    message: 'not a "node [args] --test <globs>" command: vitest run',
+  });
+  assert.throws(() => parseNodeTestScript("node src/main.js"), {
+    message: 'not a "node [args] --test <globs>" command: node src/main.js',
+  });
 });

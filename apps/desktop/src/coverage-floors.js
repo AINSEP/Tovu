@@ -1,6 +1,6 @@
 /**
- * @file Per-area coverage floors for `apps/desktop`, as pure functions. The CLI that produces the
- * lcov and calls these is `scripts/check-coverage.mjs`.
+ * @file Per-area coverage floors for `apps/desktop`, as pure functions, plus the test passes that
+ * produce the lcov. `scripts/check-coverage.mjs` runs those passes and calls these functions.
  *
  * ## The trap this is shaped around: a coverage percentage cannot see its own scope shrinking
  *
@@ -32,15 +32,15 @@
  * An area's `dirs` scan recurses, so `dirs: ["src"]` alone would sweep the renderer into the
  * main-process floors. `excludeDirs` ({@link isInExcludedDir}) carves those trees back out. The cut
  * is by role on purpose: while areas were cut by extension, the planned `.js`-to-`.ts` rename would
- * have moved every main-process file out of the 96/90/90 area and into the renderer's 76/88 one.
+ * have moved every main-process file out of its own floors and into the renderer's lower ones.
  *
  * ## Why `knownUnmeasured` is a ratchet and not a red gate
  *
- * Nine desktop `.ts` files genuinely have no test today. A gate that is red from birth gets
- * `enabled: false` within a week, which is the noise-then-ignore cycle this whole harness exists to
- * avoid. So existing gaps are grandfathered BY NAME, printed on every run, and cannot grow: a tenth
- * unmeasured file fails. Same mechanic as this repo's complexity debt lists — debt is allowed,
- * invisible debt is not.
+ * Some desktop source files genuinely have no test today, and each area's `knownUnmeasured` list
+ * names them. A gate that is red from birth gets `enabled: false` within a week, which is the
+ * noise-then-ignore cycle this whole harness exists to avoid. So existing gaps are grandfathered BY
+ * NAME, printed on every run, and cannot grow: an unmeasured file missing from that list fails. Same
+ * mechanic as this repo's complexity debt lists — debt is allowed, invisible debt is not.
  *
  * ## Node's line% is not comparable to anyone else's
  *
@@ -79,6 +79,82 @@ export function isInExcludedDir(relPath, excludeDirs = []) {
   });
 }
 
+/**
+ * The test passes `scripts/check-coverage.mjs` runs, split by DIRECTORY. Probe P4 (2026-09-12,
+ * `ADS-memory/.local-artifacts/desktop-ts/phase0-probes.md`): after a `.js`-to-`.ts` rename, bare
+ * node reproduces the file's lcov image exactly, but tsx does not. esbuild's `__name` helper adds a
+ * fake function and branch per file and lands hits on the wrong lines. So every main-process test,
+ * `.js` or `.ts`, runs on bare node. Only the renderer and contracts `.test.ts` files, whose `.js`
+ * specifiers need bundler resolution, run under tsx. `package.json`'s `test` script carries the
+ * same split, and `coverage-runner-split.test.js` fails when the two disagree.
+ *
+ * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
+ * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.mjs`'s
+ * `runSuite` refuses to run a pass whose globs match no test file at all.
+ */
+export const TEST_PASSES = [
+  { id: "node", nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
+  { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
+];
+
+/** Splits an npm script of `&&`-chained `node [args] --test <globs>` commands into
+ *  `{ nodeArgs, globs }` passes, with double quotes stripped. Every token after `--test` counts as a
+ *  glob, so a flag placed there shows up as drift rather than being skipped. Any other command
+ *  throws, so a script this cannot read fails loudly instead of comparing as zero globs.
+ *  @complexity O(n) in script length. */
+export function parseNodeTestScript(script) {
+  return script.split("&&").map((command) => {
+    const tokens = [...command.matchAll(/"([^"]*)"|(\S+)/g)].map((match) => match[1] ?? match[2]);
+    const testAt = tokens.indexOf("--test");
+    if (tokens[0] !== "node" || testAt < 0) {
+      throw new Error(`not a "node [args] --test <globs>" command: ${command.trim()}`);
+    }
+    return { nodeArgs: tokens.slice(1, testAt), globs: tokens.slice(testAt + 1) };
+  });
+}
+
+/** `Map<runner, Set<glob>>`, where the runner is the node command a pass uses: `node`, or
+ *  `node --import tsx`. Passes on the same runner merge.
+ *  @complexity O(g) in globs. */
+function globsByRunner(passes) {
+  const byRunner = new Map();
+  for (const pass of passes) {
+    const runner = ["node", ...pass.nodeArgs].join(" ");
+    const globs = byRunner.get(runner) ?? new Set();
+    for (const glob of pass.globs) globs.add(glob);
+    byRunner.set(runner, globs);
+  }
+  return byRunner;
+}
+
+/** Each `{ runner, glob }` that `side` runs and `other` does not run on that same runner.
+ *  @complexity O(g) in globs. */
+function unmatchedGlobs(side, other) {
+  const unmatched = [];
+  for (const [runner, globs] of side) {
+    for (const glob of globs) if (!other.get(runner)?.has(glob)) unmatched.push({ runner, glob });
+  }
+  return unmatched;
+}
+
+/** Every glob that `TEST_PASSES` and `package.json`'s parsed `test` script disagree on, one message
+ *  per glob per side; empty when they agree. Globs are compared per runner as literal strings: order
+ *  is ignored, a glob moved between runners is reported on both, and two spellings of one pattern
+ *  count as drift.
+ *  @complexity O(g) in globs. */
+export function runnerSplitDrift(passes, scriptPasses) {
+  const inPasses = globsByRunner(passes);
+  const inScript = globsByRunner(scriptPasses);
+  return [
+    ...unmatchedGlobs(inScript, inPasses).map(
+      ({ runner, glob }) => `package.json runs ${glob} under "${runner}"; TEST_PASSES does not`
+    ),
+    ...unmatchedGlobs(inPasses, inScript).map(
+      ({ runner, glob }) => `TEST_PASSES runs ${glob} under "${runner}"; package.json does not`
+    ),
+  ];
+}
+
 /** Sums the six lcov counters across a set of file records.
  *  @complexity O(n). */
 function total(records) {
@@ -95,9 +171,8 @@ function total(records) {
 }
 
 /**
- * Which declared floors this area misses. Only the axes the area actually configures are checked —
- * the renderer+contracts area deliberately sets no `funcs` floor, because its measured 22.54% would
- * lock in the badness and make it invisible, which is the disease rather than the cure.
+ * Which declared floors this area misses. Only the axes the area actually configures are checked:
+ * an axis with no floor is still reported, but never fails.
  *
  * @complexity O(1).
  */

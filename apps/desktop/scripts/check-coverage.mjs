@@ -26,11 +26,11 @@
  * ## Runners and areas are both split by directory, never by extension
  *
  * Main-process tests run on bare node and only renderer and contracts tests run under tsx, because
- * tsx corrupts lcov counters (see {@link PASSES}). The areas are cut the same way, through
- * `excludeDirs`. Renaming a main-process file from `.js` to `.ts` therefore moves it between
- * neither runners nor floors.
+ * tsx corrupts lcov counters (see `TEST_PASSES` in `../src/coverage-floors.js`). The areas are cut
+ * the same way, through `excludeDirs`. Renaming a main-process file from `.js` to `.ts` therefore
+ * moves it between neither runners nor floors.
  *
- * Usage: node scripts/check-coverage.mjs [--keep-lcov]
+ * Usage: node scripts/check-coverage.mjs
  * Exit codes: 0 = every area at/above its floors with no undeclared unmeasured file.
  *             1 = an area failed, the suite failed or matched no test file, or the config is
  *                 missing/unusable.
@@ -41,28 +41,16 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { evaluateArea, formatArea, isInExcludedDir, isMeasurableSource } from "../src/coverage-floors.js";
+import {
+  TEST_PASSES,
+  evaluateArea,
+  formatArea,
+  isInExcludedDir,
+  isMeasurableSource,
+} from "../src/coverage-floors.js";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG_PATH = path.join(DESKTOP_ROOT, "coverage-floors.json");
-
-/**
- * The two test passes, split by DIRECTORY. Probe P4 (2026-09-12,
- * `ADS-memory/.local-artifacts/desktop-ts/phase0-probes.md`): after a `.js`-to-`.ts` rename, bare
- * node reproduces the file's lcov image exactly, but tsx does not. esbuild's `__name` helper adds a
- * fake function and branch per file and lands hits on the wrong lines. So every main-process test,
- * `.js` or `.ts`, runs on bare node. Only the renderer and contracts `.test.ts` files, whose `.js`
- * specifiers need bundler resolution, run under tsx. `package.json`'s `test` script carries the
- * same split and must change with this list.
- *
- * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
- * exits 0 reporting "tests 0", with no error. Only a literal path errors. So {@link runSuite} refuses
- * to run a pass whose globs match no test file at all.
- */
-const PASSES = [
-  { id: "node", nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
-  { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
-];
 
 /** Every production file under `dir` whose extension is in `exts` and that is not in one of
  *  `excludeDirs`, repo-relative to the desktop root, sorted. This is the DENOMINATOR — the lcov
@@ -160,7 +148,7 @@ function mergeCoverage(lcovPaths) {
  *  @complexity O(p) in passes, plus the suites' own cost. */
 function produceCoverage(config, lcovPaths) {
   const includes = config.coverageInclude ?? [];
-  const results = PASSES.map((pass, i) => ({ id: pass.id, ...runSuite(pass, includes, lcovPaths[i]) }));
+  const results = TEST_PASSES.map((pass, i) => ({ id: pass.id, ...runSuite(pass, includes, lcovPaths[i]) }));
   if (results.every((r) => r.status === 0)) return true;
   const summary = results.map((r) => `${r.id}=${r.message ?? r.status}`).join(", ");
   process.stderr.write(
@@ -202,7 +190,7 @@ function main() {
   }
   const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
   const tmp = mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cov-"));
-  const lcovPaths = PASSES.map((pass) => path.join(tmp, `${pass.id}.lcov`));
+  const lcovPaths = TEST_PASSES.map((pass) => path.join(tmp, `${pass.id}.lcov`));
 
   const suitePassed = produceCoverage(config, lcovPaths);
   const areasFailed = evaluateAreas(config, mergeCoverage(lcovPaths));
