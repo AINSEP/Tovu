@@ -227,3 +227,26 @@ test("AC-18 (REQ-02): the literal appears in no non-test module under apps/websi
   walk(srcRoot);
   assert.deepEqual(offenders.sort(), ["features/settings/site-title.ts"]);
 });
+
+test("AC-19 (REQ-02): a Liquid template's {{ site.title }} renders the owner-set title in the templated preview", async (t) => {
+  const site = await bootSite(t);
+  // The built-in `fashion-modern` home template writes `{{ site.title }}` into its own header brand
+  // and footer, which no head contributor or chrome renderer produces, so these strings come only
+  // from the Liquid data the template reads.
+  const preview = async (): Promise<string> => {
+    const res = await fetch(`${site.baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie: site.cookie } });
+    assert.equal(res.status, 200, `the templated preview must render, got ${res.status}`);
+    return res.text();
+  };
+  const liquidBrand = (title: string) => `<a class="brand" href="/">${title}</a>`;
+
+  // Before the owner write the template shows the no-owner-title value, so the check below cannot
+  // pass on a template that never reads the setting.
+  assert.ok((await preview()).includes(liquidBrand(IN_MEMORY_WORKSPACE_NAME)), "Liquid brand before the owner write");
+
+  assert.equal((await putSiteTitle(site, OWNER_TITLE)).status, 200, "the owner write must be accepted");
+  const html = await preview();
+  assert.ok(html.includes(liquidBrand(OWNER_TITLE)), "Liquid header brand renders the owner-set title");
+  assert.ok(html.includes(`&copy; ${OWNER_TITLE}`), "Liquid footer renders the owner-set title");
+  assert.ok(!html.includes(liquidBrand(IN_MEMORY_WORKSPACE_NAME)), "the no-owner-title value must be gone from the Liquid brand");
+});

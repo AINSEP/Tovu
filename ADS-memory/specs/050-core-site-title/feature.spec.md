@@ -10,14 +10,19 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-050 |
-| version | 0.2.0 |
+| version | 0.3.0 |
 | status | APPROVED (owner, 2026-09-12) |
-| content_hash | sha256:371678360d9b1eab9df4e005758ed8ea4203c0aefaec382a145c8be48960b02d |
+| content_hash | sha256:5781c18b34a06f9f9c69fae007d3d7e444d4d94fd6666167c7c2af86967e8584 |
 | feature_name | FEAT-050-core-site-title |
 | last_edited | 2026-09-12T00:00:00Z |
 | owner | Leona Burime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
+
+## Changelog
+
+- **v0.3.0 (2026-09-12, owner decision).** Step 2 (`33d45292`) shipped three defects the owner asked to fix in the same feature rather than as follow-ups: a duplicated site renders its source's pinned/legacy title instead of its own name (REQ-12); a `config.json` display-name edit needs a server restart to render (REQ-13); a clean container deploy that hydrates from the committed `content.seed.db` is treated as pre-existing and pinned to `Tovu Demo Site` instead of rendering its own name (REQ-14). All three are re-verified against the working tree in this pass — see each REQ's own citations. `OQ-01` is resolved as part of REQ-13. No REQ, AC, or INV from v0.2.0 is removed; REQ-06 and NC-3 gain a cross-reference to the two paths (REQ-12, REQ-14) that must not let a pin or its marker survive a database copy.
+- **v0.2.0 (2026-09-12, owner decision).** NC-1/NC-2/NC-3 resolved; Step 1 and Step 2 (`33d45292`) implemented and merged.
 
 > **[NEEDS CLARIFICATION] vs Open Questions — use the right one:**
 >
@@ -131,6 +136,8 @@ An owner cannot change the title. Every new site's workspace record is named `"L
 - The "no owner-set title" behavior: `Tovu Demo Site` for pinned pre-existing sites, the site display name (falling back to `workspaces.name`) for new sites (NC-1 = A, NC-2 = B).
 - Wiring-order guarantees and the tests that prove them.
 - Updating `seo-site-serving.test.ts:179-183` to assert the resolved title.
+- Resetting the legacy-title pin and its marker row when a workspace's whole database is copied — `duplicateSite` (REQ-12) and the container-deploy seed `seed-site.mjs` publishes (REQ-14) — so neither copy renders as though it existed before this feature shipped.
+- Making the new-site display-name fallback (REQ-05) track a `config.json` edit without a server restart (REQ-13).
 
 **Out of scope:**
 - A dedicated admin UI field for the site title (OQ-02).
@@ -166,6 +173,14 @@ An owner cannot change the title. Every new site's workspace record is named `"L
 - **REQ-09:** *Degradation.* If the resolver's reads throw or return a non-string or blank value, the page still renders with HTTP 200 and a non-empty title. The title is the "no owner-set title" value for that workspace, or `Tovu Demo Site` if that value also cannot be resolved. Neither the settings read nor the name read may turn a public page into `<h1>Site error</h1>`.
 - **REQ-10:** *Wiring order.* REQ-01, REQ-02, REQ-06 (if applicable), and REQ-07 land in a single commit. See Wiring Order for the only permitted split.
 - **REQ-11:** *Observability.* The preservation mechanism reports counts of pinned, skipped, and failed workspaces, and logs each failed workspace id without aborting boot (precedent `migration.ts:77-84`, `:220-227`). Each pin appends an ordinary `op='set'` revision.
+  - See REQ-12 and REQ-14 for the two paths — duplicating a site, and publishing a container-deploy seed — that copy a database file wholesale and must not let this pin (or the `site_title_preexisting_workspaces` marker it depends on) survive that copy as if it had been evaluated against the new database's own history.
+- **REQ-12:** *Duplicate title reset (owner decision, 2026-09-12).* `duplicateSite` (`platform/site-dir/duplicate-site.ts:227-230`) copies the source's entire `content.db` byte-for-byte via `duplicateContentDb`/`VACUUM INTO` (`duplicate-content-db.ts`), purging only the three chat tables (`CHAT_TABLE_NAMES`). Neither `setting_values_workspace` (the pin's actual value, `schema.ts:263-279`) nor `site_title_preexisting_workspaces` (the marker, `schema.ts:392`) is purged, so a duplicate of a pinned pre-existing workspace inherits both, and `resolveSiteTitle`'s workspace-layer tier (`site-title.ts:249-250`) renders the source's pinned `Tovu Demo Site` instead of the duplicate's own `config.json` name (`duplicate-site.ts:222`, `resolvedName`) — confirmed defect.
+  - After `duplicateContentDb` completes and before `.site-meta.json` is written, `duplicateSite` deletes the target's `site_title_preexisting_workspaces` row for the copied workspace id, if one exists, and deletes the target's `setting_values_workspace` row for `core.site`/`title` only when that row's `updated_by` equals `system-settings-migration` (`seed.ts:335`, the pin's own attribution via `allowSystemPin`, `site-title.ts:130`).
+  - **Resolution of the "does an owner-set title travel?" question:** yes, unchanged. A row whose `updated_by` is anything other than `system-settings-migration` is an owner's own explicit choice and is left alone, the same as the source's posts and pages — only the automatic legacy pin is stripped. This reuses `updated_by`, a column REQ-06's own write already populates, needing no new column or query surface.
+- **REQ-13:** *Live display name (owner decision, 2026-09-12; resolves OQ-01).* `readSiteDisplayName` (`server/runtime/composition/deps.ts:587-594`) is called exactly once, when the composition root is built (`deps.ts:864`), and its return value is captured as a plain field on `ResolveSiteTitleDeps.siteDisplayName` (`site-title.ts:220`) / `RouteDeps` (`server/routes/types.ts:1086`) — confirmed by `site-title.ts:217-220`'s own doc: "a config rename shows after a restart." A workspace with no owner-set title and no pin (REQ-05) must instead resolve `config.json` `name` as it stands at the time of each resolution, so an edit to it takes effect on the next render, with no server restart, subject only to the same response-cache window REQ-05 already tolerates (EC-06). Architect chooses the mechanism (a live per-resolution read, or a cache invalidated on change) — this REQ states the observable behavior only.
+- **REQ-14:** *Seed-deploy freshness (owner decision, 2026-09-12).* `development/scripts/seed-site.mjs` builds the committed `sites/<site>/content.seed.db` from a developer's own live `content.db`, which — on `tovu-com`, the site every container deploy ships from — has already run migration `0063` and already been pinned by `preserveLegacySiteTitles` during that developer's own boot (E2's "Shipped `sites/tovu-com/content.seed.db`" evidence). `PRUNE_TABLES` (`seed-site.mjs:48-98`) drops `setting_revisions` (the audit trail) but not `setting_values_workspace` (the pin's actual, already-resolved value) or `site_title_preexisting_workspaces` (the marker, already carrying a non-NULL `preserved_at` for that workspace). `hydrateContentDbFromSeed` (`platform/db/sqlite/hydrate-content-db-from-seed.ts:95-116`) copies that file byte-for-byte into a fresh container's `content.db` whenever one is absent — i.e. on every clean deploy — so `resolveSiteTitle`'s workspace-layer tier renders the developer's own pinned `Tovu Demo Site` for every clean deploy, never that deploy's own site display name — confirmed defect.
+  - Before `seed-site.mjs` publishes the scratch copy (`publishSeed`, after `pruneTransientTables`/`scrubPii`, before `vacuumAndVerify`), it deletes every row of `site_title_preexisting_workspaces` and every `setting_values_workspace` row for `core.site`/`title` whose `updated_by` equals `system-settings-migration` — the same reset REQ-12 performs, over the same two tables, for the same reason: a shipped seed's own workspace(s) must never claim to have existed before this feature's migration ran, because `migrate()` already recorded them as such once, on the machine that produced the seed, not on the deploy that will boot from it.
+  - **Out of scope / already correct:** `initSite`'s starter-template path (`platform/site-dir/read-template.ts:77`, `content/templates/starter/seed-content.json`) inserts its seed workspace via `seedContentDb` (`content-db.ts:93`) strictly AFTER `migrate()` (`content-db.ts:86`) runs on a brand-new database, so the marker migration records zero pre-existing workspaces for it already — NC-3 = A already handles that path correctly. REQ-14 is scoped to the container-deploy path (`content.seed.db` / `hydrateContentDbFromSeed`) only, the one path that ships an already-migrated database file rather than inserting into a freshly-migrated empty one.
 
 ---
 
@@ -213,6 +228,8 @@ Rejected as discriminators: `createdAt` (identical on every starter-seeded site)
 
 **Decision (owner, 2026-09-12): Option A.** A schema migration records the ids of every workspace row that exists when it runs; only those ids are pinned. This needs a migration in both the SQLite and Postgres dialects (Dependencies table), and was the one item flagged "Ask before" (Agent Directives) — the owner's answer covers that ask.
 
+**Amendment (owner, 2026-09-12, v0.3.0):** this marker's guarantee is about the database FILE `migrate()` actually ran against. It says nothing about a byte-for-byte COPY of that file becoming a different database's starting point — a `duplicateSite` target (REQ-12) or a hydrated deploy container (REQ-14). Both copy the marker table (and the pin's resolved value) verbatim, which reads as "this workspace existed before the feature shipped" even when, from the copy's own perspective, it did not. REQ-12 and REQ-14 close that gap by resetting both tables on the copy, not by changing what NC-3 = A means for the database migration was actually run against.
+
 ---
 
 ## Behavior Summary
@@ -228,6 +245,10 @@ Fixture names: pre-existing site P; new site N created with `--name "My Site"` (
 | P or N, owner set `Acme Field Notes` | `Acme Field Notes` |
 | P, owner reset after pin | P's config name (owner-initiated) |
 | Any site, entry route S5 | Entry title, unchanged |
+| P duplicated as D with `name: "Client B"`, no owner title on P | D renders `Client B` — the pin is not copied (REQ-12) |
+| P duplicated as D, P's owner set `Acme Field Notes` | D renders `Acme Field Notes` — an explicit value travels (REQ-12) |
+| A fresh container deploy hydrated from `content.seed.db` | The deploy's own `config.json` name, never `Tovu Demo Site` (REQ-14) |
+| P, `config.json` `name` edited while the server keeps running | The new name renders on the next request, no restart (REQ-13) |
 
 ---
 
@@ -294,6 +315,12 @@ Fixture notes:
 - **AC-17 (REQ-11) [P2]:** Given two pre-existing workspaces where the pin write throws for one, when preservation runs, then boot completes and the result reports `pinned=1`, `failed=[<that id>]`. The failed workspace still renders `<title>Tovu Demo Site</title>` (REQ-07).
 - **AC-18 (REQ-02) [P2]:** Given the feature has landed, when the non-test source under `apps/website/src` is searched for the literal `Tovu Demo Site`, then it appears only in the resolver and preservation modules.
 - **AC-19 (REQ-02) [P2]:** Given an owner-set title `Acme Field Notes` and a Liquid template that renders `{{ site.title }}`, when the templated preview renders it, then the output contains `Acme Field Notes`.
+- **AC-20 (REQ-12) [P1]:** Given a pre-existing workspace pinned to `Tovu Demo Site` with no owner-set title, when it is duplicated with `name: "Client B"`, then the duplicate's `setting_values_workspace` has no row for `core.site`/`title`, its `site_title_preexisting_workspaces` has no row for the copied workspace id, and `GET /products` on the duplicate contains `<title>Client B</title>`.
+- **AC-21 (REQ-12) [P1]:** Given a workspace whose owner explicitly set `core.site.title` to `Acme Field Notes` (a `set` attributed to a real principal, not `system-settings-migration`), when it is duplicated, then the duplicate's `setting_values_workspace` still has that row and `GET /products` on the duplicate contains `<title>Acme Field Notes</title>`.
+- **AC-22 (REQ-13) [P1]:** Given a running server serving a workspace with no owner-set title and no pin, when `config.json`'s `name` is edited on disk and, with no server restart, a request for `GET /products` arrives after any existing response cache for it has expired, then the response contains the NEW name in `<title>`, not the name that was configured at boot.
+- **AC-23 (REQ-14) [P1]:** Given `seed-site.mjs` is run against a source `content.db` whose workspace was already pinned to `Tovu Demo Site`, when the published `content.seed.db` is inspected, then its `site_title_preexisting_workspaces` table has zero rows and its `setting_values_workspace` table has no row for `core.site`/`title` with `updated_by = 'system-settings-migration'`.
+- **AC-24 (REQ-14) [P1]:** Given a fresh container that hydrates `content.db` from that published `content.seed.db` (`hydrateContentDbFromSeed`), when the composition root boots and `GET /products` is fetched, then the response contains that deploy's own `config.json` `name` in `<title>`, and never `Tovu Demo Site`.
+- **AC-25 (REQ-12, REQ-14) [P2]:** Given the reset step is skipped — `duplicateSite` never deletes the copied marker/pin rows, or `seed-site.mjs` never strips them before publishing — then AC-20 and AC-23 respectively fail. This proves both tests detect a missing reset and are not passing by coincidence (mirrors AC-13's Wiring Order proof for REQ-10).
 
 ---
 
@@ -305,12 +332,13 @@ Fixture notes:
 - **INV-04:** A public page must never render an empty `<title></title>` or more than one `<title>` because of this feature.
 - **INV-05:** The `core.site.title` definition must never exist in a commit that lacks the REQ-02 reads (REQ-10).
 - **INV-06:** Entry-route titles (S5) must never change because of this feature.
+- **INV-07 (added v0.3.0):** A workspace produced by `duplicateSite`, or by hydrating `content.db` from a published `content.seed.db`, must never carry a `system-settings-migration`-attributed `core.site.title` value or an already-resolved `site_title_preexisting_workspaces` row inherited from the database it was copied from. An owner's own explicit value (any other `updated_by`) is exempt and travels normally, the same as the workspace's other content.
 
 ---
 
 ## Edge Cases
 
-- **EC-01:** The owner renames the workspace or the site display name. Expected: an explicit or pinned title is unaffected. A site that uses the name default follows OQ-01.
+- **EC-01:** The owner renames the workspace or the site display name. Expected: an explicit or pinned title is unaffected. A site that uses the name default tracks the rename live — both `workspaces.name` (already a per-request repo read, `site-title.ts:264-265`) and `config.json` `name` (REQ-13, resolving OQ-01) — with no server restart needed for either source.
 - **EC-02:** A database holds several workspaces (created through admin `/workspaces`). Expected: per NC-3 = A, every workspace row present at migration time is pinned, including ones the public site does not render. That is harmless and keeps REQ-06 uniform.
 - **EC-03:** An in-memory composition root (dev and tests) always seeds fresh. Expected: it is treated as a new site, and the fixture's expected titles follow AC-06. `seo-site-serving.test.ts:179-183` is updated to the resolved value, not deleted.
 - **EC-04:** The SEO contributor throws on an entry route (S5-fallback). Expected: `pageShell` renders `<post.title> — <resolved title>`. For a pre-existing site that is `Welcome to Tovu — Tovu Demo Site`, unchanged.
@@ -318,6 +346,7 @@ Fixture notes:
 - **EC-06:** The owner changes the title while a CDN or browser holds a cached page. Expected: the old title may be served for up to 60 s plus 300 s stale-while-revalidate (`products.ts:33`). No purge is in scope.
 - **EC-07:** The owner sets the title to exactly `Tovu Demo Site` on a pinned site. Expected: no rendered change; it appends one ordinary `set` revision.
 - **EC-08:** A future code change edits the definition's default (`reconcileDefinitionDefault`, only if `ownerKind: "core"`). Expected: pinned and owner-set sites are unaffected, because the workspace layer wins. Only sites on the default move, which must be called out in that future change's review.
+- **EC-09 (added v0.3.0):** A source workspace being duplicated, or a workspace shipped inside `content.seed.db`, has BOTH a `system-settings-migration` pin row and a later, unresolved edit racing the copy/publish step. Expected: REQ-12/REQ-14 delete by `updated_by` value at the moment they run, the same read-then-write discipline `pinOneWorkspace` already uses (`site-title.ts:182-199`); a row that has already been overwritten by an explicit owner action before the delete runs no longer matches `system-settings-migration` and is correctly left alone.
 
 ---
 
@@ -330,12 +359,14 @@ Fixture notes:
 | Drizzle migrations, SQLite and Postgres (NC-3 = A) | Once-per-database pre-existing marker | Migration fails | Boot fails the same way any schema migration failure does today; no partial pin |
 | Site `config.json`, falling back to `RouteDeps.workspaceRepo` (NC-2 = B) | The name for the no-owner-title value on new sites | Read fails | REQ-09 fallback to `Tovu Demo Site` |
 | Page-head fold (`page-head.ts:165-188`) and `pageShell` (`render.ts:2709-2710`) | `<title>` emission and single-title suppression | Contributor throws | Existing EC-04 path |
+| `duplicate-site.ts`/`duplicate-content-db.ts` (REQ-12, added v0.3.0) | The site-copy path a title-pin reset must hook into | The reset delete throws | Surfaces the same way any other `duplicateSite` write failure does today — `cleanupAndRethrow` (REQ-12 introduces no new failure-swallowing path) |
+| `development/scripts/seed-site.mjs` / `content.seed.db` (REQ-14, added v0.3.0) | The container-deploy seed a title-pin reset must strip before publish | The reset delete throws | `main()` already fails loud and never calls `publishSeed` (mirrors the existing `findMissingSeedBlobs` guard) |
 
 ---
 
 ## Open Questions
 
-- **OQ-01:** Does the name-based default track renames (resolved at render time) or snapshot the name when the workspace is first seen? This spec proposes tracking; a render-time read is available (`types.ts:1290`). Owner: Leona Burime. Resolve by: 2026-09-19.
+- **OQ-01:** Does the name-based default track renames (resolved at render time) or snapshot the name when the workspace is first seen? This spec proposes tracking; a render-time read is available (`types.ts:1290`). **RESOLVED 2026-09-12 (owner): tracks live for both sources.** `workspaces.name` already did (a per-request repo read, `site-title.ts:264-265`); `config.json` `name` did not (boot-time snapshot, confirmed defect) and is fixed by REQ-13.
 - **OQ-02:** Is a dedicated "Site title" admin field needed in this feature, or is the generic settings route plus agent tools enough for v1? Owner: Leona Burime. Resolve by: 2026-09-19.
 - **OQ-03:** Should the definition be `ownerKind: "core"` (code-owned default, reconcilable) or `"site"` (operator-owned, like `site.seo.*`)? This is an Architect decision, bounded by EC-08. Owner: Software Architect. Resolve by: 2026-09-19.
 
@@ -351,7 +382,7 @@ Fixture notes:
 | IV — Anti-Abstraction Gate | COMPLIES | No new port; the resolver is a function over existing ports. |
 | V — Integration-First Testing | COMPLIES | P1 ACs are asserted over HTTP against the real `createApp`; AC-10 against the real SQLite composition root. |
 | VI — Security-by-Default | COMPLIES | No new endpoint. Writes go through the existing settings route's authz. The title is HTML-escaped on output (AC-05, `page-head.ts:226`). |
-| VII — Spec Integrity | EXCEPTION (temporary) | `content_hash` not yet computed; the validator was not run under this dispatch's scope. Must be resolved before `/plan`. |
+| VII — Spec Integrity | EXCEPTION (temporary) | `content_hash` now computed by `validate_spec_package.py --update-hash` (v0.3.0; see Header Metadata). The validator still exits non-zero — missing `traceability.spec.md`/`spec-manifest.md`/`spec-dod.md` and a `status` field-format check — all out of this dispatch's scope, unchanged from v0.2.0. Must be resolved before `/plan`. |
 | VIII — Observability | COMPLIES | REQ-11 counts and logs; every pin is an audited ledger revision. |
 
 ---
@@ -361,10 +392,10 @@ Fixture notes:
 - [x] spec_id assigned and unique (049 is the highest existing number in `ADS-memory/specs/` and `ADS-memory/reports/pipeline/`)
 - [x] version set
 - [x] status APPROVED (owner, 2026-09-12)
-- [ ] content_hash computed by the provider validator (not run: dispatch limited output to this file)
+- [x] content_hash computed by the provider validator (`validate_spec_package.py --phase spec --update-hash`, v0.3.0; see Header Metadata `content_hash`); the validator's other checks still fail (see Constitution table row VII) — unrelated to the hash
 - [x] feature_name matches the folder name
-- [x] Zero `[NEEDS CLARIFICATION]` markers (NC-1, NC-2, NC-3 resolved by the owner 2026-09-12; see Clarifications Required)
-- [x] Open Questions have an owner and a date
+- [x] Zero `[NEEDS CLARIFICATION]` markers (NC-1, NC-2, NC-3 resolved by the owner 2026-09-12; REQ-12/13/14 added v0.3.0 as owner-decided fixes, not new clarifications; see Clarifications Required)
+- [x] Open Questions have an owner and a date (OQ-01 resolved 2026-09-12 via REQ-13)
 - [x] REQs testable; every REQ has at least one AC; every AC has a priority and uses Given/When/Then
 - [x] Invariants absolute; edge cases have expected behavior; Dependencies table complete
 - [x] Constitution table complete
@@ -373,7 +404,7 @@ Fixture notes:
 - [ ] `reports/pipeline/050-core-site-title/pipeline-state.md` not created: out of this dispatch's scope
 - [x] Brownfield evidence recorded (Evidence section; source report `ADS-memory/reports/2026-09-12-core-site-title-scoping.md`)
 
-**Gate result:** CLARIFICATIONS RESOLVED. All three blocking clarifications (NC-1 to NC-3) are resolved and status is APPROVED. Still outstanding before `/plan`: package companions, pipeline state, and the validator-computed `content_hash` (out of this dispatch's scope).
+**Gate result:** CLARIFICATIONS RESOLVED. All three blocking clarifications (NC-1 to NC-3) are resolved and status is APPROVED. v0.3.0 adds REQ-12/13/14 as owner-decided fixes for three confirmed Step-2 defects (duplicate title copy, config.json rename needing a restart, seed-deploy pinning) — no new clarification markers. `content_hash` is now validator-computed. Still outstanding before `/plan`: package companions and pipeline state (out of this dispatch's scope).
 
 ---
 
@@ -390,3 +421,6 @@ Ask before:
 Never:
 - Commit the `core.site.title` definition without the REQ-02 reads, preservation (REQ-06), and the REQ-07 guard in the same commit.
 - Delete the `seo-site-serving.test.ts:179-183` assertion. Update it to the resolved title.
+- Ship `content.seed.db` (via `seed-site.mjs`) without stripping the `site_title_preexisting_workspaces` marker and the `system-settings-migration`-attributed pin (REQ-14).
+- Let `duplicateSite` copy a source's `system-settings-migration`-attributed `core.site.title` pin, or its marker row, into the target without resetting them (REQ-12).
+- Strip an owner's own explicit `core.site.title` value (any `updated_by` other than `system-settings-migration`) under either REQ-12 or REQ-14 — only the automatic pin resets; explicit content travels.
