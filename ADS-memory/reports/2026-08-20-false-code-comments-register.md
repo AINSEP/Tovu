@@ -493,6 +493,52 @@ breath and only one of them had been read.
 
 ---
 
+### O6. `apps/desktop/src/tovu-server.js` (lines ~180-181) — "no `tsx` of its own", asserted as "confirmed"
+
+The comment reads: `...for any cwd still inside the repo (confirmed: works from apps/desktop/, whose own
+node_modules has no tsx of its own)...`
+
+False. `apps/desktop` does have its own `tsx` — it is a direct devDependency at
+`apps/desktop/package.json:28`, and the resolution the comment describes lands *inside* `apps/desktop`,
+not at the repo root:
+
+```
+$ ls -d apps/desktop/node_modules/tsx
+apps/desktop/node_modules/tsx
+$ node -e '...createRequire(".../apps/desktop/src/x.js").resolve("tsx")'
+/Users/la/Programming/Tovu/apps/desktop/node_modules/tsx/dist/loader.mjs
+```
+
+Failure shape: **over-broad guarantee** dressed as reproduction. The word "confirmed" is doing the
+damage — it was almost certainly true when written (before `tsx` was added to this package) and was
+never re-checked. The parenthetical is the load-bearing half of an argument about spawn-time module
+resolution, so a reader trusting it would reason about the wrong `node_modules`.
+
+Note the same file now contradicts itself: lines 23-24 correctly state the walk-up reaches
+`apps/desktop/node_modules/tsx`. Fix the ~180 prose to match; behavior is already correct and was
+preserved byte-identically through the ESM conversion (`2ddd0005`).
+
+Found by the ESM-conversion subagent, verified independently by the coordinator, 2026-09-11. Left
+unfixed (out of that task's scope).
+
+---
+
+### NOT a false comment — recorded so it is not "re-found"
+
+`apps/desktop/src/site-process-registry.test.js:227` states *"there is no `requestSingleInstanceLock` in
+`main.js`"*. A subagent reported this as false on 2026-09-11, having read it as asserting the symbol's
+**presence**. It asserts its **absence**, and the absence is real:
+
+```
+$ grep -c "requestSingleInstanceLock" apps/desktop/main.js
+0
+```
+
+The comment is correct and the surrounding live-sibling reasoning it supports is sound. Recorded here
+only because a negative-form comment ("there is no X here") is an easy thing to misread as a positive
+claim — check the polarity before filing one.
+
+
 ## Related, not a code comment
 
 `ADS-memory/reports/.../theme-authoring-guide.md` §6's "3-attribute markers" claim is recorded
