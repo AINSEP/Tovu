@@ -36,6 +36,21 @@ files:
   - "!electron-builder.yml"
   - "!tsconfig*.json"
   - "!vite.config.mts"
+  # 133 MB of Bun runtimes and 2 MB of Rollup natives, shipped into `app.asar.unpacked` — 16% of the
+  # whole 849 MB bundle — for a toolchain the app never runs. They are `optionalDependencies` of
+  # `@modelcontextprotocol/ext-apps@0.3.1` (nested under `@mcp-ui/server`, reached from
+  # `@jini-ai/chat`), which uses Bun only to build and test ITSELF: every `bun` reference in the
+  # published package is in its own `package.json` scripts (`build`, `test`, `postinstall`,
+  # `examples:*`), and its shipped `dist/` contains none. `stage-payload-lib.js`'s
+  # `EXCLUDED_PACKAGES` already keeps both out of the staged PAYLOAD for exactly this reason; these
+  # two lines apply the same finding to the SHELL's own bundle, which has its own node_modules copy.
+  #
+  # Negations in `files:` do reach node_modules: `getNodeModuleFileMatcher`
+  # (app-builder-lib/out/fileMatcher.js:177-220) builds the node_modules matcher from the `!`
+  # patterns in `files:` ONLY, then prepends `**/*`. Positive patterns above are ignored there —
+  # which is why `node_modules` ships at all despite never being named in this list.
+  - "!node_modules/@oven/**/*"
+  - "!node_modules/@rollup/**/*"
 
 # The runnable Tovu tree the shell spawns as a child (`src/tovu-server.js`), assembled by
 # `scripts/stage-payload.mjs`. It lands OUTSIDE app.asar because it carries native `.node` addons

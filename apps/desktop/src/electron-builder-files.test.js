@@ -103,3 +103,48 @@ test("the files: list still excludes test files it is meant to exclude", () => {
   assert.equal(shipsPath(patterns, "src/sites-mcp-registration.test.js"), false);
   assert.equal(shipsPath(patterns, "src/sites-mcp-registration.js"), true);
 });
+
+/**
+ * Whether `relPath` under `node_modules/` survives `patterns`.
+ *
+ * node_modules is filtered by a SECOND, differently-built matcher —
+ * `getNodeModuleFileMatcher` (`app-builder-lib/out/fileMatcher.js:177-220`) — which keeps only the
+ * `!` entries of `files:` and then `prependPattern("**{{/}}*")`. Positive patterns are dropped
+ * entirely, which is why `node_modules` ships despite never being named in `files:`, and why a
+ * negation is the only lever there is over it. {@link shipsPath} mirrors the MAIN matcher and would
+ * answer this question wrongly.
+ *
+ * @complexity O(n) in the pattern count.
+ */
+function shipsNodeModulePath(patterns, relPath) {
+  return shipsPath(["**/*", ...patterns.filter((pattern) => pattern.startsWith("!"))], relPath);
+}
+
+test("the packaged shell does NOT ship the Bun runtimes or the Rollup natives", () => {
+  const patterns = configuredFilePatterns();
+  // Both @oven copies npm resolved for this host: the plain build and the no-AVX2 "baseline" one,
+  // 67 MB each. They landed in app.asar.unpacked, so they cost their full size installed.
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@oven/bun-darwin-x64/bin/bun"), false);
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@oven/bun-darwin-x64-baseline/bin/bun"), false);
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@oven/bun-darwin-x64/package.json"), false);
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@rollup/rollup-darwin-x64/rollup.darwin-x64.node"), false);
+});
+
+test("those exclusions are narrow — the packages the shell actually loads still ship", () => {
+  const patterns = configuredFilePatterns();
+  // @jini-ai/chat is apps/desktop's ONLY production dependency; excluding it would empty the app.
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@jini-ai/chat/dist/index.js"), true);
+  // A sibling scope whose name shares the `@` prefix but nothing else.
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@mcp-ui/server/dist/index.js"), true);
+  // Not `@oven`: a package whose name merely starts with the same letters.
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@ovenlike/thing/index.js"), true);
+});
+
+test("the node_modules matcher is not the main matcher — proved on the same patterns", () => {
+  // Without this, `shipsNodeModulePath` could be `shipsPath` in disguise and the assertions above
+  // would be testing the wrong matcher. `files:` names no positive node_modules pattern, so the
+  // MAIN matcher refuses every node_modules path while the node_modules matcher admits it.
+  const patterns = configuredFilePatterns();
+  assert.equal(shipsPath(patterns, "node_modules/@jini-ai/chat/dist/index.js"), false);
+  assert.equal(shipsNodeModulePath(patterns, "node_modules/@jini-ai/chat/dist/index.js"), true);
+});
