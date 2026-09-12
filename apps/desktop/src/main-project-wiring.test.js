@@ -142,3 +142,21 @@ test("describeRejectedDefault answers the 'unreadable' verdict the safe classifi
   assert.match(body.slice(0, body.indexOf("\n}")), /"unreadable"/,
     "describeRejectedDefault must handle the unreadable kind before it reaches .missing.join()");
 });
+
+test("the sites home window declares width AND height minimums, tied to the stylesheet's only breakpoint", () => {
+  // A window with no minimum can be dragged to a width the stylesheet has no rule for: `app.css`
+  // declares exactly one width breakpoint (`@media (max-width: 680px)`) and nothing below it, so
+  // anything narrower is undefined layout rather than a small layout.
+  //
+  // Scoped to `openSitesHomeWindow`'s own body, not the whole file — `createWindow` builds a
+  // second BrowserWindow at the same 1360x900 for a SITE's surfaces, whose responsive behaviour
+  // this shell does not own, and a file-wide match would pass on either one's options.
+  const body = source.slice(source.indexOf("function openSitesHomeWindow()"));
+  const own = body.slice(0, body.indexOf("\nfunction "));
+  assert.match(own, /minWidth: (\d+)/, "openSitesHomeWindow must set a minWidth");
+  assert.match(own, /minHeight: (\d+)/, "openSitesHomeWindow must set a minHeight");
+  // Above the 680px breakpoint, not merely at it: the operator chat is a grid column that narrows
+  // the content pane, and that breakpoint keys off the viewport, so it never accounted for it.
+  const minWidth = Number(/minWidth: (\d+)/.exec(own)[1]);
+  assert.ok(minWidth > 680, `minWidth must clear app.css's 680px breakpoint, got ${minWidth}`);
+});

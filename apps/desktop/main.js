@@ -431,6 +431,23 @@ function openSitesHomeWindow() {
   const window = new BrowserWindow({
     width: 1360,
     height: 900,
+    /**
+     * Floors, not a preference. `app.css` declares exactly ONE width breakpoint — `@media
+     * (max-width: 680px)`, which stacks the create-website form and top-aligns `.main__head` —
+     * and nothing below that. 680 is therefore the narrowest width the stylesheet has an opinion
+     * about, and the honest floor is at or above it rather than a round number.
+     *
+     * 960 rather than 680 because the operator chat is a grid COLUMN, not an overlay
+     * (`.runner-chat-pane`, `width: min(27rem, 40vw)`) — it narrows `.main` instead of covering
+     * it, and the 680 breakpoint keys off the VIEWPORT, so it never accounted for the pane. With
+     * the pane open at 960 the content column is 576px: `.main__head`'s title plus its three
+     * nowrap buttons still fit, and `.grid`'s `minmax(214px, 1fr)` still auto-fills two columns.
+     * At 680 with the pane open the content column is 408px and that header row overflows.
+     *
+     * Derived from the stylesheet's own arithmetic, not measured in a live window.
+     */
+    minWidth: 960,
+    minHeight: 600,
     title: "Tovu",
     show: !SELFTEST,
     webPreferences: {
