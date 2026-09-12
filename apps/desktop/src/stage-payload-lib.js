@@ -109,6 +109,56 @@ export function stageTransitiveDependencies({ roots, outDir }) {
   return count;
 }
 
+export function stagedPackageDirs(modulesDir) {
+  return readdirSync(modulesDir)
+    .filter((entry) => !entry.startsWith("."))
+    .flatMap((entry) => {
+      const full = path.join(modulesDir, entry);
+      return entry.startsWith("@") ? readdirSync(full).map((scoped) => path.join(full, scoped)) : [full];
+    });
+}
+
+/**
+ * Every declared dependency of every staged package must resolve INSIDE the staged tree.
+ *
+ * Without this the tree can ship incomplete and still pass every local test: `staging/` sits inside
+ * this repo, so Node's upward walk quietly satisfies a missing import from the repo's OWN
+ * `node_modules`. The `.app` only breaks once it is moved somewhere else, which is every real
+ * install. A static check is the honest guard, because no in-repo runtime test can distinguish
+ * "resolved from the bundle" from "resolved from an ancestor".
+ *
+ * Deliberately excluded packages are exempt — they are absent on purpose, not by accident.
+ *
+ * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.mjs`'s module-level
+ * constant of the same name) so a test can point it at a throwaway directory.
+ *
+ * Throws a plain `Error` on an incomplete closure, rather than calling
+ * `scripts/stage-payload.mjs`'s own `fail()` (which writes to stderr and calls `process.exit(1)`) —
+ * `process.exit` inside a function under test kills the test runner itself. The script's own call
+ * site catches this and forwards the same message to `fail()`, so ITS observable behavior — stderr
+ * text, exit code — is unchanged; only how the message gets there changed.
+ *
+ * @throws {Error} listing every `pkg -> dep` pair that did not resolve.
+ */
+export function assertClosureComplete({ outDir }) {
+  const modulesDir = path.join(outDir, "node_modules");
+  const missing = [];
+  for (const packageDir of stagedPackageDirs(modulesDir)) {
+    for (const dep of declaredDependencies(packageDir)) {
+      if (isExcluded(dep)) continue;
+      const hoisted = path.join(modulesDir, dep, "package.json");
+      const nested = path.join(packageDir, "node_modules", dep, "package.json");
+      if (existsSync(hoisted) || existsSync(nested)) continue;
+      missing.push(`${path.relative(modulesDir, packageDir)} -> ${dep}`);
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `staged tree is missing ${missing.length} declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${missing.join("\n  ")}`
+    );
+  }
+}
+
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */
 function isWalkable(entry) {

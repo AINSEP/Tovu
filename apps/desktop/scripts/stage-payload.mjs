@@ -45,7 +45,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, re
 
 import { shellStalenessFailure } from "../src/shell-staleness.js";
 import {
-  declaredDependencies,
+  assertClosureComplete,
   isExcluded,
   newestMtime,
   stageDir,
@@ -202,43 +202,6 @@ function assertNoSymlinks(dir) {
   }
 }
 
-function stagedPackageDirs(modulesDir) {
-  return readdirSync(modulesDir)
-    .filter((entry) => !entry.startsWith("."))
-    .flatMap((entry) => {
-      const full = path.join(modulesDir, entry);
-      return entry.startsWith("@") ? readdirSync(full).map((scoped) => path.join(full, scoped)) : [full];
-    });
-}
-
-/**
- * Every declared dependency of every staged package must resolve INSIDE the staged tree.
- *
- * Without this the tree can ship incomplete and still pass every local test: `staging/` sits inside
- * this repo, so Node's upward walk quietly satisfies a missing import from the repo's OWN
- * `node_modules`. The `.app` only breaks once it is moved somewhere else, which is every real
- * install. A static check is the honest guard, because no in-repo runtime test can distinguish
- * "resolved from the bundle" from "resolved from an ancestor".
- *
- * Deliberately excluded packages are exempt — they are absent on purpose, not by accident.
- */
-function assertClosureComplete() {
-  const modulesDir = path.join(outDir, "node_modules");
-  const missing = [];
-  for (const packageDir of stagedPackageDirs(modulesDir)) {
-    for (const dep of declaredDependencies(packageDir)) {
-      if (isExcluded(dep)) continue;
-      const hoisted = path.join(modulesDir, dep, "package.json");
-      const nested = path.join(packageDir, "node_modules", dep, "package.json");
-      if (existsSync(hoisted) || existsSync(nested)) continue;
-      missing.push(`${path.relative(modulesDir, packageDir)} -> ${dep}`);
-    }
-  }
-  if (missing.length > 0) {
-    fail(`staged tree is missing ${missing.length} declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${missing.join("\n  ")}`);
-  }
-}
-
 /**
  * `dist/runtime-manifest.json` is the root build's own output (`emit-dist-package-json.mjs`, derived
  * from the root `package.json`'s `bin.tovu`) — read here rather than assuming the conventional
@@ -355,7 +318,11 @@ if (!existsSync(path.join(outDir, "node_modules", "better-sqlite3"))) {
 }
 const materialized = materializeSymlinks(outDir);
 assertNoSymlinks(outDir);
-assertClosureComplete();
+try {
+  assertClosureComplete({ outDir });
+} catch (err) {
+  fail(err.message);
+}
 
 const stagedManifest = readRuntimeManifest(outDir);
 if (stagedManifest.cliEntry !== manifest.cliEntry || !existsSync(path.join(outDir, stagedManifest.cliEntry))) {

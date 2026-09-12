@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { newestMtime, stageTransitiveDependencies } from "./stage-payload-lib.js";
+import { assertClosureComplete, newestMtime, stageTransitiveDependencies } from "./stage-payload-lib.js";
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));
@@ -228,4 +228,89 @@ test("stageTransitiveDependencies: does not stage a dependency that resolves to 
 
   assert.equal(count, 0);
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "pkgB")), false);
+});
+
+test("assertClosureComplete: does not throw when every declared dependency resolves in the staged tree (hoisted)", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), { pkgB: "^1" });
+  writePackage(path.join(modulesDir, "pkgB"), {});
+
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+test("assertClosureComplete: throws with the exact pkg -> dep message when a dependency is missing", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), { missingDep: "^1" });
+
+  assert.throws(() => assertClosureComplete({ outDir }), (err) => {
+    assert.equal(
+      err.message,
+      "staged tree is missing 1 declared dependencies, so the packaged app would fail once installed outside this repo:\n  pkgA -> missingDep"
+    );
+    return true;
+  });
+});
+
+test("assertClosureComplete: an excluded package is exempt from the check even when it is absent", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), { playwright: "^1" });
+
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+test("assertClosureComplete: walks a scoped (@scope/name) staged package and names it correctly when reporting a missing dependency", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "@scope", "pkg"), { missingDep: "^1" });
+
+  assert.throws(() => assertClosureComplete({ outDir }), (err) => {
+    assert.equal(
+      err.message,
+      `staged tree is missing 1 declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${path.join("@scope", "pkg")} -> missingDep`
+    );
+    return true;
+  });
+});
+
+test("assertClosureComplete: a dependency resolved via the package's own nested node_modules (not hoisted) does not count as missing", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  const pkgADir = path.join(modulesDir, "pkgA");
+  writePackage(pkgADir, { nestedDep: "^1" });
+  writePackage(path.join(pkgADir, "node_modules", "nestedDep"), {});
+
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+test("assertClosureComplete: preserves declaration order across multiple missing dependencies", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), { zeta: "^1", alpha: "^1" });
+
+  assert.throws(() => assertClosureComplete({ outDir }), (err) => {
+    assert.equal(
+      err.message,
+      "staged tree is missing 2 declared dependencies, so the packaged app would fail once installed outside this repo:\n  pkgA -> zeta\n  pkgA -> alpha"
+    );
+    return true;
+  });
+});
+
+test("assertClosureComplete: ignores dotfile-prefixed entries under node_modules, even ones with their own package.json", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), {});
+  writePackage(path.join(modulesDir, ".hidden"), { missingDep: "^1" });
+
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });
