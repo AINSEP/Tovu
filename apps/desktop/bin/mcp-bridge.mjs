@@ -39,7 +39,7 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { sitesFilePath } from "../src/project-registry.js";
+import { sitesFilePath } from "../src/tracked-sites.js";
 import { handleSitesMcpRequest } from "../src/sites-mcp-server.js";
 
 /**

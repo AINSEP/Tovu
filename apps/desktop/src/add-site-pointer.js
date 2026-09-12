@@ -19,12 +19,12 @@
  * {@link addSitePointer}. A pointer can therefore never authorize `project-ipc.js`'s `fs.rm`.
  *
  * No `electron` import, so every path here is testable under plain `node --test` — the same
- * convention `project-registry.js` and `site-dir-store.js` follow, and the reason the CLI and the
+ * convention `tracked-sites.js` and `site-dir-store.js` follow, and the reason the CLI and the
  * MCP bridge can both call it without an Electron runtime at all.
  */
 import path from "node:path";
 
-import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite } from "./project-registry.js";
+import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite } from "./tracked-sites.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
 
 /**
@@ -104,7 +104,7 @@ function refusalFor(kind, dir) {
  * explicitly rather than implicitly so the CLI's relative argument (`tovu-desktop add-site
  * ./sites/x`) means what a shell user expects.
  *
- * Deliberately NOT `fs.realpathSync`. A symlinked site dir IS a site (`project-registry.js`'s
+ * Deliberately NOT `fs.realpathSync`. A symlinked site dir IS a site (`tracked-sites.js`'s
  * `isDiscoverableSite` says so on purpose), and `discoverSiteDirs` does not resolve links either —
  * resolving here would let the scan and this function record two different strings for one site and
  * show the operator two cards.
@@ -124,13 +124,13 @@ function normalizeSiteDirPath(rawSiteDir, cwd) {
  * racing the button, and an operator double-clicking all converge on one row.
  *
  * A folder the operator previously REMOVED is added back, and that is deliberate rather than an
- * oversight: `trackSite` is `project-registry.js`'s explicit adder, and clearing the tombstone
+ * oversight: `trackSite` is `tracked-sites.js`'s explicit adder, and clearing the tombstone
  * there is documented as correct precisely because reaching it means the operator named the folder
  * themselves. `alreadyDismissed` is reported so a caller can say "this was one you removed" rather
  * than having the return resurrect a card with no explanation.
  *
  * @param input.siteDir the folder to point at. Absolute, or relative to `input.cwd`.
- * @param input.projectsPath `project-registry.js`'s tracked-project JSON file.
+ * @param input.projectsPath `tracked-sites.js`'s tracked-project JSON file.
  * @param input.cwd base for a relative `siteDir`. Defaults to `process.cwd()`.
  * @param input.classifySiteDir injected classifier, defaulting to `site-dir-store.js`'s
  *   throw-free form — injected for the same reason `seedDevFallbackSite` takes it, so the

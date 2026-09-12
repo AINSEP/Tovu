@@ -6,7 +6,7 @@
  * `main.js` requires `"electron"` at module scope, which resolves to a path string rather than the
  * real API outside a real Electron process, so `require`-ing it under plain `node --test` crashes
  * before proving anything. The pieces it wires together are behaviourally covered where they live
- * (`project-registry.test.js`, `project-ipc.test.js`); what only this file can check is that
+ * (`tracked-sites.test.js`, `project-ipc.test.js`); what only this file can check is that
  * `main.js` actually CALLS them, and in the one order where the call is correct.
  *
  * That order is the whole point of the first two tests. `migrateLegacyDismissals` is what carries
@@ -40,7 +40,7 @@ test("main.js imports the migration, the seed and the rescan from their own modu
   assert.match(source, /migrateLegacyDismissals/);
   assert.match(source, /seedDevFallbackSite/);
   assert.match(source, /rescanSites/);
-  assert.match(source, /from ["']\.\/src\/project-registry\.js["']/);
+  assert.match(source, /from ["']\.\/src\/tracked-sites\.js["']/);
   assert.match(source, /from ["']\.\/src\/project-ipc\.js["']/);
 });
 
@@ -125,7 +125,7 @@ test("the two bulk site scans in the boot chain use the NON-throwing classifier"
   // a dialog and quit, with no renderer for the Rescan button to live in.
   //
   // Source text rather than behaviour, for this file's stated reason. It is still the check that
-  // matters: `site-dir-store.js` and `project-registry.js` are behaviourally covered, and what
+  // matters: `site-dir-store.js` and `tracked-sites.js` are behaviourally covered, and what
   // only main.js can get wrong is handing them the throwing form.
   assert.match(source, /seedDevFallbackSite\(\s*sitesCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
     "seedDevFallbackSite must be given the non-throwing classifier");

@@ -6,12 +6,12 @@
  *
  * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.js` is ground truth for
  * "running" — a status written to this file would go stale the moment Electron is killed hard,
- * exactly the failure mode `site-registry.js`'s crash-safety design exists to avoid for the
+ * exactly the failure mode `site-process-registry.js`'s crash-safety design exists to avoid for the
  * supervision side of the same problem. `buildSiteRecord` (`main.js`) is what joins one row here
  * with `openSites` to produce the `ProjectRecord` the renderer actually gets.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
- * `site-dir-store.js` and `site-registry.js`.
+ * `site-dir-store.js` and `site-process-registry.js`.
  */
 import fs from "node:fs";
 import path from "node:path";

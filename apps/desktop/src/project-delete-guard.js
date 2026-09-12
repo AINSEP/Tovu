@@ -38,12 +38,12 @@
  * distrust — and it self-corrects for every project created from here on.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `project-registry.js` and `site-dir-store.js`.
+ * `tracked-sites.js` and `site-dir-store.js`.
  */
 import fs from "node:fs";
 import path from "node:path";
 
-import { SITE_ORIGIN } from "./project-registry.js";
+import { SITE_ORIGIN } from "./tracked-sites.js";
 import { SITE_META_FILE } from "./site-dir-store.js";
 
 /**

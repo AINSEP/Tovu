@@ -96,7 +96,7 @@ export const RUNNER_PROJECT_CHANNELS = {
    * `rescanSites`); `main.js` runs the same pass once at boot.
    *
    * A project the operator REMOVED is never brought back by this, however many times it is
-   * pressed — see `adoptDiscoveredSites` in `project-registry.js`. Their way back is the
+   * pressed — see `adoptDiscoveredSites` in `tracked-sites.js`. Their way back is the
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:projects:rescan',

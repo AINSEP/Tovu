@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { resolveRealPath, isInsideDirectory, mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.js";
-import { SITE_ORIGIN } from "./project-registry.js";
+import { SITE_ORIGIN } from "./tracked-sites.js";
 
 function tempDir() {
   // Resolved on creation: `os.tmpdir()` is `/var/folders/...` on macOS, itself a symlink to

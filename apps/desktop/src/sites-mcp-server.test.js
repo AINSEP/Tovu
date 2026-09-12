@@ -21,7 +21,7 @@ import {
   SERVER_INFO,
   handleSitesMcpRequest,
 } from "./sites-mcp-server.js";
-import { sitesFilePath } from "./project-registry.js";
+import { sitesFilePath } from "./tracked-sites.js";
 
 function fakeContext() {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-server-"));

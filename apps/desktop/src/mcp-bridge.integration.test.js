@@ -26,7 +26,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./tracked-sites.js";
 
 const BRIDGE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "mcp-bridge.mjs");
 
@@ -186,7 +186,7 @@ test("add_site_pointer through the real bridge writes the row the app will read"
 
   const [, added] = parseProtocolLines(stdout);
   assert.equal(added.result.isError, undefined);
-  // Read back through `project-registry.js` itself — the same reader the Projects screen uses — so
+  // Read back through `tracked-sites.js` itself — the same reader the Projects screen uses — so
   // this proves the row is consumable, not merely that the tool claimed success.
   const rows = readTrackedSites(sitesFilePath(userDataDir));
   assert.equal(rows.length, 1);

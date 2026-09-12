@@ -12,12 +12,12 @@ import os from "node:os";
 import path from "node:path";
 
 import { RUNNER_PROJECT_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
-import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.js";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.js";
 import { addSitePointer } from "./add-site-pointer.js";
 import { createKeyedSerializer } from "./keyed-serializer.js";
 import { createSiteSupervisor } from "./site-supervisor.js";
-import { readRegistry, writeRegistry, isLiveServeRow } from "./site-registry.js";
+import { readRegistry, writeRegistry, isLiveServeRow } from "./site-process-registry.js";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -700,7 +700,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 });
 
 // D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
-// against nothing else. `main.js` calls no `requestSingleInstanceLock`, and `site-registry.js` is
+// against nothing else. `main.js` calls no `requestSingleInstanceLock`, and `site-process-registry.js` is
 // written throughout on the premise that two instances can run at once — its `recordSiteOpened`
 // deliberately RETAINS a sibling's row for the same site. Instance A deleting a site instance B has
 // open recursively erased the directory out from under B's live `tovu serve`.

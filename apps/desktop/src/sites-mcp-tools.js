@@ -52,7 +52,7 @@
 import path from "node:path";
 
 import { AddSitePointerError, addSitePointer } from "./add-site-pointer.js";
-import { readTrackedSites } from "./project-registry.js";
+import { readTrackedSites } from "./tracked-sites.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
 
 /**

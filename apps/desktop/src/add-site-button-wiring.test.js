@@ -29,9 +29,9 @@ import { fileURLToPath } from "node:url";
 
 import { registerSiteIpcHandlers } from "./project-ipc.js";
 import { addSitePointer } from "./add-site-pointer.js";
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./tracked-sites.js";
 import { classifySiteDirSafely } from "./site-dir-store.js";
-import { readRegistry, isLiveServeRow } from "./site-registry.js";
+import { readRegistry, isLiveServeRow } from "./site-process-registry.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 

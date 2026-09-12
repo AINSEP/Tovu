@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `site-registry.js`.
+ * @file Direct tests for `site-process-registry.js`.
  *
  * `isProcessAlive`/`readProcessCommand`/`terminateOrphan`/`reconcileOrphans` spawn REAL (tiny, plain
  * `node`) child processes rather than faking `ps` output — the identity proof reads a live process's
@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 
-import { registryFilePath, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-registry.js";
+import { registryFilePath, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.js";
 
 function tempStatePath() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-registry-")), "open-sites.json");

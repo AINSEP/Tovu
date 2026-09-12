@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITES_MCP_TOOLS, describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.js";
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./tracked-sites.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-tools-"));

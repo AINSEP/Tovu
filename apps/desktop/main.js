@@ -51,7 +51,7 @@
  *   site menu entry cannot double-spawn a `tovu serve` for it (Tovu-Runner's `serializeByProject`
  *   pattern, generalized).
  *
- * **Crash-safety**, now in scope (`site-registry.js`): every open site's `{siteDir, port,
+ * **Crash-safety**, now in scope (`site-process-registry.js`): every open site's `{siteDir, port,
  * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,
  * and removed the moment it is stopped deliberately (a window closed, or the app quit cleanly). If
  * Electron itself is hard-killed (SIGKILL, a crash, a forced logout) before that removal runs, the
@@ -106,7 +106,7 @@ import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } from "
 import { startTovuServer } from "./src/tovu-server.js";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.js";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.js";
-import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-registry.js";
+import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.js";
 import { createKeyedSerializer } from "./src/keyed-serializer.js";
 import { createSiteSupervisor } from "./src/site-supervisor.js";
 import { createShutdownTracker } from "./src/shutdown-tracker.js";
@@ -115,7 +115,7 @@ import { createSelftestTracker } from "./src/selftest-tracker.js";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.js";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.js";
-import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals } from "./src/project-registry.js";
+import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals } from "./src/tracked-sites.js";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.js";
 import { addSitePointer } from "./src/add-site-pointer.js";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.js";
@@ -1026,7 +1026,7 @@ function applyDockIcon() {
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
  * launchd before terminating it, and retains the rows of any still-supervised sibling (see
- * `site-registry.js`'s `isOrphanedProcess`).
+ * `site-process-registry.js`'s `isOrphanedProcess`).
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
  *   so a launch can be delayed by up to that grace window per genuine orphan.
@@ -1210,7 +1210,7 @@ app
  * ordinary exit.
  *
  * A hard kill of Electron itself (SIGKILL, a crash, a logout) still bypasses this and can strand
- * every open site's child at once. `site-registry.js`'s `reconcileOrphans()` — run before any
+ * every open site's child at once. `site-process-registry.js`'s `reconcileOrphans()` — run before any
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {

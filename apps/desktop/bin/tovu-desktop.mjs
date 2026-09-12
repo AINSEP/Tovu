@@ -10,7 +10,7 @@
  * about `desktop-projects.json` would make `apps/website` depend on `apps/desktop`, inverting the
  * one structural rule this directory has — `apps/desktop` is a consumer of Tovu's published
  * contracts and can be deleted in place without anything else changing. So the command lives here,
- * and it is cheap to have here: `project-registry.js` and `site-dir-store.js`'s classifier are
+ * and it is cheap to have here: `tracked-sites.js` and `site-dir-store.js`'s classifier are
  * already `electron`-free and run under plain Node.
  *
  * ## One implementation, three entry points
@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AddSitePointerError, addSitePointer } from "../src/add-site-pointer.js";
-import { sitesFilePath } from "../src/project-registry.js";
+import { sitesFilePath } from "../src/tracked-sites.js";
 import { resolveDesktopUserDataDir } from "../src/desktop-user-data-dir.js";
 
 const EXIT_OK = 0;

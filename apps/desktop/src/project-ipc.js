@@ -21,7 +21,7 @@
 import path from "node:path";
 import fsp from "node:fs/promises";
 
-import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./project-registry.js";
+import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.js";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.js";
 import { sitePartition } from "./desktop-auth.js";
 
@@ -296,7 +296,7 @@ async function deleteProject(id, deps) {
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
   // of the app, and nothing prevents one — `main.js` calls no `requestSingleInstanceLock`, and
-  // `site-registry.js` is written throughout on the premise that two instances can run at once.
+  // `site-process-registry.js` is written throughout on the premise that two instances can run at once.
   // Instance A deleting a site instance B has open recursively erased the directory out from under
   // B's live `tovu serve`, which went on writing into unlinked files.
   //
@@ -332,7 +332,7 @@ async function deleteProject(id, deps) {
 /**
  * Hands one of a running project's surfaces to the operator's default browser. Refuses a project
  * that is not currently open rather than guessing a port — nothing durable records a stopped
- * project's last-known port today (see `project-registry.js`'s header on why status is derived,
+ * project's last-known port today (see `tracked-sites.js`'s header on why status is derived,
  * not stored), so "not running" and "never had a port to report" are the same state here.
  *
  * @throws {Error} when the project is not open.
@@ -428,8 +428,8 @@ function rescanSites(deps) {
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
  * @param {{run: Function}} deps.serializer per-site-dir operation serializer (`keyed-serializer.js`).
- * @param {string} deps.projectsPath `project-registry.js`'s tracked-project JSON file.
- * @param {string} deps.registryPath crash-safety registry file (`site-registry.js`), for
+ * @param {string} deps.projectsPath `tracked-sites.js`'s tracked-project JSON file.
+ * @param {string} deps.registryPath crash-safety registry file (`site-process-registry.js`), for
  *   `recordSiteClosed` on a delete of a running project.
  * @param {string} deps.repoRoot Tovu repo root.
  * @param {string} deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
@@ -444,11 +444,11 @@ function rescanSites(deps) {
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.js`.
  * @param {Function} deps.openSiteServer `main.js`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
- * @param {Function} deps.recordSiteClosed `site-registry.js`'s crash-safety row remover.
- * @param {Function} deps.readRegistry `site-registry.js`'s crash-safety registry reader, used by
+ * @param {Function} deps.recordSiteClosed `site-process-registry.js`'s crash-safety row remover.
+ * @param {Function} deps.readRegistry `site-process-registry.js`'s crash-safety registry reader, used by
  *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
  *   this process's own memory, cannot.
- * @param {Function} deps.isLiveServeRow `site-registry.js`'s "is this row's pid still its own live
+ * @param {Function} deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — seven registrations.

@@ -139,7 +139,7 @@ function classifySiteDir(dir) {
  * D-01, and the reason both forms exist. `classifySiteDir` was written for one folder the operator
  * chose in a dialog, where throwing is exactly right: the picker catches it and shows them why
  * their folder cannot be used. It was then reused, unchanged, as the filter predicate of two bulk
- * scans ({@link existingRecentSiteDirs} and `project-registry.js`'s `discoverSiteDirs`) — and a
+ * scans ({@link existingRecentSiteDirs} and `tracked-sites.js`'s `discoverSiteDirs`) — and a
  * predicate that throws turns "one candidate out of forty is unreadable" into "the whole list
  * fails". Both scans run inside `main.js`'s `app.whenReady()` chain, whose only handler is
  * `reportBootFailure`, and both run BEFORE any window is opened: one plain file where a remembered

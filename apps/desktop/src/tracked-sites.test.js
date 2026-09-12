@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `project-registry.js` — the tracked-project JSON store the Projects screen's
+ * @file Coverage for `tracked-sites.js` — the tracked-project JSON store the Projects screen's
  * list is built from.
  */
 import test from "node:test";
@@ -8,11 +8,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./project-registry.js";
+import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.js";
 import { classifySiteDir } from "./site-dir-store.js";
 
 function tempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-registry-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-tracked-sites-"));
 }
 
 test("sitesFilePath joins the fixed file name onto the given userData dir", () => {

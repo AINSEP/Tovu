@@ -20,7 +20,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { AddSitePointerError, addSitePointer, normalizeSiteDirPath } from "./add-site-pointer.js";
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite, untrackSite } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite, untrackSite } from "./tracked-sites.js";
 import { STATE_FILE_NAME, classifySiteDir } from "./site-dir-store.js";
 
 function tempDir() {

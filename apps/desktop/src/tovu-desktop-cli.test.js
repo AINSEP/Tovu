@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, parseArgv, runTovuDesktopCli } from "../bin/tovu-desktop.mjs";
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./project-registry.js";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./tracked-sites.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cli-"));
