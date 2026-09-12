@@ -43,7 +43,8 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
-import { isBundleInput, shellStalenessFailure } from "../src/shell-staleness.js";
+import { shellStalenessFailure } from "../src/shell-staleness.js";
+import { newestMtime } from "../src/stage-payload-lib.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -352,26 +353,6 @@ function failIfDistIsStale() {
         `SITE_NEWER_THAN_RUNTIME. Re-run \`npm run build\` at the repo root for a shippable payload.`
     );
   }
-}
-
-/** Newest mtime under a directory tree, or 0 if it does not exist.
- *  @complexity O(n) in files walked. */
-/** Whether to descend into / consider one directory entry at all.
- *  @complexity O(1). */
-function isWalkable(entry) {
-  if (entry.name === "node_modules" || entry.name.startsWith(".")) return false;
-  return isBundleInput(entry.isDirectory() ? `${entry.name}/` : entry.name);
-}
-
-function newestMtime(abs) {
-  if (!existsSync(abs)) return 0;
-  const stat = statSync(abs);
-  if (!stat.isDirectory()) return isBundleInput(abs) ? stat.mtimeMs : 0;
-  let newest = 0;
-  for (const entry of readdirSync(abs, { withFileTypes: true })) {
-    if (isWalkable(entry)) newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));
-  }
-  return newest;
 }
 
 /**
