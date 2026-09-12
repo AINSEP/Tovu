@@ -1,6 +1,12 @@
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
-import type { SiteRecord, CreateSiteInput, OpenSiteSurfaceInput, RenameSiteInput } from '../contracts/project.js';
+import type {
+  SiteRecord,
+  CreateSiteInput,
+  OpenSiteSurfaceInput,
+  RenameSiteInput,
+  SiteHistoryCommand,
+} from '../contracts/project.js';
 import type {
   WorkspaceChatEventMessage,
   WorkspaceChatReattachInput,
@@ -64,6 +70,8 @@ export interface RunnerInventoryBridge {
   onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) => () => void;
   /** Fires when the `desktop.navigate` tool moves the top nav. */
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
+  /** Fires on the app menu's History > Back / Forward (Cmd+[ / Cmd+]); returns its teardown. */
+  onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => () => void;
   /**
    * Resolves a `File`'s absolute OS path. Runs in the preload, not over IPC — see the bridge
    * implementation. Returns `''` for a `File` that did not come directly off a drop/dialog event

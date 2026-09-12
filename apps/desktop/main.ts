@@ -125,6 +125,7 @@ import { addSitePointer } from "./src/add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
 import { fileURLToPath } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.ts";
+import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -1345,6 +1346,10 @@ app
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.
       registerGuestNavigationPolicy();
+      // Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the
+      // visible project tab. A menu accelerator still fires with focus inside a tab's guest. See
+      // `site-history-menu.ts`.
+      Menu.setApplicationMenu(Menu.buildFromTemplate(sitesHomeMenuTemplate(process.platform)));
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       openSitesHomeWindow();
       return;

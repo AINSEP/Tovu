@@ -541,7 +541,7 @@ button { font: inherit; color: inherit; }
 }
 
 /* Segmented rather than two independent buttons: the admin and the front end are one choice with
-   one answer at a time, and `.workspace__url` beside it is that answer spelled out. */
+   one answer at a time. `.workspace__url`, at the bar's far end, spells out where the guest is. */
 .workspace__views {
   display: flex;
   gap: 2px;
@@ -581,6 +581,10 @@ button { font: inherit; color: inherit; }
 }
 
 .workspace__spacer { flex: 1; }
+
+/* Back, forward, reload at the bar's leading edge. A tighter gap than the bar's own, so the three
+   read as one control group, the way a browser's do. */
+.workspace__nav { display: flex; gap: 0.25rem; }
 
 .workspace__act {
   border: 1px solid var(--border);

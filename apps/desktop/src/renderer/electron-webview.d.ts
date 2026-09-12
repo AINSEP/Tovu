@@ -20,8 +20,9 @@
  * would REPLACE React's types rather than extend them, which typechecks the whole renderer against
  * an empty React.
  *
- * Reloading is a `key` change (remounting the guest) rather than a `.reload()` call, which is why
- * no element-side API appears here.
+ * The element methods merged below are the ones `use-site-workspace.hooks.ts` calls: history
+ * (`canGoBack`/`goBack`/…), `reload()`, which keeps that history where a `key` remount would not,
+ * and `loadURL()`.
  *
  * The `HTMLWebViewElement` merge further down is a DIFFERENT kind of augmentation, and it is NOT
  * inert. React's own `webview` entry types `ref` against `HTMLWebViewElement`
@@ -61,17 +62,45 @@ declare global {
     readonly errorCode: number;
   }
 
+  interface WebviewDidNavigateEvent extends Event {
+    readonly url: string;
+  }
+
+  interface WebviewDidNavigateInPageEvent extends Event {
+    readonly url: string;
+    readonly isMainFrame: boolean;
+  }
+
   interface HTMLWebViewElement {
-    // Only the two events `useWebviewLoadFailure` listens for. Electron's `WebviewTag` types
-    // every event this tag can fire; widening just these keeps the merge legible against what
-    // actually calls it, rather than declaring a whole surface nothing here uses.
+    // Only what `useWebviewLoadFailure` and `use-site-workspace.hooks.ts` use. Electron's
+    // `WebviewTag` types every event and method this tag has; widening just these keeps the merge
+    // legible against what actually calls it, rather than declaring a whole surface nothing here uses.
     addEventListener(
       event: 'did-fail-load',
       listener: (event: WebviewDidFailLoadEvent) => void,
       useCapture?: boolean,
     ): void;
     addEventListener(event: 'did-finish-load', listener: (event: Event) => void, useCapture?: boolean): void;
+    addEventListener(
+      event: 'did-navigate',
+      listener: (event: WebviewDidNavigateEvent) => void,
+      useCapture?: boolean,
+    ): void;
+    addEventListener(
+      event: 'did-navigate-in-page',
+      listener: (event: WebviewDidNavigateInPageEvent) => void,
+      useCapture?: boolean,
+    ): void;
     removeEventListener(event: 'did-fail-load', listener: (event: WebviewDidFailLoadEvent) => void): void;
     removeEventListener(event: 'did-finish-load', listener: (event: Event) => void): void;
+    removeEventListener(event: 'did-navigate', listener: (event: WebviewDidNavigateEvent) => void): void;
+    removeEventListener(event: 'did-navigate-in-page', listener: (event: WebviewDidNavigateInPageEvent) => void): void;
+    // Every one of these throws until the guest is attached; callers catch that.
+    canGoBack(): boolean;
+    canGoForward(): boolean;
+    goBack(): void;
+    goForward(): void;
+    reload(): void;
+    loadURL(url: string): Promise<void>;
   }
 }

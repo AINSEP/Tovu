@@ -635,9 +635,10 @@ export function useSiteStart(project: SiteRecord): {
  * local admin normally takes to answer, comfortably short of leaving the operator staring at a
  * blank pane for the rest of the session.
  *
- * `resetKey` is `SiteWorkspace`'s own `` `${reloadNonce}:${view}` ``, not read here for its
- * value — only for when it changes. A manual reload remounts the guest (new DOM node, so listeners
- * must move with it) and a view switch renavigates the same node; both deserve a clean slate, since
+ * `resetKey` is `useSiteWorkspace`'s `loadResetKey` (`reloadNonce`, `view`, `softLoads`), not read
+ * here for its value — only for when it changes. A recovery remount replaces the guest (new DOM
+ * node, so listeners must move with it), while a view switch or a soft load (`reload()`,
+ * `loadURL()`) renavigates the same node; all of them deserve a clean slate, since
  * without one a single transient failure would pin the recovery panel in place even after the
  * operator's next click plainly asked for another try. The same reset also re-arms the stall timer,
  * which is what lets the recovery panel's own "Start site" retry get a second, fresh judgment.
@@ -660,11 +661,15 @@ export function useSiteStart(project: SiteRecord): {
  * flag that unmounted it — the guest remounts, fails again, and the panel flickers forever.
  *
  * @returns `guestRef` alongside the two flags — the caller MUST put it on the `<webview>`; there is
- *   no other way for this hook to see the node.
+ *   no other way for this hook to see the node. `guest` is that node, for `useSiteWorkspace`'s
+ *   history listeners, which need the same lifetime and cannot take a second ref on one element.
  */
-export function useWebviewLoadFailure(
-  resetKey: unknown,
-): { failed: boolean; stalled: boolean; guestRef: (node: HTMLWebViewElement | null) => void } {
+export function useWebviewLoadFailure(resetKey: unknown): {
+  failed: boolean;
+  stalled: boolean;
+  guest: HTMLWebViewElement | null;
+  guestRef: (node: HTMLWebViewElement | null) => void;
+} {
   const [failed, setFailed] = useState(false);
   const [stalled, setStalled] = useState(false);
   const [guest, setGuest] = useState<HTMLWebViewElement | null>(null);
@@ -706,12 +711,12 @@ export function useWebviewLoadFailure(
       guest.removeEventListener('did-fail-load', onFailLoad);
       guest.removeEventListener('did-finish-load', onFinishLoad);
     };
-    // `resetKey` as well as the node: a VIEW switch changes `src` on the guest that is already
-    // mounted, so the node is unchanged and only this re-arms the stall timer for the new
-    // navigation. A reload changes both (`key` remounts the element).
+    // `resetKey` as well as the node: a VIEW switch or a soft load navigates the guest that is
+    // already mounted, so the node is unchanged and only this re-arms the stall timer for the new
+    // navigation. A recovery remount changes both (`key` remounts the element).
   }, [guest, resetKey]);
 
-  return { failed, stalled, guestRef: setGuest };
+  return { failed, stalled, guest, guestRef: setGuest };
 }
 
 /**

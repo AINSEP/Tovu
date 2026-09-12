@@ -192,3 +192,14 @@ export const SITE_IPC_CHANNELS = {
    */
   preview: 'runner:sites:preview',
 } as const;
+
+/** One step through a project tab's own history. */
+export type SiteHistoryCommand = 'back' | 'forward';
+
+/**
+ * push (main → renderer): the app menu's History > Back or Forward (Cmd+[ / Cmd+]), carrying a
+ * {@link SiteHistoryCommand}. Main does not know which tab is on screen; the visible project tab is
+ * the only subscriber. A push, not an `invoke` target, so it has no handler or stub. Inlined in
+ * `site-history-menu.ts`, which tests that the two match.
+ */
+export const SITE_HISTORY_CHANNEL = 'runner:sites:history';

@@ -156,3 +156,47 @@ export function GearIcon() {
     </svg>
   );
 }
+
+export type NavIconKind = 'back' | 'forward' | 'reload';
+
+/** Drawn the way a browser draws them: two arrows, and a clockwise circle for reload (the same
+ *  shape as `updates` above, which is already "go round again"). */
+const navPaths: Record<NavIconKind, JSX.Element> = {
+  back: (
+    <>
+      <path d="M16 10H4.5" />
+      <path d="M9 5.5 4.5 10 9 14.5" />
+    </>
+  ),
+  forward: (
+    <>
+      <path d="M4 10h11.5" />
+      <path d="M11 5.5l4.5 4.5-4.5 4.5" />
+    </>
+  ),
+  reload: (
+    <>
+      <path d="M16.5 10a6.5 6.5 0 1 1-2-4.7" />
+      <path d="M17 2.5V6h-3.5" />
+    </>
+  ),
+};
+
+/** Not keyed by `RunnerSectionId`, for the reason `GearIcon` is not: this is a project tab's
+ *  toolbar chrome (back, forward, reload), not a nav destination. */
+export function NavIcon({ kind }: { kind: NavIconKind }) {
+  return (
+    <svg
+      className="icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {navPaths[kind]}
+    </svg>
+  );
+}

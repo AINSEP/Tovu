@@ -25,10 +25,12 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import {
+  SITE_HISTORY_CHANNEL,
   SITE_IPC_CHANNELS,
   type CreateSiteInput,
   type RenameSiteInput,
   type OpenSiteSurfaceInput,
+  type SiteHistoryCommand,
 } from '../contracts/project.js';
 import {
   WORKSPACE_CHAT_CHANNELS,
@@ -103,6 +105,9 @@ contextBridge.exposeInMainWorld(
       subscribe(WORKSPACE_CHAT_CHANNELS.event, listener),
     onNavigate: (listener: (section: RunnerSectionId) => void) =>
       subscribe(WORKSPACE_CHAT_CHANNELS.navigate, listener),
+    /** The app menu's History > Back / Forward. Only the visible project tab subscribes. */
+    onSiteHistory: (listener: (command: SiteHistoryCommand) => void) =>
+      subscribe(SITE_HISTORY_CHANNEL, listener),
     // Synchronous and in-process, deliberately not an `ipcRenderer.invoke` round trip: `webUtils`
     // only exists in the preload's Node-capable context, not the isolated page, so this function IS
     // the bridge rather than a proxy for one. Electron's contextBridge structured-clones `File`

@@ -25,7 +25,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_DIR = path.join(__dirname, "contracts");
 
 /**
- * Channels declared by `src/contracts/*.ts`, minus the two push-only ones.
+ * Channels declared by `src/contracts/*.ts`, minus the push-only ones.
  *
  * Reads the `'runner:...'`/`'workspace:...'` string literals straight out of the contract sources
  * rather than importing them: these are `.ts` files with no compiled output guaranteed to exist at
@@ -40,10 +40,11 @@ function declaredChannels() {
     const source = fs.readFileSync(path.join(CONTRACTS_DIR, entry), "utf8");
     for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]);
   }
-  // Main->renderer sends, not `invoke` targets: there is no handler to register for either, so
+  // Main->renderer sends, not `invoke` targets: there is no handler to register for any of them, so
   // `runner-ipc-stubs.js` deliberately omits them.
   found.delete("workspace:chat:event");
   found.delete("workspace:chat:navigate");
+  found.delete("runner:sites:history");
   return found;
 }
 
@@ -89,9 +90,10 @@ test("no channel is both stubbed and implemented for real", () => {
   assert.deepEqual(both, []);
 });
 
-test("the two push-only channels are NOT stubbed", () => {
+test("the push-only channels are NOT stubbed", () => {
   assert.equal(RUNNER_STUB_CHANNELS.includes("workspace:chat:event"), false);
   assert.equal(RUNNER_STUB_CHANNELS.includes("workspace:chat:navigate"), false);
+  assert.equal(RUNNER_STUB_CHANNELS.includes("runner:sites:history"), false);
 });
 
 test("registerRunnerIpcStubs registers one handler per channel", () => {

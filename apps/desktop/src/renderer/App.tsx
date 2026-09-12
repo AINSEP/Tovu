@@ -3,8 +3,7 @@ import { ConversationList } from '@jini-ai/chat/react';
 import { ChatPane } from '@jini-ai/chat/react/chat-pane';
 import type { ChatPaneComposerHandle, ChatPaneRunContext } from '@jini-ai/chat/react/chat-pane';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
-import { GearIcon, SectionIcon } from './icons.js';
-import { runnerInventoryBridge } from './runner-api.js';
+import { GearIcon, NavIcon, SectionIcon } from './icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
   deriveSitesHomeView,
@@ -20,10 +19,10 @@ import {
   useRunnerConversations,
   useRunnerNavigation,
   useSectionNav,
-  useWebviewLoadFailure,
 } from './App.hooks.js';
 import { folderPathsFromDataTransfer } from './folder-drop.js';
 import { useAddSite } from './use-add-site.hooks.js';
+import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './site-status.js';
@@ -491,32 +490,15 @@ function SiteWorkspace({
   expanded: boolean;
   onToggleExpanded: () => void;
 }) {
-  // Per workspace, not lifted into `App`: every open project stays mounted at once, so one shared
-  // value would swing every other tab's guest at the same time.
-  const [view, setView] = useState<SiteSurface>('admin');
-  // Remounting the guest IS the reload. The imperative `.reload()` would mean typing a ref
-  // against Electron's element API for one call, and a key change gets the same fresh load.
-  const [reloadNonce, setReloadNonce] = useState(0);
-  const url = `http://127.0.0.1:${project.port}${view === 'site' ? '/' : '/admin/'}`;
-  const running = project.status === 'running';
-
-  // `did-fail-load` is how a mid-session wedge gets caught: the registry row this `running` reads
-  // never changes on its own, so nothing else here would notice. Combining `reloadNonce` and `view`
-  // into one reset key mirrors what actually invalidates a failure — a fresh guest node or a fresh
-  // navigation, not a re-render for its own sake.
+  // Everything this tab remembers and every action its bar takes: which surface it asked for, where
+  // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
+  // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
+  const workspace = useSiteWorkspace(project, hidden);
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
-  // hook's listeners have to attach when the guest actually mounts, and this tab mounts it
-  // conditionally (`running && !failed` below). See the hook's own doc.
-  const { failed, stalled, guestRef } = useWebviewLoadFailure(`${reloadNonce}:${view}`);
-
-  // Deliberately sends an id and a view, never `url` — main rebuilds it from the registry row, so
-  // this bridge is not an "open any url" button. A rejection means the project stopped existing
-  // between the last poll and this click, and that same poll is about to take the tab away.
-  const openInBrowser = () => {
-    void runnerInventoryBridge()
-      ?.openSiteExternal({ siteId: project.id, view })
-      .catch(() => undefined);
-  };
+  // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
+  // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
+  const { guestRef } = workspace;
+  const running = project.status === 'running';
 
   return (
     <section
@@ -527,6 +509,40 @@ function SiteWorkspace({
           also the only always-available way back out — Escape does not reach this document while
           focus is inside the guest. */}
       <div className="workspace__bar">
+        {/* A browser's order: history first, at the leading edge. Icon-only, so each button carries
+            its own name and tooltip. */}
+        <div className="workspace__nav">
+          <button
+            type="button"
+            className="workspace__act workspace__act--icon"
+            onClick={workspace.goBack}
+            disabled={!workspace.history.canGoBack}
+            title="Back"
+            aria-label="Back"
+          >
+            <NavIcon kind="back" />
+          </button>
+          <button
+            type="button"
+            className="workspace__act workspace__act--icon"
+            onClick={workspace.goForward}
+            disabled={!workspace.history.canGoForward}
+            title="Forward"
+            aria-label="Forward"
+          >
+            <NavIcon kind="forward" />
+          </button>
+          <button
+            type="button"
+            className="workspace__act workspace__act--icon"
+            onClick={workspace.reload}
+            disabled={!running}
+            title="Reload"
+            aria-label="Reload"
+          >
+            <NavIcon kind="reload" />
+          </button>
+        </div>
         <span className="state" aria-hidden="true">
           <span className="state__dot" />
         </span>
@@ -535,52 +551,29 @@ function SiteWorkspace({
             <button
               type="button"
               key={option}
-              className={`workspace__view ${option === view ? 'is-on' : ''}`}
-              onClick={() => setView(option)}
-              aria-pressed={option === view}
+              className={`workspace__view ${option === workspace.surface ? 'is-on' : ''}`}
+              onClick={() => workspace.selectView(option)}
+              aria-pressed={option === workspace.surface}
             >
               {option === 'admin' ? 'View admin' : 'View site'}
             </button>
           ))}
         </div>
-        {/* The url is the toggle's answer written out, so it tracks the active view. */}
-        <span className="workspace__url">{url}</span>
         <span className="workspace__spacer" />
+        {/* Where the guest actually is, so it follows Back and Forward rather than only the toggle. */}
+        <span className="workspace__url">{workspace.displayUrl}</span>
         <button
           type="button"
           className="workspace__act"
-          onClick={() => setReloadNonce((nonce) => nonce + 1)}
-          disabled={!running}
-        >
-          Reload
-        </button>
-        <button
-          type="button"
-          className="workspace__act"
-          onClick={openInBrowser}
+          onClick={workspace.openInBrowser}
           disabled={!running}
           title="Open the current view in your default browser"
         >
           Open in browser
         </button>
-        <button
-          type="button"
-          className="workspace__act workspace__act--icon"
-          onClick={onToggleExpanded}
-          title={expanded ? 'Exit full window (Esc)' : 'Expand to full window'}
-          aria-label={expanded ? 'Exit full window' : 'Expand to full window'}
-          aria-pressed={expanded}
-        >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-            {expanded ? (
-              <path d="M9.5 2.5v4h4M6.5 13.5v-4h-4" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
-              <path d="M10 2.5h3.5V6M6 13.5H2.5V10" strokeLinecap="round" strokeLinejoin="round" />
-            )}
-          </svg>
-        </button>
+        <ExpandToggle expanded={expanded} onToggle={onToggleExpanded} />
       </div>
-      {running && !failed ? (
+      {running && !workspace.failed ? (
         // `stalled` and `failed` gate whether the recovery overlay shows, not whether the guest
         // stays mounted: `failed` is Chromium reporting a real error on the guest's main frame — a
         // FACT, nothing left to wait for — while `stalled` is this hook's own guess, made only
@@ -603,22 +596,22 @@ function SiteWorkspace({
               Switching views is a `src` change and NOT a `key` bump on purpose: React mutates the
               attribute, and Electron's webview navigates the guest that is already running, so a
               toggle costs one navigation instead of destroying a process and building another.
-              `key` stays the reload affordance, and because it remounts with whichever `src` is
-              current, reload reloads the view on screen rather than always the admin. */}
+              `key` is now recovery only: Reload calls the guest's own `reload()`, which keeps its
+              history, and `useSiteWorkspace` remounts only a guest that failed or stalled. */}
           <webview
             ref={guestRef}
-            key={reloadNonce}
+            key={workspace.reloadNonce}
             className="workspace__frame"
-            src={url}
+            src={workspace.src}
             partition={project.partition}
             allowpopups={'' as unknown as boolean}
           />
-          {stalled && (
+          {workspace.stalled && (
             <div className="workspace__overlay">
               <SiteStartPanel
                 project={project}
                 body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
-                onStarted={() => setReloadNonce((nonce) => nonce + 1)}
+                onStarted={workspace.recover}
               />
             </div>
           )}
@@ -631,12 +624,37 @@ function SiteWorkspace({
         <SiteStartPanel
           project={project}
           body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
-          onStarted={() => setReloadNonce((nonce) => nonce + 1)}
+          onStarted={workspace.recover}
         />
       ) : (
         <SiteStartPanel project={project} />
       )}
     </section>
+  );
+}
+
+/**
+ * The workspace bar's expand / exit-full-window button. Its own component so `SiteWorkspace` stays
+ * under the complexity ceiling; it holds no state.
+ */
+function ExpandToggle({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="workspace__act workspace__act--icon"
+      onClick={onToggle}
+      title={expanded ? 'Exit full window (Esc)' : 'Expand to full window'}
+      aria-label={expanded ? 'Exit full window' : 'Expand to full window'}
+      aria-pressed={expanded}
+    >
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+        {expanded ? (
+          <path d="M9.5 2.5v4h4M6.5 13.5v-4h-4" strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path d="M10 2.5h3.5V6M6 13.5H2.5V10" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+    </button>
   );
 }
 
