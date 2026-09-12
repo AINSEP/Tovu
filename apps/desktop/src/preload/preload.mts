@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld(
      *  no longer matches, or the name is empty/blank/over 200 chars after trimming. Surface that
      *  message verbatim. See `SITE_IPC_CHANNELS.rename`. */
     renameSite: (input: RenameSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.rename, input),
+    /** A site's cached preview as a `data:` URL, or `null` when no capture exists yet. Fetched on
+     *  demand rather than carried on `SiteRecord` — see that field's own doc. See `SITE_IPC_CHANNELS.preview`. */
+    getSitePreview: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.preview, id),
     startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
     stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
     deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),

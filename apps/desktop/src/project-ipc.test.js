@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleRename, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleRename, handleGetPreview, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.js";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.js";
 import { writeSiteName } from "./site-config.js";
@@ -50,6 +50,11 @@ function baseDeps(overrides = {}) {
     cliMode: "source",
     openSites: new Map(),
     readSiteName: (siteDir) => path.basename(siteDir),
+    // No capture exists for any fixture site by default — every test that cares about a real
+    // version overrides this explicitly.
+    readPreviewVersion: () => null,
+    readPreviewDataUrl: () => null,
+    deletePreview: () => {},
     classifySiteDir: () => "empty",
     recordSiteClosed: () => {},
     // The REAL registry reader and identity proof, pointed at a per-test temp path that does not
@@ -107,6 +112,33 @@ test("buildSiteRecord gives two different site dirs two different partitions", (
   const a = buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
   const b = buildSiteRecord({ siteDir: "/sites/b", createdAt: "2026-01-01" }, deps);
   assert.notEqual(a.partition, b.partition);
+});
+
+test("buildSiteRecord reports no preview for a site that has never been captured", () => {
+  const deps = baseDeps();
+  const record = buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
+  assert.equal(record.previewVersion, null);
+});
+
+test("buildSiteRecord surfaces whatever version deps.readPreviewVersion reports, keyed by siteDir", () => {
+  const seen = [];
+  const deps = baseDeps({
+    readPreviewVersion: (siteDir) => {
+      seen.push(siteDir);
+      return siteDir === "/sites/a" ? 12345 : null;
+    },
+  });
+  const a = buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
+  const b = buildSiteRecord({ siteDir: "/sites/b", createdAt: "2026-01-01" }, deps);
+  assert.equal(a.previewVersion, 12345);
+  assert.equal(b.previewVersion, null);
+  assert.deepEqual(seen, ["/sites/a", "/sites/b"]);
+});
+
+test("handleGetPreview delegates straight to deps.readPreviewDataUrl, keyed by the id it was given", () => {
+  const deps = baseDeps({ readPreviewDataUrl: (id) => (id === "/sites/a" ? "data:image/png;base64,AA==" : null) });
+  assert.equal(handleGetPreview("/sites/a", deps), "data:image/png;base64,AA==");
+  assert.equal(handleGetPreview("/sites/unknown", deps), null);
 });
 
 test("a crashed project is reported stopped, with a statusDetail saying why", async () => {
@@ -362,6 +394,42 @@ test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries n
   assert.equal(deps.openSites.has(siteDir), false);
 });
 
+test("handleDelete drops the cached preview for a project it ERASES", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "erased-with-preview"), "site-erase");
+  const deleted = [];
+  const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-erase" });
+
+  await handleDelete(siteDir, deps);
+
+  assert.deepEqual(deleted, [siteDir]);
+});
+
+test("handleDelete drops the cached preview for a project it only REMOVES (adopted, files kept)", async () => {
+  // The cleanup is unconditional — a preview is this shell's own decoration, not the operator's
+  // data, so it must go whether or not `erasesFiles` does. Otherwise a removed card's stale
+  // thumbnail sits as litter the boot sweep alone would have to catch.
+  const siteDir = path.join(tempDir(), "removed-with-preview");
+  fs.mkdirSync(siteDir);
+  const deleted = [];
+  const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+
+  await handleDelete(siteDir, deps);
+
+  assert.deepEqual(deleted, [siteDir]);
+  assert.equal(fs.existsSync(siteDir), true, "an adopted folder's bytes must survive its own delete");
+});
+
+test("handleDelete on an untracked id never calls deletePreview — there is no row to clean up after", async () => {
+  const deleted = [];
+  const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
+
+  await handleDelete("/sites/never-tracked", deps);
+
+  assert.deepEqual(deleted, []);
+});
+
 test("handleOpenExternal throws when the project is not currently open", async () => {
   const deps = baseDeps();
   await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps), /not open/);
@@ -400,7 +468,7 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
   assert.equal(record.port, 4321);
 });
 
-test("registerSiteIpcHandlers registers exactly the five real channels", () => {
+test("registerSiteIpcHandlers registers exactly the real channels declared in SITE_IPC_CHANNELS", () => {
   const registered = new Map();
   const deps = baseDeps({ ipcMain: { handle: (channel, listener) => registered.set(channel, listener) } });
 

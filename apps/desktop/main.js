@@ -115,8 +115,9 @@ import { createSelftestTracker } from "./src/selftest-tracker.js";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.js";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.js";
-import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals } from "./src/tracked-sites.js";
+import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.js";
 import { writeSiteName } from "./src/site-config.js";
+import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.js";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.js";
 import { addSitePointer } from "./src/add-site-pointer.js";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.js";
@@ -650,6 +651,118 @@ function announceDesktopToolsToSite(server, partition) {
   }
 }
 
+/** The capture window's own size, at the SAME 16:10 ratio `.card__tile` renders (`app.css`) — so
+ *  downscaling to {@link PREVIEW_WIDTH_PX} below never crops a different ratio than the one the
+ *  card actually shows. */
+const PREVIEW_CAPTURE_WIDTH_PX = 1280;
+const PREVIEW_CAPTURE_HEIGHT_PX = 800;
+
+/** The stored preview's width in px; height follows automatically — `nativeImage`'s own `resize()`
+ *  keeps the source's aspect ratio when only one dimension is given. */
+const PREVIEW_WIDTH_PX = 640;
+
+/** How long to wait after the hidden capture window finishes loading before taking the screenshot.
+ *  A fixed settle rather than a network-idle wait: a site's own public page is server-rendered, not
+ *  an SPA polling for data, so this is enough and needs no new dependency to detect idleness. */
+const PREVIEW_PAINT_SETTLE_MS = 1200;
+
+/** How long to wait, after a site's server first publishes into `openSites`, before capturing it —
+ *  separate from and additional to {@link PREVIEW_PAINT_SETTLE_MS}'s post-navigation settle inside
+ *  the capture itself. "The listener answered ready" is not "there is a first paint worth a
+ *  screenshot yet". */
+const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
+
+/**
+ * Every site this process has already captured (or scheduled a capture for) THIS run — see
+ * {@link scheduleSitePreview}. Lives for the process, not the site: closing and reopening the same
+ * site within one launch does not recapture it, which is the stated design
+ * (`site-preview-store.js`'s own header argues staleness is correct behaviour here), not an
+ * oversight waiting for a cache-bust.
+ */
+const previewCapturedThisRun = new Set();
+
+/**
+ * Capture `siteDir`'s own PUBLIC surface — `http://127.0.0.1:<port>/`, never `/admin/` — into its
+ * preview cache, then discard the window that took it.
+ *
+ * **Offscreen, not the live embedded guest.** `App.tsx` defaults a project tab's workspace view to
+ * `'admin'`, and both surfaces are the same origin on different paths — a passive capture of the
+ * guest would screenshot the Tovu ADMIN for most operators most of the time, confidently and
+ * uniformly wrong. A dedicated hidden window loading the site's own root sidesteps that question
+ * entirely, and needs no `did-attach-webview`/partition-tracking machinery to do it.
+ *
+ * A hidden (`show: false`) `BrowserWindow` rather than Electron's separate offscreen-rendering mode:
+ * `capturePage()` works on an ordinary hidden window (Electron paints a hidden window by default —
+ * `paintWhenInitiallyHidden` — so there is a frame to capture), and the offscreen mode is a
+ * different API built for streaming frames out through a `paint` event, none of which this needs.
+ *
+ * Loaded on the site's OWN session partition, so a route the site itself gates on a cookie behaves
+ * for this capture exactly as it would for a real visit.
+ *
+ * Best-effort and silent on every failure, same discipline as {@link announceDesktopToolsToSite}: a
+ * preview is decoration, and failing to capture one must never surface as a problem with the site
+ * that just opened, or delay it.
+ *
+ * @complexity O(1) beyond the hidden window's own load/capture/destroy cost.
+ */
+async function captureSitePreview(siteDir, port, partition) {
+  let window;
+  try {
+    window = new BrowserWindow({
+      show: false,
+      width: PREVIEW_CAPTURE_WIDTH_PX,
+      height: PREVIEW_CAPTURE_HEIGHT_PX,
+      webPreferences: { partition },
+    });
+    await window.loadURL(`http://127.0.0.1:${port}/`);
+    await new Promise((resolve) => setTimeout(resolve, PREVIEW_PAINT_SETTLE_MS));
+    if (window.isDestroyed()) return;
+    const captured = await window.webContents.capturePage();
+    writePreview(app.getPath("userData"), siteDir, captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG());
+  } catch (error) {
+    console.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${error.message}`);
+  } finally {
+    if (window && !window.isDestroyed()) window.destroy();
+  }
+}
+
+/**
+ * Schedule ONE offscreen capture of `siteDir`'s preview, the moment its server publishes into
+ * `openSites` — never on the tab-open hot path, and never more than once per site for this
+ * process's run (see {@link previewCapturedThisRun}).
+ *
+ * Marks the site captured BEFORE the timer fires, not after: two sites opened back to back must not
+ * both slip through this check while the first's timer is still pending.
+ *
+ * @complexity O(1) — one Set check, one timer.
+ */
+function scheduleSitePreview(siteDir, port, partition) {
+  if (previewCapturedThisRun.has(siteDir)) return;
+  previewCapturedThisRun.add(siteDir);
+  setTimeout(() => {
+    void captureSitePreview(siteDir, port, partition);
+  }, PREVIEW_CAPTURE_DEBOUNCE_MS);
+}
+
+/**
+ * Delete every cached preview no tracked site claims, once at boot. Hygiene, not correctness — see
+ * `site-preview-store.js`'s own doc on why an orphaned file can never reach the UI on its own, since
+ * `buildSiteRecord` only ever asks for the preview of a row it is already building.
+ *
+ * Wrapped rather than left to throw: a hygiene sweep must never be the reason an otherwise-healthy
+ * launch fails.
+ *
+ * @complexity O(n) in tracked-site count, plus `sweepOrphanedPreviews`'s own `readdir`.
+ */
+function sweepSitePreviewsOnBoot(projectsPath) {
+  try {
+    const trackedDirs = readTrackedSites(projectsPath).map((row) => row.siteDir);
+    sweepOrphanedPreviews(app.getPath("userData"), trackedDirs);
+  } catch (error) {
+    console.warn(`tovu desktop: could not sweep orphaned site previews — ${error.message}`);
+  }
+}
+
 /**
  * Open one site in its own window: spawn its own `tovu serve` (own-server mode only — attach mode
  * never reaches this), or just focus its window if it is already open. Records the new child to the
@@ -695,6 +808,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
   }
 
   openSites.set(siteDir, { server, window });
+  scheduleSitePreview(siteDir, server.port, partition);
   window.on("closed", () => {
     // Only when the current entry is still THIS window's (D-09). `site-supervisor.js` removes an
     // entry whose child died, and the operator can re-open the same site from "Open Recent" while
@@ -751,8 +865,9 @@ async function openSiteServer(siteDir, ctx, options = {}) {
   const already = openSites.get(siteDir);
   if (already) return already.server;
 
-  const { server } = await startSiteBackend(siteDir, ctx, options);
+  const { server, partition } = await startSiteBackend(siteDir, ctx, options);
   openSites.set(siteDir, { server });
+  scheduleSitePreview(siteDir, server.port, partition);
   return server;
 }
 
@@ -1173,6 +1288,13 @@ app
         // torn or empty `config.json.name` does not break the running site — it stops the NEXT
         // boot, with an error naming a file the operator never edited. See `site-config.js`.
         writeSiteName,
+        // The preview cache's three operations, bound to THIS launch's userData at the same call
+        // site every other consumer resolves it from — an independently-resolved userData here
+        // would write E2E previews into the real operator's profile (see `site-preview-store.js`'s
+        // own header, and `main.js`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
+        readPreviewVersion: (siteDir) => readPreviewVersion(app.getPath("userData"), siteDir),
+        readPreviewDataUrl: (siteDir) => readPreviewDataUrl(app.getPath("userData"), siteDir),
+        deletePreview: (siteDir) => deletePreview(app.getPath("userData"), siteDir),
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the
@@ -1207,6 +1329,9 @@ app
       // nothing else. Runs before `openSitesHomeWindow` so the first render already shows what is
       // really on disk rather than a list that fills in on the next 4s poll.
       rescanSites(projectDeps);
+      // Hygiene, run once past the boot scan so it sees the fullest tracked list — see
+      // `sweepSitePreviewsOnBoot`'s own doc for why this is cleanup, not correctness.
+      sweepSitePreviewsOnBoot(sitesCtx.projectsPath);
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.

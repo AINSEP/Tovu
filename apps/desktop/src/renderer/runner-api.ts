@@ -34,6 +34,10 @@ export interface RunnerInventoryBridge {
   /** Changes a site's display name (`config.json`'s `name`) and resolves the refreshed record.
    *  Rejects with an operator-facing reason — surface it verbatim; see `use-rename-site.hooks.ts`. */
   renameSite: (input: RenameSiteInput) => Promise<SiteRecord>;
+  /** One site's cached preview image as a `data:` URL, or `null` when no capture exists yet — the
+   *  ordinary state for a site that has never been opened. Fetch again only when
+   *  `SiteRecord.previewVersion` CHANGES; see that field's own doc and `use-site-preview.hooks.ts`. */
+  getSitePreview: (id: string) => Promise<string | null>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */

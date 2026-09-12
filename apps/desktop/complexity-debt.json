@@ -33,11 +33,6 @@
     },
     {
       "rule": "complexity",
-      "file": "apps/desktop/src/renderer/SiteGrid.tsx",
-      "reason": "Function 'SiteCard' has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "complexity",
       "file": "apps/desktop/src/renderer/folder-drop.ts",
       "reason": "Function 'folderPathsFromDataTransfer' has a complexity of 10. Maximum allowed is 9."
     },

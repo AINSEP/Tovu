@@ -1,5 +1,5 @@
 /**
- * @file Real handlers for the eight `runner:sites:*` IPC verbs the Projects screen needs — see
+ * @file Real handlers for the nine `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
  * `main.js` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
@@ -34,6 +34,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   rescan: "runner:sites:rescan",
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
+  preview: "runner:sites:preview",
 });
 
 /**
@@ -91,6 +92,10 @@ function buildSiteRecord(row, deps) {
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
     // and label a button with a consequence that will not happen. See `project-delete-guard.js`.
     deleteErasesFiles: mayEraseSiteDirectory(row, { repoRoot: deps.repoRoot }),
+    // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
+    // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
+    // which is every site's ordinary state until it has been opened once.
+    previewVersion: deps.readPreviewVersion(row.siteDir),
   };
 }
 
@@ -325,6 +330,12 @@ async function deleteProject(id, deps) {
   }
 
   untrackSite(deps.projectsPath, id);
+  // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
+  // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
+  // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
+  // (`site-preview-store.js`'s own doc on why an orphan is otherwise unreachable, not merely
+  // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
+  deps.deletePreview(id);
   if (erasesFiles) {
     await fsp.rm(id, { recursive: true, force: true });
   }
@@ -449,6 +460,24 @@ async function handleOpenExternal(input, deps) {
 }
 
 /**
+ * One site's cached preview as a `data:` URL, fetched ON DEMAND rather than riding along on
+ * `buildSiteRecord`'s `previewVersion` field — see that field's own doc, and `site-preview-store.js`'s
+ * header, on why the polled record and the actual bytes are deliberately two different round trips.
+ *
+ * No tracked-row check, unlike every other handler here: `id` only ever reaches this as an input to
+ * a digest (`site-preview-store.js`'s `previewPath`), never as a filesystem path this function opens
+ * directly, and reading is the only thing it does — there is no write or delete for a stale or
+ * foreign id to cause.
+ *
+ * @returns the URL, or `null` when no capture exists yet — the ordinary state for a site that has
+ *   never been opened, not an error to surface.
+ * @complexity O(1) beyond `readPreviewDataUrl`'s own cost.
+ */
+function handleGetPreview(id, deps) {
+  return deps.readPreviewDataUrl(id);
+}
+
+/**
  * A project tab's "not running yet" answer: ensure the site's `tovu serve` is up, spawning it if it
  * is not already running, or reusing it if another tab already has it open — never a `BrowserWindow`.
  * Reuses `openSiteServer` — `main.js`'s spawn-only counterpart to the `openSiteWindow` "Open
@@ -517,7 +546,7 @@ function rescanSites(deps) {
 }
 
 /**
- * Registers the seven real `runner:sites:*` handlers above.
+ * Registers the nine real `runner:sites:*` handlers above.
  *
  * @param {object} deps
  * @param {{handle: Function}} deps.ipcMain
@@ -540,6 +569,13 @@ function rescanSites(deps) {
  *   writer, used by {@link handleRename}. Injected rather than imported for the same reason
  *   `adoptSiteDir` is — every handler in this file stays callable from plain `node --test` against
  *   fakes, and a rename test must never write into a real site directory.
+ * @param {Function} deps.readPreviewVersion `site-preview-store.js`'s reader, bound to this launch's
+ *   userData at the same call site every other consumer resolves it from — feeds
+ *   `buildSiteRecord`'s `previewVersion` field.
+ * @param {Function} deps.readPreviewDataUrl `site-preview-store.js`'s reader, bound the same way —
+ *   {@link handleGetPreview}'s on-demand fetch.
+ * @param {Function} deps.deletePreview `site-preview-store.js`'s remover, bound the same way —
+ *   called beside `untrackSite` in {@link deleteProject}.
  * @param {Function} deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
  * @param {Function} deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
  *   {@link handleAddSite}. Injected rather than imported for the same reason `adoptSiteDir` is —
@@ -556,7 +592,7 @@ function rescanSites(deps) {
  * @param {Function} deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — eight registrations.
+ * @complexity O(1) — nine registrations.
  */
 function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
@@ -567,6 +603,7 @@ function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
 }
 
 export {
@@ -580,6 +617,7 @@ export {
   handleOpenExternal,
   handleStart,
   handleRename,
+  handleGetPreview,
   rescanSites,
   registerSiteIpcHandlers,
 };

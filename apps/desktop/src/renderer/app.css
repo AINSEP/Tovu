@@ -845,14 +845,27 @@ button { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--border);
 }
 
-/* No screenshots exist, so the port stands in for the preview. It is the project's
-   real address rather than decoration, which is why it gets display size. */
+/* Until a site has been captured (or when a capture fails), the port stands in for the preview.
+   It is the project's real address rather than decoration, which is why it gets display size. */
 .card__port {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 1.5rem;
   letter-spacing: -0.02em;
   color: var(--faint);
+}
+
+/* `.card__tile`'s `aspect-ratio: 16 / 10` above (not a fixed height) keeps every card's thumbnail
+   the same shape before either the real image or the port fallback has painted, so the grid
+   doesn't reflow when a capture loads in — same reasoning as the admin's own `.theme-card-preview`
+   (`apps/admin/src/styles.css`). `object-position: top` rather than the default `center`: a
+   full-page capture cropped to this ratio shows only its top fraction, and the hero is what a
+   thumbnail should be recognized by, not whatever section happens to fall at the vertical middle. */
+.card__preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
 }
 
 .card.is-running .card__tile { background: var(--primary-dim); }

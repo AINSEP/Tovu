@@ -53,6 +53,19 @@ export interface SiteRecord {
    * is to say which of the two a click will do — see `SiteGrid.hooks.ts`'s `deleteActionCopy`.
    */
   deleteErasesFiles: boolean;
+  /**
+   * A version token for this site's cached preview image — its capture's mtime, or `null` when no
+   * capture exists yet. NEVER the image itself.
+   *
+   * This record is polled every 4s (`useSitesPolling`) because sites crash and finish booting with
+   * no user action, so a byte payload here would re-serialize every open card's screenshot across
+   * IPC 15 times a minute for images that have not changed — at 50 sites, roughly 1.25 MB per poll,
+   * forever. A POLLED RECORD CARRIES REFERENCES, NOT PAYLOADS: the renderer fetches the actual
+   * `data:` URL on demand (`SITE_IPC_CHANNELS.preview`) only when this number CHANGES, not when it
+   * increases — a restored backup or a clock-skewed capture can move an mtime backward as easily as
+   * forward, and a "did it grow" check would silently ignore that case. See `site-preview-store.js`.
+   */
+  previewVersion: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -169,4 +182,13 @@ export const SITE_IPC_CHANNELS = {
    * name a destination and main has nothing to validate on arrival.
    */
   openExternal: 'runner:sites:open-external',
+  /**
+   * A site's cached preview as a `data:` URL — the on-demand fetch `SiteRecord.previewVersion`
+   * exists to trigger. Carries an id, never a path: main derives the cache file from the tracked
+   * row's own directory (`site-preview-store.js`'s digest), so the renderer names nothing on disk.
+   *
+   * @returns the URL, or `null` when no capture exists yet — the ordinary state for a site that has
+   *   never been opened, not an error to surface.
+   */
+  preview: 'runner:sites:preview',
 } as const;

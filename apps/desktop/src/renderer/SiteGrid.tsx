@@ -18,6 +18,7 @@
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, isValidSiteName } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
+import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardOpenProps, cardOverlay, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -119,14 +120,23 @@ function SiteCard({
   // or a removal that only drops the card. See `deleteActionCopy`'s own doc on why one word for
   // both would be a lie in whichever direction the operator happened to read it.
   const copy = deleteActionCopy(project);
+  // `null` until main has actually captured this site once (or the fetch is still in flight) — see
+  // `use-site-preview.hooks.ts`.
+  const previewUrl = useSitePreview(project.id, project.previewVersion);
 
   return (
     <article className={`card is-${project.status} ${openable ? 'is-openable' : ''}`} {...openProps}>
-      {/* No screenshots exist yet, so the tile carries the port instead of a
-          preview. It is the project's real address — the thing you would type
-          to reach it — which makes it more useful than a placeholder image. */}
       <div className="card__tile">
-        <span className="card__port">{project.port}</span>
+        {/* A capture exists once this site has been opened at least once, this run or a prior one.
+            Until then — and forever as the fallback if a capture ever failed — the tile carries the
+            port instead: the project's real address, the thing you would type to reach it, which is
+            more useful than a placeholder glyph. See `use-site-preview.hooks.ts` and
+            `site-preview-store.js` for why the record carries only a version token, never bytes. */}
+        {previewUrl ? (
+          <img className="card__preview" src={previewUrl} alt="" />
+        ) : (
+          <span className="card__port">{project.port}</span>
+        )}
         <SiteCardMenu
           project={project}
           onRename={() => rename.startRename(project)}

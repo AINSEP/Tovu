@@ -97,6 +97,7 @@ function registerRealHandlers(pickedPath) {
     statePath: path.join(userDataDir, "desktop-state.json"),
     cliMode: "source",
     readSiteName: (siteDir) => path.basename(siteDir),
+    readPreviewVersion: () => null,
     adoptSiteDir: async () => assert.fail("adoptSiteDir must not be reached — it inits empty folders"),
     classifySiteDir: classifySiteDirSafely,
     addSitePointer,
