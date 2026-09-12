@@ -11,6 +11,7 @@
     "build": "npm run build:preload && npm run build:renderer",
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
+    "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json",
     "test": "node --test \"src/**/*.test.js\" && node --import tsx --test \"src/**/*.test.ts\"",
     "stage": "node scripts/stage-payload.mjs",
