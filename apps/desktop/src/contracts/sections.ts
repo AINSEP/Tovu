@@ -58,9 +58,11 @@ export interface RunnerSection {
   group: RunnerSectionGroupId;
   label: string;
   /**
-   * Hidden from the nav, but still registered. Six sections are parked this way
-   * (see TODO.md) because twelve entries was more than the app can currently justify
-   * and their shape isn't settled yet. Kept in the registry rather than deleted or
+   * Hidden from the nav, but still registered. Seven sections are parked this way
+   * (see TODO.md): six because twelve entries was more than the app can currently
+   * justify and their shape isn't settled yet, plus `tasks` (owner request, 2026-09-12
+   * — remove the icon from the nav without breaking the public `RunnerSectionId`
+   * contract or dropping its verbs). Kept in the registry rather than deleted or
    * commented out: a literal comment would break the `RunnerSectionId` union and
    * silently drop their verbs from `runnerToolNames()`, which is a worse outcome than
    * one boolean. Flip to `false` — or delete the line — to bring one back.
@@ -140,6 +142,7 @@ export const RUNNER_SECTIONS = [
     id: 'tasks',
     group: 'work',
     label: 'Tasks',
+    hidden: true,
     agentDescription:
       'Long-running and queued operator jobs — anything that outlives a single chat turn, including bulk actions across many projects.',
     tools: ['desktop.queue_task', 'desktop.task.list', 'desktop.task.cancel'],
