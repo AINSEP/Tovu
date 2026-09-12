@@ -68,6 +68,24 @@ export function findPackageDir(fromDir, depName) {
 }
 
 /**
+ * Resolves one `from -> dep` dependency edge and, unless `dep` is excluded, already visited, or
+ * unresolvable, stages it (skipping the copy — but not the walk — when its destination is already
+ * staged). Returns `undefined` when there is nothing further to walk from this edge, or the
+ * resolved package's real directory plus whether staging it actually copied anything (as opposed
+ * to finding it already there).
+ */
+function resolveDependencyEdge(from, dep, { outDir, visited }) {
+  if (isExcluded(dep)) return undefined;
+  const resolved = findPackageDir(from, dep);
+  if (resolved === undefined || visited.has(resolved)) return undefined;
+  visited.add(resolved);
+  const dest = path.join(outDir, "node_modules", dep);
+  const alreadyStaged = existsSync(dest);
+  if (!alreadyStaged) stageDir(resolved, dest, true);
+  return { resolved, staged: !alreadyStaged };
+}
+
+/**
  * Jini's packages declare ordinary npm dependencies of their own — `@jini-ai/devops` needs `undici`
  * — that exist only inside Jini's pnpm store. Tovu never names them, so the caller's own
  * `productionDependencyPaths()` never sees them and stages none of them.
@@ -82,15 +100,10 @@ export function stageTransitiveDependencies({ roots, outDir }) {
   while (queue.length > 0) {
     const from = queue.pop();
     for (const dep of declaredDependencies(from)) {
-      if (isExcluded(dep)) continue;
-      const resolved = findPackageDir(from, dep);
-      if (resolved === undefined || visited.has(resolved)) continue;
-      visited.add(resolved);
-      queue.push(resolved);
-      const dest = path.join(outDir, "node_modules", dep);
-      if (existsSync(dest)) continue;
-      stageDir(resolved, dest, true);
-      count += 1;
+      const edge = resolveDependencyEdge(from, dep, { outDir, visited });
+      if (edge === undefined) continue;
+      queue.push(edge.resolved);
+      if (edge.staged) count += 1;
     }
   }
   return count;
