@@ -16,8 +16,10 @@ import {
   isPublishableThemePageCandidate,
   isStandaloneThemePage,
   listThemeFiles,
+  MAX_THEME_FILE_BYTES,
   readThemeFile,
   renameThemeFile,
+  resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
   restoreBuiltThemeGeneratedTree,
   themeFileDiffersFromOriginal,
@@ -656,31 +658,35 @@ function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme
 }
 
 /**
- * Reads `path`'s pristine copy out of the originals catalog for the per-file reset path. Read
- * through the containment helper against the CATALOG root rather than joining paths by hand:
- * `path` is operator input, and this is the one place in the file that resolves it against a
- * directory outside the theme's own folder. Writes the route's `NOT_IN_ORIGINAL` 409 itself on
- * failure so the caller only has to check `ok`.
+ * Restores `path` from the originals catalog for the per-file reset path, byte for byte, via
+ * {@link resetThemeFileToOriginal}. That call resolves `path` through the containment helper against
+ * the CATALOG root before it touches the live side: `path` is operator input, and this is the one
+ * place in the file that resolves it against a directory outside the theme's own folder. Writes the
+ * route's `NOT_IN_ORIGINAL` 409 itself when the catalog has no regular file at `path`, so the caller
+ * only has to check `ok`.
  */
-function readOriginalForReset(
+function resetFileFromOriginal(
   deps: ContentRouteDeps,
+  theme: DiscoveredTheme,
   catalogDir: string,
   path: string,
   res: Response
-): { ok: true; original: string } | { ok: false } {
-  try {
-    const original = readThemeFile({ themeDir: catalogDir, themesRoot: join(deps.themesDir, THEME_CATALOG_DIR), relativePath: path });
-    return { ok: true, original };
-  } catch (err) {
-    if (err instanceof ThemePathError) {
-      res.status(409).json({
-        error: `'${path}' is not in this theme's original, so there is nothing to reset it to`,
-        code: "NOT_IN_ORIGINAL",
-      });
-      return { ok: false };
-    }
-    throw err;
+): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
+  const reset = resetThemeFileToOriginal({
+    themeDir: theme.dir,
+    themesRoot: deps.themesDir,
+    originalDir: catalogDir,
+    originalsRoot: join(deps.themesDir, THEME_CATALOG_DIR),
+    relativePath: path,
+  });
+  if (!reset) {
+    res.status(409).json({
+      error: `'${path}' is not in this theme's original, so there is nothing to reset it to`,
+      code: "NOT_IN_ORIGINAL",
+    });
+    return { ok: false };
   }
+  return { ok: true, ...reset };
 }
 
 /**
@@ -690,6 +696,12 @@ function readOriginalForReset(
  * genuinely untouched rather than a hash or a manifest note: "put it back" is a file copy, needing
  * no diff, no history, and no tooling anybody has to build. It is only possible because the original
  * still exists byte-for-byte.
+ *
+ * The per-file reset copies the original's bytes and never decodes them, so binary files and files
+ * past the {@link MAX_THEME_FILE_BYTES} text-read limit reset like any other. A file whose bytes
+ * already match its original is not written: the response says `wasModified: false` and `bytes: 0`,
+ * matching `theme_reset_file`. `bytes` is the number of bytes written. `content` is the restored
+ * file's text, the same text GET `/file` returns for it, or `null` past that limit.
  *
  * ADR-020 §5 split, checked FIRST via {@link resolveThemeFileWriteScope}: for an authored theme (no
  * `build` field — every theme on disk today) or a built theme's own `theme.json`/`build.sourceDir`,
@@ -747,14 +759,21 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
         return;
       }
 
-      const originalResult = readOriginalForReset(deps, catalogDir, path, res);
-      if (!originalResult.ok) return;
-      const { original } = originalResult;
-
-      writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content: original });
+      const resetResult = resetFileFromOriginal(deps, theme, catalogDir, path, res);
+      if (!resetResult.ok) return;
+      const { wasModified, bytes } = resetResult;
+      // Reloaded even when nothing was written, matching `theme_reset_file`: this process's snapshot
+      // is stale whenever a different process wrote the theme.
       reloadTheme(deps, theme.manifest.id);
 
-      res.json({ scope: "file", path, bytes: Buffer.byteLength(original, "utf8"), content: original });
+      res.json({
+        scope: "file",
+        path,
+        wasModified,
+        bytes: wasModified ? bytes : 0,
+        content:
+          bytes > MAX_THEME_FILE_BYTES ? null : readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path }),
+      });
     } catch (err) {
       sendThemeFileError(res, err);
     }

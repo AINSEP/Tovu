@@ -125,11 +125,10 @@ test("reset on a file present live but absent from an otherwise-real catalog -> 
 });
 
 test("a catalog read failure OTHER than ThemePathError, during a per-file reset, propagates to the route's outer catch -> 500, not 409", async (t) => {
-  // The per-file reset's own inner try/catch around `readThemeFile(catalog...)` only maps
-  // `ThemePathError` to 409 NOT_IN_ORIGINAL and rethrows anything else -- exercised here by denying
-  // read permission on the CATALOG copy so `readFileSync` throws a raw EACCES that the inner catch's
-  // `if (err instanceof ThemePathError)` check does not match, reaching the route's outer
-  // `catch (err) { sendThemeFileError(res, err) }` -> 500 instead.
+  // The per-file reset maps only "the catalog has no regular file here" (`resetThemeFileToOriginal`
+  // returning null) to 409 NOT_IN_ORIGINAL. Anything that function throws goes to the route's outer
+  // `catch (err) { sendThemeFileError(res, err) }` -- exercised here by denying read permission on
+  // the CATALOG copy, so opening it throws a raw EACCES -> 500 instead.
   const themesDir = makeAuthoredPartialCatalogRoot();
   const catalogTarget = path.join(themesDir, "__original-themes__", "static", "partial", "tokens.json");
   fs.chmodSync(catalogTarget, 0o000);

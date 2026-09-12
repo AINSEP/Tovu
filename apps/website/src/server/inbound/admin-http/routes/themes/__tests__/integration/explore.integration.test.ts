@@ -933,12 +933,12 @@ test("explore: reset on an authored theme with no catalog counterpart at all 409
   assert.equal(body.error, `theme '${id}' has no stored original, so nothing can be reset`);
 });
 
-// --- readOriginalForReset's own catch-and-rethrow, and RESET's outer catch -------------------------
-// A permission-denied READ of the CATALOG file (not the live one) throws a plain fs error, not a
-// ThemePathError -- readOriginalForReset's own `if (err instanceof ThemePathError)` is false, so it
-// re-throws, and that propagates to the route's own outer `catch (err) { sendThemeFileError(res, err) }`.
+// --- a catalog read failure during a per-file reset, and RESET's outer catch -----------------------
+// A permission-denied READ of the CATALOG file (not the live one) makes `resetThemeFileToOriginal`
+// throw a plain fs error, not a ThemePathError and not its "no original" null, so it propagates to
+// the route's own outer `catch (err) { sendThemeFileError(res, err) }`.
 
-test("explore: reset with an unreadable catalog file 500s via readOriginalForReset's own rethrow into the route's outer catch (not NOT_IN_ORIGINAL)", async (t) => {
+test("explore: reset with an unreadable catalog file 500s via the route's outer catch (not NOT_IN_ORIGINAL)", async (t) => {
   const themesDir = makeThemesRoot();
   const catalogFile = path.join(themesDir, THEME_CATALOG_DIR, "static", THEME_ID, "style.css");
   fs.chmodSync(catalogFile, 0o000);

@@ -1281,6 +1281,25 @@ describe("useThemeExplore — reset", () => {
     expect(result.current.resetting).toBe(false);
   });
 
+  it("empties the editor when the server returns content: null (a file past the text-read limit)", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Changed</h1>" },
+    });
+    port.resetThemeFile = () => Promise.resolve({ content: null });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Changed</h1>"));
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.source).toBe("");
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.notice).toBe("Reset pages/index.html to the original");
+    expect(result.current.error).toBeNull();
+  });
+
   it("surfaces an Error rejection from resetThemeFile as error and leaves the confirm dialog open", async () => {
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],

@@ -9,7 +9,8 @@ import test from "node:test";
  * reach: `writeFileAtomically`'s own `statOrThemePathError(target, relativePathForError)` call
  * (`theme-files.ts`, near the top of that function).
  *
- * `writeThemeFile` — `writeFileAtomically`'s only caller — runs an IDENTICAL stat on the same
+ * `writeThemeFile` — like `writeFileAtomically`'s other caller, `resetThemeFileToOriginal` — runs
+ * an IDENTICAL stat on the same
  * `target` one line earlier (its own pre-existing-file check) and, once THAT call is wrapped in
  * `statOrThemePathError`, throws `ThemePathError` on a circular symlink before `writeFileAtomically`
  * ever runs — confirmed by reading both call sites in sequence, not assumed: nothing between the two

@@ -54,7 +54,9 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("resetThemeFile delegates to api.resetThemeFile with the theme id and path", async () => {
-    const spy = vi.spyOn(api, "resetThemeFile").mockResolvedValue({ path: "pages/index.html", bytes: 10, content: "orig" });
+    const spy = vi
+      .spyOn(api, "resetThemeFile")
+      .mockResolvedValue({ path: "pages/index.html", wasModified: true, bytes: 10, content: "orig" });
     await expect(defaultThemeExplorePort.resetThemeFile("basic", "pages/index.html")).resolves.toMatchObject({
       content: "orig",
     });

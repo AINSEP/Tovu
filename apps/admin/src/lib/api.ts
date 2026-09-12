@@ -2491,11 +2491,13 @@ export const api = {
       hasOriginal: boolean;
     }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`),
   /**
-   * Restore one file to the pristine copy in the originals catalog. DESTRUCTIVE — overwrites the
-   * working copy with no backup, so the caller must confirm with the operator first.
+   * Restore one file to the pristine copy in the originals catalog, byte for byte. DESTRUCTIVE —
+   * overwrites the working copy with no backup, so the caller must confirm with the operator first.
+   * A file already identical to its original is not rewritten: `wasModified: false`, `bytes: 0`.
+   * `content` is the restored file's text, or `null` past the server's 1 MB text-read limit.
    */
   resetThemeFile: (themeId: string, path: string) =>
-    request<{ path: string; bytes: number; content: string }>(
+    request<{ path: string; wasModified: boolean; bytes: number; content: string | null }>(
       `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset`,
       { method: "POST", body: JSON.stringify({ path }) }
     ),

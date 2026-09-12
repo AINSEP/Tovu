@@ -497,9 +497,9 @@ function filesHaveSameBytes(pathA: string, pathB: string): boolean {
 /**
  * The catalog original's absolute path and size for `relativePath`, or `null` when there is no
  * regular file there to compare against: missing, a directory, or a path that fails containment
- * against the catalog folder. Any containment failure maps to `null` rather than throwing, the same
- * way `explore.ts`'s `readOriginalForReset` maps every catalog-side `ThemePathError` to
- * `NOT_IN_ORIGINAL`: from the caller's side it means "no original for this path".
+ * against the catalog folder. Any containment failure maps to `null` rather than throwing: from the
+ * caller's side it means "no original for this path", which `explore.ts`'s per-file reset route
+ * reports as `NOT_IN_ORIGINAL` and `theme_reset_file` as `ThemeFileNoOriginalError`.
  */
 function originalRegularFile(required: {
   originalDir: string;
@@ -555,8 +555,10 @@ export function themeFileDiffersFromOriginal(
 }
 
 /**
- * Write `content` to `target` by writing a sibling temp file in the SAME directory and
- * `renameSync`-ing it over `target`, instead of truncating `target` in place.
+ * Replace `target` by filling a sibling temp file in the SAME directory and `renameSync`-ing it over
+ * `target`, instead of truncating `target` in place. `fillTemp` creates that temp file at the path it
+ * is given: {@link writeThemeFile} writes text there, and {@link resetThemeFileToOriginal} copies a
+ * catalog original's bytes there.
  *
  * Why this matters: a plain `writeFileSync(target, …, "w")` truncates `target`'s own inode the
  * instant it opens, before any content lands — a crash or a concurrent reader mid-write can then
@@ -575,18 +577,19 @@ export function themeFileDiffersFromOriginal(
  * succeed over a read-only target — regressing the permission-denied refusal a `"w"`-flag
  * `writeFileSync` open gave callers before this change. The temp file also inherits `target`'s
  * existing mode before the rename, so replacing a file does not silently change its permissions.
+ * When `target` does not exist yet, the new file keeps the mode `fillTemp` created it with.
  *
- * @throws whatever the underlying `accessSync`/`writeFileSync`/`chmodSync`/`renameSync` call
- * throws, or {@link ThemePathError} if the pre-write stat on `target` hits anything other than
- * ENOENT (see {@link statOrThemePathError}). The temp file is removed before the error propagates,
+ * @throws whatever `accessSync`, `fillTemp`, `chmodSync` or `renameSync` throws, or
+ * {@link ThemePathError} if the pre-write stat on `target` hits anything other than ENOENT (see
+ * {@link statOrThemePathError}). The temp file is removed before the error propagates,
  * so a failed write leaves no artifact behind in the theme folder.
- * @complexity O(s) in the content size.
+ * @complexity O(s) in the size of what `fillTemp` writes.
  */
-function writeFileAtomically(target: string, content: string, relativePathForError: string): void {
+function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void): void {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
-  // `writeThemeFile` — this function's only caller — already runs an identical stat on the same
-  // `target` one line earlier and throws first for a circular symlink, so this call is shadowed
+  // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
+  // same `target` just before and throw first for a circular symlink, so this call is shadowed
   // under ordinary single-process execution; it still guards a genuine TOCTOU window (an external
   // process replacing `target` with a symlink cycle between the two calls) and any future caller
   // that skips that earlier check. Still follows a symlink pointing at a real file inside the theme,
@@ -597,7 +600,7 @@ function writeFileAtomically(target: string, content: string, relativePathForErr
   }
   const tempPath = join(dirname(target), `.${basename(target)}.${process.pid}-${randomUUID()}.tmp`);
   try {
-    writeFileSync(tempPath, content, "utf8");
+    fillTemp(tempPath);
     if (existing) chmodSync(tempPath, existing.mode);
     renameSync(tempPath, target);
   } catch (err) {
@@ -636,8 +639,58 @@ export function writeThemeFile(
     throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.content, required.relativePath);
+  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"));
   return target;
+}
+
+/**
+ * Restore one file in a theme's live folder to its catalog original, byte for byte.
+ *
+ * Never decodes either file. The original is copied with `copyFileSync` into a temp file that
+ * {@link writeFileAtomically} renames over the live path, so a binary asset (an image, a font) comes
+ * back exactly and then compares unmodified in {@link themeFileDiffersFromOriginal}. Going through
+ * {@link readThemeFile}/{@link writeThemeFile} instead would decode via UTF-8 and turn every invalid
+ * byte into U+FFFD. There is no {@link MAX_THEME_FILE_BYTES} ceiling here for the same reason: that
+ * limit bounds text a caller reads or writes, and a reset carries no text.
+ *
+ * A live file whose bytes already match is not written at all. A missing live file is recreated,
+ * along with any missing parent folders, and takes the original's mode (`copyFileSync` copies it).
+ * An existing live file keeps its own mode.
+ *
+ * @param required.themeDir - The live theme's own folder (`DiscoveredTheme.dir`).
+ * @param required.themesRoot - The configured themes root, for the live side's recognized-root check.
+ * @param required.originalDir - The theme's catalog folder (`<themesRoot>/__original-themes__/<tier>/<id>`).
+ * @param required.originalsRoot - The catalog root (`<themesRoot>/__original-themes__`).
+ * @param required.relativePath - The file, relative to both folders.
+ * @returns `null` when the catalog has no regular file at `relativePath`. That is checked before the
+ * live side is resolved, so nothing is touched. Otherwise `bytes` is the original's size, and
+ * `wasModified` is `false` when the live bytes already matched (nothing written) or `true` after the
+ * copy.
+ * @throws {ThemePathError} When `relativePath` fails containment against the LIVE folder, or the live
+ * path exists and is not a regular file.
+ * @throws Whatever `openSync`/`readSync`/`accessSync`/`copyFileSync`/`chmodSync`/`renameSync` throw,
+ * e.g. `EACCES` for an unreadable original or a read-only live file. A failed copy leaves no temp
+ * file behind.
+ * @complexity O(s) time in the file size, for the comparison and the copy; O(1) space in this process.
+ */
+export function resetThemeFileToOriginal(
+  required: { themeDir: string; themesRoot: string; originalDir: string; originalsRoot: string; relativePath: string },
+  _optional: Record<string, never> = {}
+): { wasModified: boolean; bytes: number } | null {
+  const { themeDir, themesRoot, relativePath } = required;
+  const original = originalRegularFile(required);
+  if (!original) return null;
+  const target = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
+  const live = statOrThemePathError(target, relativePath);
+  if (live && !live.isFile()) {
+    throw new ThemePathError(`path '${relativePath}' exists and is not a regular file`);
+  }
+  if (live?.size === original.size && filesHaveSameBytes(target, original.path)) {
+    return { wasModified: false, bytes: original.size };
+  }
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileAtomically(target, relativePath, (tempPath) => copyFileSync(original.path, tempPath));
+  return { wasModified: true, bytes: original.size };
 }
 
 /**

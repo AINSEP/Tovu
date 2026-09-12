@@ -676,10 +676,12 @@ export function useThemeExplore(
     setError(null);
     try {
       const r = await port.resetThemeFile(themeId, selected);
-      // Adopt the server's returned content rather than re-fetching: it is the exact bytes just
-      // written, so the editor cannot briefly show the pre-reset source.
-      setSource(r.content);
-      setSavedSource(r.content);
+      // Adopt the server's returned content rather than re-fetching: it is the text of the bytes just
+      // restored, so the editor cannot briefly show the pre-reset source. `null` means the file is
+      // past the server's text-read limit, which GET `/file` refuses too, so the editor is emptied.
+      const restored = r.content ?? "";
+      setSource(restored);
+      setSavedSource(restored);
       setNotice(`Reset ${selected} to the original`);
       setPreviewNonce((n) => n + 1);
       setResetConfirmOpen(false);

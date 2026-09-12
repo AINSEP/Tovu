@@ -9,7 +9,8 @@ import { ThemePathError, themeFileDiffersFromOriginal } from "../theme-files.js"
 
 /**
  * @file `themeFileDiffersFromOriginal` — the byte comparison behind Explore's per-file `modified`
- * flag and `theme_reset_file`'s no-op on an already-pristine file. Every "same" answer here has to
+ * flag. Both resets' no-op on an already-pristine file (`resetThemeFileToOriginal`) uses the same
+ * `filesHaveSameBytes` compare. Every "same" answer here has to
  * come from comparing bytes: never mtime, never size alone, and no line-ending normalization.
  */
 

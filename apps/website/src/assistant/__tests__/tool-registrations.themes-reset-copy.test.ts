@@ -6,7 +6,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "../../features/theme/index.js";
+import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
@@ -153,7 +153,7 @@ test("theme_reset_file: overwrites a diverged live file with the catalog's origi
 test("theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false", async () => {
   const { deps, themesDir } = fakeRouteDeps();
   const livePath = path.join(themesDir, "static", "plain", "pages", "index.html");
-  // `writeThemeFile` writes a temp file and renames it over the target, so any write at all gives the
+  // A reset copies into a temp file and renames it over the target, so any write at all gives the
   // path a new inode. An unchanged inode is the proof nothing was written.
   const inodeBefore = fs.statSync(livePath).ino;
 
@@ -177,6 +177,72 @@ test("theme_reset_file: a CRLF-only difference from an LF original counts as mod
   assert.equal(result.wasModified, true);
   assert.equal(result.bytesWritten, "a{}\nb{}\n".length);
   assert.equal(readFile(themesDir, "plain", "css/line-endings.css"), "a{}\nb{}\n");
+});
+
+/** A real PNG signature, then bytes that are not valid UTF-8: `FF` and `FE` never occur in UTF-8,
+ *  and `80` is a lone continuation byte. */
+const BINARY_ORIGINAL = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe, 0x00, 0x80]);
+
+/** Writes `original` into `plain`'s catalog copy and `live` into its live folder at `relativePath`,
+ *  returning the live file's absolute path. */
+function seedPlainFile(themesDir: string, relativePath: string, original: Buffer, live: Buffer): string {
+  const originalPath = path.join(themesDir, THEME_CATALOG_DIR, "static", "plain", relativePath);
+  const livePath = path.join(themesDir, "static", "plain", relativePath);
+  for (const [target, bytes] of [[originalPath, original], [livePath, live]] as const) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, bytes);
+  }
+  return livePath;
+}
+
+function plainFileDiffersFromOriginal(themesDir: string, relativePath: string): boolean | null {
+  return themeFileDiffersFromOriginal({
+    themeDir: path.join(themesDir, "static", "plain"),
+    themesRoot: themesDir,
+    originalDir: path.join(themesDir, THEME_CATALOG_DIR, "static", "plain"),
+    originalsRoot: path.join(themesDir, THEME_CATALOG_DIR),
+    relativePath,
+  });
+}
+
+function assertSameBytes(actual: Buffer, expected: Buffer): void {
+  assert.ok(
+    actual.equals(expected),
+    `expected ${expected.length} original bytes, got ${actual.length} bytes; first 16 expected ${expected.subarray(0, 16).toString("hex")}, got ${actual.subarray(0, 16).toString("hex")}`
+  );
+}
+
+test("theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const edited = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]);
+  const livePath = seedPlainFile(themesDir, "assets/logo.png", BINARY_ORIGINAL, edited);
+
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "plain", path: "assets/logo.png" })
+  )) as { wasModified: boolean; bytesWritten: number };
+
+  assertSameBytes(fs.readFileSync(livePath), BINARY_ORIGINAL);
+  assert.equal(result.wasModified, true);
+  assert.equal(result.bytesWritten, BINARY_ORIGINAL.length);
+  assert.equal(plainFileDiffersFromOriginal(themesDir, "assets/logo.png"), false);
+});
+
+test("theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  // 200 KB past `MAX_THEME_FILE_BYTES`, with every byte value present.
+  const size = 1_000_000 + 200_000;
+  const original = Buffer.from(Array.from({ length: size }, (_, i) => (i * 31) & 0xff));
+  const livePath = seedPlainFile(themesDir, "assets/big.bin", original, Buffer.alloc(size, 0x61));
+
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "plain", path: "assets/big.bin" })
+  )) as { wasModified: boolean; bytesWritten: number; content: string | null };
+
+  assertSameBytes(fs.readFileSync(livePath), original);
+  assert.equal(result.wasModified, true);
+  assert.equal(result.bytesWritten, size);
+  assert.equal(result.content, null, "a file past the text-read limit has no text content to return");
+  assert.equal(plainFileDiffersFromOriginal(themesDir, "assets/big.bin"), false);
 });
 
 test("theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true", async () => {
@@ -267,13 +333,12 @@ test("theme_reset_file refuses when authorize() denies, and never touches disk",
 });
 
 test("theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched", async () => {
-  // The catalog READ this handler does first (`readOriginalForToolReset`) resolves `path` against the
-  // CATALOG copy of `plain`, through the identical `resolveThemeFilePath` containment check every
-  // other path in this domain goes through — so `../compiled/theme.json` is refused there, before
-  // `writeThemeFile`'s own (separately contained) live-theme write is ever reached. The refusal
-  // surfaces as "not in this theme's original", not "outside the theme folder": this handler maps
-  // ANY containment failure from the catalog read the same way, matching `explore.ts`'s own
-  // `readOriginalForReset` (its NOT_IN_ORIGINAL branch does the identical catch-all). The wording
+  // The catalog check `resetThemeFileToOriginal` does first resolves `path` against the CATALOG copy
+  // of `plain`, through the identical `resolveThemeFilePath` containment check every other path in
+  // this domain goes through — so `../compiled/theme.json` is refused there, before the live side is
+  // ever resolved or written. The refusal surfaces as "not in this theme's original", not "outside
+  // the theme folder": a catalog-side containment failure means "no original for this path", the
+  // same answer `explore.ts`'s per-file reset route gives as NOT_IN_ORIGINAL. The wording
   // differs from the read/write tools' own escape message; the safety property — nothing outside
   // `plain`'s own folder is ever read or written — is the same.
   const { deps, themesDir } = fakeRouteDeps();

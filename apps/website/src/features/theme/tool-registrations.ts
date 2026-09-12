@@ -62,11 +62,12 @@ import {
   copyThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
+  MAX_THEME_FILE_BYTES,
   nextAvailableFileName,
   readThemeFile,
   renameThemeFile,
+  resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
-  themeFileDiffersFromOriginal,
   ThemePathError,
   writeThemeFile,
 } from "./theme-files.js";
@@ -264,29 +265,37 @@ function catalogDirFor(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): string
 }
 
 /**
- * Read `relativePath`'s pristine copy out of the originals catalog for `theme_reset_file`, mirroring
- * `explore.ts`'s own `readOriginalForReset` (same read, same two refusal reasons) but throwing
- * instead of writing an HTTP response, matching every other refusal in this file. Read through
- * {@link readThemeFile}'s own containment check against the CATALOG root, exactly like every other
- * theme-relative path in this domain — `path` is operator input, and this is the one place in this
- * file that resolves it against a directory OUTSIDE the theme's own folder.
+ * Restore `relativePath` from the originals catalog for `theme_reset_file`, byte for byte, through
+ * {@link resetThemeFileToOriginal}: the same call `explore.ts`'s per-file reset route makes, with the
+ * same two refusal reasons, but throwing instead of writing an HTTP response, matching every other
+ * refusal in this file. `path` is operator input, and this is the one place in this file that
+ * resolves it against a directory OUTSIDE the theme's own folder; `resetThemeFileToOriginal` runs it
+ * through the containment check against the CATALOG root before it touches the live side.
  *
+ * @returns The original's size in `bytes`, and whether the live file differed and was rewritten.
  * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all, or the catalog
- * has no copy of this particular file.
+ * has no regular file at this path (including a path that escapes the catalog folder).
  */
-function readOriginalForToolReset(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, relativePath: string): string {
+function resetFromOriginalForTool(
+  routeDeps: ThemeToolDeps,
+  theme: DiscoveredTheme,
+  relativePath: string
+): { wasModified: boolean; bytes: number } {
   const catalogDir = catalogDirFor(routeDeps, theme);
   if (!existsSync(catalogDir)) {
     throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
   }
-  try {
-    return readThemeFile({ themeDir: catalogDir, themesRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR), relativePath });
-  } catch (err) {
-    if (err instanceof ThemePathError) {
-      throw new ThemeFileNoOriginalError(`'${relativePath}' is not in this theme's original, so there is nothing to reset it to`);
-    }
-    throw err;
+  const reset = resetThemeFileToOriginal({
+    themeDir: theme.dir,
+    themesRoot: routeDeps.themesDir,
+    originalDir: catalogDir,
+    originalsRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR),
+    relativePath,
+  });
+  if (!reset) {
+    throw new ThemeFileNoOriginalError(`'${relativePath}' is not in this theme's original, so there is nothing to reset it to`);
   }
+  return reset;
 }
 
 /**
@@ -453,9 +462,10 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   // -> readThemeFile() + writeThemeFile(): same durable write as theme_write_file, just computed
   //    from a read instead of taking the whole content as input.
   ["theme_edit_file", "mutates-durable-state"],
-  // -> readThemeFile() against the catalog + writeThemeFile() when the live bytes differ: same durable
-  //    write as theme_write_file, just sourced from the theme's own stored original instead of
-  //    caller-supplied content. An already-pristine file is not written.
+  // -> resetThemeFileToOriginal(): a byte compare against the catalog copy, then copyFileSync to a
+  //    temp file renamed over the live file when the bytes differ, then loadTheme() + in-place
+  //    replacement. Same durable write as theme_write_file, just sourced from the theme's own stored
+  //    original instead of caller-supplied content. An already-pristine file is not written.
   ["theme_reset_file", "mutates-durable-state"],
   // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
   ["theme_rename_file", "mutates-durable-state"],
@@ -612,8 +622,10 @@ export function buildThemesRegistrations(
 
     /**
      * Restores one file to the pristine copy in the originals catalog — the payoff of the copy-not-
-     * inherit model `explore.ts`'s own per-file reset route documents: "put it back" is a plain file
-     * read from a directory that was never mutated, needing no diff or history. Only the PER-FILE
+     * inherit model `explore.ts`'s own per-file reset route documents: "put it back" is a byte-for-
+     * byte file copy from a directory that was never mutated, needing no diff or history. Binary
+     * files and files past the {@link MAX_THEME_FILE_BYTES} text-read limit reset the same way; the
+     * result's `content` is `null` for the latter. Only the PER-FILE
      * path: unlike the HTTP route's `writeScope.kind === "generated-readonly"` branch (which restores
      * a compiled theme's whole generated tree as one atomic operation via
      * `restoreBuiltThemeGeneratedTree`), this tool refuses that case outright through
@@ -644,21 +656,9 @@ export function buildThemesRegistrations(
         // and a `.trash/...` path (restore it first with theme_restore_trashed_file).
         assertThemeFileWritable(theme, relativePath);
 
-        const original = readOriginalForToolReset(routeDeps, theme, relativePath);
-        // Byte comparison against the catalog copy (`themeFileDiffersFromOriginal`), never mtime or
-        // size alone. `!== false` treats `null` — the catalog copy vanished between the read above and
-        // this check — as modified, so the bytes already read are still written back.
-        const wasModified =
-          themeFileDiffersFromOriginal({
-            themeDir: theme.dir,
-            themesRoot: routeDeps.themesDir,
-            originalDir: catalogDirFor(routeDeps, theme),
-            originalsRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR),
-            relativePath,
-          }) !== false;
-        if (wasModified) {
-          writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: original });
-        }
+        // Byte comparison against the catalog copy, never mtime or size alone, then a byte copy only
+        // when they differ.
+        const { wasModified, bytes } = resetFromOriginalForTool(routeDeps, theme, relativePath);
         // Reloaded even when nothing was written: `status`/`errors` report the theme as it is on disk
         // now, and this process's snapshot is stale whenever a different process wrote the theme.
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
@@ -667,8 +667,9 @@ export function buildThemesRegistrations(
           themeId,
           path: relativePath,
           wasModified,
-          bytesWritten: wasModified ? Buffer.byteLength(original, "utf8") : 0,
-          content: original,
+          bytesWritten: wasModified ? bytes : 0,
+          // The restored file as the same text theme_read_file returns, or null past its read limit.
+          content: bytes > MAX_THEME_FILE_BYTES ? null : readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath }),
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
