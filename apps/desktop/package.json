@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
-  "main": "main.js",
+  "main": "main.ts",
   "scripts": {
     "dev": "electron .",
     "attach": "electron .",
@@ -14,9 +14,9 @@
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json",
     "test": "node --test \"src/**/*.test.js\" \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/contracts/**/*.test.ts\"",
-    "gates": "node scripts/check-gates.mjs",
+    "gates": "node scripts/check-gates.ts",
     "stage": "node scripts/stage-payload.mjs",
-    "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.mjs"
+    "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.ts"
   },
   "dependencies": {
     "@jini-ai/chat": "^0.3.7"

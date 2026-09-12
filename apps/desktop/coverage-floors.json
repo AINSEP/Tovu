@@ -1,7 +1,7 @@
 {
   "_comment": "Per-area coverage floors for apps/desktop, enforced by scripts/check-coverage.mjs. Floors were captured a few points under the 2026-09-12 measured baseline so the gate is GREEN on arrival and fails only on real backsliding. The denominator for every area is a DISK SCAN, never the lcov — see src/coverage-floors.js's header for why, and for the measurement in this repo that the omission silently corrupted.",
   "_comment_not_comparable": "These percentages come from node's own --experimental-test-coverage lcov, whose LF counts EVERY line including comments and blanks (verified: keyed-serializer.js LF:51 / wc -l 51; App.hooks.ts 1272/1272). This codebase is exceptionally comment-dense, so these line numbers read HIGHER than a statement-based tool's and are NOT comparable to any c8, vitest or istanbul figure — including apps/admin's vitest coverage. Do not put a desktop number and an admin number in the same table and draw a conclusion from the gap.",
-  "coverageInclude": ["src/**", "bin/**", "main.js"],
+  "coverageInclude": ["src/**", "bin/**", "main.ts"],
   "areas": [
     {
       "id": "src main-process",
@@ -35,8 +35,8 @@
   ],
   "notMeasured": [
     {
-      "what": "main.js",
-      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.js, shutdown-tracker.js, speech-ipc.js are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
+      "what": "main.ts",
+      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
     },
     {
       "what": "src/renderer/*.tsx",
@@ -44,7 +44,7 @@
     },
     {
       "what": "src/preload/preload.mts",
-      "why": "preload.test.js reads it as source text; nothing imports it. Measurable only via a test that imports the COMPILED dist/preload/preload.mjs, or by running the suite through tsx."
+      "why": "preload.test.ts reads it as source text; nothing imports it. Measurable only via a test that imports the COMPILED dist/preload/preload.mjs, or by running the suite through tsx."
     }
   ]
 }

@@ -25,7 +25,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const appTsx = fs.readFileSync(path.join(here, 'App.tsx'), 'utf8');
 const gridTsx = fs.readFileSync(path.join(here, 'SiteGrid.tsx'), 'utf8');
 const hookSource = fs.readFileSync(path.join(here, 'use-add-site.hooks.ts'), 'utf8');
-const pointerSource = fs.readFileSync(path.join(here, '..', 'add-site-pointer.js'), 'utf8');
+const pointerSource = fs.readFileSync(path.join(here, '..', 'add-site-pointer.ts'), 'utf8');
 
 /**
  * Source with every comment removed.

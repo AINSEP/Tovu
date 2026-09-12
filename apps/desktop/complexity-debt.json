@@ -23,12 +23,12 @@
     },
     {
       "rule": "complexity",
-      "file": "apps/desktop/src/tovu-server.js",
+      "file": "apps/desktop/src/tovu-server.ts",
       "reason": "Function 'buildServeEnv' has a complexity of 11. Maximum allowed is 9."
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/desktop/src/tovu-server.js",
+      "file": "apps/desktop/src/tovu-server.ts",
       "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
     }
   ]

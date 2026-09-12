@@ -16,7 +16,7 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { isBundleInput } from "./shell-staleness.js";
+import { isBundleInput } from "./shell-staleness.ts";
 
 /**
  * Top-level `node_modules` entries never staged, each for a reason that was checked rather than

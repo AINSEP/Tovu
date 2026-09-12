@@ -43,7 +43,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
-import { shellStalenessFailure } from "../src/shell-staleness.js";
+import { shellStalenessFailure } from "../src/shell-staleness.ts";
 import {
   assertClosureComplete,
   isExcluded,

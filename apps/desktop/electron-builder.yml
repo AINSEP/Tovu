@@ -11,7 +11,7 @@ directories:
 # under `dist/renderer/brand/` is a different file. Shipping `dist/**` alone would leave
 # `applyDockIcon()` silently falling back (`main.js` swallows that error).
 files:
-  - main.js
+  - main.ts
   - package.json
   # The MCP bridge the generated launcher execs (sites-mcp-registration.js). NOT covered by
   # the src/** entry: it lives in bin/, and a positive files: list REPLACES electron-builder's

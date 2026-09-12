@@ -15,5 +15,18 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/contracts/**/*.ts", "vite.config.mts"]
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/contracts/**/*.ts", "vite.config.mts"],
+  // These eight source-text wiring tests were renamed from .test.js in TypeScript migration Phase 3 with zero
+  // annotations. As JavaScript they were never typechecked, and strict mode rejects their untyped helper
+  // parameters. Phase 4 types them. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md.
+  "exclude": [
+    "src/renderer/card-preview-wiring.test.ts",
+    "src/renderer/marketplace-nav-wiring.test.ts",
+    "src/renderer/one-chat-fab-wiring.test.ts",
+    "src/renderer/rescan-wiring.test.ts",
+    "src/renderer/site-card-menu-wiring.test.ts",
+    "src/renderer/tasks-nav-hidden-wiring.test.ts",
+    "src/renderer/webview-failure-wiring.test.ts",
+    "src/renderer/webview-partition-wiring.test.ts"
+  ]
 }

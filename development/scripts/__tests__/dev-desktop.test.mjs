@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import * as devDesktop from "../dev-desktop.mjs";
-import { DEFAULT_STOP_GRACE_MS } from "../../../apps/desktop/src/tovu-server.js";
+import { DEFAULT_STOP_GRACE_MS } from "../../../apps/desktop/src/tovu-server.ts";
 
 const { waitForFileStable } = devDesktop;
 
