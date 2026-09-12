@@ -17,6 +17,14 @@
       "id": "coverage",
       "run": "node scripts/check-coverage.mjs",
       "enabled": true
+    },
+    {
+      "id": "complexity",
+      "run": "node scripts/check-complexity.mjs",
+      "enabled": false,
+      "disabledReason": "The 9/9 ceiling is enforced, but its complexity-debt.json baseline is NOT seeded yet. Seeding it now would record violations from a tree mid-rename (Commits 4-6 still touch App.tsx, contracts/project.ts, project-ipc.js, preload.mts and the chat files), so every entry would name a symbol or path about to change and the list would be wrong on arrival. Seed with `node scripts/check-complexity.mjs --update` from a clean `git archive HEAD` once the renames settle, then flip this to true. Measured 2026-09-12: 10 violations across 8 functions, 93 files linted.",
+      "disabledOn": "2026-09-12",
+      "disabledBy": "harness-survey (blocked by team-lead pending rename Commits 4-6)"
     }
   ]
 }
