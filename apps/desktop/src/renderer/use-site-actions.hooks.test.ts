@@ -26,7 +26,11 @@ interface FakeCalls {
   openSiteExternal: Array<{ siteId: string; view: string }>;
 }
 
-type GlobalWithWindow = typeof globalThis & { window?: { tovuRunner?: RunnerInventoryBridge } };
+// NOT `typeof globalThis & {...}` — the renderer's real DOM lib already declares `window` on
+// `typeof globalThis` as non-optional (`Window & typeof globalThis`), so intersecting a second,
+// optional `window` onto it merges into that same non-optional shape instead of narrowing it. Going
+// through `unknown` first is what actually lets this test model "no `window` at all".
+type GlobalWithWindow = { window?: { tovuRunner?: RunnerInventoryBridge } };
 
 /**
  * Installs `overrides` as `window.tovuRunner` for the duration of `run`, restoring whatever
@@ -40,7 +44,7 @@ async function withBridge(
   run: (calls: FakeCalls) => Promise<void>,
 ): Promise<void> {
   const calls: FakeCalls = { startSite: [], openSiteExternal: [] };
-  const g = globalThis as GlobalWithWindow;
+  const g = globalThis as unknown as GlobalWithWindow;
   const hadWindow = Object.prototype.hasOwnProperty.call(g, 'window');
   const previousWindow = g.window;
 
