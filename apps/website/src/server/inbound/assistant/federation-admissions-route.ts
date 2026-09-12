@@ -23,11 +23,18 @@ import type { FederatedAdmissionReport } from "#src/assistant/mcp-federation/tru
  * 503 if the daemon's own token is unconfigured) before this handler ever runs — there is
  * deliberately no second auth check inside this file. See `daemon-auth.ts`.
  *
- * In-memory and boot-scoped, matching R5's own framing: `reports` is handed in once, at
- * registration time, as a plain snapshot of what `attachFederatedMcpTools` returned during this
- * boot — never re-read, never persisted, and lost on restart, which is correct: it describes THIS
- * process's frozen admitted set, and a stale answer here would be worse than an honest "ask again
- * after the next boot."
+ * In-memory and process-scoped, matching R5's own framing: `reports` is a LIVE getter over whatever
+ * `attachFederatedMcpTools` has returned so far this process — the boot-time pass, plus every
+ * federation hot-reload pass since (`mcp-federation/reload.ts`, `federation-reload-route.ts`) —
+ * never persisted, and lost on restart, which is correct: it describes THIS process's admitted set,
+ * and a stale answer here would be worse than an honest "ask again after the next boot."
+ *
+ * Was a plain snapshot array, handed in once at registration time, until federation hot-reload
+ * (2026-09-11) needed this route to stay accurate after a reload rebinds `agent-daemon-server.ts`'s
+ * `federationAdmissionReports` `let` to a NEW array — a plain captured array reference would keep
+ * pointing at the boot-time one forever. A getter closure is the identical fix
+ * `withFederatedRefusalDiagnosis`'s `() => federationAdmissionReports` already applies one call site
+ * over, in that same file, for the identical reason.
  *
  * The intended caller is `src/server/routes/admin/external-mcp` (a separate phase, C-008), which
  * proxies this over the same authenticated `AGENT_DAEMON_URL` + `AGENT_DAEMON_TOKEN_ENV_VAR` channel
@@ -39,25 +46,27 @@ export const FEDERATION_ADMISSIONS_PATH = "/api/federation/admissions";
 
 export interface FederationAdmissionsRouteDeps {
   /**
-   * The snapshot `attachFederatedMcpTools` returned at boot — `AttachFederatedToolsResult.reports`
-   * verbatim, one entry per connection that reached admission. A connection that failed before
+   * Reads the CURRENT accounting live, called fresh on every request — never cached by this route.
+   * `AttachFederatedToolsResult.reports`' own shape, verbatim, one entry per connection that reached
+   * admission across every pass so far (boot, plus every reload). A connection that failed before
    * admission (bad spawn, timed-out handshake, native-id collision) contributes no entry, matching
    * that field's own contract. `isPreset` rides along unmodified — this route is a pure serializer,
    * never a reshape point, so a field this file does not itself read still reaches every caller.
    */
-  readonly reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[];
+  readonly reports: () => readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[];
 }
 
 /**
  * Mounts the read-only admissions report route.
  *
  * @param app - The daemon's Express app, already gated by `requireAgentDaemonToken`.
- * @param deps.reports - This boot's admission snapshot; see {@link FederationAdmissionsRouteDeps}.
- * @complexity O(1) — serves an already-computed snapshot; no work happens per request.
+ * @param deps.reports - Live accessor for the current admission accounting; see
+ * {@link FederationAdmissionsRouteDeps}.
+ * @complexity O(1) route dispatch; `reports()` itself is O(1) (a `let` read).
  * @overallScore 100
  */
 export function registerFederationAdmissionsRoute(app: Express, deps: FederationAdmissionsRouteDeps): void {
   app.get(FEDERATION_ADMISSIONS_PATH, (_req: Request, res: Response) => {
-    res.status(200).json({ connections: deps.reports });
+    res.status(200).json({ connections: deps.reports() });
   });
 }

@@ -5,6 +5,7 @@ import type { ExternalMcpOAuthService } from "#src/assistant/index";
 import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
+import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
 
@@ -40,6 +41,32 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
  * union (`OAuthError.code`) or an error's class identity — never `.message`, never
  * `OAuthError.providerErrorCode`. The browser gets one of a small, fixed set of Tovu-authored reasons
  * (`OAuthCallbackFailureReason`), never a word of what the provider actually said.
+ *
+ * ## Federation hot-reload trigger (2026-09-11)
+ *
+ * This is the PRIMARY operator-authorized event federation hot-reload fires on: once
+ * `completeAuthorizationCallback` durably persists a completed sign-in, `triggerFederationReload`
+ * tells the agent daemon to admit it without a restart — see `assistant-daemon-client.ts`'s own doc
+ * for the cross-process call and `mcp-federation/reload.ts` for why this is safe to call for ANY
+ * completed OAuth connection, not only a first-time one (an already-admitted connectionId is a no-op
+ * on the daemon side, never a re-admission).
+ *
+ * Why THIS route is the right trigger, rather than `external-mcp-oauth.ts`'s
+ * `completeAuthorizationCallback` itself: that file is the OAuth service shared by both this public
+ * callback and the admin-facing device/redirect-connect routes, and it has no HTTP client of its own
+ * — reaching across processes to the daemon is an HTTP-layer concern, which is exactly what THIS
+ * file already is (it is the one place in the callback's call stack that is a route handler, not a
+ * service method). Triggered only on the SUCCESS path, after the response-affecting work is done —
+ * see the call site below for why a reload failure must never turn an otherwise-successful OAuth
+ * connection into a page reporting failure to the operator.
+ *
+ * What authorizes this trigger, given the route itself carries no session: the SAME `state` this
+ * route already requires to reach `completeAuthorizationCallback` at all (this file's own header,
+ * above) — 24 cryptographically random, single-use bytes minted only by the admin-session-gated
+ * `POST .../oauth/connect` route (`admin-http/routes/external-mcp/oauth.ts`). A remote MCP server or
+ * an unauthenticated caller cannot manufacture a valid `state`, so by the time this trigger fires, an
+ * admin session is already the reason this code path is running at all — the same "operator-
+ * authorized" property `beginConnect`'s own gate establishes, just observed one hop later.
  */
 
 export interface ExternalMcpOAuthCallbackRouteDeps {
@@ -117,6 +144,14 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
       // time this responds the token is durable — the operator's next action is to close the window,
       // and reporting success over a write still in flight would report a connection that is one
       // restart from vanishing.
+      //
+      // Awaited (bounded to 5s — see `triggerFederationReload`'s own timeout), but its OUTCOME never
+      // changes this response: the OAuth connection above already succeeded and is durable regardless
+      // of whether the daemon is reachable or its reload pass admits the connection cleanly. Awaiting
+      // rather than firing-and-forgetting is what lets the operator return to the chat and find the
+      // tool already usable in the common case, instead of only on their NEXT turn — see this file's
+      // own header for the full trigger argument.
+      await triggerFederationReload();
       res.status(200).type("html").send(renderOAuthCallbackPage({ ok: true, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
     } catch (error) {
       // eslint-disable-next-line no-console

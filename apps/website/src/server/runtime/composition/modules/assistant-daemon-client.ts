@@ -252,6 +252,62 @@ export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRun
   }).catch(() => undefined);
 }
 
+/** Bounds one fire-and-forget reload trigger, not a boot race — matches
+ *  `admin-http/routes/external-mcp/admissions.ts`'s identical `ADMISSIONS_FETCH_TIMEOUT_MS` for the
+ *  same reason: this is an on-demand, idempotent call, never retried, so a slow daemon should fail
+ *  this ONE attempt fast rather than hold a caller's own response open. */
+const FEDERATION_RELOAD_FETCH_TIMEOUT_MS = 5_000;
+
+/**
+ * Tells the agent daemon to re-admit any federated MCP connection an operator authorized since it
+ * booted — the cross-process half of federation hot-reload (`mcp-federation/reload.ts` on the
+ * daemon side). Called from the MAIN web server process, which cannot reach the daemon's in-memory
+ * `ToolRegistry` any other way; see `POST /api/federation/reload`
+ * (`inbound/assistant/federation-reload-route.ts`) for what runs on the other end.
+ *
+ * Deliberately NEVER throws: both call sites (the public OAuth callback and the admin PUT route)
+ * must keep answering their own caller normally regardless of whether hot-reload worked — the
+ * underlying operator action (an OAuth connection, a saved roster row) already succeeded and is
+ * durable either way, and a daemon that is down, unauthenticated against, or genuinely failed its
+ * reload pass is not a reason to tell an operator their save failed. The manual restart escape hatch
+ * (`GET /api/federation/admissions` and its banner) remains correct either way: it reads the
+ * daemon's own live state, not this call's outcome.
+ *
+ * @returns `{ok: true, newlyAdmittedConnectionIds}` on a real 200, `{ok: false}` for every other
+ * outcome (no token configured, unreachable, non-200, or the daemon's own reload pass failing) —
+ * every failure branch is logged here so it stays VISIBLE (this feature's own hard requirement)
+ * rather than a caller silently discarding the result and giving an operator nothing to go on beyond
+ * "it didn't work, somehow."
+ * @complexity O(1) plus one bounded round trip.
+ */
+export async function triggerFederationReload(): Promise<{ readonly ok: boolean; readonly newlyAdmittedConnectionIds?: readonly string[] }> {
+  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  if (!token) {
+    console.warn("[assistant] mcp-federation: reload skipped — the agent daemon token is not configured");
+    return { ok: false };
+  }
+
+  try {
+    const upstream = await fetch(`${getAgentDaemonUrl()}/api/federation/reload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FEDERATION_RELOAD_FETCH_TIMEOUT_MS),
+    });
+    if (!upstream.ok) {
+      console.warn(`[assistant] mcp-federation: reload trigger answered ${upstream.status} — the connection needs a manual restart until the next successful reload`);
+      return { ok: false };
+    }
+    const body = (await upstream.json()) as { newlyAdmittedConnectionIds?: readonly string[] };
+    return { ok: true, newlyAdmittedConnectionIds: body.newlyAdmittedConnectionIds ?? [] };
+  } catch (error) {
+    // Connection refused, timed out, or an unparsable body — every one of these means the same
+    // thing to the caller: the daemon did not confirm a reload, full stop. Distinguishing them would
+    // not change what either call site does next (nothing — see this function's own doc).
+    console.warn(`[assistant] mcp-federation: reload trigger failed — ${error instanceof Error ? error.message : String(error)}`);
+    return { ok: false };
+  }
+}
+
 /** True for the "nothing is listening on that port yet" shape from a raw `node:http` request error
  *  (`error.code` directly) — the `node:http` equivalent of {@link isConnectionRefused}, which reads
  *  `error.cause.code` because `fetch`'s own errors wrap the underlying cause one level deeper. */

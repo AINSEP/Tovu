@@ -5,6 +5,7 @@ import {
   saveExternalMcpServer,
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -102,10 +103,24 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * sends, since the UI never received the values to send back), a STRING replaces them, and an EMPTY
  * string clears them. Collapsing absent into empty is how a toggle would silently wipe a token.
  *
- * A saved row does NOT take effect until the agent daemon restarts — the admitted tool set is
- * frozen at connect (`mcp-federation/trust.ts` R5), so re-reading this roster mid-process would
- * have to re-establish that guarantee. The response says so explicitly via `restartRequired` rather
- * than letting the tab imply the server is already live.
+ * A saved row does NOT necessarily take effect until the agent daemon restarts — the admitted tool
+ * set for any ONE connection is still frozen at connect (`mcp-federation/trust.ts` R5) and this route
+ * does not, and cannot, change that: editing an already-admitted connection's allowlist, credentials,
+ * or transport here still needs a real restart, because that connection's one-time admission already
+ * happened. `restartRequired: true` in the response reflects exactly that — it is conservative by
+ * design, not stale: it stays true even for a brand-new row, because whether the SECONDARY hot-reload
+ * trigger below actually admitted it depends on facts this route does not read back (daemon
+ * reachability, whether the connection is `authMode: "oauth"` and therefore not yet authorized).
+ *
+ * Federation hot-reload trigger (2026-09-11), fired unconditionally after every successful save,
+ * fire-and-forget (never awaited by the response): the daemon-side coordinator
+ * (`mcp-federation/reload.ts`) is what actually decides whether anything changed — a save that only
+ * edited fields on an ALREADY-admitted connection is a genuine no-op there (R5, restated above), and
+ * a fresh `authMode: "oauth"` row is a no-op too until its own callback later completes and fires
+ * the PRIMARY trigger (`public-http/routes/external-mcp/oauth-callback.ts`). The one case this
+ * actually helps is a brand-new, immediately-usable connection (`static_env`/no-OAuth transport) —
+ * exactly the "operator save/approve" trigger the feature's own spec calls out as the SECONDARY path,
+ * next to a completed OAuth sign-in as the primary one.
  */
 export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
@@ -130,6 +145,10 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         },
       );
 
+      // Fire-and-forget: never awaited, so this route's own response time and shape are unaffected
+      // by daemon reachability — see this file's own header for why `restartRequired` stays `true`
+      // unconditionally regardless of what this trigger ends up doing.
+      void triggerFederationReload();
       res.json({ server, restartRequired: true });
     } catch (err) {
       if (err instanceof ExternalMcpValidationError) {

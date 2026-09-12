@@ -56,6 +56,7 @@
  * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import express from "express";
@@ -99,11 +100,18 @@ import {
 } from "./agent-session-resume.js";
 import { createLiveRunTracker } from "./agent-run-concurrency.js";
 import {
+  agentAcceptsHostMintedSessionId,
+  resolveHostMintedSessionId,
+  resolveNewSessionField,
+} from "./agent-session-binding.js";
+import { createConversationStartLock } from "./conversation-start-lock.js";
+import {
   ASSISTANT_DISALLOWED_TOOLS,
   buildBaseSystemOverlay,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
+import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
@@ -123,6 +131,10 @@ import {
   attachFederatedMcpTools,
   buildFederatedRefusalPrefix,
   withFederatedRefusalDiagnosis,
+  createFederationReloadCoordinator,
+  type FederationReloadResult,
+  type FederationDeps,
+  createLiveToolCatalogQuery,
   type ResolvedFederatedConnection,
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -635,6 +647,11 @@ const runOwners = createRunOwnerRegistry();
  * lifetime, registered/unregistered per run inside `onStarted` below. */
 const liveRunTracker = createLiveRunTracker();
 
+/** Defect 1 fix (2026-09-11) — see `conversation-start-lock.ts`'s own doc. One instance for this
+ * process's whole lifetime; `onStarted` runs its read-decide-write session-binding section through
+ * it so two near-simultaneous turns on one conversation cannot both mint a session. */
+const conversationStartLock = createConversationStartLock();
+
 /**
  * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
  * fields the claimed batch contributes (`imagePaths`/`extraAllowedDirs`/`uploadRoot`). Returns
@@ -853,27 +870,38 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       if (pluginPromptPrefix === null) return;
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
-      // Extracted as its own function (complexity-debt sweep, 2026-09-03 — this handler's async
-      // continuation was at cyclomatic 11 against this repo's 9 ceiling) so `onStarted`'s own branch
-      // count reflects sequencing, not this defaulting decision's own branches. Declared and called
-      // right here, inline, rather than hoisted to module scope: this file's own wiring test
-      // (`agent-daemon-server.session-resume-wiring.unit.test.ts`, which proves ordering by reading
-      // this file's raw SOURCE, not by importing it — see that file's own doc for why) asserts that
-      // `routeDeps.agentSessions.getSessionId(`/`liveRunTracker.hasConcurrentLiveRun(` appear, in
-      // this relative order, strictly before `agentExecutor.run` below; keeping this function's body
-      // here instead of moving it elsewhere in the module preserves that ordering byte-for-byte.
-      async function resolveSessionResumeState(): Promise<{
+      /*
+       * This run's entire session-binding decision, in ONE function so it can be handed to
+       * `conversationStartLock` as a single critical section (Defect 1, 2026-09-11). It reads the
+       * stored id, applies the H2 concurrency gate, refuses the run when starting cold would
+       * silently drop history, mints and persists a fresh id when this is a genuine cold start, and
+       * returns the `AgentExecutor.run()` session fields that decision produces — `null` meaning
+       * "refused, the run is already finished as failed, stop."
+       *
+       * Extracted as its own function originally for complexity (2026-09-03 — this handler's async
+       * continuation was at cyclomatic 11 against this repo's 9 ceiling) so `onStarted`'s own branch
+       * count reflects sequencing, not this decision's own branches. Declared and called right here,
+       * inline, rather than hoisted to module scope: this file's own wiring tests
+       * (`agent-daemon-server.session-resume-wiring.unit.test.ts` and
+       * `agent-daemon-server.session-binding-wiring.unit.test.ts`, which prove ordering by reading
+       * this file's raw SOURCE rather than importing it — see their docs for why) assert that
+       * `routeDeps.agentSessions.getSessionId(`/`liveRunTracker.hasConcurrentLiveRun(`/
+       * `routeDeps.agentSessions.setSessionId(` appear, in this relative order, strictly before
+       * `agentExecutor.run` below; keeping this body here preserves that ordering byte-for-byte.
+       */
+      async function resolveSessionBinding(): Promise<{
         readonly agentId: string;
-        readonly storedSessionId: string | null;
-        readonly hasConcurrentLiveRun: boolean;
-      }> {
+        readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };
+      } | null> {
         const agentId = request.agentId ?? DEFAULT_AGENT_ID;
         // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
         // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
         // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
         // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
-        // makes `resolveResumeSessionField` a no-op below, so this run then starts cold rather than
-        // this handler minting a session id itself.
+        // makes `resolveResumeSessionField` a no-op below, so this run starts cold. Since the
+        // Defect 1 fix a cold start is no longer id-less: `resolveHostMintedSessionId` below mints
+        // one and persists it before the CLI is spawned, which is what this comment used to say was
+        // deliberately NOT happening.
         const storedSessionId =
           conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
         // The H2 fix: refusing to resume when another run for this conversation is already live
@@ -883,37 +911,82 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
         // tracker needs no special handling across a daemon restart.
         const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun(conversationId, run.id);
-        return { agentId, storedSessionId, hasConcurrentLiveRun };
-      }
-      const { agentId, storedSessionId, hasConcurrentLiveRun } = await resolveSessionResumeState();
 
-      // H2-context-loss fix: H2 alone silently drops conversation history for a
-      // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
-      // the full mechanism. The client already sent only the bare latest message trusting this run
-      // to resume; forcing it cold here would answer with none of the conversation `storedSessionId`
-      // proves actually exists. Refuse the run outright (same "fail loud, not silently degrade"
-      // precedent as the attachment-claim-failure branch above) rather than let the CLI answer
-      // blind.
-      if (
-        wouldForcedColdStartLoseConversationContext({
-          storedSessionId,
-          hasConcurrentLiveRun,
-          carriesOwnMemory: agentCarriesOwnMemory(agentId),
-        })
-      ) {
-        void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
-        console.error(
-          `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
-        );
-        return;
-      }
+        // H2-context-loss fix: H2 alone silently drops conversation history for a
+        // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
+        // the full mechanism. The client already sent only the bare latest message trusting this run
+        // to resume; forcing it cold here would answer with none of the conversation `storedSessionId`
+        // proves actually exists. Refuse the run outright (same "fail loud, not silently degrade"
+        // precedent as the attachment-claim-failure branch above) rather than let the CLI answer
+        // blind.
+        if (
+          wouldForcedColdStartLoseConversationContext({
+            storedSessionId,
+            hasConcurrentLiveRun,
+            carriesOwnMemory: agentCarriesOwnMemory(agentId),
+          })
+        ) {
+          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+          console.error(
+            `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
+          );
+          return null;
+        }
 
-      const effectiveResumeSessionId = hasConcurrentLiveRun ? null : storedSessionId;
-      attemptedResumeSessionId = effectiveResumeSessionId;
+        const effectiveResumeSessionId = hasConcurrentLiveRun ? null : storedSessionId;
+        attemptedResumeSessionId = effectiveResumeSessionId;
+
+        /*
+         * Defect 1 fix (2026-09-11). BEHAVIOR CHANGE, stated explicitly: a cold start for a def
+         * that accepts a host-minted session id now spawns the CLI under an id THIS process chose
+         * and wrote down first, instead of letting the CLI choose one and hoping the run survives
+         * long enough to report it back on its terminal `end` event.
+         *
+         * Why the old shape lost conversations: `extractSessionRefFromEndEvent` (the only writer
+         * before this) can only run if an `end` event actually arrives. A run killed by a daemon
+         * respawn, or one that fails in its first few hundred milliseconds, never produces one —
+         * so the conversation stayed unbound even though the CLI had already created a real
+         * session, and the NEXT turn started cold and answered with none of the history.
+         *
+         * The residual risk, disclosed rather than hidden: if the CLI dies before creating its own
+         * session file, the id persisted here names a session that does not exist, and the next
+         * turn's `--resume` fails. That failure is visible (the run ends failed) and self-healing
+         * — `shouldClearSessionOnFailedResume` clears the dead id, so the turn after starts cold.
+         * That is a strictly better failure than the silent, permanent history loss it replaces.
+         */
+        const hostMintedSessionId = resolveHostMintedSessionId({
+          conversationId,
+          effectiveResumeSessionId,
+          acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId(agentId),
+          mint: randomUUID,
+        });
+        if (conversationId !== undefined && hostMintedSessionId !== null) {
+          // Awaited, and inside the conversation lock: the whole point is that the binding is
+          // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
+          // losing resumability for one conversation is the pre-fix behavior, where failing the
+          // run outright would cost the user a turn over a bookkeeping write.
+          await routeDeps.agentSessions.setSessionId(conversationId, agentId, hostMintedSessionId).catch((error: unknown) => {
+            console.error(`[agent-daemon] run ${run.id}: failed to persist minted agent session id at dispatch`, error);
+          });
+        }
+
+        return {
+          agentId,
+          sessionFields: { ...resolveResumeSessionField(effectiveResumeSessionId), ...resolveNewSessionField(hostMintedSessionId) },
+        };
+      }
+      // Serialized per conversation (`conversation-start-lock.ts`): `resolveSessionBinding` is a
+      // read-modify-write over `assistant_agent_sessions` with an `await` in the middle, so two
+      // near-simultaneous turns on one conversation could otherwise both observe an empty session
+      // slot and both mint — forking the conversation exactly the way the terminal-event-only write
+      // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
+      // agent run would queue a second tab's turn behind it for minutes with no feedback.
+      const sessionBinding = await conversationStartLock.run(conversationId, resolveSessionBinding);
+      if (sessionBinding === null) return;
 
       await agentExecutor.run({
         runId: run.id,
-        agentId,
+        agentId: sessionBinding.agentId,
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
@@ -926,7 +999,13 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // def's own `buildArgs` options, which is where it becomes real argv.
         ...(reasoning !== undefined ? { reasoning } : {}),
         ...attachmentRunFields,
-        ...resolveResumeSessionField(effectiveResumeSessionId),
+        // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
+        // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
+        // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
+        // nothing to resume), and both are empty objects when they do not apply, so exactly one key
+        // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
+        // id that was persisted and the id handed to the CLI can never drift apart.
+        ...sessionBinding.sessionFields,
       });
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
@@ -1126,49 +1205,103 @@ async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedC
 async function start(): Promise<void> {
   registerSupabaseMcpPreset();
 
+  // Shared by the boot admission pass below AND every federation-reload pass
+  // (`reloadFederatedConnections`, defined further down): the SAME gate/failure-reporting wiring
+  // must back both, or a connection admitted by a reload could be held to different liveness
+  // behaviour than one admitted at boot for no reason other than which pass happened to register it.
+  const federationDeps: FederationDeps = {
+    authorize: routeDeps.authorize,
+    workspaceId: routeDeps.workspaceId,
+    // Nothing here unregisters a federated tool once it is in the FTS index, so a connection whose
+    // authorization dies mid-run stays discoverable and selectable. The gate is what stops the model
+    // looping on it: every call to a `needs_reauth` connection returns one terminal, explicitly
+    // non-retryable message instead of a transient-looking transport error. See
+    // `mcp-federation/registrations.ts`'s `assertConnectionUsable` doc.
+    assertConnectionUsable: createExternalMcpConnectionGate({
+      workspaceId: routeDeps.workspaceId,
+      repo: routeDeps.externalMcpServerRepo,
+    }),
+    // The gate above only catches a connection ALREADY known dead. A token valid at admission can
+    // still die mid-session — there is no periodic refresh — so this is what discovers that: on a
+    // live 401/403 it records `needs_reauth` (so the gate catches the NEXT call cheaply) and
+    // replaces the transport-shaped error with the same terminal message the gate throws.
+    onAuthFailed: (connectionId, error) => externalMcpOAuth.reportAuthFailure(connectionId, error),
+  };
+
   // Reassigns the module-scope `let` declared above (not a fresh local `const`): `toolExecutor`'s
   // `withFederatedRefusalDiagnosis` wrap already closed over that binding before this line ever
   // runs, and only a reassignment — not a same-named local shadowing it — is visible through that
   // closure. Same reasoning as `federationRefusalPrefix` a few lines down.
   federationAdmissionReports = (await attachFederatedMcpTools({
     registry,
-    deps: {
-      authorize: routeDeps.authorize,
-      workspaceId: routeDeps.workspaceId,
-      // Nothing here unregisters a federated tool once it is in the one-shot FTS index, so a
-      // connection whose authorization dies mid-run stays discoverable and selectable. The gate is
-      // what stops the model looping on it: every call to a `needs_reauth` connection returns one
-      // terminal, explicitly non-retryable message instead of a transient-looking transport error.
-      // See `mcp-federation/registrations.ts`'s `assertConnectionUsable` doc.
-      assertConnectionUsable: createExternalMcpConnectionGate({
-        workspaceId: routeDeps.workspaceId,
-        repo: routeDeps.externalMcpServerRepo,
-      }),
-      // The gate above only catches a connection ALREADY known dead. A token valid at boot can
-      // still die mid-session — there is no periodic refresh — so this is what discovers that: on a
-      // live 401/403 it records `needs_reauth` (so the gate catches the NEXT call cheaply) and
-      // replaces the transport-shaped error with the same terminal message the gate throws.
-      onAuthFailed: (connectionId, error) => externalMcpOAuth.reportAuthFailure(connectionId, error),
-    },
+    deps: federationDeps,
     extraConnections: await resolveStoredExternalMcpConnections(),
   })).reports;
 
-  // What this boot actually admitted, over HTTP — see `federation-admissions-route.ts`'s own doc
-  // for why this is a one-time snapshot handed in here rather than a live re-read, and
+  // What this process has admitted so far, over HTTP — see `federation-admissions-route.ts`'s own
+  // doc for why `reports` is a LIVE getter (not a snapshot handed in once) and
   // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
   // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
   // other route in this process.
-  registerFederationAdmissionsRoute(app, { reports: federationAdmissionReports });
+  registerFederationAdmissionsRoute(app, { reports: () => federationAdmissionReports });
 
-  // The same snapshot, for the OTHER party that never heard the refusal. Built once here rather
-  // than per run: the admitted set is frozen at connect (`trust.ts` R5), so this text cannot change
-  // for this process's lifetime, and re-deriving it on every run would be recomputing a constant.
+  // The same accounting, for the OTHER party that never heard the refusal. Rebuilt (not merely
+  // reassigned) after every reload pass that admits something new — see `reloadFederatedConnections`
+  // below — because a connection admitted mid-process should stop being reported as withheld in
+  // every NEW run's prompt, even though `trust.ts` R5 still means the admitted set for any ONE
+  // connection, once decided, never changes again.
   federationRefusalPrefix = buildFederatedRefusalPrefix(federationAdmissionReports);
   if (federationRefusalPrefix !== "") {
     console.warn(
       `[agent-daemon] mcp-federation: ${federationRefusalPrefix.split("\n").filter((line) => line.startsWith("- ")).length} withheld external tool(s) will be reported to the model in every run's prompt`,
     );
   }
+
+  /**
+   * Owns "which connectionIds has THIS process admitted so far" and serializes every reload attempt
+   * — see `mcp-federation/reload.ts`'s own header for the full concurrency/R5 argument, not repeated
+   * here. Seeded from the boot pass immediately above, so the first reload only ever considers
+   * connections that did not exist (or were not yet authorized) at boot.
+   */
+  const federationReloadCoordinator = createFederationReloadCoordinator(
+    { registry, deps: federationDeps, resolveConnections: resolveStoredExternalMcpConnections },
+    federationAdmissionReports.map((entry) => entry.connectionId),
+  );
+
+  /**
+   * Runs one reload pass and, only when it actually admitted something new, propagates the result
+   * into every OTHER piece of process state that a boot-time admission also updates: the merged
+   * accounting `GET /api/federation/admissions` (registered above) now serves live, the refusal
+   * prefix future runs' prompts carry, and — the discovery-side fix, see
+   * `tool-catalog-live-query.ts` — the `search_tools`/`describe_tool` snapshot, rebuilt from
+   * `registry.list()` and rebound into the SAME object identity `registerToolCatalogRoutes` was
+   * handed below (`liveToolCatalog`, defined a few lines down).
+   *
+   * A no-op reload (nothing new in the roster) intentionally skips all of this — rebuilding an
+   * unchanged FTS snapshot would cost real work for zero benefit, and would also, if a bug ever
+   * changed the rebuild to compute a stale result, be the SORT of no-op that becomes hard to notice
+   * precisely because nothing appeared to happen.
+   */
+  async function reloadFederatedConnections(): Promise<FederationReloadResult> {
+    const result = await federationReloadCoordinator.reload();
+    if (result.newlyAdmittedConnectionIds.length === 0) return result;
+
+    federationAdmissionReports = [...federationAdmissionReports, ...result.reports];
+    federationRefusalPrefix = buildFederatedRefusalPrefix(federationAdmissionReports);
+    liveToolCatalog.rebind(
+      withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+        workspaceId: routeDeps.workspaceId,
+        runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
+        principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+      }),
+    );
+    console.log(
+      `[agent-daemon] mcp-federation: reload admitted ${result.newlyAdmittedConnectionIds.length} new connection(s): ${result.newlyAdmittedConnectionIds.join(", ")}`,
+    );
+    return result;
+  }
+
+  registerFederationReloadRoute(app, { reload: reloadFederatedConnections });
 
   /**
    * Registers every installed Agent Plugin as a real tool, so a plain `search_tools` reaches it the
@@ -1260,17 +1393,24 @@ async function start(): Promise<void> {
   // values: `toolCatalogSearchRoute`/`toolCatalogDescribeRoute`'s `handle(input, deps)` carries no
   // per-request identity at all (v0 scope, `@jini-ai/http-kit`'s own doc) — see `tool-catalog-audit.ts`
   // for the full disclosure.
-  registerToolCatalogRoutes(
-    app,
-    {
-      catalog: withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
-        workspaceId: routeDeps.workspaceId,
-        runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-        principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-      }),
-    },
-    adapter,
+  //
+  // Wrapped a SECOND time in `createLiveToolCatalogQuery` (federation hot-reload, 2026-09-11):
+  // `registerToolCatalogRoutes` captures whatever object `.catalog` points to here ONCE, at this
+  // call, so a later `attachFederatedMcpTools` call (`reloadFederatedConnections` above) that
+  // registers new tools into `registry` would otherwise be invisible to `search_tools`/`describe_tool`
+  // forever — executable via `execute_delegated_tool` (which resolves against the live `registry`
+  // directly, see `@jini-ai/daemon`'s `ToolExecutor.execute`) but undiscoverable, the exact half-wired
+  // state `tool-catalog-query.ts`'s own header records finding on 2026-07-30 for a different reason.
+  // `liveToolCatalog.query`'s object identity never changes; `reloadFederatedConnections` calls
+  // `.rebind(...)` with a freshly reseeded snapshot instead.
+  const liveToolCatalog = createLiveToolCatalogQuery(
+    withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+      workspaceId: routeDeps.workspaceId,
+      runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
+      principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+    }),
   );
+  registerToolCatalogRoutes(app, { catalog: liveToolCatalog.query }, adapter);
 
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from

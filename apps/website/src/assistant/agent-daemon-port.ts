@@ -24,6 +24,20 @@ export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-aut
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
+// Federation hot-reload (2026-09-11): re-admits connections an operator authorized AFTER this
+// process already booted, without a restart. See that file's own header for the R5 guarantee it
+// preserves (never revises an already-admitted connection) and for why concurrency is coalesced
+// rather than naively single-flighted.
+export { createFederationReloadCoordinator } from "./mcp-federation/reload.js";
+export type { FederationReloadResult } from "./mcp-federation/reload.js";
+// So `agent-daemon-server.ts` can give its shared `federationDeps` local an explicit type — needed
+// for `onAuthFailed`'s parameter to infer as `McpAuthFailedError` (this type's own field) rather than
+// `unknown`, now that it is built as a standalone `const` instead of inline at the boot call site.
+export type { FederationDeps } from "./mcp-federation/registrations.js";
+// The discovery-side counterpart to the reload coordinator above — see its own header for why
+// `search_tools`/`describe_tool` need a rebindable snapshot even though `execute_delegated_tool`
+// already resolves a named id against the live `registry` on every call.
+export { createLiveToolCatalogQuery } from "./tool-catalog-live-query.js";
 // Pure, no transport: turns the SAME boot admission snapshot `attachFederatedMcpTools` returns into
 // the prompt text that tells the model which external tools were withheld and why. Exported through
 // this port for the same reason the line above is — the daemon process reaches this subtree only

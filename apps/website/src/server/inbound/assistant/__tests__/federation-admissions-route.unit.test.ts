@@ -36,7 +36,9 @@ function buildApp(
   // Same ordering as `agent-daemon-server.ts`: the gate mounts first, before any route — including
   // this one, which is deliberately never added to `exemptPaths`.
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
-  registerFederationAdmissionsRoute(app, { reports });
+  // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this test's
+  // own fixture keeps passing a plain array, matching every call site's ergonomics unchanged.
+  registerFederationAdmissionsRoute(app, { reports: () => reports });
   return app;
 }
 

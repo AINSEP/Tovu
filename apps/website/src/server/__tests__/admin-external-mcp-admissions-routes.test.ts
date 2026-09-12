@@ -79,7 +79,9 @@ async function withStandInDaemon(
 ): Promise<void> {
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
-  registerFederationAdmissionsRoute(app, { reports });
+  // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this
+  // harness's own fixture keeps passing a plain array, matching its call site's ergonomics unchanged.
+  registerFederationAdmissionsRoute(app, { reports: () => reports });
   const server = createServer(app);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
