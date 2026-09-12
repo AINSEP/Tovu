@@ -919,6 +919,80 @@ button { font: inherit; color: inherit; }
 .card__delete:hover { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
 .card__delete svg { width: 14px; height: 14px; }
 
+/* The ⋮ overflow menu, sharing the delete button's box and its reveal-on-hover behaviour so the
+   two read as one control cluster rather than two unrelated affordances. Sits to the LEFT of
+   delete: destructive stays at the corner where it has always been, and a menu that displaced it
+   would move the one control an operator has muscle memory for. */
+.card__menu { position: absolute; top: 0.4375rem; right: calc(0.4375rem + 26px + 0.25rem); z-index: 3; }
+.card__menubutton {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+/* `:focus-within` on the MENU too, not only the card: an open menu whose trigger has lost focus to
+   one of its own items must stay visible, or keyboard users watch it vanish mid-navigation. */
+.card:hover .card__menubutton,
+.card:focus-within .card__menubutton,
+.card__menu:focus-within .card__menubutton { opacity: 1; pointer-events: auto; }
+.card__menubutton:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--fg); }
+.card__menubutton[aria-expanded='true'] { opacity: 1; pointer-events: auto; background: var(--surface-2); color: var(--fg); }
+.card__menubutton svg { width: 14px; height: 14px; }
+
+.card__menulist {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  /* Right-anchored: the trigger sits near the card's right edge, so a left-anchored list would
+     overflow the card on every card in the last grid column. */
+  right: 0;
+  min-width: 10.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.card__menuitem {
+  padding: 0.4375rem 0.5rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.card__menuitem:hover { background: var(--surface-2); }
+
+/* The rename form reuses `.card__confirm`'s box (same overlay, same reasoning) and adds only the
+   two elements a confirm dialog has no equivalent of. */
+.card__renamelabel { font-size: 0.75rem; color: var(--muted); }
+.card__renameinput {
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.card__renameinput:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.card__renameinput:disabled { opacity: 0.55; cursor: not-allowed; }
+
 /*
  * Covers the card it is about, rather than opening a page-level modal. The project being
  * destroyed stays under the operator's cursor, so there is no window in which the confirmation

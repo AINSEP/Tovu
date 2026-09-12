@@ -1,5 +1,5 @@
 /**
- * @file Real handlers for the seven `runner:sites:*` IPC verbs the Projects screen needs — see
+ * @file Real handlers for the eight `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
  * `main.js` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
@@ -33,6 +33,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   start: "runner:sites:start",
   rescan: "runner:sites:rescan",
   addSite: "runner:sites:add-site",
+  rename: "runner:sites:rename",
 });
 
 /**
@@ -330,6 +331,106 @@ async function deleteProject(id, deps) {
 }
 
 /**
+ * Whether this row recorded an identity that the directory no longer has.
+ *
+ * `false` for a row that recorded none — which is every ADOPTED row, since `buildTrackedRow`
+ * (`tracked-sites.js`) stamps `siteId` only on a `created` one. That is the deliberate fail-OPEN
+ * half of {@link handleRename}'s guard, argued in its own doc: a check that cannot run is not the
+ * same as a check that failed, and treating it as failure would make rename impossible on every
+ * site the operator adopted.
+ *
+ * Its own function so the three clauses read as one question at the call site, and so the
+ * "recorded nothing" and "recorded something that changed" cases are visibly different answers.
+ *
+ * @complexity O(1) beyond `readSiteIdentity`'s single file read.
+ */
+function identityHasChanged(row) {
+  if (typeof row.siteId !== "string" || row.siteId === "") return false;
+  return readSiteIdentity(row.siteDir) !== row.siteId;
+}
+
+/**
+ * Change a site's display name — `config.json`'s `name`, the one `readSiteName` reads for every
+ * card's `displayName`.
+ *
+ * **WHY THE GUARD IS NOT `isStillTheRecordedSite`.** That predicate (`project-delete-guard.js`) is
+ * the right identity test for DELETE and the wrong one here, and the difference is not a judgement
+ * call — it returns `false` immediately unless `row.siteId` is a non-empty string, and
+ * `buildTrackedRow` (`tracked-sites.js`) stamps `siteId` ONLY on a `created` row. Every site the
+ * operator adopted — "Add Tovu Website", a rescan, "Open Site…" — has no `siteId` and never will,
+ * so gating rename on it would refuse rename on essentially every real site: a feature that fails
+ * closed into uselessness.
+ *
+ * The asymmetry is in what each direction costs, which is exactly how `project-delete-guard.js`'s
+ * own header argues its case. Delete's fail-closed direction costs the operator a leftover folder
+ * they can remove in Finder, while its wrong direction costs them their content — so it refuses
+ * whatever it cannot positively prove. Rename's fail-closed direction costs the whole feature on
+ * every site, while its wrong direction writes a display name into a site whose name that card is
+ * ALREADY showing (`readSiteName` reads whatever `config.json` sits at that path). Non-destructive,
+ * reversible, and the operator is renaming what they can see.
+ *
+ * So this checks what is actually checkable, and reuses the delete guard's own primitive
+ * (`readSiteIdentity`) rather than inventing a second notion of site identity:
+ *
+ * 1. The row is tracked. An id this shell does not know is not a site it may write to.
+ * 2. The directory still classifies as a complete Tovu site. This is the check that catches the
+ *    moved-, emptied-, or deleted-folder cases, and it is the one that matters most often.
+ * 3. When the row DOES carry a `siteId`, the directory's own identity must still match it.
+ *    Best-effort by necessity rather than by choice — applied whenever it can be proven at all.
+ *
+ * **Residual risk, stated rather than hidden:** on an adopted row whose directory was swapped for
+ * a different Tovu site, step 3 cannot fire and this renames the site that is there now. That is
+ * the same directory whose name the card is already displaying, so the operator is not misled about
+ * WHICH name they are changing — and the write is one reversible string, not a deletion.
+ *
+ * @returns the refreshed `SiteRecord`, so the card re-renders without a second `list` round trip.
+ * @throws {Error} operator-facing, for every refusal above and for an invalid name
+ *   (`site-config.js`'s own 1..200-after-trim check, which mirrors what `tovu serve` re-applies at
+ *   every boot).
+ * @complexity O(n) in the tracked-site count, for the row lookup.
+ */
+function handleRename(input, deps) {
+  const id = input?.id;
+  const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
+  if (row === undefined) {
+    throw new Error(`This app is not tracking a site at ${id}, so there is nothing to rename.`);
+  }
+
+  // The SAFE classifier (`deps.classifySiteDir` is `classifySiteDirSafely` — see `main.js`), so an
+  // unreadable directory becomes a refusal with a reason rather than a throw from inside the guard.
+  const kind = deps.classifySiteDir(row.siteDir);
+  if (kind !== "site") {
+    throw new Error(
+      `${row.siteDir} is no longer a complete Tovu site (${kind}), so its name cannot be changed. ` +
+        `If you moved the site, remove this card and add it again from its new location.`,
+    );
+  }
+
+  if (identityHasChanged(row)) {
+    throw new Error(
+      `The site now at ${row.siteDir} is not the one this card was made for, so it was not renamed. ` +
+        `Remove this card and add the site again from its current location.`,
+    );
+  }
+
+  const name = deps.writeSiteName(row.siteDir, input?.name);
+
+  // The open window's title, when there is one. There usually is NOT: a card opens its site as a
+  // `<webview>` tab inside the sites home window (whose own title is pinned to "Tovu"), and
+  // `openSiteServer` is spawn-only. Only "Open Site…"/"Open Recent" produce a titled window
+  // (`main.js`'s `openSiteWindow`). Worth the line anyway — `readSiteName`'s own doc says that
+  // title is "what makes Electron's native Window menu double as a site switcher (distinct titles,
+  // distinct entries)", so a stale one is a stale CONTROL, not a stale label.
+  //
+  // "Open Recent" itself needs no refresh: `main.js` builds those items with the directory path as
+  // the label, not the site name, so a rename cannot stale them.
+  const openWindow = deps.openSites.get(row.siteDir)?.window;
+  if (openWindow && !openWindow.isDestroyed()) openWindow.setTitle(name);
+
+  return buildSiteRecord(row, deps);
+}
+
+/**
  * Hands one of a running project's surfaces to the operator's default browser. Refuses a project
  * that is not currently open rather than guessing a port — nothing durable records a stopped
  * project's last-known port today (see `tracked-sites.js`'s header on why status is derived,
@@ -435,6 +536,10 @@ function rescanSites(deps) {
  * @param {string} deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
  * @param {string} deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
  * @param {Function} deps.readSiteName `main.js`'s site-display-name reader.
+ * @param {Function} deps.writeSiteName `site-config.js`'s validating, atomic `config.json` name
+ *   writer, used by {@link handleRename}. Injected rather than imported for the same reason
+ *   `adoptSiteDir` is — every handler in this file stays callable from plain `node --test` against
+ *   fakes, and a rename test must never write into a real site directory.
  * @param {Function} deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
  * @param {Function} deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
  *   {@link handleAddSite}. Injected rather than imported for the same reason `adoptSiteDir` is —
@@ -451,7 +556,7 @@ function rescanSites(deps) {
  * @param {Function} deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — seven registrations.
+ * @complexity O(1) — eight registrations.
  */
 function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
@@ -460,6 +565,7 @@ function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => handleStart(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
 }
 
@@ -473,6 +579,7 @@ export {
   handleDelete,
   handleOpenExternal,
   handleStart,
+  handleRename,
   rescanSites,
   registerSiteIpcHandlers,
 };

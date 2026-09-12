@@ -114,3 +114,80 @@ export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
     confirmButtonClass: 'button button--primary',
   };
 }
+
+/**
+ * Which overlay, if any, covers a card right now.
+ *
+ * One value rather than the two parallel booleans this started as (`confirming`, `renaming`),
+ * because they were never independent: a card shows at most one overlay, and both make it inert
+ * for the same reason — the click that commits or dismisses an overlay must not also open the site
+ * underneath it. Two booleans let the type say "both at once", which the UI has no rendering for.
+ *
+ * @complexity O(1) time, O(1) space.
+ */
+export type CardOverlayMode = 'confirm' | 'rename' | null;
+
+/**
+ * The overlay mode for one card, given the grid's two single-slot ids.
+ *
+ * Delete wins a tie. It cannot currently happen — opening either flow does not close the other's
+ * slot — but if it ever did, the destructive confirmation is the one that must not be hidden.
+ *
+ * @complexity O(1) time, O(1) space.
+ */
+export function cardOverlay(
+  id: string,
+  pendingDeleteId: string | null,
+  renamingId: string | null,
+): CardOverlayMode {
+  if (pendingDeleteId === id) return 'confirm';
+  return renamingId === id ? 'rename' : null;
+}
+
+/**
+ * The card's "I am an open target" props, or the inert equivalents.
+ *
+ * Extracted because the card element was carrying five separate `openable ? … : undefined`
+ * ternaries for what is one decision — a reader had to check all five to confirm they agreed, and
+ * a sixth attribute added later could disagree with the other five silently. One call, one answer.
+ *
+ * `onKeyDown` keeps using {@link isCardOpenKey} rather than an inline key check: it also refuses a
+ * keydown that started on a DESCENDANT, which is what stops the delete button's and the ⋮ menu's
+ * keyboard activation from opening the site instead. See that function's own doc.
+ *
+ * @param openable whether this card should respond at all.
+ * @param onOpen invoked with nothing — the caller closes over which site it means.
+ * @complexity O(1) time, O(1) space.
+ */
+/** Exactly what {@link isCardOpenKey} reads, plus the one method the handler calls — so a test can
+ *  drive `cardOpenProps` with a plain object and no DOM, the same way `isCardOpenKey` already can. */
+export interface CardOpenKeyEvent {
+  key: string;
+  target: EventTarget | null;
+  currentTarget: EventTarget | null;
+  preventDefault: () => void;
+}
+
+export function cardOpenProps(
+  openable: boolean,
+  onOpen: () => void,
+): {
+  role: 'button' | undefined;
+  tabIndex: 0 | undefined;
+  onClick: (() => void) | undefined;
+  onKeyDown: ((event: CardOpenKeyEvent) => void) | undefined;
+} {
+  if (!openable) {
+    return { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined };
+  }
+  return {
+    role: 'button',
+    tabIndex: 0,
+    onClick: onOpen,
+    onKeyDown: (event) => {
+      if (!isCardOpenKey(event)) return;
+      event.preventDefault();
+      onOpen();
+    },
+  };
+}

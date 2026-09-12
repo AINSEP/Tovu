@@ -63,6 +63,7 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:start",
   "runner:sites:rescan",
   "runner:sites:add-site",
+  "runner:sites:rename",
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {

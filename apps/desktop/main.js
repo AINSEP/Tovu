@@ -116,6 +116,7 @@ import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.js";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.js";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals } from "./src/tracked-sites.js";
+import { writeSiteName } from "./src/site-config.js";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.js";
 import { addSitePointer } from "./src/add-site-pointer.js";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.js";
@@ -1161,6 +1162,10 @@ app
         statePath: sitesCtx.statePath,
         cliMode: sitesCtx.cliMode,
         readSiteName,
+        // The write counterpart of `readSiteName` right above: validating and atomic, because a
+        // torn or empty `config.json.name` does not break the running site — it stops the NEXT
+        // boot, with an error naming a file the operator never edited. See `site-config.js`.
+        writeSiteName,
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the

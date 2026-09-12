@@ -39,12 +39,34 @@ test("the card's keydown handler routes through isCardOpenKey rather than checki
   // Source text, because the component itself has no runner in this package (see
   // `rescan-wiring.test.js`'s header). Without this, the predicate above could be correct and
   // simply not called — the exact shape of "correct primitive, unwired call site".
+  //
+  // The handler moved out of `SiteGrid.tsx`'s JSX and into `cardOpenProps` (this module) when the
+  // card's five `openable ? … : undefined` ternaries were collapsed into one call. That put TWO
+  // hops between the predicate and the DOM, so this checks both: the predicate is called, AND the
+  // object carrying it actually reaches the card. Either half alone would pass while the card had
+  // no keyboard behaviour at all.
+  const hooks = fs.readFileSync(path.join(import.meta.dirname, "SiteGrid.hooks.ts"), "utf8");
   const tsx = fs.readFileSync(path.join(import.meta.dirname, "SiteGrid.tsx"), "utf8");
-  assert.match(tsx, /import \{[^}]*\bisCardOpenKey\b[^}]*\} from '\.\/SiteGrid\.hooks\.js'/);
-  assert.match(tsx, /onKeyDown=\{[\s\S]{0,400}?if \(!isCardOpenKey\(event\)\) return;/);
-  assert.doesNotMatch(
-    tsx,
-    /if \(event\.key === 'Enter' \|\| event\.key === ' '\)/,
-    "an inline key check on the card is what swallowed the delete button's keyboard activation",
-  );
+
+  // Hop 1: the predicate is the gate inside `cardOpenProps`, not a re-implementation.
+  assert.match(hooks, /export function cardOpenProps\([\s\S]*?if \(!isCardOpenKey\(event\)\) return;/);
+
+  // Hop 2: its result is spread onto the card element. A `cardOpenProps` call whose return value
+  // went unused is precisely the "unwired call site" this test exists to catch.
+  assert.match(tsx, /import \{[^}]*\bcardOpenProps\b[^}]*\} from '\.\/SiteGrid\.hooks\.js'/);
+  assert.match(tsx, /const openProps = cardOpenProps\(openable, \(\) => onOpen\(project\.id\)\);/);
+  assert.match(tsx, /<article className=\{`card is-\$\{project\.status\}[^`]*`\} \{\.\.\.openProps\}>/);
+
+  // Neither file may go back to an inline key check.
+  const sources: readonly (readonly [string, string])[] = [
+    ["SiteGrid.tsx", tsx],
+    ["SiteGrid.hooks.ts", hooks],
+  ];
+  for (const [name, source] of sources) {
+    assert.doesNotMatch(
+      source,
+      /if \(event\.key === 'Enter' \|\| event\.key === ' '\)/,
+      `an inline key check in ${name} is what swallowed the delete button's keyboard activation`,
+    );
+  }
 });

@@ -11,9 +11,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleRename, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.js";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.js";
+import { writeSiteName } from "./site-config.js";
 import { addSitePointer } from "./add-site-pointer.js";
 import { createKeyedSerializer } from "./keyed-serializer.js";
 import { createSiteSupervisor } from "./site-supervisor.js";
@@ -777,4 +778,128 @@ test("REMOVING an adopted project is not gated by a sibling instance — it eras
   await assert.doesNotReject(() => handleDelete(siteDir, deps));
   assert.deepEqual(readTrackedSites(deps.projectsPath), [], "the card is gone");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "and every byte stays");
+});
+
+/* ---------- handleRename ---------- */
+
+/** `deps` for a rename: a real tracked row, a real site on disk, and the real `writeSiteName`. */
+function renameDeps(overrides = {}) {
+  const deps = baseDeps({ classifySiteDir: classifySiteDirSafely, writeSiteName, ...overrides });
+  return deps;
+}
+
+test("handleRename renames an ADOPTED row, which carries no siteId and never will", () => {
+  // THE regression test for this feature's original design defect. `isStillTheRecordedSite` was
+  // the proposed guard; it returns false unless `row.siteId` is a non-empty string, and
+  // `buildTrackedRow` stamps `siteId` only on a `created` row. Every site the operator adopted —
+  // "Add Tovu Website", a rescan, "Open Site…" — is therefore unrenameable under that guard, which
+  // is to say the feature would not have worked on a single real site.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "adopted-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites(deps.projectsPath)[0].siteId, undefined, "precondition: adopted rows carry no siteId");
+
+  const record = handleRename({ id: dir, name: "Renamed Site" }, deps);
+
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "Renamed Site");
+  assert.equal(record.id, dir);
+});
+
+test("handleRename refuses an id this shell does not track", () => {
+  const deps = renameDeps();
+  assert.throws(
+    () => handleRename({ id: "/sites/never-tracked", name: "New" }, deps),
+    /not tracking a site at \/sites\/never-tracked/,
+  );
+});
+
+test("handleRename refuses a directory that is no longer a complete Tovu site", () => {
+  // The moved-, emptied-, or deleted-folder case — the one this guard actually catches most often.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "gone-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  fs.rmSync(path.join(dir, ".site-meta.json"));
+
+  assert.throws(() => handleRename({ id: dir, name: "New" }, deps), /no longer a complete Tovu site \(incomplete\)/);
+  // And the name on disk is untouched — a refusal must not half-apply.
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "gone-site");
+});
+
+test("handleRename refuses when a CREATED row's recorded identity no longer matches the directory", () => {
+  // `project-delete-guard.js`'s documented trap: the operator moves their site and something else
+  // takes the old path. Provable only for a row that recorded an identity, which is why this is the
+  // `created` case and the adopted test above is the fail-open one.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "swapped-site"), "id-original");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.created, { siteId: "id-original" });
+  // A DIFFERENT site now occupies that path.
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "id-stranger", schemaVersion: 58 }));
+
+  assert.throws(() => handleRename({ id: dir, name: "New" }, deps), /not the one this card was made for/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "swapped-site");
+});
+
+test("handleRename renames a CREATED row whose identity still matches", () => {
+  // The other half of the check above — it must not refuse the case it exists to permit.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "created-site"), "id-same");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.created, { siteId: "id-same" });
+
+  handleRename({ id: dir, name: "Still Mine" }, deps);
+
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "Still Mine");
+});
+
+test("handleRename rejects an invalid name without writing", () => {
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "named-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+
+  assert.throws(() => handleRename({ id: dir, name: "   " }, deps), /1 to 200 characters/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "named-site");
+});
+
+test("handleRename retitles an OPEN own-server window, so the native Window menu stops lying", () => {
+  // `readSiteName`'s own doc: that title is "what makes Electron's native Window menu double as a
+  // site switcher (distinct titles, distinct entries)" — so a stale one is a stale CONTROL.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "open-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  const titles = [];
+  deps.openSites.set(dir, {
+    server: { port: 4321 },
+    window: { isDestroyed: () => false, setTitle: (title) => titles.push(title) },
+  });
+
+  handleRename({ id: dir, name: "Retitled" }, deps);
+
+  assert.deepEqual(titles, ["Retitled"], "the open window's title must follow the rename");
+});
+
+test("handleRename survives the usual case, where there is no window at all", () => {
+  // A card opens its site as a `<webview>` tab inside the sites home window; `openSiteServer` is
+  // spawn-only and sets no `window`. That is the COMMON shape, so an unguarded `.setTitle` here
+  // would throw on nearly every rename of a running site.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "tabbed-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  deps.openSites.set(dir, { server: { port: 4321 } });
+
+  const record = handleRename({ id: dir, name: "Tabbed" }, deps);
+
+  assert.equal(record.status, "running");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "Tabbed");
+});
+
+test("handleRename does not touch .site-meta.json — the marker repairSite refuses to overwrite", () => {
+  // The whole argument for why this write is allowed to exist next to a function that refuses to
+  // write: `repairSite`'s refusal protects the schema stamp, and a rename must never go near it.
+  const deps = renameDeps();
+  const dir = writeSite(path.join(path.dirname(deps.projectsPath), "stamped-site"), "id-a");
+  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  const before = fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8");
+
+  handleRename({ id: dir, name: "Renamed" }, deps);
+
+  assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), before, ".site-meta.json must be byte-identical");
 });

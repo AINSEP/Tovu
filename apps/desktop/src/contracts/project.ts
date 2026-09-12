@@ -80,6 +80,22 @@ export interface OpenSiteSurfaceInput {
   view: SiteSurface;
 }
 
+/**
+ * A site's new display name. `id` is the record's own id (its install dir), never a path the
+ * renderer composed — same discipline every other channel here follows.
+ *
+ * `name` is the RAW operator input, untrimmed: main trims and validates it against the same
+ * 1..200-chars-after-trim rule `tovu serve` re-applies at every boot
+ * (`platform/site-dir/read-site-dir.ts`'s `validateConfig`). The renderer checks it too, so a
+ * disabled Save is the first line — but a renderer's check is a courtesy, never the guarantee,
+ * and this one has teeth: a name that fails that rule makes the site refuse to BOOT next time,
+ * long after the dialog is gone.
+ */
+export interface RenameSiteInput {
+  id: string;
+  name: string;
+}
+
 export const SITE_IPC_CHANNELS = {
   list: 'runner:sites:list',
   create: 'runner:sites:create',
@@ -121,6 +137,27 @@ export const SITE_IPC_CHANNELS = {
    *   verbatim rather than paraphrasing it.
    */
   addSite: 'runner:sites:add-site',
+  /**
+   * Change a site's display name — `config.json`'s `name`, which is where `readSiteName`
+   * (`main.js`) gets every card's `displayName`. Real (`project-ipc.js`'s `handleRename`).
+   *
+   * **Why this writes a file that `repairSite` refuses to overwrite.** `repairSite`
+   * (`apps/website/src/platform/site-dir/repair-site.ts`) writes `config.json` too, and refuses
+   * outright when either marker file already exists. That refusal protects the OTHER marker:
+   * `.site-meta.json` carries `{schemaVersion, schemaTag}`, which `tovu serve` compares against
+   * its bundled migration identity before the database is ever opened, so a wrong stamp makes
+   * `serve` silently skip a migration the database still needs. `config.json` is inside that
+   * refusal only because `repairSite` writes the PAIR as one commit marker. A rename touches one
+   * string in `config.json`, never `.site-meta.json`, and so cannot cause that harm at all — a
+   * different operation, not a way around the invariant. It carries its own guard instead; see
+   * `handleRename`.
+   *
+   * @returns the refreshed `SiteRecord`, so the card can re-render without a second `list`.
+   * @throws when the row is unknown, the directory is no longer a Tovu site, the recorded identity
+   *   no longer matches, or the name is empty/blank/over 200 chars after trimming. Every message
+   *   is operator-facing.
+   */
+  rename: 'runner:sites:rename',
   /** Not implemented yet — no control in the per-project bar calls it. Closing the app
    *  (`before-quit`) or deleting the project are the two ways a sites-home-opened site stops today. */
   stop: 'runner:sites:stop',

@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
-import type { SiteRecord, CreateSiteInput, OpenSiteSurfaceInput } from '../contracts/project.js';
+import type { SiteRecord, CreateSiteInput, OpenSiteSurfaceInput, RenameSiteInput } from '../contracts/project.js';
 import type {
   WorkspaceChatEventMessage,
   WorkspaceChatReattachInput,
@@ -31,6 +31,9 @@ export interface RunnerInventoryBridge {
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<SiteRecord>;
   createSite: (input: CreateSiteInput) => Promise<SiteRecord>;
+  /** Changes a site's display name (`config.json`'s `name`) and resolves the refreshed record.
+   *  Rejects with an operator-facing reason — surface it verbatim; see `use-rename-site.hooks.ts`. */
+  renameSite: (input: RenameSiteInput) => Promise<SiteRecord>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */

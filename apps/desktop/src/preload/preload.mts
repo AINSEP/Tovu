@@ -27,6 +27,7 @@ import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.
 import {
   SITE_IPC_CHANNELS,
   type CreateSiteInput,
+  type RenameSiteInput,
   type OpenSiteSurfaceInput,
 } from '../contracts/project.js';
 import {
@@ -38,7 +39,7 @@ import {
 import { RUNNER_WORKING_DIRECTORY_CHANNELS } from '../contracts/working-directory.js';
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS, type SaveChatAttachmentInput } from '../contracts/chat-attachments.js';
 import {
-  RUNNER_CONVERSATION_CHANNELS,
+  WORKSPACE_CONVERSATION_CHANNELS,
   type RenameConversationInput,
   type SaveConversationMessageInput,
 } from '../contracts/workspace-conversations.js';
@@ -80,6 +81,11 @@ contextBridge.exposeInMainWorld(
      *  verbatim, it names the fix. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
+    /** Change a site's display name — `config.json`'s `name`. Rejects with an operator-facing
+     *  reason when the row is unknown, the folder is no longer a Tovu site, its recorded identity
+     *  no longer matches, or the name is empty/blank/over 200 chars after trimming. Surface that
+     *  message verbatim. See `SITE_IPC_CHANNELS.rename`. */
+    renameSite: (input: RenameSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.rename, input),
     startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
     stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
     deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),
@@ -108,15 +114,15 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke(RUNNER_WORKING_DIRECTORY_CHANNELS.normalize, directory),
     saveChatAttachment: (input: SaveChatAttachmentInput) =>
       ipcRenderer.invoke(RUNNER_CHAT_ATTACHMENT_CHANNELS.save, input),
-    listConversations: () => ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.list),
-    createConversation: () => ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.create),
+    listConversations: () => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.list),
+    createConversation: () => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.create),
     renameConversation: (input: RenameConversationInput) =>
-      ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.rename, input),
-    deleteConversation: (id: string) => ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.delete, { id }),
+      ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.rename, input),
+    deleteConversation: (id: string) => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.delete, { id }),
     loadConversationMessages: (conversationId: string) =>
-      ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.loadMessages, { conversationId }),
+      ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.loadMessages, { conversationId }),
     saveConversationMessage: (input: SaveConversationMessageInput) =>
-      ipcRenderer.invoke(RUNNER_CONVERSATION_CHANNELS.saveMessage, input),
+      ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.saveMessage, input),
   }),
 );
 
