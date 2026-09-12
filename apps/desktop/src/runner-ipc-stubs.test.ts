@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { registerRunnerIpcStubs, notPortedError, RUNNER_STUB_CHANNELS, RUNNER_MAIN_NOT_PORTED } from "./runner-ipc-stubs.ts";
+import type { RunnerNotPortedError } from "./runner-ipc-stubs.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,12 +34,12 @@ const CONTRACTS_DIR = path.join(__dirname, "contracts");
  * `runner:` for everything else, `workspace:` since the fleet-chat rename — so a channel added to
  * any contract file under either prefix is picked up with no change here.
  */
-function declaredChannels() {
-  const found = new Set();
+function declaredChannels(): Set<string> {
+  const found = new Set<string>();
   for (const entry of fs.readdirSync(CONTRACTS_DIR)) {
     if (!entry.endsWith(".ts")) continue;
     const source = fs.readFileSync(path.join(CONTRACTS_DIR, entry), "utf8");
-    for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]);
+    for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]!);
   }
   // Main->renderer sends, not `invoke` targets: there is no handler to register for any of them, so
   // `runner-ipc-stubs.js` deliberately omits them.
@@ -97,7 +98,7 @@ test("the push-only channels are NOT stubbed", () => {
 });
 
 test("registerRunnerIpcStubs registers one handler per channel", () => {
-  const registered = new Map();
+  const registered = new Map<string, () => never>();
   const returned = registerRunnerIpcStubs({ ipcMain: { handle: (c, l) => registered.set(c, l) } });
 
   assert.deepEqual([...registered.keys()], [...RUNNER_STUB_CHANNELS]);
@@ -105,11 +106,11 @@ test("registerRunnerIpcStubs registers one handler per channel", () => {
 });
 
 test("every registered handler throws rather than returning any value", () => {
-  const registered = new Map();
+  const registered = new Map<string, () => never>();
   registerRunnerIpcStubs({ ipcMain: { handle: (c, l) => registered.set(c, l) } });
 
   for (const [channel, handler] of registered) {
-    assert.throws(handler, (error) => {
+    assert.throws(handler, (error: RunnerNotPortedError) => {
       assert.equal(error.code, RUNNER_MAIN_NOT_PORTED);
       assert.equal(error.channel, channel);
       assert.match(error.message, new RegExp(`^${RUNNER_MAIN_NOT_PORTED}: ${channel} has no main-process implementation yet\\.`));

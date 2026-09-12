@@ -1,5 +1,21 @@
 import path from "node:path";
 
+/** {@link resolveDesktopRoots}'s input. */
+interface DesktopRootsInput {
+  isPackaged: boolean;
+  resourcesPath: string;
+  repoRoot: string;
+  documentsDir: string;
+}
+
+/** The four roots {@link resolveDesktopRoots} decides. */
+interface DesktopRoots {
+  payloadRoot: string;
+  devFallbackSiteDir: string | null;
+  siteScanRoots: string[];
+  defaultCliMode: "source" | "compiled";
+}
+
 /**
  * The four roots this shell resolves differently in a checkout than in a packaged `.app`, decided
  * in ONE place so the dev and packaged answers cannot drift apart call site by call site.
@@ -35,17 +51,16 @@ import path from "node:path";
  * security-relevant and a future reader must not assume a packaged build inherits a protection it
  * does not.
  *
- * @param {object} input
- * @param {boolean} input.isPackaged Electron's `app.isPackaged`. Available at module load — it is
+ * @param input
+ * @param input.isPackaged Electron's `app.isPackaged`. Available at module load — it is
  *   derived from the executable path, not from `whenReady`.
- * @param {string} input.resourcesPath `process.resourcesPath` (`…/Tovu.app/Contents/Resources`).
+ * @param input.resourcesPath `process.resourcesPath` (`…/Tovu.app/Contents/Resources`).
  *   Read only when `isPackaged`.
- * @param {string} input.repoRoot the checkout root, as `main.js` derives it from `__dirname`.
- * @param {string} input.documentsDir `app.getPath("documents")`. Read only when `isPackaged`.
- * @returns {{payloadRoot: string, devFallbackSiteDir: string|null, siteScanRoots: string[], defaultCliMode: "source"|"compiled"}}
+ * @param input.repoRoot the checkout root, as `main.js` derives it from `__dirname`.
+ * @param input.documentsDir `app.getPath("documents")`. Read only when `isPackaged`.
  * @complexity O(1).
  */
-function resolveDesktopRoots(input) {
+function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
   if (!input.isPackaged) {
     return {
       payloadRoot: input.repoRoot,
@@ -77,3 +92,4 @@ function resolveDesktopRoots(input) {
 }
 
 export { resolveDesktopRoots };
+export type { DesktopRoots, DesktopRootsInput };

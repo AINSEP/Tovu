@@ -17,13 +17,13 @@ function tempDir() {
 }
 
 /** A site dir whose `config.json` holds `contents`. */
-function writeConfig(contents) {
+function writeConfig(contents: unknown) {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(contents, null, 2));
   return dir;
 }
 
-function readConfig(dir) {
+function readConfig(dir: string): Record<string, unknown> {
   return JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8"));
 }
 

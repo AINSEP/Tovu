@@ -8,21 +8,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { ensureHelperCompiled, checkAvailability, transcribeWav, parseHelperJson, createMacOnDeviceTranscriptionPort } from "./mac-on-device-transcriber.ts";
+import type { MacTranscriberDeps } from "./mac-on-device-transcriber.ts";
 
 /** A minimal fake `fs` recording every call it receives, backed by an in-memory existence set. */
-function fakeFs({ existing = [] } = { existing: [] }) {
+function fakeFs({ existing = [] }: { existing?: string[] } = { existing: [] }) {
   const exists = new Set(existing);
-  const calls = { mkdirSync: [], writeFileSync: [], rmSync: [] };
+  const calls: { mkdirSync: [string, unknown][]; writeFileSync: [string, unknown][]; rmSync: [string, unknown][] } = { mkdirSync: [], writeFileSync: [], rmSync: [] };
   return {
     calls,
     exists,
-    existsSync: (p) => exists.has(p),
-    mkdirSync: (p, opts) => calls.mkdirSync.push([p, opts]),
-    writeFileSync: (p, data) => {
+    existsSync: (p: string) => exists.has(p),
+    mkdirSync: (p: string, opts: unknown) => calls.mkdirSync.push([p, opts]),
+    writeFileSync: (p: string, data: unknown) => {
       calls.writeFileSync.push([p, data]);
       exists.add(p);
     },
-    rmSync: (p, opts) => {
+    rmSync: (p: string, opts: unknown) => {
       calls.rmSync.push([p, opts]);
       exists.delete(p);
     },
@@ -57,7 +58,7 @@ test("ensureHelperCompiled compiles once and creates the parent directory first"
   const spawnSync = () => ({ status: 0, stderr: "" });
   const result = ensureHelperCompiled({ fs, spawnSync, sourcePath: "/speech/src.swift", binaryPath: "/speech/.build/helper" });
   assert.deepEqual(result, { ok: true });
-  assert.equal(fs.calls.mkdirSync[0][0], "/speech/.build");
+  assert.equal(fs.calls.mkdirSync[0]![0], "/speech/.build");
 });
 
 test("parseHelperJson throws a message that includes the raw stdout on malformed output", () => {
@@ -66,47 +67,47 @@ test("parseHelperJson throws a message that includes the raw stdout on malformed
 
 test("checkAvailability reports unavailable without spawning the helper when compilation fails", async () => {
   const fs = fakeFs();
-  const spawnSync = () => ({ status: null, error: { code: "ENOENT" } });
+  const spawnSync = () => ({ status: null, error: { code: "ENOENT" } as NodeJS.ErrnoException });
   const execFileAsync = () => assert.fail("must not run the helper when compilation failed");
   const result = await checkAvailability({ fs, spawnSync, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b" });
   assert.equal(result.available, false);
-  assert.match(result.reason, /swiftc-not-found/);
+  assert.match(result.reason!, /swiftc-not-found/);
 });
 
 test("checkAvailability relays the helper's own available:true payload", async () => {
   const fs = fakeFs({ existing: ["/b"] });
   const execFileAsync = async () => ({ stdout: '{"available":true,"reason":null}' });
-  const result = await checkAvailability({ fs, spawnSync: () => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b" });
+  const result = await checkAvailability({ fs, spawnSync: (): any => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b" }); // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
   assert.deepEqual(result, { available: true, reason: undefined });
 });
 
 test("checkAvailability relays the helper's own available:false reason (e.g. on-device assets missing)", async () => {
   const fs = fakeFs({ existing: ["/b"] });
   const execFileAsync = async () => ({ stdout: '{"available":false,"reason":"on-device-recognition-unavailable"}' });
-  const result = await checkAvailability({ fs, spawnSync: () => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b" });
+  const result = await checkAvailability({ fs, spawnSync: (): any => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b" }); // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
   assert.deepEqual(result, { available: false, reason: "on-device-recognition-unavailable" });
 });
 
 test("transcribeWav writes the buffer to the temp path, calls the helper, and returns its text", async () => {
   const fs = fakeFs({ existing: ["/b"] });
-  const calledArgs = [];
-  const execFileAsync = async (binaryPath, args) => {
+  const calledArgs: [string, string[]][] = [];
+  const execFileAsync = async (binaryPath: string, args: string[]) => {
     calledArgs.push([binaryPath, args]);
     return { stdout: '{"ok":true,"text":"publish the homepage","elapsedMs":1234}' };
   };
-  const deps = { fs, spawnSync: () => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
+  const deps = { fs, spawnSync: (): any => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" }; // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
 
   const result = await transcribeWav(Buffer.from("fake-wav-bytes"), deps);
 
   assert.deepEqual(result, { text: "publish the homepage", elapsedMs: 1234 });
   assert.deepEqual(calledArgs[0], ["/b", ["transcribe", "/tmp/rec.wav"]]);
-  assert.equal(fs.calls.writeFileSync[0][0], "/tmp/rec.wav");
+  assert.equal(fs.calls.writeFileSync[0]![0], "/tmp/rec.wav");
 });
 
 test("transcribeWav always removes the temp file, even when the helper reports a failure", async () => {
   const fs = fakeFs({ existing: ["/b"] });
   const execFileAsync = async () => ({ stdout: '{"ok":false,"error":"on-device-recognition-unavailable"}' });
-  const deps = { fs, spawnSync: () => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
+  const deps = { fs, spawnSync: (): any => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" }; // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
 
   await assert.rejects(() => transcribeWav(Buffer.from("x"), deps), /on-device-recognition-unavailable/);
   assert.equal(fs.exists.has("/tmp/rec.wav"), false);
@@ -118,7 +119,7 @@ test("transcribeWav always removes the temp file even when the child process its
   const execFileAsync = async () => {
     throw new Error("spawn EACCES");
   };
-  const deps = { fs, spawnSync: () => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
+  const deps = { fs, spawnSync: (): any => {}, execFileAsync, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" }; // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
 
   await assert.rejects(() => transcribeWav(Buffer.from("x"), deps), /EACCES/);
   assert.equal(fs.exists.has("/tmp/rec.wav"), false);
@@ -126,7 +127,7 @@ test("transcribeWav always removes the temp file even when the child process its
 
 test("transcribeWav rejects without writing a temp file when compilation itself fails", async () => {
   const fs = fakeFs();
-  const spawnSync = () => ({ status: null, error: { code: "ENOENT" } });
+  const spawnSync = () => ({ status: null, error: { code: "ENOENT" } as NodeJS.ErrnoException });
   const deps = { fs, spawnSync, execFileAsync: () => assert.fail("must not run"), sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
 
   await assert.rejects(() => transcribeWav(Buffer.from("x"), deps), /swiftc-not-found/);
@@ -135,11 +136,11 @@ test("transcribeWav rejects without writing a temp file when compilation itself 
 
 test("createMacOnDeviceTranscriptionPort composes overrides into a working port end to end", async () => {
   const fs = fakeFs({ existing: ["/b"] });
-  const execFileAsync = async (_bin, args) =>
+  const execFileAsync = async (_bin: string, args: string[]) =>
     args[0] === "check"
       ? { stdout: '{"available":true,"reason":null}' }
       : { stdout: '{"ok":true,"text":"hello","elapsedMs":50}' };
-  const port = createMacOnDeviceTranscriptionPort({ fs, spawnSync: () => {}, execFileAsync, binaryPath: "/b", tempFilePath: () => "/t.wav" });
+  const port = createMacOnDeviceTranscriptionPort({ fs, spawnSync: (): any => {}, execFileAsync, binaryPath: "/b", tempFilePath: () => "/t.wav" }); // any: an unreached spawnSync stub (the binary exists, so swiftc never runs) that returns nothing
 
   assert.deepEqual(await port.isAvailable(), { available: true, reason: undefined });
   assert.deepEqual(await port.transcribe(Buffer.from("x")), { text: "hello", elapsedMs: 50 });

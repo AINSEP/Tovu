@@ -30,6 +30,17 @@
  *  test can identify the cause without matching on prose. */
 const RUNNER_MAIN_NOT_PORTED = "RUNNER_MAIN_NOT_PORTED";
 
+/** The error one stubbed channel rejects with: an `Error` carrying {@link RUNNER_MAIN_NOT_PORTED} and its channel. */
+interface RunnerNotPortedError extends Error {
+  code: string;
+  channel: string;
+}
+
+/** The slice of Electron's `ipcMain` this module uses. Every handler it registers only throws. */
+interface StubIpcMain {
+  handle(channel: string, listener: () => never): void;
+}
+
 /**
  * Every `ipcRenderer.invoke` channel `src/preload/preload.mts` exposes, grouped by the contract
  * file that declares it. Kept as a flat frozen list because the only thing this module does with
@@ -70,14 +81,12 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
  * The error one stubbed channel rejects with. Built rather than shared so each rejection names its
  * own channel — a single shared instance would carry one channel's name into every other's stack.
  *
- * @param {string} channel
- * @returns {Error}
  * @complexity O(1).
  */
-function notPortedError(channel) {
+function notPortedError(channel: string): RunnerNotPortedError {
   const error = new Error(
     `${RUNNER_MAIN_NOT_PORTED}: ${channel} has no main-process implementation yet. The Tovu-Runner UI port brought the renderer across in phase 1; Tovu-Runner/src/main/ lands in phase 2.`,
-  );
+  ) as RunnerNotPortedError;
   error.code = RUNNER_MAIN_NOT_PORTED;
   error.channel = channel;
   return error;
@@ -91,13 +100,12 @@ function notPortedError(channel) {
  * handler and a stub for the same verb is a bug, not a fallback. Removing a name from the list
  * above is therefore part of implementing it.
  *
- * @param {{ ipcMain: { handle: (channel: string, listener: Function) => void } }} deps
- *   Injected rather than `require("electron")`'d so this is testable under plain `node --test`.
- * @returns {readonly string[]} the channels registered, in list order.
+ * @param deps `ipcMain`, injected rather than `require("electron")`'d so this is testable under plain `node --test`.
+ * @returns the channels registered, in list order.
  * @complexity O(n) in the channel count (19, fixed — 24 total minus the 5 real handlers in
  *   `project-ipc.js`).
  */
-function registerRunnerIpcStubs({ ipcMain }) {
+function registerRunnerIpcStubs({ ipcMain }: { ipcMain: StubIpcMain }): readonly string[] {
   for (const channel of RUNNER_STUB_CHANNELS) {
     ipcMain.handle(channel, () => {
       throw notPortedError(channel);
@@ -107,3 +115,4 @@ function registerRunnerIpcStubs({ ipcMain }) {
 }
 
 export { registerRunnerIpcStubs, notPortedError, RUNNER_STUB_CHANNELS, RUNNER_MAIN_NOT_PORTED };
+export type { RunnerNotPortedError, StubIpcMain };

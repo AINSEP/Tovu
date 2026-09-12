@@ -23,17 +23,45 @@
 /** Mirrors `contracts/project.ts`'s `SITE_HISTORY_CHANNEL`. */
 const SITE_HISTORY_CHANNEL = "runner:sites:history";
 
+/** What a click asks the renderer to do. */
+type SiteHistoryCommand = "back" | "forward";
+
+/** A menu click's focused window, as far as this module reads one. Electron types it as a
+ *  `BaseWindow`, which has no `webContents`, so that is optional. */
+interface HistoryCommandWindow {
+  isDestroyed(): boolean;
+  webContents?: { send(channel: string, payload: string): void };
+}
+
+/** One History item. `click` has the leading parameters of Electron's `MenuItem` click. */
+interface SiteHistoryMenuItem {
+  label: string;
+  accelerator: string;
+  click: (item: unknown, window: HistoryCommandWindow | undefined) => void;
+}
+
+/** The History menu: exactly Back, then Forward. */
+interface SiteHistoryMenu {
+  label: string;
+  submenu: [SiteHistoryMenuItem, SiteHistoryMenuItem];
+}
+
+/** One top-level entry of {@link sitesHomeMenuTemplate}: an Electron menu role, or History. */
+type SitesHomeMenuEntry =
+  | { role: "appMenu" | "fileMenu" | "editMenu" | "viewMenu" | "windowMenu" }
+  | { role: "help"; submenu: [] }
+  | SiteHistoryMenu;
+
 /**
  * Sends one history command to a window's renderer.
  *
- * @param {{isDestroyed: () => boolean, webContents?: {send: (channel: string, payload: string) => void}} | undefined} window
- *   the menu click's focused window. Electron types it as a `BaseWindow`, which has no
- *   `webContents`, so that is checked rather than assumed.
- * @param {"back" | "forward"} command
- * @returns {boolean} whether anything was sent.
+ * @param window the menu click's focused window. Electron types it as a `BaseWindow`, which has
+ *   no `webContents`, so that is checked rather than assumed.
+ * @param command
+ * @returns whether anything was sent.
  * @complexity O(1).
  */
-function sendSiteHistoryCommand(window, command) {
+function sendSiteHistoryCommand(window: HistoryCommandWindow | undefined, command: SiteHistoryCommand): boolean {
   if (!window || window.isDestroyed() || !window.webContents) return false;
   window.webContents.send(SITE_HISTORY_CHANNEL, command);
   return true;
@@ -44,12 +72,12 @@ function sendSiteHistoryCommand(window, command) {
  *
  * @complexity O(1).
  */
-function siteHistoryMenu() {
+function siteHistoryMenu(): SiteHistoryMenu {
   return {
     label: "History",
     submenu: [
-      { label: "Back", accelerator: "CmdOrCtrl+[", click: (_item, window) => void sendSiteHistoryCommand(window, "back") },
-      { label: "Forward", accelerator: "CmdOrCtrl+]", click: (_item, window) => void sendSiteHistoryCommand(window, "forward") },
+      { label: "Back", accelerator: "CmdOrCtrl+[", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand(window, "back") },
+      { label: "Forward", accelerator: "CmdOrCtrl+]", click: (_item: unknown, window: HistoryCommandWindow | undefined) => void sendSiteHistoryCommand(window, "forward") },
     ],
   };
 }
@@ -58,12 +86,13 @@ function siteHistoryMenu() {
  * Electron's default application menu with History added before Window. The Help menu is empty,
  * as a packaged app's default is.
  *
- * @param {string} platform `process.platform`; only macOS gets the app menu.
+ * @param platform `process.platform`; only macOS gets the app menu.
  * @complexity O(1).
  */
-function sitesHomeMenuTemplate(platform) {
+function sitesHomeMenuTemplate(platform: NodeJS.Platform): SitesHomeMenuEntry[] {
   return [
-    ...(platform === "darwin" ? [{ role: "appMenu" }] : []),
+    // `as const`: a conditional spread otherwise widens this role, and every entry after it, to `string`.
+    ...(platform === "darwin" ? [{ role: "appMenu" } as const] : []),
     { role: "fileMenu" },
     { role: "editMenu" },
     { role: "viewMenu" },
@@ -74,3 +103,4 @@ function sitesHomeMenuTemplate(platform) {
 }
 
 export { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, sitesHomeMenuTemplate };
+export type { HistoryCommandWindow, SiteHistoryCommand, SiteHistoryMenu, SiteHistoryMenuItem, SitesHomeMenuEntry };

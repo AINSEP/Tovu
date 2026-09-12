@@ -15,8 +15,10 @@
   },
   "files": [],
   "include": ["main.ts", "bin/**/*.ts", "scripts/**/*.ts", "src/*.ts", "src/speech/**/*.ts"],
-  // Files already in tsconfig.main.json. tsc still loads them when a pending file imports one, which
-  // is harmless: they pass strict, so they pass loose.
+  // Files already in tsconfig.main.json. tsc still loads them when a pending file imports one, so their
+  // loose errors count here too. Passing strict does not guarantee passing loose: without
+  // strictNullChecks a discriminated union does not narrow (batch 2 hit this in
+  // mac-on-device-transcriber.ts), so a batch checks that this program's error count did not rise.
   "exclude": [
     "src/complexity-debt.ts",
     "src/complexity-debt.test.ts",
@@ -42,6 +44,32 @@
     "src/tree-quiet.ts",
     "src/tree-quiet.test.ts",
     "src/webview-guest-policy.ts",
-    "src/webview-guest-policy.test.ts"
+    "src/webview-guest-policy.test.ts",
+    "src/admin-dev-proxy.ts",
+    "src/asar-verify.ts",
+    "src/asar-verify.test.ts",
+    "src/desktop-auth.ts",
+    "src/desktop-auth.test.ts",
+    "src/desktop-user-data-dir.ts",
+    "src/desktop-user-data-dir.test.ts",
+    "src/packaged-paths.ts",
+    "src/packaged-paths.test.ts",
+    "src/runner-ipc-stubs.ts",
+    "src/runner-ipc-stubs.test.ts",
+    "src/site-config.ts",
+    "src/site-config.test.ts",
+    "src/site-history-menu.ts",
+    "src/site-history-menu.test.ts",
+    "src/site-preview-store.ts",
+    "src/site-preview-store.test.ts",
+    "src/speech/mac-on-device-transcriber.ts",
+    "src/speech/mac-on-device-transcriber.test.ts",
+    "src/speech/pcm-wav-encoder.ts",
+    "src/speech/pcm-wav-encoder.test.ts",
+    "src/speech/preload-speech.test.ts",
+    "src/speech/speech-ipc.ts",
+    "src/speech/speech-ipc.test.ts",
+    "src/speech/transcription-port.ts",
+    "src/speech/transcription-port.test.ts"
   ]
 }

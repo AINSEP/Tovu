@@ -73,8 +73,8 @@ test("readPreviewDataUrl round-trips the exact bytes as a png data URL", () => {
   const userData = tempDir();
   writePreview(userData, "/sites/example", PNG);
   const url = readPreviewDataUrl(userData, "/sites/example");
-  assert.match(url, /^data:image\/png;base64,/);
-  assert.deepEqual(Buffer.from(url.slice("data:image/png;base64,".length), "base64"), PNG);
+  assert.match(url!, /^data:image\/png;base64,/);
+  assert.deepEqual(Buffer.from(url!.slice("data:image/png;base64,".length), "base64"), PNG);
 });
 
 test("a re-capture moves the version forward, which is what the renderer watches", () => {

@@ -70,6 +70,52 @@ const SESSION_COOKIE_NAME = "tovu_session";
  *  always knows the literal address its own child bound. */
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"]);
 
+/** What {@link redeemBootSession} and {@link endSiteSession} resolve with. */
+interface AuthOutcome {
+  ok: boolean;
+  status?: number;
+  reason?: string;
+}
+
+/** The slice of Electron's `Session` read here: its cookie jar's lookup. */
+interface CookieJarSession {
+  cookies: { get(filter: { name: string }): Promise<unknown[]> };
+}
+
+/** What `net.request` is given here, a subset of Electron's `ClientRequestConstructorOptions`. The
+ *  session is only handed through to the request, so its type is whatever the caller's is. */
+interface AuthRequestOptions<TSession> {
+  method: "GET" | "POST";
+  url: string;
+  session: TSession;
+  useSessionCookies: boolean;
+}
+
+/** The slice of Electron's `IncomingMessage` read here. */
+interface AuthResponse {
+  statusCode: number;
+  on(event: "data", listener: () => void): unknown;
+  on(event: "end", listener: () => void): unknown;
+}
+
+/** The slice of Electron's `ClientRequest` every request here uses. */
+interface AuthRequest {
+  on(event: "response", listener: (response: AuthResponse) => void): unknown;
+  on(event: "error", listener: (error: Error) => void): unknown;
+  end(): void;
+}
+
+/** A request that also sends a JSON body, as {@link redeemBootSession}'s does. */
+interface AuthBodyRequest extends AuthRequest {
+  setHeader(name: string, value: string): void;
+  write(chunk: string): void;
+}
+
+/** The slice of Electron's `net` module used here, answering with `TRequest`. */
+interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
+  request(options: AuthRequestOptions<TSession>): TRequest;
+}
+
 /**
  * Throw unless `adminUrl` names a plain-HTTP loopback origin.
  *
@@ -77,13 +123,12 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"]);
  * the code rather than of the caller's good behaviour. Checked immediately before the credential is
  * put on the wire, not at some earlier layer that a future call site could skip.
  *
- * @param {string} adminUrl
- * @returns {URL} the parsed origin, for the caller to build its request from.
+ * @returns the parsed origin, for the caller to build its request from.
  * @throws {Error} when the url is unparseable, not `http:`, or not a loopback literal.
  * @complexity O(1).
  */
-function assertLoopbackAdminUrl(adminUrl) {
-  let parsed;
+function assertLoopbackAdminUrl(adminUrl: string): URL {
+  let parsed: URL;
   try {
     parsed = new URL(adminUrl);
   } catch {
@@ -105,11 +150,11 @@ function assertLoopbackAdminUrl(adminUrl) {
  * syntax (`persist:` prefix, `/` separators) and does not leak the operator's directory layout into
  * a partition directory name under `userData`.
  *
- * @param {string} siteDir absolute site directory.
- * @returns {string} e.g. `persist:tovu-site-1f3c…`
+ * @param siteDir absolute site directory.
+ * @returns e.g. `persist:tovu-site-1f3c…`
  * @complexity O(n) in the path length.
  */
-function sitePartition(siteDir) {
+function sitePartition(siteDir: string): string {
   const digest = crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
   return `persist:tovu-site-${digest}`;
 }
@@ -128,17 +173,21 @@ function sitePartition(siteDir) {
  * Never throws for an auth outcome. A 401 is an ordinary answer (a spent token, a server that
  * minted none), and the caller's job is then to show the login form.
  *
- * @param {object} deps
- * @param {{request: Function}} deps.net Electron's `net` module (injectable test seam).
- * @param {object} deps.session the Electron `Session` whose cookie jar receives the cookie.
- * @param {string} deps.adminUrl the child's own reported admin URL.
- * @param {string} deps.bootToken the single-use token the child emitted on its stdout.
- * @returns {Promise<{ok: boolean, status?: number, reason?: string}>}
+ * @param deps
+ * @param deps.net Electron's `net` module (injectable test seam).
+ * @param deps.session the Electron `Session` whose cookie jar receives the cookie.
+ * @param deps.adminUrl the child's own reported admin URL.
+ * @param deps.bootToken the single-use token the child emitted on its stdout.
  * @throws {Error} (as a rejection) only when `adminUrl` is not a loopback origin — a wiring bug,
  *   never an auth outcome.
  * @complexity O(1) — one request.
  */
-async function redeemBootSession(deps) {
+async function redeemBootSession<TSession>(deps: {
+  net: AuthNet<TSession, AuthBodyRequest>;
+  session: TSession;
+  adminUrl: string;
+  bootToken: string;
+}): Promise<AuthOutcome> {
   // `async` so the loopback guard REJECTS rather than throwing synchronously. A Promise-returning
   // function that can also throw before returning its promise is a trap for any caller using
   // `.catch()`, and this particular throw is the security guard.
@@ -154,7 +203,7 @@ async function redeemBootSession(deps) {
     });
     request.setHeader("Content-Type", "application/json");
 
-    request.on("response", (response) => {
+    request.on("response", (response: AuthResponse) => {
       // Drained rather than parsed: nothing here needs the body, and an undrained response holds
       // the socket open.
       response.on("data", () => {});
@@ -166,7 +215,7 @@ async function redeemBootSession(deps) {
         ),
       );
     });
-    request.on("error", (error) => resolve({ ok: false, reason: error.message }));
+    request.on("error", (error: Error) => resolve({ ok: false, reason: error.message }));
 
     request.write(body);
     request.end();
@@ -201,12 +250,11 @@ async function redeemBootSession(deps) {
  * So this is now strictly the CHEAP NEGATIVE inside {@link hasValidSession}: "is there even a
  * cookie worth asking the server about". Ask {@link hasValidSession} for the real answer.
  *
- * @param {object} deps
- * @param {{cookies: {get: Function}}} deps.session the Electron `Session` to inspect.
- * @returns {Promise<boolean>}
+ * @param deps
+ * @param deps.session the Electron `Session` to inspect.
  * @complexity O(1) — one cookie-store lookup.
  */
-async function hasActiveSessionCookie(deps) {
+async function hasActiveSessionCookie(deps: { session: CookieJarSession }): Promise<boolean> {
   const cookies = await deps.session.cookies.get({ name: SESSION_COOKIE_NAME });
   return cookies.length > 0;
 }
@@ -242,17 +290,20 @@ async function hasActiveSessionCookie(deps) {
  * other branch in this file. "Cannot confirm" and "not authenticated" both mean "mint a token and
  * try", which costs one unused single-use token and never costs the operator their way in.
  *
- * @param {object} deps
- * @param {{request: Function}} deps.net Electron's `net` module (injectable test seam).
- * @param {object} deps.session the Electron `Session` whose cookie jar is being asked about.
- * @param {string} deps.adminUrl the site's own admin URL.
- * @returns {Promise<boolean>}
+ * @param deps
+ * @param deps.net Electron's `net` module (injectable test seam).
+ * @param deps.session the Electron `Session` whose cookie jar is being asked about.
+ * @param deps.adminUrl the site's own admin URL.
  * @throws {Error} (as a rejection) only when `adminUrl` is not a loopback origin — a wiring bug,
  *   never an auth outcome. Checked before the cookie lookup so that bug surfaces even for a site
  *   with an empty jar.
  * @complexity O(1) — one cookie lookup plus at most one request.
  */
-async function hasValidSession(deps) {
+async function hasValidSession<TSession>(deps: {
+  net: AuthNet<TSession>;
+  session: TSession & CookieJarSession;
+  adminUrl: string;
+}): Promise<boolean> {
   const origin = assertLoopbackAdminUrl(deps.adminUrl);
   if (!(await hasActiveSessionCookie(deps))) return false;
 
@@ -264,7 +315,7 @@ async function hasValidSession(deps) {
       useSessionCookies: true,
     });
 
-    request.on("response", (response) => {
+    request.on("response", (response: AuthResponse) => {
       // Drained rather than parsed — see `redeemBootSession`'s identical comment. Only the STATUS
       // is the answer here; the principal in the body is not this shell's business.
       response.on("data", () => {});
@@ -295,11 +346,11 @@ async function hasValidSession(deps) {
  * fresh 30-day session, and redeeming unconditionally is precisely what left 713 live rows in one
  * site's database.
  *
- * @param {object} deps
- * @param {{request: Function}} deps.net Electron's `net` module.
- * @param {object} deps.session the Electron `Session` for this site's partition.
- * @param {string} deps.adminUrl the site's own admin URL.
- * @param {() => Promise<boolean>} deps.redeem redeems the boot token and reports whether it worked
+ * @param deps
+ * @param deps.net Electron's `net` module.
+ * @param deps.session the Electron `Session` for this site's partition.
+ * @param deps.adminUrl the site's own admin URL.
+ * @param deps.redeem redeems the boot token and reports whether it worked
  *   — `main.js`'s `authenticateSiteSession`, which owns the token and its own logging. Injected
  *   rather than called directly so this decision is testable without a real child process.
  * @returns `{authenticated, redeemed}` — `redeemed` says whether a token was actually spent, which
@@ -307,7 +358,12 @@ async function hasValidSession(deps) {
  *   login form, never that a session was fabricated.
  * @complexity O(1) — at most one probe plus one redeem.
  */
-async function ensureSiteSession(deps) {
+async function ensureSiteSession<TSession>(deps: {
+  net: AuthNet<TSession>;
+  session: TSession & CookieJarSession;
+  adminUrl: string;
+  redeem: () => Promise<boolean>;
+}): Promise<{ authenticated: boolean; redeemed: boolean }> {
   if (await hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl })) {
     return { authenticated: true, redeemed: false };
   }
@@ -324,16 +380,19 @@ async function ensureSiteSession(deps) {
  * is. Only a genuinely non-loopback `adminUrl` rejects, which should never happen since callers only
  * ever pass a site's own spawned-child `adminUrl`.
  *
- * @param {object} deps
- * @param {{request: Function}} deps.net Electron's `net` module (injectable test seam).
- * @param {object} deps.session the Electron `Session` whose cookie the logout call reads and clears.
- * @param {string} deps.adminUrl the site's own admin URL, same shape {@link redeemBootSession} takes.
- * @returns {Promise<{ok: boolean, status?: number, reason?: string}>}
+ * @param deps
+ * @param deps.net Electron's `net` module (injectable test seam).
+ * @param deps.session the Electron `Session` whose cookie the logout call reads and clears.
+ * @param deps.adminUrl the site's own admin URL, same shape {@link redeemBootSession} takes.
  * @throws {Error} (as a rejection) only when `adminUrl` is not a loopback origin — a wiring bug,
  *   never an auth outcome.
  * @complexity O(1) — one request.
  */
-async function endSiteSession(deps) {
+async function endSiteSession<TSession>(deps: {
+  net: AuthNet<TSession>;
+  session: TSession;
+  adminUrl: string;
+}): Promise<AuthOutcome> {
   const origin = assertLoopbackAdminUrl(deps.adminUrl);
 
   return new Promise((resolve) => {
@@ -344,7 +403,7 @@ async function endSiteSession(deps) {
       useSessionCookies: true,
     });
 
-    request.on("response", (response) => {
+    request.on("response", (response: AuthResponse) => {
       // Drained rather than parsed — see `redeemBootSession`'s identical comment.
       response.on("data", () => {});
       response.on("end", () =>
@@ -355,7 +414,7 @@ async function endSiteSession(deps) {
         ),
       );
     });
-    request.on("error", (error) => resolve({ ok: false, reason: error.message }));
+    request.on("error", (error: Error) => resolve({ ok: false, reason: error.message }));
 
     request.end();
   });
@@ -372,3 +431,4 @@ export {
   ensureSiteSession,
   endSiteSession,
 };
+export type { AuthBodyRequest, AuthNet, AuthOutcome, AuthRequest, AuthRequestOptions, AuthResponse, CookieJarSession };

@@ -34,5 +34,5 @@ test("resolveTranscriptionPort's non-darwin port names the actual platform in it
   const port = resolveTranscriptionPort({ platform: "win32", createMacPort: () => unavailablePort("unused") });
   const availability = await port.isAvailable();
   assert.equal(availability.available, false);
-  assert.match(availability.reason, /unsupported-platform:win32/);
+  assert.match(availability.reason!, /unsupported-platform:win32/);
 });

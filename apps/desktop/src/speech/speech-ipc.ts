@@ -10,7 +10,10 @@
  * a window — see `main.js`'s own `SPEECH_PRELOAD_PATH` doc.
  */
 
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
+
 import { resolveTranscriptionPort } from "./transcription-port.ts";
+import type { TranscriptionPort } from "./transcription-port.ts";
 import { createMacOnDeviceTranscriptionPort } from "./mac-on-device-transcriber.ts";
 import { encodeMonoWav } from "./pcm-wav-encoder.ts";
 
@@ -25,11 +28,9 @@ const IPC_CHANNEL_TRANSCRIBE = "tovu:speech:transcribe";
  * this repo's style rule) — a bare call from `registerSpeechIpc` passes `undefined`, which this
  * function maps to the real platform itself.
  *
- * @param {NodeJS.Platform | undefined} platform
- * @returns {import("./transcription-port.js").TranscriptionPort}
  * @complexity O(1).
  */
-function buildDefaultPort(platform) {
+function buildDefaultPort(platform: NodeJS.Platform | undefined): TranscriptionPort {
   const resolvedPlatform = platform === undefined ? process.platform : platform;
   return resolveTranscriptionPort({ platform: resolvedPlatform, createMacPort: () => createMacOnDeviceTranscriptionPort() });
 }
@@ -42,17 +43,18 @@ function buildDefaultPort(platform) {
  * its `AudioContext` actually opened at — resampling in the browser to match a fixed constant here
  * would be one more failure mode for no benefit, since {@link encodeMonoWav} accepts any rate.
  *
- * @param {Object} args
- * @param {import("electron").IpcMain} args.ipcMain
- * @param {import("./transcription-port.js").TranscriptionPort} [args.port] - Injectable for
- *   tests; a real caller omits it and gets the real platform-resolved port.
+ * @param args
+ * @param args.ipcMain - Electron's `ipcMain`, or a fake with its `handle`.
+ * @param args.port - Injectable for tests; a real caller omits it and gets the real
+ *   platform-resolved port.
  * @complexity O(1) to register; each handler's own body is O(1) beyond its port call.
  */
-function registerSpeechIpc({ ipcMain, port }) {
+function registerSpeechIpc({ ipcMain, port }: { ipcMain: Pick<IpcMain, "handle">; port?: TranscriptionPort }): void {
   const resolvedPort = port || buildDefaultPort(undefined);
 
   ipcMain.handle(IPC_CHANNEL_IS_AVAILABLE, () => resolvedPort.isAvailable());
-  ipcMain.handle(IPC_CHANNEL_TRANSCRIBE, (_event, samples, sampleRate) => {
+  // `samples` arrives through IPC's structured clone: a plain array or a typed array of numbers.
+  ipcMain.handle(IPC_CHANNEL_TRANSCRIBE, (_event: IpcMainInvokeEvent, samples: ArrayLike<number>, sampleRate: number) => {
     const wavBuffer = encodeMonoWav({ samples: Float32Array.from(samples), sampleRate });
     return resolvedPort.transcribe(wavBuffer);
   });

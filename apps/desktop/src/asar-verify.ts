@@ -47,6 +47,27 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { extractFile, getRawHeader } from "@electron/asar";
 
+/** A node in an asar header's `files` tree, as far as this module reads one: a directory carries
+ *  `files`, a symlink carries `link`, and a file carries `size` and `offset`. */
+interface AsarHeaderNode {
+  files?: Record<string, AsarHeaderNode>;
+  link?: string;
+  size?: number;
+  offset?: string;
+}
+
+/** One file whose shipped bytes do not match source, and why. */
+interface AsarMismatch {
+  relPath: string;
+  reason: string;
+}
+
+/** {@link verifyAsarAgainstSource}'s result. */
+interface AsarVerification {
+  checkedCount: number;
+  mismatches: AsarMismatch[];
+}
+
 /**
  * Every leaf FILE path (POSIX, no leading slash) under one of `prefixes` in an asar header's `files`
  * metadata tree. Pure and dependency-free — takes the already-parsed header object rather than an
@@ -61,10 +82,10 @@ import { extractFile, getRawHeader } from "@electron/asar";
  * @returns POSIX-style relative paths, e.g. `"src/tracked-sites.js"`.
  * @complexity O(n) in archive entries under the given prefixes.
  */
-export function filesUnderPrefixes(headerFiles, prefixes) {
-  const collected = [];
+export function filesUnderPrefixes(headerFiles: Record<string, AsarHeaderNode> | undefined, prefixes: string[]): string[] {
+  const collected: string[] = [];
 
-  function walk(node, currentPath) {
+  function walk(node: AsarHeaderNode, currentPath: string): void {
     if (node && typeof node === "object" && node.files) {
       for (const [name, child] of Object.entries(node.files)) {
         walk(child, `${currentPath}/${name}`);
@@ -90,17 +111,17 @@ export function filesUnderPrefixes(headerFiles, prefixes) {
  *  "corrupt" without saying which files sends the next person hunting through a multi-hundred-MB
  *  archive by hand, which is exactly what this incident required the first time.
  *  @complexity O(1). */
-function formatMismatch({ relPath, reason }) {
+function formatMismatch({ relPath, reason }: AsarMismatch): string {
   return `  MISMATCH  ${relPath}  — ${reason}`;
 }
 
 /**
  * The full mismatch report for a human. Pure formatting only — no filesystem, no archive access.
  *
- * @param mismatches `{ relPath, reason }[]`, as produced by {@link verifyAsarAgainstSource}.
+ * @param mismatches as produced by {@link verifyAsarAgainstSource}.
  * @complexity O(n) in mismatches.
  */
-export function formatMismatchReport(mismatches) {
+export function formatMismatchReport(mismatches: AsarMismatch[]): string {
   return [
     `${mismatches.length} file(s) in app.asar do NOT match source, byte-for-byte:`,
     ...mismatches.map(formatMismatch),
@@ -125,14 +146,14 @@ export function formatMismatchReport(mismatches) {
  * @returns `{ checkedCount, mismatches }` — `mismatches` is `[]` when every file matched.
  * @complexity O(n) in files checked, each a full read of both copies.
  */
-export function verifyAsarAgainstSource(asarPath, sourceRoot, prefixes) {
+export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification {
   const { header } = getRawHeader(asarPath);
   const relPaths = filesUnderPrefixes(header.files, prefixes);
 
-  const mismatches = [];
+  const mismatches: AsarMismatch[] = [];
   for (const relPath of relPaths) {
     const sourcePath = path.join(sourceRoot, relPath);
-    let sourceBuf;
+    let sourceBuf: Buffer;
     try {
       sourceBuf = readFileSync(sourcePath);
     } catch {
@@ -156,3 +177,5 @@ export function verifyAsarAgainstSource(asarPath, sourceRoot, prefixes) {
 
   return { checkedCount: relPaths.length, mismatches };
 }
+
+export type { AsarHeaderNode, AsarMismatch, AsarVerification };

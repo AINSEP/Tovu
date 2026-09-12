@@ -52,7 +52,7 @@ const NAME_MAX_LENGTH = 200;
  *   longer than 200 characters after trimming.
  * @complexity O(n) in the input length.
  */
-export function normalizeSiteName(raw) {
+export function normalizeSiteName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
   if (trimmed.length === 0 || trimmed.length > NAME_MAX_LENGTH) return null;
@@ -68,7 +68,7 @@ export function normalizeSiteName(raw) {
  *
  * @complexity O(n) in file size, bounded by {@link MAX_CONFIG_BYTES}.
  */
-function readSiteConfig(siteDir) {
+function readSiteConfig(siteDir: string): Record<string, unknown> | null {
   const filePath = path.join(siteDir, CONFIG_FILE_NAME);
   try {
     if (fs.statSync(filePath).size > MAX_CONFIG_BYTES) return null;
@@ -101,7 +101,7 @@ function readSiteConfig(siteDir) {
  *   written. The name check runs BEFORE anything is written, so a refusal leaves the file untouched.
  * @complexity O(n) in file size — one read, one write, one rename.
  */
-export function writeSiteName(siteDir, rawName) {
+export function writeSiteName(siteDir: string, rawName: unknown): string {
   const name = normalizeSiteName(rawName);
   if (name === null) {
     throw new Error(
@@ -131,7 +131,7 @@ export function writeSiteName(siteDir, rawName) {
     } catch {
       // The original write already failed; the cleanup failing too changes nothing to report.
     }
-    throw new Error(`${filePath} could not be written: ${error.message}`);
+    throw new Error(`${filePath} could not be written: ${(error as Error).message}`);
   }
 
   return name;

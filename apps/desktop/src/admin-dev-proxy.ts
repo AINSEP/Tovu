@@ -1,5 +1,7 @@
 import { request as httpRequest } from "node:http";
+import type { ClientRequest, IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
+import type { RequestOptions } from "node:https";
 
 /**
  * @file Decides whether a site this shell spawns should serve `/admin/*` from the admin Vite dev
@@ -39,6 +41,20 @@ const PROBE_TIMEOUT_MS = 1500;
 /** Vite's dev port, matching `apps/admin/vite.config.ts:118` and `dev.mjs:59`'s identical default. */
 const DEFAULT_VITE_PORT = 5173;
 
+/** {@link adminDevProxyCandidates}'s input. */
+interface AdminDevProxyInput {
+  isPackaged: boolean;
+  env: NodeJS.ProcessEnv;
+}
+
+/** What a probe sends with: `node:http`'s or `node:https`'s `request`, or a test fake. */
+type ProbeRequestFn = (options: RequestOptions, callback: (res: IncomingMessage) => void) => ClientRequest;
+
+/** {@link resolveAdminDevProxyUrl}'s input. */
+interface ResolveAdminDevProxyInput extends AdminDevProxyInput {
+  requestFn?: ProbeRequestFn;
+}
+
 /**
  * The admin dev-server origins worth trying, most likely first — empty when this shell must not
  * proxy at all.
@@ -59,7 +75,7 @@ const DEFAULT_VITE_PORT = 5173;
  * @returns candidate origins, in probe order.
  * @complexity O(1).
  */
-function adminDevProxyCandidates(input) {
+function adminDevProxyCandidates(input: AdminDevProxyInput): string[] {
   if (input.isPackaged) return [];
 
   const explicit = input.env.TOVU_ADMIN_DEV_PROXY_URL?.trim();
@@ -84,9 +100,9 @@ function adminDevProxyCandidates(input) {
  *
  * @complexity O(1); one request, abandoned after {@link PROBE_TIMEOUT_MS}.
  */
-function probeOrigin(origin, requestFn) {
+function probeOrigin(origin: string, requestFn: ProbeRequestFn | undefined): Promise<boolean> {
   return new Promise((resolve) => {
-    let target;
+    let target: URL;
     try {
       target = new URL(origin);
     } catch {
@@ -94,7 +110,7 @@ function probeOrigin(origin, requestFn) {
       return;
     }
 
-    const send = requestFn ?? (target.protocol === "https:" ? httpsRequest : httpRequest);
+    const send: ProbeRequestFn = requestFn ?? (target.protocol === "https:" ? httpsRequest : httpRequest);
     const req = send(
       {
         hostname: target.hostname,
@@ -104,7 +120,7 @@ function probeOrigin(origin, requestFn) {
         rejectUnauthorized: false,
         timeout: PROBE_TIMEOUT_MS,
       },
-      (res) => {
+      (res: IncomingMessage) => {
         res.resume();
         resolve(true);
       },
@@ -130,7 +146,7 @@ function probeOrigin(origin, requestFn) {
  * @complexity O(n) in the candidate count — at most two probes, each capped at
  *   {@link PROBE_TIMEOUT_MS}.
  */
-async function resolveAdminDevProxyUrl(input) {
+async function resolveAdminDevProxyUrl(input: ResolveAdminDevProxyInput): Promise<string | null> {
   for (const candidate of adminDevProxyCandidates(input)) {
     if (await probeOrigin(candidate, input.requestFn)) return candidate;
   }
@@ -138,3 +154,4 @@ async function resolveAdminDevProxyUrl(input) {
 }
 
 export { adminDevProxyCandidates, resolveAdminDevProxyUrl, PROBE_TIMEOUT_MS, DEFAULT_VITE_PORT };
+export type { AdminDevProxyInput, ProbeRequestFn, ResolveAdminDevProxyInput };

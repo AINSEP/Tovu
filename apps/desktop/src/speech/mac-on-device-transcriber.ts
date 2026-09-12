@@ -29,6 +29,8 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
+import type { TranscriptionAvailability, TranscriptionPort, TranscriptionResult } from "./transcription-port.ts";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // {@link realDependencies} loads `node:child_process`/`node:util`/`node:fs` lazily, and ESM has no
@@ -38,20 +40,63 @@ const require = createRequire(import.meta.url);
 const DEFAULT_SOURCE_PATH = path.join(__dirname, "tovu-speech-helper.swift");
 const DEFAULT_BINARY_PATH = path.join(__dirname, ".build", "tovu-speech-helper");
 
+/** The fields of `child_process.spawnSync`'s result {@link ensureHelperCompiled} reads. */
+interface SpawnResult {
+  status: number | null;
+  stderr?: Buffer | string;
+  error?: NodeJS.ErrnoException;
+}
+
+/** The slice of `node:fs` this module touches, so a test can inject an in-memory fake. */
+interface TranscriberFs {
+  existsSync(path: string): boolean;
+  mkdirSync(path: string, options: { recursive: true }): unknown;
+  writeFileSync(path: string, data: Buffer): void;
+  rmSync(path: string, options: { force: true }): void;
+}
+
+/** {@link ensureHelperCompiled}'s dependencies. */
+interface CompileDeps {
+  fs: Pick<TranscriberFs, "existsSync" | "mkdirSync">;
+  spawnSync: (cmd: string, args: string[]) => SpawnResult;
+  sourcePath: string;
+  binaryPath: string;
+}
+
+/** {@link ensureHelperCompiled}'s outcome. `error?: undefined` on the success arm lets a loose (non-strictNullChecks)
+ *  program, which cannot narrow on `ok`, still read `error` off the union. */
+type CompileResult = { ok: true; error?: undefined } | { ok: false; error: string };
+
+/** {@link checkAvailability}'s dependencies: the compile step's, plus a way to run the helper. */
+interface AvailabilityDeps extends CompileDeps {
+  execFileAsync: (file: string, args: string[]) => Promise<{ stdout: string }>;
+}
+
+/** The full dependency bundle {@link transcribeWav} and {@link createMacOnDeviceTranscriptionPort} use. */
+interface MacTranscriberDeps extends AvailabilityDeps {
+  fs: TranscriberFs;
+  tempFilePath: () => string;
+}
+
+/** One line of the helper's JSON stdout, from either subcommand (see `tovu-speech-helper.swift`).
+ *  {@link parseHelperJson} does not validate it, so every field is optional. */
+interface HelperPayload {
+  available?: unknown;
+  reason?: string | null;
+  ok?: boolean;
+  text?: string;
+  elapsedMs?: number;
+  error?: string;
+}
+
 /**
  * Compiles the helper if it is not already built. A no-op (`{ok: true}`) once the binary exists —
  * this is the "lazy compile" step, not a rebuild-on-every-call step; delete `.build/` to force a
  * recompile (e.g. after editing the `.swift` source).
  *
- * @param {Object} deps
- * @param {{existsSync: Function, mkdirSync: Function}} deps.fs
- * @param {(cmd: string, args: string[]) => {status: number|null, stderr: Buffer|string, error?: Error}} deps.spawnSync
- * @param {string} deps.sourcePath
- * @param {string} deps.binaryPath
- * @returns {{ok: true} | {ok: false, error: string}}
  * @complexity O(1) plus `swiftc`'s own compile cost on a cache miss.
  */
-function ensureHelperCompiled({ fs, spawnSync, sourcePath, binaryPath }) {
+function ensureHelperCompiled({ fs, spawnSync, sourcePath, binaryPath }: CompileDeps): CompileResult {
   if (fs.existsSync(binaryPath)) return { ok: true };
 
   fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
@@ -72,11 +117,9 @@ function ensureHelperCompiled({ fs, spawnSync, sourcePath, binaryPath }) {
  * malformed payload should be debuggable from the thrown message alone, not just "Unexpected
  * token".
  *
- * @param {string} stdout
- * @returns {Object}
  * @complexity O(n) in `stdout`'s length (JSON.parse's own cost).
  */
-function parseHelperJson(stdout) {
+function parseHelperJson(stdout: string): HelperPayload {
   try {
     return JSON.parse(stdout.trim());
   } catch {
@@ -90,20 +133,16 @@ function parseHelperJson(stdout) {
  * non-zero (see `tovu-speech-helper.swift`), and `execFile` attaches `stdout` to the rejection in
  * that case, so the structured error is not lost.
  *
- * @param {Object} deps
- * @param {(file: string, args: string[]) => Promise<{stdout: string}>} deps.execFileAsync
- * @param {string} deps.binaryPath
- * @param {string[]} deps.args
- * @returns {Promise<Object>}
  * @complexity O(1) beyond the child process's own cost.
  */
-async function runHelperJson({ execFileAsync, binaryPath, args }) {
+async function runHelperJson({ execFileAsync, binaryPath, args }: Pick<AvailabilityDeps, "execFileAsync" | "binaryPath"> & { args: string[] }): Promise<HelperPayload> {
   try {
     const { stdout } = await execFileAsync(binaryPath, args);
     return parseHelperJson(stdout);
   } catch (error) {
-    if (typeof error.stdout === "string" && error.stdout.trim().length > 0) {
-      return parseHelperJson(error.stdout);
+    // `execFile` rejects with an Error carrying the child's `stdout`; the typeof check narrows it.
+    if (typeof (error as { stdout?: unknown }).stdout === "string" && (error as { stdout: string }).stdout.trim().length > 0) {
+      return parseHelperJson((error as { stdout: string }).stdout);
     }
     throw error;
   }
@@ -113,11 +152,10 @@ async function runHelperJson({ execFileAsync, binaryPath, args }) {
  * The cheap capability probe — compiles the helper if needed, then asks it to check
  * authorization + on-device-recognition support without touching a microphone or any audio file.
  *
- * @param {Object} deps - Same shape `createMacOnDeviceTranscriptionPort` closes over.
- * @returns {Promise<import("./transcription-port.js").TranscriptionAvailability>}
+ * @param deps - The subset of the bundle `createMacOnDeviceTranscriptionPort` closes over.
  * @complexity O(1) beyond the child process's own cost.
  */
-async function checkAvailability(deps) {
+async function checkAvailability(deps: AvailabilityDeps): Promise<TranscriptionAvailability> {
   const compiled = ensureHelperCompiled(deps);
   if (!compiled.ok) return { available: false, reason: compiled.error };
 
@@ -130,12 +168,11 @@ async function checkAvailability(deps) {
  * always removes the scratch file afterward (success or failure) — a recording is transient input,
  * never a file Tovu itself needs to keep.
  *
- * @param {Buffer} wavBuffer
- * @param {Object} deps - Same shape `createMacOnDeviceTranscriptionPort` closes over.
- * @returns {Promise<import("./transcription-port.js").TranscriptionResult>}
+ * @param wavBuffer
+ * @param deps - Same shape `createMacOnDeviceTranscriptionPort` closes over.
  * @complexity O(1) beyond the child process's own cost, which scales with clip length.
  */
-async function transcribeWav(wavBuffer, deps) {
+async function transcribeWav(wavBuffer: Buffer, deps: MacTranscriberDeps): Promise<TranscriptionResult> {
   const compiled = ensureHelperCompiled(deps);
   if (!compiled.ok) throw new Error(`tovu speech: cannot transcribe (${compiled.error})`);
 
@@ -158,15 +195,17 @@ async function transcribeWav(wavBuffer, deps) {
  * parameter costs a complexity point per this repo's style rule; merging inside the body instead
  * keeps the factory's own complexity at its structural minimum).
  *
- * @returns {Object} the full dependency bundle {@link checkAvailability}/{@link transcribeWav} need.
+ * @returns the full dependency bundle {@link checkAvailability}/{@link transcribeWav} need.
  * @complexity O(1).
  */
-function realDependencies() {
+function realDependencies(): MacTranscriberDeps {
   // Required lazily (not at module top) so a non-mac platform, which never calls this function,
-  // never pays for requiring `node:child_process`'s promisified wrapper either.
-  const { execFile } = require("node:child_process");
-  const { promisify } = require("node:util");
-  const fs = require("node:fs");
+  // never pays for requiring `node:child_process`'s promisified wrapper either. `require` returns
+  // an untyped value, so each binding names its module's type; `spawnSync` alone is read straight
+  // off the untyped value and meets the declared return type unchecked.
+  const { execFile }: typeof import("node:child_process") = require("node:child_process");
+  const { promisify }: typeof import("node:util") = require("node:util");
+  const fs: typeof import("node:fs") = require("node:fs");
   return {
     fs,
     spawnSync: require("node:child_process").spawnSync,
@@ -182,14 +221,13 @@ function realDependencies() {
  * `transcription-port.js`'s `resolveTranscriptionPort`, which is the one caller that decides
  * platform eligibility before ever reaching this factory.
  *
- * @param {Object} overrides - Partial dependency overrides for testing (e.g. a fake `fs` and
+ * @param overrides - Partial dependency overrides for testing (e.g. a fake `fs` and
  *   `execFileAsync` that never touch the real filesystem or spawn a real process). Every field not
  *   present here falls back to {@link realDependencies}'s real implementation.
- * @returns {import("./transcription-port.js").TranscriptionPort}
  * @complexity O(1) to construct.
  */
-function createMacOnDeviceTranscriptionPort(overrides) {
-  const deps = { ...realDependencies(), ...(overrides || {}) };
+function createMacOnDeviceTranscriptionPort(overrides?: Partial<MacTranscriberDeps>): TranscriptionPort {
+  const deps: MacTranscriberDeps = { ...realDependencies(), ...(overrides || {}) };
   return {
     isAvailable: () => checkAvailability(deps),
     transcribe: (wavBuffer) => transcribeWav(wavBuffer, deps),
@@ -205,3 +243,4 @@ export {
   DEFAULT_SOURCE_PATH,
   DEFAULT_BINARY_PATH,
 };
+export type { AvailabilityDeps, CompileDeps, CompileResult, HelperPayload, MacTranscriberDeps, SpawnResult, TranscriberFs };

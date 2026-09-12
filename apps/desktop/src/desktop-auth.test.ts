@@ -21,6 +21,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 
 import { assertLoopbackAdminUrl, sitePartition, redeemBootSession, hasActiveSessionCookie, hasValidSession, ensureSiteSession, endSiteSession } from "./desktop-auth.ts";
+import type { AuthRequestOptions } from "./desktop-auth.ts";
 
 // --------------------------------------------------------------------------
 // assertLoopbackAdminUrl — the network guard
@@ -80,21 +81,33 @@ test("the partition name does not leak the operator's directory layout", () => {
 // redeemBootSession
 // --------------------------------------------------------------------------
 
+/** A fake request: an EventEmitter wearing the one request method every caller uses. */
+type FakeRequest = EventEmitter & { end: () => void };
+
+/** A fake request that can also carry a body, as `redeemBootSession`'s does. */
+type FakeBodyRequest = FakeRequest & { setHeader: () => void; write: (body: string) => void; body?: string };
+
+/** A fake response: an EventEmitter with a status. */
+type FakeResponse = EventEmitter & { statusCode: number };
+
+/** One recorded `net.request` call, with the body its request was sent. */
+type RecordedCall = AuthRequestOptions<unknown> & { body?: string };
+
 /** Minimal Electron `net` stand-in that answers with `statusCode` and records the request. */
-function fakeNet(statusCode) {
-  const calls = [];
+function fakeNet(statusCode: number) {
+  const calls: RecordedCall[] = [];
   return {
     calls,
-    request(options) {
+    request(options: AuthRequestOptions<unknown>) {
       calls.push(options);
-      const request = new EventEmitter();
+      const request = new EventEmitter() as FakeBodyRequest;
       request.setHeader = () => {};
       request.write = (body) => {
         request.body = body;
-        calls[calls.length - 1].body = body;
+        calls[calls.length - 1]!.body = body;
       };
       request.end = () => {
-        const response = new EventEmitter();
+        const response = new EventEmitter() as FakeResponse;
         response.statusCode = statusCode;
         request.emit("response", response);
         queueMicrotask(() => response.emit("end"));
@@ -131,11 +144,11 @@ test("posts the token to the boot-session route, with useSessionCookies", async 
   // silent no-op while every other signal still looks healthy.
   const net = fakeNet(200);
   await redeemBootSession({ ...REDEEM_INPUT, net });
-  assert.equal(net.calls[0].useSessionCookies, true);
-  assert.equal(net.calls[0].session, REDEEM_INPUT.session);
-  assert.equal(net.calls[0].url, "http://127.0.0.1:3001/api/admin/v1/auth/boot-session");
-  assert.equal(net.calls[0].method, "POST");
-  assert.deepEqual(JSON.parse(net.calls[0].body), { token: "tok-abc" });
+  assert.equal(net.calls[0]!.useSessionCookies, true);
+  assert.equal(net.calls[0]!.session, REDEEM_INPUT.session);
+  assert.equal(net.calls[0]!.url, "http://127.0.0.1:3001/api/admin/v1/auth/boot-session");
+  assert.equal(net.calls[0]!.method, "POST");
+  assert.deepEqual(JSON.parse(net.calls[0]!.body!), { token: "tok-abc" });
 });
 
 test("refuses to put the token on the wire for a non-loopback admin url", async () => {
@@ -152,12 +165,12 @@ test("refuses to put the token on the wire for a non-loopback admin url", async 
 // --------------------------------------------------------------------------
 
 /** Minimal Electron `Session` stand-in exposing only what `hasActiveSessionCookie` reads. */
-function fakeSession(cookies) {
-  const calls = [];
+function fakeSession(cookies: unknown[]) {
+  const calls: { name: string }[] = [];
   return {
     calls,
     cookies: {
-      get(filter) {
+      get(filter: { name: string }) {
         calls.push(filter);
         return Promise.resolve(cookies);
       },
@@ -203,10 +216,10 @@ test("a non-200 logout RESOLVES as not-ok rather than throwing", async () => {
 test("posts to the logout route, with useSessionCookies, so the revoke reaches THIS site's cookie", async () => {
   const net = fakeNet(200);
   await endSiteSession({ ...LOGOUT_INPUT, net });
-  assert.equal(net.calls[0].useSessionCookies, true);
-  assert.equal(net.calls[0].session, LOGOUT_INPUT.session);
-  assert.equal(net.calls[0].url, "http://127.0.0.1:3001/api/admin/v1/auth/logout");
-  assert.equal(net.calls[0].method, "POST");
+  assert.equal(net.calls[0]!.useSessionCookies, true);
+  assert.equal(net.calls[0]!.session, LOGOUT_INPUT.session);
+  assert.equal(net.calls[0]!.url, "http://127.0.0.1:3001/api/admin/v1/auth/logout");
+  assert.equal(net.calls[0]!.method, "POST");
 });
 
 test("refuses to call logout for a non-loopback admin url", async () => {
@@ -236,9 +249,9 @@ test("hasValidSession is false for a cookie the server no longer honours — the
   // no password to fall back on.
   const net = fakeNet(401);
   assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net }), false);
-  assert.equal(net.calls[0].url, "http://127.0.0.1:3001/api/admin/v1/auth/me");
-  assert.equal(net.calls[0].useSessionCookies, true, "without this the probe asks as an anonymous caller and ALWAYS reports 401");
-  assert.equal(net.calls[0].method, "GET");
+  assert.equal(net.calls[0]!.url, "http://127.0.0.1:3001/api/admin/v1/auth/me");
+  assert.equal(net.calls[0]!.useSessionCookies, true, "without this the probe asks as an anonymous caller and ALWAYS reports 401");
+  assert.equal(net.calls[0]!.method, "GET");
 });
 
 test("hasValidSession is true only when the server itself confirms the session", async () => {
@@ -256,7 +269,7 @@ test("hasValidSession asks the server nothing when there is no cookie to ask abo
 test("hasValidSession treats an unreachable server as not-authenticated rather than throwing", async () => {
   // Same fail-open contract as every other branch in this file: a transport error must mean "mint a
   // token and try", never a rejected promise that takes the site open down with it.
-  const net = { request: () => { const r = new EventEmitter(); r.end = () => queueMicrotask(() => r.emit("error", new Error("ECONNREFUSED"))); return r; } };
+  const net = { request: () => { const r = new EventEmitter() as FakeRequest; r.end = () => queueMicrotask(() => r.emit("error", new Error("ECONNREFUSED"))); return r; } };
   assert.equal(await hasValidSession({ ...PROBE_INPUT, session: fakeSession(ONE_COOKIE), net }), false);
 });
 
@@ -272,7 +285,7 @@ test("hasValidSession refuses a non-loopback origin, exactly like the other two 
 // --------------------------------------------------------------------------
 
 function recordingRedeem(answer = true) {
-  const calls = [];
+  const calls: number[] = [];
   return { calls, redeem: async () => { calls.push(1); return answer; } };
 }
 

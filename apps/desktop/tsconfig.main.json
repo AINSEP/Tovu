@@ -50,6 +50,34 @@
     "src/tree-quiet.ts",
     "src/tree-quiet.test.ts",
     "src/webview-guest-policy.ts",
-    "src/webview-guest-policy.test.ts"
+    "src/webview-guest-policy.test.ts",
+    // Batch 2: modules whose desktop imports are all in this list. admin-dev-proxy.test.ts stays
+    // pending: it imports tovu-server.ts, so it moves with that module.
+    "src/admin-dev-proxy.ts",
+    "src/asar-verify.ts",
+    "src/asar-verify.test.ts",
+    "src/desktop-auth.ts",
+    "src/desktop-auth.test.ts",
+    "src/desktop-user-data-dir.ts",
+    "src/desktop-user-data-dir.test.ts",
+    "src/packaged-paths.ts",
+    "src/packaged-paths.test.ts",
+    "src/runner-ipc-stubs.ts",
+    "src/runner-ipc-stubs.test.ts",
+    "src/site-config.ts",
+    "src/site-config.test.ts",
+    "src/site-history-menu.ts",
+    "src/site-history-menu.test.ts",
+    "src/site-preview-store.ts",
+    "src/site-preview-store.test.ts",
+    "src/speech/mac-on-device-transcriber.ts",
+    "src/speech/mac-on-device-transcriber.test.ts",
+    "src/speech/pcm-wav-encoder.ts",
+    "src/speech/pcm-wav-encoder.test.ts",
+    "src/speech/preload-speech.test.ts",
+    "src/speech/speech-ipc.ts",
+    "src/speech/speech-ipc.test.ts",
+    "src/speech/transcription-port.ts",
+    "src/speech/transcription-port.test.ts"
   ]
 }

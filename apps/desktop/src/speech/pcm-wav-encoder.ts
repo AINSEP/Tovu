@@ -18,14 +18,13 @@ const CHANNEL_COUNT = 1; // mono — matches the recognizer's own expectation an
  * Converts one `Float32Array` of samples in `[-1, 1]` (the shape `AudioContext`/`AudioWorklet`
  * produce) into 16-bit signed PCM, clamping out-of-range values instead of wrapping them.
  *
- * @param {Float32Array} float32Samples
- * @returns {Int16Array}
  * @complexity O(n) in sample count.
  */
-function float32ToInt16Pcm(float32Samples) {
+function float32ToInt16Pcm(float32Samples: Float32Array): Int16Array {
   const int16Samples = new Int16Array(float32Samples.length);
   for (let i = 0; i < float32Samples.length; i += 1) {
-    const clamped = Math.max(-1, Math.min(1, float32Samples[i]));
+    // `i` stays below `length`, so the index is always in range.
+    const clamped = Math.max(-1, Math.min(1, float32Samples[i] as number));
     int16Samples[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
   }
   return int16Samples;
@@ -35,13 +34,10 @@ function float32ToInt16Pcm(float32Samples) {
  * Builds the 44-byte canonical WAV/RIFF header for a mono 16-bit PCM stream of `sampleCount`
  * samples at `sampleRate`.
  *
- * @param {Object} args
- * @param {number} args.sampleCount
- * @param {number} args.sampleRate
- * @returns {Buffer} exactly {@link WAV_HEADER_BYTES} long.
+ * @returns exactly {@link WAV_HEADER_BYTES} long.
  * @complexity O(1).
  */
-function buildWavHeader({ sampleCount, sampleRate }) {
+function buildWavHeader({ sampleCount, sampleRate }: { sampleCount: number; sampleRate: number }): Buffer {
   const dataBytes = sampleCount * BYTES_PER_SAMPLE;
   const byteRate = sampleRate * CHANNEL_COUNT * BYTES_PER_SAMPLE;
   const blockAlign = CHANNEL_COUNT * BYTES_PER_SAMPLE;
@@ -68,14 +64,14 @@ function buildWavHeader({ sampleCount, sampleRate }) {
  * Encodes one mono recording into a complete WAV file buffer, ready to write to disk and hand to
  * the speech helper.
  *
- * @param {Object} args
- * @param {Float32Array|number[]} args.samples - Mono samples in `[-1, 1]`.
- * @param {number} args.sampleRate - In Hz (the recognizer accepts any rate; 16000 keeps the
+ * @param args
+ * @param args.samples - Mono samples in `[-1, 1]`.
+ * @param args.sampleRate - In Hz (the recognizer accepts any rate; 16000 keeps the
  *   IPC payload small — see `speech-ipc.js`'s capture-side comment).
- * @returns {Buffer} a complete, playable WAV file.
+ * @returns a complete, playable WAV file.
  * @complexity O(n) in sample count.
  */
-function encodeMonoWav({ samples, sampleRate }) {
+function encodeMonoWav({ samples, sampleRate }: { samples: Float32Array | number[]; sampleRate: number }): Buffer {
   const float32Samples = samples instanceof Float32Array ? samples : Float32Array.from(samples);
   const pcm = float32ToInt16Pcm(float32Samples);
   const header = buildWavHeader({ sampleCount: pcm.length, sampleRate });

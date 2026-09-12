@@ -12,15 +12,15 @@ import { fileURLToPath } from "node:url";
 import { SITE_HISTORY_CHANNEL, sendSiteHistoryCommand, siteHistoryMenu, sitesHomeMenuTemplate } from "./site-history-menu.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
+const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 
 /** A BrowserWindow stand-in that records what was sent to its renderer. */
-function fakeWindow({ destroyed = false } = {}) {
-  const sent = [];
+function fakeWindow({ destroyed = false }: { destroyed?: boolean } = {}) {
+  const sent: [string, string][] = [];
   return {
     sent,
     isDestroyed: () => destroyed,
-    webContents: { send: (channel, payload) => sent.push([channel, payload]) },
+    webContents: { send: (channel: string, payload: string) => sent.push([channel, payload]) },
   };
 }
 
@@ -57,7 +57,7 @@ test("with no focused window, a destroyed one, or one without webContents, nothi
 });
 
 test("the sites-home menu keeps Electron's default menus and adds History before Window", () => {
-  const roles = (template) => template.map((entry) => entry.role ?? entry.label);
+  const roles = (template: { role?: string; label?: string }[]) => template.map((entry) => entry.role ?? entry.label);
   assert.deepEqual(roles(sitesHomeMenuTemplate("darwin")), ["appMenu", "fileMenu", "editMenu", "viewMenu", "History", "windowMenu", "help"]);
   assert.deepEqual(roles(sitesHomeMenuTemplate("linux")), ["fileMenu", "editMenu", "viewMenu", "History", "windowMenu", "help"]);
 });

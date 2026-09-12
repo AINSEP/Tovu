@@ -25,9 +25,10 @@ const source = fs.readFileSync(SOURCE_PATH, "utf8");
 /** Every top-level `require(...)` call's argument, in source order — block comments are stripped
  *  first so a doc comment merely MENTIONING a `require(...)` call (as this file's own header does,
  *  to explain why one is forbidden) is never mistaken for an actual one. */
-function requiredSpecifiers(text) {
+function requiredSpecifiers(text: string): string[] {
   const withoutBlockComments = text.replace(/\/\*[\s\S]*?\*\//g, "");
-  return [...withoutBlockComments.matchAll(/\brequire\(\s*["']([^"']+)["']\s*\)/g)].map((match) => match[1]);
+  // Group 1 is not optional, so every match carries it.
+  return [...withoutBlockComments.matchAll(/\brequire\(\s*["']([^"']+)["']\s*\)/g)].map((match) => match[1] as string);
 }
 
 test("preload-speech.cjs requires nothing but \"electron\" — a sandboxed preload's require resolves no relative specifier", () => {

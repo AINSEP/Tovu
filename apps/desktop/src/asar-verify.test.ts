@@ -114,7 +114,7 @@ test("DELIBERATE CORRUPTION: one entry rewritten in place, same length, differen
     const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
     assert.equal(checkedCount, Object.keys(files).length, "corruption must not change which files are checked");
     assert.equal(mismatches.length, 1, "exactly one file was corrupted — exactly one mismatch must be reported");
-    assert.equal(mismatches[0].relPath, target, "the gate must name the actual corrupted file");
+    assert.equal(mismatches[0]!.relPath, target, "the gate must name the actual corrupted file");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -126,8 +126,8 @@ test("a file present in the archive but deleted from source is reported as missi
     rmSync(path.join(root, "bin", "c.mjs"));
     const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
     assert.equal(mismatches.length, 1);
-    assert.equal(mismatches[0].relPath, "bin/c.mjs");
-    assert.match(mismatches[0].reason, /missing from the source tree/);
+    assert.equal(mismatches[0]!.relPath, "bin/c.mjs");
+    assert.match(mismatches[0]!.reason, /missing from the source tree/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

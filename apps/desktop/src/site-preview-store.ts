@@ -48,7 +48,7 @@ const PREVIEW_EXTENSION = ".png";
  *
  * @complexity O(n) in the path length.
  */
-function siteDigest(siteDir) {
+function siteDigest(siteDir: string): string {
   return crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
 }
 
@@ -63,7 +63,7 @@ function siteDigest(siteDir) {
  *
  * @complexity O(1).
  */
-function previewDir(userDataDir) {
+function previewDir(userDataDir: string): string {
   return path.join(userDataDir, PREVIEW_DIR_NAME);
 }
 
@@ -72,7 +72,7 @@ function previewDir(userDataDir) {
  *
  * @complexity O(n) in the path length.
  */
-function previewPath(userDataDir, siteDir) {
+function previewPath(userDataDir: string, siteDir: string): string {
   return path.join(previewDir(userDataDir), `${siteDigest(siteDir)}${PREVIEW_EXTENSION}`);
 }
 
@@ -89,7 +89,7 @@ function previewPath(userDataDir, siteDir) {
  *   the ordinary case (every site starts with none), not an error.
  * @complexity O(1) — one `stat`.
  */
-function readPreviewVersion(userDataDir, siteDir) {
+function readPreviewVersion(userDataDir: string, siteDir: string): number | null {
   try {
     return fs.statSync(previewPath(userDataDir, siteDir)).mtimeMs;
   } catch {
@@ -110,7 +110,7 @@ function readPreviewVersion(userDataDir, siteDir) {
  * @returns the URL, or `null` when absent or unreadable.
  * @complexity O(n) in the file size — one read plus one base64 encode.
  */
-function readPreviewDataUrl(userDataDir, siteDir) {
+function readPreviewDataUrl(userDataDir: string, siteDir: string): string | null {
   try {
     const bytes = fs.readFileSync(previewPath(userDataDir, siteDir));
     return `data:image/png;base64,${bytes.toString("base64")}`;
@@ -128,11 +128,12 @@ function readPreviewDataUrl(userDataDir, siteDir) {
  * cannot decode — and the renderer would swap a working thumbnail for a broken one. Same-directory
  * rename makes the file either the old one or the new one.
  *
+ * @param bytes the PNG, as `nativeImage.toPNG()` returns it.
  * @returns the new version token, or `null` when the write failed. Never throws: a preview is
  *   decoration, and failing to cache one must never take down the site start that triggered it.
  * @complexity O(n) in the byte length.
  */
-function writePreview(userDataDir, siteDir, bytes) {
+function writePreview(userDataDir: string, siteDir: string, bytes: Buffer): number | null {
   const filePath = previewPath(userDataDir, siteDir);
   const tempPath = `${filePath}.${process.pid}.tmp`;
   try {
@@ -156,7 +157,7 @@ function writePreview(userDataDir, siteDir, bytes) {
  *
  * @complexity O(1).
  */
-function deletePreview(userDataDir, siteDir) {
+function deletePreview(userDataDir: string, siteDir: string): void {
   try {
     fs.rmSync(previewPath(userDataDir, siteDir), { force: true });
   } catch {
@@ -179,10 +180,10 @@ function deletePreview(userDataDir, siteDir) {
  * @returns how many files were removed.
  * @complexity O(n + m) — one `readdir` against a Set built from the tracked rows.
  */
-function sweepOrphanedPreviews(userDataDir, trackedSiteDirs) {
+function sweepOrphanedPreviews(userDataDir: string, trackedSiteDirs: string[]): number {
   const keep = new Set(trackedSiteDirs.map((dir) => `${siteDigest(dir)}${PREVIEW_EXTENSION}`));
   let removed = 0;
-  let entries;
+  let entries: string[];
   try {
     entries = fs.readdirSync(previewDir(userDataDir));
   } catch {
