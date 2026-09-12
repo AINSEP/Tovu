@@ -142,6 +142,7 @@ export {
   deleteThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
+  nextAvailableFileName,
   readThemeFile,
   renameThemeFile,
   resolveThemeFileWriteScope,

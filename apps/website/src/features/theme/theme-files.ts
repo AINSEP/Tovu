@@ -607,6 +607,46 @@ export function copyThemeFile(
 }
 
 /**
+ * Suffix a caller-desired relative path to avoid colliding with anything already in `existingPaths`,
+ * following the same `name`, `name-1`, `name-2` … shape `nextAvailableThemeId` (`theme.ts`) uses for
+ * theme ids — but split around the extension, since a theme id (`basic`) is a bare folder name with
+ * no extension to preserve, while a file path (`pages/about.html`) needs `about-1.html`, not
+ * `about.html-1`. That shape difference is why this is its own small function instead of a direct
+ * call into `nextAvailableThemeId`: the collision LOOP is identical, the thing being suffixed is not.
+ *
+ * Moved here from `explore.ts` (2026-09-12) so `tool-registrations.ts`'s `theme_copy_file` agent tool
+ * can call the exact same collision-avoidance the HTTP copy route uses, without a
+ * `features/theme` -> `server/**` import — the identical reason `validateFileIdentityChange` moved
+ * to `file-identity-lock.ts` on 2026-08-30 (see that module's own header). `explore.ts` re-exports
+ * this definition rather than defining its own, so its existing callers and tests are unchanged.
+ *
+ * @complexity O(n) in the number of existing collisions with the desired name.
+ * @overallScore 100/100
+ */
+export function nextAvailableFileName(
+  required: { desiredPath: string; existingPaths: ReadonlySet<string> },
+  _optional: Record<string, never> = {}
+): string {
+  const { desiredPath, existingPaths } = required;
+  const slash = desiredPath.lastIndexOf("/");
+  const dot = desiredPath.lastIndexOf(".");
+  // A dot has to fall AFTER the last slash to be the filename's own extension — otherwise it belongs
+  // to a directory segment (not a real case in this theme layout, but cheap to get right).
+  const hasExt = dot > slash;
+  const base = hasExt ? desiredPath.slice(0, dot) : desiredPath;
+  const ext = hasExt ? desiredPath.slice(dot) : "";
+
+  if (!existingPaths.has(desiredPath)) return desiredPath;
+  let suffix = 1;
+  let candidate = `${base}-${suffix}${ext}`;
+  while (existingPaths.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${suffix}${ext}`;
+  }
+  return candidate;
+}
+
+/**
  * Move (rename) one file within a theme's folder, byte-for-byte.
  *
  * @returns The absolute destination path.
