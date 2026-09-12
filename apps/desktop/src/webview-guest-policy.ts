@@ -28,6 +28,18 @@
  * `site-supervisor.js`, `keyed-serializer.js` and `shutdown-tracker.js`.
  */
 
+/** The three `webPreferences` fields this policy owns. Electron's own `WebPreferences` satisfies it. */
+interface GuestWebPreferences {
+  preload?: string;
+  nodeIntegration?: boolean;
+  contextIsolation?: boolean;
+}
+
+/** {@link applyGuestWebPreferences}'s options. */
+interface GuestPolicyOptions {
+  preloadPath: string;
+}
+
 /**
  * Overwrite a guest's `webPreferences` with this shell's policy, in place.
  *
@@ -39,7 +51,7 @@
  *   error, which is exactly the defect this function exists to close.
  * @complexity O(1).
  */
-function applyGuestWebPreferences(webPreferences, options) {
+function applyGuestWebPreferences(webPreferences: GuestWebPreferences, options: GuestPolicyOptions): void {
   if (typeof options?.preloadPath !== "string" || options.preloadPath.length === 0) {
     throw new Error("applyGuestWebPreferences: options.preloadPath is required — a guest with no preload has no voice API.");
   }
@@ -49,3 +61,4 @@ function applyGuestWebPreferences(webPreferences, options) {
 }
 
 export { applyGuestWebPreferences };
+export type { GuestPolicyOptions, GuestWebPreferences };

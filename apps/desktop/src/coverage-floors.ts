@@ -50,17 +50,66 @@
  * be compared with a c8, vitest or istanbul number — including `apps/admin`'s vitest coverage.
  */
 
+/** The six lcov counters for one file, or summed over several: lines, branches and functions, each
+ *  as found and hit. */
+export interface LcovCounters {
+  lf: number;
+  lh: number;
+  brf: number;
+  brh: number;
+  fnf: number;
+  fnh: number;
+}
+
+/** The three axes an area can set a floor on. */
+export type CoverageAxis = "line" | "branch" | "funcs";
+
+/** One entry of `coverage-floors.json`'s `areas`, as far as this file reads it. `dirs`,
+ *  `excludeDirs` and `extensions` are read by `scripts/check-coverage.mjs` to build `onDisk`. */
+export interface CoverageArea {
+  id: string;
+  dirs?: readonly string[];
+  excludeDirs?: readonly string[];
+  extensions?: readonly string[];
+  floors?: Partial<Record<CoverageAxis, number>>;
+  knownUnmeasured?: readonly string[];
+  minFilesOnDisk?: number;
+}
+
+/** The runner and globs of one `node --test` invocation. */
+export interface RunnerGlobs {
+  nodeArgs: readonly string[];
+  globs: readonly string[];
+}
+
+/** One test pass `scripts/check-coverage.mjs` runs; `id` names its lcov file. */
+export interface TestPass extends RunnerGlobs {
+  id: string;
+}
+
+/** {@link evaluateArea}'s result. `failures` empty means the area passes. */
+export interface AreaResult {
+  id: string;
+  actual: Record<CoverageAxis, number>;
+  measuredCount: number;
+  onDiskCount: number;
+  unmeasured: string[];
+  newlyUnmeasured: string[];
+  recovered: string[];
+  failures: string[];
+}
+
 /** `pct(0, 0)` is 100: a file with no branches is fully branch-covered. Correct per file, and
  *  dangerous per area — which is why {@link evaluateArea} never relies on it to decide whether an
  *  area was measured at all.
  *  @complexity O(1). */
-export function pct(hit, found) {
+export function pct(hit: number, found: number): number {
   return found === 0 ? 100 : (hit / found) * 100;
 }
 
 /** Test files and type-declaration files are not production source and never count toward a floor.
  *  @complexity O(1). */
-export function isMeasurableSource(relPath) {
+export function isMeasurableSource(relPath: string): boolean {
   if (/\.(test|spec)\.(js|cjs|mjs|ts|tsx|mts)$/.test(relPath)) return false;
   if (relPath.endsWith(".d.ts")) return false;
   return true;
@@ -72,7 +121,7 @@ export function isMeasurableSource(relPath) {
  *  no failure. Both sides are desktop-root-relative and `/`-separated; a trailing `/` on a
  *  configured directory is ignored.
  *  @complexity O(d) in excluded directories. */
-export function isInExcludedDir(relPath, excludeDirs = []) {
+export function isInExcludedDir(relPath: string, excludeDirs: readonly string[] = []): boolean {
   return excludeDirs.some((dir) => {
     const base = dir.replace(/\/+$/, "");
     return relPath === base || relPath.startsWith(`${base}/`);
@@ -92,7 +141,7 @@ export function isInExcludedDir(relPath, excludeDirs = []) {
  * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.mjs`'s
  * `runSuite` refuses to run a pass whose globs match no test file at all.
  */
-export const TEST_PASSES = [
+export const TEST_PASSES: readonly TestPass[] = [
   { id: "node", nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
   { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
 ];
@@ -102,9 +151,10 @@ export const TEST_PASSES = [
  *  glob, so a flag placed there shows up as drift rather than being skipped. Any other command
  *  throws, so a script this cannot read fails loudly instead of comparing as zero globs.
  *  @complexity O(n) in script length. */
-export function parseNodeTestScript(script) {
+export function parseNodeTestScript(script: string): RunnerGlobs[] {
   return script.split("&&").map((command) => {
-    const tokens = [...command.matchAll(/"([^"]*)"|(\S+)/g)].map((match) => match[1] ?? match[2]);
+    // `!`: the regex's two alternatives are its two groups, so one of them captured.
+    const tokens = [...command.matchAll(/"([^"]*)"|(\S+)/g)].map((match) => match[1] ?? match[2]!);
     const testAt = tokens.indexOf("--test");
     if (tokens[0] !== "node" || testAt < 0) {
       throw new Error(`not a "node [args] --test <globs>" command: ${command.trim()}`);
@@ -116,8 +166,8 @@ export function parseNodeTestScript(script) {
 /** `Map<runner, Set<glob>>`, where the runner is the node command a pass uses: `node`, or
  *  `node --import tsx`. Passes on the same runner merge.
  *  @complexity O(g) in globs. */
-function globsByRunner(passes) {
-  const byRunner = new Map();
+function globsByRunner(passes: readonly RunnerGlobs[]): Map<string, Set<string>> {
+  const byRunner = new Map<string, Set<string>>();
   for (const pass of passes) {
     const runner = ["node", ...pass.nodeArgs].join(" ");
     const globs = byRunner.get(runner) ?? new Set();
@@ -129,8 +179,11 @@ function globsByRunner(passes) {
 
 /** Each `{ runner, glob }` that `side` runs and `other` does not run on that same runner.
  *  @complexity O(g) in globs. */
-function unmatchedGlobs(side, other) {
-  const unmatched = [];
+function unmatchedGlobs(
+  side: ReadonlyMap<string, ReadonlySet<string>>,
+  other: ReadonlyMap<string, ReadonlySet<string>>
+): { runner: string; glob: string }[] {
+  const unmatched: { runner: string; glob: string }[] = [];
   for (const [runner, globs] of side) {
     for (const glob of globs) if (!other.get(runner)?.has(glob)) unmatched.push({ runner, glob });
   }
@@ -142,7 +195,7 @@ function unmatchedGlobs(side, other) {
  *  is ignored, a glob moved between runners is reported on both, and two spellings of one pattern
  *  count as drift.
  *  @complexity O(g) in globs. */
-export function runnerSplitDrift(passes, scriptPasses) {
+export function runnerSplitDrift(passes: readonly RunnerGlobs[], scriptPasses: readonly RunnerGlobs[]): string[] {
   const inPasses = globsByRunner(passes);
   const inScript = globsByRunner(scriptPasses);
   return [
@@ -157,7 +210,7 @@ export function runnerSplitDrift(passes, scriptPasses) {
 
 /** Sums the six lcov counters across a set of file records.
  *  @complexity O(n). */
-function total(records) {
+function total(records: readonly LcovCounters[]): LcovCounters {
   const sum = { lf: 0, lh: 0, brf: 0, brh: 0, fnf: 0, fnh: 0 };
   for (const r of records) {
     sum.lf += r.lf;
@@ -176,14 +229,17 @@ function total(records) {
  *
  * @complexity O(1).
  */
-function floorFailures(area, measured) {
+function floorFailures(
+  area: CoverageArea,
+  measured: LcovCounters
+): { actual: Record<CoverageAxis, number>; failures: string[] } {
   const actual = {
     line: pct(measured.lh, measured.lf),
     branch: pct(measured.brh, measured.brf),
     funcs: pct(measured.fnh, measured.fnf),
   };
-  const failures = [];
-  for (const axis of ["line", "branch", "funcs"]) {
+  const failures: string[] = [];
+  for (const axis of ["line", "branch", "funcs"] as const) {
     const floor = area.floors?.[axis];
     if (typeof floor === "number" && actual[axis] < floor) {
       failures.push(`${axis} ${actual[axis].toFixed(2)}% < floor ${floor}%`);
@@ -202,12 +258,17 @@ function floorFailures(area, measured) {
  *   `failures` empty means the area passes.
  * @complexity O(n) in the area's files.
  */
-export function evaluateArea(area, onDisk, coverage) {
+export function evaluateArea(
+  area: CoverageArea,
+  onDisk: readonly string[],
+  coverage: ReadonlyMap<string, LcovCounters>
+): AreaResult {
   const known = new Set(area.knownUnmeasured ?? []);
   const measuredPaths = onDisk.filter((p) => coverage.has(p));
   const unmeasured = onDisk.filter((p) => !coverage.has(p));
 
-  const measured = total(measuredPaths.map((p) => coverage.get(p)));
+  // `!`: `measuredPaths` holds only paths `coverage` has.
+  const measured = total(measuredPaths.map((p) => coverage.get(p)!));
   const { actual, failures } = floorFailures(area, measured);
 
   // A file with no coverage record that nobody declared. This is the check the percentages cannot
@@ -249,10 +310,10 @@ export function evaluateArea(area, onDisk, coverage) {
 /** One area's result, rendered. The unmeasured files are named on EVERY run — a gap nobody is told
  *  about is the trap; a gap printed every run is a decision.
  *  @complexity O(n). */
-export function formatArea(result, area) {
+export function formatArea(result: AreaResult, area: CoverageArea): string {
   const lines = [`  ${result.failures.length === 0 ? "OK  " : "FAIL"}  ${result.id}`];
-  const floors = area.floors ?? {};
-  for (const axis of ["line", "branch", "funcs"]) {
+  const floors: Partial<Record<CoverageAxis, number>> = area.floors ?? {};
+  for (const axis of ["line", "branch", "funcs"] as const) {
     const floor = floors[axis];
     const shown = `${result.actual[axis].toFixed(2)}%`;
     lines.push(`          ${axis.padEnd(6)} ${shown.padStart(7)}  ${typeof floor === "number" ? `(floor ${floor}%)` : "(no floor — see coverage-floors.json)"}`);

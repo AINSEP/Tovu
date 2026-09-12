@@ -1,0 +1,55 @@
+{
+  // Typecheck-only, STRICT pass over the main process: `main.ts`, `src/**` outside the renderer,
+  // contracts and preload trees, `bin`, `scripts`, and their tests. Nothing here is ever compiled:
+  // Electron and Node strip the types at load time, which is why `erasableSyntaxOnly` is on (no
+  // `enum`, `namespace`, parameter properties or `import x = require()`).
+  //
+  // THE RATCHET (TypeScript migration Phase 4). `files` lists only the modules whose types are done,
+  // and each annotation batch moves its files here from `tsconfig.main-pending.json`. Batches go
+  // leaf-first by import graph, so a file listed here never imports one that is not: tsc follows
+  // imports, so an unannotated import would put its strict errors into this program and fail
+  // `npm run typecheck`. The last batch deletes the pending config and replaces this list with the
+  // globs above. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 4.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  },
+  "files": [
+    // Batch 1: pure policy leaves, no imports from other desktop modules.
+    "src/complexity-debt.ts",
+    "src/complexity-debt.test.ts",
+    "src/coverage-floors.ts",
+    "src/coverage-floors.test.ts",
+    "src/coverage-runner-split.test.ts",
+    "src/keyed-serializer.ts",
+    "src/keyed-serializer.test.ts",
+    "src/quality-gates.ts",
+    "src/quality-gates.test.ts",
+    "src/quit-drain-gate.ts",
+    "src/quit-drain-gate.test.ts",
+    "src/quit-signals.ts",
+    "src/quit-signals.test.ts",
+    "src/selftest-tracker.ts",
+    "src/selftest-tracker.test.ts",
+    "src/shell-staleness.ts",
+    "src/shell-staleness.test.ts",
+    "src/shutdown-tracker.ts",
+    "src/shutdown-tracker.test.ts",
+    "src/site-supervisor.ts",
+    "src/site-supervisor.test.ts",
+    "src/tree-quiet.ts",
+    "src/tree-quiet.test.ts",
+    "src/webview-guest-policy.ts",
+    "src/webview-guest-policy.test.ts"
+  ]
+}

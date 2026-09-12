@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 
 function deferred() {
-  let resolve;
+  let resolve!: (value?: unknown) => void;
   const promise = new Promise((r) => (resolve = r));
   return { promise, resolve };
 }
@@ -21,7 +21,7 @@ test("run() resolves to fn's own return value", async () => {
 
 test("two calls for the SAME key run strictly one after another, never overlapping", async () => {
   const { run } = createKeyedSerializer();
-  const order = [];
+  const order: string[] = [];
   const first = deferred();
 
   const call1 = run("site-a", async () => {
@@ -45,7 +45,7 @@ test("two calls for the SAME key run strictly one after another, never overlappi
 
 test("calls for DIFFERENT keys are never serialized against each other", async () => {
   const { run } = createKeyedSerializer();
-  const order = [];
+  const order: string[] = [];
   const blockA = deferred();
 
   const callA = run("site-a", async () => {
@@ -68,7 +68,7 @@ test("calls for DIFFERENT keys are never serialized against each other", async (
 
 test("a failed call does not block the next call queued behind it for the same key", async () => {
   const { run } = createKeyedSerializer();
-  const order = [];
+  const order: string[] = [];
 
   const call1 = run("site-a", async () => {
     order.push("1");

@@ -1,0 +1,47 @@
+{
+  // The main-process files whose types are NOT done yet, checked LOOSE (`strict: false`). The other
+  // half of `tsconfig.main.json`'s ratchet: each annotation batch removes its files from this program
+  // by adding them to `tsconfig.main.json`'s `files`, and the last batch deletes this config.
+  //
+  // Not chained into `npm run typecheck`: these files were plain JavaScript until Phase 3 and still
+  // carry loose-mode errors (mostly TS2339, properties added to untyped objects), so this program is
+  // red until the batches that own them land. It exists so the remaining debt is one command away,
+  // `npx tsc -p tsconfig.main-pending.json`, rather than an estimate.
+  // See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 4.
+  "extends": "./tsconfig.main.json",
+  "compilerOptions": {
+    "strict": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "files": [],
+  "include": ["main.ts", "bin/**/*.ts", "scripts/**/*.ts", "src/*.ts", "src/speech/**/*.ts"],
+  // Files already in tsconfig.main.json. tsc still loads them when a pending file imports one, which
+  // is harmless: they pass strict, so they pass loose.
+  "exclude": [
+    "src/complexity-debt.ts",
+    "src/complexity-debt.test.ts",
+    "src/coverage-floors.ts",
+    "src/coverage-floors.test.ts",
+    "src/coverage-runner-split.test.ts",
+    "src/keyed-serializer.ts",
+    "src/keyed-serializer.test.ts",
+    "src/quality-gates.ts",
+    "src/quality-gates.test.ts",
+    "src/quit-drain-gate.ts",
+    "src/quit-drain-gate.test.ts",
+    "src/quit-signals.ts",
+    "src/quit-signals.test.ts",
+    "src/selftest-tracker.ts",
+    "src/selftest-tracker.test.ts",
+    "src/shell-staleness.ts",
+    "src/shell-staleness.test.ts",
+    "src/shutdown-tracker.ts",
+    "src/shutdown-tracker.test.ts",
+    "src/site-supervisor.ts",
+    "src/site-supervisor.test.ts",
+    "src/tree-quiet.ts",
+    "src/tree-quiet.test.ts",
+    "src/webview-guest-policy.ts",
+    "src/webview-guest-policy.test.ts"
+  ]
+}

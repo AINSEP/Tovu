@@ -16,10 +16,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { validateManifest, detectGateDrift, formatSummary, isFailure, daysBetween } from "./quality-gates.ts";
+import type { GateEntry, GateManifest } from "./quality-gates.ts";
 
 const TODAY = "2026-09-12";
 
-function manifest(gates, extra = {}) {
+function manifest(gates: GateEntry[], extra: GateManifest = {}): GateManifest {
   return { gates, ...extra };
 }
 
@@ -44,8 +45,8 @@ test("a disabled gate with NO reason is a hard failure", () => {
     TODAY
   );
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /disabledReason/);
-  assert.match(problems[0], /not silently/);
+  assert.match(problems[0]!,/disabledReason/);
+  assert.match(problems[0]!,/not silently/);
 });
 
 test("a disabled gate with NO date is a hard failure, and the age check does not also fire", () => {
@@ -54,7 +55,7 @@ test("a disabled gate with NO date is a hard failure, and the age check does not
     TODAY
   );
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /disabledOn/);
+  assert.match(problems[0]!,/disabledOn/);
 });
 
 test("an unparseable disabledOn is reported as such, not silently treated as fresh", () => {
@@ -63,8 +64,8 @@ test("an unparseable disabledOn is reported as such, not silently treated as fre
     TODAY
   );
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /unparseable/);
-  assert.match(problems[0], /YYYY-MM-DD/);
+  assert.match(problems[0]!,/unparseable/);
+  assert.match(problems[0]!,/YYYY-MM-DD/);
 });
 
 // --- property 4: the disablement ratchet --------------------------------------------------------
@@ -75,8 +76,8 @@ test("a gate disabled longer than the limit fails until the decision is re-confi
     TODAY
   );
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /disabled 254 days/);
-  assert.match(problems[0], /re-confirm/);
+  assert.match(problems[0]!,/disabled 254 days/);
+  assert.match(problems[0]!,/re-confirm/);
 });
 
 test("the disablement limit is configurable per manifest", () => {
@@ -84,7 +85,7 @@ test("the disablement limit is configurable per manifest", () => {
   assert.deepEqual(validateManifest(manifest(gates), TODAY), [], "11 days is inside the default 30");
   const problems = validateManifest(manifest(gates, { maxDisabledDays: 5 }), TODAY);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /disabled 11 days/);
+  assert.match(problems[0]!,/disabled 11 days/);
 });
 
 test("daysBetween is date-only, so a disablement recorded today reads as zero days", () => {
@@ -98,24 +99,24 @@ test("daysBetween is date-only, so a disablement recorded today reads as zero da
 test("an empty gate list is a failure, not a vacuous pass", () => {
   const problems = validateManifest(manifest([]), TODAY);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /zero gates/);
-  assert.match(problems[0], /measuring nothing/);
+  assert.match(problems[0]!,/zero gates/);
+  assert.match(problems[0]!,/measuring nothing/);
 });
 
 test("a manifest with no gates array at all is a failure", () => {
-  assert.match(validateManifest({}, TODAY)[0], /no "gates" array/);
+  assert.match(validateManifest({}, TODAY)[0]!, /no "gates" array/);
 });
 
 test("a gate missing id or run is reported", () => {
   const problems = validateManifest(manifest([{ id: "no-run" }]), TODAY);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /needs an "id" and a "run"/);
+  assert.match(problems[0]!,/needs an "id" and a "run"/);
 });
 
 test("duplicate gate ids are reported — two entries silently collapsing to one is the failure mode", () => {
   const problems = validateManifest(manifest([{ id: "a", run: "x" }, { id: "a", run: "y" }]), TODAY);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /duplicate gate id "a"/);
+  assert.match(problems[0]!,/duplicate gate id "a"/);
 });
 
 // --- property 3: manifest-vs-disk drift ---------------------------------------------------------

@@ -27,18 +27,50 @@
  * minimum linted-file count and fails when the scan shrinks, no matter how clean the result looks.
  */
 
+/** One complexity finding, as `complexity-debt.json` stores it. `reason` is ESLint's message. */
+export interface ComplexityViolation {
+  rule: string;
+  file: string;
+  reason: string;
+}
+
+/** The slice of one ESLint `-f json` message this file reads. `ruleId` is `null` for a parse error. */
+export interface EslintMessage {
+  ruleId: string | null;
+  message: string;
+}
+
+/** The slice of one ESLint `-f json` file result this file reads. */
+export interface EslintFileResult {
+  filePath: string;
+  messages: readonly EslintMessage[];
+}
+
+/** {@link diffAgainstBaseline}'s multiset difference. */
+export interface BaselineDiff {
+  added: ComplexityViolation[];
+  removed: ComplexityViolation[];
+}
+
+/** {@link evaluateRun}'s verdict. `failures` empty means the gate passes. */
+export interface ComplexityRunVerdict extends BaselineDiff {
+  current: ComplexityViolation[];
+  filesLinted: number;
+  failures: string[];
+}
+
 /** Stable identity for one violation: `|`-joined because ESLint's own messages contain colons,
  *  quotes and periods, so any human-readable separator risks two distinct violations colliding.
  *  @complexity O(1). */
-export function violationKey(violation) {
+export function violationKey(violation: ComplexityViolation): string {
   return `${violation.rule}|${violation.file}|${violation.reason}`;
 }
 
 /** Counts violations by key, so the diff is a MULTISET diff — two identical messages in one file
  *  are two violations, and fixing one of them must register.
  *  @complexity O(n). */
-function countByKey(violations) {
-  const counts = new Map();
+function countByKey(violations: readonly ComplexityViolation[]): Map<string, number> {
+  const counts = new Map<string, number>();
   for (const v of violations) {
     const key = violationKey(v);
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -53,13 +85,16 @@ function countByKey(violations) {
  *   never a failure (a fix must not be punished).
  * @complexity O(n) in violations.
  */
-export function diffAgainstBaseline(baseline, current) {
+export function diffAgainstBaseline(
+  baseline: readonly ComplexityViolation[],
+  current: readonly ComplexityViolation[]
+): BaselineDiff {
   const baseCounts = countByKey(baseline);
   const currentCounts = countByKey(current);
-  const byKey = new Map([...baseline, ...current].map((v) => [violationKey(v), v]));
+  const byKey = new Map([...baseline, ...current].map((v): [string, ComplexityViolation] => [violationKey(v), v]));
 
-  const added = [];
-  const removed = [];
+  const added: ComplexityViolation[] = [];
+  const removed: ComplexityViolation[] = [];
   for (const [key, violation] of byKey) {
     const delta = (currentCounts.get(key) ?? 0) - (baseCounts.get(key) ?? 0);
     for (let i = 0; i < delta; i += 1) added.push(violation);
@@ -77,8 +112,12 @@ export function diffAgainstBaseline(baseline, current) {
  * @returns `{ current, added, removed, filesLinted, failures }`.
  * @complexity O(n) in results.
  */
-export function evaluateRun(results, baseline, minFilesLinted) {
-  const current = [];
+export function evaluateRun(
+  results: readonly EslintFileResult[],
+  baseline: readonly ComplexityViolation[],
+  minFilesLinted: number
+): ComplexityRunVerdict {
+  const current: ComplexityViolation[] = [];
   for (const result of results) {
     for (const message of result.messages) {
       if (message.ruleId === "complexity" || message.ruleId === "sonarjs/cognitive-complexity") {
@@ -88,7 +127,7 @@ export function evaluateRun(results, baseline, minFilesLinted) {
   }
 
   const { added, removed } = diffAgainstBaseline(baseline, current);
-  const failures = [];
+  const failures: string[] = [];
 
   // A clean result and an empty scan look identical from the outside. This is the difference.
   if (results.length < minFilesLinted) {
@@ -115,7 +154,7 @@ export function evaluateRun(results, baseline, minFilesLinted) {
  * @returns `null` when usable, else the reason it is not.
  * @complexity O(1).
  */
-export function rejectUnusableEslintRun(status, stdout) {
+export function rejectUnusableEslintRun(status: number | null, stdout: string | null | undefined): string | null {
   if (status !== 0 && status !== 1) {
     return `eslint exited ${status} — that is a CRASH, not a finding. Exit 0 and 1 are the only usable outcomes.`;
   }
@@ -123,11 +162,12 @@ export function rejectUnusableEslintRun(status, stdout) {
   if (trimmed.length === 0) {
     return "eslint produced no output at all. An empty report is not an empty result.";
   }
-  let parsed;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
   } catch (error) {
-    return `eslint output was not JSON (${error.message}).`;
+    // `JSON.parse` of a string throws only `SyntaxError`.
+    return `eslint output was not JSON (${(error as SyntaxError).message}).`;
   }
   if (!Array.isArray(parsed) || parsed.length === 0) {
     return "eslint reported zero files. The scan matched nothing, which is not the same as finding nothing.";

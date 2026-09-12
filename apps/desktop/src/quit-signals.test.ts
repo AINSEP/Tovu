@@ -13,8 +13,8 @@ import { routeQuitSignals, QUIT_SIGNALS } from "./quit-signals.ts";
 function harness() {
   const processLike = new EventEmitter();
   const calls = { quit: 0, forceExit: 0, unref: 0 };
-  const timers = [];
-  const setTimer = (fn, ms) => {
+  const timers: { fn: () => void; ms: number }[] = [];
+  const setTimer = (fn: () => void, ms: number) => {
     timers.push({ fn, ms });
     return { unref: () => (calls.unref += 1) };
   };
@@ -67,9 +67,9 @@ test("repeated copies of a termination signal are absorbed: the graceful quit is
 test("a drain that outlives the deadline is force-exited, so a stop never hangs forever", () => {
   const { processLike, calls, timers } = harness();
   processLike.emit("SIGTERM");
-  assert.equal(timers[0].ms, 15_000);
+  assert.equal(timers[0]!.ms, 15_000);
   assert.equal(calls.forceExit, 0, "the deadline must not fire early");
-  timers[0].fn();
+  timers[0]!.fn();
   assert.equal(calls.forceExit, 1);
 });
 

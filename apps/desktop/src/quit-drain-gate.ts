@@ -20,17 +20,30 @@
  * `shutdown-tracker.js` and `quit-signals.js`.
  */
 
+/** Where `main.js`'s quit is. See {@link decideBeforeQuit}. */
+type QuitPhase = "idle" | "draining" | "drained";
+
+/** What `before-quit` does with one quit attempt. See {@link decideBeforeQuit}. */
+type BeforeQuitAction = "proceed" | "drain" | "hold";
+
+/** {@link decideBeforeQuit}'s input. */
+interface BeforeQuitInput {
+  phase: QuitPhase;
+  nothingToDrain: boolean;
+}
+
 /**
- * @param {object} input
- * @param {"idle" | "draining" | "drained"} input.phase where `main.js`'s quit is: nothing started,
- *   the drain running, or the drain finished and its own `app.quit()` going through.
- * @param {boolean} input.nothingToDrain no open site and no window teardown in flight.
- * @returns {"proceed" | "drain" | "hold"} `"proceed"`: return without `preventDefault()`.
- *   `"drain"`: `preventDefault()` and start the drain. `"hold"`: `preventDefault()` and nothing else.
- * @throws {TypeError} on any other `phase`, so a misspelled phase fails loudly instead of draining twice.
+ * @param input
+ * @param input.phase where `main.js`'s quit is: nothing started, the drain running, or the drain
+ *   finished and its own `app.quit()` going through.
+ * @param input.nothingToDrain no open site and no window teardown in flight.
+ * @returns `"proceed"`: return without `preventDefault()`. `"drain"`: `preventDefault()` and start
+ *   the drain. `"hold"`: `preventDefault()` and nothing else.
+ * @throws {TypeError} on any other `phase`, so a misspelled phase fails loudly instead of draining
+ *   twice. The type rejects one at compile time; this still guards a caller the type cannot see.
  * @complexity O(1).
  */
-function decideBeforeQuit(input) {
+function decideBeforeQuit(input: BeforeQuitInput): BeforeQuitAction {
   switch (input.phase) {
     case "idle":
       return input.nothingToDrain ? "proceed" : "drain";
@@ -44,3 +57,4 @@ function decideBeforeQuit(input) {
 }
 
 export { decideBeforeQuit };
+export type { BeforeQuitAction, BeforeQuitInput, QuitPhase };

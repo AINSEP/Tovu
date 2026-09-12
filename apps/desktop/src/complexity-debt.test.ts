@@ -15,12 +15,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { evaluateRun, diffAgainstBaseline, violationKey, rejectUnusableEslintRun } from "./complexity-debt.ts";
+import type { ComplexityViolation, EslintFileResult, EslintMessage } from "./complexity-debt.ts";
 
-const v = (rule, file, reason) => ({ rule, file, reason });
+const v = (rule: string, file: string, reason: string): ComplexityViolation => ({ rule, file, reason });
 const CYC = "complexity";
 const COG = "sonarjs/cognitive-complexity";
 
-function eslintResult(filePath, messages = []) {
+function eslintResult(filePath: string, messages: EslintMessage[] = []): EslintFileResult {
   return { filePath, messages };
 }
 
@@ -94,26 +95,26 @@ test("exit 1 with a real report is usable — ESLint exits 1 when it merely find
 
 test("exit 2 is rejected as a CRASH even if stdout somehow parses", () => {
   const reason = rejectUnusableEslintRun(2, '[{"filePath":"/a.ts","messages":[]}]');
-  assert.match(reason, /exited 2/);
-  assert.match(reason, /CRASH, not a finding/);
+  assert.match(reason!, /exited 2/);
+  assert.match(reason!, /CRASH, not a finding/);
 });
 
 test("empty stdout is rejected — an empty report is not an empty result", () => {
-  assert.match(rejectUnusableEslintRun(2, ""), /exited 2/);
-  assert.match(rejectUnusableEslintRun(1, ""), /no output at all/);
-  assert.match(rejectUnusableEslintRun(1, "   "), /no output at all/);
+  assert.match(rejectUnusableEslintRun(2, "")!, /exited 2/);
+  assert.match(rejectUnusableEslintRun(1, "")!, /no output at all/);
+  assert.match(rejectUnusableEslintRun(1, "   ")!, /no output at all/);
 });
 
 test("non-JSON stdout is rejected rather than throwing", () => {
-  assert.match(rejectUnusableEslintRun(1, "Oops! Something went wrong!"), /not JSON/);
+  assert.match(rejectUnusableEslintRun(1, "Oops! Something went wrong!")!, /not JSON/);
 });
 
 test("a zero-file report is rejected — matching nothing is not finding nothing", () => {
   const reason = rejectUnusableEslintRun(0, "[]");
-  assert.match(reason, /zero files/);
-  assert.match(reason, /not the same as finding nothing/);
+  assert.match(reason!, /zero files/);
+  assert.match(reason!, /not the same as finding nothing/);
 });
 
 test("a null status (killed by signal) is rejected", () => {
-  assert.match(rejectUnusableEslintRun(null, "[]"), /CRASH/);
+  assert.match(rejectUnusableEslintRun(null, "[]")!, /CRASH/);
 });

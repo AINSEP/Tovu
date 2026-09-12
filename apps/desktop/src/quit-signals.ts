@@ -36,25 +36,38 @@
  */
 
 /** The same three signals Chromium's one-shot handler takes. */
-const QUIT_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+const QUIT_SIGNALS: readonly NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
+
+/** A timer as {@link routeQuitSignals} uses it: `setTimeout`, or a recording fake in tests. */
+type QuitTimer = (fn: () => void, ms: number) => { unref?: () => void };
+
+/** {@link routeQuitSignals}'s input. */
+interface QuitSignalInput {
+  processLike: { on(signal: NodeJS.Signals, listener: () => void): unknown };
+  quit: () => void;
+  forceExit: () => void;
+  deadlineMs: number;
+}
+
+/** {@link routeQuitSignals}'s options. */
+interface QuitSignalOptions {
+  setTimer?: QuitTimer;
+}
 
 /**
  * Register one persistent listener per {@link QUIT_SIGNALS} entry. The first signal calls `quit()`
  * and arms the `forceExit()` deadline, and every later signal is absorbed.
  *
- * @param {object} input
- * @param {{on: (signal: string, listener: () => void) => unknown}} input.processLike `process`, or a
- *   fake emitter in tests.
- * @param {() => void} input.quit the graceful quit, i.e. `app.quit()`, which runs `before-quit`'s drain.
- * @param {() => void} input.forceExit the last resort once `deadlineMs` passes, i.e. `app.exit(1)`.
- * @param {number} input.deadlineMs how long the graceful quit gets before `forceExit`.
- * @param {{setTimer?: (fn: () => void, ms: number) => {unref?: () => void}}} [options] timer seam;
- *   defaults to `setTimeout`.
- * @returns {void}
+ * @param input
+ * @param input.processLike `process`, or a fake emitter in tests.
+ * @param input.quit the graceful quit, i.e. `app.quit()`, which runs `before-quit`'s drain.
+ * @param input.forceExit the last resort once `deadlineMs` passes, i.e. `app.exit(1)`.
+ * @param input.deadlineMs how long the graceful quit gets before `forceExit`.
+ * @param [options] timer seam; `setTimer` defaults to `setTimeout`.
  * @complexity O(1): three registrations, and O(1) work per signal.
  */
-function routeQuitSignals(input, options = {}) {
-  const setTimer = options.setTimer ?? setTimeout;
+function routeQuitSignals(input: QuitSignalInput, options: QuitSignalOptions = {}): void {
+  const setTimer: QuitTimer = options.setTimer ?? setTimeout;
   let requested = false;
 
   const onSignal = () => {
@@ -68,3 +81,4 @@ function routeQuitSignals(input, options = {}) {
 }
 
 export { routeQuitSignals, QUIT_SIGNALS };
+export type { QuitSignalInput, QuitSignalOptions, QuitTimer };

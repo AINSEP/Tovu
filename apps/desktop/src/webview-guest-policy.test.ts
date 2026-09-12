@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { applyGuestWebPreferences } from "./webview-guest-policy.ts";
+import type { GuestWebPreferences } from "./webview-guest-policy.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +19,7 @@ test("the guest is given the shell's preload, so window.tovuVoice exists in an e
   // The defect: `delete webPreferences.preload` left the embedded admin with no bridge, so
   // `voice-input-port.ts` found no `window.tovuVoice` and the admin told the operator that voice
   // input needs the desktop app — while running inside it.
-  const webPreferences = {};
+  const webPreferences: GuestWebPreferences = {};
   applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
   assert.equal(webPreferences.preload, PRELOAD);
 });
@@ -40,6 +41,7 @@ test("Node stays off and context isolation stays on, whatever the page asked for
 });
 
 test("a missing preload path throws rather than silently producing a guest with no voice API", () => {
+  // @ts-expect-error -- no preloadPath: the type rejects it, and this asserts the runtime does too.
   assert.throws(() => applyGuestWebPreferences({}, {}), /preloadPath is required/);
   assert.throws(() => applyGuestWebPreferences({}, { preloadPath: "" }), /preloadPath is required/);
 });

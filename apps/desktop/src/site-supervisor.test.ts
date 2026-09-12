@@ -12,16 +12,29 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createSiteSupervisor } from "./site-supervisor.ts";
+import type { ServerExit, SiteSupervisor, SupervisedServer } from "./site-supervisor.ts";
+
+/** What these tests store per site: a server handle with at least a `port`. */
+interface TestEntry {
+  server: SupervisedServer & { port: number };
+}
+
+/** One arm of the paired test: a store, and the `onUnexpectedExit` calls it made. */
+interface StoreArm<S> {
+  name: string;
+  store: S;
+  reported: { siteDir: string; exit: ServerExit }[];
+}
 
 /** A `startTovuServer` handle stand-in with the replayable `onExit` the real one now returns. */
 function fakeServer(port = 4321) {
-  let exit = null;
-  const waiting = [];
+  let exit: ServerExit | null = null;
+  const waiting: ((exit: ServerExit) => void)[] = [];
   return {
     port,
     pid: 4242,
     stop: async () => {},
-    onExit(listener) {
+    onExit(listener: (exit: ServerExit) => void) {
       if (exit !== null) {
         listener(exit);
         return;
@@ -29,7 +42,7 @@ function fakeServer(port = 4321) {
       waiting.push(listener);
     },
     /** Drive the child's death from the test. */
-    die(code = 1, signal = null) {
+    die(code: number | null = 1, signal: string | null = null) {
       exit = { code, signal };
       for (const listener of waiting.splice(0)) listener(exit);
     },
@@ -40,16 +53,16 @@ function fakeServer(port = 4321) {
  * @returns the supervisor under test and the pre-fix baseline, each with the `onUnexpectedExit`
  *   calls it made. A `Map` has no such hook, so its list simply stays empty — which is the point.
  */
-function stores() {
-  const reported = [];
+function stores(): [StoreArm<SiteSupervisor<TestEntry>>, StoreArm<Map<string, TestEntry>>] {
+  const reported: StoreArm<unknown>["reported"] = [];
   return [
-    { name: "supervisor", store: createSiteSupervisor({ onUnexpectedExit: (siteDir, exit) => reported.push({ siteDir, exit }) }), reported },
+    { name: "supervisor", store: createSiteSupervisor<TestEntry>({ onUnexpectedExit: (siteDir, exit) => reported.push({ siteDir, exit }) }), reported },
     { name: "plain Map (pre-fix baseline)", store: new Map(), reported: [] },
   ];
 }
 
 test("a crashed child stops being reported as live — the plain Map keeps it forever", () => {
-  const outcomes = {};
+  const outcomes: Record<string, boolean> = {};
   for (const { name, store } of stores()) {
     const server = fakeServer();
     store.set("/sites/a", { server });
@@ -98,7 +111,7 @@ test("a replaced entry's old child dying never evicts the new one", () => {
 
   first.die(1, null);
 
-  assert.equal(store.get("/sites/a").server.port, 2222);
+  assert.equal(store.get("/sites/a")!.server.port, 2222);
   assert.deepEqual(reported, []);
 });
 
@@ -137,7 +150,7 @@ test("the Map surface main.ts and project-ipc.ts already use behaves identically
     store.set("/sites/a", { server: { port: 1 } });
     store.set("/sites/b", { server: { port: 2 } });
     assert.equal(store.size, 2, name);
-    assert.equal(store.get("/sites/a").server.port, 1, name);
+    assert.equal(store.get("/sites/a")!.server.port, 1, name);
     assert.equal(store.has("/sites/zzz"), false, name);
     assert.deepEqual([...store.values()].map((entry) => entry.server.port), [1, 2], name);
     assert.equal(store.delete("/sites/a"), true, name);
@@ -149,6 +162,6 @@ test("the Map surface main.ts and project-ipc.ts already use behaves identically
 test("a handle with no onExit is stored and simply not watched", () => {
   const [{ store, reported }] = stores();
   store.set("/sites/a", { server: { port: 4321 } });
-  assert.equal(store.get("/sites/a").server.port, 4321);
+  assert.equal(store.get("/sites/a")!.server.port, 4321);
   assert.deepEqual(reported, []);
 });

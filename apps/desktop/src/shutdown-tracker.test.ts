@@ -11,8 +11,8 @@ import { createShutdownTracker } from "./shutdown-tracker.ts";
 /** A promise plus its own settle handles — lets a test hold a teardown open and prove the drain
  *  is genuinely blocked on it rather than merely slow. */
 function deferred() {
-  let resolve;
-  let reject;
+  let resolve!: (value?: unknown) => void;
+  let reject!: (reason?: unknown) => void;
   const promise = new Promise((res, rej) => {
     resolve = res;
     reject = rej;

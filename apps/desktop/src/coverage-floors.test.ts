@@ -19,11 +19,12 @@ import {
   parseNodeTestScript,
   runnerSplitDrift,
 } from "./coverage-floors.ts";
+import type { LcovCounters } from "./coverage-floors.ts";
 
 const perfect = { lf: 100, lh: 100, brf: 10, brh: 10, fnf: 5, fnh: 5 };
 const poor = { lf: 100, lh: 50, brf: 10, brh: 5, fnf: 5, fnh: 1 };
 
-function cov(entries) {
+function cov(entries: [string, LcovCounters][]): Map<string, LcovCounters> {
   return new Map(entries);
 }
 
@@ -84,8 +85,8 @@ test("a file on disk with NO coverage record fails the area, even at 100% on wha
   assert.equal(result.actual.line, 100, "the measured half really is at 100%");
   assert.ok(result.failures.length > 0, "and the area must STILL fail");
   assert.deepEqual(result.newlyUnmeasured, ["src/b.js"]);
-  assert.match(result.failures[0], /NO coverage record/);
-  assert.match(result.failures[0], /src\/b\.js/, "the untested file must be named");
+  assert.match(result.failures[0]!, /NO coverage record/);
+  assert.match(result.failures[0]!, /src\/b\.js/, "the untested file must be named");
 });
 
 test("an explicitly grandfathered gap does NOT fail — debt is allowed when it is declared", () => {
@@ -240,7 +241,7 @@ test("a glob only one side runs is drift, whichever side it is on", () => {
   assert.deepEqual(runnerSplitDrift(extra, parseNodeTestScript(SCRIPT)), [
     'TEST_PASSES runs src/contracts/**/*.test.ts under "node --import tsx"; package.json does not',
   ]);
-  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]], parseNodeTestScript(SCRIPT)), [
+  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]!], parseNodeTestScript(SCRIPT)), [
     'package.json runs src/renderer/**/*.test.ts under "node --import tsx"; TEST_PASSES does not',
   ]);
 });

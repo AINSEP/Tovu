@@ -29,6 +29,32 @@
  *    correctly WAIT rather than conclude the batch is done.
  */
 
+/** The slice of Electron's `WebContents` this tracker touches. Overloaded per event, as Electron's own
+ *  declaration is, so a real `BrowserWindow` and a test fake both satisfy it. */
+interface SelftestWebContents {
+  once(event: "did-fail-load", listener: (event: unknown, code: number, description: string) => void): unknown;
+  once(event: "did-finish-load", listener: () => void): unknown;
+  getURL(): string;
+  getTitle(): string;
+}
+
+/** A window as this tracker sees it: `BrowserWindow`, or a fake with the same `webContents` slice. */
+interface SelftestWindow {
+  webContents: SelftestWebContents;
+}
+
+/** The three effects {@link createSelftestTracker} leaves to its caller. */
+interface SelftestCallbacks {
+  onWindowLoaded(info: { url: string; title: string }): void;
+  onWindowFailed(info: { url: string; code: number; description: string }): void;
+  onAllSettled(info: { failed: boolean }): void;
+}
+
+/** What {@link createSelftestTracker} returns. */
+interface SelftestTracker {
+  add(window: SelftestWindow): void;
+}
+
 /**
  * @param expectedCount how many windows this launch will open, known by the caller before any of
  *   them exist (e.g. `siteDirs.length`) — see this file's own header, hazard 2.
@@ -43,13 +69,13 @@
  *   exactly `expectedCount` times over this tracker's lifetime.
  * @complexity O(1) to construct; `add()` is O(1) per call.
  */
-function createSelftestTracker(expectedCount, callbacks) {
+function createSelftestTracker(expectedCount: number, callbacks: SelftestCallbacks): SelftestTracker {
   let remaining = expectedCount;
   let failed = false;
 
   return {
-    add(window) {
-      window.webContents.once("did-fail-load", (_event, code, description) => {
+    add(window: SelftestWindow): void {
+      window.webContents.once("did-fail-load", (_event: unknown, code: number, description: string) => {
         if (failed) return;
         failed = true;
         callbacks.onWindowFailed({ url: window.webContents.getURL(), code, description });
@@ -66,3 +92,4 @@ function createSelftestTracker(expectedCount, callbacks) {
 }
 
 export { createSelftestTracker };
+export type { SelftestCallbacks, SelftestTracker, SelftestWebContents, SelftestWindow };

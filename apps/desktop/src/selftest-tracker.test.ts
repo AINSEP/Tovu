@@ -6,26 +6,34 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createSelftestTracker } from "./selftest-tracker.ts";
+import type { SelftestCallbacks } from "./selftest-tracker.ts";
+
+/** Every call `recordingCallbacks` saw, one array per callback. */
+interface RecordedCalls {
+  loaded: Parameters<SelftestCallbacks["onWindowLoaded"]>[0][];
+  failed: Parameters<SelftestCallbacks["onWindowFailed"]>[0][];
+  settled: Parameters<SelftestCallbacks["onAllSettled"]>[0][];
+}
 
 /** A fake window whose `did-finish-load`/`did-fail-load` fire only when the test calls
  *  `finishLoad()`/`failLoad()` — so a test controls the exact ORDER events happen in. */
-function fakeWindow(url, title) {
-  const listeners = {};
+function fakeWindow(url: string, title: string) {
+  const listeners: Record<string, (...args: unknown[]) => void> = {};
   return {
     webContents: {
-      once(event, cb) {
+      once(event: string, cb: (...args: any[]) => void) { // any: one fake method stands in for both of `once`'s per-event listener overloads
         listeners[event] = cb;
       },
       getURL: () => url,
       getTitle: () => title,
     },
     finishLoad: () => listeners["did-finish-load"]?.(),
-    failLoad: (code, description) => listeners["did-fail-load"]?.(undefined, code, description),
+    failLoad: (code: number, description: string) => listeners["did-fail-load"]?.(undefined, code, description),
   };
 }
 
-function recordingCallbacks() {
-  const calls = { loaded: [], failed: [], settled: [] };
+function recordingCallbacks(): { calls: RecordedCalls; callbacks: SelftestCallbacks } {
+  const calls: RecordedCalls = { loaded: [], failed: [], settled: [] };
   return {
     calls,
     callbacks: {

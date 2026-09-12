@@ -32,8 +32,15 @@
  * mtimes are in absolute terms. See `scripts/check-tree-quiet.mjs` for how the snapshots are taken.
  */
 
+/** What `scripts/check-tree-quiet.mjs` observed. See {@link treeQuietProblems} for each field. */
+export interface TreeQuietSignals {
+  viteWatchRunning: boolean;
+  gitDirtyPaths?: readonly string[];
+  movingPaths?: readonly string[];
+}
+
 /** Why a live `vite build --watch` blocks packaging — the named, known culprit from the incident. */
-function viteWatchProblem(viteWatchRunning) {
+function viteWatchProblem(viteWatchRunning: boolean): string | null {
   if (!viteWatchRunning) return null;
   return (
     "a `vite build --watch` process is running against apps/desktop. It rewrites dist/renderer " +
@@ -46,7 +53,7 @@ function viteWatchProblem(viteWatchRunning) {
 /** Why uncommitted edits under the packaged surface block packaging — the concrete shape "another
  *  agent or human is editing this" takes in a git-tracked repo, and unlike an mtime age, empty on a
  *  fresh CI checkout by construction (there is nothing to diff against). */
-function gitDirtyProblem(gitDirtyPaths) {
+function gitDirtyProblem(gitDirtyPaths: readonly string[]): string | null {
   if (gitDirtyPaths.length === 0) return null;
   return (
     `apps/desktop has uncommitted changes under the packaged surface: ${gitDirtyPaths.join(", ")}. ` +
@@ -57,7 +64,7 @@ function gitDirtyProblem(gitDirtyPaths) {
 
 /** Why files changing DURING the check blocks packaging — the live signal git cannot provide for
  *  build output that is gitignored (dist/renderer is never tracked, so git-dirty is blind to it). */
-function movingProblem(movingPaths) {
+function movingProblem(movingPaths: readonly string[]): string | null {
   if (movingPaths.length === 0) return null;
   return (
     `apps/desktop is still being written to: ${movingPaths.join(", ")} changed during this check. ` +
@@ -78,7 +85,7 @@ function movingProblem(movingPaths) {
  * @returns human-readable problems, ready to print — empty when the tree is quiet.
  * @complexity O(1) plus the length of the path lists it echoes back.
  */
-export function treeQuietProblems(signals) {
+export function treeQuietProblems(signals: TreeQuietSignals): string[] {
   return [
     viteWatchProblem(signals.viteWatchRunning),
     gitDirtyProblem(signals.gitDirtyPaths ?? []),

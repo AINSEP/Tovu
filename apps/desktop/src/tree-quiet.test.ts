@@ -17,20 +17,20 @@ test("a fully quiet tree reports zero problems", () => {
 test("a live vite build --watch is one problem, naming the incident it reproduces", () => {
   const problems = treeQuietProblems({ ...QUIET, viteWatchRunning: true });
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /vite build --watch/);
-  assert.match(problems[0], /2026-09-12-packaging-asar-corruption/);
+  assert.match(problems[0]!,/vite build --watch/);
+  assert.match(problems[0]!,/2026-09-12-packaging-asar-corruption/);
 });
 
 test("uncommitted changes under the packaged surface are one problem, naming the paths", () => {
   const problems = treeQuietProblems({ ...QUIET, gitDirtyPaths: ["apps/desktop/src/foo.js"] });
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /apps\/desktop\/src\/foo\.js/);
+  assert.match(problems[0]!,/apps\/desktop\/src\/foo\.js/);
 });
 
 test("a directory that changed during the observation window is one problem, naming the paths", () => {
   const problems = treeQuietProblems({ ...QUIET, movingPaths: ["apps/desktop/dist"] });
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /apps\/desktop\/dist/);
+  assert.match(problems[0]!,/apps\/desktop\/dist/);
 });
 
 test("all three signals firing at once produce three distinct problems, not one merged message", () => {

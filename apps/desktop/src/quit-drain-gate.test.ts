@@ -42,10 +42,12 @@ test("the drain's own closing quit goes through, whatever the counts say", () =>
 
 test("an unknown phase throws instead of being read as idle", () => {
   assert.throws(
+    // @ts-expect-error -- a misspelled phase: the type rejects it, and this asserts the runtime does too.
     () => decideBeforeQuit({ phase: "drainig", nothingToDrain: false }),
     { name: "TypeError", message: 'decideBeforeQuit: unknown quit phase "drainig"' },
   );
   assert.throws(
+    // @ts-expect-error -- a missing phase, from a caller outside the type system.
     () => decideBeforeQuit({ phase: undefined, nothingToDrain: true }),
     { name: "TypeError", message: "decideBeforeQuit: unknown quit phase undefined" },
   );

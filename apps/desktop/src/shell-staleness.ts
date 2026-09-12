@@ -16,6 +16,13 @@
 
 const MS_PER_DAY = 86_400_000;
 
+/** The fields of a `stage-payload.mjs` shell entry the staleness message names. */
+export interface StalenessShell {
+  relative: string;
+  marker: string;
+  buildWith: string;
+}
+
 /**
  * Whether a file is a real INPUT to a shell's bundle, for freshness purposes.
  *
@@ -32,7 +39,7 @@ const MS_PER_DAY = 86_400_000;
  *
  * @complexity O(1).
  */
-export function isBundleInput(relPath) {
+export function isBundleInput(relPath: string): boolean {
   const normalized = relPath.split("\\").join("/");
   if (normalized.includes("/__tests__/") || normalized.startsWith("__tests__/")) return false;
   if (normalized.includes("/__measurements__/")) return false;
@@ -54,7 +61,7 @@ export function isBundleInput(relPath) {
  * @returns the failure message, or `null`.
  * @complexity O(1).
  */
-export function shellStalenessFailure(builtAt, sourceAt, shell) {
+export function shellStalenessFailure(builtAt: number, sourceAt: number, shell: StalenessShell): string | null {
   if (builtAt === 0 || sourceAt === 0) return null;
   if (builtAt >= sourceAt) return null;
 

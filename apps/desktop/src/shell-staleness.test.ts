@@ -32,12 +32,12 @@ test("THE INCIDENT: a twelve-day-stale admin bundle is refused", () => {
 test("the failure message names a remedy that WORKS on a linked checkout", () => {
   const failure = shellStalenessFailure(AUG_31, SEP_12, ADMIN);
 
-  assert.match(failure, /cd apps\/admin && npx vite build/);
+  assert.match(failure!, /cd apps\/admin && npx vite build/);
   // `npm run admin:build` chains through check-no-linked-jini.mjs, which correctly refuses to build
   // while @jini-ai/* is npm-linked. A gate that detects a problem and then sends you down a blocked
   // path is barely better than the silent one it replaces.
-  assert.doesNotMatch(failure, /admin:build/, "must not send the reader to the guard-blocked build");
-  assert.doesNotMatch(failure, /unlink:jini/, "swapping the tree to published Jini is not the remedy");
+  assert.doesNotMatch(failure!, /admin:build/, "must not send the reader to the guard-blocked build");
+  assert.doesNotMatch(failure!, /unlink:jini/, "swapping the tree to published Jini is not the remedy");
 });
 
 test("a build NEWER than its source passes", () => {
@@ -63,7 +63,7 @@ test("a source tree that could not be read does not fail the package step", () =
 
 test("the reported age is computed in whole days from the millisecond gap", () => {
   const failure = shellStalenessFailure(SEP_12 - 3 * MS_PER_DAY, SEP_12, ADMIN);
-  assert.match(failure, /3\.0 day\(s\)/);
+  assert.match(failure!, /3\.0 day\(s\)/);
 });
 
 // --- what counts as a bundle INPUT ---------------------------------------------------------------

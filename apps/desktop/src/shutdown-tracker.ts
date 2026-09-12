@@ -27,13 +27,20 @@
  * `selftest-tracker.js` and `site-supervisor.js`.
  */
 
+/** What {@link createShutdownTracker} returns. */
+interface ShutdownTracker {
+  track(promise: PromiseLike<unknown>): Promise<void>;
+  readonly size: number;
+  drain(): Promise<void>;
+}
+
 /**
  * @returns a tracker with {@link track}, `size`, and {@link drain}.
  * @complexity O(1) to construct.
  */
-function createShutdownTracker() {
-  /** @type {Set<Promise<void>>} teardowns started and not yet settled. */
-  const pending = new Set();
+function createShutdownTracker(): ShutdownTracker {
+  /** Teardowns started and not yet settled. */
+  const pending = new Set<Promise<void>>();
 
   return {
     /**
@@ -46,7 +53,7 @@ function createShutdownTracker() {
      * @returns the neutralized promise, so a caller can await this one instead of the original.
      * @complexity O(1).
      */
-    track(promise) {
+    track(promise: PromiseLike<unknown>): Promise<void> {
       const settled = Promise.resolve(promise).then(
         () => {},
         () => {}
@@ -59,7 +66,7 @@ function createShutdownTracker() {
     /** How many teardowns are still in flight — what `before-quit` reads alongside `openSites.size`
      *  to decide whether it has anything to wait for at all.
      *  @complexity O(1). */
-    get size() {
+    get size(): number {
       return pending.size;
     },
 
@@ -72,7 +79,7 @@ function createShutdownTracker() {
      * @complexity O(n) in teardowns, bounded by each one's own duration; the loop cannot spin, since
      *   every iteration awaits at least one promise that is already in the set.
      */
-    async drain() {
+    async drain(): Promise<void> {
       while (pending.size > 0) {
         await Promise.all([...pending]);
       }
@@ -81,3 +88,4 @@ function createShutdownTracker() {
 }
 
 export { createShutdownTracker };
+export type { ShutdownTracker };

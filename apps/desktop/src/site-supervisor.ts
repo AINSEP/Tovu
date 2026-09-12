@@ -32,10 +32,42 @@
  * `tracked-sites.js`, `site-process-registry.js` and `project-delete-guard.js`.
  */
 
+/** How a site's child exited: the `code` and `signal` of Node's own child `exit` event. */
+interface ServerExit {
+  code: number | null;
+  signal: string | null;
+}
+
+/** The slice of a `startTovuServer` handle this module reads. `onExit` is optional: see `set`. */
+interface SupervisedServer {
+  onExit?: (listener: (exit: ServerExit) => void) => void;
+}
+
+/** The least a stored entry carries. The caller's real entry type (the server handle's `port` and
+ *  `pid`, the site's window) passes through as `E`. */
+interface SiteEntry {
+  server: SupervisedServer;
+}
+
+/** {@link createSiteSupervisor}'s dependencies. */
+interface SiteSupervisorDeps<E extends SiteEntry> {
+  onUnexpectedExit: (siteDir: string, exit: ServerExit, entry: E) => void;
+}
+
+/** What {@link createSiteSupervisor} returns: `Map<siteDir, E>`'s surface plus {@link lastExitOf}. */
+interface SiteSupervisor<E extends SiteEntry> {
+  set(siteDir: string, entry: E): SiteSupervisor<E>;
+  delete(siteDir: string): boolean;
+  get(siteDir: string): E | undefined;
+  has(siteDir: string): boolean;
+  values(): MapIterator<E>;
+  readonly size: number;
+  lastExitOf(siteDir: string): ServerExit | null;
+}
+
 /**
- * @param {object} deps
- * @param {(siteDir: string, exit: {code: number|null, signal: string|null}, entry: object) => void}
- *   deps.onUnexpectedExit called once per site whose child dies without a {@link delete} first.
+ * @param deps
+ * @param deps.onUnexpectedExit called once per site whose child dies without a {@link delete} first.
  *   Receives the entry that was holding it, because the caller needs its `server.pid` to drop the
  *   right crash-safety row — `site-process-registry.js` can hold a live sibling instance's row for the
  *   same site dir, and closing by site dir alone would take that one too (D-07).
@@ -45,11 +77,11 @@
  * @returns a `Map`-compatible store with {@link lastExitOf} added.
  * @complexity O(1) to construct.
  */
-function createSiteSupervisor(deps) {
-  /** @type {Map<string, {server: object, window?: object}>} live entries only. */
-  const live = new Map();
-  /** @type {Map<string, {code: number|null, signal: string|null}>} why the last child died. */
-  const exits = new Map();
+function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>): SiteSupervisor<E> {
+  /** Live entries only. */
+  const live = new Map<string, E>();
+  /** Why the last child died. */
+  const exits = new Map<string, ServerExit>();
 
   /**
    * Handle one child's exit.
@@ -63,7 +95,7 @@ function createSiteSupervisor(deps) {
    *
    * @complexity O(1).
    */
-  function handleExit(siteDir, entry, exit) {
+  function handleExit(siteDir: string, entry: E, exit: ServerExit): void {
     if (live.get(siteDir) !== entry) return;
     live.delete(siteDir);
     exits.set(siteDir, exit);
@@ -81,7 +113,7 @@ function createSiteSupervisor(deps) {
      *
      * @complexity O(1).
      */
-    set(siteDir, entry) {
+    set(siteDir: string, entry: E): SiteSupervisor<E> {
       live.set(siteDir, entry);
       // A previous crash at this path is no longer the current answer about it.
       exits.delete(siteDir);
@@ -98,28 +130,28 @@ function createSiteSupervisor(deps) {
      *
      * @complexity O(1).
      */
-    delete(siteDir) {
+    delete(siteDir: string): boolean {
       exits.delete(siteDir);
       return live.delete(siteDir);
     },
 
     /** @complexity O(1). */
-    get(siteDir) {
+    get(siteDir: string): E | undefined {
       return live.get(siteDir);
     },
 
     /** @complexity O(1). */
-    has(siteDir) {
+    has(siteDir: string): boolean {
       return live.has(siteDir);
     },
 
     /** @complexity O(1). */
-    values() {
+    values(): MapIterator<E> {
       return live.values();
     },
 
     /** @complexity O(1). */
-    get size() {
+    get size(): number {
       return live.size;
     },
 
@@ -134,10 +166,11 @@ function createSiteSupervisor(deps) {
      * @returns `{code, signal}`, or `null` when this site has not died unattended.
      * @complexity O(1).
      */
-    lastExitOf(siteDir) {
+    lastExitOf(siteDir: string): ServerExit | null {
       return exits.get(siteDir) ?? null;
     },
   };
 }
 
 export { createSiteSupervisor };
+export type { ServerExit, SiteEntry, SiteSupervisor, SiteSupervisorDeps, SupervisedServer };

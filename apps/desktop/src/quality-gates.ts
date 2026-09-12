@@ -29,6 +29,26 @@
  * accident".
  */
 
+/** One entry of `quality-gates.json`'s `gates`, as parsed and NOT yet validated: every field is
+ *  optional because {@link validateManifest} is what reports a missing one. */
+export interface GateEntry {
+  id?: string;
+  run?: string;
+  enabled?: boolean;
+  disabledReason?: string;
+  disabledOn?: string;
+}
+
+/** The parsed `quality-gates.json`. `gates` is `unknown` until {@link validateManifest} has checked
+ *  that it is an array at all. */
+export interface GateManifest {
+  gates?: unknown;
+  maxDisabledDays?: number;
+}
+
+/** A gate command's exit status: `null` when it was killed by a signal or never spawned. */
+export type GateExitCode = number | null;
+
 /** How long a gate may stay disabled before the runner demands the date be re-confirmed. */
 const DEFAULT_MAX_DISABLED_DAYS = 30;
 
@@ -44,7 +64,7 @@ const MS_PER_DAY = 86_400_000;
  * @returns whole days elapsed, or `null` if either date is unparseable.
  * @complexity O(1).
  */
-function daysBetween(fromIso, toIso) {
+function daysBetween(fromIso: string, toIso: string): number | null {
   const from = Date.parse(`${fromIso}T00:00:00Z`);
   const to = Date.parse(`${toIso}T00:00:00Z`);
   if (Number.isNaN(from) || Number.isNaN(to)) return null;
@@ -58,8 +78,8 @@ function daysBetween(fromIso, toIso) {
  *
  * @complexity O(1).
  */
-function disabledGateProblems(gate, today, maxDisabledDays) {
-  const problems = [];
+function disabledGateProblems(gate: GateEntry, today: string, maxDisabledDays: number): string[] {
+  const problems: string[] = [];
   const where = `gate "${gate.id}"`;
   if (!gate.disabledReason) {
     problems.push(`${where} is disabled with no "disabledReason". A gate may be turned off, but not silently.`);
@@ -84,7 +104,7 @@ function disabledGateProblems(gate, today, maxDisabledDays) {
  *  {@link validateManifest} stays under the 9/9 ceiling this harness enforces on everything else —
  *  which it would be absurd to exempt itself from.
  *  @complexity O(1). */
-function gateProblems(gate, seen, today, maxDisabledDays) {
+function gateProblems(gate: GateEntry, seen: Set<string>, today: string, maxDisabledDays: number): string[] {
   if (!gate.id || !gate.run) {
     return [`every gate needs an "id" and a "run"; found ${JSON.stringify(gate)}.`];
   }
@@ -103,16 +123,17 @@ function gateProblems(gate, seen, today, maxDisabledDays) {
  * @returns human-readable problems, one per line, ready to print.
  * @complexity O(n) in gates.
  */
-export function validateManifest(manifest, today) {
+export function validateManifest(manifest: GateManifest | null | undefined, today: string): string[] {
   const gates = manifest?.gates;
   if (!Array.isArray(gates)) return ['quality-gates.json has no "gates" array.'];
   if (gates.length === 0) return ['quality-gates.json lists zero gates — the harness would pass by measuring nothing.'];
 
-  const maxDisabledDays = manifest.maxDisabledDays ?? DEFAULT_MAX_DISABLED_DAYS;
-  const problems = [];
-  const seen = new Set();
+  // `!`: `gates` is an array, so `manifest` was not null or undefined.
+  const maxDisabledDays = manifest!.maxDisabledDays ?? DEFAULT_MAX_DISABLED_DAYS;
+  const problems: string[] = [];
+  const seen = new Set<string>();
 
-  for (const gate of gates) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
+  for (const gate of gates as GateEntry[]) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
   return problems;
 }
 
@@ -128,7 +149,7 @@ export function validateManifest(manifest, today) {
  * @returns the basenames nothing references.
  * @complexity O(gates x scripts); both are single digits here.
  */
-export function detectGateDrift(gates, scriptNames) {
+export function detectGateDrift(gates: readonly GateEntry[] | null | undefined, scriptNames: readonly string[]): string[] {
   const commands = (gates ?? []).map((gate) => String(gate.run ?? ""));
   return scriptNames.filter((name) => !commands.some((command) => command.includes(name)));
 }
@@ -136,7 +157,7 @@ export function detectGateDrift(gates, scriptNames) {
 /** One line per gate, in manifest order. `PASS`/`FAIL` for what ran, `DISABLED` for what did not —
  *  the disabled ones carry their reason and date so the summary is self-explaining.
  *  @complexity O(1). */
-function summaryLine(gate, outcome) {
+function summaryLine(gate: GateEntry, outcome: GateExitCode | undefined): string {
   if (gate.enabled === false) {
     return `  DISABLED  ${gate.id}  — ${gate.disabledReason ?? "(no reason given)"} [since ${gate.disabledOn ?? "?"}]`;
   }
@@ -148,11 +169,13 @@ function summaryLine(gate, outcome) {
  * takes the full manifest rather than only the results.
  *
  * @param gates the manifest's gate list.
- * @param outcomes `Map<gateId, exitCode>` for the gates that actually ran.
+ * @param outcomes `Map<gateId, exitCode>` for the gates that actually ran. Keyed by `string |
+ *   undefined` because `gates` is unvalidated: a gate with no `id` looks up `undefined`, finds no
+ *   outcome, and counts as a failure.
  * @returns the printable summary block.
  * @complexity O(n) in gates.
  */
-export function formatSummary(gates, outcomes) {
+export function formatSummary(gates: readonly GateEntry[], outcomes: ReadonlyMap<string | undefined, GateExitCode>): string {
   const lines = ["", "=".repeat(66), "DESKTOP GATE SUMMARY", "=".repeat(66)];
   let passed = 0;
   let failed = 0;
@@ -182,7 +205,7 @@ export function formatSummary(gates, outcomes) {
  *
  * @complexity O(1).
  */
-export function isFailure(exitCode) {
+export function isFailure(exitCode: GateExitCode | undefined): boolean {
   return exitCode !== 0;
 }
 

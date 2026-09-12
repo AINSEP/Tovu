@@ -13,12 +13,17 @@
  * site B's own in-flight open.
  */
 
+/** What {@link createKeyedSerializer} returns. */
+interface KeyedSerializer {
+  run<T>(key: string, fn: () => T | PromiseLike<T>): Promise<T>;
+}
+
 /**
  * @returns `{ run(key, fn) }` — a fresh, independent chain store.
  * @complexity O(1) to construct.
  */
-function createKeyedSerializer() {
-  const chains = new Map();
+function createKeyedSerializer(): KeyedSerializer {
+  const chains = new Map<string, Promise<unknown>>();
 
   /**
    * Run `fn` only after every previously-queued call for THIS key has settled — a prior call's
@@ -28,7 +33,7 @@ function createKeyedSerializer() {
    * @returns `fn`'s own resolution or rejection.
    * @complexity O(1) scheduling cost; `fn`'s own cost is the caller's.
    */
-  function run(key, fn) {
+  function run<T>(key: string, fn: () => T | PromiseLike<T>): Promise<T> {
     const previous = chains.get(key) ?? Promise.resolve();
     const next = previous.catch(() => {}).then(fn);
     chains.set(key, next);
@@ -49,3 +54,4 @@ function createKeyedSerializer() {
 }
 
 export { createKeyedSerializer };
+export type { KeyedSerializer };
