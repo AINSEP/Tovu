@@ -2,6 +2,14 @@
  * A theme id. Open string since SPEC-004: themes are discovered from disk, so
  * the valid set is dynamic (the built-in trio was the pre-SPEC-004 hardcode).
  * Clients read the current valid ids from `availableThemeIds`.
+ *
+ * One value is RESERVED and never names a theme: `"none"` (`features/theme`'s `NO_THEME_ID`) means
+ * the operator turned the theme off deliberately and the site renders unstyled. A headless client
+ * reading `activeThemeId` must treat it as "no theme", not as a theme id to look up — asking for a
+ * theme by that id 404s. It deliberately never appears in `availableThemeIds`, which is a catalogue
+ * of themes a client can PICK, not a list of values the API will accept. No type change: the
+ * sentinel is already a legal `HeadlessThemeId` (this alias is an open string), so this is
+ * documentation of an existing shape, not a wire-contract break.
  */
 export type HeadlessThemeId = string;
 

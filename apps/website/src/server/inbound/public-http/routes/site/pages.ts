@@ -28,6 +28,7 @@ import {
   resolveStaticTierPageShellFallback,
   scanMenuEmbedIds,
   scanPostPreviewsLimit,
+  NO_THEME_ID,
   resolveActiveTheme,
   tokenStylesheetSentinel,
   isStandaloneThemePage,
@@ -282,10 +283,18 @@ export { resolveActiveThemeId, resolveActiveTheme };
  * `post.bodyJson` directly (`pageBodyJson`) instead of an id to re-fetch — this route already holds
  * `post` by the time it calls this, so no extra lookup is needed either way.
  */
-export async function resolveWidgetsForRender(deps: RenderContextResolutionDeps, theme: DiscoveredTheme, post?: PostRecord): Promise<ResolvePageWidgetsResult> {
+export async function resolveWidgetsForRender(
+  deps: RenderContextResolutionDeps,
+  // `null` when the operator turned the theme off. Region-bound widgets are declared BY a theme, so
+  // with no theme there are no regions to resolve into — the same empty-region answer a theme that
+  // declares none already gets. Inline (`widgetEmbed`) widgets are unaffected: they live in the
+  // post body, not in a theme region, and are resolved from `pageBodyJson` below either way.
+  theme: DiscoveredTheme | null,
+  post?: PostRecord
+): Promise<ResolvePageWidgetsResult> {
   return resolvePageWidgets({
     deps: { bindingRepo: deps.widgetBindingRepo, entryRepo: deps.entryRepo },
-    input: { workspaceId: deps.workspaceId, pageBodyJson: post?.bodyJson, resolvedRegions: theme.manifest.regions ?? [] },
+    input: { workspaceId: deps.workspaceId, pageBodyJson: post?.bodyJson, resolvedRegions: theme?.manifest.regions ?? [] },
   });
 }
 
@@ -399,10 +408,11 @@ function docsSidebarMenuSlugForPath(currentPath: string): string {
 
 export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
-  theme: DiscoveredTheme,
+  /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
+  theme: DiscoveredTheme | null,
   currentPath: string
 ): Promise<Readonly<Record<string, readonly StaticMenuItem[]>>> {
-  if (theme.manifest.tier !== "static") return {};
+  if (theme === null || theme.manifest.tier !== "static") return {};
 
   const menuIds = scanMenuEmbedIds(theme);
   if (menuIds.length === 0) return {};
@@ -1054,8 +1064,9 @@ type MarketingPageResolution =
  * page that's about to render fine.
  */
 export async function resolveMarketingPageOrOverride(
+  /** `null` when the operator turned the theme off — see the early return at the top of the body. */
   deps: RouteDeps,
-  theme: DiscoveredTheme,
+  theme: DiscoveredTheme | null,
   slug: string,
   staticMenus: StaticMenuMap | undefined,
   siteAssistantEnabled: boolean,
@@ -1065,7 +1076,12 @@ export async function resolveMarketingPageOrOverride(
   // per-request member context isn't forced to fabricate one.
   postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<MarketingPageResolution> {
-  if (!isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
+  // A marketing page IS a theme file (`theme.pages[slug]`). With no theme there is no file, so this
+  // can only fall through — to the ordinary post/page lookup, or to the bare 404. This is the one
+  // place the product constraint bites: on a `static`-tier site, turning the theme off takes the
+  // theme's own `/pricing`, `/docs` and themed 404 offline until a theme is turned back on. Nothing
+  // is destroyed and reactivating restores every URL.
+  if (theme === null || !isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
 
   const candidate = await getPublishedPostBySlug({
     deps: { repo: deps.postRepo },
@@ -1149,7 +1165,8 @@ export async function resolvePostAfterMarketingCheck(
  */
 export async function renderTemplateBranchIfEligible(
   deps: RouteDeps,
-  theme: DiscoveredTheme,
+  /** `null` when the operator turned the theme off — see the early return at the top of the body. */
+  theme: DiscoveredTheme | null,
   post: PostRecord,
   staticMenus: StaticMenuMap | undefined,
   siteAssistantEnabled: boolean,
@@ -1157,6 +1174,12 @@ export async function renderTemplateBranchIfEligible(
   // identically-shaped parameter; see that function's doc for the full rationale.
   postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<string | undefined> {
+  // The template branch renders a THEME's template file, so with no theme it cannot run and the
+  // caller falls through to the generic render. `post.templateChoice` is IGNORED here, never
+  // cleared — which is what makes "turn the theme off, then back on" fully reversible rather than
+  // approximately so: the stored choice takes effect again the moment a theme is reactivated.
+  if (theme === null) return undefined;
+
   const explicitlyEligible = isEligibleForTemplateBranch({ theme, post });
   const pageShellFallback = explicitlyEligible ? undefined : resolveStaticTierPageShellFallback({ theme, post });
   if (!explicitlyEligible && pageShellFallback === undefined) return undefined;
@@ -1176,7 +1199,8 @@ export async function renderTemplateBranchIfEligible(
  *  post that isn't eligible for {@link renderTemplateBranchIfEligible}'s template branch. */
 export async function renderGenericPostPage(
   deps: RouteDeps,
-  theme: DiscoveredTheme,
+  /** `null` when the operator turned the theme off — `renderSite` renders the page unstyled. */
+  theme: DiscoveredTheme | null,
   post: PostRecord,
   posts: PostRecord[],
   siteAssistantEnabled: boolean
@@ -1513,11 +1537,16 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // looks real and isn't.
       const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
 
-      const theme = resolveActiveTheme(deps, activeThemeId);
-      if (!theme) {
+      const resolved = resolveActiveTheme(deps, activeThemeId);
+      if (resolved === null) {
         sendNoThemesInstalled(res);
         return;
       }
+      // `NO_THEME_ID` -> `null`, which every render helper below reads as "render unstyled". The
+      // guard above must stay `=== null`, not `!theme`: `null` means nothing is INSTALLED (a broken
+      // site, hence the 500), while the sentinel means the operator turned styling off on purpose
+      // and is owed a real page. Collapsing the two would send state 3 into the 500.
+      const theme = resolved === NO_THEME_ID ? null : resolved;
 
       // Content-owned homepage (SPEC-0XX) — a Page claiming "/" wins over the theme's own
       // index.html; renders through the SAME template-resolution path GET /:slug already uses for
@@ -1589,11 +1618,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // the home grid does.
       const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
 
-      theme = resolveActiveTheme(deps, activeThemeId);
-      if (!theme) {
+      const resolved = resolveActiveTheme(deps, activeThemeId);
+      if (resolved === null) {
         sendNoThemesInstalled(res);
         return;
       }
+      // Same `=== null` vs. sentinel split as the `GET /` handler above — see its comment.
+      theme = resolved === NO_THEME_ID ? null : resolved;
 
       // Resolved once per request (not just for the marketing-page branch below) — the requested
       // path is the correct `currentPath` for `isCurrent` regardless of whether this request ends up

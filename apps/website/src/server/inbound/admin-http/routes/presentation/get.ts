@@ -40,6 +40,18 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         return;
       }
 
+      // **Deliberately NOT the write allowlist.** This list is echoed straight back to the client as
+      // `AdminPresentation.availableThemeIds` and is what the admin's theme picker renders one card
+      // per entry from — it is a READ CATALOGUE of themes an operator can pick, not a set of values
+      // the API will accept.
+      //
+      // `patch-active-theme.ts` passes a DIFFERENT list through an identically-named field: its
+      // `writableThemeIds` appends `NO_THEME_ID` so "turn the theme off" is a storable value. That
+      // sentinel must never appear HERE — it would render as a blank card in the picker, with no
+      // type error, no failing test and no gate to catch it. The two expressions used to be
+      // character-for-character identical, which is exactly why this note exists on the side that
+      // did not change: a reader reducing duplication in this directory sees two identical calls in
+      // sibling files and no reason not to merge them. There is one, and it is this.
       const result = await getPresentationSettings({
         deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds(deps.themes) },
         input: { workspaceId: deps.workspaceId },

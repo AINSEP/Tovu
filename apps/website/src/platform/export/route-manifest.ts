@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
-import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
+import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
 import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
@@ -195,18 +195,28 @@ function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySe
 
 /**
  * Resolves theme + post routes together (the post loop needs the theme's shadowed-slug set). When
- * no theme was discovered, records the `no-theme` skip and returns no routes/`activeTheme` — a real,
- * reportable state rather than a crash (see file header).
+ * there is no theme to render with, records the `no-theme` skip and returns no routes/`activeTheme`
+ * — a real, reportable state rather than a crash (see file header).
+ *
+ * TWO states share that skip `reason`, with deliberately different `detail` text. `undefined` means
+ * discovery found no valid theme: something is broken and the operator should reinstall one.
+ * `"deliberate"` means the operator turned the theme off themselves — nothing is broken and there
+ * is nothing to fix, so telling them "no valid theme discovered" would be simply false. The
+ * `reason` is kept identical so every existing consumer of the skip list is unaffected; only the
+ * human-readable sentence distinguishes them.
  */
 function resolveThemeAndPostRoutes(
-  theme: DiscoveredTheme | undefined,
+  theme: DiscoveredTheme | undefined | "deliberate",
   posts: readonly PostRecord[],
   skipped: ManifestSkip[]
 ): { activeTheme?: RouteManifest["activeTheme"]; routes: ManifestRoute[] } {
-  if (!theme) {
+  if (theme === undefined || theme === "deliberate") {
     skipped.push({
       reason: "no-theme",
-      detail: "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
+      detail:
+        theme === "deliberate"
+          ? "this site has its theme turned off deliberately — only '/' and the 404 probe could be enumerated; reactivating a theme restores every theme-owned route"
+          : "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
     });
     return { routes: [] };
   }
@@ -283,11 +293,12 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   // `overridesThemePage` — post wins unless the stored value is explicitly `false`; see that
   // resolver's own doc for the full contract). Mirrored here rather than shared code so the exported
   // manifest matches exactly what the live site would serve for the same row.
-  // `resolveActiveTheme` returns `null` for "no active theme"; this helper's parameter is optional
+  // `resolveActiveTheme` returns `null` for "nothing installed"; this helper's parameter is optional
   // (`| undefined`). Both mean the same absent-theme case, so normalize rather than widening the
-  // helper's signature to accept two spellings of nothing.
+  // helper's signature to accept two spellings of nothing. `NO_THEME_ID` is NOT normalized with
+  // them — it is a third state that reports differently (see the helper's own doc).
   const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(
-    theme ?? undefined,
+    theme === NO_THEME_ID ? "deliberate" : (theme ?? undefined),
     posts,
     skipped
   );

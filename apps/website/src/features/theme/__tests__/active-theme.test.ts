@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_THEME_ID, resolveActiveTheme } from "../active-theme.js";
+import { DEFAULT_THEME_ID, NO_THEME_ID, resolveActiveTheme } from "../active-theme.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -133,4 +133,68 @@ test("a site with zero themes warns rather than returning null silently", (t) =>
   const warnings = captureWarnings(t);
   assert.equal(resolveActiveTheme({ themes: [] }, "basic"), null);
   assert.equal(warnings.length, 1);
+});
+
+/**
+ * State 3 — the operator deliberately turned the theme OFF. Distinct from state 2 ("nothing chosen
+ * / the configured theme is gone", which falls back to the named default above) because the two
+ * need opposite treatment: state 2 must substitute a theme, state 3 must substitute NOTHING.
+ * Collapsing them onto the same `null` would route "deliberately themeless" straight into
+ * `sendNoThemesInstalled`'s 500.
+ */
+
+test("the sentinel's exact spelling is pinned — `apps/admin` mirrors this literal by hand", () => {
+  // `apps/admin/src/lib/api.ts` re-declares this value rather than importing it, following the same
+  // documented client-mirrors-the-wire-contract convention `ThemeTier`/`THEME_TIERS` already use
+  // (a browser bundle cannot import server internals). Admin's own `rules.unit.test.ts` pins the
+  // same literal from its side, so changing the spelling here without changing it there turns one
+  // of the two suites red instead of silently splitting the sentinel in half.
+  assert.equal(NO_THEME_ID, "none");
+});
+
+test("the sentinel is not the empty string — `\"\"` already means something else", () => {
+  // `features/presentation/active-theme-id.ts` returns `""` for "this workspace has no
+  // presentation_settings row yet", and its own doc defines that as "fall back". If the deliberate
+  // no-theme sentinel were also `""`, a workspace that had simply never been written would render
+  // themeless instead of on the default theme — state 3 arriving where state 2 belongs.
+  assert.notEqual(NO_THEME_ID, "");
+});
+
+test("state 3: the sentinel resolves to the sentinel — no theme, no substitute", () => {
+  const themes = sortedThemes("aurora", "basic", "storefront");
+  assert.equal(resolveActiveTheme({ themes }, NO_THEME_ID), NO_THEME_ID);
+});
+
+test("state 3 is NOT null: `null` means 'nothing installed', which is a 500, and these must not collapse", () => {
+  const themes = sortedThemes("aurora", "basic");
+  assert.notEqual(resolveActiveTheme({ themes }, NO_THEME_ID), null);
+  assert.equal(resolveActiveTheme({ themes: [] }, "whatever"), null);
+});
+
+test("state 3 wins even with zero themes installed — turning the theme off is not a degraded state", () => {
+  assert.equal(resolveActiveTheme({ themes: [] }, NO_THEME_ID), NO_THEME_ID);
+});
+
+test("state 3 is silent — a deliberate choice is not a warning", (t) => {
+  const warnings = captureWarnings(t);
+  resolveActiveTheme({ themes: sortedThemes("aurora", "basic") }, NO_THEME_ID);
+  assert.deepEqual(warnings, []);
+});
+
+test("state 2 still fires for `\"\"` — an unwritten workspace gets the default theme, not no theme", () => {
+  // The whole reason the sentinel is not `""`. `resolveActiveThemeId` returns `""` for a workspace
+  // with no `presentation_settings` row; that must still reach the NAMED DEFAULT, never state 3.
+  const themes = sortedThemes("aurora", "basic", "storefront");
+  const resolved = resolveActiveTheme({ themes }, "");
+
+  assert.notEqual(resolved, NO_THEME_ID, "an unwritten workspace must not read as 'deliberately themeless'");
+  assert.ok(resolved !== null && resolved !== NO_THEME_ID, "must resolve to a real theme");
+  assert.equal(resolved.manifest.id, DEFAULT_THEME_ID);
+});
+
+test("a theme folder literally named `none` is shadowed by the sentinel, not the other way round", () => {
+  // The sentinel is checked BEFORE discovery, so an operator who happens to have a theme with this
+  // id cannot make "no theme" silently mean "that theme". Shadowed, documented, and not a crash.
+  const themes = [makeTheme("basic"), makeTheme(NO_THEME_ID)];
+  assert.equal(resolveActiveTheme({ themes }, NO_THEME_ID), NO_THEME_ID);
 });

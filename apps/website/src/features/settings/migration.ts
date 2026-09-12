@@ -5,6 +5,10 @@ import {
   type PresentationSettingsRecord,
   type PresentationSettingsRepoPort,
 } from "../presentation/index.js";
+// 2026-09-12 (optional themes) — the one value this migration must NOT adopt as a global default.
+// A new `features/settings -> features/theme` edge, and a safe one: `features/theme` imports
+// nothing from `features/settings`, so this introduces no cycle.
+import { NO_THEME_ID } from "../theme/index.js";
 import {
   type SettingsRepoPort,
   resolveDefinitionRaw,
@@ -163,12 +167,25 @@ async function ensureThemeDefinitions(deps: MigrateLegacyPresentationSettingsDep
   }
 }
 
-/** The `core.presentation.activeThemeId` default to register when no legacy row supplies one yet. */
+/**
+ * The `core.presentation.activeThemeId` default to register when no legacy row supplies one yet.
+ *
+ * `NO_THEME_ID` is skipped rather than adopted. The default is registered ONCE, globally
+ * (`workspaceId: null`), and applies to every workspace with no explicit value of its own — so
+ * seeding it from a row whose operator deliberately turned the theme OFF would turn one workspace's
+ * per-workspace decision into a platform-wide one. "No theme" is always a choice someone makes for
+ * their own site; it is never a sensible default for sites nobody has decided about yet. Falling
+ * through gives such a row exactly the default a workspace with no row at all gets.
+ *
+ * Only the DEFAULT is guarded. The row's own value still migrates into the ledger unchanged —
+ * dropping it would lose the operator's choice from the mirror.
+ */
 function resolveFallbackDefaultThemeId(
   rows: readonly PresentationSettingsRecord[],
   deps: MigrateLegacyPresentationSettingsDeps
 ): string {
-  return rows[0]?.activeThemeId ?? (deps.availableThemeIds ?? ALLOWED_THEME_IDS)[0];
+  const firstRealThemeId = rows.find((row) => row.activeThemeId !== NO_THEME_ID)?.activeThemeId;
+  return firstRealThemeId ?? (deps.availableThemeIds ?? ALLOWED_THEME_IDS)[0];
 }
 
 type MigrateRowOutcome = "migrated" | "skipped" | "failed";

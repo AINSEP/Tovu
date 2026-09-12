@@ -5,7 +5,8 @@ import test from "node:test";
 import express from "express";
 
 import type { PostRecord } from "#src/features/post/index";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";
@@ -453,4 +454,28 @@ test("404s for a post id that does not exist", async (t) => {
 
   const res = await fetch(previewUrl(baseUrl, "no-such-post", "blog-post.html"), { headers: { cookie } });
   assert.equal(res.status, 404);
+});
+
+test("with the theme turned off, the template preview returns a real error — not a 200 carrying a blank page", async (t) => {
+  // Producer 4 of the optional-theme design. The thing this route previews IS a theme file, so with
+  // no theme there is nothing coherent to show. Before this fix the route did not fail: it walked
+  // `resolveTemplate` -> `renderStaticPage` -> a `theme.pages` lookup that returned `undefined` and
+  // landed on a `?? ""`, serving an EMPTY BODY with a 200. An operator saw a blank preview pane and
+  // no reason for it — the worst of both, since a blank pane is also what a broken template looks
+  // like. This is an admin tool, not a public surface, so a real error is the right answer here even
+  // though the public site renders unstyled instead.
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo([
+    { workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: new Date().toISOString() } as never,
+  ]);
+  const post = await savePost(deps, { slug: "preview-no-theme" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), { headers: { cookie } });
+
+  assert.notEqual(res.status, 200, "a blank body with a 200 is exactly the defect being closed");
+  assert.equal(res.status, 409, "the site is not broken and the request is not malformed — the state conflicts with the operation");
+  const body = await res.text();
+  assert.match(body, /theme/i, "the message must name the cause");
+  assert.notEqual(body.trim(), "", "an empty body is what this test exists to prevent");
 });

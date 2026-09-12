@@ -126,8 +126,13 @@ export interface SiteRenderContext {
   products: SiteProduct[];
   /** The single product being viewed (product route). */
   product?: SiteProduct;
-  /** Active theme display name, for the footer badge. */
-  themeName: string;
+  /**
+   * Active theme display name, for the footer badge. `null` when the operator has deliberately
+   * turned the theme OFF (state 3 of the optional-theme feature) — distinct from a theme whose
+   * name happens to be empty, and the signal {@link siteFooter}/{@link richSiteFooter} read to
+   * suppress the badge entirely rather than emit `theme: ` with nothing after it.
+   */
+  themeName: string | null;
   /**
    * SPEC-043/ADR-047 W-004 — `resolvePageWidgets`'s per-region resolved widget IR, keyed by region
    * key. Empty object when the theme declares no regions or nothing resolved were passed in
@@ -1469,8 +1474,22 @@ function entryContent(ctx: SiteRenderContext): string {
   return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
 }
 
+/**
+ * The footer's "theme: <name>" badge, or nothing at all when the operator turned the theme off.
+ *
+ * Shared by BOTH footers deliberately. `siteFooter` and `richSiteFooter` each carried their own
+ * copy of this span, so suppressing the badge in only the one that is easy to find would have left
+ * a themeless site emitting `<span class="theme-badge">theme: </span>` — an empty badge — from the
+ * other. One helper makes "both footers agree" structural instead of a thing two edits have to
+ * preserve.
+ */
+function themeBadge(ctx: SiteRenderContext): string {
+  if (ctx.themeName === null) return "";
+  return `<span class="theme-badge">theme: ${escapeHtml(ctx.themeName)}</span>`;
+}
+
 function siteFooter(ctx: SiteRenderContext): string {
-  return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml(ctx.siteTitle)} — powered by Tovu</span><span class="theme-badge">theme: ${escapeHtml(ctx.themeName)}</span></div></footer>`;
+  return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml(ctx.siteTitle)} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
 }
 
 // --- Prop readers (templates are untrusted-ish data — read defensively) ---
@@ -1588,7 +1607,7 @@ function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
     })
     .join("");
   const legal = escapeHtml(str(props.legal) || `© ${new Date().getFullYear()} ${str(props.brand) || ctx.siteTitle}`);
-  return `<footer class="site-footer site-footer--rich"><div class="wrap footer__top"><div class="footer__brandcol"><a class="brand" href="/">${brand}</a>${blurb}<div class="footer__socials">${socials}</div></div><div class="footer__cols">${cols}</div></div><div class="wrap footer__bottom"><span>${legal}</span><span class="theme-badge">theme: ${escapeHtml(ctx.themeName)}</span></div></footer>`;
+  return `<footer class="site-footer site-footer--rich"><div class="wrap footer__top"><div class="footer__brandcol"><a class="brand" href="/">${brand}</a>${blurb}<div class="footer__socials">${socials}</div></div><div class="footer__cols">${cols}</div></div><div class="wrap footer__bottom"><span>${legal}</span>${themeBadge(ctx)}</div></footer>`;
 }
 
 function paragraphsHtml(items: JsonValue[]): string {
@@ -2518,7 +2537,8 @@ function removeThemeOwnTitleElement(html: string): string {
  */
 function pageShell(required: {
   title: string;
-  theme: DiscoveredTheme;
+  /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
+  theme: DiscoveredTheme | null;
   body: string;
   extraHead?: string;
   /** ADR-054 — the `site.assistant.public_enabled` ledger value for this request's workspace,
@@ -2532,6 +2552,14 @@ function pageShell(required: {
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
+  // The theme contributes exactly these three things to the document Tovu owns. With no theme they
+  // are each ABSENT, not empty: `BASE_STYLE` is Tovu's own reset and stays either way, but a
+  // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
+  // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
+  // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
+  const themeFontLink = theme ? fontLink(theme) : "";
+  const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
+  const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -2539,12 +2567,12 @@ function pageShell(required: {
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 ${titleTag}
 ${extraHead ?? ""}
-${fontLink(theme)}
-<style>${BASE_STYLE}${tokensToCss(theme.tokens)}${theme.css}</style>
+${themeFontLink}
+<style>${BASE_STYLE}${themeStyle}</style>
 ${siteAssistant.head}
 </head>
 <body>
-<div class="site" data-theme="${escapeHtml(theme.manifest.id)}">${required.body}</div>
+<div class="site"${themeAttr}>${required.body}</div>
 ${siteAssistant.body}
 </body>
 </html>`;
@@ -2559,7 +2587,14 @@ ${siteAssistant.body}
  *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
  *  and a structurally-identical named interface are the same type to every existing caller). */
 export interface RenderSiteRequired {
-  theme: DiscoveredTheme;
+  /**
+   * The resolved active theme, or `null` when the operator has deliberately turned the theme off
+   * (state 3 of the optional-theme feature). `null` is NOT "the theme is broken" — that case still
+   * resolves to a substitute theme in `features/theme/active-theme.ts`. It means the operator is
+   * handling styling themselves, so this render must produce a complete, unstyled, VALID document
+   * rather than an error: see `__tests__/render-no-theme.test.ts` for the shape it must keep.
+   */
+  theme: DiscoveredTheme | null;
   route: "home" | "post" | "products" | "product";
   siteTitle: string;
   posts: PostRecord[];
@@ -2661,7 +2696,7 @@ function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext
     post: required.post,
     products: required.products ?? [],
     product: required.product,
-    themeName: required.theme.manifest.name,
+    themeName: required.theme?.manifest.name ?? null,
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
     mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
@@ -2789,6 +2824,15 @@ function resolvePageTitle(route: SiteRenderContext["route"], post: PostRecord | 
 export async function renderSite(required: RenderSiteRequired): Promise<string> {
   const { theme, route } = required;
   const ctx = buildSiteRenderContext(required);
+
+  // No theme: straight to the fallback body, which is exactly the path a theme missing this route's
+  // template already takes — so this is not a new render path, it is an existing one reached one
+  // step earlier. Every tier branch below would otherwise dereference `theme`.
+  if (theme === null) {
+    const title = resolvePageTitle(route, required.post, required.siteTitle);
+    const body = fallbackSiteBody(ctx, route);
+    return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+  }
 
   const staticHomePage = renderStaticTierHomePage(
     theme,

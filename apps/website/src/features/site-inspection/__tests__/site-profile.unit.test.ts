@@ -10,6 +10,7 @@ import {
   type SiteProfileDeps,
   type SiteProfileSectionName,
 } from "../site-profile.js";
+import { NO_THEME_ID } from "../../theme/index.js";
 
 /**
  * @file `buildSiteProfile()`'s two load-bearing properties, tested directly against fake ports:
@@ -58,6 +59,7 @@ function makeDeps(overrides: {
   posts?: unknown[];
   failing?: Partial<Record<SiteProfileSectionName, Error>>;
   settingValue?: unknown;
+  activeThemeId?: string;
 } = {}): SiteProfileDeps {
   const allow = overrides.allow ?? (() => true);
   const authorizeLog = overrides.authorizeLog;
@@ -142,7 +144,7 @@ function makeDeps(overrides: {
     },
     readActiveThemeId: async () => {
       note("theme:active");
-      return "basic";
+      return overrides.activeThemeId ?? "basic";
     },
     listPlugins: async () => {
       note("plugins");
@@ -448,4 +450,26 @@ test("site profile: the DTOs expose exactly the declared fields, so a new upstre
 test("site profile: capturedAt comes from the injected clock, never from wall time", async () => {
   const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["theme"] });
   assert.equal(profile.capturedAt, "2026-08-26T00:00:00.000Z");
+});
+
+test("site profile: a DELIBERATELY themeless site is not reported as theme drift", async () => {
+  // `active: null` is this section's "the configured theme names nothing discovered" signal — real
+  // drift, worth an operator's attention. The no-theme sentinel produces the same `active: null`,
+  // so without a discriminator a profile reader (human or agent) sees a site whose operator turned
+  // the theme off and reports a misconfiguration that does not exist. Two causes, one field, and
+  // the reader cannot tell them apart: the profile cries wolf.
+  const disabled = await buildSiteProfile(makeDeps({ activeThemeId: NO_THEME_ID }), {});
+  const stranded = await buildSiteProfile(makeDeps({ activeThemeId: "deleted-theme" }), {});
+
+  assert.equal(disabled.sections.theme?.data?.active, null, "control: both states share `active: null`");
+  assert.equal(stranded.sections.theme?.data?.active, null, "control: both states share `active: null`");
+
+  assert.equal(disabled.sections.theme?.data?.themeDisabled, true, "the deliberate case must be identifiable");
+  assert.equal(stranded.sections.theme?.data?.themeDisabled, false, "real drift must NOT claim to be deliberate");
+});
+
+test("site profile: an ordinary, healthy site is not reported as themeless either", async () => {
+  const profile = await buildSiteProfile(makeDeps(), {});
+  assert.equal(profile.sections.theme?.data?.themeDisabled, false);
+  assert.equal(profile.sections.theme?.data?.active?.id, "basic");
 });

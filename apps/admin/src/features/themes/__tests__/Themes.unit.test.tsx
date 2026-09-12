@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";
-import type { PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
 
 /**
  * @file `Themes` (Themes screen) — driven through the `useThemesHook` dependency-injection
@@ -481,5 +481,56 @@ describe("Explore button", () => {
     expect(window.location.pathname).toBe("/admin/themes/explore");
     expect(window.location.search).toBe("?theme=column");
     window.history.replaceState(null, "", "/");
+  });
+});
+
+describe("no theme (state 3 — the operator handles styling themselves)", () => {
+  const themeOff = (overrides: Partial<ThemesController> = {}) =>
+    baseController({ settings: { ...SETTINGS, activeThemeId: NO_THEME_ID }, ...overrides });
+
+  it("offers a control for turning the theme off", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    expect(screen.getByRole("button", { name: /turn the theme off/i })).toBeInTheDocument();
+  });
+
+  it("turning the theme off PATCHes the sentinel, not an empty string or a theme id", () => {
+    // `""` is the one wrong value that would look right: the server reads it as "no settings row
+    // yet" and falls back to the default theme, so the operator would click "no theme" and get a
+    // theme. See `active-theme.ts`'s `NO_THEME_ID` doc.
+    const activate = vi.fn(async () => {});
+    render(<Themes useThemesHook={() => baseController({ activate })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /turn the theme off/i }));
+    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
+  });
+
+  it("says so persistently while the theme is off, and does not call it a problem", () => {
+    render(<Themes useThemesHook={themeOff} />);
+    const banner = screen.getByText(/no theme is active/i);
+    expect(banner).toBeInTheDocument();
+    // An operator who chose this must not be told their site is broken; `.notice warning` is what
+    // the stranded-theme case uses and this one is not that.
+    expect(banner.closest(".notice")).not.toHaveClass("warning");
+  });
+
+  it("does NOT show the stranded-theme warning — the sentinel is absent from `themes` too", () => {
+    render(<Themes useThemesHook={themeOff} />);
+    expect(screen.queryByText(/no longer available/i)).not.toBeInTheDocument();
+  });
+
+  it("offers a way back: every theme card still shows Activate, and none claims to be Active", () => {
+    render(<Themes useThemesHook={themeOff} />);
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Activate/i }).length).toBeGreaterThan(0);
+  });
+
+  it("hides the turn-off control while the theme is already off, rather than offering a no-op", () => {
+    render(<Themes useThemesHook={themeOff} />);
+    expect(screen.queryByRole("button", { name: /turn the theme off/i })).not.toBeInTheDocument();
+  });
+
+  it("shows no such banner on an ordinary themed site", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    expect(screen.queryByText(/no theme is active/i)).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
+import { NO_THEME_ID } from "#src/features/theme/index";
 import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -220,11 +221,28 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         deps: { repo: deps.presentationRepo },
         input: { workspaceId: deps.workspaceId },
       });
-      const theme = resolveActiveTheme(deps, settings.activeThemeId);
-      if (!theme) {
+      const resolved = resolveActiveTheme(deps, settings.activeThemeId);
+      if (resolved === null) {
         res.status(500).type("text/plain").send("no themes installed");
         return;
       }
+      // Producer 4 of the optional-theme design. The thing this route previews IS a theme file, so
+      // with the theme deliberately off there is nothing coherent to render. Before this guard the
+      // route did not fail — it walked `resolveTemplate` -> `renderStaticPage` -> a `theme.pages`
+      // lookup returning `undefined`, and landed on a `?? ""`, serving an EMPTY BODY with a 200.
+      // The operator saw a blank preview pane and no reason for it, indistinguishable from a broken
+      // template. 409 rather than 500: nothing is broken and nothing about the request is
+      // malformed; the site's current state simply conflicts with what was asked for. This is an
+      // admin tool, not a public surface, so an explicit error is right here even though the public
+      // site answers the same state by rendering unstyled.
+      if (resolved === NO_THEME_ID) {
+        res
+          .status(409)
+          .type("text/plain")
+          .send("this site has no active theme, so there is no template to preview — activate a theme to use the template picker");
+        return;
+      }
+      const theme = resolved;
 
       const overrideTemplateChoice = resolveOverrideTemplateChoice(req.query.templateChoice);
 

@@ -1,4 +1,4 @@
-import type { PresentationSettings, ThemeTier } from "../../lib/api";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
 
 /**
  * @file Pure logic for the `appearance` feature — everything that computes a value rather than
@@ -17,22 +17,43 @@ export function isActiveTheme(settings: PresentationSettings, themeId: string): 
 }
 
 /**
+ * Whether the site is DELIBERATELY themeless — the operator turned the theme off to handle styling
+ * themselves. A choice, not a fault: {@link isStrandedActiveTheme} must never fire for it, and the
+ * screen shows an informational banner rather than a warning.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function isThemeDisabled(settings: PresentationSettings): boolean {
+  return settings.activeThemeId === NO_THEME_ID;
+}
+
+/**
  * Whether the site's chosen theme is STRANDED — `settings.activeThemeId` names a theme id the
  * server no longer resolves at all, so it is absent from `themes` (the discovered/installed set
  * `useThemes` fetched alongside `settings`). This can happen with zero admin-UI action: a theme
  * folder removed from disk, a bad manual DB edit, or (ADR-020's tiered themes) a tier's worker
  * becoming unavailable between one load and the next.
  *
- * Real, non-cosmetic consequence when this is true: `server/routes/site/pages.ts`'s
- * `resolveActiveTheme` returns `null` for every public route, and the whole public site serves a 500
- * "No themes installed" page until a different theme is activated — not merely a display glitch this
- * screen alone should shrug off. Before this check, nothing told the admin why every card in the grid
- * shows an Activate button and none shows Active — {@link Themes} renders a warning off this.
+ * **Consequence, corrected 2026-09-12.** This doc used to claim `resolveActiveTheme` returns `null`
+ * for every public route and the site serves a 500 until a different theme is activated. **That was
+ * false**, and had been since the function was written: `active-theme.ts` substitutes a DIFFERENT
+ * theme and renders it silently. The 500 is real only in the zero-themes-installed sub-case, where
+ * there is nothing left to substitute. What an operator actually gets is subtler and still worth a
+ * banner — the public site renders, but under a theme nobody chose (as of 2026-09-12, the named
+ * default `basic`), which is exactly the kind of drift that goes unnoticed precisely because the
+ * site looks fine. Nothing else on this screen says so: every card shows Activate and none shows
+ * Active. {@link Themes} renders the warning off this.
+ *
+ * Excludes {@link isThemeDisabled}: the no-theme sentinel is never in `themes` either, so without
+ * that guard every deliberately-themeless site would be reported as broken. The pre-existing
+ * `!== ""` guard covers a different case — an unwritten `presentation_settings` row — and both are
+ * needed.
  *
  * @complexity Time/space: O(n) in `themes.length` (a `.includes` scan) — negligible next to the
  * catalogue sizes this screen already renders in full.
  */
 export function isStrandedActiveTheme(settings: PresentationSettings, themes: readonly string[]): boolean {
+  if (isThemeDisabled(settings)) return false;
   return settings.activeThemeId !== "" && !themes.includes(settings.activeThemeId);
 }
 
@@ -117,11 +138,17 @@ export function groupThemesByTabGroup(
  * The tab the Themes screen should open on: the active theme's own tab group, so an operator lands
  * on the tab that already shows what's live rather than always defaulting to the first group.
  *
+ * With no theme active there is no "tab that shows what's live", so this opens on the first tab
+ * instead. Without that case, {@link themeTabGroup} would run the sentinel through
+ * {@link themeTier}'s absent-tier fallback and land on `"declarative"` — a real tab, chosen for no
+ * reason, which reads to an operator as "your theme is a declarative one".
+ *
  * @complexity Time/space: O(1).
  */
 export function defaultThemeTabGroup(
   settings: PresentationSettings,
   themeTiers: Record<string, ThemeTier>,
 ): ThemeTabGroup {
+  if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0]!;
   return themeTabGroup(settings.activeThemeId, themeTiers);
 }

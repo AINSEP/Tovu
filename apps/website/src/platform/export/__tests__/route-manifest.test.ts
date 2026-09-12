@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryRedirectRepo } from "#src/features/redirects/index";
 import type { RedirectRecord } from "#src/features/redirects/index";
 import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
@@ -494,4 +494,30 @@ test("createRouteManifestReader: build() delegates to buildRouteManifest against
     rebuilt.routes.some((r) => r.path === "/reader-rebind-check"),
     "the same reader instance must reflect a later mutation of the deps it was constructed with"
   );
+});
+
+test("buildRouteManifest: the theme turned OFF is a distinct skip from no theme being discovered — same reason, different detail", async (t) => {
+  // Two states, two remedies. "No valid theme discovered" tells an operator something is broken and
+  // to reinstall a theme; under a deliberate `NO_THEME_ID` that sentence is simply FALSE — nothing
+  // is broken and there is nothing to fix. The `reason` stays `no-theme` so every existing consumer
+  // of the skip list keeps working; only the human-readable `detail` distinguishes them.
+  const deliberate = await buildRouteManifest(baseDeps({ resolveActiveThemeId: async () => NO_THEME_ID }));
+  const discovered = await buildRouteManifest(baseDeps({ themes: [] }));
+
+  const deliberateSkip = deliberate.skipped.find((s) => s.reason === "no-theme");
+  const discoveredSkip = discovered.skipped.find((s) => s.reason === "no-theme");
+
+  assert.ok(deliberateSkip, "turning the theme off must still be reported, not silently absent");
+  assert.ok(discoveredSkip);
+  assert.notEqual(
+    deliberateSkip?.detail,
+    discoveredSkip?.detail,
+    "one shared string would tell an operator their site is broken when they turned the theme off themselves"
+  );
+  assert.doesNotMatch(
+    deliberateSkip?.detail ?? "",
+    /no valid theme discovered/,
+    "the deliberate case must not claim discovery failed"
+  );
+  assert.equal(deliberate.activeTheme, undefined);
 });

@@ -3,7 +3,7 @@ import {
   PresentationSettingsValidationError,
   setActiveTheme,
 } from "#src/features/presentation/index";
-import { validThemeIds } from "#src/features/theme/index";
+import { NO_THEME_ID, validThemeIds } from "#src/features/theme/index";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -26,6 +26,30 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * gate — the `?.`/`??` here are two decision points genuinely independent of the handler's own
  * control flow (no nesting relationship), not a behavior change.
  */
+/**
+ * The ids this route is permitted to STORE: every valid discovered theme, plus the no-theme
+ * sentinel.
+ *
+ * Jini's `setActiveTheme` validates against a set the CALLER supplies
+ * (`@jini-ai/cms/presentation`'s `deps.availableThemeIds ?? ALLOWED_THEME_IDS`) — deliberately, per
+ * that module's own header: it is theme-engine agnostic and a host owns theme discovery. Appending
+ * the sentinel here is using that seam as documented, not working around it. No Jini edit, no
+ * publish, no version bump.
+ *
+ * **This is the WRITE allowlist, and it is NOT the same list as `get.ts`'s.** Those two call sites
+ * were character-for-character identical — `availableThemeIds: validThemeIds(deps.themes)`, same
+ * expression, same field name, same import, sibling files in one directory — while meaning two
+ * different things. `get.ts`'s copy is echoed to the admin as `AdminPresentation.availableThemeIds`
+ * and feeds the theme picker, where the sentinel would render as a blank card. Naming this value
+ * (rather than inlining the spread at the call site) exists so the two stop looking interchangeable
+ * to anyone reducing duplication in this directory. See `get.ts`'s matching note at its own call
+ * site — a comment only on the side that changed would explain the addition but not the asymmetry,
+ * and the side that breaks is the one with nothing written on it.
+ */
+function writableThemeIds(deps: { themes: Parameters<typeof validThemeIds>[0] }): string[] {
+  return [...validThemeIds(deps.themes), NO_THEME_ID];
+}
+
 function readActiveThemeId(body: unknown): string {
   return String((body as { activeThemeId?: unknown } | null)?.activeThemeId ?? "");
 }
@@ -74,7 +98,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         deps: {
           repo: deps.presentationRepo,
           clock: deps.clock,
-          availableThemeIds: validThemeIds(deps.themes),
+          availableThemeIds: writableThemeIds(deps),
         },
         input: {
           workspaceId: deps.workspaceId,
@@ -97,7 +121,15 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
       res.json(
         toAdminPresentationResponse({
           settings: result.settings,
-          availableThemeIds: result.availableThemeIds,
+          // `validThemeIds(deps.themes)`, NOT `result.availableThemeIds` — this ONE request carries
+          // both lists, and they are not the same list. `result.availableThemeIds` is the write
+          // allowlist echoed back by `setActiveTheme` (the caller-supplied set it validated
+          // against), so it contains `NO_THEME_ID`; this field is the READ CATALOGUE the admin's
+          // theme picker renders one card per entry from, exactly as in `get.ts`. Passing the
+          // allowlist through would have put a blank card in the picker on the very request that
+          // turns the theme off — i.e. only in the state where it is least likely to be noticed as
+          // this route's doing. See `writableThemeIds`'s own doc above.
+          availableThemeIds: validThemeIds(deps.themes),
           availableThemes,
           activeThemeTemplates,
           activeThemeStaticPageIds,

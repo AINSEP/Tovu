@@ -60,6 +60,44 @@ export interface ActiveThemeResolutionDeps {
 export const DEFAULT_THEME_ID = "basic";
 
 /**
+ * Stored in `active_theme_id` to mean "the operator deliberately turned the theme OFF" — state 3 of
+ * the optional-theme feature, where they intend to handle styling themselves.
+ *
+ * NOT the empty string, deliberately, even though `""` would have needed no thought. `""` is
+ * ALREADY taken: `features/presentation/active-theme-id.ts`'s `resolveActiveThemeId` returns it for
+ * "this workspace has no `presentation_settings` row yet" (a freshly created workspace, or a
+ * `content.db` mid-seed), and its own doc defines that as "fall back". Spelling the deliberate
+ * choice `""` too would have made an unwritten workspace render THEMELESS instead of on the default
+ * theme — state 3 arriving where state 2 belongs, which is the exact confusion this feature exists
+ * to remove. Fixing it from the other side is not available either: teaching `resolveActiveThemeId`
+ * to return {@link DEFAULT_THEME_ID} would create the `features/presentation -> features/theme` edge
+ * both files' headers exist to prevent.
+ *
+ * A distinct literal costs nothing the empty string would have saved: the column is `TEXT NOT NULL`
+ * on both dialects so there is no DDL either way, and the settings ledger's mirror schema is
+ * `{ type: "string" }` with no enum, so it round-trips unchanged.
+ *
+ * Shadowing: {@link resolveActiveTheme} tests this value BEFORE consulting discovery, so an
+ * operator who happens to have a theme folder with this id finds it unreachable rather than finding
+ * "no theme" silently meaning "that theme". Deliberate, and the safer direction of the two.
+ */
+export const NO_THEME_ID = "none";
+
+/**
+ * What {@link resolveActiveTheme} can return. Three outcomes, none of which collapses into another:
+ *
+ * - a {@link DiscoveredTheme} — render with it;
+ * - {@link NO_THEME_ID} — the operator turned the theme off; render UNSTYLED, not an error;
+ * - `null` — no theme could be resolved at all (nothing is installed); this is the 500.
+ *
+ * `NO_THEME_ID` is a truthy string precisely so that every pre-existing `if (!theme)` guard keeps
+ * meaning "nothing installed" and does NOT swallow the deliberate case. The union then forces each
+ * of the six call sites to be visited by the type checker rather than silently inheriting a
+ * behaviour that was only ever written for "the theme is broken".
+ */
+export type ActiveThemeResolution = DiscoveredTheme | typeof NO_THEME_ID | null;
+
+/**
  * Resolve the theme to render with, in three ordered steps:
  *
  * 1. the configured theme, when discovered and valid;
@@ -87,9 +125,16 @@ export const DEFAULT_THEME_ID = "basic";
  * accepted trade here; deduplicating would need module state and make this query stateful.
  * Step 1, the healthy path, is silent.
  *
+ * Step 0, ahead of all of it: {@link NO_THEME_ID} short-circuits. A deliberate "no theme" is not a
+ * degraded state and must never be substituted for, warned about, or routed into the
+ * nothing-installed 500 — including on a site with zero themes installed, where "off" is still
+ * exactly what the operator asked for.
+ *
  * @complexity O(n) over the discovered-theme list (three linear scans in the worst case).
  */
-export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeId: string): DiscoveredTheme | null {
+export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeId: string): ActiveThemeResolution {
+  if (activeThemeId === NO_THEME_ID) return NO_THEME_ID;
+
   const active = findTheme({ themes: deps.themes, id: activeThemeId });
   if (active && active.status === "valid") return active;
 

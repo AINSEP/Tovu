@@ -7,6 +7,7 @@ import {
   InMemoryPresentationSettingsRepo,
   type PresentationSettingsRecord,
 } from "../../presentation/index.js";
+import { NO_THEME_ID } from "../../theme/index.js";
 import { migrateLegacyPresentationSettings } from "../migration.js";
 import { InMemorySettingsRepo, getEffective, type SettingValueRecord } from "@jini-ai/cms/settings";
 
@@ -187,4 +188,44 @@ test("migrateLegacyPresentationSettings: one row's write failure is recorded in 
 
   assert.equal(result.migratedCount, 1);
   assert.deepEqual(result.failedWorkspaceIds, ["workspace-bad"]);
+});
+
+test("migrateLegacyPresentationSettings: a workspace with the theme turned OFF does not become the registered DEFAULT for every other workspace", async () => {
+  // `resolveFallbackDefaultThemeId` seeds the ledger definition's `defaultValue` from the FIRST
+  // legacy row. With the no-theme sentinel storable, the first workspace an operator turns the
+  // theme off on would otherwise become the default for every workspace that has no explicit value
+  // — one operator's deliberate choice silently becoming a platform-wide one. The sentinel is a
+  // per-workspace decision and is never a sensible default.
+  const themeOff: PresentationSettingsRecord = {
+    workspaceId: "workspace-1",
+    activeThemeId: NO_THEME_ID,
+    updatedAt: "2026-09-12T00:00:00.000Z",
+  };
+  const deps = makeDeps([themeOff]);
+
+  await migrateLegacyPresentationSettings(deps);
+
+  const definition = await deps.settingsRepo.findActiveDefinition({
+    namespace: "core.presentation",
+    key: "activeThemeId",
+    workspaceId: null,
+  });
+  assert.ok(definition);
+  assert.notEqual(definition!.defaultValue, NO_THEME_ID, "the sentinel must never be registered as the ledger default");
+  assert.equal(definition!.defaultValue, ALLOWED_THEME_IDS[0], "it falls through to the same default a workspace with no row gets");
+});
+
+test("migrateLegacyPresentationSettings: the row itself STILL migrates — guarding the default must not drop the value", async () => {
+  // The negative that keeps the guard honest. Skipping the sentinel when choosing a DEFAULT is not
+  // the same as refusing to migrate the row, and a guard that did both would silently lose an
+  // operator's choice from the ledger mirror.
+  const themeOff: PresentationSettingsRecord = {
+    workspaceId: "workspace-1",
+    activeThemeId: NO_THEME_ID,
+    updatedAt: "2026-09-12T00:00:00.000Z",
+  };
+  const deps = makeDeps([themeOff]);
+
+  const result = await migrateLegacyPresentationSettings(deps);
+  assert.equal(result.migratedCount, 1, "the workspace's own stored value must still be mirrored");
 });

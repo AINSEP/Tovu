@@ -112,7 +112,13 @@ export {
 // `DEFAULT_THEME_ID` (2026-09-12) rides along: it is the one name `seed.ts` and `resolveActiveTheme`
 // must agree on, and the barrel is how `server/runtime/configuration/seed.ts` reaches it without a
 // deep import, same as every other export here.
-export { resolveActiveTheme, DEFAULT_THEME_ID, type ActiveThemeResolutionDeps } from "./active-theme.js";
+export {
+  resolveActiveTheme,
+  DEFAULT_THEME_ID,
+  NO_THEME_ID,
+  type ActiveThemeResolution,
+  type ActiveThemeResolutionDeps,
+} from "./active-theme.js";
 
 // ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `server/http/site/liquid-worker.ts`
 // can run the same lint defensively at render time that `loadTheme()` runs at publish time.

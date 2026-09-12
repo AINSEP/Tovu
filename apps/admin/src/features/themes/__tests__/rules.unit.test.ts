@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
 import {
   defaultThemeTabGroup,
   groupThemesByTabGroup,
   isActiveTheme,
   isStrandedActiveTheme,
+  isThemeDisabled,
   THEME_TAB_GROUPS,
   themeTabGroup,
   themeTier,
@@ -119,5 +120,49 @@ describe("defaultThemeTabGroup", () => {
 
   it("falls back to declarative when the active theme has no mapped tier", () => {
     expect(defaultThemeTabGroup(SETTINGS, {})).toBe("declarative");
+  });
+});
+
+describe("the no-theme sentinel", () => {
+  const themeOff: PresentationSettings = { ...SETTINGS, activeThemeId: NO_THEME_ID };
+  const installed = ["basic", "signal"];
+
+  it("pins the exact literal the server uses — apps/admin mirrors it by hand", () => {
+    // `apps/website/src/features/theme/active-theme.ts` owns the canonical `NO_THEME_ID` and pins
+    // the same literal in its own suite. A browser bundle cannot import server internals, so this
+    // value is mirrored; these two assertions are what stop the mirror from silently splitting.
+    expect(NO_THEME_ID).toBe("none");
+  });
+
+  it("reads as deliberately themeless", () => {
+    expect(isThemeDisabled(themeOff)).toBe(true);
+  });
+
+  it("does NOT read as deliberately themeless for an ordinary theme, or for an unwritten row", () => {
+    expect(isThemeDisabled(SETTINGS)).toBe(false);
+    expect(isThemeDisabled({ ...SETTINGS, activeThemeId: "" })).toBe(false);
+  });
+
+  it("is not reported as a stranded theme — the operator chose it", () => {
+    // The sentinel is never in `themes` either (it is not a theme), so without an explicit guard
+    // every deliberately-themeless site would raise the "your site cannot render" warning.
+    expect(isStrandedActiveTheme(themeOff, installed)).toBe(false);
+  });
+
+  it("a genuinely stranded theme is STILL reported — the guard must not blanket-suppress", () => {
+    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "deleted-theme" }, installed)).toBe(true);
+  });
+
+  it("opens on the first tab, and does so independently of what `themeTiers` says about the sentinel", () => {
+    // With an empty `themeTiers` this is indistinguishable from the accidental path: `themeTier`
+    // defaults an unknown id to "declarative", which is also `THEME_TAB_GROUPS[0]` today. They
+    // coincide — which is exactly the kind of coincidence this whole feature exists to stop relying
+    // on, so the second case below supplies a `themeTiers` entry for the sentinel (a theme folder
+    // literally named `none` would produce one) and pins the difference.
+    expect(defaultThemeTabGroup(themeOff, {})).toBe(THEME_TAB_GROUPS[0]);
+
+    const shadowed = { [NO_THEME_ID]: "code" } as const;
+    expect(themeTabGroup(NO_THEME_ID, shadowed)).toBe("code");
+    expect(defaultThemeTabGroup(themeOff, shadowed)).toBe(THEME_TAB_GROUPS[0]);
   });
 });

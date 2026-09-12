@@ -6,7 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import {
   createCapturingResponse,
   extractRouteHandler,
@@ -162,4 +162,44 @@ test("presentation patch: workspaceId param can never actually be undefined thro
   await handler(req, res);
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+/**
+ * The write allowlist vs. the read catalogue. `patch-active-theme.ts` and `get.ts` used to pass a
+ * character-for-character identical `availableThemeIds: validThemeIds(deps.themes)` — same
+ * expression, same field name, same import, sibling files in one directory — while meaning two
+ * different things. The write allowlist must now carry the no-theme sentinel; the read catalogue
+ * must never, because it is echoed to the admin as `AdminPresentation.availableThemeIds` and feeds
+ * the theme picker, where the sentinel would render as a blank card.
+ *
+ * Nothing in the type system, and no other gate, distinguishes them. These two tests are it.
+ */
+
+test("presentation patch: the no-theme sentinel is ACCEPTED — this is the write allowlist", async (t) => {
+  const app = buildApp();
+  const { status, json } = await patch(t, app, { activeThemeId: NO_THEME_ID });
+
+  assert.equal(status, 200, "turning the theme off must be a permitted write, not a 400");
+  assert.equal((json as { settings?: { activeThemeId?: string } }).settings?.activeThemeId, NO_THEME_ID);
+});
+
+test("presentation patch: the sentinel is NOT echoed into availableThemeIds — that list is the picker's catalogue", async (t) => {
+  const app = buildApp();
+  const { json } = await patch(t, app, { activeThemeId: NO_THEME_ID });
+
+  const available = (json as { availableThemeIds?: string[] }).availableThemeIds ?? [];
+  assert.ok(available.length > 0, "control: the catalogue must not be empty, or this test proves nothing");
+  assert.equal(
+    available.includes(NO_THEME_ID),
+    false,
+    "the sentinel in the read catalogue renders as a blank card in the admin theme picker"
+  );
+});
+
+test("presentation patch: a garbage theme id is still rejected — widening the allowlist by exactly one value", async (t) => {
+  // The guard against "fixed it by accepting everything". Adding the sentinel must not turn the
+  // allowlist off.
+  const app = buildApp();
+  const { status } = await patch(t, app, { activeThemeId: "not-a-real-theme" });
+  assert.equal(status, 400);
 });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { type PresentationSettings, type ThemeTier } from "../../lib/api";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
@@ -14,6 +14,7 @@ import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./h
 import {
   isActiveTheme,
   isStrandedActiveTheme,
+  isThemeDisabled,
   groupThemesByTabGroup,
   defaultThemeTabGroup,
   THEME_TAB_GROUPS,
@@ -277,6 +278,19 @@ function ThemesBanners({
           ).replace("{id}", settings.activeThemeId)}
         </div>
       ) : null}
+      {/* Deliberately a plain `.notice`, NOT `.notice warning` — the operator chose this, and
+          styling a choice as a fault trains them to ignore the banner. It is persistent rather than
+          a toast because "no theme" is a standing state of the site, not an event: an operator
+          arriving at this screen later needs to know why every card shows Activate and none shows
+          Active, and that is the same question the stranded-theme warning above answers for a
+          different cause. */}
+      {isThemeDisabled(settings) ? (
+        <div className="notice">
+          {t(
+            "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.",
+          )}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -505,6 +519,25 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
         >
           {rescanning ? t("Rescanning…") : t("Rescan themes")}
         </button>
+        {/* Hidden once the theme is already off — a control whose only effect is to re-send the
+            state you are already in reads as broken when nothing changes. Getting back is the
+            Activate button on any card, which is always present. A toolbar control rather than a
+            card in the grid: the grid is split across tier tabs, so a card would be visible in only
+            one of them and invisible in the rest. */}
+        {isThemeDisabled(settings) ? null : (
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={busyTheme !== null}
+            onClick={() => void activate(NO_THEME_ID)}
+            {...agentHandle("themes-disable", {
+              role: "button",
+              label: "Turn the theme off and render the site unstyled",
+            })}
+          >
+            {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
+          </button>
+        )}
       </div>
       <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no

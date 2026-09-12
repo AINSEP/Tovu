@@ -1,3 +1,9 @@
+// 2026-09-12 (optional themes) — the no-theme sentinel, imported rather than re-spelled locally.
+// This module otherwise imports nothing, which is deliberate for `RouteDeps` (see `deps.ts`'s
+// header on the structural-declaration discipline) but was never a rule about VALUES: a second
+// literal spelling of "no theme" here is exactly the drift that discipline exists to prevent.
+import { NO_THEME_ID } from "../theme/index.js";
+
 /**
  * @file `buildSiteProfile()` — the ONE implementation of "what does this site currently look like",
  * shared by the `site_get_profile` agent tool and the `GET /api/admin/v1/workspaces/:workspaceId/
@@ -160,8 +166,19 @@ export interface SiteProfileTheme {
    * The configured theme's own row, when it is among the discovered themes. `null` when the
    * configured id names nothing discovered — a real, reportable misconfiguration this field makes
    * visible rather than papering over with the render-time fallback (`resolveActiveTheme`).
+   *
+   * `null` means TWO different things; {@link SiteProfileTheme.themeDisabled} is what tells them
+   * apart. Read this field alone and a site whose operator turned the theme off looks exactly like
+   * a site whose theme was deleted.
    */
   active: SiteProfileThemeSummary | null;
+  /**
+   * `true` when the operator turned the theme off deliberately (`activeThemeId` is the no-theme
+   * sentinel). This is a CHOICE, not drift — a profile reader that treats every `active: null` as a
+   * misconfiguration would report a problem that does not exist on these sites, which is worse than
+   * silence because it trains the reader to ignore the field.
+   */
+  themeDisabled: boolean;
   installed: SiteProfileThemeSummary[];
 }
 
@@ -513,6 +530,9 @@ async function collectPages(deps: SiteProfileDeps, limit: number): Promise<Colle
  * "the site renders a different theme than the one configured" is exactly the kind of drift a
  * profile exists to surface.
  *
+ * `themeDisabled` separates the one `active: null` case that is NOT drift: the operator turned the
+ * theme off on purpose. Both states are reported; only one is a problem.
+ *
  * @param deps - Supplies `readActiveThemeId()`/`listThemes()`.
  * @returns The section payload. Never truncated — the theme roster is boot-discovered and small.
  * @throws Whatever either read throws.
@@ -526,6 +546,7 @@ async function collectTheme(deps: SiteProfileDeps): Promise<CollectedSection<Sit
     data: {
       activeThemeId,
       active: installed.find((theme) => theme.id === activeThemeId) ?? null,
+      themeDisabled: activeThemeId === NO_THEME_ID,
       installed,
     },
   };

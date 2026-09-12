@@ -10,6 +10,7 @@ import type {
   CommercePriceRecord,
   CommerceProductRecord,
 } from "#src/features/commerce/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
@@ -360,4 +361,66 @@ test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct
 
   assert.equal(statusCode, 404);
   assert.match(body, /404/);
+});
+
+/**
+ * A workspace with no `presentation_settings` row is a real, documented state —
+ * `features/presentation/active-theme-id.ts`'s `resolveActiveThemeId` exists specifically to
+ * degrade it to `""` rather than let `PresentationSettingsNotFoundError` escape, and `pages.ts`
+ * has always routed through that helper.
+ *
+ * `products.ts` did not: both handlers called `getPresentationSettings` RAW, so the same missing row
+ * that `GET /` absorbed threw here and landed in the catch as `<h1>Site error</h1>`. Two public
+ * routes, two behaviours, one missing row.
+ */
+test("GET /products survives a workspace with no presentation_settings row, exactly as GET / already does", async (t) => {
+  const { server, baseUrl } = await startServer({
+    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    commerceProductRepo: fakeProductRepo([]),
+    commercePriceRepo: fakePriceRepo({}),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const [products, home] = await Promise.all([fetch(`${baseUrl}/products`), fetch(`${baseUrl}/`)]);
+
+  assert.equal(home.status, 200, "control: GET / has always absorbed this state");
+  assert.equal(products.status, 200, "GET /products must absorb it the same way, not 500");
+  assert.doesNotMatch(await products.text(), /Site error/);
+});
+
+test("GET /products/:id survives a workspace with no presentation_settings row", async (t) => {
+  const product: CommerceProductRecord = {
+    id: "prod-1",
+    workspaceId: WORKSPACE_ID,
+    name: "Classic Boxy Tee",
+    slug: "classic-boxy-tee",
+    kind: "one_time",
+    status: "active",
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+  };
+  const price: CommercePriceRecord = {
+    id: "price-1",
+    workspaceId: WORKSPACE_ID,
+    productId: "prod-1",
+    unitAmountCents: 3500,
+    currency: "usd",
+    status: "active",
+    createdAt: NOW,
+    version: 1,
+  };
+
+  const { server, baseUrl } = await startServer({
+    presentationRepo: new InMemoryPresentationSettingsRepo([]),
+    commerceProductRepo: fakeProductRepo([product]),
+    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/prod-1`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.doesNotMatch(html, /Site error/);
+  assert.match(html, /Classic Boxy Tee/);
 });
