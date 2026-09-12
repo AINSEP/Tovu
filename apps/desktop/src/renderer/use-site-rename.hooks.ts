@@ -11,11 +11,19 @@
  * `pendingId` at grid level: only one card may be renaming at a time, and state that permits two
  * would eventually show two. Opening a rename on a second card replaces the first rather than
  * stacking, which is also what the operator means by clicking it.
+ *
+ * `canSubmitRename`, `renameSubmission`, and `describeRenameFailure` are pulled out as plain
+ * functions — same reason `folder-drop.ts` was pulled out of `App.hooks.ts`: this package has no
+ * React renderer at all (no jsdom, no testing-library, no react-test-renderer), so a decision left
+ * inside `useSiteRename`'s body is untestable without one. Each takes exactly what it needs as an
+ * argument rather than closing over hook state, so `submitRename` below is reduced to calling them
+ * and writing whatever they decide into `useState` — no decision of its own left to get wrong.
  */
 import { useState } from 'react';
 
 import { runnerInventoryBridge } from './runner-api.js';
-import type { SiteRecord } from '../contracts/project.js';
+import type { RunnerInventoryBridge } from './runner-api.js';
+import type { RenameSiteInput, SiteRecord } from '../contracts/project.js';
 
 /**
  * `validateConfig`'s bound (`apps/website/src/platform/site-dir/read-site-dir.ts`), mirrored so the
@@ -38,6 +46,49 @@ const NAME_MAX_LENGTH = 200;
 export function isValidSiteName(draft: string): boolean {
   const trimmed = draft.trim();
   return trimmed.length > 0 && trimmed.length <= NAME_MAX_LENGTH;
+}
+
+/** Whether Save should be enabled — a valid name, and nothing already in flight.
+ *  @complexity O(n) in the draft length (delegates to {@link isValidSiteName}). */
+export function canSubmitRename(draft: string, saving: boolean): boolean {
+  return isValidSiteName(draft) && !saving;
+}
+
+/** Shown when `runnerInventoryBridge()` returns nothing — a renderer running outside Electron (a
+ *  plain `vite preview`, a test harness). */
+export const NO_BRIDGE_RENAME_MESSAGE = 'The desktop bridge is unavailable, so this site could not be renamed.';
+
+export type RenameSubmission =
+  | { readonly kind: 'refused'; readonly message: string }
+  | { readonly kind: 'submit'; readonly bridge: RunnerInventoryBridge; readonly payload: RenameSiteInput };
+
+/**
+ * What submitting a rename should do next: refuse before calling anything (no desktop bridge is
+ * reachable), or the bridge to call and the exact payload to send it. Never calls anything itself —
+ * the caller acts on the result — so this is testable with a fake bridge and no hook, no state, no
+ * renderer.
+ *
+ * @complexity O(1).
+ */
+export function renameSubmission(
+  bridge: RunnerInventoryBridge | undefined,
+  id: string,
+  draft: string,
+): RenameSubmission {
+  if (bridge === undefined) return { kind: 'refused', message: NO_BRIDGE_RENAME_MESSAGE };
+  return { kind: 'submit', bridge, payload: { id, name: draft } };
+}
+
+/**
+ * The message to show for a rejected rename. Main's own sentence, verbatim, when it threw a real
+ * `Error` — main's refusals name the fix ("1 to 200 characters once surrounding spaces are
+ * removed"), and paraphrasing would drop exactly the half the operator needs, same contract
+ * `use-add-site.hooks.ts` documents for its own errors. The coerced string otherwise.
+ *
+ * @complexity O(n) in the message length.
+ */
+export function describeRenameFailure(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export interface SiteRenameState {
@@ -81,26 +132,22 @@ export function useSiteRename(onRenamed?: (record: SiteRecord) => void): SiteRen
   };
 
   const submitRename = async (id: string) => {
-    const bridge = runnerInventoryBridge();
-    if (!bridge) {
+    const decision = renameSubmission(runnerInventoryBridge(), id, draft);
+    if (decision.kind === 'refused') {
       // Set the error WITHOUT ever setting `saving` — a call that never reached the bridge did not
       // start, and a spinner for work that is not happening is a lie. Same reasoning
       // `useProjectStart` documents for its own missing-bridge arm.
-      setRenameError('The desktop bridge is unavailable, so this site could not be renamed.');
+      setRenameError(decision.message);
       return;
     }
     setSaving(true);
     setRenameError(null);
     try {
-      const record = await bridge.renameSite({ id, name: draft });
+      const record = await decision.bridge.renameSite(decision.payload);
       setRenamingId(null);
       onRenamed?.(record);
     } catch (err) {
-      // Main's own sentence, verbatim. Every refusal it raises names the fix — "remove this card and
-      // add the site again from its new location", "1 to 200 characters once surrounding spaces are
-      // removed" — and paraphrasing would drop exactly the half the operator needs. Same contract
-      // `use-add-site.hooks.ts` documents for its own errors.
-      setRenameError(err instanceof Error ? err.message : String(err));
+      setRenameError(describeRenameFailure(err));
     } finally {
       setSaving(false);
     }
@@ -112,7 +159,7 @@ export function useSiteRename(onRenamed?: (record: SiteRecord) => void): SiteRen
     setDraft,
     saving,
     renameError,
-    canSave: isValidSiteName(draft) && !saving,
+    canSave: canSubmitRename(draft, saving),
     startRename,
     cancelRename,
     submitRename,
