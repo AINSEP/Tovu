@@ -50,7 +50,7 @@ function silentMirror() {
   return { stdout: new PassThrough(), stderr: new PassThrough() };
 }
 
-function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false } = {}) {
+function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false, withSiteChatDist = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-test-"));
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ bin: { tovu: "dist/src/cli/main.js" } }));
   if (withCli) {
@@ -63,6 +63,9 @@ function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false 
   }
   if (withAdminDist) {
     fs.mkdirSync(path.join(root, "apps", "admin", "dist"), { recursive: true });
+  }
+  if (withSiteChatDist) {
+    fs.mkdirSync(path.join(root, "apps", "site-chat", "dist"), { recursive: true });
   }
   return root;
 }
@@ -182,6 +185,26 @@ test("buildServeEnv leaves TOVU_ADMIN_DIST unset when the admin has never been b
 test("buildServeEnv keeps an operator-set TOVU_ADMIN_DIST", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_ADMIN_DIST: "/custom/admin" } });
   assert.equal(env.TOVU_ADMIN_DIST, "/custom/admin");
+});
+
+// `app.ts:1340` reads TOVU_SITE_CHAT_DIST and falls back to the SAME six-levels-up path that
+// overshoots from `dist/` as the admin's `:1316` does, and `Dockerfile:170-171` sets both. This
+// function set only the admin half until 2026-09-11, so `/site-chat` answered 503 in every
+// compiled-mode run — a bug that existed independently of packaging.
+test("buildServeEnv points TOVU_SITE_CHAT_DIST at the built site-chat bundle, the half that used to be missing", () => {
+  const root = makeTempRepo();
+  const env = buildServeEnv({ repoRoot: root, baseEnv: {} });
+  assert.equal(env.TOVU_SITE_CHAT_DIST, path.join(root, "apps", "site-chat", "dist"));
+});
+
+test("buildServeEnv leaves TOVU_SITE_CHAT_DIST unset when site-chat has never been built", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo({ withSiteChatDist: false }), baseEnv: {} });
+  assert.equal(env.TOVU_SITE_CHAT_DIST, undefined);
+});
+
+test("buildServeEnv keeps an operator-set TOVU_SITE_CHAT_DIST", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: { TOVU_SITE_CHAT_DIST: "/custom/site-chat" } });
+  assert.equal(env.TOVU_SITE_CHAT_DIST, "/custom/site-chat");
 });
 
 test("buildServeEnv sets TOVU_SITE_DIR to the site being served — app.ts's own module-load-time createApp() falls back to a cwd-relative default otherwise, confirmed to crash when own-server mode's cwd has no sites/tovu-com", () => {

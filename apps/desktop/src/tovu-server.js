@@ -262,11 +262,14 @@ function buildCliEnv(baseEnv, siteDir) {
  *   own-server mode with no error anywhere that names the cause. An operator-set value wins, since
  *   someone who exported a token to reach the daemon from outside must not have it replaced.
  *
- * - **`TOVU_ADMIN_DIST` is set when the build exists.** `app.ts`'s default resolves six levels up
- *   from `server/runtime/composition/`, which lands on the repo root from `src/` but *overshoots
- *   it* from `dist/` — and own-server mode runs the compiled `dist/` CLI, so `/admin` answers 503
- *   without this. Tovu's own documented override, set from outside, so `apps/website/` needs no
- *   change; the underlying off-by-one is reported separately rather than fixed from here.
+ * - **`TOVU_ADMIN_DIST` and `TOVU_SITE_CHAT_DIST` are set when their builds exist.** `app.ts`
+ *   resolves BOTH from `import.meta.dirname` six levels up when unset (`:1316` and `:1340`), which
+ *   lands on the repo root from `src/` but *overshoots it* from `dist/` — and own-server mode runs
+ *   the compiled `dist/` CLI, so `/admin` and `/site-chat` both answer 503 without these. Tovu's
+ *   own documented overrides, set from outside, so `apps/website/` needs no change; the underlying
+ *   off-by-one is reported separately rather than fixed from here. `Dockerfile:170-171` sets the
+ *   same PAIR for the same reason — this shell set only the admin half until 2026-09-11, which is
+ *   why site-chat 503'd in every compiled-mode desktop run.
  *
  * - **`TOVU_SITE_DIR` is set unless the operator already pinned one.** Confirmed live, 2026-09-05:
  *   `apps/website/src/server/runtime/composition/app.ts` has a MODULE-LOAD-TIME side effect —
@@ -334,6 +337,11 @@ function buildServeEnv(input) {
   const adminDist = path.join(repoRoot, "apps", "admin", "dist");
   if (!env.TOVU_ADMIN_DIST && fs.existsSync(adminDist)) {
     env.TOVU_ADMIN_DIST = adminDist;
+  }
+
+  const siteChatDist = path.join(repoRoot, "apps", "site-chat", "dist");
+  if (!env.TOVU_SITE_CHAT_DIST && fs.existsSync(siteChatDist)) {
+    env.TOVU_SITE_CHAT_DIST = siteChatDist;
   }
 
   return env;

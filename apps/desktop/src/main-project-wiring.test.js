@@ -21,6 +21,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveDesktopRoots } from "./packaged-paths.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const MAIN_PATH = path.join(__dirname, "..", "main.js");
@@ -67,7 +69,15 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   // The classifier argument is pinned by its own test above; this one is about the DIRECTORY, so
   // it matches whichever classifier form is passed rather than restating that decision here.
   assert.match(source, /seedDevFallbackProject\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
-  assert.match(source, /const DEV_FALLBACK_SITE_DIR = path\.join\(REPO_ROOT, "sites", "tovu-com"\)/);
+  // The definition moved into `packaged-paths.js` (2026-09-11) so a packaged app can have NO dev
+  // fallback rather than one pointing inside a read-only bundle. Pinned as "main.js takes it from
+  // the one resolver" plus a real-value check on that resolver, instead of re-stating the literal
+  // here where it would only ever be a copy of the real definition.
+  assert.match(source, /const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS\.devFallbackSiteDir/);
+  assert.equal(
+    resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs" }).devFallbackSiteDir,
+    path.join("/repo", "sites", "tovu-com"),
+  );
 });
 
 test("the shared deps object the handlers get is the one the boot scan is run against", () => {
@@ -86,7 +96,20 @@ test("the deps carry a scan root and the recently-opened list for the scan to re
 });
 
 test("the scan root is the sites directory the dev fallback already lives in", () => {
-  assert.match(source, /const PROJECT_SCAN_ROOTS = \[path\.join\(REPO_ROOT, "sites"\)\]/);
+  assert.match(source, /const PROJECT_SCAN_ROOTS = DESKTOP_ROOTS\.projectScanRoots/);
+  // The RELATIONSHIP, not two literals that happen to agree today: the fallback site must sit
+  // directly inside the scanned root, or the seed offers a card the rescan then cannot re-find.
+  const dev = resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs" });
+  assert.deepEqual(dev.projectScanRoots, [path.dirname(dev.devFallbackSiteDir)]);
+});
+
+test("a packaged app has no dev fallback, so the seed and the migration are skipped rather than handed null", () => {
+  // `migrateLegacyDismissals` takes a DIRECTORY and would write a literal `null` into the
+  // `dismissed` array, which is a corrupt row rather than a no-op — so the guard is load-bearing.
+  const packaged = resolveDesktopRoots({ isPackaged: true, resourcesPath: "/res", repoRoot: "/repo", documentsDir: "/docs" });
+  assert.equal(packaged.devFallbackSiteDir, null);
+  assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?migrateLegacyDismissals\(/);
+  assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?seedDevFallbackProject\(/);
 });
 
 test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot", () => {

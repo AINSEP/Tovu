@@ -117,6 +117,7 @@ import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } f
 import { projectsFilePath, seedDevFallbackProject, migrateLegacyDismissals } from "./src/project-registry.js";
 import { registerProjectIpcHandlers, rescanProjects } from "./src/project-ipc.js";
 import { fileURLToPath } from "node:url";
+import { resolveDesktopRoots } from "./src/packaged-paths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -161,6 +162,32 @@ const FLEET_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs"
 const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand", "tovu-app-icon.png");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
+
+/**
+ * Every root that differs between a checkout and a packaged `.app`, resolved once. See
+ * `packaged-paths.js` for what each one means and why the delete-guard containment boundary rides
+ * along with `payloadRoot`. In dev these are byte-identical to the values this file derived from
+ * {@link REPO_ROOT} directly before that module existed.
+ *
+ * `app.isPackaged` and `process.resourcesPath` are both readable at module load (Electron derives
+ * them from the executable path, not from `whenReady`), so this stays a module constant next to the
+ * paths it replaces rather than becoming boot-time state threaded through `ctx`.
+ */
+const DESKTOP_ROOTS = resolveDesktopRoots({
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  repoRoot: REPO_ROOT,
+  documentsDir: app.getPath("documents"),
+});
+
+/**
+ * The runnable Tovu tree: `dist/`'s CLI, `apps/admin/dist`, `apps/site-chat/dist` and the
+ * `node_modules` they resolve against. The checkout itself in dev, `Resources/tovu/` when packaged.
+ *
+ * Replaces {@link REPO_ROOT} at every site that previously passed it downward. Note this is ALSO
+ * what `project-delete-guard.js` receives as its containment root — see `packaged-paths.js`.
+ */
+const PAYLOAD_ROOT = DESKTOP_ROOTS.payloadRoot;
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
 
 /**
@@ -174,7 +201,7 @@ const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
  * different folders they would silently stop talking about the same thing, and the symptom — a
  * deleted card coming back on one boot — would surface nowhere near the cause.
  */
-const DEV_FALLBACK_SITE_DIR = path.join(REPO_ROOT, "sites", "tovu-com");
+const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS.devFallbackSiteDir;
 
 /**
  * Where a site created outside this shell is looked for at boot: the flat `sites/` directory a
@@ -185,7 +212,7 @@ const DEV_FALLBACK_SITE_DIR = path.join(REPO_ROOT, "sites", "tovu-com");
  * "+ Create website" asks the operator WHERE the site should live, so its projects are scattered
  * wherever they said. `rescanProjects` covers the rest through the recently-opened list.
  */
-const PROJECT_SCAN_ROOTS = [path.join(REPO_ROOT, "sites")];
+const PROJECT_SCAN_ROOTS = DESKTOP_ROOTS.projectScanRoots;
 
 /**
  * `true` when this launch should open the fleet Projects screen (boot mode 0) rather than a site
@@ -248,7 +275,13 @@ let shuttingDown = false;
  *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
  *  plain argument, never read directly by `tovu-server.js`/`site-dir-store.js`). */
 function resolveCliMode() {
-  return process.env.TOVU_DESKTOP_CLI_MODE?.trim() === "compiled" ? "compiled" : "source";
+  const explicit = process.env.TOVU_DESKTOP_CLI_MODE?.trim();
+  if (explicit === "compiled") return "compiled";
+  if (explicit === "source") return "source";
+  // `"source"` in a checkout — unchanged, including for a garbage value, which still falls through
+  // to the default exactly as the old ternary did. `"compiled"` when packaged, where no TypeScript
+  // source and no `tsx` ship; see `packaged-paths.js`.
+  return DESKTOP_ROOTS.defaultCliMode;
 }
 
 /** `TOVU_DESKTOP_SITE_DIRS`, split and trimmed — `null` when unset, so callers fall back to the
@@ -502,7 +535,7 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
   // written to disk); an unnecessary REDEEM is the 30-day-session pile-up, and that is what
   // `ensureSiteSession` still keeps conditional.
   const server = await startTovuServer({
-    repoRoot: REPO_ROOT,
+    repoRoot: PAYLOAD_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
     port: options.port,
@@ -710,7 +743,7 @@ function registerGuestNavigationPolicy() {
  */
 async function adoptAndOpenSite(dir, ctx) {
   try {
-    const adopted = await adoptSiteDir({ dir, repoRoot: REPO_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode });
+    const adopted = await adoptSiteDir({ dir, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode });
     await openSiteWindow(adopted, ctx);
   } catch (error) {
     dialog.showErrorBox("Tovu could not open that site", error.message);
@@ -870,7 +903,7 @@ async function resolveStartupSiteDirs(ctx) {
   const explicit = explicitStartupSiteDirs();
   if (explicit) {
     return await Promise.all(
-      explicit.map((dir) => resolveOrInitSiteDir({ dir, onMissingSite: ENV_SITE_DIR_ON_MISSING, repoRoot: REPO_ROOT, cliMode: ctx.cliMode })),
+      explicit.map((dir) => resolveOrInitSiteDir({ dir, onMissingSite: ENV_SITE_DIR_ON_MISSING, repoRoot: PAYLOAD_ROOT, cliMode: ctx.cliMode })),
     );
   }
 
@@ -882,7 +915,7 @@ async function resolveStartupSiteDirs(ctx) {
     // Correct for a developer, absent in a packaged app — one tier of a precedence chain rather
     // than a hardcoded default.
     devFallbackDir: DEV_FALLBACK_SITE_DIR,
-    repoRoot: REPO_ROOT,
+    repoRoot: PAYLOAD_ROOT,
     cliMode: ctx.cliMode,
     // No `name`: `initSite` defaults it to the chosen folder's basename (BR-03).
     pickDir: promptForSiteDir,
@@ -1013,7 +1046,11 @@ app
       // the operator deleted its card, and the seed is about to ask exactly that. See
       // `migrateLegacyDismissals`' own doc for why this is the narrow, one-directory conversion it
       // is, and `main-project-wiring.test.js` for the test that pins this call ahead of the seed.
-      migrateLegacyDismissals(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR);
+      // Both dev-fallback calls are skipped outright when there is no dev fallback (a packaged
+      // app). `migrateLegacyDismissals` in particular takes a DIRECTORY and would otherwise record
+      // a literal `null` into the `dismissed` array — a corrupt row, not a no-op.
+      if (DEV_FALLBACK_SITE_DIR) {
+        migrateLegacyDismissals(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR);
       // A brand-new `userData` tracks nothing, so the Projects screen would otherwise show only
       // the "Add project" card forever until the operator ran "+ Create website" once. Seeding the
       // same dev-fallback site `resolveStartupSiteDirs` already falls back to below (`sites/tovu-
@@ -1028,7 +1065,8 @@ app
       // run BEFORE `openFleetWindow()`. The throwing form is for the folder PICKER, where the
       // dialog shows the operator the error; here one unreadable candidate quit the app before any
       // window existed, leaving no renderer for the Rescan button to live in (D-01).
-      seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
+        seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
+      }
       // Built once and shared: `rescanProjects` below needs the same `deps` the handlers get, and a
       // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
       // `classifySiteDir`, the scan inputs) where drift is invisible until a site fails to appear.
@@ -1040,7 +1078,7 @@ app
         serializer,
         projectsPath: fleetCtx.projectsPath,
         registryPath: fleetCtx.registryPath,
-        repoRoot: REPO_ROOT,
+        repoRoot: PAYLOAD_ROOT,
         statePath: fleetCtx.statePath,
         cliMode: fleetCtx.cliMode,
         readSiteName,
