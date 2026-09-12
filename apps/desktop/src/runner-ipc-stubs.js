@@ -57,12 +57,12 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   // contracts/chat-attachments.ts
   "runner:chat-attachments:save",
   // contracts/workspace-conversations.ts
-  "runner:conversations:list",
-  "runner:conversations:create",
-  "runner:conversations:rename",
-  "runner:conversations:delete",
-  "runner:conversations:load-messages",
-  "runner:conversations:save-message",
+  "workspace:conversations:list",
+  "workspace:conversations:create",
+  "workspace:conversations:rename",
+  "workspace:conversations:delete",
+  "workspace:conversations:load-messages",
+  "workspace:conversations:save-message",
 ]);
 
 /**

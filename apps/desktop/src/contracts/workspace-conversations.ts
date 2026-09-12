@@ -20,16 +20,16 @@
  */
 import type { ChatMessage } from '@jini-ai/chat/core';
 
-export const RUNNER_CONVERSATION_CHANNELS = {
+export const WORKSPACE_CONVERSATION_CHANNELS = {
   /** Most-recently-active first. */
-  list: 'runner:conversations:list',
-  create: 'runner:conversations:create',
-  rename: 'runner:conversations:rename',
+  list: 'workspace:conversations:list',
+  create: 'workspace:conversations:create',
+  rename: 'workspace:conversations:rename',
   /** Drops the conversation row and every message in it. Irreversible. */
-  delete: 'runner:conversations:delete',
-  loadMessages: 'runner:conversations:load-messages',
+  delete: 'workspace:conversations:delete',
+  loadMessages: 'workspace:conversations:load-messages',
   /** Upserts one message by id into a conversation's transcript. */
-  saveMessage: 'runner:conversations:save-message',
+  saveMessage: 'workspace:conversations:save-message',
 } as const;
 
 export interface WorkspaceConversationSummary {
