@@ -1,5 +1,5 @@
 /**
- * The SECOND `runner.*` allowlist: the verbs Tovu's own site assistant — the RIGHT chat, inside a
+ * The SECOND `desktop.*` allowlist: the verbs Tovu's own site assistant — the RIGHT chat, inside a
  * project's embedded admin — may reach through Runner's MCP bridge.
  *
  * **This list is now a mirror, not a subset.** Until 2026-08 this file excluded most of
@@ -17,7 +17,7 @@
  * file's job to relitigate it.
  *
  * **What the site assistant can reach now.** Every verb {@link runnerToolNames} declares —
- * `runner.navigate` and `runner.project.delete` included. `SITE_ASSISTANT_TOOL_NAMES` below IS
+ * `desktop.navigate` and `desktop.project.delete` included. `SITE_ASSISTANT_TOOL_NAMES` below IS
  * `runnerToolNames()`, not a hand-picked subset of it: there is no verb the fleet chat can call that
  * a site assistant cannot.
  *
@@ -56,7 +56,7 @@ export const WORKSPACE_ONLY_VERBS = [] as const;
 export type WorkspaceOnlyVerb = (typeof WORKSPACE_ONLY_VERBS)[number];
 
 /**
- * Whole `runner.*` NAMESPACES to exclude again if this file is ever re-narrowed, verb by verb,
+ * Whole `desktop.*` NAMESPACES to exclude again if this file is ever re-narrowed, verb by verb,
  * including verbs not yet declared. Empty today for the same reason {@link WORKSPACE_ONLY_VERBS} is —
  * see the file header. Listing a namespace with no declared verbs is legal and expected, same as it
  * was before: the value of a namespace exclusion is landing BEFORE the verbs under it exist.
@@ -66,7 +66,7 @@ export const WORKSPACE_ONLY_NAMESPACES = [] as const;
 export type WorkspaceOnlyNamespace = (typeof WORKSPACE_ONLY_NAMESPACES)[number];
 
 /**
- * A declared `runner.*` verb a site assistant is *permitted to be granted*. With both exclusion
+ * A declared `desktop.*` verb a site assistant is *permitted to be granted*. With both exclusion
  * lists above empty, this resolves to every {@link RunnerToolName} — the `Exclude` is inert today,
  * but it is what lets a future entry in `WORKSPACE_ONLY_VERBS`/`WORKSPACE_ONLY_NAMESPACES` take effect at
  * compile time (a verb re-added there stops satisfying this type, and anything still deriving
@@ -104,12 +104,12 @@ export function isSiteAssistantTool(toolId: string): boolean {
  * Verbs within {@link SITE_ASSISTANT_TOOL_NAMES} whose completion may not rest on the calling
  * model's own say-so, because they destroy something a site cannot get back.
  *
- * `runner.project.delete` is the only entry. It stops the process, erases the install directory —
+ * `desktop.project.delete` is the only entry. It stops the process, erases the install directory —
  * every post, page, upload, comment — and removes the project from the fleet, with no undo and no
- * backup (see the verb's own description in `runner-tools.ts`). `runner.project.stop` and
- * `runner.project.restart` were weighed and left out: both interrupt a live site, which is
- * disruptive, but `runner.project.start` reverses either one completely, so a wrong call costs
- * availability for as long as it takes to notice and restart it — not data. `runner.create_site`
+ * backup (see the verb's own description in `runner-tools.ts`). `desktop.project.stop` and
+ * `desktop.project.restart` were weighed and left out: both interrupt a live site, which is
+ * disruptive, but `desktop.project.start` reverses either one completely, so a wrong call costs
+ * availability for as long as it takes to notice and restart it — not data. `desktop.create_site`
  * was weighed and left out too: it only adds a new, independent project; there is nothing yet to
  * destroy, and undoing it is calling delete on the very thing that was just created — itself
  * already gated by this list. Widening this to "anything disruptive" would make the gate fire on
@@ -128,7 +128,7 @@ export function isSiteAssistantTool(toolId: string): boolean {
  * real operator-facing prompt is built.
  */
 export const SITE_ASSISTANT_DESTRUCTIVE_VERBS = [
-  'runner.project.delete',
+  'desktop.project.delete',
 ] as const satisfies readonly RunnerToolName[];
 
 export type SiteAssistantDestructiveVerb = (typeof SITE_ASSISTANT_DESTRUCTIVE_VERBS)[number];
@@ -167,20 +167,20 @@ export function requiresOperatorConfirmation(toolId: string): boolean {
  * surface itself is still {@link WORKSPACE_ONLY_VERBS}'s job, unchanged.
  *
  * **Why every project-referencing verb, with no exemption:**
- * - `runner.project.stop` / `.restart` take a SIBLING site's process off the air — the exact
+ * - `desktop.project.stop` / `.restart` take a SIBLING site's process off the air — the exact
  *   exposure ADR-061's threat model names, and the reason a scope check was worth adding at all.
- * - `runner.project.open` launches the OPERATOR'S OWN browser at a URL the caller chose, with no
+ * - `desktop.project.open` launches the OPERATOR'S OWN browser at a URL the caller chose, with no
  *   confirmation UI — a site's assistant opening an unrequested tab is a surprise whether the tab is
  *   this site or another one, so there is no argument for leaving it out.
- * - `runner.project.start` naming a project other than the caller's own has no ordinary use: the
+ * - `desktop.project.start` naming a project other than the caller's own has no ordinary use: the
  *   caller is a running `tovu serve` instance's own embedded assistant, which cannot be reached at
  *   all while its own project is stopped — a `start` call can only ever mean "start some OTHER
  *   site," which is fleet lifecycle a site's own assistant has no business initiating.
- * - `runner.project.delete` is already refused unconditionally by
+ * - `desktop.project.delete` is already refused unconditionally by
  *   {@link requiresOperatorConfirmation}. Listed here anyway, as a second and independent reason it
  *   stays refused if that gate is ever loosened — this list does not rely on that one holding alone.
  *
- * `runner.fleet.status`, `runner.project.list`, `runner.create_site`, and `runner.navigate` are
+ * `desktop.status`, `desktop.project.list`, `desktop.create_site`, and `desktop.navigate` are
  * absent because none of them names an existing project to act ON: `fleet.status`/`project.list`
  * enumerate every project (an already-accepted exposure — see ADR-061's Rejected alternatives),
  * `create_site` only ever creates a new one, and `navigate` names a Runner UI section, not a project.
@@ -190,11 +190,11 @@ export function requiresOperatorConfirmation(toolId: string): boolean {
  * instead of silently mis-scoping a verb this list meant to name.
  */
 export const SITE_ASSISTANT_PROJECT_SCOPED_VERBS = [
-  'runner.project.start',
-  'runner.project.stop',
-  'runner.project.restart',
-  'runner.project.open',
-  'runner.project.delete',
+  'desktop.project.start',
+  'desktop.project.stop',
+  'desktop.project.restart',
+  'desktop.project.open',
+  'desktop.project.delete',
 ] as const satisfies readonly RunnerToolName[];
 
 export type SiteAssistantProjectScopedVerb = (typeof SITE_ASSISTANT_PROJECT_SCOPED_VERBS)[number];

@@ -1,16 +1,16 @@
 /**
- * The Runner top nav's sections, and the `runner.*` tool surface the left-hand chat
+ * The Runner top nav's sections, and the `desktop.*` tool surface the left-hand chat
  * drives them with.
  *
  * Two chats exist in this app and they must never blur:
  *
  *   - The LEFT chat is Runner's operator agent. It owns the fleet. Its tools are
- *     the `runner.*` verbs declared here.
+ *     the `desktop.*` verbs declared here.
  *   - The RIGHT chat is Tovu's own site assistant, which arrives with the Tovu
  *     admin mounted into the main content area. It owns one site's content.
  *
  * ADR-014 fixes the direction: Runner composes site tools plus its own; Tovu never
- * imports Runner tools. Keeping every verb below under a `runner.` prefix is what
+ * imports Runner tools. Keeping every verb below under a `desktop.` prefix is what
  * makes that boundary mechanical instead of a convention — a site tool can never
  * collide with a fleet tool, so the left chat cannot accidentally edit a post.
  *
@@ -31,7 +31,7 @@
  * Add, deprecate, alias — but do not rename in place.
  */
 
-export type RunnerSectionGroupId = 'fleet' | 'work' | 'operations' | 'access';
+export type RunnerSectionGroupId = 'workspace' | 'work' | 'operations' | 'access';
 
 export type RunnerSectionId =
   | 'home'
@@ -71,12 +71,12 @@ export interface RunnerSection {
    * governs rather than describing the screen.
    */
   agentDescription: string;
-  /** The `runner.*` verbs this section owns. Empty means read-only/navigation-only. */
+  /** The `desktop.*` verbs this section owns. Empty means read-only/navigation-only. */
   tools: readonly string[];
 }
 
 export const RUNNER_SECTION_GROUPS: readonly RunnerSectionGroup[] = [
-  { id: 'fleet', label: 'Fleet' },
+  { id: 'workspace', label: 'Workspace' },
   { id: 'work', label: 'Work' },
   { id: 'operations', label: 'Operations' },
   { id: 'access', label: 'Access' },
@@ -85,38 +85,38 @@ export const RUNNER_SECTION_GROUPS: readonly RunnerSectionGroup[] = [
 export const RUNNER_SECTIONS = [
   {
     id: 'home',
-    group: 'fleet',
+    group: 'workspace',
     label: 'Home',
     agentDescription:
       'Fleet overview. How many projects exist, which are running, which are unhealthy.',
-    tools: ['runner.fleet.status'],
+    tools: ['desktop.status'],
   },
   {
     id: 'projects',
-    group: 'fleet',
+    group: 'workspace',
     label: 'Projects',
     agentDescription:
       'The project list and its lifecycle. Each project is one install dir served by one `tovu serve` OS process on one port, serving exactly one workspace for that process lifetime. Creating, starting, stopping, and opening projects all happen here.',
     // `create_site` keeps ADR-014's exact verb name rather than being renamed to fit
     // this file's shape — that name is already written down as an operator tool.
     tools: [
-      'runner.create_site',
-      'runner.project.list',
-      'runner.project.start',
-      'runner.project.stop',
-      'runner.project.restart',
-      'runner.project.open',
-      'runner.project.delete',
+      'desktop.create_site',
+      'desktop.project.list',
+      'desktop.project.start',
+      'desktop.project.stop',
+      'desktop.project.restart',
+      'desktop.project.open',
+      'desktop.project.delete',
     ],
   },
   {
     id: 'templates',
-    group: 'fleet',
+    group: 'workspace',
     label: 'Templates',
     hidden: true,
     agentDescription:
       "Starter templates a new project is instantiated from. Per ADR-012, creating a site copies a template's data and config into a fresh install dir.",
-    tools: ['runner.template.list', 'runner.template.inspect'],
+    tools: ['desktop.template.list', 'desktop.template.inspect'],
   },
   {
     id: 'tasks',
@@ -124,7 +124,7 @@ export const RUNNER_SECTIONS = [
     label: 'Tasks',
     agentDescription:
       'Long-running and queued operator jobs — anything that outlives a single chat turn, including bulk actions across many projects.',
-    tools: ['runner.queue_task', 'runner.task.list', 'runner.task.cancel'],
+    tools: ['desktop.queue_task', 'desktop.task.list', 'desktop.task.cancel'],
   },
   {
     // Id stays `generation` deliberately: `RunnerSectionId` values are a public contract that
@@ -135,7 +135,7 @@ export const RUNNER_SECTIONS = [
     label: 'Media',
     agentDescription:
       'Image and video generation across projects, through the multi-provider media gateway.',
-    tools: ['runner.generate_video', 'runner.generate_image'],
+    tools: ['desktop.generate_video', 'desktop.generate_image'],
   },
   {
     id: 'activity',
@@ -143,7 +143,7 @@ export const RUNNER_SECTIONS = [
     label: 'Activity',
     agentDescription:
       'Fleet-wide event log and per-project output: spawns, crashes, restarts, health transitions. `tovu serve` only writes to stdout, so if Runner does not capture it nobody can see why a site died.',
-    tools: ['runner.activity.tail', 'runner.project.logs'],
+    tools: ['desktop.activity.tail', 'desktop.project.logs'],
   },
   {
     id: 'updates',
@@ -151,7 +151,7 @@ export const RUNNER_SECTIONS = [
     label: 'Updates',
     agentDescription:
       'Schema-version drift across projects, and staggered upgrades. Each `tovu serve` self-migrates safely on its own; nothing coordinates or reports drift across the fleet, which is Runner-owned by design.',
-    tools: ['runner.migration.check_drift', 'runner.migration.upgrade'],
+    tools: ['desktop.migration.check_drift', 'desktop.migration.upgrade'],
   },
   {
     id: 'deploy',
@@ -159,7 +159,7 @@ export const RUNNER_SECTIONS = [
     label: 'Deploy',
     hidden: true,
     agentDescription: 'Publishing a local project somewhere reachable, and its deploy status.',
-    tools: ['runner.deploy.publish', 'runner.deploy.status'],
+    tools: ['desktop.deploy.publish', 'desktop.deploy.status'],
   },
   {
     id: 'diagnostics',
@@ -168,7 +168,7 @@ export const RUNNER_SECTIONS = [
     hidden: true,
     agentDescription:
       'Support bundles: collect logs, config, and health across projects with redaction applied.',
-    tools: ['runner.diagnostics.bundle'],
+    tools: ['desktop.diagnostics.bundle'],
   },
   {
     id: 'api-keys',
@@ -177,7 +177,7 @@ export const RUNNER_SECTIONS = [
     hidden: true,
     agentDescription:
       'API keys per project. Tovu issues an `api_key` principal per site for headless access; managing many of them across the fleet is Runner-owned.',
-    tools: ['runner.apikey.issue', 'runner.apikey.list', 'runner.apikey.revoke'],
+    tools: ['desktop.apikey.issue', 'desktop.apikey.list', 'desktop.apikey.revoke'],
   },
   {
     id: 'settings',
@@ -186,7 +186,7 @@ export const RUNNER_SECTIONS = [
     hidden: true,
     agentDescription:
       "Runner's own configuration, including how provider credentials are held across the fleet.",
-    tools: ['runner.settings.get', 'runner.settings.set'],
+    tools: ['desktop.settings.get', 'desktop.settings.set'],
   },
   {
     id: 'account',
@@ -194,7 +194,7 @@ export const RUNNER_SECTIONS = [
     label: 'Account',
     hidden: true,
     agentDescription: 'Operator identity for Runner itself, distinct from any single site’s users.',
-    tools: ['runner.account.get'],
+    tools: ['desktop.account.get'],
   },
   // `as const satisfies` rather than a `: readonly RunnerSection[]` annotation. The annotation
   // widened every `tools` entry to `string`, which left the type system with no vocabulary for
@@ -205,7 +205,7 @@ export const RUNNER_SECTIONS = [
 ] as const satisfies readonly RunnerSection[];
 
 /** Navigation is itself a tool — the left chat can move the top nav, not just answer about it. */
-export const RUNNER_NAVIGATE_TOOL = 'runner.navigate';
+export const RUNNER_NAVIGATE_TOOL = 'desktop.navigate';
 
 /**
  * `RUNNER_SECTIONS` read through the interface instead of its literal tuple type.
@@ -241,7 +241,7 @@ export function visibleSections(): readonly RunnerSection[] {
 }
 
 /**
- * Every `runner.*` verb this build declares, as a literal union.
+ * Every `desktop.*` verb this build declares, as a literal union.
  *
  * Derived from {@link RUNNER_SECTIONS} rather than restated, for the same reason `SECTION_IDS` in
  * `runner-tools.ts` is derived: a second hand-maintained copy drifts. Its job is to give
@@ -255,7 +255,7 @@ export type RunnerToolName =
   | (typeof RUNNER_SECTIONS)[number]['tools'][number];
 
 /**
- * Every verb the left chat may call, `runner.navigate` included. The tool executor
+ * Every verb the left chat may call, `desktop.navigate` included. The tool executor
  * gates on this list, so a section that declares no tools grants the agent nothing
  * beyond navigating to it.
  */

@@ -141,7 +141,7 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
 }
 
 /**
- * `runner.navigate` is a tool the fleet chat can actually call, so the nav is agent-movable and
+ * `desktop.navigate` is a tool the fleet chat can actually call, so the nav is agent-movable and
  * not only user-movable. Nothing else in main pushes on this channel. It also pulls focus back
  * to the sites home tab — navigating to a Runner section while a site's admin fills the screen would
  * otherwise change something the operator cannot see.
@@ -149,7 +149,7 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
  * Takes the RAW `setActiveId`, deliberately not `useSectionNav`'s `selectSection`. Agent
  * navigation therefore does not close the Appearance page or cancel a half-filled create form the
  * way a click on the nav does. That asymmetry is pre-existing and preserved here unchanged, but it
- * is worth knowing about: with Appearance open, a `runner.navigate` call moves `activeId` and the
+ * is worth knowing about: with Appearance open, a `desktop.navigate` call moves `activeId` and the
  * operator sees nothing happen, because `MainArea` renders Appearance ahead of the section. Fixing
  * it means deciding what the agent is allowed to dismiss on the operator's behalf, which is a
  * product question, not a refactor.
@@ -344,7 +344,7 @@ export function useProjectMutations(deps: {
   // previous one into a fresh form would caption the new site with the old site's facts.
   //
   // Bumping `createFormKey` here is what makes "+ Create website" mean what it says. The form
-  // survives being HIDDEN — Appearance, a project tab, `runner.navigate` — because those leave
+  // survives being HIDDEN — Appearance, a project tab, `desktop.navigate` — because those leave
   // `isCreating` true and the operator returns to the same instance with their typing intact.
   // But a path that ends the creation outright (`selectSection` resets `isCreating` on a TopNav
   // click) makes this button the only way back, and it should open an empty form: the operator
@@ -475,7 +475,7 @@ export function useExpandedMode(showSiteTab: boolean): {
   const [expanded, setExpanded] = useState(false);
 
   // Expanded hides the only navigation there is, so it must never outlive the thing it was
-  // expanding. Closing the tab, deleting the project, or a `runner.navigate` call moving the nav
+  // expanding. Closing the tab, deleting the project, or a `desktop.navigate` call moving the nav
   // would otherwise leave the chrome hidden with nothing to be immersed in and no way back.
   useEffect(() => {
     if (!showSiteTab) setExpanded(false);

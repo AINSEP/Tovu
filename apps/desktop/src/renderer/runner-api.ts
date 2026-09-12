@@ -55,7 +55,7 @@ export interface RunnerInventoryBridge {
   saveConversationMessage: (input: SaveConversationMessageInput) => Promise<void>;
   /** Registers a run-event listener; returns its teardown. Every subscription multiplexes over this one channel. */
   onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) => () => void;
-  /** Fires when the `runner.navigate` tool moves the top nav. */
+  /** Fires when the `desktop.navigate` tool moves the top nav. */
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
   /**
    * Resolves a `File`'s absolute OS path. Runs in the preload, not over IPC — see the bridge

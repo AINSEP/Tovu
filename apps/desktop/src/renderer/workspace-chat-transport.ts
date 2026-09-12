@@ -24,7 +24,7 @@ import type {
   ToolResultMediaBlock,
 } from '@jini-ai/chat/core';
 import type { RunAgentPayload, RunProtocolEvent } from '@jini-ai/protocol';
-import { runnerVerbForAgentToolName } from '../contracts/workspace-chat.js';
+import { desktopVerbForAgentToolName } from '../contracts/workspace-chat.js';
 import type { WorkspaceChatEventMessage, WorkspaceChatRunState } from '../contracts/workspace-chat.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 
@@ -106,14 +106,14 @@ function translateThinkingStart(): AgentEvent | null {
 }
 
 /**
- * A `runner.*` call reaches the transcript TWICE by design: once as the agent's own view of the
+ * A `desktop.*` call reaches the transcript TWICE by design: once as the agent's own view of the
  * MCP call it made, and once as the `DelegatedToolBridge`'s canonical record of executing it. The
  * bridge's is the one that matters — it is the pair the deny-by-default gate actually produced,
  * and it carries the real verb name rather than the client's MCP alias — so the agent's mirror is
  * dropped here, along with the `tool_result` that will follow it.
  */
 function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }>, record: SubscriptionRecord): AgentEvent | null {
-  if (runnerVerbForAgentToolName(payload.name) !== undefined) {
+  if (desktopVerbForAgentToolName(payload.name) !== undefined) {
     record.mirroredToolUseIds.add(payload.id);
     return null;
   }

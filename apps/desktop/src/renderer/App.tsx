@@ -1165,7 +1165,7 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
           // an empty fragment — not `title`/`undefined` alone, since `resolveChatPaneHeader` falls
           // back to the default on `undefined` too. The real switcher and "New thread" action live
           // in the `<aside>`'s own header above instead: Runner already renders its own "Runner
-          // operator / Fleet chat" title bar there, so putting a second one here would stack two
+          // operator / Workspace chat" title bar there, so putting a second one here would stack two
           // headers rather than integrate with the one that already exists (see Tovu's
           // `AssistantDock.tsx`, which resolves the same default-header problem by replacing it
           // with its own header content directly, in a dock with no separate title bar above it).

@@ -1,5 +1,5 @@
 /**
- * Browser-safe contract for the LEFT-hand "Fleet chat" — Runner's operator agent.
+ * Browser-safe contract for the LEFT-hand "Workspace chat" — Runner's operator agent.
  *
  * Mirrors `runtime-inventory.ts`/`project-registry.ts`: channel constants and DTOs only,
  * no logic. The one structural difference is that a chat turn STREAMS, and Electron's
@@ -36,7 +36,7 @@ export const WORKSPACE_CHAT_CHANNELS = {
   status: 'workspace:chat:status',
   /** push (main → renderer): one `RunProtocolEvent` for one subscription. */
   event: 'workspace:chat:event',
-  /** push (main → renderer): the `runner.navigate` tool moved the top nav. */
+  /** push (main → renderer): the `desktop.navigate` tool moved the top nav. */
   navigate: 'workspace:chat:navigate',
 } as const;
 
@@ -93,28 +93,28 @@ export interface WorkspaceChatRunSnapshot {
 }
 
 /**
- * How a `runner.*` verb is spelled once it has crossed MCP into an agent's own tool namespace.
+ * How a `desktop.*` verb is spelled once it has crossed MCP into an agent's own tool namespace.
  *
  * MCP tool names are matched against `^[a-zA-Z0-9_-]{1,64}$` by every client that forwards them to
- * a model API, and `runner.project.list` has dots in it. Underscores are the standard substitution,
+ * a model API, and `desktop.project.list` has dots in it. Underscores are the standard substitution,
  * and the mapping is reversible because no allowlisted verb contains an underscore-vs-dot ambiguity.
  * Lives in the shared contract rather than in main because BOTH ends need it: main advertises these
  * names over the bridge, and the renderer has to recognise them coming back (see
- * {@link runnerVerbForAgentToolName}).
+ * {@link desktopVerbForAgentToolName}).
  */
 export function mcpToolNameForVerb(verb: string): string {
   return verb.replace(/\./g, '_');
 }
 
 /**
- * Resolves an agent-reported tool name back to the `runner.*` verb it invoked, or `undefined` when
+ * Resolves an agent-reported tool name back to the `desktop.*` verb it invoked, or `undefined` when
  * it is not one of ours.
  *
  * Accepts both the bare MCP name and a client-namespaced one (Claude Code reports
- * `mcp__jini__runner_project_list`), because the namespacing is the client's, not the server's, and
+ * `mcp__jini__desktop_project_list`), because the namespacing is the client's, not the server's, and
  * differs between clients.
  */
-export function runnerVerbForAgentToolName(agentToolName: string): string | undefined {
+export function desktopVerbForAgentToolName(agentToolName: string): string | undefined {
   let bare = agentToolName;
   if (bare.startsWith('mcp__')) {
     const separator = bare.indexOf('__', 'mcp__'.length);
