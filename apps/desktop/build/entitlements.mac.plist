@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the Developer ID build. Adapted from Tovu-Runner's own one-key file, which
+  records the measurements that removed the two extra keys electron-builder's default template
+  installs. `build/` is electron-builder's `buildResources` directory, whose contents are excluded
+  from the packaged app, so this file ships nowhere.
+
+  ONE DIFFERENCE FROM RUNNER MATTERS HERE, and it is the reason this file is not a straight copy.
+
+  Runner's file argues that `com.apple.security.cs.disable-library-validation` is unnecessary partly
+  because "the .node addons under Contents/Resources/tovu/ are loaded by the child `node` process
+  Runner spawns … A spawned binary gets its own code-signing context; this app's entitlements do not
+  govern it."
+
+  That argument does NOT transfer. This shell spawns `process.execPath` — the Electron binary
+  itself — with `ELECTRON_RUN_AS_NODE=1` (`src/tovu-server.js`'s `buildCliEnv`), deliberately, so
+  that it depends on no system Node install. The child is therefore THIS signed binary running under
+  THIS bundle's entitlements and hardened runtime, and it `dlopen`s `better-sqlite3`, `sharp` and
+  `argon2` out of `Contents/Resources/tovu/node_modules/`. Whether that succeeds depends on those
+  addons carrying a signature from the same Team ID, which is a property of what electron-builder
+  signs, not something Runner's reasoning settles.
+
+  So this file starts at one key on purpose, and the packaged app is LAUNCHED to find out. If a
+  native module is refused at load, the fix is to add `disable-library-validation` here together
+  with the observed failure that motivated it — the same discipline Runner's file applies to the
+  two keys it dropped. Do not add it pre-emptively: it is the single largest weakening available
+  here, since it is what otherwise stops arbitrary unsigned code being loaded into the process.
+-->
+<plist version="1.0">
+  <dict>
+    <!--
+      V8 cannot run without this. The hardened runtime blocks MAP_JIT allocations by default, and
+      every Electron process that evaluates JavaScript — main, renderer, and the utility helpers —
+      needs them. Without it the process is killed by the kernel on the first JIT allocation,
+      before any of this app's own code runs.
+    -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+  </dict>
+</plist>

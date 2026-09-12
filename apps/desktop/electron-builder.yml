@@ -1,0 +1,117 @@
+appId: com.tovu.desktop
+productName: Tovu
+directories:
+  output: release
+  buildResources: build
+
+# Only what the main process actually reads at runtime. `src/**` is NOT optional despite `dist/**`
+# existing: `main.js` imports its siblings from `./src/*.js` directly (they are plain ESM, never
+# bundled), `SPEECH_PRELOAD_PATH` points at `src/speech/preload-speech.cjs`, and `APP_ICON_PATH`
+# points at `src/renderer/public/brand/tovu-app-icon.png` — a Vite `publicDir` SOURCE whose copy
+# under `dist/renderer/brand/` is a different file. Shipping `dist/**` alone would leave
+# `applyDockIcon()` silently falling back (`main.js` swallows that error).
+files:
+  - main.js
+  - package.json
+  - "dist/**"
+  - "src/**"
+  - "!**/*.map"
+  - "!src/**/*.test.js"
+  - "!src/**/*.test.ts"
+  # `scripts/stage-payload.mjs` builds the payload; it is not part of the app.
+  - "!scripts/**"
+  # The staged payload is 427 MB and ships via `extraResources` below. Without this negation the
+  # default `files` walk would ALSO pack the whole tree into app.asar — the same bytes twice.
+  - "!staging/**"
+  - "!release/**"
+  - "!coverage/**"
+  - "!build/**"
+  - "!electron-builder.yml"
+  - "!tsconfig*.json"
+  - "!vite.config.mts"
+
+# The runnable Tovu tree the shell spawns as a child (`src/tovu-server.js`), assembled by
+# `scripts/stage-payload.mjs`. It lands OUTSIDE app.asar because it carries native `.node` addons
+# that must be real files on disk to `dlopen`, and because 385 MB of node_modules in an asar buys
+# nothing while making `asarUnpack` patterns the only thing between you and a broken load.
+#
+# Each entry keeps the payload's checkout-relative shape under `Resources/tovu/`, which is what lets
+# `packaged-paths.js`'s `payloadRoot` be a single directory that `resolveCliEntry` and
+# `buildServeEnv` join against identically in dev and packaged mode.
+extraResources:
+  - from: staging/tovu-payload/dist
+    to: tovu/dist
+    filter:
+      - "**/*"
+  # Both SPAs (`apps/admin/dist`, `apps/site-chat/dist`). Without these every site tab answers
+  # `/admin` and `/site-chat` with a 503; `stage-payload.mjs` refuses to stage a tree missing either.
+  - from: staging/tovu-payload/apps
+    to: tovu/apps
+    filter:
+      - "**/*"
+  # Copied from one level deeper rather than as part of a parent entry, because electron-builder's
+  # copy filter hard-codes a refusal to copy a source root named `node_modules`
+  # (app-builder-lib/out/util/filter.js — `if (relative === "node_modules") return false`), and no
+  # `filter` pattern can override it. Naming this tree's own root as the source sidesteps the check
+  # without renaming the directory, which has to stay `node_modules` for Node to resolve it.
+  - from: staging/tovu-payload/node_modules
+    to: tovu/node_modules
+    filter:
+      - "**/*"
+      # `files:` negations do not apply here — extraResources entries filter independently. The
+      # staging script already excludes these, so this is insurance against a future walk re-adding
+      # 132 MB of Bun runtimes.
+      - "!**/@oven/**"
+  # `resolveCliEntry` reads `bin.tovu` from `<payloadRoot>/package.json` in BOTH modes — staging it
+  # is what keeps that function free of any packaged-mode branch.
+  - from: staging/tovu-payload/package.json
+    to: tovu/package.json
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# Everything native here is Node-API and loads unmodified under Electron: `better-sqlite3` 13.0.3
+# ships flat N-API `prebuilds/` with `"gypfile": false` and no `build/` directory, `argon2` uses the
+# same prebuildify layout, and `sharp` resolves per-platform `@img/sharp-<platform>-<arch>` optional
+# dependencies. There is nothing to rebuild for Electron's ABI.
+#
+# Note this CONTRADICTS the comment in Tovu-Runner's own electron-builder.yml, which asserts the
+# staged tree's better-sqlite3 is "a node-gyp build for system Node's ABI". That was true of
+# better-sqlite3 11; it is false at 13.0.3, and it was the sole justification for Runner's ~90-line
+# system-Node probe. Verified against this repo's actual dependency versions, not inherited.
+npmRebuild: false
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    # Redundant in the strict sense — `release/mac*/Tovu.app` is the dmg target's own input and stays
+    # on disk regardless — but declaring it makes the unpacked bundle a supported output rather than
+    # an incidental leftover. That bundle is what `codesign --verify --deep --strict` and `spctl`
+    # are actually run against when a signing question comes up, and it costs no extra build time.
+    - dir
+  entitlements: build/entitlements.mac.plist
+  # Helpers get the same file, not a separate inherit variant: `com.apple.security.inherit` only
+  # means anything for a sandboxed (MAS) build, and this is Developer ID. The renderer and GPU
+  # helpers run V8 and so need `allow-jit` in their own right.
+  entitlementsInherit: build/entitlements.mac.plist
+  # `notarize` is deliberately left UNSET rather than true or false. Unset means electron-builder
+  # notarizes only when APPLE_API_KEY/APPLE_API_KEY_ID/APPLE_API_ISSUER (or another credential mode)
+  # is in the environment, and otherwise logs a skip and carries on. `false` would hard-disable it
+  # and make setting those variables silently useless.
+  #
+  # Electron ships 220 `locale.pak` files (~47 MB) under Electron Framework.framework — every
+  # Chromium UI language. This shell's own strings are English-only, and these paks translate only
+  # Chromium's own chrome (context menus, error pages).
+  electronLanguages:
+    - en
+
+dmg:
+  # Not a default, and not cosmetic. dmg-builder signs the image only when this is LITERALLY `true`
+  # (`dmg.js` build(): `if (this.options.sign === true)`), so leaving it out ships an image that
+  # `codesign -dvv` reports as "code object is not signed at all" — which is what the first run of
+  # Tovu-Runner's config produced, even though the .app inside it was signed correctly. The .dmg is
+  # the file people download, and an unsigned one is refused by Gatekeeper with
+  # `source=no usable signature` before its contents are ever examined.
+  sign: true

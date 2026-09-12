@@ -2,3 +2,9 @@
 # `ensureHelperCompiled`) — built on first use from the committed `.swift` source, never itself
 # committed. Same posture as any other local build output.
 src/speech/.build/
+
+# electron-builder inputs and outputs. `staging/tovu-payload/` is the 427MB runnable Tovu tree
+# `scripts/stage-payload.mjs` assembles from the repo's own build output; `release/` is the packaged
+# `.app`/`.dmg`. Both are regenerable build artifacts, never sources.
+staging/
+release/
