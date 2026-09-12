@@ -1,6 +1,7 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { NO_THEME_ID } from "@/lib/api";
 import { createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
 import {
   themePageCollisionAdminPath,
@@ -117,6 +118,30 @@ describe("useThemePages", () => {
     await waitFor(() => expect(result.current.pages).not.toBeNull());
     expect(result.current.pages).toEqual([]);
     expect(result.current.error).toBeNull();
+  });
+
+  /**
+   * 2026-09-12 regression: turning the theme off (`activeThemeId === NO_THEME_ID`) used to still
+   * chain into `getThemeDetail("none")`, which the server 404s — this hook then surfaced that as
+   * an `error`, and the Theme Pages screen rendered an error banner for a state the operator chose
+   * deliberately. `"none"` is a sentinel, not a real theme id, so no detail call should ever be
+   * made for it; the tab should show its ordinary empty state instead (`ThemePagesTab`'s `empty`
+   * prop), the same as a real theme that ships no pages.
+   */
+  it("short-circuits to [] without calling getThemeDetail when the theme is disabled (NO_THEME_ID)", async () => {
+    const port = createFakeThemePagesPort({
+      activeThemeId: NO_THEME_ID,
+      // Stands in for the server's real 404 on `getThemeDetail("none")` — set so the test fails
+      // loudly (via `result.current.error`) if the short-circuit regresses and this ever fires.
+      getThemeDetailError: new Error("404 theme not found"),
+    });
+    const getThemeDetailSpy = vi.spyOn(port, "getThemeDetail");
+    const { result } = renderHook(() => useThemePages(port));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+    expect(result.current.pages).toEqual([]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.activeThemeId).toBe(NO_THEME_ID);
+    expect(getThemeDetailSpy).not.toHaveBeenCalled();
   });
 
   it("sets the fallback error when getPresentation rejects", async () => {

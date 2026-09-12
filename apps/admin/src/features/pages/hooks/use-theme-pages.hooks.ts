@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { NO_THEME_ID } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
@@ -161,9 +162,16 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
       .then((r) => {
         const themeId = r.settings.activeThemeId;
         setActiveThemeId(themeId);
+        // `NO_THEME_ID` ("none") is the operator-chosen no-theme sentinel, not a real theme id —
+        // `getThemeDetail(NO_THEME_ID)` 404s server-side, which used to surface as this hook's
+        // `error` and put an error banner on a screen the operator disabled on purpose. There is no
+        // theme detail to fetch in that state, so this short-circuits straight to the same `[]` an
+        // installed-but-pageless theme resolves to (`ThemePagesTab`'s existing empty state), rather
+        // than making a call that can only ever fail.
+        if (themeId === NO_THEME_ID) return null;
         return port.getThemeDetail(themeId);
       })
-      .then((detail) => setPages(mapThemePageRows(detail.files)))
+      .then((detail) => setPages(detail ? mapThemePageRows(detail.files) : []))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load theme pages"));
   }, [port]);
 
