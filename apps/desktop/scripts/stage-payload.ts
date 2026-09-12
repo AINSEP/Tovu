@@ -53,7 +53,7 @@ import {
   resolveTargets,
   stageTransitiveDependencies,
   stripNonRuntimeFiles,
-} from "../src/stage-payload-lib.js";
+} from "../src/stage-payload-lib.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 

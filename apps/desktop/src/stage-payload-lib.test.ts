@@ -28,7 +28,7 @@ import {
   stageTransitiveDependencies,
   strippableReason,
   stripNonRuntimeFiles,
-} from "./stage-payload-lib.js";
+} from "./stage-payload-lib.ts";
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));
