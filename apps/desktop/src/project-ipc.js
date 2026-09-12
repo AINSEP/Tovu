@@ -7,7 +7,7 @@
  *
  * `stop` is deliberately absent — no control in the per-project bar calls it yet; closing the app
  * (`before-quit`, `main.js`) or deleting the project (`handleDelete` below) are the two ways a
- * fleet-opened site stops today. It stays registered as a throwing stub.
+ * sites-home-opened site stops today. It stays registered as a throwing stub.
  *
  * The channel literals below are INLINED rather than imported from `contracts/project.ts`, same
  * reason `runner-ipc-stubs.js` inlines its own: this is CommonJS main-process code and the
@@ -318,7 +318,7 @@ async function deleteProject(id, deps) {
     // By pid: `recordSiteOpened` can leave a live sibling instance's row for this same site dir,
     // and a close by site dir alone would drop that one too (D-07).
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
-    // A fleet-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
+    // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
     // `main.js` — so this is optional, not a missing null check.
     if (openEntry.window && !openEntry.window.isDestroyed()) openEntry.window.destroy();
   }
@@ -425,7 +425,7 @@ function rescanProjects(deps) {
  * @param {object} deps.openSites live open sites, keyed by site dir — `main.js`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
  *   `site-supervisor.js`'s supervisor, which additionally drops an entry whose child has died and
- *   answers `lastExitOf` about it. A fleet-opened (embedded-tab) entry carries no `window`; only
+ *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
  * @param {{run: Function}} deps.serializer per-site-dir operation serializer (`keyed-serializer.js`).
  * @param {string} deps.projectsPath `project-registry.js`'s tracked-project JSON file.

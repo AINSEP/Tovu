@@ -1,5 +1,5 @@
 /**
- * @file The `webPreferences` policy the fleet window applies to every `<webview>` guest it attaches
+ * @file The `webPreferences` policy the sites home window applies to every `<webview>` guest it attaches
  * — `main.js`'s `will-attach-webview` handler, moved out so it can be asserted directly.
  *
  * **What it is defending.** `webviewTag: true` lets the PAGE choose its guests' `webPreferences`
@@ -14,7 +14,7 @@
  * `apps/admin/src/features/voice-input/voice-input-port.ts` looks for to decide whether it is
  * running inside this shell; absent, `voice-unavailability.ts` renders the `no-desktop-shell` copy
  * telling the operator that voice input needs the desktop app. Inside the desktop app. And since the
- * fleet UI became the default (2026-09-06), the embedded tab is the ORDINARY way a site is opened,
+ * sites home UI became the default (2026-09-06), the embedded tab is the ORDINARY way a site is opened,
  * so that was the default experience — while the very same admin page opened as a standalone window
  * (`createWindow`, same `SPEECH_PRELOAD_PATH`) had working voice all along.
  *

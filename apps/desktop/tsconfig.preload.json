@@ -6,7 +6,7 @@
   // which has no counterpart here until phase 2 of the port.
   //
   // `preload.mts` -> `dist/preload/preload.mjs`: Electron 43 supports a native-ESM preload only in
-  // an unsandboxed, context-isolated renderer, which is exactly how `main.js` creates the fleet
+  // an unsandboxed, context-isolated renderer, which is exactly how `main.js` creates the sites home
   // window (and only that window — site-admin windows keep `sandbox: true` and the `.cjs` speech
   // preload).
   "compilerOptions": {

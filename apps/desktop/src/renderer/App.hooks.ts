@@ -8,7 +8,7 @@
  * file carries no JSX and no rendering decisions of its own — those stay in `App.tsx`, unchanged
  * in shape.
  *
- * The plain functions mixed in here (`deriveFleetView`, `computeCanCreate`,
+ * The plain functions mixed in here (`deriveSitesHomeView`, `computeCanCreate`,
  * `buildCreateProjectInput`, `siteSlug`) are deliberately NOT hooks. Each is a rule that used to
  * be inlined into a hook body, pulled out to where it can be called with an object and asserted
  * against directly — no React, no component, no hook harness. When something in this file can be
@@ -143,7 +143,7 @@ export function useProjectRescan(setProjects: Dispatch<SetStateAction<readonly P
 /**
  * `runner.navigate` is a tool the fleet chat can actually call, so the nav is agent-movable and
  * not only user-movable. Nothing else in main pushes on this channel. It also pulls focus back
- * to the fleet tab — navigating to a Runner section while a site's admin fills the screen would
+ * to the sites home tab — navigating to a Runner section while a site's admin fills the screen would
  * otherwise change something the operator cannot see.
  *
  * Takes the RAW `setActiveId`, deliberately not `useSectionNav`'s `selectSection`. Agent
@@ -185,7 +185,7 @@ export interface SectionNavState {
 
 /**
  * Which Runner screen is showing: the current section, whether the Appearance page is layered over
- * it, and whether the create-website form has replaced the fleet grid.
+ * it, and whether the create-website form has replaced the sites grid.
  *
  * These three used to be raw `useState` calls in `App`, kept there on the argument that they cross
  * sibling subtrees and are written together by coordinated callbacks. That argument is about
@@ -195,10 +195,10 @@ export interface SectionNavState {
  * function the unit under test; `App` still does the wiring, it just no longer holds the setters.
  *
  * `setActiveTab` arrives as an argument rather than being owned here because tabs are a separate
- * concern with a separate hook (`useProjectTabs`) — but dropping to the fleet tab is genuinely part
+ * concern with a separate hook (`useProjectTabs`) — but dropping to the sites home tab is genuinely part
  * of every section-level move, so the call belongs inside these callbacks rather than duplicated at
  * each `App` call site. That ordering constraint (tabs hook first, this one second) is why the
- * `activeId`/`appearanceOpen` half of the old `useProjectTabs` became `deriveFleetView` below.
+ * `activeId`/`appearanceOpen` half of the old `useProjectTabs` became `deriveSitesHomeView` below.
  */
 export function useSectionNav(
   setActiveTab: Dispatch<SetStateAction<string | null>>,
@@ -221,7 +221,7 @@ export function useSectionNav(
   };
 
   // Appearance covers the whole content area. Dropping the active tab means closing Appearance
-  // returns to the fleet grid rather than to a workspace the operator has not seen for a while.
+  // returns to the sites grid rather than to a workspace the operator has not seen for a while.
   const openAppearance = () => {
     setAppearanceOpen(true);
     setActiveTab(null);
@@ -255,7 +255,7 @@ export interface ProjectTabsState {
 
 /**
  * Owns which project tabs are open and which one is selected — the state, and nothing derived
- * from it. Everything that was derived here now lives in `deriveFleetView`, which needs section
+ * from it. Everything that was derived here now lives in `deriveSitesHomeView`, which needs section
  * state this hook does not have.
  *
  * `openProjectTab` only ever adds a tab and selects it — it does not itself ask main to start
@@ -265,7 +265,7 @@ export interface ProjectTabsState {
  * instant and local, the other async and IPC-backed.
  */
 export function useProjectTabs(): ProjectTabsState {
-  // `null` active tab means the fleet tab (Runner's own sections); a string means that project's
+  // `null` active tab means the sites home tab (Runner's own sections); a string means that project's
   // embedded admin.
   const [openTabs, setOpenTabs] = useState<readonly string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -277,8 +277,8 @@ export function useProjectTabs(): ProjectTabsState {
 
   const closeProjectTab = (id: string) => {
     setOpenTabs((current) => current.filter((tabId) => tabId !== id));
-    // Closing the tab you are looking at falls back to the fleet tab rather than guessing a
-    // neighbour — the fleet tab always exists, so there is no second empty-state to design.
+    // Closing the tab you are looking at falls back to the sites home tab rather than guessing a
+    // neighbour — the sites home tab always exists, so there is no second empty-state to design.
     setActiveTab((current) => (current === id ? null : current));
   };
 
@@ -304,7 +304,7 @@ export interface ProjectMutationsState {
 }
 
 /**
- * The fleet mutations `App` offers — open the create form, create, delete, cancel a create — plus
+ * The sites-home mutations `App` offers — open the create form, create, delete, cancel a create — plus
  * the record the last successful create produced and the counter that clears the create form.
  *
  * These lived inline in `App` on the argument that `handleCreate` needs `setProjects` from the
@@ -397,14 +397,14 @@ export function useProjectMutations(deps: {
   return { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey };
 }
 
-export interface FleetView {
+export interface SitesHomeView {
   openProjects: readonly ProjectRecord[];
   // Tabs are a Projects mechanic. Every other section is a single Runner screen, so a strip above
   // one would advertise routes that section cannot take.
   inProjects: boolean;
   activeProject: ProjectRecord | undefined;
   showProjectTab: boolean;
-  showFleet: boolean;
+  showSitesHome: boolean;
   visibleWorkspaceId: string | null;
   // Whether the (permanently mounted, see `CreateWebsiteHost` in `App.tsx`) create form should be
   // the thing on screen right now, as opposed to hidden behind Appearance, a project's workspace,
@@ -414,21 +414,21 @@ export interface FleetView {
 
 /**
  * Everything `App` renders from that is a pure function of section state + tab state + the polled
- * project list: whether the fleet grid, a project's workspace, or the create form is on screen,
+ * project list: whether the sites grid, a project's workspace, or the create form is on screen,
  * and which one.
  *
  * A plain function, not a hook, and that is the point. It holds no state and calls nothing from
  * React, so the whole "which surface should be showing" rule set is exercisable by calling it with
  * an object — no renderer, no component, no hook harness.
  */
-export function deriveFleetView(input: {
+export function deriveSitesHomeView(input: {
   activeId: RunnerSectionId;
   appearanceOpen: boolean;
   activeTab: string | null;
   openTabs: readonly string[];
   projects: readonly ProjectRecord[];
   isCreating: boolean;
-}): FleetView {
+}): SitesHomeView {
   const openProjects = input.openTabs
     .map((id) => input.projects.find((project) => project.id === id))
     .filter((project): project is ProjectRecord => project !== undefined);
@@ -443,21 +443,21 @@ export function deriveFleetView(input: {
   // Deriving this from `inProjects` as well — not from `activeTab` alone — is what makes a
   // project's workspace unreachable outside Projects rather than merely unlikely to be reached.
   const showProjectTab = inProjects && activeProject !== undefined;
-  const showFleet = !showProjectTab;
+  const showSitesHome = !showProjectTab;
   // Every open project's workspace stays mounted (see `App`'s `<main>` body); this is the one that
   // is not hidden. Appearance layers over the whole content area, so it hides the workspace too.
   const visibleWorkspaceId = !input.appearanceOpen && showProjectTab ? input.activeTab : null;
   // The create form is a fourth layer competing for the same space as Appearance and a project's
   // workspace, so it is visible only when none of those are: not over Appearance, not over a
   // project tab, not over a non-Projects section.
-  const showCreateForm = input.isCreating && !input.appearanceOpen && showFleet && inProjects;
+  const showCreateForm = input.isCreating && !input.appearanceOpen && showSitesHome && inProjects;
 
   return {
     openProjects,
     inProjects,
     activeProject,
     showProjectTab,
-    showFleet,
+    showSitesHome,
     visibleWorkspaceId,
     showCreateForm,
   };

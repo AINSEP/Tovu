@@ -7,7 +7,7 @@ import { GearIcon, SectionIcon } from './icons.js';
 import { runnerInventoryBridge } from './runner-api.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
-  deriveFleetView,
+  deriveSitesHomeView,
   useConversationDeleteConfirmation,
   useDismissibleDropdown,
   useExpandedMode,
@@ -71,8 +71,8 @@ export function App({
   const { rescanning, rescanError, rescan } = useProjectRescan(setProjects);
   const { adding, addError, addSite } = useAddSite(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
-  // every section-level move also drops back to the fleet tab. What used to make that ordering
-  // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveFleetView`.
+  // every section-level move also drops back to the sites home tab. What used to make that ordering
+  // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
   const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab } = useTabs();
   const {
     activeId,
@@ -85,8 +85,8 @@ export function App({
     startCreating,
     stopCreating,
   } = useNav(setActiveTab);
-  const { openProjects, inProjects, showProjectTab, showFleet, visibleWorkspaceId, showCreateForm } =
-    deriveFleetView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
+  const { openProjects, inProjects, showProjectTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
+    deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
   const { expanded, toggleExpanded } = useExpanded(showProjectTab);
   useRunnerNavigation(setActiveId, setActiveTab);
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
@@ -105,7 +105,7 @@ export function App({
       {!expanded && (
       <TopNav
         activeId={activeId}
-        onFleet={showFleet && !appearanceOpen}
+        onSitesHome={showSitesHome && !appearanceOpen}
         runningCount={runningCount}
         theme={theme}
         onThemeChange={setTheme}
@@ -118,7 +118,7 @@ export function App({
         <TabStrip
           projects={openProjects}
           activeTab={showProjectTab ? activeTab : null}
-          onSelectFleet={() => setActiveTab(null)}
+          onSelectSitesHome={() => setActiveTab(null)}
           onSelectTab={setActiveTab}
           onCloseTab={closeProjectTab}
         />
@@ -128,7 +128,7 @@ export function App({
         <MainArea
           appearanceOpen={appearanceOpen}
           onCloseAppearance={closeAppearance}
-          showFleet={showFleet}
+          showSitesHome={showSitesHome}
           activeId={activeId}
           isCreating={isCreating}
           active={active}
@@ -176,7 +176,7 @@ export function App({
           working one — an unbuilt placeholder was blocking the built feature.
 
           So the one chat entry point is the site's own, inside the guest, where the tools and the
-          content database are. That leaves the fleet tab with no assistant, which is the intended
+          content database are. That leaves the sites home tab with no assistant, which is the intended
           trade: there is no site in view there to assist with. When a workspace-level chat is
           actually built it should be a PANEL reachable from this app's own chrome, not a second
           floating button competing with the guest's. `RunnerChatPane` and the `.chat-fab*` rules
@@ -197,7 +197,7 @@ export function App({
  */
 function TopNav({
   activeId,
-  onFleet,
+  onSitesHome,
   runningCount,
   theme,
   onThemeChange,
@@ -205,7 +205,7 @@ function TopNav({
   onSelectSection,
 }: {
   activeId: RunnerSectionId;
-  onFleet: boolean;
+  onSitesHome: boolean;
   runningCount: number;
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
@@ -221,9 +221,9 @@ function TopNav({
 
       <div className="topnav__links">
         {visibleSections().map((section) => {
-          // A section is only "current" when the fleet tab is what's on screen. With a site's
+          // A section is only "current" when the sites home tab is what's on screen. With a site's
           // admin in view, no Runner section is being displayed, so none should read as active.
-          const isActive = onFleet && section.id === activeId;
+          const isActive = onSitesHome && section.id === activeId;
           return (
             <NavLink
               key={section.id}
@@ -359,8 +359,8 @@ function SettingsControl({
 
 /**
  * One tab per open site, plus a permanent leading tab for Tovu's own screens. That leading tab is
- * labelled "All" because what it shows is the grid of every website; the `fleet` in `tab--fleet`
- * and `onSelectFleet` is the internal name for the same thing.
+ * labelled "All" because what it shows is the grid of every website; `tab--sites-home`
+ * and `onSelectSitesHome` are the internal names for the same thing.
  *
  * It is not closable by design: it is the only route back to the project list, and a tab strip
  * that can be emptied needs a second way home that would duplicate the nav above it.
@@ -368,13 +368,13 @@ function SettingsControl({
 function TabStrip({
   projects,
   activeTab,
-  onSelectFleet,
+  onSelectSitesHome,
   onSelectTab,
   onCloseTab,
 }: {
   projects: readonly ProjectRecord[];
   activeTab: string | null;
-  onSelectFleet: () => void;
+  onSelectSitesHome: () => void;
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
 }) {
@@ -383,9 +383,9 @@ function TabStrip({
       <button
         type="button"
         role="tab"
-        className={`tab tab--fleet ${activeTab === null ? 'is-active' : ''}`}
+        className={`tab tab--sites-home ${activeTab === null ? 'is-active' : ''}`}
         aria-selected={activeTab === null}
-        onClick={onSelectFleet}
+        onClick={onSelectSitesHome}
       >
         <span className="tab__label">All</span>
       </button>
@@ -458,8 +458,8 @@ function ProjectWorkspaces({
  * One open project's tab: the site's own `tovu serve` output, embedded.
  *
  * The guest is an Electron `<webview>` rather than an `<iframe>` so it runs in its own process —
- * this renderer holds `window.tovuRunner`, which can create and delete any project in the fleet,
- * and a site has no business executing beside it. `main.js`'s `openFleetWindow` enables the tag
+ * this renderer holds `window.tovuRunner`, which can create and delete any project in Sites Home,
+ * and a site has no business executing beside it. `main.js`'s `openSitesHomeWindow` enables the tag
  * and pins the guest's `webPreferences` from `will-attach-webview`.
  *
  * The embed OPENS on the site's ADMIN rather than its public front end: the admin is the surface
@@ -737,7 +737,7 @@ function CreateWebsiteHost({
 
 /**
  * Everything `App` puts inside `<main>` other than the two always-mounted layers — the project
- * workspaces and the create form host: the Appearance page, or the fleet header + content,
+ * workspaces and the create form host: the Appearance page, or the sites home header + content,
  * depending on what the operator has open. `active` arrives as the section object rather than
  * pre-split label/description strings so its two `?? fallback`s — one per consumer, each with its
  * own fallback text — live in one place.
@@ -745,7 +745,7 @@ function CreateWebsiteHost({
 function MainArea({
   appearanceOpen,
   onCloseAppearance,
-  showFleet,
+  showSitesHome,
   activeId,
   isCreating,
   active,
@@ -765,7 +765,7 @@ function MainArea({
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
-  showFleet: boolean;
+  showSitesHome: boolean;
   activeId: RunnerSectionId;
   isCreating: boolean;
   active: RunnerSection | undefined;
@@ -786,7 +786,7 @@ function MainArea({
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
   }
-  if (!showFleet) return null;
+  if (!showSitesHome) return null;
   return (
     <>
       <MainHeader
@@ -977,7 +977,7 @@ function MainContent({
     return <NotBuilt label={activeLabel} description={activeDescription} />;
   }
   // The form itself lives in `CreateWebsiteHost` now — always mounted, a sibling of `MainArea` —
-  // so there is nothing left to render here. This branch still has to exist: without it the fleet
+  // so there is nothing left to render here. This branch still has to exist: without it the sites
   // grid below would show through beneath the (visible) form host, and `MainHeader` still needs
   // `isCreating` to swap its title, so the flag stays threaded through even though this component
   // no longer acts on it beyond staying out of the way.

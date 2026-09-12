@@ -195,7 +195,7 @@ async function redeemBootSession(deps) {
  * `TOVU_ADMIN_PASSWORD` is unset, and whose seed does not rotate an owner that already exists). A
  * credential that works therefore EXISTS; it is a build-time default this app has never shown them.
  * And the only automatic recovery (`endSiteSession` on quit) is wired solely to `openSiteWindow`'s `closed` event —
- * which the fleet `<webview>` path never reaches. A stale cookie there survives every relaunch and
+ * which the sites home `<webview>` path never reaches. A stale cookie there survives every relaunch and
  * re-forces that same manual login on a site the app itself just opened.
  *
  * So this is now strictly the CHEAP NEGATIVE inside {@link hasValidSession}: "is there even a
@@ -223,7 +223,7 @@ async function hasActiveSessionCookie(deps) {
  * token minted**, and therefore a login form for a password this operator was never told (see
  * {@link hasActiveSessionCookie} for where the working credential actually comes from: the site's
  * own seeding default, not this shell). The in-file claim that the operator simply "meets the ordinary login
- * screen" assumed a recovery that the fleet path cannot reach: `endSiteSession` is wired only to
+ * screen" assumed a recovery that the sites home path cannot reach: `endSiteSession` is wired only to
  * `openSiteWindow`'s `closed` event, so for a site opened from the Projects grid the stale cookie
  * is never cleared and every later launch repeats the same skip. Not a hard lockout — the seeding
  * default does work — but a dead end for anyone who has only ever used this app. That is why

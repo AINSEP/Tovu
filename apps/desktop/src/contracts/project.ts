@@ -122,7 +122,7 @@ export const RUNNER_PROJECT_CHANNELS = {
    */
   addSite: 'runner:projects:add-site',
   /** Not implemented yet — no control in the per-project bar calls it. Closing the app
-   *  (`before-quit`) or deleting the project are the two ways a fleet-opened site stops today. */
+   *  (`before-quit`) or deleting the project are the two ways a sites-home-opened site stops today. */
   stop: 'runner:projects:stop',
   /** Irreversible: stops the process, removes the install dir, drops the row. Returns nothing. */
   delete: 'runner:projects:delete',

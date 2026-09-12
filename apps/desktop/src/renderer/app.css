@@ -119,7 +119,7 @@ button { font: inherit; color: inherit; }
 /*
  * Three stacked rows, not two columns. Runner used to own the left edge with a rail; it does
  * not any more, because a project tab embeds that site's Tovu admin and the admin brings its
- * own left sidebar plus its own site-assistant chat. Two sidebars side by side put the fleet's
+ * own left sidebar plus its own site-assistant chat. Two sidebars side by side put the sites screen's
  * controls and one site's controls on the same axis with nothing to tell them apart — the exact
  * blur `contracts/sections.ts` exists to prevent. Runner keeps the horizontal axis; whatever is
  * in the tab keeps the vertical one.
@@ -437,7 +437,7 @@ button { font: inherit; color: inherit; }
 
 .tab.is-active { background: var(--fg); color: var(--bg); }
 
-.tab--fleet {
+.tab--sites-home {
   padding: 0 1.375rem;
   border: 0;
   font: inherit;
@@ -468,7 +468,7 @@ button { font: inherit; color: inherit; }
 .tab.is-active .tab__label { font-weight: 600; }
 
 /* Status travels with the tab so a site that died while you were looking at another one is
-   visible without switching back to the fleet grid. */
+   visible without switching back to the sites grid. */
 .tab__dot {
   width: 6px; height: 6px;
   flex: none;
@@ -875,7 +875,7 @@ button { font: inherit; color: inherit; }
 }
 
 /*
- * Revealed on hover or keyboard focus rather than always drawn — a fleet screen whose every
+ * Revealed on hover or keyboard focus rather than always drawn — a sites screen whose every
  * tile carries a visible delete button reads as a screen about deleting. `pointer-events` goes
  * with the opacity so the hidden state cannot be clicked by accident.
  */
@@ -1202,7 +1202,7 @@ button { font: inherit; color: inherit; }
 }
 .chat-fab-open span[aria-hidden="true"]::before { content: '×'; font-size: 1.375rem; color: #fff; }
 
-/* `.chat-fab--disabled` used to live here, dimming a placeholder FAB on the fleet page. Removed
+/* `.chat-fab--disabled` used to live here, dimming a placeholder FAB on the sites home page. Removed
    with the button itself — see `App.tsx`'s own comment where that button was for why a host-page
    FAB was worse than none: it advertised a chat with no main-process half, and being
    `position: fixed` over the `<webview>` it intercepted clicks meant for the site's real

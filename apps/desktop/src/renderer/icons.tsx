@@ -17,7 +17,7 @@ const paths: Record<RunnerSectionId, JSX.Element> = {
       <path d="M8 17v-4.1a2 2 0 0 1 4 0V17" />
     </>
   ),
-  // A 2×2 grid: the fleet, several things held at once.
+  // A 2×2 grid: the sites, several things held at once.
   projects: (
     <>
       <rect x="3" y="3" width="6" height="6" rx="1.5" />

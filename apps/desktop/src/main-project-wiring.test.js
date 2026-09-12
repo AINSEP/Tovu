@@ -51,11 +51,11 @@ test("migrateLegacyDismissals runs BEFORE the seed, or a removed project is re-s
   );
 });
 
-test("the boot discovery pass runs before the fleet window opens", () => {
-  // Against the CALL, not `openFleetWindow`'s own definition, which appears earlier in the file and
+test("the boot discovery pass runs before the sites home window opens", () => {
+  // Against the CALL, not `openSitesHomeWindow`'s own definition, which appears earlier in the file and
   // would make this comparison pass no matter where the scan went.
-  const openCall = source.indexOf("openFleetWindow();");
-  assert.notEqual(openCall, -1, "expected an openFleetWindow(); call in the fleet branch");
+  const openCall = source.indexOf("openSitesHomeWindow();");
+  assert.notEqual(openCall, -1, "expected an openSitesHomeWindow(); call in the sites-home branch");
   assert.ok(
     callIndex("rescanProjects") < openCall,
     "a scan that ran after the window opened would leave the first render showing the un-scanned list",
@@ -65,10 +65,10 @@ test("the boot discovery pass runs before the fleet window opens", () => {
 test("the migration and the seed are handed the SAME dev-fallback directory", () => {
   // One named constant, checked at both call sites. Two copies of the same `path.join` would pass a
   // looser test today and silently diverge the moment either moved.
-  assert.match(source, /migrateLegacyDismissals\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR\)/);
+  assert.match(source, /migrateLegacyDismissals\(sitesCtx\.projectsPath, DEV_FALLBACK_SITE_DIR\)/);
   // The classifier argument is pinned by its own test above; this one is about the DIRECTORY, so
   // it matches whichever classifier form is passed rather than restating that decision here.
-  assert.match(source, /seedDevFallbackProject\(fleetCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
+  assert.match(source, /seedDevFallbackProject\(sitesCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
   // The definition moved into `packaged-paths.js` (2026-09-11) so a packaged app can have NO dev
   // fallback rather than one pointing inside a read-only bundle. Pinned as "main.js takes it from
   // the one resolver" plus a real-value check on that resolver, instead of re-stating the literal
@@ -89,10 +89,10 @@ test("the shared deps object the handlers get is the one the boot scan is run ag
 
 test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
   const depsStart = source.indexOf("const projectDeps = {");
-  assert.notEqual(depsStart, -1, "expected a projectDeps object in the fleet branch");
+  assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
   const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
   assert.match(depsBlock, /projectScanRoots: PROJECT_SCAN_ROOTS/);
-  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(fleetCtx\.statePath\)/);
+  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(sitesCtx\.statePath\)/);
 });
 
 test("the scan root is the sites directory the dev fallback already lives in", () => {
@@ -121,13 +121,13 @@ test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot"
 test("the two bulk site scans in the boot chain use the NON-throwing classifier", () => {
   // D-01. `classifySiteDir` throws by design, for the operator-picked-folder path where the dialog
   // shows the error. Both boot-time scans run inside the `whenReady()` chain whose only handler is
-  // `reportBootFailure`, and before `openFleetWindow()` — so one unreadable candidate used to show
+  // `reportBootFailure`, and before `openSitesHomeWindow()` — so one unreadable candidate used to show
   // a dialog and quit, with no renderer for the Rescan button to live in.
   //
   // Source text rather than behaviour, for this file's stated reason. It is still the check that
   // matters: `site-dir-store.js` and `project-registry.js` are behaviourally covered, and what
   // only main.js can get wrong is handing them the throwing form.
-  assert.match(source, /seedDevFallbackProject\(\s*fleetCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
+  assert.match(source, /seedDevFallbackProject\(\s*sitesCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
     "seedDevFallbackProject must be given the non-throwing classifier");
   assert.match(source, /^\s*classifySiteDir: classifySiteDirSafely,$/m,
     "projectDeps.classifySiteDir (which rescanProjects scans with) must be the non-throwing classifier");

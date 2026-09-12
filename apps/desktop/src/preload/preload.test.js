@@ -3,7 +3,7 @@
  *
  * Mirrors `src/speech/preload-speech.test.js` exactly — same regex-over-source approach, same
  * source of truth (`speech-ipc.js`'s own exports), for the same reason: two preloads now expose
- * `window.tovuVoice` (the sandboxed `.cjs` one on site-admin windows, this ESM one on the fleet
+ * `window.tovuVoice` (the sandboxed `.cjs` one on site-admin windows, this ESM one on the sites home
  * window), and a channel rename that updated only one of them would leave the mic silently dead on
  * whichever window was missed.
  *

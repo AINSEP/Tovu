@@ -7,7 +7,7 @@
  * can strand the child. Tovu-Runner answers that with a pid registry and boot-time orphan
  * reconciliation; that machinery belongs with the fleet supervisor, not here, and is reported rather
  * than ported." With N sites open at once, the SAME hard kill strands N children instead of one —
- * this file is that machinery, now that there is a fleet-shaped reason to build it: Tovu-Runner's own
+ * this file is that machinery, now that the sites home UI gives good reason to build it: Tovu-Runner's own
  * `project-provisioner.ts:617-871` (~255 lines) cluster (`isProcessAlive`, `isProjectSidecar`,
  * `terminateOrphan`, `reconcile`), reproduced at the size this shell actually needs.
  *
@@ -194,7 +194,7 @@ function readProcessParentPid(pid) {
  * sibling instance's perfectly healthy child.
  *
  * This distinction became load-bearing when {@link reconcileOrphans} moved above `main.js`'s
- * boot-mode split so the fleet UI reaps orphans too. Nothing prevents two Electron instances running
+ * boot-mode split so the sites home UI reaps orphans too. Nothing prevents two Electron instances running
  * at once (there is no `requestSingleInstanceLock`), and the identity proof above cannot help: a
  * live sibling's child matches its own row's argv EXACTLY, by construction. Without this check the
  * second instance's boot would SIGTERM every site the first instance has open.

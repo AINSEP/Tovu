@@ -1,5 +1,5 @@
 /**
- * Deliberately narrow renderer bridge for the FLEET window. This is a native ESM Electron preload:
+ * Deliberately narrow renderer bridge for the SITES HOME window. This is a native ESM Electron preload:
  * its `.mjs` output and unsandboxed, context-isolated renderer configuration are required by
  * Electron's ESM loader. The page remains isolated from Node and receives only the two fixed,
  * explicit allowlists below.
@@ -8,7 +8,7 @@
  * `tovuVoice` is this shell's own addition, and the reason for it is that Electron takes exactly
  * ONE `preload` per window. Site-admin windows keep `sandbox: true` and
  * `src/speech/preload-speech.cjs` untouched — the wiring fixed in `4b89cd09` is not disturbed by
- * this file. The fleet window cannot use that preload (it needs `tovuRunner` too), so rather than
+ * this file. The sites home window cannot use that preload (it needs `tovuRunner` too), so rather than
  * dropping one bridge it re-exposes both, and the mic keeps working inside the ported UI.
  *
  * **The two speech channel names below are INLINED, not imported from `speech-ipc.js`.** That
@@ -122,7 +122,7 @@ contextBridge.exposeInMainWorld(
 
 /**
  * Byte-for-byte the same surface `src/speech/preload-speech.cjs` exposes, against the same two
- * channels `registerSpeechIpc` registers — see this file's header for why the fleet window needs
+ * channels `registerSpeechIpc` registers — see this file's header for why the sites home window needs
  * its own copy rather than sharing that preload.
  */
 contextBridge.exposeInMainWorld(

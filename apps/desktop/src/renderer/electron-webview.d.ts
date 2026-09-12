@@ -4,7 +4,7 @@
  *
  * A project tab embeds that site's own `tovu serve` output in a `<webview>` rather than an
  * `<iframe>`, so the guest runs in its own process instead of the one holding the privileged
- * `window.tovuRunner` bridge. The tag is enabled by `webviewTag` in `main.js`'s `openFleetWindow`,
+ * `window.tovuRunner` bridge. The tag is enabled by `webviewTag` in `main.js`'s `openSitesHomeWindow`,
  * which also pins the guest's `webPreferences` from `will-attach-webview` — nothing the renderer
  * writes here can widen them.
  *

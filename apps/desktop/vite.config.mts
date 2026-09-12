@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * The fleet renderer's build. Ported from Tovu-Runner's own `vite.config.ts`; the two deviations
+ * The sites home renderer's build. Ported from Tovu-Runner's own `vite.config.ts`; the two deviations
  * from it are noted inline.
  *
  * `.mts` rather than `.ts` on purpose: it pins the config to ESM independently of this package's

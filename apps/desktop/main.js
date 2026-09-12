@@ -9,22 +9,22 @@
  *
  * Three boot modes, one product:
  *
- * 0. **Fleet UI** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
+ * 0. **Sites Home** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
  *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
  *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this
  *    SAME window, in a `<webview>` (`App.tsx`'s `ProjectWorkspace`), rather than popping it into its
  *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was
  *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.js`),
  *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse
- *    below (the fleet counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a
- *    throwing stub — no control in the per-project bar calls it yet. See `fleetUiRequested`'s own doc
+ *    below (the sites-home counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a
+ *    throwing stub — no control in the per-project bar calls it yet. See `sitesUiRequested`'s own doc
  *    for exactly which env vars bypass this default and fall through to modes 1/2 instead.
  *
  * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —
  *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so
  *    web mode and desktop mode run side by side against the same server. Single-site only — there
- *    is exactly one URL to attach to — and unrelated to everything else below. Bypasses the fleet
- *    UI unconditionally: an automation/dev workflow that already names its one destination has no
+ *    is exactly one URL to attach to — and unrelated to everything else below. Bypasses the sites
+ *    home UI unconditionally: an automation/dev workflow that already names its one destination has no
  *    use for a project picker.
  *
  * 2. **Own server** (`TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS` set). Spawns Tovu's OWN
@@ -34,17 +34,17 @@
  *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change to
  *    open a second, third, or Nth site: `src/tovu-server.js`'s `startTovuServer` was already a
  *    pure `{repoRoot, siteDir, port} -> handle` function with no single-instance assumption
- *    anywhere in it. Also bypasses the fleet UI unconditionally, same reasoning as attach mode —
+ *    anywhere in it. Also bypasses the sites home UI unconditionally, same reasoning as attach mode —
  *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation
- *    byte-for-byte unaffected by the fleet UI becoming the default.
+ *    byte-for-byte unaffected by the sites home UI becoming the default.
  *
  * **Multi-site, concretely (own-server/attach modes):**
  * - `openSites` (a `Map<siteDir, {server, window?}>`) replaces the old single `tovuServer` variable.
- *   The fleet UI (mode 0) shares this same map but never sets `window` — see `openSiteServer`.
+ *   The sites home UI (mode 0) shares this same map but never sets `window` — see `openSiteServer`.
  * - Each open site gets its own `BrowserWindow`, titled with the site's own name — Electron's native
  *   `role: "windowMenu"` (macOS) then lists every open window and switches between them for free.
  *   That IS the site switcher: no custom panel was needed, every open site is just another window.
- *   The fleet UI's own switcher is its tab strip instead (`App.tsx`'s `TabStrip`) — one window, N tabs.
+ *   The sites home UI's own switcher is its tab strip instead (`App.tsx`'s `TabStrip`) — one window, N tabs.
  * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites
  *   are already open. "Open Recent" lists `site-dir-store.js`'s existing MRU.
  * - `keyed-serializer.js` serializes opens PER SITE DIR, so a fast double-click on the same recent-
@@ -61,7 +61,7 @@
  * with the fleet supervisor... reported rather than ported." It is now built, sized to what this
  * shell actually needs (not Tovu-Runner's full fleet registry). That reconciliation runs for EVERY
  * boot mode ({@link reconcileOrphansOnBoot}, above the mode split); it lived inside own-server mode
- * alone until 2026-09-06, which left the fleet UI — the default, and the mode that actually produces
+ * alone until 2026-09-06, which left the sites home UI — the default, and the mode that actually produces
  * these rows — leaking a stranded child per open site on every hard kill.
  *
  * **The `dist/` schema-skew fix**: own-server mode now runs the CLI's own TypeScript source under
@@ -80,15 +80,15 @@
  * reports every opened window's URL and title, then quits 0 once all have loaded (1 on any failure).
  *
  * Environment:
- * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported fleet renderer explicitly (redundant
+ * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported sites home renderer explicitly (redundant
  *   with the default now, kept for anyone who has it set); any other non-empty value forces the
- *   pre-flip behavior even with no site-selecting env var set. See `fleetUiRequested`.
+ *   pre-flip behavior even with no site-selecting env var set. See `sitesUiRequested`.
  * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site);
- *   also bypasses the fleet UI default.
+ *   also bypasses the sites home UI default.
  * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker;
- *   also bypasses the fleet UI default.
+ *   also bypasses the sites home UI default.
  * - `TOVU_DESKTOP_SITE_DIRS` — comma-separated site dirs to open at launch, one window each —
- *   bypasses the picker/MRU/dev-fallback precedence entirely, and the fleet UI default. Chiefly
+ *   bypasses the picker/MRU/dev-fallback precedence entirely, and the sites home UI default. Chiefly
  *   for verification/automation (proving N sites boot concurrently without driving the menu by
  *   hand); a real user reaches the
  *   same result through "Open Site…"/"Open Recent" after the first site opens.
@@ -148,16 +148,16 @@ if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
  *  neither this path nor {@link registerSpeechIpc} ever called from here). */
 const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
 
-/** The built fleet renderer. `npm run build:renderer` produces it; `openFleetWindow` reports its
+/** The built sites home renderer. `npm run build:renderer` produces it; `openSitesHomeWindow` reports its
  *  absence rather than opening a blank window on a source-only checkout. */
-const FLEET_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html");
+const SITES_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html");
 
-/** Preload for the FLEET window only. A native-ESM preload, which Electron 43 supports solely in an
- *  unsandboxed renderer — hence `sandbox: false` in {@link openFleetWindow}, and hence site-admin
+/** Preload for the SITES HOME window only. A native-ESM preload, which Electron 43 supports solely in an
+ *  unsandboxed renderer — hence `sandbox: false` in {@link openSitesHomeWindow}, and hence site-admin
  *  windows keeping {@link SPEECH_PRELOAD_PATH} and `sandbox: true` untouched. It exposes BOTH
  *  `window.tovuRunner` and `window.tovuVoice`; see its own header on why the mic bridge had to be
  *  duplicated rather than shared. */
-const FLEET_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
+const SITES_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
 
 /** The Tovu mark for the macOS dock tile — see {@link applyDockIcon}. Copied into this directory
  *  from the tovu-com theme rather than referenced out of `sites/tovu-com/`, which is a user's live
@@ -195,7 +195,7 @@ const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
 
 /**
  * The site a checkout always has and a packaged app never does — `bootOwnServerMode`'s last
- * precedence tier, the fleet UI's first-launch seed, and the one directory
+ * precedence tier, the sites home UI's first-launch seed, and the one directory
  * `migrateLegacyDismissals` can reason about.
  *
  * A named constant rather than three copies of the same `path.join` because those last two MUST be
@@ -218,7 +218,7 @@ const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS.devFallbackSiteDir;
 const PROJECT_SCAN_ROOTS = DESKTOP_ROOTS.projectScanRoots;
 
 /**
- * `true` when this launch should open the fleet Projects screen (boot mode 0) rather than a site
+ * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
  * directly. Default since 2026-09-06 — the whole point of the port — but three things must keep
  * bypassing it unconditionally, because they each name a single destination directly and exist
  * specifically for automation/attach workflows that have no use for a project picker:
@@ -230,10 +230,10 @@ const PROJECT_SCAN_ROOTS = DESKTOP_ROOTS.projectScanRoots;
  *
  * An explicit `TOVU_DESKTOP_UI=runner` still opts in outright, unconditionally, matching this
  * function's pre-flip behavior exactly (kept for anyone who has that set alongside one of the
- * above, historically to force the fleet UI over a pinned site dir — that ordering is preserved:
+ * above, historically to force the sites home UI over a pinned site dir — that ordering is preserved:
  * explicit `runner` is checked, and returns, before any bypass condition below).
  */
-function fleetUiRequested() {
+function sitesUiRequested() {
   if (process.env.TOVU_DESKTOP_UI?.trim() === "runner") return true;
   const bypassesFrontPage =
     Boolean(process.env.TOVU_DESKTOP_URL?.trim()) ||
@@ -400,10 +400,10 @@ function createWindow(url, title, partition) {
 }
 
 /**
- * Open the ported Tovu-Runner fleet UI (the Projects screen). Boot mode 0 — see this file's header.
+ * Open the sites home UI, ported from Tovu-Runner (the Projects screen). Boot mode 0 — see this file's header.
  *
  * Two webPreferences differ from {@link createWindow}. `sandbox: false` is forced by the renderer
- * rather than chosen: {@link FLEET_PRELOAD_PATH} is a native-ESM preload and Electron 43 loads one
+ * rather than chosen: {@link SITES_PRELOAD_PATH} is a native-ESM preload and Electron 43 loads one
  * only in an unsandboxed renderer. `webviewTag: true` is what lets a project tab embed that site's
  * own `tovu serve` output in a `<webview>` inside THIS window (`App.tsx`'s `ProjectWorkspace`) —
  * matching Tovu-Runner's own `main.ts`, which needs the same tag for the same reason.
@@ -413,14 +413,14 @@ function createWindow(url, title, partition) {
  * shell's guest sets one and Runner's does not), and `will-attach-webview` below is the boundary
  * that keeps that trustworthy: the guest never gets Node, never gets this window's own preload, and
  * can never re-enable either from inside the page. `registerGuestNavigationPolicy` (called once,
- * before this function, from the fleet boot branch) is the other half — see its own doc.
+ * before this function, from the sites-home boot branch) is the other half — see its own doc.
  *
  * @returns the window, or `null` when the renderer has not been built yet.
  * @complexity O(1).
  */
-function openFleetWindow() {
-  if (!fs.existsSync(FLEET_RENDERER_PATH)) {
-    const message = `The fleet UI is not built. Run \`npm run build\` in apps/desktop, or unset TOVU_DESKTOP_UI to launch a site instead.\n\nExpected: ${FLEET_RENDERER_PATH}`;
+function openSitesHomeWindow() {
+  if (!fs.existsSync(SITES_RENDERER_PATH)) {
+    const message = `The sites home UI is not built. Run \`npm run build\` in apps/desktop, or unset TOVU_DESKTOP_UI to launch a site instead.\n\nExpected: ${SITES_RENDERER_PATH}`;
     console.error(`tovu desktop: ${message}`);
     process.exitCode = 1;
     if (!SELFTEST) dialog.showErrorBox("Tovu could not start", message);
@@ -437,7 +437,7 @@ function openFleetWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      preload: FLEET_PRELOAD_PATH,
+      preload: SITES_PRELOAD_PATH,
       webviewTag: true,
     },
   });
@@ -453,7 +453,7 @@ function openFleetWindow() {
     applyGuestWebPreferences(webPreferences, { preloadPath: SPEECH_PRELOAD_PATH });
   });
 
-  void window.loadFile(FLEET_RENDERER_PATH);
+  void window.loadFile(SITES_RENDERER_PATH);
   return window;
 }
 
@@ -504,7 +504,7 @@ async function authenticateSiteSession(siteDir, server, partition) {
 /**
  * Spawn (or reuse) `siteDir`'s own `tovu serve` and put a valid admin session in its cookie jar —
  * every step both {@link openSiteWindow} (own-server mode, one `BrowserWindow` per site) and
- * {@link openSiteServer} (fleet mode, one embedded `<webview>` tab per site) need, and NOTHING
+ * {@link openSiteServer} (sites-home mode, one embedded `<webview>` tab per site) need, and NOTHING
  * either of them does with the result: this never touches `openSites`, a `BrowserWindow`, or a
  * `<webview>` — callers own that bookkeeping, so a caller whose next step fails (`createWindow`,
  * say) decides for itself how to unwind the server this just started.
@@ -703,7 +703,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
 }
 
 /**
- * The fleet UI's counterpart to {@link openSiteWindow}: ensure `siteDir`'s own `tovu serve` is
+ * The sites home UI's counterpart to {@link openSiteWindow}: ensure `siteDir`'s own `tovu serve` is
  * running and return its `server` handle, WITHOUT a `BrowserWindow`. The Projects screen embeds the
  * result directly in a `<webview>` tab inside its one window instead (`App.tsx`'s
  * `ProjectWorkspace`, reading `port`/`partition` off the `ProjectRecord` `project-ipc.js`'s
@@ -713,7 +713,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
  * per-tab lifecycle event to hang a stop on: closing a tab is a renderer-only concern
  * (`App.hooks.ts`'s `closeProjectTab`) and deliberately leaves the site running, the same way
  * Tovu-Runner leaves a project running when its tab closes. `app.on("before-quit")` below still
- * stops every entry in `openSites` on quit, fleet-opened or not, and `project-ipc.js`'s
+ * stops every entry in `openSites` on quit, sites-home-opened or not, and `project-ipc.js`'s
  * `handleDelete` still stops one explicitly.
  *
  * Callers MUST run this through `serializer.run(siteDir, ...)`, same requirement as
@@ -732,7 +732,7 @@ async function openSiteServer(siteDir, ctx, options = {}) {
 }
 
 /**
- * Whether `raw` points at a site this launch is currently supervising through the fleet UI's
+ * Whether `raw` points at a site this launch is currently supervising through the sites home UI's
  * embedded tabs — the boundary {@link registerGuestNavigationPolicy} enforces before ever handing a
  * guest-requested url to the operator's own browser. Scoped to `openSites`' own live ports rather
  * than a separate registry, since `openSites` already IS this shell's registry of what is running.
@@ -761,9 +761,9 @@ function isSupervisedGuestUrl(raw) {
  * half — without it Electron's guest-view manager never lets a `target="_blank"` request reach this
  * process at all, so `setWindowOpenHandler` below would never fire.
  *
- * Registered once, globally, from the fleet boot branch: `web-contents-created` fires for every
+ * Registered once, globally, from the sites-home boot branch: `web-contents-created` fires for every
  * guest ANY window's `<webview>` ever attaches, and `contents.getType() !== "webview"` filters out
- * everything else (the fleet window's own top-level content included).
+ * everything else (the sites home window's own top-level content included).
  *
  * @complexity O(1) per event, beyond `isSupervisedGuestUrl`'s own cost.
  */
@@ -1012,9 +1012,9 @@ function applyDockIcon() {
  * Reap every `tovu serve` a PREVIOUS launch left running, and say so. Called once per launch, ABOVE
  * the boot-mode split, before any window exists.
  *
- * It used to live inside {@link bootOwnServerMode}, which meant the fleet UI — the DEFAULT since
+ * It used to live inside {@link bootOwnServerMode}, which meant the sites home UI — the DEFAULT since
  * a53c80df — never reconciled anything at all. That is the mode where it matters most: opening a
- * project card calls `openSiteWindow`, which writes a crash-safety row, so the fleet path has always
+ * project card calls `openSiteWindow`, which writes a crash-safety row, so the sites-home path has always
  * PRODUCED rows and never consumed them. A hard kill of Electron therefore stranded every open
  * site's child, the next launch reaped none of them, and clicking the same card allocated a fresh
  * port and started a SECOND `tovu serve` over the same `content.db`. Two writers on one sqlite file
@@ -1023,7 +1023,7 @@ function applyDockIcon() {
  * Safe above the split for all three modes. Every mode resolves the same `registryPath` from the
  * same `userData`, so there is one registry to reconcile whichever way this launch goes, and attach
  * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
- * fleet launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
+ * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
  * launchd before terminating it, and retains the rows of any still-supervised sibling (see
  * `site-registry.js`'s `isOrphanedProcess`).
@@ -1086,18 +1086,18 @@ app
     registerSpeechIpc({ ipcMain });
     applyDockIcon();
 
-    // ABOVE the mode split, deliberately: the fleet UI writes crash-safety rows (every project tab's
+    // ABOVE the mode split, deliberately: the sites home UI writes crash-safety rows (every project tab's
     // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
     // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
     // it for all three modes is correct and why it cannot reap a live sibling instance's children.
     await reconcileOrphansOnBoot(registryFilePath(app.getPath("userData")));
 
-    // Checked before every other mode: the fleet UI supersedes both attach and own-server, and it
+    // Checked before every other mode: the sites home UI supersedes both attach and own-server, and it
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
-    // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the fleet counterpart of the
+    // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the sites-home counterpart of the
     // `openSiteWindow` own-server mode uses below).
-    if (fleetUiRequested()) {
-      const fleetCtx = {
+    if (sitesUiRequested()) {
+      const sitesCtx = {
         cliMode: resolveCliMode(),
         statePath: stateFilePath(app.getPath("userData")),
         registryPath: registryFilePath(app.getPath("userData")),
@@ -1112,7 +1112,7 @@ app
       // app). `migrateLegacyDismissals` in particular takes a DIRECTORY and would otherwise record
       // a literal `null` into the `dismissed` array — a corrupt row, not a no-op.
       if (DEV_FALLBACK_SITE_DIR) {
-        migrateLegacyDismissals(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR);
+        migrateLegacyDismissals(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR);
       // A brand-new `userData` tracks nothing, so the Projects screen would otherwise show only
       // the "Add project" card forever until the operator ran "+ Create website" once. Seeding the
       // same dev-fallback site `resolveStartupSiteDirs` already falls back to below (`sites/tovu-
@@ -1124,10 +1124,10 @@ app
       // file's mere existence — see `seedDevFallbackProject`'s own doc.
       // `classifySiteDirSafely`, not `classifySiteDir`: this line and `rescanProjects` below both
       // run inside this `whenReady()` chain, whose only handler is `reportBootFailure`, and both
-      // run BEFORE `openFleetWindow()`. The throwing form is for the folder PICKER, where the
+      // run BEFORE `openSitesHomeWindow()`. The throwing form is for the folder PICKER, where the
       // dialog shows the operator the error; here one unreadable candidate quit the app before any
       // window existed, leaving no renderer for the Rescan button to live in (D-01).
-        seedDevFallbackProject(fleetCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
+        seedDevFallbackProject(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
       }
       // Built once and shared: `rescanProjects` below needs the same `deps` the handlers get, and a
       // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
@@ -1138,11 +1138,11 @@ app
         shell,
         openSites,
         serializer,
-        projectsPath: fleetCtx.projectsPath,
-        registryPath: fleetCtx.registryPath,
+        projectsPath: sitesCtx.projectsPath,
+        registryPath: sitesCtx.registryPath,
         repoRoot: PAYLOAD_ROOT,
-        statePath: fleetCtx.statePath,
-        cliMode: fleetCtx.cliMode,
+        statePath: sitesCtx.statePath,
+        cliMode: sitesCtx.cliMode,
         readSiteName,
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
@@ -1167,15 +1167,15 @@ app
         projectScanRoots: PROJECT_SCAN_ROOTS,
         // A thunk, not the list: read fresh on every scan, so a site opened during this session is
         // found by a later rescan instead of being frozen out by a snapshot taken at boot.
-        recentSiteDirs: () => existingRecentSiteDirs(fleetCtx.statePath),
-        ctx: fleetCtx,
+        recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath),
+        ctx: sitesCtx,
       };
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
       // real handlers must claim their channels first — see `project-ipc.js`'s own header.
       registerProjectIpcHandlers(projectDeps);
       // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
       // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
-      // nothing else. Runs before `openFleetWindow` so the first render already shows what is
+      // nothing else. Runs before `openSitesHomeWindow` so the first render already shows what is
       // really on disk rather than a list that fills in on the next 4s poll.
       rescanProjects(projectDeps);
       registerRunnerIpcStubs({ ipcMain });
@@ -1183,7 +1183,7 @@ app
       // registration covers every project tab's `<webview>` guest.
       registerGuestNavigationPolicy();
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
-      openFleetWindow();
+      openSitesHomeWindow();
       return;
     }
 

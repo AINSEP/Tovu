@@ -347,7 +347,7 @@ test("handleDelete on a running project the app CREATED stops the server before 
   assert.deepEqual(readTrackedProjects(deps.projectsPath), []);
 });
 
-test("handleDelete stops a fleet-opened (embedded-tab) entry that carries no window at all", async () => {
+test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries no window at all", async () => {
   const siteDir = path.join(tempDir(), "embedded-tab-site");
   fs.mkdirSync(siteDir);
   const deps = baseDeps();

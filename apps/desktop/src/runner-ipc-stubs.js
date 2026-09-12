@@ -1,5 +1,5 @@
 /**
- * @file Explicit not-yet-implemented handlers for every `runner:*` IPC verb the ported fleet
+ * @file Explicit not-yet-implemented handlers for every `runner:*` IPC verb the ported sites home
  * renderer can call.
  *
  * Phase 1 of the Tovu-Runner port brought the renderer, the shared contracts, and the preload

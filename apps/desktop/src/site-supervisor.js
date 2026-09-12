@@ -74,7 +74,7 @@ function createSiteSupervisor(deps) {
     /**
      * Record a site's live server and begin watching it. `Map.set`'s contract plus the observation.
      *
-     * A handle with no `onExit` is stored and simply not watched, rather than throwing: the fleet
+     * A handle with no `onExit` is stored and simply not watched, rather than throwing: the sites-home
      * and own-server paths both build real handles from `startTovuServer`, but tests inject minimal
      * `{server: {port}}` stand-ins, and a store that refused those would force every unrelated test
      * to fake a lifecycle it is not exercising.
