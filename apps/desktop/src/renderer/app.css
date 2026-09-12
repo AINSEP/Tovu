@@ -1202,12 +1202,12 @@ button { font: inherit; color: inherit; }
 }
 .chat-fab-open span[aria-hidden="true"]::before { content: '×'; font-size: 1.375rem; color: #fff; }
 
-/* The fleet-operator chat behind the FAB is not built yet — see `App.tsx`'s `DisabledChatFab`.
-   Same visual treatment `.topnav__link--disabled` gives an unbuilt nav destination: dimmed,
-   not-allowed cursor, no hover lift. `cursor: grab` is Runner's own affordance for a DRAGGABLE
-   fab, which this one is not, hence the explicit override rather than inheriting `.chat-fab`'s. */
-.chat-fab--disabled { opacity: 0.45; cursor: not-allowed; }
-.chat-fab--disabled:hover { filter: none; transform: none; }
+/* `.chat-fab--disabled` used to live here, dimming a placeholder FAB on the fleet page. Removed
+   with the button itself — see `App.tsx`'s own comment where that button was for why a host-page
+   FAB was worse than none: it advertised a chat with no main-process half, and being
+   `position: fixed` over the `<webview>` it intercepted clicks meant for the site's real
+   assistant. The `.chat-fab`/`.chat-fab-open` rules above are kept for `RunnerChatPane`, which is
+   still unwired. */
 
 .runner-chat-pane {
   /* Docked sidebar, not a floating card: it occupies the grid's second column in the content row,

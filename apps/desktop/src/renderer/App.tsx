@@ -158,34 +158,25 @@ export function App({
         />
       </main>
 
-      {/* The fleet-operator chat behind this FAB is not built yet — see
-          `2026-09-06-runner-ui-port-manifest-v2.md` §9, open question 2. Rendered (it is on
-          Leona's reference) but disabled the same way a not-yet-built nav destination is: a real
-          button, `aria-disabled`, an early return in its own click handler, `tabIndex={-1}` so it
-          is not keyboard-reachable, and `data-tip` so the destination is still named on hover.
-          Absent while expanded, same as the top nav and tab strip: the admin filling the window
-          has no room left for a second chat entry point. */}
-      {!expanded && <DisabledChatFab />}
-    </div>
-  );
-}
+      {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
 
-/** See the FAB's own call site in `App` for why this exists instead of `@jini-ai/chat/react`'s
- *  `ChatFab`: that component has no disabled state to give it, and disabling by wrapping would
- *  leave its internal button itself still focusable. */
-function DisabledChatFab() {
-  return (
-    <button
-      type="button"
-      className="chat-fab chat-fab--disabled"
-      aria-disabled="true"
-      tabIndex={-1}
-      onClick={(event) => event.preventDefault()}
-      data-tip="Fleet chat (not available yet)"
-      aria-label="Fleet chat (not available yet)"
-    >
-      <span aria-hidden="true" />
-    </button>
+          There used to be a disabled one here — a real `<button>` with `aria-disabled`, `tabIndex
+          ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
+          chat. Two things were wrong with it. It advertised a feature with no main-process half at
+          all: `RUNNER_CHAT_CHANNELS` (`contracts/fleet-chat.ts`) has no `ipcMain.handle` anywhere
+          in this app, so `runner:chat:start` reaches nothing, and `RunnerChatPane` below has zero
+          call sites. And because it was `position: fixed` on the HOST page while the real
+          per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
+          `z-index`, the decoy composited on top of it and swallowed every click meant for the
+          working one — an unbuilt placeholder was blocking the built feature.
+
+          So the one chat entry point is the site's own, inside the guest, where the tools and the
+          content database are. That leaves the fleet tab with no assistant, which is the intended
+          trade: there is no site in view there to assist with. When a workspace-level chat is
+          actually built it should be a PANEL reachable from this app's own chrome, not a second
+          floating button competing with the guest's. `RunnerChatPane` and the `.chat-fab*` rules
+          in `app.css` are kept for it. */}
+    </div>
   );
 }
 
