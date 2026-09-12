@@ -50,6 +50,18 @@
   --danger: oklch(52% 0.19 25);
   --danger-dim: oklch(52% 0.19 25 / 0.1);
 
+  /* The maximum-contrast fill: black here, and deliberately INVERTED in the dark block
+     below rather than repeated. A fixed black would be correct on this white page and a
+     hole punched in the near-black one (`--bg` there is oklch(14%)), so what stays
+     constant across the two themes is the contrast, not the colour. Not pure `#000`:
+     nothing else in this file is, and true black next to `--fg` ink reads as a different
+     material rather than a darker one. `--contrast-hover` is a token instead of the
+     `filter: brightness()` the other buttons use because brightness moves one direction
+     and this fill has to lighten in light mode and darken in dark mode. */
+  --contrast: oklch(16% 0.018 262);
+  --contrast-fg: oklch(100% 0 0);
+  --contrast-hover: oklch(28% 0.02 262);
+
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
@@ -80,6 +92,11 @@
   --warning: oklch(76% 0.13 80);
   --danger: oklch(70% 0.16 25);
   --danger-dim: oklch(70% 0.16 25 / 0.16);
+  /* Inverted, per the note on the light values: on a near-black page the high-contrast
+     fill is the light one. */
+  --contrast: oklch(96% 0.004 250);
+  --contrast-fg: oklch(16% 0.018 255);
+  --contrast-hover: oklch(86% 0.006 250);
 }
 
 * { box-sizing: border-box; }
@@ -1018,9 +1035,12 @@ button { font: inherit; color: inherit; }
 .button--primary:hover, .button--create:hover { filter: brightness(0.96); }
 .button--danger { border: 1px solid var(--danger); background: var(--danger); color: #fff; }
 .button--danger:hover:not(:disabled) { filter: brightness(0.95); }
+.button--contrast { border: 1px solid var(--contrast); background: var(--contrast); color: var(--contrast-fg); }
+.button--contrast:hover:not(:disabled) { border-color: var(--contrast-hover); background: var(--contrast-hover); }
 .button--primary:disabled,
 .button--danger:disabled,
 .button--quiet:disabled,
+.button--contrast:disabled,
 .button--create:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .onboarding {

@@ -848,12 +848,13 @@ function MainHeader({
           <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
             {rescanning ? 'Scanning…' : 'Rescan'}
           </button>
-          {/* Quiet for the same reason as Rescan, and next to it because the two are the same KIND
-              of action — both only ever add cards for websites that already exist. The difference
-              is who chooses: Rescan looks under the scan roots automatically, this one asks the
-              operator for one folder. "Create website" is the only button here that makes a new
-              site, which is why it stays the single primary. */}
-          <button type="button" className="button button--quiet" onClick={() => void onAddSite()} disabled={adding}>
+          {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
+              for websites that already exist. The difference is who chooses: Rescan looks under the
+              scan roots automatically, this one asks the operator for one folder. Styled solid on
+              the owner's call, so it no longer reads as quiet as Rescan does; it stays distinct
+              from "Create website", the only button here that makes a NEW site, by wearing the
+              neutral high-contrast fill rather than `--primary`. */}
+          <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding}>
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
