@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { shellStalenessFailure, MS_PER_DAY } from "./shell-staleness.js";
+import { shellStalenessFailure, isBundleInput, MS_PER_DAY } from "./shell-staleness.js";
 
 const ADMIN = {
   relative: "apps/admin/dist",
@@ -64,4 +64,32 @@ test("a source tree that could not be read does not fail the package step", () =
 test("the reported age is computed in whole days from the millisecond gap", () => {
   const failure = shellStalenessFailure(SEP_12 - 3 * MS_PER_DAY, SEP_12, ADMIN);
   assert.match(failure, /3\.0 day\(s\)/);
+});
+
+// --- what counts as a bundle INPUT ---------------------------------------------------------------
+//
+// Found by running `npm run stage` for real rather than by reasoning: the guard's first end-to-end
+// run refused apps/admin/dist because the newest file under apps/admin/src was a .unit.test.tsx
+// edited 77 minutes after the build. Nothing about that file reaches the bundle.
+
+test("a test file is NOT a bundle input — editing one must not mark a shell stale", () => {
+  assert.equal(isBundleInput("apps/admin/src/__tests__/unit/app-sites-section-visibility.unit.test.tsx"), false);
+  assert.equal(isBundleInput("apps/admin/src/features/media/Media.test.tsx"), false);
+  assert.equal(isBundleInput("src/rules.spec.ts"), false);
+  assert.equal(isBundleInput("__tests__/top-level.tsx"), false);
+  assert.equal(isBundleInput("apps/admin/src/__measurements__/perf.ts"), false);
+});
+
+test("ordinary source IS a bundle input", () => {
+  assert.equal(isBundleInput("apps/admin/src/features/media/Media.tsx"), true);
+  assert.equal(isBundleInput("apps/admin/src/main.tsx"), true);
+  assert.equal(isBundleInput("apps/admin/package.json"), true);
+  assert.equal(isBundleInput("apps/admin/src/styles.css"), true);
+});
+
+test("a file merely NAMED like a test but not matching the conventions still counts as input", () => {
+  // Conservative on purpose: the error is on the side of refusing to package.
+  assert.equal(isBundleInput("apps/admin/src/test-utils.ts"), true);
+  assert.equal(isBundleInput("apps/admin/src/testing.ts"), true);
+  assert.equal(isBundleInput("apps/admin/src/contest.ts"), true);
 });

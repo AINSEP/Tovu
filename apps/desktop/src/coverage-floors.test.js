@@ -62,6 +62,32 @@ test("a TENTH unmeasured file fails even when nine are grandfathered — the lis
   assert.ok(result.failures.some((f) => /src\/3\.ts/.test(f)));
 });
 
+test("the grandfather list is an ENUMERATION, not a count — nine DIFFERENT files still fail", () => {
+  // The ratchet must not be satisfiable by keeping the same NUMBER of gaps. If it were a count or a
+  // percentage, "9 files unmeasured" could quietly become nine different files while the gate stayed
+  // green — a scope that silently widened without ever growing.
+  const area = { id: "ts", knownUnmeasured: ["src/old-a.ts", "src/old-b.ts"] };
+  const onDisk = ["src/new-a.ts", "src/new-b.ts", "src/covered.ts"];
+  const result = evaluateArea(area, onDisk, cov([["src/covered.ts", perfect]]));
+
+  assert.equal(result.unmeasured.length, 2, "the COUNT of gaps is unchanged");
+  assert.deepEqual(
+    result.newlyUnmeasured,
+    ["src/new-a.ts", "src/new-b.ts"],
+    "but both are different files, and both must fail"
+  );
+  assert.ok(result.failures.some((f) => /src\/new-a\.ts/.test(f)));
+});
+
+test("swapping ONE grandfathered file for another fails, even at an identical count", () => {
+  const area = { id: "ts", knownUnmeasured: ["src/a.ts", "src/b.ts"] };
+  const result = evaluateArea(area, ["src/a.ts", "src/c.ts"], cov([]));
+
+  assert.equal(result.unmeasured.length, 2);
+  assert.deepEqual(result.newlyUnmeasured, ["src/c.ts"], "the substituted file is caught by name");
+  assert.ok(result.failures.length > 0);
+});
+
 test("a grandfathered file that regained coverage is flagged so the list shrinks", () => {
   const area = { id: "ts", knownUnmeasured: ["src/b.ts"] };
   const result = evaluateArea(area, ["src/b.ts"], cov([["src/b.ts", perfect]]));

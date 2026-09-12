@@ -17,6 +17,29 @@
 const MS_PER_DAY = 86_400_000;
 
 /**
+ * Whether a file is a real INPUT to a shell's bundle, for freshness purposes.
+ *
+ * Test files are not. This is not a theoretical nicety: the first end-to-end run of the staleness
+ * guard (2026-09-12) refused `apps/admin/dist` because the newest thing under `apps/admin/src` was
+ * `__tests__/unit/app-sites-section-visibility.unit.test.tsx`, edited 77 minutes after the bundle
+ * was built. Nothing about that file reaches the bundle, so the refusal was noise — and a gate that
+ * refuses for reasons the reader knows are irrelevant is a gate people learn to bypass, which is
+ * the failure mode this harness exists to avoid.
+ *
+ * Deliberately conservative: only the two shapes this repo uses to mean "not shipped" are excluded
+ * (`__tests__/` directories and `.test.`/`.spec.` basenames). Anything else counts as an input, so
+ * the error is on the side of refusing to package.
+ *
+ * @complexity O(1).
+ */
+export function isBundleInput(relPath) {
+  const normalized = relPath.split("\\").join("/");
+  if (normalized.includes("/__tests__/") || normalized.startsWith("__tests__/")) return false;
+  if (normalized.includes("/__measurements__/")) return false;
+  return !/\.(test|spec)\.[cm]?[jt]sx?$/.test(normalized);
+}
+
+/**
  * Why this shell must not be staged, or `null` if it is fine.
  *
  * Returns `null` when either timestamp is 0 — an absent build is the EXISTENCE check's job (it

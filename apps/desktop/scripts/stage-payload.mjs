@@ -43,7 +43,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 
-import { shellStalenessFailure } from "../src/shell-staleness.js";
+import { isBundleInput, shellStalenessFailure } from "../src/shell-staleness.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -359,10 +359,12 @@ function failIfDistIsStale() {
 function newestMtime(abs) {
   if (!existsSync(abs)) return 0;
   const stat = statSync(abs);
-  if (!stat.isDirectory()) return stat.mtimeMs;
+  if (!stat.isDirectory()) return isBundleInput(abs) ? stat.mtimeMs : 0;
   let newest = 0;
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
     if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+    if (!entry.isDirectory() && !isBundleInput(entry.name)) continue;
+    if (entry.isDirectory() && !isBundleInput(`${entry.name}/`)) continue;
     newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));
   }
   return newest;
