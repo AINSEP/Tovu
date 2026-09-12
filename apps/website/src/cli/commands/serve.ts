@@ -19,6 +19,7 @@ import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
+import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to
@@ -91,6 +92,18 @@ import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-s
  * defined again, verbatim, in this file — see `server/runtime/boot/agent-daemon-wanted.ts`'s and
  * `bootstrap.ts`'s own headers for why that duplication (and the comment justifying it) was wrong.
  * Both are imported now, same as every other shared boot-only function this file already used.
+ *
+ * Admin dev-proxy HMR upgrade (2026-09-11 dispatch): the FIFTH entry in the list above, same shape
+ * as the other four. `registerAdminDevProxyUpgrade` had exactly one production call site,
+ * `src/index.ts`, so an `upgrade` request never got forwarded on this boot path — `createApp` mounts
+ * `registerAdminStatic`, which proxies ordinary `/admin/*` requests to Vite when
+ * `TOVU_ADMIN_DEV_PROXY_URL` is set, but a WebSocket handshake arrives as a raw `http.Server`
+ * `upgrade` event that Express routing never sees. Measured, same handshake against the same Vite
+ * upstream: `index.ts`'s listener answered `101 Switching Protocols`, this one answered nothing.
+ * This matters because `apps/desktop` spawns THIS command per site, so a desktop site window using
+ * the dev proxy showed current admin source that could never hot-reload. Fixed at the `app.listen`
+ * call site below; the function self-gates on the env var and on SEA, so nothing changes for a
+ * production or packaged boot.
  */
 
 export interface RunServeCommandInput {
@@ -311,6 +324,23 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
 
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(port);
+
+    // Forwards Vite's HMR WebSocket when `TOVU_ADMIN_DEV_PROXY_URL` is set. `registerAdminStatic`
+    // (reached via `createApp` above) already proxies ordinary `/admin/*` REQUESTS on this path, but
+    // an `upgrade` is a raw `http.Server` event Express's request pipeline never sees — so without
+    // this, a dev-proxied `tovu serve` served current admin source that could never hot-reload.
+    // Measured before the fix, same handshake against the same Vite: `index.ts`'s server answered
+    // `101 Switching Protocols`; this one answered nothing at all.
+    //
+    // The FIFTH instance of this file's own recurring defect class — see the header above for the
+    // other four (agent daemon, daemon token, plugin SDK resolver, readiness gate + boot lifecycle),
+    // each of them "`src/index.ts` was the only boot path that did it". `apps/desktop` spawns this
+    // command, so every desktop site window was on the wrong side of all five.
+    //
+    // Self-gating, so production and packaged builds are unaffected: the function returns
+    // immediately when `TOVU_ADMIN_DEV_PROXY_URL` is unset or the runtime is a SEA single-binary.
+    // Registered on `server`, not `app`, for the same reason `index.ts` does it that way.
+    registerAdminDevProxyUpgrade(server);
 
     server.once("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
