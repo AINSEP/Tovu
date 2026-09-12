@@ -10,14 +10,19 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-051 |
-| version | 0.1.0 |
-| status | REVIEW (one clarification pending owner decision — see NC-1) |
-| content_hash | sha256:34b945f1505a09129b420f993e36b7e0cbf5f3ee0988d5d3001625353dc77d5a |
+| version | 0.1.1 |
+| status | APPROVED (owner, 2026-09-12) |
+| content_hash | sha256:34216072967966e431e29d7f97714dbcb607974ee4de3de133e8ada83cbf9cbf |
 | feature_name | FEAT-051-desktop-app-chat |
-| last_edited | 2026-09-12T20:00:00Z |
+| last_edited | 2026-09-12T21:00:00Z |
 | owner | Leona Burime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
+
+## Changelog
+
+- **v0.1.1 (2026-09-12, owner decision).** NC-1 resolved: the owner rejected this spec's own recommendation (option A) and answered "a chat should always be visible" — the panel does not hide when a site enters `expanded` mode; it persists, docked or overlaid per REQ-13/REQ-14, exactly as in any other layout state (option B). Adds REQ-21 (general visibility rule: the panel is shown/hidden only by the operator, never by navigation or layout state) and AC-29; updates EC-07 and the Implementation Readiness Gate accordingly. No REQ, AC, or INV from v0.1.0 is removed.
+- **v0.1.0 (2026-09-12).** Initial spec, brownfield mode, with NC-1 open pending the owner's decision.
 
 > **[NEEDS CLARIFICATION] vs Open Questions — use the right one:**
 >
@@ -101,7 +106,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - A client-side bridge for DOM tools (`page.navigate`, `find_elements`, `click`, `screenshot`, …) via `webview.executeJavaScript` into the admin's existing `FrontendSessionBridge`, including how the bind token is obtained per call (REQ-08, REQ-09).
 - A minimum confirmation mechanism for `requiresConfirmation: true` tools, since none exists anywhere in this codebase today (REQ-11).
 - The one-chat rule: an embed signal that hides the admin's own `ChatFab`/`AssistantDock` inside the desktop shell, keeping `one-chat-fab-wiring.test.js` passing (REQ-12).
-- The responsive docked (≥900px)/overlay (<900px) full-height right panel, JS-state-driven (REQ-13 through REQ-16).
+- The responsive docked (≥900px)/overlay (<900px) full-height right panel, JS-state-driven (REQ-13 through REQ-16), whose visibility is controlled only by the operator and never by navigation or layout state, including `expanded` mode (REQ-21).
 - `desktop.navigate` wiring to the existing `selectSection`/`setActiveTab` handlers (REQ-17).
 - Confirming the existing app-level conversation store is the only store this feature uses (REQ-18).
 - Degradation when a site-scoped turn's site daemon is unreachable (REQ-19).
@@ -138,21 +143,24 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - **REQ-18:** Every conversation for this chat is persisted through the existing app-level `useRunnerConversations`/sqlite store. No new per-site conversation store is introduced by this feature; a site's own `/api/assistant/chats` transcript store is untouched and unused by this chat.
 - **REQ-19:** If, at turn start, the addressed site's daemon or REQ-06 route is unreachable, that site's tools are excluded from the turn's tool set (REQ-04's degradation path applies) and the turn proceeds with `desktop.*` tools only. The transcript states plainly that this site's tools were unavailable for this turn. No turn may hang or crash the panel because a site's daemon is down.
 - **REQ-20:** `desktop.settings.get`/`desktop.settings.set` and any Marketplace install/list tool remain named in `contracts/sections.ts`'s taxonomy but are not implemented or made callable by this feature. They are explicit future work, gated on Settings and Marketplace shipping as real product surfaces.
+- **REQ-21 (added v0.1.1, owner decision, NC-1):** The chat panel's visibility is controlled only by the operator explicitly opening or closing it (the User Journey trigger). No navigation state or layout state — the active tab/section, zero sites ever created, or a site's `<webview>` entering `expanded` mode — ever hides the panel while it is open, and none ever opens it while it is closed. A window narrower than 900px turns an open panel into an overlay (REQ-14) rather than hiding it; `expanded` mode adds no additional hide/show behavior beyond REQ-13/REQ-14's existing docked/overlay switch.
 
 ---
 
 ## Clarifications Required
 
-### NC-1 — Does the chat panel hide when a site's `<webview>` enters `expanded` mode, or does it persist?
+### NC-1 — Does the chat panel hide when a site's `<webview>` enters `expanded` mode, or does it persist? — RESOLVED 2026-09-12: Option B
 
-`expanded` mode already hides both `TopNav` and `TabStrip` to maximize the site's own view (E13). The owner's docked/overlay layout ruling (REQ-13/REQ-14) says nothing about this state, and the recon this spec is built from flags it explicitly as needing the owner's own call, not something inferable from existing code.
+**Owner decision (2026-09-12), verbatim:** "a chat should always be visible." The chat panel does not hide when a site's `<webview>` enters `expanded` mode (which hides `TopNav`/`TabStrip`, E13); it stays visible, docked or overlaid per the 900px rule (REQ-13/REQ-14), the same as in every other layout state. This rejects this spec's own recommendation below (option A). See REQ-21 for the general rule this decision establishes, and EC-07 for the edge case.
+
+`expanded` mode already hides both `TopNav` and `TabStrip` to maximize the site's own view (E13). The owner's docked/overlay layout ruling (REQ-13/REQ-14) said nothing about this state, and the recon this spec is built from flagged it explicitly as needing the owner's own call, not something inferable from existing code.
 
 | Option | Behavior | Consequence |
 |---|---|---|
-| **A. Panel hides with TopNav/TabStrip** | Entering `expanded` mode also hides the chat panel (docked or overlay); exiting restores its prior open/closed state. | Consistent with "this chrome goes away together" and preserves the full maximized site view `expanded` mode exists for — a docked panel would shrink that view, and an overlay panel would cover part of it, defeating the point of maximizing. |
-| **B. Panel persists** | The panel keeps rendering (docked or overlay) regardless of `expanded` mode. | Chat stays reachable even while a site is maximized, at the cost of `expanded` no longer meaning "the whole window is this site" — and an overlay panel in this state reproduces the click-swallowing risk `one-chat-fab-wiring.test.js` exists to prevent, just against the maximized view instead of the normal one. |
+| A. Panel hides with TopNav/TabStrip *(this spec's own recommendation; not chosen)* | Entering `expanded` mode also hides the chat panel (docked or overlay); exiting restores its prior open/closed state. | Consistent with "this chrome goes away together" and preserves the full maximized site view `expanded` mode exists for — a docked panel would shrink that view, and an overlay panel would cover part of it, defeating the point of maximizing. |
+| **B. Panel persists *(chosen)*** | The panel keeps rendering (docked or overlay) regardless of `expanded` mode. | Chat stays reachable even while a site is maximized, at the cost of `expanded` no longer meaning "the whole window is this site" — and an overlay panel in this state reproduces the click-swallowing risk `one-chat-fab-wiring.test.js` exists to prevent, just against the maximized view instead of the normal one. This is the same overlay/z-index behavior REQ-14 already accepts for any narrow-window overlay; `expanded` mode does not introduce a new mechanism, only another state where it applies. |
 
-**Recommendation:** A. `expanded` mode's own purpose — maximizing one site's view — is undermined by either sub-case of B (docked shrinks it, overlay covers part of it), and hiding together with `TopNav`/`TabStrip` needs no new state, since `expanded` is already a single boolean both of those already key off.
+**Superseded recommendation (kept for record):** This spec had recommended A, reasoning that `expanded` mode's own purpose — maximizing one site's view — is undermined by either sub-case of B (docked shrinks it, overlay covers part of it). The owner's decision overrides this in favor of the chat always being reachable.
 
 ---
 
@@ -180,7 +188,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - Port the main-process daemon (REQ-10) and register every `WORKSPACE_CHAT_CHANNELS` handler.
 - Tool-set assembly ships as REQ-02 + REQ-04 only — every turn behaves as "no site is the addressee" (REQ-03 does not exist yet, so this is not a partial state; it is this phase's whole, coherent behavior).
 - REQ-11 (confirmation minimum) lands in this same phase, because `desktop.project.delete` is already reachable from turn one.
-- REQ-17 (`desktop.navigate`), REQ-12 (one-chat embed-hide), REQ-13/14/15/16 (responsive panel), and REQ-18 (conversation store, already built) land alongside.
+- REQ-17 (`desktop.navigate`), REQ-12 (one-chat embed-hide), REQ-13/14/15/16 (responsive panel), REQ-21 (panel persists through `expanded` mode), and REQ-18 (conversation store, already built) land alongside.
 - This phase alone flips `one-chat-fab-wiring.test.js`'s tripwire — expected, per that test's own comment.
 
 **Phase 2 — Site-scoped server-side tools.**
@@ -224,6 +232,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - **AC-26 (REQ-19) [P1]:** Given site A's daemon is stopped, when a turn addressed to site A's tab starts, then the tool list is exactly `desktop.*` (REQ-04's set), the turn completes, and the transcript states site A's tools were unavailable.
 - **AC-27 (REQ-19) [P1]:** Given the conditions of AC-26, when the turn completes, then the panel has not hung, frozen, or crashed.
 - **AC-28 (REQ-20) [P2]:** Given the tool list offered for any turn, when it is inspected, then it never contains `desktop.settings.get`, `desktop.settings.set`, or a Marketplace tool.
+- **AC-29 (REQ-21) [P1]:** Given the chat panel is open, when a site tab enters `expanded` mode (hiding `TopNav`/`TabStrip`), then the panel is still rendered — docked if the window is ≥900px, overlay if <900px — and remains rendered, unchanged in open/closed state, on exit from `expanded` mode.
 
 ---
 
@@ -237,6 +246,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - **INV-06:** A tool call carrying `requiresConfirmation: true` must never execute without an explicit operator confirmation collected through the chat pane itself.
 - **INV-07:** REQ-06's inbound site tool-call route must never be reachable by any caller outside the desktop shell's own authenticated, per-site session.
 - **INV-08:** No commit may make a `requiresConfirmation`-eligible tool callable by the agent, or add REQ-03's site-tool assembly, without its corresponding safeguard (REQ-11 confirmation, or REQ-19 degradation, respectively) already present in that same commit.
+- **INV-09 (added v0.1.1, REQ-21):** The chat panel's open/closed state must never change as a side effect of navigation or layout state (a tab switch, `expanded` mode, or the window crossing the 900px docked/overlay threshold). Only an explicit operator action opens or closes it.
 
 ---
 
@@ -248,7 +258,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - **EC-04:** The active site's `tovu serve` daemon is unreachable when a turn starts (crashed, or still booting). Expected: REQ-19 — site tools excluded, `desktop.*`-only turn, an explicit "unavailable" note in the transcript, no hang and no crash.
 - **EC-05:** The agent calls `desktop.project.delete`. Expected: REQ-11 — execution pauses, an inline confirm/cancel affordance renders; cancelling ends only that call as cancelled, and the turn continues.
 - **EC-06:** The window is resized across the 900px boundary while the panel is open and a turn is in flight. Expected: REQ-13/14/15 — the panel's docked/overlay mode switches without losing the open conversation or the in-flight turn.
-- **EC-07:** A site tab enters `expanded` mode while the chat panel is open. Expected: per NC-1 (pending the owner's decision; recommended option A), the panel hides together with `TopNav`/`TabStrip` and restores its prior state on exit from `expanded` mode.
+- **EC-07:** A site tab enters `expanded` mode while the chat panel is open. Expected: per NC-1 (resolved 2026-09-12, option B) and REQ-21, the panel keeps rendering — docked or overlay per REQ-13/REQ-14 — unaffected by `expanded` mode; its open/closed state does not change on entry into or exit from `expanded` mode.
 - **EC-08:** The agent calls `page.navigate` against a site tab that is not the tab currently focused on screen. Expected: REQ-08/09 — every page-tool call is bound to the siteDir/`<webview>` captured at that turn's start (REQ-05), so it always targets the site the turn began against, never "whichever tab is focused right now."
 - **EC-09:** A tool call names a tool absent from REQ-06's allowlist. Expected: REQ-07 — refused by name, with a caller-facing error visible to the model; the turn continues rather than hanging.
 - **EC-10:** Two confirmable tool calls (e.g. two separate `desktop.project.delete` calls) are made in the same turn. Expected: REQ-11 — each pauses and renders its own confirm/cancel affordance; resolving one does not resolve the other.
@@ -295,10 +305,10 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 
 - [x] spec_id assigned and unique (051 is the highest existing number in `ADS-memory/specs/`)
 - [x] version set
-- [ ] status APPROVED — currently REVIEW, pending the owner's decision on NC-1
+- [x] status APPROVED (owner, 2026-09-12)
 - [x] content_hash computed by the provider-local validator's hash-only path (`--update-hash`); the full package validator was not run to a clean exit (see below)
 - [x] feature_name matches the folder name
-- [ ] Zero `[NEEDS CLARIFICATION]` markers — NC-1 (expanded-mode panel behavior) is open, awaiting the owner
+- [x] Zero `[NEEDS CLARIFICATION]` markers — NC-1 (expanded-mode panel behavior) resolved 2026-09-12 by the owner: option B, panel persists (REQ-21)
 - [x] Open Questions have an owner and a date
 - [x] REQs testable; every REQ has at least one AC; every AC has a priority and uses Given/When/Then
 - [x] Invariants absolute; edge cases have expected behavior; Dependencies table complete
@@ -308,7 +318,7 @@ Primary input: `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`. Its
 - [ ] `reports/pipeline/051-desktop-app-chat/pipeline-state.md` not created: out of this dispatch's scope
 - [x] Brownfield evidence recorded (Evidence section; source report `ADS-memory/reports/2026-09-12-desktop-global-chat-recon.md`)
 
-**Gate result:** CLARIFICATION PENDING. NC-1 blocks Software Architect dispatch until the owner resolves it (recommendation: option A). Also outstanding before `/plan`, independent of NC-1: package companions, pipeline state, and a clean full-package validator run (out of this dispatch's scope, matching SPEC-050's own posture).
+**Gate result:** CLARIFICATION RESOLVED. NC-1 is resolved by the owner (2026-09-12): option B — the chat panel persists through `expanded` mode (REQ-21, AC-29). Status is APPROVED. Still outstanding before `/plan`, independent of NC-1: package companions, pipeline state, and a clean full-package validator run (out of this dispatch's scope, matching SPEC-050's own posture).
 
 ---
 
