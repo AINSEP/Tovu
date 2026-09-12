@@ -22,6 +22,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
+import type { SpawnOptions } from "node:child_process";
+import type { Readable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
 
@@ -45,9 +47,35 @@ const SITE_META_FILE = ".site-meta.json";
 /** Raised when the user dismisses the folder picker — a cancellation, not a failure to diagnose. */
 class SiteDirSelectionCancelled extends Error {}
 
+/** `classifySiteDir`'s four possible verdicts. See that function's own doc. */
+type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
+
+/** `"source"` or `"compiled"` — see `tovu-server.js`'s `buildCliSpawnPlan`. */
+type CliMode = "source" | "compiled";
+
+/**
+ * The subset of Node's `ChildProcess` surface {@link initSiteDir} touches — narrower than
+ * `tovu-server.js`'s own `SpawnedChild`, since this caller never kills or polls the child, only
+ * reads its output and waits for one `exit`.
+ */
+interface InitChildLike {
+  stdout: Readable;
+  stderr: Readable;
+  once(event: "exit", listener: (code: number | null) => void): void;
+  once(event: "error", listener: (error: Error) => void): void;
+}
+
+/** Injectable `child_process.spawn` for {@link initSiteDir} — the test seam. */
+type InitSpawnFn = (command: string, args: string[], options: SpawnOptions) => InitChildLike;
+
 /** @returns the MRU file's path inside Electron's per-user `userData` directory. */
-function stateFilePath(userDataDir) {
+function stateFilePath(userDataDir: string): string {
   return path.join(userDataDir, STATE_FILE_NAME);
+}
+
+/** The persisted MRU shape — the only thing {@link readDesktopState} ever returns. */
+interface DesktopState {
+  recentSiteDirs: string[];
 }
 
 /**
@@ -58,18 +86,18 @@ function stateFilePath(userDataDir) {
  *
  * @complexity O(n) in file size.
  */
-function readDesktopState(statePath) {
+function readDesktopState(statePath: string): DesktopState {
   try {
-    const parsed = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    const parsed = JSON.parse(fs.readFileSync(statePath, "utf8")) as { recentSiteDirs?: unknown };
     const recent = Array.isArray(parsed?.recentSiteDirs) ? parsed.recentSiteDirs : [];
-    return { recentSiteDirs: recent.filter((entry) => typeof entry === "string") };
+    return { recentSiteDirs: recent.filter((entry): entry is string => typeof entry === "string") };
   } catch {
     return { recentSiteDirs: [] };
   }
 }
 
 /** @complexity O(n) in the MRU length. */
-function writeDesktopState(statePath, state) {
+function writeDesktopState(statePath: string, state: DesktopState): void {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 }
@@ -80,7 +108,7 @@ function writeDesktopState(statePath, state) {
  * @returns the new list, most-recent first.
  * @complexity O(n) in the MRU length.
  */
-function rememberSiteDir(statePath, dir) {
+function rememberSiteDir(statePath: string, dir: string): string[] {
   const previous = readDesktopState(statePath).recentSiteDirs;
   const recentSiteDirs = [dir, ...previous.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
   writeDesktopState(statePath, { recentSiteDirs });
@@ -95,7 +123,7 @@ function rememberSiteDir(statePath, dir) {
  *
  * @complexity O(n) stat calls, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
-function existingRecentSiteDirs(statePath) {
+function existingRecentSiteDirs(statePath: string): string[] {
   return readDesktopState(statePath).recentSiteDirs.filter((dir) => classifySiteDirSafely(dir) === "site");
 }
 
@@ -106,8 +134,8 @@ function existingRecentSiteDirs(statePath) {
  * @returns a subset of `[SITE_MARKER_FILE, SITE_META_FILE]`, in that fixed order.
  * @complexity O(1) — two `fs.existsSync` calls.
  */
-function missingSiteMarkers(dir) {
-  const missing = [];
+function missingSiteMarkers(dir: string): string[] {
+  const missing: string[] = [];
   if (!fs.existsSync(path.join(dir, SITE_MARKER_FILE))) missing.push(SITE_MARKER_FILE);
   if (!fs.existsSync(path.join(dir, SITE_META_FILE))) missing.push(SITE_META_FILE);
   return missing;
@@ -124,7 +152,7 @@ function missingSiteMarkers(dir) {
  *   throw `SITE_DIR_INVALID`).
  * @complexity O(n) in the directory's entry count, and only for a non-site, non-incomplete dir.
  */
-function classifySiteDir(dir) {
+function classifySiteDir(dir: string): SiteClassification {
   if (!fs.existsSync(dir)) return "empty";
   const missing = missingSiteMarkers(dir);
   if (missing.length === 0) return "site";
@@ -156,12 +184,22 @@ function classifySiteDir(dir) {
  *   ELOOP on a symlink cycle.
  * @complexity same as {@link classifySiteDir}.
  */
-function classifySiteDirSafely(dir) {
+function classifySiteDirSafely(dir: string): SiteClassification | "unreadable" {
   try {
     return classifySiteDir(dir);
   } catch {
     return "unreadable";
   }
+}
+
+/** Input to {@link initSiteDir}. */
+interface InitSiteDirInput {
+  repoRoot: string;
+  dir: string;
+  name?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  spawnFn?: InitSpawnFn;
+  cliMode?: CliMode;
 }
 
 /**
@@ -184,8 +222,8 @@ function classifySiteDirSafely(dir) {
  * @throws {Error} carrying Tovu's own `tovu: <CODE>: <message>` line when init fails.
  * @complexity O(1) beyond `initSite`'s own cost.
  */
-function initSiteDir(input) {
-  const spawnFn = input.spawnFn ?? nodeSpawn;
+function initSiteDir(input: InitSiteDirInput): Promise<string> {
+  const spawnFn = input.spawnFn ?? nodeSpawn as InitSpawnFn;
   const cliArgs = ["init", input.dir];
   if (input.name) cliArgs.push("--name", input.name);
   const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
@@ -209,6 +247,20 @@ function initSiteDir(input) {
       reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
     });
   });
+}
+
+/** `"init"` or `"fail"` — see {@link resolveOrInitSiteDir}'s own param doc. */
+type OnMissingSite = "init" | "fail";
+
+/** Input to {@link resolveOrInitSiteDir}. `repoRoot` is only actually required on the "empty" + "init" path. */
+interface ResolveOrInitSiteDirInput {
+  dir: string;
+  onMissingSite: OnMissingSite;
+  repoRoot?: string;
+  name?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  spawnFn?: InitSpawnFn;
+  cliMode?: CliMode;
 }
 
 /**
@@ -235,7 +287,7 @@ function initSiteDir(input) {
  *   missing), or — under `"fail"` only — empty.
  * @complexity O(1) beyond `classifySiteDir`'s and, for `"init"` on an empty dir, `initSiteDir`'s own cost.
  */
-async function resolveOrInitSiteDir(input) {
+async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<string> {
   const kind = classifySiteDir(input.dir);
   if (kind === "occupied") {
     throw new Error(`${input.dir} is not a Tovu site and is not empty. Choose an empty folder to create a new site, or a folder that already contains a site (one with a ${SITE_MARKER_FILE} and a ${SITE_META_FILE}).`);
@@ -250,9 +302,23 @@ async function resolveOrInitSiteDir(input) {
         `${input.dir} has no Tovu site in it yet (no ${SITE_MARKER_FILE}/${SITE_META_FILE}). This folder was named directly rather than picked interactively, so Tovu will not create a site there automatically — point it at an existing site's folder, or use "Open Site…" to create a new one there yourself.`,
       );
     }
-    await initSiteDir({ repoRoot: input.repoRoot, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn, cliMode: input.cliMode });
+    // `repoRoot` is required by `initSiteDir` itself; every real caller on the "init" path supplies
+    // one (the picker and "+ Create website" always know the repo root), so this is a non-null
+    // assertion on an already-existing contract rather than a new one.
+    await initSiteDir({ repoRoot: input.repoRoot!, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn, cliMode: input.cliMode });
   }
   return input.dir;
+}
+
+/** Input to {@link adoptSiteDir}. */
+interface AdoptSiteDirInput {
+  dir: string;
+  statePath: string;
+  repoRoot?: string;
+  name?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  spawnFn?: InitSpawnFn;
+  cliMode?: CliMode;
 }
 
 /**
@@ -265,10 +331,23 @@ async function resolveOrInitSiteDir(input) {
  * @throws {Error} see {@link resolveOrInitSiteDir}.
  * @complexity O(1) beyond {@link resolveOrInitSiteDir}'s own cost.
  */
-async function adoptSiteDir(input) {
+async function adoptSiteDir(input: AdoptSiteDirInput): Promise<string> {
   await resolveOrInitSiteDir({ ...input, onMissingSite: "init" });
   rememberSiteDir(input.statePath, input.dir);
   return input.dir;
+}
+
+/** What {@link resolveDevFallback} rejected, and why — `resolveSiteDir`'s own `pickDir` param doc. */
+interface RejectedDevFallback {
+  dir: string;
+  kind: SiteClassification | "unreadable";
+  missing?: string[];
+}
+
+/** What {@link resolveDevFallback} returns: exactly one of the two fields is set. */
+interface ResolveDevFallbackResult {
+  useDir: string | null;
+  rejected: RejectedDevFallback | null;
 }
 
 /**
@@ -284,17 +363,34 @@ async function adoptSiteDir(input) {
  *   null` rather than a fabricated reason.
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
-function resolveDevFallback(devFallbackDir) {
+function resolveDevFallback(devFallbackDir: string | undefined): ResolveDevFallbackResult {
   if (!devFallbackDir) return { useDir: null, rejected: null };
   // Safely: a candidate NOBODY picked must be turned down, never allowed to take the launch with
   // it. `resolveStartupSiteDirs` runs this inside the `whenReady()` chain (D-01).
   const kind = classifySiteDirSafely(devFallbackDir);
   if (kind === "site") return { useDir: devFallbackDir, rejected: null };
-  const rejected = { dir: devFallbackDir, kind };
+  const rejected: RejectedDevFallback = { dir: devFallbackDir, kind };
   if (kind === "incomplete" || kind === "occupied") {
     rejected.missing = missingSiteMarkers(devFallbackDir);
   }
   return { useDir: null, rejected };
+}
+
+/** `resolveSiteDir`'s own picker seam — see that function's param doc. */
+type PickDirFn = (rejectedDefault: RejectedDevFallback | null) => string | null | undefined | Promise<string | null | undefined>;
+
+/** Input to {@link resolveSiteDir}. */
+interface ResolveSiteDirInput {
+  envDir?: string;
+  onMissingSite?: OnMissingSite;
+  statePath: string;
+  devFallbackDir?: string;
+  repoRoot?: string;
+  name?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  spawnFn?: InitSpawnFn;
+  cliMode?: CliMode;
+  pickDir?: PickDirFn;
 }
 
 /**
@@ -329,7 +425,7 @@ function resolveDevFallback(devFallbackDir) {
  *   under the declared `onMissingSite` policy.
  * @complexity O(n) stat calls over the MRU, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
-async function resolveSiteDir(input) {
+async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
   const envDir = input.envDir?.trim();
   if (envDir) {
     if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
@@ -352,7 +448,7 @@ async function resolveSiteDir(input) {
   const fallback = resolveDevFallback(input.devFallbackDir);
   if (fallback.useDir) return fallback.useDir;
 
-  const picked = await input.pickDir(fallback.rejected);
+  const picked = await input.pickDir!(fallback.rejected);
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }
@@ -386,3 +482,4 @@ export {
   adoptSiteDir,
   resolveSiteDir,
 };
+export type { RejectedDevFallback };

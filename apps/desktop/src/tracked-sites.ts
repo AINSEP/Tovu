@@ -38,10 +38,41 @@ const SITE_ORIGIN = Object.freeze({
   created: "created",
   /** The directory already existed as a site when this app started tracking it. Never erased. */
   adopted: "adopted",
-});
+} as const);
+
+/** The two values {@link SITE_ORIGIN} can take. See that constant's own doc. */
+type SiteOrigin = (typeof SITE_ORIGIN)[keyof typeof SITE_ORIGIN];
+
+/** What `site-dir-store.js`'s `classifySiteDir` returns — injected, not imported; see {@link discoverSiteDirs}. */
+type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
+
+/** Injected classifier shape every function below takes instead of importing `site-dir-store.js`. */
+type ClassifySiteDirFn = (dir: string) => SiteClassification;
+
+/** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc. */
+interface TrackedSiteRow {
+  siteDir: string;
+  createdAt: string;
+  origin: SiteOrigin;
+  siteId?: string;
+}
+
+/** The raw shape parsed off disk, before {@link readTrackedSites}/{@link readDismissedSites} validate it. */
+interface RawRegistryFile {
+  projects?: unknown;
+  dismissed?: unknown;
+}
+
+/** A raw parsed row, before {@link readTrackedSites} checks which fields are actually usable strings. */
+interface RawTrackedRow {
+  siteDir?: unknown;
+  createdAt?: unknown;
+  origin?: unknown;
+  siteId?: unknown;
+}
 
 /** @returns the tracked-projects file's path inside Electron's per-user `userData` directory. */
-function sitesFilePath(userDataDir) {
+function sitesFilePath(userDataDir: string): string {
   return path.join(userDataDir, SITES_FILE_NAME);
 }
 
@@ -52,7 +83,7 @@ function sitesFilePath(userDataDir) {
  *
  * @complexity O(1).
  */
-function normalizeOrigin(origin) {
+function normalizeOrigin(origin: unknown): SiteOrigin {
   return origin === SITE_ORIGIN.created ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
 }
 
@@ -66,10 +97,10 @@ function normalizeOrigin(origin) {
  *
  * @complexity O(n) in file size.
  */
-function readRegistryFile(projectsPath) {
+function readRegistryFile(projectsPath: string): RawRegistryFile | undefined {
   try {
-    const parsed = JSON.parse(fs.readFileSync(projectsPath, "utf8"));
-    return typeof parsed === "object" && parsed !== null ? parsed : undefined;
+    const parsed: unknown = JSON.parse(fs.readFileSync(projectsPath, "utf8"));
+    return typeof parsed === "object" && parsed !== null ? (parsed as RawRegistryFile) : undefined;
   } catch {
     return undefined;
   }
@@ -90,12 +121,12 @@ function readRegistryFile(projectsPath) {
  * @returns rows shaped `{siteDir, createdAt, origin}`, oldest first.
  * @complexity O(n) in file size.
  */
-function readTrackedSites(projectsPath) {
+function readTrackedSites(projectsPath: string): TrackedSiteRow[] {
   const parsed = readRegistryFile(projectsPath);
-  const rows = Array.isArray(parsed?.projects) ? parsed.projects : [];
+  const rows: unknown[] = Array.isArray(parsed?.projects) ? parsed.projects : [];
   return rows
-    .filter((row) => typeof row?.siteDir === "string" && typeof row?.createdAt === "string")
-    .map((row) => ({ ...row, origin: normalizeOrigin(row.origin) }));
+    .filter((row) => typeof (row as RawTrackedRow)?.siteDir === "string" && typeof (row as RawTrackedRow)?.createdAt === "string")
+    .map((row) => ({ ...(row as RawTrackedRow), origin: normalizeOrigin((row as RawTrackedRow).origin) })) as TrackedSiteRow[];
 }
 
 /**
@@ -114,9 +145,21 @@ function readTrackedSites(projectsPath) {
  * @returns the dismissed site dirs, in the order they were removed.
  * @complexity O(n) in file size.
  */
-function readDismissedSites(projectsPath) {
+function readDismissedSites(projectsPath: string): string[] {
   const dismissed = readRegistryFile(projectsPath)?.dismissed;
-  return Array.isArray(dismissed) ? dismissed.filter((dir) => typeof dir === "string") : [];
+  return Array.isArray(dismissed) ? dismissed.filter((dir): dir is string => typeof dir === "string") : [];
+}
+
+/**
+ * A row as {@link writeTrackedSites} accepts it: `origin` is optional here even though
+ * {@link readTrackedSites} always returns one — {@link normalizeOrigin} fills the gap on read, so a
+ * hand-built row (or one written before provenance existed) is a valid thing to persist.
+ */
+interface WritableTrackedRow {
+  siteDir: string;
+  createdAt: string;
+  origin?: SiteOrigin;
+  siteId?: string;
 }
 
 /**
@@ -125,9 +168,14 @@ function readDismissedSites(projectsPath) {
  *   failure mode that would quietly resurrect every dismissed project on the next scan.
  * @complexity O(n) in the row count.
  */
-function writeTrackedSites(projectsPath, rows, dismissed = readDismissedSites(projectsPath)) {
+function writeTrackedSites(projectsPath: string, rows: WritableTrackedRow[], dismissed: string[] = readDismissedSites(projectsPath)): void {
   fs.mkdirSync(path.dirname(projectsPath), { recursive: true });
   fs.writeFileSync(projectsPath, JSON.stringify({ projects: rows, dismissed }, null, 2));
+}
+
+/** {@link trackSite}'s own extra, provenance-only field. See its param doc. */
+interface TrackSiteOptions {
+  siteId?: string;
 }
 
 /**
@@ -149,7 +197,7 @@ function writeTrackedSites(projectsPath, rows, dismissed = readDismissedSites(pr
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function trackSite(projectsPath, siteDir, origin = SITE_ORIGIN.adopted, options = {}) {
+function trackSite(projectsPath: string, siteDir: string, origin: SiteOrigin = SITE_ORIGIN.adopted, options: TrackSiteOptions = {}): TrackedSiteRow[] {
   const rows = readTrackedSites(projectsPath);
   // Clearing the tombstone is safe HERE and only here, and that is an invariant rather than a
   // convenience: this is the EXPLICIT adder, reached when the operator picks the folder in the
@@ -172,7 +220,7 @@ function trackSite(projectsPath, siteDir, origin = SITE_ORIGIN.adopted, options 
  *
  * @complexity O(1).
  */
-function buildTrackedRow(siteDir, origin, siteId) {
+function buildTrackedRow(siteDir: string, origin: SiteOrigin, siteId: string | undefined): TrackedSiteRow {
   const row = { siteDir, createdAt: new Date().toISOString(), origin };
   const stampable = origin === SITE_ORIGIN.created && typeof siteId === "string" && siteId !== "";
   return stampable ? { ...row, siteId } : row;
@@ -185,7 +233,7 @@ function buildTrackedRow(siteDir, origin, siteId) {
  * @returns the new row list.
  * @complexity O(n) in the row count.
  */
-function untrackSite(projectsPath, siteDir) {
+function untrackSite(projectsPath: string, siteDir: string): TrackedSiteRow[] {
   const rows = readTrackedSites(projectsPath).filter((row) => row.siteDir !== siteDir);
   // The removal is RECORDED, not just applied. Dropping the row alone was enough while the list was
   // the only thing that could add a project; with a boot scan and a rescan also adding, a bare
@@ -202,7 +250,7 @@ function untrackSite(projectsPath, siteDir) {
  *
  * @complexity O(n) in the row + dismissal count.
  */
-function isSiteDirKnown(projectsPath, siteDir) {
+function isSiteDirKnown(projectsPath: string, siteDir: string): boolean {
   if (readTrackedSites(projectsPath).some((row) => row.siteDir === siteDir)) return true;
   return readDismissedSites(projectsPath).includes(siteDir);
 }
@@ -236,7 +284,7 @@ function isSiteDirKnown(projectsPath, siteDir) {
  * @returns the dismissals this call added — empty when nothing needed migrating.
  * @complexity O(n) in file size.
  */
-function migrateLegacyDismissals(projectsPath, devFallbackDir) {
+function migrateLegacyDismissals(projectsPath: string, devFallbackDir: string): string[] {
   const parsed = readRegistryFile(projectsPath);
   if (parsed === undefined) return [];
   if (Array.isArray(parsed.dismissed)) return [];
@@ -264,7 +312,7 @@ function migrateLegacyDismissals(projectsPath, devFallbackDir) {
  * @returns whether a row was seeded.
  * @complexity O(1) beyond `classifySiteDir`'s and `trackSite`'s own cost.
  */
-function seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir) {
+function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDirFn): boolean {
   if (isSiteDirKnown(projectsPath, devFallbackDir)) return false;
   // Guarded, not bare: this runs one line before `projectDeps` is built, inside the `whenReady()`
   // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
@@ -275,6 +323,13 @@ function seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir) {
   // real content. Deleting its card must never delete it.
   trackSite(projectsPath, devFallbackDir, SITE_ORIGIN.adopted);
   return true;
+}
+
+/** Input to {@link discoverSiteDirs}. */
+interface DiscoverSiteDirsInput {
+  scanRoots: string[];
+  knownDirs: string[];
+  classifySiteDir: ClassifySiteDirFn;
 }
 
 /**
@@ -305,10 +360,10 @@ function seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir) {
  * @returns absolute site dirs, deduped and sorted.
  * @complexity O(n) in the roots' combined child count.
  */
-function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }) {
-  const candidates = [];
+function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSiteDirsInput): string[] {
+  const candidates: string[] = [];
   for (const root of scanRoots) {
-    let entries;
+    let entries: string[];
     try {
       entries = fs.readdirSync(root);
     } catch {
@@ -335,7 +390,7 @@ function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }) {
  *
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
-function isDiscoverableSite(dir, classifySiteDir) {
+function isDiscoverableSite(dir: string, classifySiteDir: ClassifySiteDirFn): boolean {
   try {
     // Following symlinks is the intent — a symlinked site dir is a site.
     const stat = fs.statSync(dir, { throwIfNoEntry: false });
@@ -357,7 +412,7 @@ function isDiscoverableSite(dir, classifySiteDir) {
  *
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
-function classifiesAsSite(dir, classifySiteDir) {
+function classifiesAsSite(dir: string, classifySiteDir: ClassifySiteDirFn): boolean {
   try {
     return classifySiteDir(dir) === "site";
   } catch {
@@ -381,8 +436,8 @@ function classifiesAsSite(dir, classifySiteDir) {
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
  * @complexity O(n * m) in the discovered count and the registry size.
  */
-function adoptDiscoveredSites(projectsPath, siteDirs) {
-  const adopted = [];
+function adoptDiscoveredSites(projectsPath: string, siteDirs: string[]): string[] {
+  const adopted: string[] = [];
   for (const siteDir of siteDirs) {
     if (isSiteDirKnown(projectsPath, siteDir)) continue;
     trackSite(projectsPath, siteDir, SITE_ORIGIN.adopted);

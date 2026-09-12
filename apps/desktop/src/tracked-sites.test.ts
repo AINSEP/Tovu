@@ -11,7 +11,7 @@ import path from "node:path";
 import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
 import { classifySiteDir } from "./site-dir-store.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-tracked-sites-"));
 }
 
@@ -48,8 +48,8 @@ test("trackSite adds a new row and persists it", () => {
   const file = sitesFilePath(dir);
   const rows = trackSite(file, "/sites/a");
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].siteDir, "/sites/a");
-  assert.equal(typeof rows[0].createdAt, "string");
+  assert.equal(rows[0]!.siteDir, "/sites/a");
+  assert.equal(typeof rows[0]!.createdAt, "string");
   assert.deepEqual(readTrackedSites(file), rows);
 });
 
@@ -90,7 +90,7 @@ test("writeTrackedSites creates the parent directory if it does not exist", () =
 
 test("seedDevFallbackSite tracks the fallback dir on a truly fresh install", () => {
   const file = sitesFilePath(tempDir());
-  const classifySiteDir = () => "site";
+  const classifySiteDir = () => "site" as const;
   const seeded = seedDevFallbackSite(file, "/repo/sites/tovu-com", classifySiteDir);
   assert.equal(seeded, true);
   assert.deepEqual(
@@ -101,7 +101,7 @@ test("seedDevFallbackSite tracks the fallback dir on a truly fresh install", () 
 
 test("seedDevFallbackSite does nothing when the fallback dir does not classify as a site", () => {
   const file = sitesFilePath(tempDir());
-  const classifySiteDir = () => "occupied";
+  const classifySiteDir = () => "occupied" as const;
   const seeded = seedDevFallbackSite(file, "/repo/sites/tovu-com", classifySiteDir);
   assert.equal(seeded, false);
   assert.deepEqual(readTrackedSites(file), []);
@@ -153,13 +153,13 @@ test("normalizeOrigin only ever accepts the literal 'created' — everything els
 test("trackSite defaults to adopted when no provenance is stated", () => {
   const file = sitesFilePath(tempDir());
   const rows = trackSite(file, "/sites/a");
-  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(rows[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("trackSite records 'created' only when the caller says so", () => {
   const file = sitesFilePath(tempDir());
   trackSite(file, "/sites/a", SITE_ORIGIN.created);
-  assert.equal(readTrackedSites(file)[0].origin, SITE_ORIGIN.created);
+  assert.equal(readTrackedSites(file)[0]!.origin, SITE_ORIGIN.created);
 });
 
 test("trackSite never upgrades an existing adopted row to created", () => {
@@ -171,9 +171,9 @@ test("trackSite never upgrades an existing adopted row to created", () => {
 
 test("seedDevFallbackSite marks its seeded row adopted — it never created that folder", () => {
   const file = sitesFilePath(tempDir());
-  seedDevFallbackSite(file, "/repo/sites/tovu-com", () => "site");
+  seedDevFallbackSite(file, "/repo/sites/tovu-com", () => "site" as const);
   assert.deepEqual(readTrackedSites(file), [
-    { siteDir: "/repo/sites/tovu-com", createdAt: readTrackedSites(file)[0].createdAt, origin: SITE_ORIGIN.adopted },
+    { siteDir: "/repo/sites/tovu-com", createdAt: readTrackedSites(file)[0]!.createdAt, origin: SITE_ORIGIN.adopted },
   ]);
 });
 
@@ -188,7 +188,7 @@ test("seedDevFallbackSite marks its seeded row adopted — it never created that
 // ---------------------------------------------------------------------------------------------
 
 /** A directory `classifySiteDir` will call a real site: both marker files present. */
-function siteFolder(parent, name) {
+function siteFolder(parent: string, name: string): string {
   const dir = path.join(parent, name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), "{}");
@@ -345,7 +345,7 @@ test("adoptDiscoveredSites tracks an untracked site dir and reports it", () => {
 test("adoptDiscoveredSites records every discovery as ADOPTED — it created none of them", () => {
   const file = sitesFilePath(tempDir());
   adoptDiscoveredSites(file, ["/sites/a"]);
-  assert.equal(readTrackedSites(file)[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites(file)[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("adoptDiscoveredSites skips a dir the operator removed, and leaves the dismissal in place", () => {

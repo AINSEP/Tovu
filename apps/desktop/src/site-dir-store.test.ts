@@ -14,26 +14,32 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 
 import { MAX_RECENT_SITE_DIRS, SiteDirSelectionCancelled, stateFilePath, readDesktopState, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
+import type { RejectedDevFallback } from "./site-dir-store.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-sitedir-"));
 }
 
 /** A directory that looks like a booted Tovu site to `classifySiteDir` — both marker files present. */
-function fakeSiteDir() {
+function fakeSiteDir(): string {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "fixture" }));
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "fixture", schemaVersion: 1 }));
   return dir;
 }
 
-function tempStatePath() {
+function tempStatePath(): string {
   return stateFilePath(tempDir());
 }
 
 /** A `tovu init` child that exits with `code`, having written `output` to stderr. */
-function fakeInitChild(code, output = "") {
-  const child = new EventEmitter();
+interface FakeInitChild extends EventEmitter {
+  stdout: PassThrough;
+  stderr: PassThrough;
+}
+
+function fakeInitChild(code: number, output = ""): FakeInitChild {
+  const child = new EventEmitter() as FakeInitChild;
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   queueMicrotask(() => {
@@ -44,7 +50,7 @@ function fakeInitChild(code, output = "") {
 }
 
 /** A repo root just complete enough for `resolveCliEntry` to succeed. */
-function fakeRepoRoot() {
+function fakeRepoRoot(): string {
   const root = tempDir();
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ bin: { tovu: "dist/src/cli/main.js" } }));
   fs.mkdirSync(path.join(root, "dist", "src", "cli"), { recursive: true });
@@ -164,7 +170,7 @@ test('resolveSiteDir fails fast, with a specific reason, when TOVU_DESKTOP_SITE_
 
 test('resolveSiteDir DOES initialize an empty TOVU_DESKTOP_SITE_DIR under the "init" policy — the policy is what decides, not the branch', async () => {
   const empty = tempDir();
-  let args;
+  let args: string[] | undefined;
   const dir = await resolveSiteDir({
     envDir: empty,
     onMissingSite: "init",
@@ -177,13 +183,13 @@ test('resolveSiteDir DOES initialize an empty TOVU_DESKTOP_SITE_DIR under the "i
     pickDir: () => assert.fail("an env override must never fall through to the picker"),
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args.slice(1), ["init", empty]);
+  assert.deepEqual(args!.slice(1), ["init", empty]);
 });
 
 test("resolveSiteDir still refuses an occupied or half-initialized TOVU_DESKTOP_SITE_DIR under either policy", async () => {
   const occupied = tempDir();
   fs.writeFileSync(path.join(occupied, "taxes.pdf"), "");
-  for (const onMissingSite of ["init", "fail"]) {
+  for (const onMissingSite of ["init", "fail"] as const) {
     await assert.rejects(
       resolveSiteDir({ envDir: occupied, onMissingSite, statePath: tempStatePath(), repoRoot: fakeRepoRoot() }),
       /is not a Tovu site and is not empty/,
@@ -237,7 +243,7 @@ test("resolveSiteDir ignores a dev fallback that is not actually a site — the 
 
 test("resolveSiteDir tells pickDir which dev fallback it rejected and why — absent dir", async () => {
   const fallback = path.join(tempDir(), "no-such-sites-dir");
-  let received;
+  let received: RejectedDevFallback | null | undefined;
   await assert.rejects(
     resolveSiteDir({
       statePath: tempStatePath(),
@@ -256,7 +262,7 @@ test("resolveSiteDir tells pickDir which dev fallback it rejected and why — ab
 test("resolveSiteDir tells pickDir which dev fallback it rejected and why — real folder, no marker files at all (sites/tovu-com's actual shape)", async () => {
   const fallback = tempDir();
   fs.writeFileSync(path.join(fallback, "content.db"), "");
-  let received;
+  let received: RejectedDevFallback | null | undefined;
   await assert.rejects(
     resolveSiteDir({
       statePath: tempStatePath(),
@@ -276,7 +282,7 @@ test("resolveSiteDir tells pickDir which single marker file is missing — the h
   const fallback = tempDir();
   fs.writeFileSync(path.join(fallback, "config.json"), JSON.stringify({ name: "fixture" }));
   fs.writeFileSync(path.join(fallback, "content.db"), "");
-  let received;
+  let received: RejectedDevFallback | null | undefined;
   await assert.rejects(
     resolveSiteDir({
       statePath: tempStatePath(),
@@ -293,7 +299,7 @@ test("resolveSiteDir tells pickDir which single marker file is missing — the h
 });
 
 test("resolveSiteDir passes null to pickDir when there is nothing to reject (no devFallbackDir)", async () => {
-  let received = "not called";
+  let received: RejectedDevFallback | null | string = "not called";
   await assert.rejects(
     resolveSiteDir({
       statePath: tempStatePath(),
@@ -324,14 +330,14 @@ test("resolveSiteDir reports a cancelled picker as a cancellation, not a failure
 
 test('resolveOrInitSiteDir returns an already-valid site unchanged under either policy', async () => {
   const site = fakeSiteDir();
-  for (const onMissingSite of ["init", "fail"]) {
+  for (const onMissingSite of ["init", "fail"] as const) {
     assert.equal(await resolveOrInitSiteDir({ dir: site, onMissingSite }), site);
   }
 });
 
 test('resolveOrInitSiteDir("init") runs `tovu init` for an empty folder, the same as adoptSiteDir', async () => {
   const empty = tempDir();
-  let args;
+  let args: string[] | undefined;
   const dir = await resolveOrInitSiteDir({
     dir: empty,
     onMissingSite: "init",
@@ -343,7 +349,7 @@ test('resolveOrInitSiteDir("init") runs `tovu init` for an empty folder, the sam
     },
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args.slice(1), ["init", empty, "--name", "My Site"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site"]);
 });
 
 test('resolveOrInitSiteDir("fail") refuses an empty folder with a specific reason instead of creating anything', async () => {
@@ -359,7 +365,7 @@ test("resolveOrInitSiteDir refuses occupied and incomplete folders regardless of
   fs.writeFileSync(path.join(occupied, "taxes.pdf"), "");
   const incomplete = tempDir();
   fs.writeFileSync(path.join(incomplete, "config.json"), JSON.stringify({ name: "half" }));
-  for (const onMissingSite of ["init", "fail"]) {
+  for (const onMissingSite of ["init", "fail"] as const) {
     await assert.rejects(resolveOrInitSiteDir({ dir: occupied, onMissingSite }), /is not a Tovu site and is not empty/);
     await assert.rejects(resolveOrInitSiteDir({ dir: incomplete, onMissingSite }), /is missing \.site-meta\.json/);
   }
@@ -386,7 +392,7 @@ test("adoptSiteDir refuses a half-initialized folder instead of silently accepti
 
 test("adoptSiteDir runs `tovu init` for an empty folder", async () => {
   const empty = tempDir();
-  let args;
+  let args: string[] | undefined;
   await adoptSiteDir({
     dir: empty,
     statePath: tempStatePath(),
@@ -398,7 +404,7 @@ test("adoptSiteDir runs `tovu init` for an empty folder", async () => {
       return fakeInitChild(0);
     },
   });
-  assert.deepEqual(args.slice(1), ["init", empty, "--name", "My Site"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site"]);
 });
 
 test("adoptSiteDir does NOT re-init a folder that is already a site", async () => {
@@ -430,7 +436,7 @@ test("initSiteDir surfaces Tovu's own error code when init fails", async () => {
 // fixed only for `serve`'s own env (`buildServeEnv`) and left `init` broken; "Open Site…"/"Open
 // Recent" onto an empty folder calls this function, not `buildServeEnv`.
 test("initSiteDir sets TOVU_SITE_DIR to the folder being created, closing the same cwd-crash buildServeEnv already fixed for serve", async () => {
-  let capturedEnv;
+  let capturedEnv: NodeJS.ProcessEnv | undefined;
   await initSiteDir({
     repoRoot: fakeRepoRoot(),
     dir: "/a/new/site",
@@ -440,11 +446,11 @@ test("initSiteDir sets TOVU_SITE_DIR to the folder being created, closing the sa
       return fakeInitChild(0);
     },
   });
-  assert.equal(capturedEnv.TOVU_SITE_DIR, "/a/new/site");
+  assert.equal(capturedEnv!.TOVU_SITE_DIR, "/a/new/site");
 });
 
 test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", async () => {
-  let capturedEnv;
+  let capturedEnv: NodeJS.ProcessEnv | undefined;
   await initSiteDir({
     repoRoot: fakeRepoRoot(),
     dir: "/a/new/site",
@@ -454,7 +460,7 @@ test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", 
       return fakeInitChild(0);
     },
   });
-  assert.equal(capturedEnv.TOVU_SITE_DIR, "/operator/pinned");
+  assert.equal(capturedEnv!.TOVU_SITE_DIR, "/operator/pinned");
 });
 
 test("initSiteDir creates a real, servable site through Tovu's actual CLI", async () => {
@@ -505,6 +511,6 @@ test("resolveDevFallback reports an unreadable candidate as rejected rather than
   const resolved = resolveDevFallback(notADirectory);
 
   assert.equal(resolved.useDir, null);
-  assert.equal(resolved.rejected.kind, "unreadable");
-  assert.equal(resolved.rejected.dir, notADirectory);
+  assert.equal(resolved.rejected!.kind, "unreadable");
+  assert.equal(resolved.rejected!.dir, notADirectory);
 });
