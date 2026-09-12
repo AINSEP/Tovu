@@ -1211,6 +1211,7 @@ export async function renderGenericPostPage(
   posts: PostRecord[],
   siteAssistantEnabled: boolean
 ): Promise<string> {
+  const siteTitle = await resolveSiteTitleForRender(deps);
   const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead, assignedTerms] = await Promise.all([
     resolveWidgetsForRender(deps, theme, post),
     resolveHtmlEmbedsForRender(deps, post),
@@ -1254,7 +1255,6 @@ export async function handlePostNotFoundOnSlugRoute(
 ): Promise<void> {
   if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
 
-  const siteTitle = await resolveSiteTitleForRender(deps);
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
   // the bare fallback below — same renderStaticPage path the marketing-page routes above use.
   if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
@@ -1573,6 +1573,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
+      const siteTitle = await resolveSiteTitleForRender(deps);
       const [widgets, mediaTransformVersions, extraHead, staticMenus] = await Promise.all([
         resolveWidgetsForRender(deps, theme),
         resolveMediaTransformVersionsForRender(deps),
@@ -1616,7 +1617,6 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-      const siteTitle = await resolveSiteTitleForRender(deps);
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
