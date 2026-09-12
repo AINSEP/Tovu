@@ -23,6 +23,12 @@
  * step — those still need this script restarted, same as before. Only the Vite/React renderer gets
  * a live-rebuild loop.
  *
+ * Loads `.env` from the repo root, same as `development/scripts/dev.mjs` (`npm run dev`) does, via the
+ * shared `load-repo-root-env.mjs` helper — before this, `npm run desktop` passed `process.env` straight
+ * through with no `.env` read at all, so a repo-root secret like `TOVU_INTEGRATIONS_ROOT_KEY` never
+ * reached a site server this app spawns (`tovu serve` inherits `process.env`), and a stored OAuth MCP
+ * server (e.g. Higgsfield) silently failed to decrypt instead of surfacing as unset config.
+ *
  * Deliberately does NOT set `TOVU_AGENT_CWD`. A packaged-app bug (`3ff568e3`) once ran the agent
  * daemon with cwd `/`, killing every assistant run with `EROFS .../.mcp.jini-<runId>.json`. Plain
  * `electron .` already runs with a writable cwd, so leaving this unset is what lets a future
@@ -44,9 +50,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
 const RENDERER_ENTRY = path.join(DESKTOP_DIR, "dist/renderer/index.html");
+
+// Before anything below reads `process.env` (including the `env: process.env` passthrough in `start()`)
+// — see this file's header comment and `load-repo-root-env.mjs` for why.
+if (loadRepoRootEnvFile(REPO_ROOT)) {
+  console.log("tovu desktop: loaded .env");
+}
 
 /** Runs an npm script in `apps/desktop` to completion before anything else starts. */
 function runToCompletion(label, npmScript) {

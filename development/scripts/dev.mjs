@@ -29,29 +29,17 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-/**
- * Load `.env` from the repo root, if one exists, before anything reads `process.env`.
- *
- * `.gitignore` has ignored `.env` and `.env.*` since long before this file existed, so the repo has
- * always LOOKED like it reads one — but nothing did. Every local secret therefore had to be
- * exported by hand in the shell that ran `npm run dev`, and the failure mode was silent: a missing
- * `TOVU_INTEGRATIONS_ROOT_KEY` surfaces much later as a `503 SECRET_STORE_UNCONFIGURED` on the AI
- * Assistant screen's save, which reads as a broken feature rather than as unset config.
- *
- * `process.loadEnvFile` is Node's own (v20.12+, no dependency). It runs HERE rather than in
- * `apps/website/src/index.ts` on purpose: this is the developer-machine entry point, and a `.env` that silently
- * overrode real environment variables on a production boot is a different and much worse thing.
- * Deployments set real env vars; `npm start` is untouched.
- *
- * Anything already exported in the shell is deliberately re-read from the file — Node's own
- * semantics — so a value here is the one source of truth for a dev boot rather than a value that
- * mysteriously depends on which terminal you used.
- */
-const ENV_FILE = path.join(REPO_ROOT, ".env");
-if (existsSync(ENV_FILE)) {
-  process.loadEnvFile(ENV_FILE);
+// Load `.env` from the repo root, if one exists, before anything below reads `process.env` — see
+// `load-repo-root-env.mjs` for the full mechanism and precedence rule (shell exports win; `.env` only
+// fills gaps). `development/scripts/dev-desktop.mjs` (`npm run desktop`) calls the same loader for the
+// same reason: without it, a desktop-launched site server never sees a secret like
+// `TOVU_INTEGRATIONS_ROOT_KEY`, and a stored OAuth MCP server silently fails to decrypt instead of
+// surfacing as unset config.
+if (loadRepoRootEnvFile(REPO_ROOT)) {
   console.log("tovu dev: loaded .env");
 }
 
