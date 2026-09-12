@@ -1,13 +1,16 @@
 import {
   accessSync,
   chmodSync,
+  closeSync,
   constants as fsConstants,
   copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -446,6 +449,109 @@ export function readThemeFile(
     throw new ThemePathError(`file '${required.relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit`);
   }
   return readFileSync(target, "utf8");
+}
+
+/** Read size for {@link filesHaveSameBytes}: its memory is two buffers of this size, however large
+ *  the files being compared are. */
+const COMPARE_CHUNK_BYTES = 64 * 1024;
+
+/** Fills `buffer` from `fd` starting at `position`, looping over short reads. Returns the byte count
+ *  that landed, which is below `buffer.length` only at end of file. */
+function readFullChunk(fd: number, buffer: Buffer, position: number): number {
+  let filled = 0;
+  while (filled < buffer.length) {
+    const bytesRead = readSync(fd, buffer, filled, buffer.length - filled, position + filled);
+    if (bytesRead === 0) break;
+    filled += bytesRead;
+  }
+  return filled;
+}
+
+/**
+ * Whether the files at `pathA` and `pathB` hold identical bytes, compared chunk by chunk until the
+ * first mismatch or end of file. `pathA` is opened first, so an open failure on it is the one thrown.
+ *
+ * @complexity O(s) time in the file size, O(1) space (two {@link COMPARE_CHUNK_BYTES} buffers).
+ */
+function filesHaveSameBytes(pathA: string, pathB: string): boolean {
+  const fdA = openSync(pathA, "r");
+  try {
+    const fdB = openSync(pathB, "r");
+    try {
+      const chunkA = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
+      const chunkB = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
+      for (let position = 0; ; position += COMPARE_CHUNK_BYTES) {
+        const readA = readFullChunk(fdA, chunkA, position);
+        const readB = readFullChunk(fdB, chunkB, position);
+        if (readA !== readB || !chunkA.subarray(0, readA).equals(chunkB.subarray(0, readB))) return false;
+        if (readA < COMPARE_CHUNK_BYTES) return true;
+      }
+    } finally {
+      closeSync(fdB);
+    }
+  } finally {
+    closeSync(fdA);
+  }
+}
+
+/**
+ * The catalog original's absolute path and size for `relativePath`, or `null` when there is no
+ * regular file there to compare against: missing, a directory, or a path that fails containment
+ * against the catalog folder. Any containment failure maps to `null` rather than throwing, the same
+ * way `explore.ts`'s `readOriginalForReset` maps every catalog-side `ThemePathError` to
+ * `NOT_IN_ORIGINAL`: from the caller's side it means "no original for this path".
+ */
+function originalRegularFile(required: {
+  originalDir: string;
+  originalsRoot: string;
+  relativePath: string;
+}): { path: string; size: number } | null {
+  try {
+    const path = resolveThemeFilePath({
+      themeDir: required.originalDir,
+      themesRoot: required.originalsRoot,
+      relativePath: required.relativePath,
+    });
+    const stat = statOrThemePathError(path, required.relativePath);
+    return stat?.isFile() ? { path, size: stat.size } : null;
+  } catch (err) {
+    if (err instanceof ThemePathError) return null;
+    throw err;
+  }
+}
+
+/**
+ * Whether one file in a theme's live folder differs from its catalog original, byte for byte.
+ *
+ * Decided from content only, never from mtime. Different sizes answer `true` from the two stats
+ * without opening either file; equal sizes always go to a full byte comparison. No line-ending or
+ * whitespace normalization: a CRLF-vs-LF difference is a difference.
+ *
+ * @param required.themeDir - The live theme's own folder (`DiscoveredTheme.dir`).
+ * @param required.themesRoot - The configured themes root, for the live side's recognized-root check.
+ * @param required.originalDir - The theme's catalog folder (`<themesRoot>/__original-themes__/<tier>/<id>`).
+ * @param required.originalsRoot - The catalog root (`<themesRoot>/__original-themes__`).
+ * @param required.relativePath - The file, relative to both folders.
+ * @returns `null` when the catalog has no regular file at `relativePath` (so there is nothing to
+ * compare against, and nothing to reset to). Otherwise `true` when the live file is missing, is not
+ * a regular file, or its bytes differ; `false` when the bytes are identical.
+ * @throws {ThemePathError} When `relativePath` fails containment against the LIVE folder, or the live
+ * path cannot be stat'ed for a reason other than not existing (e.g. a circular symlink).
+ * @throws Whatever `openSync`/`readSync` throw when equal-size files cannot be read (e.g. `EACCES`).
+ * @complexity O(1) stats when there is no original or the sizes differ; otherwise O(s) time in the
+ * file size and O(1) space.
+ */
+export function themeFileDiffersFromOriginal(
+  required: { themeDir: string; themesRoot: string; originalDir: string; originalsRoot: string; relativePath: string },
+  _optional: Record<string, never> = {}
+): boolean | null {
+  const { themeDir, themesRoot, relativePath } = required;
+  const livePath = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
+  const original = originalRegularFile(required);
+  if (!original) return null;
+  const live = statOrThemePathError(livePath, relativePath);
+  if (!live?.isFile() || live.size !== original.size) return true;
+  return !filesHaveSameBytes(livePath, original.path);
 }
 
 /**

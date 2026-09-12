@@ -66,6 +66,7 @@ import {
   readThemeFile,
   renameThemeFile,
   resolveThemeFileWriteScope,
+  themeFileDiffersFromOriginal,
   ThemePathError,
   writeThemeFile,
 } from "./theme-files.js";
@@ -256,6 +257,12 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
   }
 }
 
+/** `theme`'s folder inside the originals catalog — the one place `theme_reset_file` reads from and
+ *  compares against. */
+function catalogDirFor(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): string {
+  return join(routeDeps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+}
+
 /**
  * Read `relativePath`'s pristine copy out of the originals catalog for `theme_reset_file`, mirroring
  * `explore.ts`'s own `readOriginalForReset` (same read, same two refusal reasons) but throwing
@@ -268,7 +275,7 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
  * has no copy of this particular file.
  */
 function readOriginalForToolReset(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, relativePath: string): string {
-  const catalogDir = join(routeDeps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+  const catalogDir = catalogDirFor(routeDeps, theme);
   if (!existsSync(catalogDir)) {
     throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
   }
@@ -446,8 +453,9 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   // -> readThemeFile() + writeThemeFile(): same durable write as theme_write_file, just computed
   //    from a read instead of taking the whole content as input.
   ["theme_edit_file", "mutates-durable-state"],
-  // -> readThemeFile() against the catalog + writeThemeFile(): same durable write as theme_write_file,
-  //    just sourced from the theme's own stored original instead of caller-supplied content.
+  // -> readThemeFile() against the catalog + writeThemeFile() when the live bytes differ: same durable
+  //    write as theme_write_file, just sourced from the theme's own stored original instead of
+  //    caller-supplied content. An already-pristine file is not written.
   ["theme_reset_file", "mutates-durable-state"],
   // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
   ["theme_rename_file", "mutates-durable-state"],
@@ -611,6 +619,11 @@ export function buildThemesRegistrations(
      * `restoreBuiltThemeGeneratedTree`), this tool refuses that case outright through
      * `assertThemeFileWritable` — whole-tree revert is a separate, wider-blast-radius decision the
      * owner has not extended to agents (see `2026-09-12-theme-agent-tools-survey.md`'s gap table).
+     *
+     * An already-pristine file (live bytes identical to the catalog copy) is a successful no-op, not a
+     * refusal: the goal state already holds, so nothing is written and the result says
+     * `wasModified: false`, `bytesWritten: 0` — the same "already there is not an error" call the
+     * rename tool makes for a same-name rename.
      */
     theme_reset_file: async (ctx) => {
       const input = requireInputRecord(ctx.input);
@@ -632,13 +645,29 @@ export function buildThemesRegistrations(
         assertThemeFileWritable(theme, relativePath);
 
         const original = readOriginalForToolReset(routeDeps, theme, relativePath);
-        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: original });
+        // Byte comparison against the catalog copy (`themeFileDiffersFromOriginal`), never mtime or
+        // size alone. `!== false` treats `null` — the catalog copy vanished between the read above and
+        // this check — as modified, so the bytes already read are still written back.
+        const wasModified =
+          themeFileDiffersFromOriginal({
+            themeDir: theme.dir,
+            themesRoot: routeDeps.themesDir,
+            originalDir: catalogDirFor(routeDeps, theme),
+            originalsRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR),
+            relativePath,
+          }) !== false;
+        if (wasModified) {
+          writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: original });
+        }
+        // Reloaded even when nothing was written: `status`/`errors` report the theme as it is on disk
+        // now, and this process's snapshot is stale whenever a different process wrote the theme.
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
         return {
           themeId,
           path: relativePath,
-          bytesWritten: Buffer.byteLength(original, "utf8"),
+          wasModified,
+          bytesWritten: wasModified ? Buffer.byteLength(original, "utf8") : 0,
           content: original,
           status: reloaded.status,
           errors: reloaded.errors,

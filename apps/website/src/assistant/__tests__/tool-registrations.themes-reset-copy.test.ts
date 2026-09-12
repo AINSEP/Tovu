@@ -7,8 +7,10 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "../../features/theme/index.js";
+import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
@@ -70,6 +72,9 @@ function makeThemesRoot(): string {
   fs.writeFileSync(path.join(plain, "pages", "about.html"), "<html><body>about</body></html>", "utf8");
   fs.writeFileSync(path.join(plain, "pages", "about-1.html"), "<html><body>already taken</body></html>", "utf8");
   fs.writeFileSync(path.join(plain, "author-added.txt"), "added after install, not in the original", "utf8");
+  // CRLF live, LF in the catalog: a line-ending-only difference, which reset must treat as modified.
+  fs.mkdirSync(path.join(plain, "css"), { recursive: true });
+  fs.writeFileSync(path.join(plain, "css", "line-endings.css"), "a{}\r\nb{}\r\n", "utf8");
   // A previously-trashed file, exactly as `theme_trash_file` would leave one — used to prove reset
   // and copy both refuse it the same way `theme_write_file`/`theme_edit_file` already do.
   fs.mkdirSync(path.join(plain, ".trash", "1700000000000"), { recursive: true });
@@ -80,6 +85,8 @@ function makeThemesRoot(): string {
   fs.writeFileSync(path.join(plainCatalog, "theme.json"), PLAIN_MANIFEST, "utf8");
   fs.writeFileSync(path.join(plainCatalog, "tokens.json"), '{"--ink":"#000"}', "utf8");
   fs.writeFileSync(path.join(plainCatalog, "pages", "index.html"), "<html><body>x</body></html>", "utf8");
+  fs.mkdirSync(path.join(plainCatalog, "css"), { recursive: true });
+  fs.writeFileSync(path.join(plainCatalog, "css", "line-endings.css"), "a{}\nb{}\n", "utf8");
   // Deliberately no `author-added.txt` and no `pages/about-1.html` in the catalog.
 
   const noOriginal = path.join(root, "static", "no-original");
@@ -134,12 +141,79 @@ test("theme_reset_file: overwrites a diverged live file with the catalog's origi
   const { deps, themesDir } = fakeRouteDeps();
   const result = (await wired(deps, "theme_reset_file").handler(
     executionContext({ themeId: "plain", path: "tokens.json" })
-  )) as { path: string; content: string; bytesWritten: number; status: string };
+  )) as { path: string; content: string; bytesWritten: number; wasModified: boolean; status: string };
 
   assert.equal(result.path, "tokens.json");
+  assert.equal(result.wasModified, true);
   assert.equal(result.content, '{"--ink":"#000"}', "the ORIGINAL bytes, not the diverged live ones");
   assert.equal(result.bytesWritten, '{"--ink":"#000"}'.length);
   assert.equal(readFile(themesDir, "plain", "tokens.json"), '{"--ink":"#000"}');
+});
+
+test("theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const livePath = path.join(themesDir, "static", "plain", "pages", "index.html");
+  // `writeThemeFile` writes a temp file and renames it over the target, so any write at all gives the
+  // path a new inode. An unchanged inode is the proof nothing was written.
+  const inodeBefore = fs.statSync(livePath).ino;
+
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "plain", path: "pages/index.html" })
+  )) as { themeId: string; path: string; wasModified: boolean; bytesWritten: number; content: string; status: string };
+
+  assert.deepEqual(
+    { themeId: result.themeId, path: result.path, wasModified: result.wasModified, bytesWritten: result.bytesWritten, content: result.content, status: result.status },
+    { themeId: "plain", path: "pages/index.html", wasModified: false, bytesWritten: 0, content: "<html><body>x</body></html>", status: "valid" }
+  );
+  assert.equal(fs.statSync(livePath).ino, inodeBefore, "an unmodified file must not be rewritten");
+});
+
+test("theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "plain", path: "css/line-endings.css" })
+  )) as { wasModified: boolean; bytesWritten: number };
+
+  assert.equal(result.wasModified, true);
+  assert.equal(result.bytesWritten, "a{}\nb{}\n".length);
+  assert.equal(readFile(themesDir, "plain", "css/line-endings.css"), "a{}\nb{}\n");
+});
+
+test("theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  fs.rmSync(path.join(themesDir, "static", "plain", "tokens.json"));
+
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "plain", path: "tokens.json" })
+  )) as { wasModified: boolean; bytesWritten: number };
+
+  assert.equal(result.wasModified, true);
+  assert.equal(result.bytesWritten, '{"--ink":"#000"}'.length);
+  assert.equal(readFile(themesDir, "plain", "tokens.json"), '{"--ink":"#000"}');
+});
+
+test("theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check", () => {
+  const entry = getThemesAgentToolCatalog().find((tool) => tool.name === "theme_reset_file");
+  assert.ok(entry);
+  assert.ok(
+    entry.description.includes(
+      "If the live file already matches its original byte-for-byte, nothing is written: the call succeeds with wasModified: false and bytesWritten: 0."
+    ),
+    entry.description
+  );
+  assert.ok(
+    entry.description.includes("a line-ending-only difference (CRLF vs LF) counts as modified"),
+    entry.description
+  );
+  assert.doesNotMatch(entry.description, /regardless of whether the live file actually differs/);
+  assert.doesNotMatch(entry.description, /no separate 'was this file actually modified' check/);
+});
+
+test("theme_reset_file's search keywords carry modified/changed vocabulary", () => {
+  const keywords = TOOL_SEARCH_KEYWORDS["theme_reset_file"];
+  assert.ok(keywords);
+  assert.match(keywords, /\bmodified\b/);
+  assert.match(keywords, /\bchanged\b/);
 });
 
 test("theme_reset_file: a theme with no stored original at all is refused, and nothing is touched", async () => {

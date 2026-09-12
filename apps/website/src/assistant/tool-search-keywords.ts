@@ -229,7 +229,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // are left in place rather than removed — they still describe a real, working composition, and
   // `tool-search-keywords.theme-copy.test.ts` pins them — but a model should now be routed to the
   // real, purpose-built tool first.
-  theme_reset_file: "theme file reset restore revert original undo pristine default discard changes",
+  theme_reset_file: "theme file reset restore revert original undo pristine default discard changes modified changed",
   theme_rename_file: "theme file rename renaming move name change filename css template stylesheet",
   theme_copy_file: "theme file copy duplicate clone branch variant new name",
   theme_trash_file: "theme file delete remove trash soft delete",

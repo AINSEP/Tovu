@@ -147,6 +147,7 @@ export {
   renameThemeFile,
   resolveThemeFileWriteScope,
   restoreBuiltThemeGeneratedTree,
+  themeFileDiffersFromOriginal,
   writeThemeFile,
   ThemePathError,
   type ThemeFileWriteScope,

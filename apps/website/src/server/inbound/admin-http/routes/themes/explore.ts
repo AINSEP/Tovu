@@ -20,6 +20,7 @@ import {
   renameThemeFile,
   resolveThemeFileWriteScope,
   restoreBuiltThemeGeneratedTree,
+  themeFileDiffersFromOriginal,
   writeThemeFile,
   ThemePathError,
   readThemeLineageFile,
@@ -324,6 +325,32 @@ function contentRecordsBySlug(posts: readonly PostRecord[]): Map<string, ThemeFi
 const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = new Map();
 
 /**
+ * {@link describeThemeFile}'s `modified` field: whether the live file's bytes differ from its catalog
+ * original, or `null` when the theme has no stored original or the catalog has no regular file at
+ * this path. A real byte comparison (`themeFileDiffersFromOriginal`, `theme-files.ts`), so a
+ * CRLF-vs-LF difference counts as modified.
+ *
+ * Nothing is cached: the live side can change from any writer (this screen, an agent tool running in
+ * another process, a hand edit), so every detail request re-reads it.
+ *
+ * @complexity O(1) when there is no original or the sizes differ; O(s) in the file size when the sizes
+ * match. Across a detail listing that is O(total bytes) of same-size files with an original.
+ */
+function fileModifiedFromOriginal(
+  relativePath: string,
+  options: { catalogDir: string; hasOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
+): boolean | null {
+  if (!options.hasOriginal) return null;
+  return themeFileDiffersFromOriginal({
+    themeDir: options.theme.dir,
+    themesRoot: options.themesDir,
+    originalDir: options.catalogDir,
+    originalsRoot: join(options.themesDir, THEME_CATALOG_DIR),
+    relativePath,
+  });
+}
+
+/**
  * Build one file-list entry — shared by the detail route's full listing and the copy/rename routes'
  * single-file response, so "what does the client learn about a file" has one definition instead of
  * three ad hoc object literals drifting apart.
@@ -349,12 +376,20 @@ const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = ne
  * combined into one shared local (would need `pageId` re-narrowed past a `boolean` intermediate,
  * trading a one-line duplicate condition for a cast) — so the two fields can never drift on which
  * files the question applies to.
+ *
+ * `modified` (2026-09-12, owner decision) is whether the live file's bytes differ from its catalog
+ * original — see {@link fileModifiedFromOriginal}. It is `null` exactly when `resettable` is false:
+ * with no catalog copy of the file there is nothing to compare against, so "modified" has no answer
+ * rather than a `false` that would read as "untouched". `resettable` is derived from the same
+ * comparison, so it now also requires the catalog entry to be a regular file, not merely a path that
+ * exists.
  */
 function describeThemeFile(
   relativePath: string,
   options: {
     catalogDir: string;
     hasOriginal: boolean;
+    themesDir: string;
     apiVersion: 2 | undefined;
     theme: DiscoveredTheme;
     contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>;
@@ -365,11 +400,13 @@ function describeThemeFile(
   readable: boolean;
   editable: boolean;
   resettable: boolean;
+  modified: boolean | null;
   published: boolean | null;
   collidingContent: ThemeFileContentCollision | null;
 } {
   const group = fileGroup(relativePath, options.apiVersion);
   const pageId = group === "page" ? pageIdForPagePath(relativePath) : null;
+  const modified = fileModifiedFromOriginal(relativePath, options);
   return {
     path: relativePath,
     group,
@@ -377,8 +414,9 @@ function describeThemeFile(
     editable: isThemeFileWritable(relativePath, options.apiVersion),
     // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
     // has no original to go back to, and offering a Reset that would fail is worse than not
-    // offering one.
-    resettable: options.hasOriginal && existsSync(join(options.catalogDir, relativePath)),
+    // offering one. `modified` is `null` for exactly those files.
+    resettable: modified !== null,
+    modified,
     published:
       pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
         ? isStandaloneThemePage(options.theme, pageId)
@@ -441,7 +479,16 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // human operator too, not only for the agent that put it there.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
         .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
-        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion, theme, contentBySlug }));
+        .map((path) =>
+          describeThemeFile(path, {
+            catalogDir,
+            hasOriginal,
+            themesDir: deps.themesDir,
+            apiVersion: theme.manifest.apiVersion,
+            theme,
+            contentBySlug,
+          })
+        );
 
       res.json({
         id: theme.manifest.id,
@@ -782,6 +829,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
         ...describeThemeFile(destPath, {
           catalogDir,
           hasOriginal,
+          themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
@@ -951,6 +999,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
         ...describeThemeFile(destPath, {
           catalogDir,
           hasOriginal,
+          themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
