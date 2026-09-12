@@ -59,5 +59,15 @@ test("a rescan failure is reported ALONGSIDE the grid, never in place of it", ()
   const body = appTsx.slice(appTsx.indexOf('function ProjectsBody('));
   const ownBody = body.slice(0, body.indexOf('\nfunction '));
   assert.ok(ownBody.includes('if (loadError)'), 'loadError still owns the replace-the-grid path');
-  assert.match(ownBody, /\{rescanError && [\s\S]{0,300}?\}\s*\n\s*<ProjectGrid/);
+  // The INVARIANT is that `rescanError` renders additively, in the same branch that still draws the
+  // websites — never through an early return that replaces them. Asserted structurally rather than
+  // by "the line immediately after it is `<ProjectGrid`": that earlier pattern also passed only
+  // while `rescanError` happened to be the last thing before the grid, so adding a SECOND additive
+  // message (`addError`, same reasoning) broke the test without touching the property it protects.
+  const rescanRender = ownBody.indexOf('{rescanError &&');
+  assert.ok(rescanRender !== -1, 'rescanError is not rendered at all');
+  const tail = ownBody.slice(rescanRender);
+  // No early return between the message and the grid — that is what "in place of it" would look like.
+  assert.doesNotMatch(tail.slice(0, tail.indexOf('<ProjectGrid')), /\breturn\b/);
+  assert.ok(tail.includes('<ProjectGrid'), 'the grid is not rendered after the rescan message');
 });

@@ -1,5 +1,5 @@
 /**
- * @file Real handlers for the five `runner:projects:*` IPC verbs the Projects screen needs — see
+ * @file Real handlers for the seven `runner:projects:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `RUNNER_PROJECT_CHANNELS` for what each one is for. Registered in
  * `main.js` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
@@ -32,6 +32,7 @@ const RUNNER_PROJECT_CHANNELS = Object.freeze({
   openExternal: "runner:projects:open-external",
   start: "runner:projects:start",
   rescan: "runner:projects:rescan",
+  addSite: "runner:projects:add-site",
 });
 
 /**
@@ -156,6 +157,50 @@ async function handleCreate(input, deps) {
   const siteId = readSiteIdentity(siteDir);
   trackProject(deps.projectsPath, siteDir, origin, { siteId });
   return buildProjectRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
+}
+
+/**
+ * "Add Tovu Website" — track a folder that ALREADY holds a Tovu site.
+ *
+ * The sibling of {@link handleCreate}, and the difference is the entire point: `create` takes an
+ * EMPTY folder and runs `tovu init` into it, while this one takes a folder that is already a site
+ * and writes nothing but a registry row. `adoptSiteDir` cannot be reused here for exactly that
+ * reason — it is `resolveOrInitSiteDir({onMissingSite: "init"})`, so handing it an empty folder
+ * creates a site there, which for this verb is the operator's mistake being silently acted on
+ * rather than reported.
+ *
+ * It also explains a confusion this closes rather than adds to: `handleCreate` ALREADY silently
+ * adopts a folder that turns out to be a site (see its `wasEmpty` line), so "Create website" has
+ * been doing two jobs with one label. This gives the second job its own button and its own refusals.
+ *
+ * Main owns the dialog, same as `handleCreate`, so the renderer never names a path.
+ *
+ * The row is recorded `adopted` by `addSitePointer` itself, never `created`, so
+ * `project-delete-guard.js` can never let a later delete erase a folder this app did not make.
+ *
+ * @throws {Error} when the dialog is cancelled, or `AddSitePointerError` when the folder is not a
+ *   complete Tovu site — either way an operator-facing message that names the fix.
+ * @complexity O(n) in the tracked-project count, plus one classification.
+ */
+async function handleAddSite(deps) {
+  const picked = await deps.dialog.showOpenDialog({
+    title: "Choose your Tovu website's folder",
+    message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
+    buttonLabel: "Add website",
+    // No `createDirectory`, unlike `handleCreate`: a folder the operator makes in this dialog is
+    // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
+    // button would invite the one mistake the refusal then has to explain.
+    properties: ["openDirectory"],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    throw new Error("No folder was chosen.");
+  }
+
+  const { siteDir } = deps.addSitePointer({ siteDir: picked.filePaths[0], projectsPath: deps.projectsPath });
+  const row = readTrackedProjects(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
+  // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
+  // origin, and a fabricated row would report today's date and reorder the operator's grid.
+  return buildProjectRecord(row, deps);
 }
 
 /**
@@ -371,7 +416,7 @@ function rescanProjects(deps) {
 }
 
 /**
- * Registers the six real `runner:projects:*` handlers above.
+ * Registers the seven real `runner:projects:*` handlers above.
  *
  * @param {object} deps
  * @param {{handle: Function}} deps.ipcMain
@@ -391,6 +436,9 @@ function rescanProjects(deps) {
  * @param {string} deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
  * @param {Function} deps.readSiteName `main.js`'s site-display-name reader.
  * @param {Function} deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
+ * @param {Function} deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
+ *   {@link handleAddSite}. Injected rather than imported for the same reason `adoptSiteDir` is —
+ *   every handler in this file stays callable from plain `node --test` against fakes.
  * @param {Function} deps.classifySiteDir `site-dir-store.js`'s classifier, called by `handleCreate`
  *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.js`.
@@ -403,7 +451,7 @@ function rescanProjects(deps) {
  * @param {Function} deps.isLiveServeRow `site-registry.js`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — six registrations.
+ * @complexity O(1) — seven registrations.
  */
 function registerProjectIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.list, () => handleList(deps));
@@ -412,6 +460,7 @@ function registerProjectIpcHandlers(deps) {
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.start, (_event, id) => handleStart(id, deps));
   deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.rescan, () => rescanProjects(deps));
+  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.addSite, () => handleAddSite(deps));
 }
 
 export {
@@ -419,6 +468,7 @@ export {
   foreignServerMessage,
   buildProjectRecord,
   handleList,
+  handleAddSite,
   handleCreate,
   handleDelete,
   handleOpenExternal,

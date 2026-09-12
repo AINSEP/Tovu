@@ -74,6 +74,11 @@ contextBridge.exposeInMainWorld(
     daemonOnline: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.daemonOnline),
     listProjects: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.list),
     rescanProjects: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.rescan),
+    /** "Add Tovu Website" — track a folder that ALREADY holds a site. Takes no argument: main owns
+     *  the folder dialog, so the renderer never names a filesystem path. Rejects when the operator
+     *  cancels, or when the folder is not already a complete Tovu site — surface that message
+     *  verbatim, it names the fix. See `RUNNER_PROJECT_CHANNELS.addSite`. */
+    addSite: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.addSite),
     createProject: (input: CreateProjectInput) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.create, input),
     startProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.start, id),
     stopProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.stop, id),

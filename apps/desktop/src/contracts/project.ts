@@ -100,6 +100,27 @@ export const RUNNER_PROJECT_CHANNELS = {
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:projects:rescan',
+  /**
+   * "Add Tovu Website" — the operator picks ONE folder that already holds a Tovu site, and it
+   * becomes a tracked row. Real (`project-ipc.js`'s `handleAddSite` over
+   * `add-site-pointer.js`'s `addSitePointer`).
+   *
+   * **Pointer semantics, and the whole reason this is not `create`.** The folder is never moved,
+   * copied, renamed, or written to, and no site is ever created: a folder that is empty, is
+   * half-initialized, or holds unrelated files is REFUSED with the reason. `create` is the
+   * opposite deal — it takes an empty folder and runs `tovu init` into it — so the two cannot be
+   * one channel, however similar the dialog looks.
+   *
+   * Takes no argument: main owns the folder dialog, the same way `create` does, so the renderer
+   * never names a filesystem path and main has nothing to validate on arrival.
+   *
+   * @returns the new `ProjectRecord`, so the grid can render the card without a second `list`
+   *   round trip.
+   * @throws when the operator cancels the dialog, or when the folder is not already a complete
+   *   Tovu site — the message is operator-facing and names the fix, so a renderer must surface it
+   *   verbatim rather than paraphrasing it.
+   */
+  addSite: 'runner:projects:add-site',
   /** Not implemented yet — no control in the per-project bar calls it. Closing the app
    *  (`before-quit`) or deleting the project are the two ways a fleet-opened site stops today. */
   stop: 'runner:projects:stop',

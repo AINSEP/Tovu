@@ -23,6 +23,7 @@ import {
   useWebviewLoadFailure,
 } from './App.hooks.js';
 import { folderPathsFromDataTransfer } from './folder-drop.js';
+import { useAddSite } from './use-add-site.hooks.js';
 import { ProjectGrid } from './ProjectGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './project-status.js';
@@ -68,6 +69,7 @@ export function App({
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
   const { rescanning, rescanError, rescan } = useProjectRescan(setProjects);
+  const { adding, addError, addSite } = useAddSite(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the fleet tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveFleetView`.
@@ -140,6 +142,9 @@ export function App({
           onRescan={rescan}
           rescanning={rescanning}
           rescanError={rescanError}
+          onAddSite={addSite}
+          adding={adding}
+          addError={addError}
         />
 
         <CreateWebsiteHost
@@ -754,6 +759,9 @@ function MainArea({
   onRescan,
   rescanning,
   rescanError,
+  onAddSite,
+  adding,
+  addError,
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
@@ -771,6 +779,9 @@ function MainArea({
   onRescan: () => Promise<void>;
   rescanning: boolean;
   rescanError: string | null;
+  onAddSite: () => Promise<void>;
+  adding: boolean;
+  addError: string | null;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -785,6 +796,8 @@ function MainArea({
         onCreateWebsite={onCreateWebsite}
         onRescan={onRescan}
         rescanning={rescanning}
+        onAddSite={onAddSite}
+        adding={adding}
       />
       <MainContent
         activeId={activeId}
@@ -793,6 +806,7 @@ function MainArea({
         projectsLoading={projectsLoading}
         loadError={loadError}
         rescanError={rescanError}
+        addError={addError}
         projects={projects}
         activeLabel={active?.label ?? ''}
         activeDescription={active?.agentDescription ?? ''}
@@ -811,6 +825,8 @@ function MainHeader({
   onCreateWebsite,
   onRescan,
   rescanning,
+  onAddSite,
+  adding,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
@@ -818,6 +834,8 @@ function MainHeader({
   onCreateWebsite: () => void;
   onRescan: () => Promise<void>;
   rescanning: boolean;
+  onAddSite: () => Promise<void>;
+  adding: boolean;
 }) {
   return (
     <header className="main__head">
@@ -829,6 +847,14 @@ function MainHeader({
               that already exist, so it must not compete with the primary action. */}
           <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
             {rescanning ? 'Scanning…' : 'Rescan'}
+          </button>
+          {/* Quiet for the same reason as Rescan, and next to it because the two are the same KIND
+              of action — both only ever add cards for websites that already exist. The difference
+              is who chooses: Rescan looks under the scan roots automatically, this one asks the
+              operator for one folder. "Create website" is the only button here that makes a new
+              site, which is why it stays the single primary. */}
+          <button type="button" className="button button--quiet" onClick={() => void onAddSite()} disabled={adding}>
+            {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
             <span aria-hidden="true">+</span>
@@ -844,8 +870,8 @@ function ProjectsBody({
   projectsLoading,
   loadError,
   rescanError,
+  addError,
   projects,
-  onCreate,
   onOpen,
   onDelete,
 }: {
@@ -859,8 +885,17 @@ function ProjectsBody({
    * more of them.
    */
   rescanError: string | null;
+  /**
+   * A refused "Add Tovu Website", shown for the same reason `rescanError` is and never folded into
+   * `loadError`: the grid on screen is still entirely real and openable, so replacing it with an
+   * error would hide working websites in order to report that ONE folder was not one.
+   *
+   * Main's own sentence, verbatim — it names the fix ("use Create website to make a new site in an
+   * empty folder", "if your site lives in a subfolder, point at that subfolder instead"). See
+   * `use-add-site.hooks.ts` on why paraphrasing it here would be a regression.
+   */
+  addError: string | null;
   projects: readonly ProjectRecord[];
-  onCreate: () => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
 }) {
@@ -881,8 +916,31 @@ function ProjectsBody({
   return (
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
-      <ProjectGrid projects={projects} onCreate={onCreate} onOpen={onOpen} onDelete={onDelete} />
+      {addError && <p className="empty__body">{addError}</p>}
+      {projects.length === 0 ? <NoWebsitesYet /> : <ProjectGrid projects={projects} onOpen={onOpen} onDelete={onDelete} />}
     </>
+  );
+}
+
+/**
+ * What the Projects screen shows when nothing is tracked yet.
+ *
+ * Needed because deleting the grid's dashed "Add project" tile (see `ProjectGrid.tsx`'s header)
+ * also deleted the only thing an operator with no websites used to see — without this, a first
+ * launch renders an empty page with no explanation and no visible way forward.
+ *
+ * It names the three header buttons rather than duplicating them as controls. A fourth button here
+ * would be the same mistake the dashed tile was: a second control firing an action the header
+ * already owns, which is how the two got out of step in the first place.
+ */
+function NoWebsitesYet() {
+  return (
+    <div className="empty">
+      <p className="empty__body">
+        No websites yet. Use <strong>Create website</strong> to start a new one, <strong>Add Tovu Website</strong> to
+        point at a site you already have, or <strong>Rescan</strong> to look for sites on this computer.
+      </p>
+    </div>
   );
 }
 
@@ -893,6 +951,7 @@ function MainContent({
   projectsLoading,
   loadError,
   rescanError,
+  addError,
   projects,
   activeLabel,
   activeDescription,
@@ -906,6 +965,7 @@ function MainContent({
   projectsLoading: boolean;
   loadError: string | null;
   rescanError: string | null;
+  addError: string | null;
   projects: readonly ProjectRecord[];
   activeLabel: string;
   activeDescription: string;
@@ -950,8 +1010,8 @@ function MainContent({
         projectsLoading={projectsLoading}
         loadError={loadError}
         rescanError={rescanError}
+        addError={addError}
         projects={projects}
-        onCreate={onCreateWebsite}
         onOpen={onOpenProject}
         onDelete={onDeleteProject}
       />

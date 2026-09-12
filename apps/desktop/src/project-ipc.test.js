@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `project-ipc.js` — the five real `runner:projects:*` handlers the Projects
+ * @file Coverage for `project-ipc.js` — the seven real `runner:projects:*` handlers the Projects
  * screen needs. No real Electron anywhere: `ipcMain`/`dialog`/`shell` are plain fakes, `openSites`
  * is a real `Map` standing in for `main.js`'s module-level one, and `openSiteServer`/`adoptSiteDir`
  * are spies rather than the real functions — those are covered by `main.js`'s own doc and by the
@@ -11,9 +11,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { RUNNER_PROJECT_CHANNELS, buildProjectRecord, handleList, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanProjects, registerProjectIpcHandlers } from "./project-ipc.js";
+import { RUNNER_PROJECT_CHANNELS, buildProjectRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanProjects, registerProjectIpcHandlers } from "./project-ipc.js";
 import { PROJECT_ORIGIN, projectsFilePath, trackProject, readTrackedProjects, writeTrackedProjects } from "./project-registry.js";
-import { classifySiteDir } from "./site-dir-store.js";
+import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.js";
+import { addSitePointer } from "./add-site-pointer.js";
 import { createKeyedSerializer } from "./keyed-serializer.js";
 import { createSiteSupervisor } from "./site-supervisor.js";
 import { readRegistry, writeRegistry, isLiveServeRow } from "./site-registry.js";
@@ -61,7 +62,7 @@ function baseDeps(overrides = {}) {
   };
 }
 
-test("the five channel literals here match contracts/project.ts exactly (no drift)", () => {
+test("every channel literal here matches contracts/project.ts exactly (no drift)", () => {
   const source = fs.readFileSync(path.join(__dirname, "contracts", "project.ts"), "utf8");
   for (const [key, channel] of Object.entries(RUNNER_PROJECT_CHANNELS)) {
     assert.ok(source.includes(`'${channel}'`), `contracts/project.ts is missing the '${channel}' literal for ${key}`);
@@ -153,6 +154,109 @@ test("handleList returns one record per tracked row, joined against openSites", 
   assert.equal(byId.get("/sites/a").status, "stopped");
   assert.equal(byId.get("/sites/b").status, "running");
   assert.equal(byId.get("/sites/b").port, 9000);
+});
+
+/** A folder that is a complete Tovu site, via this file's existing {@link writeSite}. */
+function siteFixture(name = "existing-site") {
+  return writeSite(path.join(tempDir(), name), `id-${name}`);
+}
+
+/** `baseDeps` plus the folder dialog and the real pointer adder `handleAddSite` needs. */
+function addSiteDeps(pickedPath, overrides = {}) {
+  const shown = [];
+  const deps = baseDeps({
+    classifySiteDir: classifySiteDirSafely,
+    addSitePointer,
+    dialog: {
+      showOpenDialog: async (options) => {
+        shown.push(options);
+        return pickedPath === null ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [pickedPath] };
+      },
+    },
+    ...overrides,
+  });
+  return { deps, shown };
+}
+
+test("handleAddSite tracks an existing site as `adopted` and returns its record", async () => {
+  const siteDir = siteFixture();
+  const { deps } = addSiteDeps(siteDir);
+
+  const record = await handleAddSite(deps);
+
+  assert.equal(record.id, siteDir);
+  assert.equal(record.installDir, siteDir);
+  assert.equal(record.status, "stopped");
+  // The consequence that matters: `deleteErasesFiles` false means a later delete drops the card and
+  // leaves every byte of someone else's site where it is.
+  assert.equal(record.deleteErasesFiles, false);
+  assert.equal(readTrackedProjects(deps.projectsPath)[0].origin, "adopted");
+});
+
+test("handleAddSite REFUSES an empty folder and never initializes a site in it", async () => {
+  const siteDir = path.join(tempDir(), "fresh");
+  fs.mkdirSync(siteDir);
+  const { deps } = addSiteDeps(siteDir);
+
+  await assert.rejects(() => handleAddSite(deps), /no Tovu site here to add/);
+
+  // The distinction from `handleCreate`, asserted rather than described: that one runs `tovu init`
+  // into an empty folder on purpose. This one must not, and an empty folder is the case where the
+  // difference is visible.
+  assert.deepEqual(fs.readdirSync(siteDir), []);
+  assert.deepEqual(readTrackedProjects(deps.projectsPath), []);
+});
+
+test("handleAddSite REFUSES an incomplete site and an occupied folder", async () => {
+  const incomplete = path.join(tempDir(), "half");
+  fs.mkdirSync(incomplete);
+  fs.writeFileSync(path.join(incomplete, "config.json"), "{}");
+  const occupied = path.join(tempDir(), "docs");
+  fs.mkdirSync(occupied);
+  fs.writeFileSync(path.join(occupied, "a.txt"), "x");
+
+  const first = addSiteDeps(incomplete);
+  await assert.rejects(() => handleAddSite(first.deps), /half-initialized or damaged/);
+  const second = addSiteDeps(occupied);
+  await assert.rejects(() => handleAddSite(second.deps), /folder of unrelated files/);
+
+  assert.deepEqual(readTrackedProjects(first.deps.projectsPath), []);
+  assert.deepEqual(readTrackedProjects(second.deps.projectsPath), []);
+  assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
+  assert.deepEqual(fs.readdirSync(occupied), ["a.txt"]);
+});
+
+test("handleAddSite's dialog does NOT offer to create a folder", async () => {
+  const { deps, shown } = addSiteDeps(siteFixture());
+
+  await handleAddSite(deps);
+
+  // `handleCreate` passes `createDirectory` on purpose; this must not. A folder the operator makes
+  // in the dialog is empty by definition, and an empty folder is exactly what this verb refuses —
+  // offering the button would invite the one mistake the refusal then has to explain.
+  assert.deepEqual(shown[0].properties, ["openDirectory"]);
+  assert.equal(shown[0].properties.includes("createDirectory"), false);
+});
+
+test("handleAddSite rejects a cancelled dialog without writing anything", async () => {
+  const { deps } = addSiteDeps(null);
+
+  await assert.rejects(() => handleAddSite(deps), /No folder was chosen/);
+
+  assert.deepEqual(readTrackedProjects(deps.projectsPath), []);
+});
+
+test("handleAddSite keeps an already-tracked project's original createdAt", async () => {
+  const siteDir = siteFixture();
+  const { deps } = addSiteDeps(siteDir);
+  const first = await handleAddSite(deps);
+
+  const second = await handleAddSite(deps);
+
+  // Read back from the registry rather than synthesized: a fabricated record would stamp today's
+  // date and silently reorder the operator's Projects grid on a re-add.
+  assert.equal(second.createdAt, first.createdAt);
+  assert.equal(readTrackedProjects(deps.projectsPath).length, 1);
 });
 
 test("handleCreate refuses a hosted-database choice instead of quietly making a SQLite site", async () => {

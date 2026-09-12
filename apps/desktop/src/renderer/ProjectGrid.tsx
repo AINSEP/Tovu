@@ -1,9 +1,19 @@
 /**
- * The project grid: the "Add project" tile, one card per project, and each card's inline
- * delete-confirm overlay. Split out of `App.tsx` as its own module — this family has a small,
- * self-contained props surface (`projects`, `onCreate`, `onOpen`, `onDelete`) and no dependency on
- * anything else `App.tsx` renders, which is what makes it a real ownership boundary rather than
- * just a line-count split.
+ * The project grid: one card per website, and each card's inline delete-confirm overlay. Split out
+ * of `App.tsx` as its own module — this family has a small, self-contained props surface
+ * (`projects`, `onOpen`, `onDelete`) and no dependency on anything else `App.tsx` renders, which is
+ * what makes it a real ownership boundary rather than just a line-count split.
+ *
+ * **The dashed add-tile that used to lead this grid is gone, and it was redundant rather than
+ * merely surplus.** Its `onClick` was the same zero-argument `openCreateWebsite` the header's
+ * primary button already calls — the identical handler, from the identical props chain — so the two
+ * controls did exactly one thing between them. Its subtitle described the CREATE path too, which
+ * made it read as a third, distinct option when it was really a duplicate of one. The header row is
+ * now the single place those actions live: Rescan, then add-an-existing-website, then create.
+ *
+ * The tile was also the de-facto empty state, so removing it alone would have left an operator with
+ * no websites looking at nothing at all. `ProjectsBody` (`App.tsx`) renders an explicit empty state
+ * instead — this grid is only ever asked to draw cards.
  */
 import { useDeleteConfirmation } from './App.hooks.js';
 import { databaseLabel, deleteActionCopy, isCardOpenKey, isCardOpenable, type DeleteActionCopy } from './ProjectGrid.hooks.js';
@@ -27,13 +37,11 @@ import type { ProjectRecord } from '../contracts/project.js';
  */
 export function ProjectGrid({
   projects,
-  onCreate,
   onOpen,
   onDelete,
   useDeleteState = useDeleteConfirmation,
 }: {
   projects: readonly ProjectRecord[];
-  onCreate: () => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   useDeleteState?: typeof useDeleteConfirmation;
@@ -43,16 +51,6 @@ export function ProjectGrid({
 
   return (
     <div className="grid">
-      <button type="button" className="card card--add" onClick={onCreate}>
-        <span className="card__plus" aria-hidden="true">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M10 4.5v11M4.5 10h11" strokeLinecap="round" />
-          </svg>
-        </span>
-        <span className="card__addlabel">Add project</span>
-        <span className="card__addhint">New site on its own port</span>
-      </button>
-
       {projects.map((project) => (
         <ProjectCard
           key={project.id}

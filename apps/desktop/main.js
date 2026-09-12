@@ -117,6 +117,8 @@ import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.js";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.js";
 import { projectsFilePath, seedDevFallbackProject, migrateLegacyDismissals } from "./src/project-registry.js";
 import { registerProjectIpcHandlers, rescanProjects } from "./src/project-ipc.js";
+import { addSitePointer } from "./src/add-site-pointer.js";
+import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.js";
 import { fileURLToPath } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.js";
 
@@ -570,7 +572,57 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
     redeem: () => authenticateSiteSession(siteDir, server, partition),
   });
 
+  announceDesktopToolsToSite(server, partition);
+
   return { server, partition };
+}
+
+/**
+ * Register this shell's MCP tool server with the site that just booted, so its assistant can reach
+ * the desktop's own capabilities (list the operator's websites, add one, reveal one's folder).
+ *
+ * **Runs on EVERY site open, and both halves of it are re-asserted rather than created once.** The
+ * launcher is regenerated because it embeds an absolute path to the Electron binary inside the
+ * `.app` bundle — which goes stale the instant the operator drags the app to `/Applications` or an
+ * update replaces it, and a stale one fails at connect with a spawn error naming neither cause.
+ * The row is re-PUT because `external-mcp-repo.sqlite.ts` hard-deletes with no tombstone, so an
+ * operator who removed the connection in Settings removed it unrecoverably; an idempotent PUT makes
+ * both app-moves and that accident self-healing by the same mechanism.
+ *
+ * Placed immediately after {@link ensureSiteSession} because it depends on it: the PUT authenticates
+ * with the session cookie that call just put in this partition's jar.
+ *
+ * **Fire-and-forget, and never awaited.** A site whose assistant lacks the desktop tools is
+ * degraded, not broken, and the operator is mid-launch — so this must not be able to delay or fail
+ * opening their window. `registerSitesMcpServer` never rejects for a registration outcome; the
+ * `catch` is for a genuinely unexpected fault (an unwritable `userData`, a non-loopback admin URL)
+ * and reports rather than propagating, for the same reason.
+ *
+ * @complexity O(1) — one file write and one request.
+ */
+function announceDesktopToolsToSite(server, partition) {
+  try {
+    const launcherPath = writeSitesMcpLauncher({
+      userDataDir: app.getPath("userData"),
+      // Read live, never persisted as truth — see this function's own note on staleness.
+      electronPath: process.execPath,
+      bridgePath: path.join(__dirname, "bin", "mcp-bridge.mjs"),
+    });
+    void registerSitesMcpServer({
+      net,
+      session: session.fromPartition(partition),
+      adminUrl: server.adminUrl,
+      // The site's OWN workspace id, from `tovu serve`'s parsed boot line — never a hard-coded
+      // `"workspace-local"`. `resolveWorkspace` picks the single or oldest workspace row and
+      // `--workspace` can name another, so an assumed id would 404 on exactly the sites that differ.
+      workspaceId: server.workspaceId,
+      launcherPath,
+    }).then((result) => {
+      if (!result.ok) console.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
+    });
+  } catch (error) {
+    console.warn(`tovu-desktop: could not register the desktop MCP tools — ${error.message}`);
+  }
 }
 
 /**
@@ -1102,6 +1154,9 @@ app
         // row would be `adopted` — and it never gets written, because `adoptSiteDir` re-classifies
         // with the throwing form one line later and refuses the folder with its own message.
         classifySiteDir: classifySiteDirSafely,
+        // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
+        // empty folder. See `add-site-pointer.js`'s header and `handleAddSite`.
+        addSitePointer,
         openSiteServer,
         recordSiteClosed,
         // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
