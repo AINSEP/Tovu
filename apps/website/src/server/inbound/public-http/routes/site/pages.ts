@@ -51,6 +51,7 @@ import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/in
 import { getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
+import { resolveSiteTitle } from "#src/features/settings/site-title";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import {
   renderSite,
@@ -167,11 +168,16 @@ async function tryRedirectPhase(
   return true;
 }
 
-/** Exported (2026-08-12, `.liquid` Preview-tab fix) so `middleware/theme-page-preview.ts`'s
- *  templated-theme preview route renders with the SAME site title text a live visitor would see —
- *  a template that reads `site.title`/`ctx.siteTitle` should preview identically to how it renders
- *  live, not under a stand-in string this file's own callers don't use. */
-export const SITE_TITLE = "Tovu Demo Site";
+/**
+ * SPEC-050: the site title every public render in this file, `products.ts`, and the templated
+ * theme preview shows, read through `core.site.title`'s one resolver. Replaces the `SITE_TITLE`
+ * literal this file used to export, and is exported for the same reason that constant was
+ * (2026-08-12, `.liquid` Preview-tab fix): a template that reads `site.title`/`ctx.siteTitle` must
+ * preview exactly as it renders live. Never throws (see `resolveSiteTitle`).
+ */
+export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string> {
+  return resolveSiteTitle({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+}
 
 /**
  * Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2). Applied to every
@@ -1108,7 +1114,7 @@ export async function resolveMarketingPageOrOverride(
   // site was the one flagged there and left unfixed. No backing `post`, so `buildExtraHead`'s
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
-  const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, postPublicPath(slug));
+  const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath(slug));
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
   // the widget even with the setting on, because `pageShell`'s own injection never ran here.
@@ -1189,7 +1195,7 @@ export async function renderTemplateBranchIfEligible(
   // that branch this one DOES have a real backing `post`, so it folds through the same
   // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
-  const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
+  const extraHead = await buildExtraHead(deps, "post", await resolveSiteTitleForRender(deps), post);
   const renderedPost = pageShellFallback !== undefined ? { ...post, templateChoice: pageShellFallback } : post;
   return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
 }
@@ -1210,7 +1216,7 @@ export async function renderGenericPostPage(
     resolveHtmlEmbedsForRender(deps, post),
     resolveMediaTransformVersionsForRender(deps),
     resolveMediaAssetMetadataForRender(deps, post),
-    buildExtraHead(deps, "post", SITE_TITLE, post),
+    buildExtraHead(deps, "post", siteTitle, post),
     // Taxonomy render-surface gap fix (2026-09-03) — this is the generic (non-template) render path;
     // `renderTemplateBranchIfEligible`/`renderViaTemplate` above already resolves this same input for
     // the static-tier template branch. See `SiteRenderContext.assignedTerms`'s own doc for where this
@@ -1220,7 +1226,7 @@ export async function renderGenericPostPage(
   return renderSite({
     theme,
     route: "post",
-    siteTitle: SITE_TITLE,
+    siteTitle,
     posts,
     post,
     widgets,
@@ -1248,6 +1254,7 @@ export async function handlePostNotFoundOnSlugRoute(
 ): Promise<void> {
   if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
 
+  const siteTitle = await resolveSiteTitleForRender(deps);
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
   // the bare fallback below — same renderStaticPage path the marketing-page routes above use.
   if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
@@ -1569,13 +1576,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [widgets, mediaTransformVersions, extraHead, staticMenus] = await Promise.all([
         resolveWidgetsForRender(deps, theme),
         resolveMediaTransformVersionsForRender(deps),
-        buildExtraHead(deps, "home", SITE_TITLE, undefined),
+        buildExtraHead(deps, "home", siteTitle, undefined),
         resolveStaticMenusForRender(deps, theme, "/"),
       ]);
       const html = await renderSite({
         theme,
         route: "home",
-        siteTitle: SITE_TITLE,
+        siteTitle,
         posts: visiblePosts,
         widgets,
         mediaTransformVersions,
@@ -1609,6 +1616,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
+      const siteTitle = await resolveSiteTitleForRender(deps);
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);

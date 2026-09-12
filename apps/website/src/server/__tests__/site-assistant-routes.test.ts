@@ -126,11 +126,11 @@ test("POST /api/site-assistant/chat passes the gate once the workspace turns the
   const deps = createRouteDeps();
   // Await the LAST settings-registration promise in `createRouteDeps()`'s chain
   // (`assistantSettingsReady` -> `executionSettingsReady` -> `settingsUiTabsReady` ->
-  // `analyticsSettingsReady`), not just the assistant one: each boot-time registration opens its
+  // `analyticsSettingsReady` -> `siteTitleReady`), not just the assistant one: each boot-time registration opens its
   // own transaction on the same in-memory `settingsRepo`, and `InMemorySettingsRepo.transaction` is
   // not reentrant — awaiting only `assistantSettingsReady` races the next link's own transaction and
   // intermittently throws "not reentrant" out of the write below.
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -165,7 +165,7 @@ test("POST /api/site-assistant/chat passes the gate once the workspace turns the
 test("POST /api/site-assistant/chat: the 11th request from one IP within the window is rejected with 429 before touching the provider", async (t) => {
   withoutGeminiApiKey(t);
   const deps = createRouteDeps();
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -211,7 +211,7 @@ test("POST /api/site-assistant/chat: the 11th request from one IP within the win
 test("POST /api/site-assistant/chat accepts a well-formed history alongside message", async (t) => {
   withoutGeminiApiKey(t);
   const deps = createRouteDeps();
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -240,7 +240,7 @@ test("POST /api/site-assistant/chat accepts a well-formed history alongside mess
 test("POST /api/site-assistant/chat degrades a hostile/malformed history to no context, never a 4xx or 500", async (t) => {
   withoutGeminiApiKey(t);
   const deps = createRouteDeps();
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -294,7 +294,7 @@ test("POST /api/site-assistant/chat degrades a hostile/malformed history to no c
  */
 test("POST /api/site-assistant/chat writes a well-formed client_directive SSE frame when a page-action tool resolves (SPEC-046 REQ-4)", async (t) => {
   const deps = createRouteDeps();
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -384,7 +384,7 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
  */
 test("POST /api/site-assistant/chat never emits a client_directive for a trashed-but-published, unpublished, or nonexistent slug (SPEC-046 Task 2 AC5)", async (t) => {
   const deps = createRouteDeps();
-  await deps.analyticsSettingsReady;
+  await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,

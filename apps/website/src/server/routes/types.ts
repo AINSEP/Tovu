@@ -1066,6 +1066,13 @@ export interface AnalyticsDeps {
    * single-SQLite-connection-transaction reason every registration above documents.
    */
   analyticsSettingsReady: Promise<void>;
+  /**
+   * SPEC-050: resolves once `ensureSiteTitleSettingDefinition()` registers `core.site.title`, the
+   * setting every public render reads through `resolveSiteTitle`. Chained after
+   * `analyticsSettingsReady` in both composition roots for the same single-SQLite-connection
+   * transaction reason. A render served before it settles resolves the legacy title, never another.
+   */
+  siteTitleReady: Promise<void>;
 }
 
 /**

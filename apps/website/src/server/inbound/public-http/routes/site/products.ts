@@ -3,7 +3,7 @@ import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/index";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
-import { SITE_TITLE } from "./pages.js";
+import { resolveSiteTitleForRender } from "./pages.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
@@ -18,9 +18,9 @@ import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
  *    `PresentationSettingsNotFoundError` escape — so the same missing row that `GET /` absorbed
  *    threw here and landed in the catch below as `<h1>Site error</h1>`. Two public routes, two
  *    behaviours, one missing row. Now one helper, one behaviour.
- * 2. **`SITE_TITLE`.** Was a private duplicate of the literal `pages.ts:173` already EXPORTS (and
- *    `middleware/theme-page-preview.ts` already imports). Two copies of a user-visible string that
- *    could drift independently; now one.
+ * 2. **The site title.** Was a private duplicate of the literal `pages.ts` then exported (and
+ *    `middleware/theme-page-preview.ts` imported). Two copies of a user-visible string that could
+ *    drift independently; now one. Since SPEC-050 it is `pages.ts`'s `resolveSiteTitleForRender`.
  *
  * `CACHE_CONTROL_PUBLIC_PAGE` below is deliberately NOT collapsed the same way — see its own doc.
  */
@@ -76,9 +76,10 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
   app.get("/products", async (req, res) => {
     try {
       const products = await resolveStorefrontProducts(deps);
-      const [activeThemeId, siteAssistantEnabled] = await Promise.all([
+      const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveActiveThemeId(deps),
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);
       if (resolved === null) {
@@ -91,7 +92,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({ theme, route: "products", siteTitle: SITE_TITLE, posts: [], products, siteAssistantEnabled }),
+        await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled }),
       );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
@@ -107,9 +108,10 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
         res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
         return;
       }
-      const [activeThemeId, siteAssistantEnabled] = await Promise.all([
+      const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveActiveThemeId(deps),
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);
       if (resolved === null) {
@@ -122,7 +124,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({ theme, route: "product", siteTitle: SITE_TITLE, posts: [], products, product, siteAssistantEnabled }),
+        await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled }),
       );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");

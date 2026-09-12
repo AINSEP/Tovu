@@ -10,7 +10,6 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSeoGetEntryRoute } from "../../inbound/admin-http/routes/seo/get-entry.js";
 import { registerAdminSeoPutEntryRoute } from "../../inbound/admin-http/routes/seo/put-entry.js";
-import { SITE_TITLE } from "../../inbound/public-http/routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
 
@@ -178,7 +177,9 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   assert.equal(titleMatches.length, 1, "the theme's own hardcoded <title> must be suppressed, not doubled up");
   assert.match(
     html,
-    new RegExp(`<title>${SITE_TITLE}</title>`),
+    // SPEC-050: the resolved `core.site.title` for a workspace with no owner value (Wiring Order
+    // Step 1 keeps the legacy literal as that value).
+    /<title>Tovu Demo Site<\/title>/,
     "the fold's site-level title (no backing entry, same shape as home) must win over the theme's stale 'Pricing — Basic'"
   );
   // Must be THIS page's own path, not silently reusing home's hardcoded "/" — the exact defect a

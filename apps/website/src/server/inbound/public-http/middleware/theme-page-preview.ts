@@ -11,7 +11,7 @@ import {
   resolveMediaTransformVersionsForRender,
   resolveMediaAssetMetadataForRender,
   resolveHtmlEmbedsForRender,
-  SITE_TITLE,
+  resolveSiteTitleForRender,
 } from "../routes/site/pages.js";
 
 /**
@@ -228,7 +228,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
         const html = await renderSite({
           theme,
           route,
-          siteTitle: SITE_TITLE,
+          siteTitle: await resolveSiteTitleForRender(deps),
           posts,
           post,
           products,

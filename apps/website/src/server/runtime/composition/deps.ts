@@ -166,6 +166,7 @@ import {
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
@@ -836,6 +837,16 @@ export function createSqliteRouteDeps(
     ).then(() => undefined)
   );
 
+  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`). Chained after
+  // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
+  // above documents.
+  const siteTitleReady = analyticsSettingsReady.then(() =>
+    ensureSiteTitleSettingDefinition(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    )
+  );
+
   // ADR-PIPE-012 D-5/D-8 (T043/T044): the persistent composition root uses the real SQLite
   // adapters for both navigation repo ports, and runs the binding-index rebuild once at boot
   // (after the SQLite db above has already opened) so the derived index starts in sync with
@@ -1311,6 +1322,7 @@ export function createSqliteRouteDeps(
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
+    siteTitleReady,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.

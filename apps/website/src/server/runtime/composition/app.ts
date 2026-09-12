@@ -135,6 +135,7 @@ import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import {
@@ -371,6 +372,16 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ).then(() => undefined)
   );
 
+  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`). Chained after
+  // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
+  // above documents.
+  const siteTitleReady = analyticsSettingsReady.then(() =>
+    ensureSiteTitleSettingDefinition(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    )
+  );
+
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
   const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
@@ -576,6 +587,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
+    siteTitleReady,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),

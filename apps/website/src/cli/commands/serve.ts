@@ -385,6 +385,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
         deps.executionSettingsReady,
         deps.settingsUiTabsReady,
         deps.analyticsSettingsReady,
+        deps.siteTitleReady,
       ])
         .then(async () => {
           if (!(await agentDaemonWanted(deps))) return;

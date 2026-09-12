@@ -352,6 +352,7 @@ async function main(): Promise<void> {
       deps.executionSettingsReady,
       deps.settingsUiTabsReady,
       deps.analyticsSettingsReady,
+      deps.siteTitleReady,
     ])
       .then(async () => {
         if (!(await agentDaemonWanted(deps))) return;
