@@ -711,13 +711,36 @@ button { font: inherit; color: inherit; }
 
 .main { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; overflow: auto; }
 
+/*
+ * `flex-wrap: wrap` rather than a width breakpoint, and that is the point rather than a shortcut.
+ *
+ * This row is what actually broke first as the window narrowed: a title plus three `nowrap`
+ * buttons in a no-wrap flex row, which overflows rather than reflowing. The obvious fix is a
+ * `@media` rule at whatever width the overflow starts — but that width is not knowable from here.
+ * It depends on the rendered width of three pieces of button text, on the title (which is the
+ * section name, so it varies), and on whether the operator chat is open, since
+ * `.runner-chat-pane` is a GRID COLUMN that narrows `.main` without changing the viewport at all.
+ * A viewport-keyed media query cannot see the last of those, which is why the one this file used
+ * to rely on was structurally unable to protect this row.
+ *
+ * Wrapping has no such number in it: the browser reflows at exactly the width where the content
+ * stops fitting, whatever the text, the section name, or the chat pane happen to be doing.
+ *
+ * `.main__tools` wraps too (see its own rule), so the degradation is two-stage and never
+ * overflows: the button group drops to its own line first, and only if even that is too narrow do
+ * the buttons wrap among themselves.
+ */
 .main__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.625rem;
   padding: 1.375rem 1.75rem 1.125rem;
 }
 
+/* Stays `flex: 1` — basis 0, so it absorbs the slack on a single line and collapses to nothing
+   once the tools wrap past it. A `flex-basis: 100%` here would force the wrap at EVERY width
+   instead of only when one is needed. */
 .main__spacer { flex: 1; }
 
 /* A row since the Projects header gained a second control: as a single-column grid the two
@@ -725,6 +748,10 @@ button { font: inherit; color: inherit; }
    actions. Identical to the old rule for a single child -- still flush right. */
 .main__tools {
   display: flex;
+  /* Second stage of the header's degradation — see `.main__head`. Once the group has its own
+     line and that line is still too narrow, the buttons wrap among themselves rather than
+     overflowing the pane. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -1117,7 +1144,25 @@ button { font: inherit; color: inherit; }
 .button--contrast:disabled,
 .button--create:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/*
+ * A QUERY CONTAINER, not a plain block — the form inside it has genuine multi-column layouts that
+ * need a real threshold, and the viewport is the wrong thing to measure them against.
+ *
+ * `.runner-chat-pane` is `.app`'s second grid column (`width: min(27rem, 40vw)`), so opening the
+ * operator chat narrows `.main` — and this form with it — while the viewport does not move at all.
+ * Every rule that used to live in `@media (max-width: 680px)` was therefore asking a question
+ * whose answer could not describe this element: a 1000px window with the chat open leaves this
+ * form about 570px wide, and the media query stayed silent because 1000 > 680.
+ *
+ * `container-type: inline-size` is scoped HERE rather than on `.main` deliberately. Containment
+ * makes an element a containing block for `position: fixed` descendants and opens a new stacking
+ * context, and `.main` contains the site `<webview>` and its overlays; this section contains a
+ * form and nothing else. Chromium 150 ships with Electron 43, well past container queries'
+ * Chromium 105 baseline.
+ */
 .onboarding {
+  container-type: inline-size;
+  container-name: onboarding;
   width: min(100% - 3.5rem, 860px);
   margin: 0 auto 3rem;
   padding-bottom: 2rem;
@@ -1528,12 +1573,29 @@ button { font: inherit; color: inherit; }
 .runner-chat-pane__head-actions .jini-conv-rename { flex: 1; min-width: 0; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--primary); border-radius: 6px; background: var(--surface); font: inherit; font-size: 0.8125rem; color: var(--fg); outline: none; }
 .runner-chat-pane__head-actions .jini-conv-empty { padding: 18px 12px; text-align: center; font-size: 0.75rem; color: var(--faint); }
 
-@media (max-width: 680px) {
-  .main__head { align-items: flex-start; }
+/*
+ * Was `@media (max-width: 680px)`. Keyed to the FORM's own width now, for the reason `.onboarding`
+ * documents: the chat pane narrows this element without touching the viewport, so the media query
+ * could not fire for the case that needed it most.
+ *
+ * `.main__head` is no longer in here at all — it wraps at whatever width it stops fitting, which
+ * needs no threshold and no query. See its own rule.
+ *
+ * 520px is where the three-across `.database-picker` stops being readable rather than a round
+ * number: three `minmax(0, 1fr)` cards plus two 0.625rem gaps leave each card about 160px, which
+ * is roughly where its label and its sublabel stop fitting on their own lines.
+ */
+@container onboarding (max-width: 520px) {
   .database-picker, .vendor-fields, .instance-summary { grid-template-columns: 1fr; }
   .vendor-fields--custom > :last-child { grid-column: auto; }
-  .onboarding { width: min(100% - 2rem, 860px); }
   .onboarding__actions { align-items: flex-start; flex-direction: column; }
+}
+
+/* `.onboarding`'s own width cannot be set from inside its own container query — that would be the
+   size query feeding back into the size it queries. Keyed to the viewport, which is the right
+   frame for a gutter: it is about the window edge, not about the content column. */
+@media (max-width: 680px) {
+  .onboarding { width: min(100% - 2rem, 860px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

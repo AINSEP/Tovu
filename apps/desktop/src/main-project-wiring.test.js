@@ -143,10 +143,21 @@ test("describeRejectedDefault answers the 'unreadable' verdict the safe classifi
     "describeRejectedDefault must handle the unreadable kind before it reaches .missing.join()");
 });
 
-test("the sites home window declares width AND height minimums, tied to the stylesheet's only breakpoint", () => {
-  // A window with no minimum can be dragged to a width the stylesheet has no rule for: `app.css`
-  // declares exactly one width breakpoint (`@media (max-width: 680px)`) and nothing below it, so
-  // anything narrower is undefined layout rather than a small layout.
+test("the sites home window declares width AND height minimums", () => {
+  // A window with no minimum can be dragged to a width nothing has an answer for.
+  //
+  // What sets the floor CHANGED, so this no longer ties itself to a breakpoint. It used to: the
+  // stylesheet declared exactly one width rule, `@media (max-width: 680px)`, and this asserted the
+  // minimum cleared it. That rule is gone. `.main__head` and `.main__tools` now wrap, so the row
+  // that actually broke first reflows at whatever width it stops fitting rather than at a number,
+  // and the create-website form moved to `@container onboarding (max-width: 520px)` — keyed to its
+  // own width, because the operator chat is a grid COLUMN that narrows the content pane while the
+  // viewport does not move, which is precisely what a viewport media query cannot see.
+  //
+  // So the remaining floor is whatever cannot reflow — chiefly `.topnav`, a `max-width: fit-content`
+  // pill of brand plus icon links that has no wrap. Asserting a specific number here would be
+  // asserting an estimate; this asserts the property that matters (both minimums exist, and are
+  // large enough to be deliberate) and leaves the value to `main.js`'s own comment.
   //
   // Scoped to `openSitesHomeWindow`'s own body, not the whole file — `createWindow` builds a
   // second BrowserWindow at the same 1360x900 for a SITE's surfaces, whose responsive behaviour
@@ -155,8 +166,11 @@ test("the sites home window declares width AND height minimums, tied to the styl
   const own = body.slice(0, body.indexOf("\nfunction "));
   assert.match(own, /minWidth: (\d+)/, "openSitesHomeWindow must set a minWidth");
   assert.match(own, /minHeight: (\d+)/, "openSitesHomeWindow must set a minHeight");
-  // Above the 680px breakpoint, not merely at it: the operator chat is a grid column that narrows
-  // the content pane, and that breakpoint keys off the viewport, so it never accounted for it.
+
+  // `.grid`'s own declared floor, which IS readable from the stylesheet rather than estimated:
+  // one card column at `minmax(214px, 1fr)` plus `.grid`'s 1.75rem side padding (28px each).
   const minWidth = Number(/minWidth: (\d+)/.exec(own)[1]);
-  assert.ok(minWidth > 680, `minWidth must clear app.css's 680px breakpoint, got ${minWidth}`);
+  assert.ok(minWidth >= 270, `minWidth must fit at least one card column (214 + 2x28), got ${minWidth}`);
+  assert.ok(Number(/minHeight: (\d+)/.exec(own)[1]) >= 400, "minHeight must leave room for a card row");
 });
+

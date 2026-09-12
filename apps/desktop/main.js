@@ -433,19 +433,26 @@ function openSitesHomeWindow() {
     width: 1360,
     height: 900,
     /**
-     * Floors, not a preference. `app.css` declares exactly ONE width breakpoint — `@media
-     * (max-width: 680px)`, which stacks the create-website form and top-aligns `.main__head` —
-     * and nothing below that. 680 is therefore the narrowest width the stylesheet has an opinion
-     * about, and the honest floor is at or above it rather than a round number.
+     * Floors, not a preference — a window with no minimum can be dragged to a width nothing has
+     * an answer for.
      *
-     * 960 rather than 680 because the operator chat is a grid COLUMN, not an overlay
-     * (`.runner-chat-pane`, `width: min(27rem, 40vw)`) — it narrows `.main` instead of covering
-     * it, and the 680 breakpoint keys off the VIEWPORT, so it never accounted for the pane. With
-     * the pane open at 960 the content column is 576px: `.main__head`'s title plus its three
-     * nowrap buttons still fit, and `.grid`'s `minmax(214px, 1fr)` still auto-fills two columns.
-     * At 680 with the pane open the content column is 408px and that header row overflows.
+     * **This number is now conservative, and deliberately so until it is measured.** When it was
+     * chosen, `app.css` declared exactly one width rule (`@media (max-width: 680px)`) and the
+     * header row was a title plus three `nowrap` buttons in a no-wrap flex row, which overflowed
+     * at roughly a 408px content column — so 960 was picked to keep that row intact even with the
+     * operator chat open (a grid COLUMN, `width: min(27rem, 40vw)`, which narrows `.main` while
+     * the viewport does not move — the reason a viewport-keyed breakpoint could never protect it).
      *
-     * Derived from the stylesheet's own arithmetic, not measured in a live window.
+     * Both of those facts changed. `.main__head`/`.main__tools` now wrap, so that row reflows at
+     * whatever width it stops fitting rather than overflowing, and the create-website form moved
+     * to `@container onboarding (max-width: 520px)`, keyed to its own width instead of the
+     * viewport's. The remaining floor is whatever cannot reflow — chiefly `.topnav`, a
+     * `max-width: fit-content` pill of brand plus icon links with no wrap.
+     *
+     * That floor is almost certainly well below 960, but lowering it on an estimate would repeat
+     * the mistake this comment exists to record: the original 960 came from the stylesheet's
+     * arithmetic rather than from a resized window. Lower it once someone has actually dragged
+     * this window narrow and watched where it breaks.
      */
     minWidth: 960,
     minHeight: 600,
