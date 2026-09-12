@@ -41,6 +41,7 @@ import { fileURLToPath } from "node:url";
 
 import { sitesFilePath } from "../src/tracked-sites.ts";
 import { handleSitesMcpRequest } from "../src/sites-mcp-server.ts";
+import type { ToolContext } from "../src/sites-mcp-tools.ts";
 
 /**
  * Cap on one inbound line. A client streaming an unterminated line past this has already lost the
@@ -52,6 +53,10 @@ const MAX_INBOUND_LINE_BYTES = 1_000_000;
 /** How long a file-manager reveal may take before it is reported as failed. Generous: the first
  *  `open` on a cold Finder is not instant, and there is no cost to waiting. */
 const REVEAL_TIMEOUT_MS = 10_000;
+
+/** One platform's "show me this folder" command: the argv0 and its arguments, never a shell string
+ *  — see {@link revealPath}. */
+type RevealCommandBuilder = (target: string) => [string, string[]];
 
 /**
  * The per-platform "show me this folder" command.
@@ -65,7 +70,7 @@ const REVEAL_TIMEOUT_MS = 10_000;
  * the one place in this process where a path reaches an exec boundary, and the path has already been
  * checked against the tracked-projects registry by `reveal_site_folder`'s own handler.
  */
-const REVEAL_COMMANDS = Object.freeze({
+const REVEAL_COMMANDS: Partial<Record<NodeJS.Platform, RevealCommandBuilder>> = Object.freeze({
   darwin: (target) => ["open", ["-R", target]],
   win32: (target) => ["explorer.exe", [`/select,${target}`]],
   linux: (target) => ["xdg-open", [target]],
@@ -78,7 +83,7 @@ const REVEAL_COMMANDS = Object.freeze({
  *   — each of which the tool layer turns into a readable tool error rather than a crash.
  * @complexity O(1) beyond the spawned command's own cost.
  */
-function revealPath(target) {
+function revealPath(target: string): Promise<void> {
   const build = REVEAL_COMMANDS[process.platform];
   if (build === undefined) {
     throw new Error(`opening a folder is not supported on ${process.platform}.`);
@@ -117,7 +122,7 @@ function revealPath(target) {
  * @throws {Error} when neither source supplies one, or the path is not an existing directory.
  * @complexity O(n) in argv length.
  */
-function resolveUserDataDir(argv, env) {
+function resolveUserDataDir(argv: string[], env: NodeJS.ProcessEnv): string {
   const flagIndex = argv.indexOf("--user-data-dir");
   const fromFlag = flagIndex === -1 ? undefined : argv[flagIndex + 1];
   const raw = (fromFlag ?? env.TOVU_DESKTOP_USER_DATA_DIR ?? "").trim();
@@ -133,8 +138,15 @@ function resolveUserDataDir(argv, env) {
 
 /** Diagnostics. Deliberately the only output function in this file that is not the protocol — see
  *  this file's rule 2. @complexity O(1). */
-function warn(message) {
+function warn(message: string): void {
   process.stderr.write(`mcp-bridge: ${message}\n`);
+}
+
+/** {@link serveMcpOverStdio}'s input. */
+interface ServeMcpOverStdioInput {
+  input: NodeJS.ReadableStream;
+  output: NodeJS.WritableStream;
+  context: ToolContext;
 }
 
 /**
@@ -147,7 +159,7 @@ function warn(message) {
  *
  * @complexity O(n) in bytes received; one handler call per complete line.
  */
-function serveMcpOverStdio({ input, output, context }) {
+function serveMcpOverStdio({ input, output, context }: ServeMcpOverStdioInput): void {
   let buffer = "";
   let pending = Promise.resolve();
 
@@ -176,7 +188,7 @@ function serveMcpOverStdio({ input, output, context }) {
  *
  * @complexity O(n) in the line length, plus the handler's own cost.
  */
-async function answerLine(line, output, context) {
+async function answerLine(line: string, output: NodeJS.WritableStream, context: ToolContext): Promise<void> {
   let message;
   try {
     message = JSON.parse(line);
@@ -193,7 +205,7 @@ async function answerLine(line, output, context) {
 }
 
 /** @complexity O(1) beyond {@link serveMcpOverStdio}. */
-function main() {
+function main(): void {
   const userDataDir = resolveUserDataDir(process.argv.slice(2), process.env);
   serveMcpOverStdio({
     input: process.stdin,

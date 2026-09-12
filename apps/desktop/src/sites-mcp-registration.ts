@@ -66,6 +66,94 @@ const SITES_MCP_LABEL = "Tovu Desktop";
  *  who finds it has to be able to tell it is ours and disposable. */
 const SITES_MCP_LAUNCHER_NAME = "tovu-desktop-mcp-launcher.sh";
 
+/** {@link buildSitesMcpLauncherScript}'s three interpolated values. */
+interface LauncherScriptInput {
+  electronPath: string;
+  bridgePath: string;
+  userDataDir: string;
+}
+
+/** {@link writeSitesMcpLauncher}'s input: the same three values, under the directory they are
+ *  written into. */
+interface WriteLauncherInput {
+  userDataDir: string;
+  electronPath: string;
+  bridgePath: string;
+}
+
+/** {@link buildSitesMcpRegistration}'s input. */
+interface BuildRegistrationInput {
+  launcherPath: string;
+  enabled?: boolean;
+}
+
+/** The PUT body {@link buildSitesMcpRegistration} returns — the wire shape `put.ts` reads. */
+interface SitesMcpRegistrationBody {
+  label: string;
+  transport: "stdio";
+  authMode: "none";
+  enabled: boolean;
+  command: string;
+  args: string;
+  allowedToolNames: string;
+  writeAllowedToolNames: string;
+  env: string;
+}
+
+/** The slice of Electron's `IncomingMessage` this file reads. Unlike `desktop-auth.ts`'s own
+ *  `AuthResponse`, the `data` listener here is actually read for the response body. */
+interface AdminHttpResponse {
+  statusCode: number;
+  on(event: "data", listener: (chunk: string) => void): unknown;
+  on(event: "end", listener: () => void): unknown;
+}
+
+/** The slice of Electron's `ClientRequest` this file writes and reads. */
+interface AdminHttpRequest {
+  setHeader(name: string, value: string): void;
+  write(chunk: string): void;
+  on(event: "response", listener: (response: AdminHttpResponse) => void): unknown;
+  on(event: "error", listener: (error: Error) => void): unknown;
+  end(): void;
+}
+
+/** What `net.request` is given here, a subset of Electron's `ClientRequestConstructorOptions`. The
+ *  session is only handed through to the request, so its type is whatever the caller's is — same
+ *  convention as `desktop-auth.ts`'s `AuthRequestOptions`. */
+interface AdminHttpRequestOptions<TSession> {
+  method: "GET" | "PUT";
+  url: string;
+  session: TSession;
+  useSessionCookies: boolean;
+}
+
+/** The slice of Electron's `net` module used here. */
+interface AdminHttpNet<TSession> {
+  request(options: AdminHttpRequestOptions<TSession>): AdminHttpRequest;
+}
+
+/** {@link requestSiteAdminJson}'s result: a plain outcome, never a rejection — see its own doc.
+ *  `body` is `any` rather than `unknown`: it is one caller's admin-list JSON and another caller's
+ *  PUT acknowledgement, and each reads its own shape back out ({@link readSitesMcpEnabled} reads
+ *  `.servers`) rather than sharing one type here. */
+type AdminHttpResult =
+  | { ok: true; status: number; body: any }
+  | { ok: false; status?: number; reason: string };
+
+/** The dependency bag {@link readSitesMcpEnabled} and {@link registerSitesMcpServer} share. */
+interface RegistrationDeps<TSession> {
+  net: AdminHttpNet<TSession>;
+  session: TSession;
+  adminUrl: string;
+  workspaceId: string;
+}
+
+/** {@link readSitesMcpEnabled}'s three possible answers — see its own doc for why the third exists. */
+type SitesMcpEnabledState =
+  | { state: "present"; enabled: boolean }
+  | { state: "absent" }
+  | { state: "unknown"; reason: string };
+
 /**
  * Refuse to build a script around a value that could escape its own quoting.
  *
@@ -79,7 +167,7 @@ const SITES_MCP_LAUNCHER_NAME = "tovu-desktop-mcp-launcher.sh";
  * @throws {Error} naming the field, never echoing the whole value into a log.
  * @complexity O(n) in the value's length.
  */
-function assertShellQuotable(value, field) {
+function assertShellQuotable(value: unknown, field: string): string {
   if (typeof value !== "string" || value === "") {
     throw new Error(`projects-mcp-registration: ${field} must be a non-empty string.`);
   }
@@ -113,7 +201,7 @@ function assertShellQuotable(value, field) {
  *
  * @complexity O(1).
  */
-function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }) {
+function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }: LauncherScriptInput): string {
   const electron = assertShellQuotable(electronPath, "electronPath");
   const bridge = assertShellQuotable(bridgePath, "bridgePath");
   const userData = assertShellQuotable(userDataDir, "userDataDir");
@@ -143,7 +231,7 @@ function buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir }) 
  * @returns the launcher's absolute path, for {@link buildSitesMcpRegistration}'s `command`.
  * @complexity O(1).
  */
-function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }) {
+function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteLauncherInput): string {
   const script = buildSitesMcpLauncherScript({ electronPath, bridgePath, userDataDir });
   const launcherPath = path.join(userDataDir, SITES_MCP_LAUNCHER_NAME);
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -173,7 +261,7 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }) {
  *
  * @complexity O(n) in the tool count.
  */
-function buildSitesMcpRegistration({ launcherPath, enabled = true }) {
+function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegistrationInput): SitesMcpRegistrationBody {
   const writeTools = SITES_MCP_TOOLS.filter((tool) => tool.annotations.readOnlyHint === false);
   return {
     label: SITES_MCP_LABEL,
@@ -215,13 +303,13 @@ function buildSitesMcpRegistration({ launcherPath, enabled = true }) {
  *
  * @complexity O(1).
  */
-function sitesMcpPutPath(workspaceId) {
+function sitesMcpPutPath(workspaceId: string): string {
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${SITES_MCP_SERVER_ID}`;
 }
 
 /** The LIST route, which the `enabled` read goes through — this API has no single-row GET.
  *  @complexity O(1). */
-function sitesMcpListPath(workspaceId) {
+function sitesMcpListPath(workspaceId: string): string {
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers`;
 }
 
@@ -239,7 +327,10 @@ function sitesMcpListPath(workspaceId) {
  * @returns `{ok, status?, body?, reason?}`; `body` is the parsed JSON when the response had any.
  * @complexity O(n) in the response size.
  */
-function requestSiteAdminJson(deps, { method, url, body }) {
+function requestSiteAdminJson<TSession>(
+  deps: { net: AdminHttpNet<TSession>; session: TSession },
+  { method, url, body }: { method: "GET" | "PUT"; url: string; body?: string }
+): Promise<AdminHttpResult> {
   return new Promise((resolve) => {
     const request = deps.net.request({ method, url, session: deps.session, useSessionCookies: true });
     if (body !== undefined) request.setHeader("content-type", "application/json");
@@ -266,7 +357,7 @@ function requestSiteAdminJson(deps, { method, url, body }) {
 }
 
 /** @complexity O(n) in the text length. */
-function parseJsonOrUndefined(text) {
+function parseJsonOrUndefined(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
@@ -290,7 +381,7 @@ function parseJsonOrUndefined(text) {
  *
  * @complexity O(n) in the configured-server count.
  */
-async function readSitesMcpEnabled(deps) {
+async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): Promise<SitesMcpEnabledState> {
   const result = await requestSiteAdminJson(deps, {
     method: "GET",
     url: new URL(sitesMcpListPath(deps.workspaceId), deps.adminUrl).toString(),
@@ -340,7 +431,9 @@ async function readSitesMcpEnabled(deps) {
  *   "the server said no".
  * @complexity O(1) — two requests.
  */
-async function registerSitesMcpServer(deps) {
+async function registerSitesMcpServer<TSession>(
+  deps: RegistrationDeps<TSession> & { launcherPath: string }
+): Promise<{ ok: boolean; status?: number; reason?: string; skipped?: boolean }> {
   const existing = await readSitesMcpEnabled(deps);
   if (existing.state === "unknown") {
     return { ok: false, skipped: true, reason: `could not read the site's external-MCP list (${existing.reason}), so nothing was changed` };
@@ -375,3 +468,4 @@ export {
   registerSitesMcpServer,
   writeSitesMcpLauncher,
 };
+export type { AdminHttpNet, AdminHttpRequest, AdminHttpResponse, AdminHttpRequestOptions, SitesMcpRegistrationBody };

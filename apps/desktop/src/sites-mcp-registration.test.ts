@@ -30,7 +30,7 @@ import {
 } from "./sites-mcp-registration.ts";
 import { SITES_MCP_TOOLS } from "./sites-mcp-tools.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-reg-"));
 }
 
@@ -186,6 +186,20 @@ test("sitesMcpPutPath targets the given workspace and encodes it", () => {
   assert.match(sitesMcpPutPath("a b/c"), /workspaces\/a%20b%2Fc\//);
 });
 
+/** One entry of {@link fakeNet}'s script. */
+interface FakeScriptStep {
+  status?: number;
+  body?: unknown;
+  failWith?: string;
+}
+
+/** One request {@link fakeNet} recorded. */
+interface FakeCall {
+  options: { method: string; url: string; session?: unknown; useSessionCookies?: boolean };
+  headers: Record<string, string>;
+  body: string;
+}
+
 /**
  * A `net` stand-in that answers each request from a scripted queue and records what it was asked.
  *
@@ -196,31 +210,39 @@ test("sitesMcpPutPath targets the given workspace and encodes it", () => {
  * @param script one entry per expected request, in order: `{status, body?}` for a reply, or
  *   `{failWith}` for a transport error.
  */
-function fakeNet(script) {
-  const calls = [];
+function fakeNet(script: FakeScriptStep[]) {
+  const calls: FakeCall[] = [];
   const queue = [...script];
   return {
     calls,
-    request(options) {
-      const call = { options, headers: {}, body: "" };
+    request(options: FakeCall["options"]) {
+      const call: FakeCall = { options, headers: {}, body: "" };
       calls.push(call);
       const step = queue.shift() ?? { status: 500 };
-      const handlers = {};
+      // `AdminHttpRequest`'s two overloaded `on` signatures ("response" and "error") — a plain
+      // object literal cannot declare real overloads, so this registry and both `handler: any`
+      // params below stand in for them; the two call sites in `end()` are the actual shapes used.
+      const handlers: Record<string, any> = {}; // any: see the reason above
       return {
-        setHeader: (name, value) => {
+        setHeader: (name: string, value: string) => {
           call.headers[name] = value;
         },
-        write: (chunk) => {
+        write: (chunk: string) => {
           call.body += chunk;
         },
-        on: (event, handler) => {
+        on: (event: string, handler: any) => {
+          // any: see the reason on `handlers` above
           handlers[event] = handler;
         },
         end: () => {
           if (step.failWith) return handlers.error?.(new Error(step.failWith));
           handlers.response?.({
-            statusCode: step.status,
-            on: (event, handler) => {
+            // every non-failWith script step in this file's own tests supplies `status`;
+            // `FakeScriptStep.status` is optional only because a failWith step omits it.
+            statusCode: step.status!, // !: see the reason above
+            on: (event: string, handler: any) => {
+              // any: this inner `on` plays the response body's own emitter, whose "data" listener
+              // takes a chunk and whose "end" listener takes nothing — see `end()`'s two branches
               if (event === "data" && step.body !== undefined) handler(JSON.stringify(step.body));
               if (event === "end") handler();
             },
@@ -232,10 +254,10 @@ function fakeNet(script) {
 }
 
 /** The GET reply for a site with no desktop-MCP row yet. */
-const NO_EXISTING_ROW = { status: 200, body: { servers: [] } };
+const NO_EXISTING_ROW: FakeScriptStep = { status: 200, body: { servers: [] } };
 
 /** The GET reply for a site where the operator has this connection in a given state. */
-function existingRow(enabled) {
+function existingRow(enabled: boolean): FakeScriptStep {
   return { status: 200, body: { servers: [{ serverId: "tovu-desktop", enabled }] } };
 }
 
@@ -252,7 +274,7 @@ test("registerSitesMcpServer reads the existing row, then PUTs as the site sessi
   });
 
   assert.deepEqual(result, { ok: true, status: 200 });
-  const [read, write] = net.calls;
+  const [read, write] = net.calls as [FakeCall, FakeCall];
   assert.equal(read.options.method, "GET");
   assert.equal(read.options.url, "http://127.0.0.1:3601/api/admin/v1/workspaces/ws-7/mcp-servers");
   assert.equal(write.options.method, "PUT");
@@ -279,7 +301,7 @@ test("a brand-new row is created ENABLED", async () => {
     launcherPath: "/x/launcher.sh",
   });
 
-  assert.equal(JSON.parse(net.calls[1].body).enabled, true);
+  assert.equal(JSON.parse(net.calls[1]!.body).enabled, true);
 });
 
 test("a connection the operator DISABLED stays disabled across a re-assert", async () => {
@@ -293,7 +315,7 @@ test("a connection the operator DISABLED stays disabled across a re-assert", asy
     launcherPath: "/x/fresh-launcher.sh",
   });
 
-  const body = JSON.parse(net.calls[1].body);
+  const body = JSON.parse(net.calls[1]!.body);
   // THE assertion this read-before-write exists for. Sending `enabled: true` unconditionally made
   // "disabled" last until the next launch and then silently undo itself — a setting reversed with
   // nothing telling the operator.
@@ -314,7 +336,7 @@ test("an enabled connection stays enabled", async () => {
     launcherPath: "/x/launcher.sh",
   });
 
-  assert.equal(JSON.parse(net.calls[1].body).enabled, true);
+  assert.equal(JSON.parse(net.calls[1]!.body).enabled, true);
 });
 
 test("when the existing state CANNOT be read, nothing is written at all", async () => {
@@ -334,7 +356,7 @@ test("when the existing state CANNOT be read, nothing is written at all", async 
     assert.equal(result.ok, false, `wrote anyway for ${JSON.stringify(failedRead)}`);
     assert.equal(result.skipped, true);
     assert.equal(net.calls.length, 1, `made a second request for ${JSON.stringify(failedRead)}`);
-    assert.match(result.reason, /nothing was changed/);
+    assert.match(result.reason!, /nothing was changed/);
   }
 });
 
@@ -352,7 +374,7 @@ test("registerSitesMcpServer reports a rejected PUT rather than throwing", async
     // mid-launch — so this must never be able to abort opening a window.
     assert.equal(result.ok, false);
     assert.equal(result.status, status);
-    assert.match(result.reason, new RegExp(String(status)));
+    assert.match(result.reason!, new RegExp(String(status)));
     // Distinguishable from the declined case above, which a caller may want to report differently.
     assert.equal(result.skipped, undefined);
   }
@@ -368,5 +390,5 @@ test("registerSitesMcpServer reports a transport error on the PUT rather than th
   });
 
   assert.equal(result.ok, false);
-  assert.match(result.reason, /EPIPE/);
+  assert.match(result.reason!, /EPIPE/);
 });

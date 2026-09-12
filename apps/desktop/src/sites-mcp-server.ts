@@ -26,6 +26,7 @@
  *   client advertises no capabilities. So this server never initiates one.
  */
 import { describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.ts";
+import type { ToolArgs, ToolContext } from "./sites-mcp-tools.ts";
 
 /**
  * Protocol revisions this server will agree to speak.
@@ -37,7 +38,9 @@ import { describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.ts";
  * (`adapter.http.ts:178`).
  */
 const SUPPORTED_PROTOCOL_VERSIONS = Object.freeze(["2025-06-18", "2025-03-26"]);
-const PREFERRED_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+// `!`: the list above is a non-empty literal, so index 0 always exists — `noUncheckedIndexedAccess`
+// cannot see that from the array's type alone.
+const PREFERRED_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]!;
 
 /** Identifies this server in the client's logs and in `trust.ts`'s provenance prefix. */
 const SERVER_INFO = Object.freeze({ name: "tovu-desktop", version: "1" });
@@ -45,9 +48,38 @@ const SERVER_INFO = Object.freeze({ name: "tovu-desktop", version: "1" });
 /** JSON-RPC's own code for "no such method", the one this server can legitimately return. */
 const METHOD_NOT_FOUND = -32601;
 
+/** A parsed inbound line, of unknown shape until checked field by field — see
+ *  {@link handleSitesMcpRequest}. `jsonrpc` is never read here (the client is trusted to send
+ *  `"2.0"`); it is declared only so a literal test message carrying it type-checks. */
+interface InboundMessage {
+  jsonrpc?: unknown;
+  method?: unknown;
+  id?: unknown;
+  params?: unknown;
+}
+
+/** One JSON-RPC reply this server sends. */
+interface JsonRpcResponse {
+  jsonrpc: "2.0";
+  id: string | number;
+  // any: a JSON-RPC "result" is polymorphic per method — initialize's, tools/list's and
+  // tools/call's results all disagree on shape. Each method's own test asserts its real shape;
+  // nothing here needs one shared type for all three.
+  result?: any;
+  error?: { code: number; message: string };
+}
+
+/** The `params` shape every method handler here reads from — a JSON-RPC `params` is always an
+ *  object or absent. */
+type JsonRpcParams = Record<string, unknown> | undefined;
+
+/** One entry of {@link METHODS}. `context` is accepted even by handlers that ignore it, since JS
+ *  callers may always be handed more arguments than they declare. */
+type McpMethodHandler = (params: JsonRpcParams, context: ToolContext) => unknown;
+
 /** @returns the version to agree on. @complexity O(1). */
-function negotiateProtocolVersion(requested) {
-  return SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : PREFERRED_PROTOCOL_VERSION;
+function negotiateProtocolVersion(requested: unknown): string {
+  return SUPPORTED_PROTOCOL_VERSIONS.includes(requested as string) ? (requested as string) : PREFERRED_PROTOCOL_VERSION;
 }
 
 /**
@@ -63,7 +95,7 @@ function negotiateProtocolVersion(requested) {
  * a capability nobody honours is how a client ends up waiting for an event that never comes.
  */
 const METHODS = Object.freeze({
-  initialize: (params) => ({
+  initialize: (params: JsonRpcParams) => ({
     protocolVersion: negotiateProtocolVersion(params?.protocolVersion),
     capabilities: { tools: {} },
     serverInfo: SERVER_INFO,
@@ -72,7 +104,11 @@ const METHODS = Object.freeze({
    *  `cursor` in the request is accepted and ignored: a client that sends one on a first page is
    *  not an error worth failing a connection over. */
   "tools/list": () => ({ tools: describeSitesMcpTools() }),
-  "tools/call": (params, context) => runSitesMcpTool(params?.name, params?.arguments, context),
+  "tools/call": (params: JsonRpcParams, context: ToolContext) =>
+    // `name`/`arguments` are read off an untrusted params bag; `runSitesMcpTool` and its handlers
+    // validate them field by field, so an unexpected shape ends up as a tool-level error, not a
+    // crash.
+    runSitesMcpTool(params?.name as string, params?.arguments as ToolArgs, context),
 });
 
 /**
@@ -88,7 +124,7 @@ const NOTIFICATIONS = Object.freeze(new Set(["notifications/initialized", "notif
 /** Whether `id` is a usable JSON-RPC correlation id. `0` and `""` are VALID ids and a truthiness
  *  test would drop both — the client uses an incrementing counter, so a first request of id `0` is
  *  not hypothetical. `null` means notification per JSON-RPC. @complexity O(1). */
-function hasRequestId(id) {
+function hasRequestId(id: unknown): boolean {
   return typeof id === "string" || typeof id === "number";
 }
 
@@ -104,21 +140,23 @@ function hasRequestId(id) {
  * @returns the response object to send, or `null` when nothing must be sent.
  * @complexity O(1) beyond the dispatched handler's own cost.
  */
-async function handleSitesMcpRequest(message, context) {
+async function handleSitesMcpRequest(message: InboundMessage | null | undefined, context: ToolContext): Promise<JsonRpcResponse | null> {
   const method = message?.method;
   if (typeof method !== "string") return null;
-  if (NOTIFICATIONS.has(method) || !hasRequestId(message.id)) return null;
+  // `message` is known to carry a real `.method` string at this point, so it is not null or
+  // undefined — the `!` below states that rather than re-testing it.
+  if (NOTIFICATIONS.has(method) || !hasRequestId(message!.id)) return null;
 
-  const handler = METHODS[method];
+  const handler = (METHODS as Record<string, McpMethodHandler>)[method];
   if (handler === undefined) {
     return {
       jsonrpc: "2.0",
-      id: message.id,
+      id: message!.id as string | number,
       error: { code: METHOD_NOT_FOUND, message: `method '${method}' is not supported by the Tovu desktop MCP server` },
     };
   }
 
-  return { jsonrpc: "2.0", id: message.id, result: await handler(message.params, context) };
+  return { jsonrpc: "2.0", id: message!.id as string | number, result: await handler(message!.params as JsonRpcParams, context) };
 }
 
 export {

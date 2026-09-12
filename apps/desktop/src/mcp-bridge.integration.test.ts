@@ -30,11 +30,11 @@ import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./track
 
 const BRIDGE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "mcp-bridge.ts");
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-bridge-"));
 }
 
-function siteFixture(name = "site") {
+function siteFixture(name: string = "site"): string {
   const dir = path.join(tempDir(), name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
@@ -49,7 +49,11 @@ function siteFixture(name = "site") {
  * server waiting for more work. The bridge answers in arrival order (it serializes), so the replies
  * line up with the requests that have ids.
  */
-function driveBridge(argv, lines, { env } = {}) {
+function driveBridge(
+  argv: string[],
+  lines: string[],
+  { env }: { env?: NodeJS.ProcessEnv } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [BRIDGE_PATH, ...argv], {
       stdio: ["pipe", "pipe", "pipe"],
@@ -70,8 +74,10 @@ function driveBridge(argv, lines, { env } = {}) {
 }
 
 /** Every stdout line parsed as JSON. Throws — loudly, naming the offender — on anything that is not
- *  a JSON object, which is the stdout-purity assertion. */
-function parseProtocolLines(stdout) {
+ *  a JSON object, which is the stdout-purity assertion.
+ *  any: this is raw wire JSON exercised for several different response shapes (initialize,
+ *  tools/list, tools/call), the same way a real client parses arbitrary JSON rather than one type. */
+function parseProtocolLines(stdout: string): any[] {
   return stdout
     .split("\n")
     .filter((line) => line.trim().length > 0)
@@ -110,7 +116,7 @@ test("the bridge completes the handshake and lists its tools over real pipes", a
     [1, 2],
   );
   assert.equal(messages[0].result.protocolVersion, "2025-06-18");
-  assert.ok(messages[1].result.tools.some((tool) => tool.name === "add_site_pointer"));
+  assert.ok(messages[1].result.tools.some((tool: { name: string }) => tool.name === "add_site_pointer"));
 });
 
 test("the bridge writes NOTHING but protocol to stdout", async () => {
@@ -190,8 +196,8 @@ test("add_site_pointer through the real bridge writes the row the app will read"
   // this proves the row is consumable, not merely that the tool claimed success.
   const rows = readTrackedSites(sitesFilePath(userDataDir));
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].siteDir, siteDir);
-  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(rows[0]!.siteDir, siteDir);
+  assert.equal(rows[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("add_site_pointer through the real bridge REFUSES an empty folder and initializes nothing", async () => {

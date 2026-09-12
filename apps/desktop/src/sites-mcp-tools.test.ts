@@ -21,11 +21,11 @@ import path from "node:path";
 import { SITES_MCP_TOOLS, describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./tracked-sites.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-tools-"));
 }
 
-function siteFixture(name = "site") {
+function siteFixture(name: string = "site"): string {
   const dir = path.join(tempDir(), name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
@@ -34,14 +34,14 @@ function siteFixture(name = "site") {
 }
 
 /** A context whose reveal effect is recorded instead of performed — no real Finder window, ever. */
-function fakeContext(userDataDir = tempDir()) {
-  const revealed = [];
+function fakeContext(userDataDir: string = tempDir()) {
+  const revealed: string[] = [];
   return {
     revealed,
     context: {
       userDataDir,
       projectsPath: sitesFilePath(userDataDir),
-      revealPath: async (target) => {
+      revealPath: async (target: string) => {
         revealed.push(target);
       },
     },
@@ -92,12 +92,14 @@ test("list_sites reports the tracked sites and whether each folder still exists"
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.count, 2);
-  const byName = new Map(result.structuredContent.sites.map((p) => [p.name, p]));
-  assert.equal(byName.get("live").present, true);
+  const byName = new Map(
+    result.structuredContent.sites.map((p: { name: string; present: boolean }) => [p.name, p]) as Array<[string, { name: string; present: boolean }]>
+  );
+  assert.equal(byName.get("live")!.present, true);
   // A stale row reports `present: false` rather than being hidden: an assistant that silently
   // omitted it could not explain why the operator's site is not listed.
-  assert.equal(byName.get("missing-site").present, false);
-  assert.match(result.content[0].text, /missing-site .* \(folder missing\)/);
+  assert.equal(byName.get("missing-site")!.present, false);
+  assert.match(result.content[0]!.text, /missing-site .* \(folder missing\)/);
 });
 
 test("add_site_pointer tracks a real site as adopted", async () => {
@@ -108,7 +110,7 @@ test("add_site_pointer tracks a real site as adopted", async () => {
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.siteDir, siteDir);
-  assert.equal(readTrackedSites(context.projectsPath)[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites(context.projectsPath)[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("add_site_pointer REFUSES an empty folder, writes no row, and initializes nothing", async () => {
@@ -163,7 +165,7 @@ test("add_site_pointer rejects a missing or non-string siteDir with a correctabl
   for (const args of [{}, { siteDir: "" }, { siteDir: 42 }, { siteDir: null }]) {
     const result = await runSitesMcpTool("add_site_pointer", args, context);
     assert.equal(result.isError, true, `accepted ${JSON.stringify(args)}`);
-    assert.match(result.content[0].text, /'siteDir' is required/);
+    assert.match(result.content[0]!.text, /'siteDir' is required/);
   }
   assert.deepEqual(readTrackedSites(context.projectsPath), []);
 });
@@ -176,7 +178,7 @@ test("add_site_pointer reports an already-tracked site without claiming it added
   const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
 
   assert.equal(result.structuredContent.alreadyTracked, true);
-  assert.match(result.content[0].text, /was already in your websites/);
+  assert.match(result.content[0]!.text, /was already in your websites/);
   assert.equal(readTrackedSites(context.projectsPath).length, 1);
 });
 
@@ -198,7 +200,7 @@ test("reveal_site_folder REFUSES a path the app is not tracking and never reache
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir: untracked }, context);
 
   assert.equal(result.isError, true);
-  assert.match(result.content[0].text, /is not one of this app's websites/);
+  assert.match(result.content[0]!.text, /is not one of this app's websites/);
   // The load-bearing half. Without the tracked-row check, `siteDir` is a model-supplied argument to
   // "show this to the operator" — an empty array is the only passing state.
   assert.deepEqual(revealed, []);
@@ -231,7 +233,7 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   assert.equal(result.isError, true);
   // The cause is passed through, not flattened into "it failed" — the model has to be able to tell
   // the operator what went wrong.
-  assert.match(result.content[0].text, /could not run 'open': ENOENT/);
+  assert.match(result.content[0]!.text, /could not run 'open': ENOENT/);
 });
 
 test("an unknown tool name is an error RESULT naming the real tools, not a thrown protocol error", async () => {
@@ -240,6 +242,6 @@ test("an unknown tool name is an error RESULT naming the real tools, not a throw
   const result = await runSitesMcpTool("delete_everything", {}, context);
 
   assert.equal(result.isError, true);
-  assert.match(result.content[0].text, /Unknown tool 'delete_everything'/);
-  assert.match(result.content[0].text, /list_sites/);
+  assert.match(result.content[0]!.text, /Unknown tool 'delete_everything'/);
+  assert.match(result.content[0]!.text, /list_sites/);
 });

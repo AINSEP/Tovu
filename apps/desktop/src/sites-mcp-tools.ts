@@ -55,6 +55,55 @@ import { AddSitePointerError, addSitePointer } from "./add-site-pointer.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 
+/** One `tools/call` arguments bag, as received off the wire — untrusted until a handler validates
+ *  it field by field. */
+type ToolArgs = Record<string, unknown> | undefined;
+
+/** The classifier every site-addressing tool may have injected in place of the real
+ *  {@link classifySiteDirSafely} — same shape, real signature deferred to `site-dir-store.ts`'s own
+ *  annotation. */
+type ClassifySiteDirFn = typeof classifySiteDirSafely;
+
+/** The dependency bag every handler in {@link SITES_MCP_TOOLS} receives. Built once per bridge
+ *  process (`mcp-bridge.ts`'s `main`) and threaded through unchanged. `userDataDir` rides along on
+ *  the real bridge's context (it is what `projectsPath` was derived from) but no handler here reads
+ *  it back, so it stays optional rather than forcing every test fake to supply it. */
+interface ToolContext {
+  userDataDir?: string;
+  projectsPath: string;
+  revealPath: (target: string) => Promise<void>;
+  classifySiteDir?: ClassifySiteDirFn;
+}
+
+/** What a handler resolves with, before {@link runSitesMcpTool} wraps it as an MCP tool result.
+ *  `structured` is `object` rather than `Record<string, unknown>`: `addSitePointerTool` returns
+ *  `add-site-pointer.ts`'s own named `AddSitePointerResult` verbatim, and a named interface has no
+ *  index signature, so it is not assignable to `Record<string, unknown>` even though every one of
+ *  its properties is. `object` accepts any non-primitive shape without that restriction. */
+interface ToolHandlerResult {
+  structured: object;
+  text: string;
+}
+
+/** One row of {@link SITES_MCP_TOOLS}. */
+interface ToolEntry {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  annotations: { title: string; readOnlyHint: boolean };
+  handler: (args: ToolArgs, context: ToolContext) => ToolHandlerResult | Promise<ToolHandlerResult>;
+}
+
+/** One completed `tools/call` response, MCP-shaped. */
+interface McpToolResult {
+  content: Array<{ type: "text"; text: string }>;
+  // any: each tool's structured payload has its own shape (list_sites's {sites,count},
+  // add_site_pointer's {siteDir,alreadyTracked,...}, reveal_site_folder's {siteDir,revealed}) — the
+  // wire contract is validated per tool, by that tool's own test, not by one shared type here.
+  structuredContent: any;
+  isError?: boolean;
+}
+
 /**
  * Narrow one required string argument out of an untrusted `tools/call` arguments bag.
  *
@@ -66,7 +115,7 @@ import { classifySiteDirSafely } from "./site-dir-store.ts";
  * @throws {ToolInputError} when the value is absent, not a string, or blank.
  * @complexity O(1).
  */
-function requireStringArg(args, name) {
+function requireStringArg(args: ToolArgs, name: string): string {
   const value = args?.[name];
   if (typeof value !== "string" || value.trim() === "") {
     throw new ToolInputError(`'${name}' is required and must be a non-empty string.`);
@@ -78,7 +127,7 @@ function requireStringArg(args, name) {
  *  {@link runSitesMcpTool} can answer the model with a correctable message and still let a
  *  genuine internal fault surface as one. */
 class ToolInputError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(message);
     this.name = "ToolInputError";
   }
@@ -115,7 +164,7 @@ const SITE_DIR_SCHEMA = Object.freeze({
  *
  * @complexity O(n) in the tracked-row count, one `stat` pair per row.
  */
-function listSites(_args, context) {
+function listSites(_args: ToolArgs, context: ToolContext): ToolHandlerResult {
   const sites = readTrackedSites(context.projectsPath).map((row) => ({
     siteDir: row.siteDir,
     name: path.basename(row.siteDir),
@@ -145,7 +194,7 @@ function listSites(_args, context) {
  *
  * @complexity O(n) in the tracked-row count, plus one classification.
  */
-function addSitePointerTool(args, context) {
+function addSitePointerTool(args: ToolArgs, context: ToolContext): ToolHandlerResult {
   const requested = requireStringArg(args, "siteDir");
   const result = addSitePointer({
     siteDir: requested,
@@ -162,7 +211,7 @@ function addSitePointerTool(args, context) {
 
 /** {@link addSitePointerTool}'s operator-facing sentence, split out to keep that function's
  *  complexity under the shop ceiling. @complexity O(1). */
-function describeAddResult(result) {
+function describeAddResult(result: ReturnType<typeof addSitePointer>): string {
   if (result.alreadyTracked) return `${result.siteDir} was already in your websites — nothing changed.`;
   if (result.alreadyDismissed) {
     return `Added ${result.siteDir} back to your websites. You had removed this website before; adding it by name brings it back.`;
@@ -187,7 +236,7 @@ function describeAddResult(result) {
  *
  * @complexity O(n) in the tracked-row count.
  */
-async function revealSiteFolder(args, context) {
+async function revealSiteFolder(args: ToolArgs, context: ToolContext): Promise<ToolHandlerResult> {
   const requested = requireStringArg(args, "siteDir");
   const siteDir = path.resolve(path.sep, requested);
   const tracked = readTrackedSites(context.projectsPath).some((row) => row.siteDir === siteDir);
@@ -213,7 +262,7 @@ async function revealSiteFolder(args, context) {
  * not do to the operator's files, because "does this move my site?" is the question a person asks
  * first and the model must be able to answer it without calling anything.
  */
-const SITES_MCP_TOOLS = Object.freeze([
+const SITES_MCP_TOOLS: readonly ToolEntry[] = Object.freeze([
   Object.freeze({
     name: "list_sites",
     description:
@@ -292,7 +341,7 @@ function describeSitesMcpTools() {
  *
  * @complexity O(n) in the tool count, plus the chosen handler's own cost.
  */
-async function runSitesMcpTool(name, args, context) {
+async function runSitesMcpTool(name: string, args: ToolArgs, context: ToolContext): Promise<McpToolResult> {
   const tool = SITES_MCP_TOOLS.find((entry) => entry.name === name);
   if (tool === undefined) {
     return toolError(`Unknown tool '${name}'. Available: ${SITES_MCP_TOOLS.map((entry) => entry.name).join(", ")}.`);
@@ -308,8 +357,9 @@ async function runSitesMcpTool(name, args, context) {
 }
 
 /** One failed tool result. @complexity O(1). */
-function toolError(message, structured = {}) {
+function toolError(message: string, structured: Record<string, unknown> = {}): McpToolResult {
   return { content: [{ type: "text", text: message }], structuredContent: { error: message, ...structured }, isError: true };
 }
 
 export { SITES_MCP_TOOLS, ToolInputError, describeSitesMcpTools, runSitesMcpTool };
+export type { ToolArgs, ToolContext, ToolHandlerResult, McpToolResult };

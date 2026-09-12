@@ -35,13 +35,15 @@ test("initialize echoes the client's supported protocol version and declares too
     fakeContext(),
   );
 
-  assert.equal(response.id, 1);
-  assert.equal(response.result.protocolVersion, "2025-06-18");
-  assert.deepEqual(response.result.serverInfo, SERVER_INFO);
+  // `response` is known non-null here: this message has a real `method` and a usable `id`, so
+  // `handleSitesMcpRequest` cannot have taken its null-returning path — see its own doc.
+  assert.equal(response!.id, 1);
+  assert.equal(response!.result.protocolVersion, "2025-06-18");
+  assert.deepEqual(response!.result.serverInfo, SERVER_INFO);
   // `tools` present so the client knows tools exist; EMPTY so nothing claims `listChanged`, which
   // this server cannot honour and the client ignores anyway (`trust.ts` R5 freezes the set).
-  assert.deepEqual(response.result.capabilities, { tools: {} });
-  assert.equal("listChanged" in response.result.capabilities.tools, false);
+  assert.deepEqual(response!.result.capabilities, { tools: {} });
+  assert.equal("listChanged" in response!.result.capabilities.tools, false);
 });
 
 test("initialize answers an unknown protocol version with one this server actually speaks", async () => {
@@ -53,8 +55,8 @@ test("initialize answers an unknown protocol version with one this server actual
   // Negotiation, not reflection. Reflecting would report agreement with a revision this code has
   // never been written against — and the client stores the value and later sends it back as a
   // header (`adapter.http.ts:178`).
-  assert.equal(response.result.protocolVersion, PREFERRED_PROTOCOL_VERSION);
-  assert.notEqual(response.result.protocolVersion, "2099-01-01");
+  assert.equal(response!.result.protocolVersion, PREFERRED_PROTOCOL_VERSION);
+  assert.notEqual(response!.result.protocolVersion, "2099-01-01");
 });
 
 test("notifications/initialized is NOT answered", async () => {
@@ -88,18 +90,18 @@ test("a request whose id is 0 or an empty string is still answered", async () =>
   for (const id of [0, ""]) {
     const response = await handleSitesMcpRequest({ jsonrpc: "2.0", id, method: "tools/list" }, context);
     assert.notEqual(response, null, `dropped a request with id ${JSON.stringify(id)}`);
-    assert.equal(response.id, id);
+    assert.equal(response!.id, id);
   }
 });
 
 test("tools/list returns every tool in ONE page with no nextCursor", async () => {
   const response = await handleSitesMcpRequest({ jsonrpc: "2.0", id: 2, method: "tools/list" }, fakeContext());
 
-  assert.ok(Array.isArray(response.result.tools));
-  assert.ok(response.result.tools.length >= 3);
+  assert.ok(Array.isArray(response!.result.tools));
+  assert.ok(response!.result.tools.length >= 3);
   // `drainToolsList` (`mcp-protocol.ts:162-177`) follows a `nextCursor` while one is present and
   // throws past its page cap. A cursor here would send it looking for a second page forever.
-  assert.equal("nextCursor" in response.result, false);
+  assert.equal("nextCursor" in response!.result, false);
 });
 
 test("tools/list tolerates a cursor it did not issue instead of failing the connection", async () => {
@@ -108,7 +110,7 @@ test("tools/list tolerates a cursor it did not issue instead of failing the conn
     fakeContext(),
   );
 
-  assert.ok(Array.isArray(response.result.tools));
+  assert.ok(Array.isArray(response!.result.tools));
 });
 
 test("tools/call dispatches to the named tool", async () => {
@@ -117,8 +119,8 @@ test("tools/call dispatches to the named tool", async () => {
     fakeContext(),
   );
 
-  assert.equal(response.result.content[0].type, "text");
-  assert.equal(response.result.isError, undefined);
+  assert.equal(response!.result.content[0].type, "text");
+  assert.equal(response!.result.isError, undefined);
 });
 
 test("tools/call with no params is an error RESULT, not a thrown protocol error", async () => {
@@ -126,16 +128,16 @@ test("tools/call with no params is an error RESULT, not a thrown protocol error"
 
   // The distinction that matters: the client resolves a result and shows the model the text. A
   // JSON-RPC error here would surface as a connection-level failure with no correctable detail.
-  assert.equal(response.error, undefined);
-  assert.equal(response.result.isError, true);
+  assert.equal(response!.error, undefined);
+  assert.equal(response!.result.isError, true);
 });
 
 test("an unsupported method answers -32601 and never a result", async () => {
   const response = await handleSitesMcpRequest({ jsonrpc: "2.0", id: 6, method: "resources/list" }, fakeContext());
 
-  assert.equal(response.error.code, METHOD_NOT_FOUND);
-  assert.equal(response.result, undefined);
-  assert.match(response.error.message, /resources\/list/);
+  assert.equal(response!.error!.code, METHOD_NOT_FOUND);
+  assert.equal(response!.result, undefined);
+  assert.match(response!.error!.message, /resources\/list/);
 });
 
 test("every response carries jsonrpc 2.0 and echoes its request id", async () => {
@@ -143,7 +145,7 @@ test("every response carries jsonrpc 2.0 and echoes its request id", async () =>
 
   for (const method of ["initialize", "tools/list", "resources/list"]) {
     const response = await handleSitesMcpRequest({ jsonrpc: "2.0", id: `req-${method}`, method }, context);
-    assert.equal(response.jsonrpc, "2.0");
-    assert.equal(response.id, `req-${method}`);
+    assert.equal(response!.jsonrpc, "2.0");
+    assert.equal(response!.id, `req-${method}`);
   }
 });
