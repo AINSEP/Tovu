@@ -13,7 +13,7 @@
  * constant of the same name, so a test can point them at a throwaway `fs.mkdtempSync` directory
  * instead of the real `staging/tovu-payload` tree.
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { isBundleInput } from "./shell-staleness.js";
@@ -159,6 +159,119 @@ export function assertClosureComplete({ outDir }) {
       `staged tree is missing ${missing.length} declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${missing.join("\n  ")}`
     );
   }
+}
+
+/**
+ * Package-name scopes whose `.map` files survive {@link stripNonRuntimeFiles}.
+ *
+ * `@jini-ai/*` is first-party, and a user crash report naming `dist/index.js:1:48210` is worth
+ * nothing without the map that turns it back into a source position. Third-party maps buy no such
+ * thing: nobody here is going to read a stack frame inside `drizzle-orm`.
+ *
+ * Keeping them is a PACKAGE DEAL with each package's own `src/`, and that is why nothing here
+ * strips Jini sources. Jini's maps carry no `sourcesContent` — 400 of 400 `dist/**.js.map` sampled
+ * under `staging/tovu-payload/node_modules/@jini-ai/` had the key absent entirely — so they resolve
+ * a frame only by reading the `../src/*.ts` their `sources` array points at. Dropping `src/` would
+ * leave 31 MB of maps that cannot name a single line.
+ */
+export const SOURCE_MAP_KEEP_SCOPES = new Set(["@jini-ai"]);
+
+/** `.d.ts`, `.d.mts`, `.d.cts`, and the `.d.ts.map` that only exists to serve one. */
+const DECLARATION_PATTERN = /\.d\.[cm]?ts(\.map)?$/;
+
+/**
+ * Why one staged `node_modules` file cannot be executed by the packaged app, or `undefined` to keep
+ * it. `relPath` is POSIX-relative to the staged `node_modules` directory.
+ *
+ * Declarations are unconditional: `tsc` reads them at COMPILE time and no runtime ever opens one.
+ * Their `.d.ts.map` siblings go with them by the same argument plus a stronger one — a declaration
+ * map whose `.d.ts` is gone can be read by nothing at all.
+ *
+ * Source maps are conditional on {@link SOURCE_MAP_KEEP_SCOPES}. A `//# sourceMappingURL=` comment
+ * pointing at a file that is not there is not an error in Node or Electron: the comment is only
+ * consulted when something asks for a source position, and a miss degrades to the generated
+ * position. It is how every `--omit=dev`-style install already behaves.
+ *
+ * @complexity O(1).
+ */
+export function strippableReason(relPath) {
+  const name = path.posix.basename(relPath);
+  if (DECLARATION_PATTERN.test(name)) return "declaration";
+  if (!name.endsWith(".map")) return undefined;
+  return SOURCE_MAP_KEEP_SCOPES.has(relPath.split("/")[0]) ? undefined : "sourceMap";
+}
+
+/** On-disk bytes of a file or tree — `st_blocks`, not `st_size`, because that is what the installed
+ *  app costs. The payload's declarations average 4 KB apparent but a full block each.
+ *  @complexity O(n) in entries walked. */
+export function diskBytes(abs) {
+  const stat = lstatSync(abs);
+  if (!stat.isDirectory()) return stat.blocks * 512;
+  let total = 0;
+  for (const entry of readdirSync(abs)) total += diskBytes(path.join(abs, entry));
+  return total;
+}
+
+/** Deletes every file under `modulesDir` that {@link strippableReason} condemns, tallying by reason.
+ *  @complexity O(n) in entries walked. */
+function stripGeneratedFiles(modulesDir, tally) {
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      const reason = strippableReason(path.relative(modulesDir, full).split(path.sep).join("/"));
+      if (reason === undefined) continue;
+      tally.bytes += diskBytes(full);
+      tally[reason] += 1;
+      rmSync(full, { force: true });
+    }
+  };
+  walk(modulesDir);
+}
+
+/**
+ * Deletes each staged package's own top-level `coverage/` directory.
+ *
+ * These are vitest HTML reports — 12.6 MB across the `@jini-ai/*` tree, 5.7 MB of it in
+ * `@jini-ai/ui` alone. They are present because those packages are pnpm-linked local checkouts
+ * that stage whole, not published tarballs whose `files:` would have excluded them.
+ *
+ * Only a package's OWN top-level `coverage/` is touched, never an arbitrary nested directory that
+ * happens to share the name — a package is free to ship a runtime module called `coverage`.
+ *
+ * @complexity O(n) in staged packages.
+ */
+function stripCoverageReports(modulesDir, tally) {
+  for (const packageDir of stagedPackageDirs(modulesDir)) {
+    const coverage = path.join(packageDir, "coverage");
+    if (!existsSync(coverage) || !statSync(coverage).isDirectory()) continue;
+    tally.bytes += diskBytes(coverage);
+    tally.coverage += 1;
+    rmSync(coverage, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Remove from the STAGED tree what the packaged app can never execute: type declarations, most
+ * source maps, and vitest coverage reports. Roughly a third of the staged `node_modules`.
+ *
+ * This operates on `outDir` — the staging output — and NEVER on the repo's own `node_modules`.
+ * Stripping declarations there would break `tsc` on the next typecheck, which is why the deletion
+ * belongs in the staging step and nowhere earlier.
+ *
+ * @returns counts by reason plus the on-disk bytes freed.
+ * @complexity O(n) in files under the staged `node_modules`.
+ */
+export function stripNonRuntimeFiles({ outDir }) {
+  const modulesDir = path.join(outDir, "node_modules");
+  const tally = { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 };
+  if (!existsSync(modulesDir)) return tally;
+  stripCoverageReports(modulesDir, tally);
+  stripGeneratedFiles(modulesDir, tally);
+  return tally;
 }
 
 /** Whether to descend into / consider one directory entry at all.

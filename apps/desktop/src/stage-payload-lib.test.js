@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { assertClosureComplete, newestMtime, stageTransitiveDependencies } from "./stage-payload-lib.js";
+import { assertClosureComplete, newestMtime, stageTransitiveDependencies, strippableReason, stripNonRuntimeFiles } from "./stage-payload-lib.js";
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));
@@ -313,4 +313,143 @@ test("assertClosureComplete: ignores dotfile-prefixed entries under node_modules
   writePackage(path.join(modulesDir, ".hidden"), { missingDep: "^1" });
 
   assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+/** Writes `files` (paths relative to `<outDir>/node_modules`) and returns that modules directory. */
+function writeStagedFiles(outDir, files) {
+  const modulesDir = path.join(outDir, "node_modules");
+  for (const relative of files) {
+    const full = path.join(modulesDir, relative);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, "x".repeat(64));
+  }
+  return modulesDir;
+}
+
+const survives = (relative) => strippableReason(relative) === undefined;
+
+test("strippableReason: every declaration extension is condemned, in any scope", () => {
+  assert.equal(strippableReason("drizzle-orm/index.d.ts"), "declaration");
+  assert.equal(strippableReason("drizzle-orm/index.d.mts"), "declaration");
+  assert.equal(strippableReason("drizzle-orm/index.d.cts"), "declaration");
+  // First-party too: the keep-list is about source maps, not declarations. Nothing reads a .d.ts at runtime.
+  assert.equal(strippableReason("@jini-ai/ui/dist/index.d.ts"), "declaration");
+});
+
+test("strippableReason: a .d.ts.map goes with the declaration it serves, even under a kept scope", () => {
+  // Ordering matters -- the declaration rule has to win over the source-map keep-list, or 10k
+  // declaration maps would survive with nothing left for them to map.
+  assert.equal(strippableReason("@jini-ai/ui/dist/index.d.ts.map"), "declaration");
+  assert.equal(strippableReason("drizzle-orm/index.d.ts.map"), "declaration");
+});
+
+test("strippableReason: third-party source maps go, @jini-ai source maps stay", () => {
+  assert.equal(strippableReason("drizzle-orm/index.js.map"), "sourceMap");
+  assert.equal(strippableReason("recharts/lib/chart/LineChart.js.map"), "sourceMap");
+  assert.equal(strippableReason("@jini-ai/ui/dist/index.js.map"), undefined);
+  assert.equal(strippableReason("@jini-ai/agent-runtime/dist/deep/nested/run.js.map"), undefined);
+});
+
+test("strippableReason: the keep-list matches the scope, not a prefix of it", () => {
+  assert.equal(strippableReason("@jini-ai-fork/ui/dist/index.js.map"), "sourceMap");
+  assert.equal(strippableReason("jini-ai/dist/index.js.map"), "sourceMap");
+  // A kept package's own nested copy of a third-party one is NOT first-party source.
+  assert.equal(strippableReason("es-toolkit/node_modules/@jini-ai/x/index.js.map"), "sourceMap");
+});
+
+test("strippableReason: executable code and data survive, including near-miss names", () => {
+  assert.ok(survives("drizzle-orm/index.js"));
+  assert.ok(survives("drizzle-orm/package.json"));
+  assert.ok(survives("better-sqlite3/prebuilds/darwin-x64.node"));
+  assert.ok(survives("drizzle-orm/LICENSE"));
+  // Not a declaration: the `d` is part of the basename, not a `.d.ts` suffix.
+  assert.ok(survives("some-pkg/embed.ts"));
+  assert.ok(survives("some-pkg/dts.js"));
+  assert.ok(survives("some-pkg/sourcemap.js"));
+  // A directory named like a map is not one; only the basename decides.
+  assert.ok(survives("some-pkg/index.js.map.js"));
+});
+
+test("stripNonRuntimeFiles: deletes exactly the condemned files and tallies them by reason", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = writeStagedFiles(outDir, [
+    path.join("drizzle-orm", "index.js"),
+    path.join("drizzle-orm", "index.js.map"),
+    path.join("drizzle-orm", "index.d.ts"),
+    path.join("drizzle-orm", "index.d.ts.map"),
+    path.join("@jini-ai", "ui", "dist", "index.js"),
+    path.join("@jini-ai", "ui", "dist", "index.js.map"),
+    path.join("@jini-ai", "ui", "dist", "index.d.ts"),
+  ]);
+
+  const tally = stripNonRuntimeFiles({ outDir });
+
+  assert.equal(tally.declaration, 3);
+  assert.equal(tally.sourceMap, 1);
+  assert.equal(tally.coverage, 0);
+  assert.ok(tally.bytes > 0, "must report the on-disk bytes it freed");
+  assert.ok(fs.existsSync(path.join(modulesDir, "drizzle-orm", "index.js")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "@jini-ai", "ui", "dist", "index.js")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "@jini-ai", "ui", "dist", "index.js.map")));
+  assert.ok(!fs.existsSync(path.join(modulesDir, "drizzle-orm", "index.js.map")));
+  assert.ok(!fs.existsSync(path.join(modulesDir, "drizzle-orm", "index.d.ts")));
+  assert.ok(!fs.existsSync(path.join(modulesDir, "drizzle-orm", "index.d.ts.map")));
+  assert.ok(!fs.existsSync(path.join(modulesDir, "@jini-ai", "ui", "dist", "index.d.ts")));
+});
+
+test("stripNonRuntimeFiles: deletes a package's own coverage/ report but not a nested directory sharing the name", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = writeStagedFiles(outDir, [
+    path.join("@jini-ai", "ui", "package.json"),
+    path.join("@jini-ai", "ui", "coverage", "index.html"),
+    path.join("@jini-ai", "ui", "coverage", "lcov-report", "base.css"),
+    // A runtime module a package is entitled to ship under that name.
+    path.join("some-pkg", "package.json"),
+    path.join("some-pkg", "dist", "coverage", "report.js"),
+  ]);
+
+  const tally = stripNonRuntimeFiles({ outDir });
+
+  assert.equal(tally.coverage, 1);
+  assert.ok(!fs.existsSync(path.join(modulesDir, "@jini-ai", "ui", "coverage")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "@jini-ai", "ui", "package.json")));
+  assert.ok(fs.existsSync(path.join(modulesDir, "some-pkg", "dist", "coverage", "report.js")));
+});
+
+test("stripNonRuntimeFiles: leaves the staged closure complete, so the app still resolves every dependency", () => {
+  const outDir = path.join(tempDir(), "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "pkgA"), { pkgB: "^1" });
+  writePackage(path.join(modulesDir, "pkgB"), {});
+  writeStagedFiles(outDir, [path.join("pkgA", "index.d.ts"), path.join("pkgB", "index.js.map")]);
+
+  stripNonRuntimeFiles({ outDir });
+
+  // package.json is what the closure check reads; a strip that touched it would break resolution.
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+test("stripNonRuntimeFiles: a staged tree with no node_modules at all is a no-op, not a crash", () => {
+  const outDir = path.join(tempDir(), "out");
+  fs.mkdirSync(outDir, { recursive: true });
+
+  assert.deepEqual(stripNonRuntimeFiles({ outDir }), { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 });
+});
+
+test("stripNonRuntimeFiles: never reaches outside node_modules — dist/ and apps/ are untouched", () => {
+  // The staged dist/ and the two SPA builds carry no declarations or maps today (measured: 0 of
+  // 1453 files), but nothing about the strip should depend on that staying true.
+  const outDir = path.join(tempDir(), "out");
+  writeStagedFiles(outDir, [path.join("pkgA", "index.js")]);
+  for (const relative of [path.join("dist", "src", "cli", "main.d.ts"), path.join("apps", "admin", "dist", "app.js.map")]) {
+    const full = path.join(outDir, relative);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, "x");
+  }
+
+  const tally = stripNonRuntimeFiles({ outDir });
+
+  assert.deepEqual(tally, { declaration: 0, sourceMap: 0, coverage: 0, bytes: 0 });
+  assert.ok(fs.existsSync(path.join(outDir, "dist", "src", "cli", "main.d.ts")));
+  assert.ok(fs.existsSync(path.join(outDir, "apps", "admin", "dist", "app.js.map")));
 });

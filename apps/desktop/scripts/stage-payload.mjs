@@ -50,6 +50,7 @@ import {
   newestMtime,
   stageDir,
   stageTransitiveDependencies,
+  stripNonRuntimeFiles,
 } from "../src/stage-payload-lib.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -318,6 +319,9 @@ if (!existsSync(path.join(outDir, "node_modules", "better-sqlite3"))) {
 }
 const materialized = materializeSymlinks(outDir);
 assertNoSymlinks(outDir);
+// BEFORE assertClosureComplete, deliberately: the closure is then verified against the tree that
+// actually ships, not against a fuller one the strip has yet to touch.
+const stripped = stripNonRuntimeFiles({ outDir });
 try {
   assertClosureComplete({ outDir });
 } catch (err) {
@@ -338,3 +342,7 @@ failIfDistIsStale();
 
 const size = execFileSync("du", ["-sh", outDir], { encoding: "utf8" }).split("\t")[0];
 process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${outDir} (${size})\n`);
+process.stdout.write(
+  `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
+    `${stripped.coverage} coverage reports (${(stripped.bytes / 1048576).toFixed(1)} MB on disk)\n`
+);
