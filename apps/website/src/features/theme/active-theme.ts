@@ -37,13 +37,75 @@ export interface ActiveThemeResolutionDeps {
 }
 
 /**
- * Resolve the theme to render with: the active theme when discovered and valid,
- * otherwise the first valid theme, otherwise the first discovered theme. This is
- * the render-time fallback that keeps the public site from 500-ing when the
- * active theme id is missing/invalid (SPEC-004 REQ-10, spike-level).
+ * The stock theme a site falls back to when its configured theme id no longer resolves.
+ *
+ * A NAME, not a position. Before this constant existed the fallback was
+ * `deps.themes.find((t) => t.status === "valid")` — the first valid theme in DISCOVERY order, and
+ * discovery sorts by `manifest.id.localeCompare` (`theme.ts`'s `discoverAllBuiltInThemes`). `basic`
+ * won on every real site purely by coincidence of naming: installing a theme called `aurora` would
+ * have silently made it the default for every site whose configured theme had gone missing.
+ * `server/runtime/configuration/seed.ts` recorded that exact bug in 2026-08-10 and routed around it
+ * by hardcoding `"basic"` into the seeded presentation row instead of fixing the resolver, which
+ * left the seed's literal and the resolver's implicit winner as two independent facts that merely
+ * happened to agree. Both now read this one name, so they cannot disagree.
+ *
+ * Lives here rather than in `theme.ts` alongside `ENGINE_SUBFOLDERS`/`THEME_CATALOG_DIR` because its
+ * entire meaning is step 2 of {@link resolveActiveTheme} directly below — the pair has to be read
+ * together to be understood, and a reader of `theme.ts` has nothing there to say what "default"
+ * means. It must stay inside `features/theme` (not `features/presentation`) for the measured reason
+ * `features/presentation/active-theme-id.ts`'s own header records: `features/presentation` is inside
+ * the pre-existing 36-module SCC and `features/theme` is not, so a constant consumed by
+ * `resolveActiveTheme` must not create that edge.
+ */
+export const DEFAULT_THEME_ID = "basic";
+
+/**
+ * Resolve the theme to render with, in three ordered steps:
+ *
+ * 1. the configured theme, when discovered and valid;
+ * 2. otherwise {@link DEFAULT_THEME_ID}, when discovered and valid — the NAMED default;
+ * 3. otherwise the first valid theme, otherwise the first discovered theme, otherwise `null`.
+ *
+ * This is the render-time fallback that keeps the public site from 500-ing when the active theme id
+ * is missing/invalid (SPEC-004 REQ-10, spike-level).
+ *
+ * Step 2 was inserted 2026-09-12 IN FRONT OF step 3 rather than replacing it, deliberately: step 3
+ * is arbitrary (see {@link DEFAULT_THEME_ID}) but it is not useless — it is what still renders a
+ * site on which the stock theme was itself deleted. Keeping it means this change can never make a
+ * site serve LESS than it did before; it only makes the common case deterministic.
+ *
+ * The `status === "valid"` bar in step 2 is the same bar step 1 applies. An `invalid` copy of the
+ * stock theme falls through to step 3 rather than being rendered — otherwise adding a named default
+ * would have started serving a theme the old code correctly refused.
+ *
+ * Steps 2 and 3 each `console.warn` with distinct wording, because they need distinct remedies
+ * (reactivate a theme vs. reinstall the stock theme). Silence is what let the arbitrary-order bug
+ * survive long enough to be worked around in `seed.ts` rather than fixed: a site can render the
+ * wrong theme indefinitely with nothing anywhere saying so. Per-call rather than once-per-process,
+ * matching `static-render.ts`'s existing convention (`renderStaticPage` warns on every request for a
+ * theme missing its token sentinel) — a degraded site therefore logs per request, which is the
+ * accepted trade here; deduplicating would need module state and make this query stateful.
+ * Step 1, the healthy path, is silent.
+ *
+ * @complexity O(n) over the discovered-theme list (three linear scans in the worst case).
  */
 export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeId: string): DiscoveredTheme | null {
   const active = findTheme({ themes: deps.themes, id: activeThemeId });
   if (active && active.status === "valid") return active;
-  return deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
+
+  const named = findTheme({ themes: deps.themes, id: DEFAULT_THEME_ID });
+  if (named && named.status === "valid") {
+    console.warn(
+      `[theme] active theme '${activeThemeId}' did not resolve; falling back to the default theme '${DEFAULT_THEME_ID}'`
+    );
+    return named;
+  }
+
+  const substitute = deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
+  console.warn(
+    substitute === null
+      ? `[theme] active theme '${activeThemeId}' did not resolve and no theme is installed at all (default '${DEFAULT_THEME_ID}' is absent); the site has no theme to render`
+      : `[theme] active theme '${activeThemeId}' did not resolve and the default theme '${DEFAULT_THEME_ID}' is absent or invalid; substituting '${substitute.manifest.id}', which is whichever theme discovery happened to list first`
+  );
+  return substitute;
 }

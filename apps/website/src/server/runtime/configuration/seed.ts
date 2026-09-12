@@ -6,6 +6,7 @@ import {
   type MigrateLegacyPresentationSettingsDeps,
   type MigrateLegacyPresentationSettingsResult,
 } from "#src/features/settings/migration";
+import { DEFAULT_THEME_ID } from "#src/features/theme/index";
 import type { WorkspaceRecord } from "#src/features/workspace/index";
 
 /**
@@ -311,12 +312,16 @@ export const seededPosts: PostRecord[] = [
 
 export const seededPresentation: PresentationSettingsRecord = {
   workspaceId: seededWorkspace.id,
-  // `tovu-official` (until 2026-08-10) lived only under `development/fixtures/theme-archive/`, which discovery never
-  // scans — a fresh workspace's active theme silently fell through `resolveActiveTheme()`'s fallback
-  // to whatever the alphabetically-first *valid* discovered theme happened to be, making the real
-  // default effectively arbitrary. `basic` (`content/themes/static/basic/`) is a real, valid, currently
-  // shipping static theme, so the stored id now resolves directly instead of relying on the fallback.
-  activeThemeId: "basic",
+  // A fresh site is seeded into state 1 — the default theme EXPLICITLY active — not into the
+  // resolver's fallback. `resolveActiveTheme`'s step 2 would produce the same theme, but a seeded
+  // row is what makes the admin show "basic — Active" instead of a blank card, and what keeps a new
+  // install distinguishable from a site whose theme has gone missing.
+  //
+  // `DEFAULT_THEME_ID`, not the literal `"basic"` (2026-09-12): until the resolver grew a named
+  // default, this seed's literal and the resolver's implicit winner were two independent facts that
+  // happened to agree, and the 2026-08-10 comment here recorded the resolver bug rather than fixing
+  // it. One name means they cannot disagree. See `features/theme/active-theme.ts`.
+  activeThemeId: DEFAULT_THEME_ID,
   updatedAt: "2026-04-06T00:00:00.000Z",
 };
 
