@@ -436,4 +436,64 @@ export default [
       'sonarjs/cognitive-complexity': ['warn', 15],
     },
   },
+  {
+    /**
+     * `apps/desktop` — the ONE thing this workspace needs from the shared config, added 2026-09-12.
+     *
+     * ## What was broken
+     *
+     * Every other config block in this file globs `**​/*.ts` / `**​/*.tsx` (or `apps/admin/src/**`
+     * with a widened extension list). NOTHING matched `apps/desktop`'s `.js`/`.mjs`/`.cjs` — which
+     * is most of the app, including `main.js` at ~1200 lines, `tovu-server.js`, and
+     * `scripts/stage-payload.mjs`. Those files were still ENUMERATED by `eslint .` and linted
+     * against an empty ruleset, so they reported 0 problems and looked gated. Verified 2026-09-12:
+     * a default run over `main.js` produced 0 messages, while `--rule '{"max-lines":["error",5]}'`
+     * produced 1 — the file is reachable, it simply had no rules.
+     *
+     * ## Why the plugin registration here is load-bearing
+     *
+     * `check-admin-complexity-drift.ts` re-lints at a strict 9/9 by passing `--rule` on the CLI. A
+     * CLI `--rule` applies to every file ESLint enumerates, and ESLint resolves a plugin name only
+     * from a config object that MATCHES that file. With no block covering desktop's `.js` files,
+     * the same technique died with exit 2 and empty stdout — "could not find plugin sonarjs" —
+     * on any desktop glob whose directory contained a `.js` file. (Isolated: `src/contracts/*.ts`,
+     * which has no `.js` siblings, exited 0; `src/preload/*.ts`, which sits beside
+     * `preload.test.js`, exited 2.) `apps/admin` is immune only because the block above pairs its
+     * glob with `js,jsx,mjs,cjs`. Declaring `sonarjs` here is what lets the desktop gate use the
+     * same `--rule` re-lint the admin ratchet has always used.
+     *
+     * ## Severity is deliberately `warn`, not `error`
+     *
+     * STRICTLY ADDITIVE: `npm run complexity` is a blocking CI step, and desktop carries 10
+     * pre-existing 9/9 violations. Promoting them here would fail that gate for everyone the moment
+     * this lands, over debt this commit does not introduce. `warn`/15 matches what desktop's `.ts`
+     * and `.tsx` already got from the repo-wide block, so this block changes NO existing result —
+     * it only extends that same treatment to the `.js`/`.mjs`/`.cjs` files that had none. The hard
+     * 9/9 ceiling is enforced by `apps/desktop/scripts/check-complexity.mjs`'s own `--rule`
+     * re-lint against a per-violation debt list, exactly as `apps/admin` does it.
+     *
+     * `tseslint.parser` + `jsx: true` for the reason the `apps/admin` block documents above: a
+     * widened glob that falls through to default espree makes a real `.jsx`/`.tsx` file a hard
+     * PARSE error. The build-output ignores are required because this file's global `ignores` cover
+     * `**​/dist/**` but not `release/`, `release-verify/`, `staging/`, or `src/speech/.build/`,
+     * each of which holds a full copy of the app.
+     */
+    files: ['apps/desktop/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
+    ignores: [
+      'apps/desktop/dist/**',
+      'apps/desktop/release/**',
+      'apps/desktop/release-verify/**',
+      'apps/desktop/staging/**',
+      'apps/desktop/src/speech/.build/**',
+    ],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: 'module' },
+    },
+    plugins: { sonarjs },
+    rules: {
+      complexity: ['warn', 15],
+      'sonarjs/cognitive-complexity': ['warn', 15],
+    },
+  },
 ];

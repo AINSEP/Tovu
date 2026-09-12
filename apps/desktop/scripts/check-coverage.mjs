@@ -107,9 +107,64 @@ function runSuite(nodeArgs, includes, lcovPath, testGlob) {
   return { status: result.signal ? null : result.status };
 }
 
+/** Reads both lcov files into one `Map<relPath, counters>`, keeping the better image when the js
+ *  and ts passes both measured a file.
+ *  @complexity O(n) in lcov records. */
+function mergeCoverage(lcovPaths) {
+  const coverage = new Map();
+  for (const file of lcovPaths) {
+    if (!existsSync(file)) continue;
+    for (const [rel, counters] of parseLcov(readFileSync(file, "utf8"))) {
+      const prev = coverage.get(rel);
+      if (!prev || counters.lh > prev.lh) coverage.set(rel, counters);
+    }
+  }
+  return coverage;
+}
+
+/** Runs both scoped suites under coverage. Returns whether the SUITE itself passed — coverage
+ *  numbers from a failed run are not evidence, so that is reported separately from the floors.
+ *  @complexity O(1) plus the suites' own cost. */
+function produceCoverage(config, jsLcov, tsLcov) {
+  const includes = config.coverageInclude ?? [];
+  const js = runSuite([], includes, jsLcov, "src/**/*.test.js");
+  const ts = runSuite(["--import", "tsx"], includes, tsLcov, "src/**/*.test.ts");
+  if (js.status === 0 && ts.status === 0) return true;
+  process.stderr.write(
+    `\ncheck-coverage: the test suite itself did not pass (js=${js.status}, ts=${ts.status}). ` +
+      `Coverage numbers from a failed run are not evidence.\n`
+  );
+  return false;
+}
+
+/** Evaluates and prints every configured area. Returns true if any failed.
+ *  @complexity O(n) in areas. */
+function evaluateAreas(config, coverage) {
+  process.stdout.write("\n" + "=".repeat(66) + "\nDESKTOP COVERAGE FLOORS\n" + "=".repeat(66) + "\n");
+  let failed = false;
+  for (const area of config.areas) {
+    const onDisk = area.dirs.flatMap((dir) => filesOnDisk(dir, area.extensions));
+    const result = evaluateArea(area, onDisk, coverage);
+    process.stdout.write(`${formatArea(result, area)}\n`);
+    if (result.failures.length > 0) failed = true;
+  }
+  return failed;
+}
+
+/** Printed every run, by name. An excluded file nobody is told about is the trap; an excluded file
+ *  in every run's output is a decision.
+ *  @complexity O(n). */
+function printNotMeasured(config) {
+  if (!config.notMeasured?.length) return;
+  process.stdout.write("\n  NOT MEASURED — no floor applies, and this is deliberate:\n");
+  for (const entry of config.notMeasured) process.stdout.write(`    - ${entry.what}: ${entry.why}\n`);
+}
+
 function main() {
   if (!existsSync(CONFIG_PATH)) {
-    process.stderr.write(`check-coverage: FAIL — no ${path.relative(DESKTOP_ROOT, CONFIG_PATH)}. This gate cannot pass without one.\n`);
+    process.stderr.write(
+      `check-coverage: FAIL — no ${path.relative(DESKTOP_ROOT, CONFIG_PATH)}. This gate cannot pass without one.\n`
+    );
     process.exit(1);
   }
   const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
@@ -117,42 +172,12 @@ function main() {
   const jsLcov = path.join(tmp, "js.lcov");
   const tsLcov = path.join(tmp, "ts.lcov");
 
-  const includes = config.coverageInclude ?? [];
-  const js = runSuite([], includes, jsLcov, "src/**/*.test.js");
-  const ts = runSuite(["--import", "tsx"], includes, tsLcov, "src/**/*.test.ts");
-
-  let failed = false;
-  if (js.status !== 0 || ts.status !== 0) {
-    process.stderr.write(`\ncheck-coverage: the test suite itself did not pass (js=${js.status}, ts=${ts.status}). Coverage numbers from a failed run are not evidence.\n`);
-    failed = true;
-  }
-
-  const coverage = new Map();
-  for (const file of [jsLcov, tsLcov]) {
-    if (!existsSync(file)) continue;
-    for (const [rel, counters] of parseLcov(readFileSync(file, "utf8"))) {
-      const prev = coverage.get(rel);
-      if (!prev || counters.lh > prev.lh) coverage.set(rel, counters);
-    }
-  }
-
-  process.stdout.write("\n" + "=".repeat(66) + "\nDESKTOP COVERAGE FLOORS\n" + "=".repeat(66) + "\n");
-  for (const area of config.areas) {
-    const onDisk = area.dirs.flatMap((dir) => filesOnDisk(dir, area.extensions));
-    const result = evaluateArea(area, onDisk, coverage);
-    process.stdout.write(`${formatArea(result, area)}\n`);
-    if (result.failures.length > 0) failed = true;
-  }
-
-  // Printed every run, by name. An excluded file nobody is told about is the trap; an excluded file
-  // on every run's output is a decision.
-  if (config.notMeasured?.length) {
-    process.stdout.write("\n  NOT MEASURED — no floor applies, and this is deliberate:\n");
-    for (const entry of config.notMeasured) process.stdout.write(`    - ${entry.what}: ${entry.why}\n`);
-  }
-
+  const suitePassed = produceCoverage(config, jsLcov, tsLcov);
+  const areasFailed = evaluateAreas(config, mergeCoverage([jsLcov, tsLcov]));
+  printNotMeasured(config);
   rmSync(tmp, { recursive: true, force: true });
-  if (failed) {
+
+  if (!suitePassed || areasFailed) {
     process.stderr.write("\ncheck-coverage: FAILED\n");
     process.exit(1);
   }
