@@ -8,3 +8,10 @@ src/speech/.build/
 # `.app`/`.dmg`. Both are regenerable build artifacts, never sources.
 staging/
 release/
+
+# Verification bundles from a diagnostic pack into a separate output dir
+# (electron-builder --mac dir --config.directories.output=release-probe2). Same posture as
+# release/: regenerable build output, never a source. Kept on disk rather than deleted because
+# a pack built against a QUIET tree is the only way to tell a clean archive from a corrupt one
+# -- see ADS-memory/reports/2026-09-12-packaging-asar-corruption.md.
+release-probe*/
