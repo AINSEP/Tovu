@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# apps/desktop pre-push hook — the fast local half of the desktop gates.
+#
+# Runs the SAME command .github/workflows/desktop.yml runs: `npm run gates` in apps/desktop, which
+# reads apps/desktop/quality-gates.json. One definition, two invocation points. Two hand-maintained
+# lists drift — ci-local.sh:145 claims to mirror "the 8 blocking gates, same order as ci.yml" while
+# running 9 and omitting 3.
+#
+# This hook is bypassable (`git push --no-verify`) and per-clone. That is fine: it is the fast path,
+# not the authority. The workflow is the authority.
+#
+# INSTALL (not done automatically — a hook changes how YOUR git behaves, so it is your call):
+#   git config core.hooksPath apps/desktop/scripts/hooks
+# UNINSTALL:
+#   git config --unset core.hooksPath
+#
+# Note that `core.hooksPath` is repo-wide, so installing this makes it the hook directory for every
+# hook in this checkout, not just desktop's.
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)" || exit 1
+
+# Skip entirely when the push touches nothing this gate covers. Matches the workflow's own `paths:`
+# filter so the two cannot disagree about when desktop gates are relevant.
+if git diff --quiet HEAD @{push} -- "$repo_root/apps/desktop" "$repo_root/eslint.config.mjs" 2>/dev/null; then
+  echo "pre-push: no apps/desktop changes in this push — skipping desktop gates."
+  exit 0
+fi
+
+echo "pre-push: running apps/desktop quality gates (bypass with --no-verify)"
+
+# No pipe. A status read through a pipe is the PIPE's status, which is how `npm run admin:build` was
+# reported as "exits 0 while blocked" when it exits 1 correctly.
+if ( cd "$repo_root/apps/desktop" && npm run --silent gates ); then
+  exit 0
+fi
+
+echo "pre-push: desktop gates FAILED — push aborted. Fix, or bypass with 'git push --no-verify'." >&2
+exit 1

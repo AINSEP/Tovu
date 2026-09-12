@@ -3,12 +3,34 @@
 # ci-local.sh -- local mirror of .github/workflows/ci.yml, for when Actions can't run
 # ==============================================================================
 #
-# ## Why this exists (2026-08-19)
+# ## Why this exists (2026-08-19), and what changed (2026-09-12)
 #
-# GitHub Actions is billing-blocked on this account: every job dies in ~3s with
-# "recent account payments have failed or your spending limit needs to be increased,"
-# zero steps executed. The owner's call: stop depending on Actions tonight and run CI
-# locally instead. This script is that local runner.
+# ORIGINALLY: GitHub Actions was billing-blocked on this account -- every job died in ~3s with
+# "recent account payments have failed or your spending limit needs to be increased," zero steps
+# executed. The owner's call was to stop depending on Actions and run CI locally instead. This
+# script is that local runner.
+#
+# THAT REASON NO LONGER HOLDS, and this comment asserted it for weeks after it stopped being true.
+# Measured 2026-09-12 with `gh workflow list --all`:
+#
+#   CI                        disabled_manually
+#   Deploy to Fly.io          active
+#   Jini Published Typecheck  active
+#   Publish Image to GHCR     active
+#
+# The account bills fine; three workflows ran successfully on 2026-09-10 and 2026-09-11. `ci.yml`
+# specifically is switched off in the GitHub UI, and `gh run list --workflow=ci.yml` returns
+# nothing at all. Re-enabling it is one `gh workflow enable CI`, NOT a billing problem.
+#
+# It is deliberately still off, though, and this script is still the thing that runs. As of
+# 2026-09-12 `ci.yml` would arrive red on at least four blocking gates -- check:boundaries (19
+# errors), check:architecture (3 regressed metrics), check:src-complexity-drift (4 new violations),
+# check:coverage-integrity (28 contaminated files) -- so turning it on without first baselining
+# those means a wall of red that people learn to ignore. (Those four were measured on a working
+# tree carrying uncommitted work, so re-measure from a clean checkout before acting on the counts.)
+#
+# A wrong comment explaining why a gate is off is exactly how a gate stays off: anyone auditing
+# this reads a confident, stale reason and stops looking. If the state changes again, change this.
 #
 # ## What it runs, and in what order
 #
@@ -142,7 +164,12 @@ postgres_available() {
   command -v pg_isready >/dev/null 2>&1 && pg_isready -h "${PGHOST:-/tmp}" ${PGPORT:+-p "$PGPORT"} >/dev/null 2>&1
 }
 
-# --- build-and-test job: the 8 blocking gates, same order as ci.yml -------------
+# --- build-and-test job: 9 blocking gates ---------------------------------------
+# NOT a faithful mirror of ci.yml, despite what this comment used to claim ("the 8 blocking gates,
+# same order as ci.yml" -- it lists 9). ci.yml additionally has check:coverage-integrity,
+# check:seal-aad and check:default-credential as blocking steps, and none of them runs here. With
+# ci.yml disabled, that means NOTHING runs those three. Verified 2026-09-12: check:coverage-integrity
+# exits 1 today (28 CONTAMINATED files).
 run_gate "typecheck (root)"            npm run typecheck
 run_gate "check:boundaries"            npm run check:boundaries
 run_gate "check:architecture"          npm run check:architecture

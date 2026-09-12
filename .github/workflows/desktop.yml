@@ -1,0 +1,79 @@
+name: Desktop Gates
+
+# `apps/desktop`'s own quality gates — tests, typecheck, coverage floors, complexity — run on push.
+#
+# ## Why this is a SEPARATE workflow and not a job inside ci.yml
+#
+# GitHub's enable/disable is per-workflow, which is exactly why `CI` currently sits
+# `disabled_manually` while three other workflows run fine on this account. Putting desktop's gates
+# in their own file means:
+#
+#   - they can be turned on today, with no dependency on `apps/website`'s architecture debt. As of
+#     2026-09-12 `ci.yml` would arrive red on at least four blocking gates (`check:boundaries`
+#     19 errors, `check:architecture` 3 regressed metrics, `check:src-complexity-drift` 4 new
+#     violations, `check:coverage-integrity` 28 contaminated files), and a gate that is switched on
+#     and then ignored because it is noisy is worse than one that is off;
+#   - they are independently toggleable, which is the stated requirement;
+#   - they cannot be held hostage by a decision about a different workspace.
+#
+# ## This job is cheap
+#
+# No Postgres service, no Jini clone, no admin build. `apps/desktop` is self-contained: its suite is
+# plain `node --test` plus a `tsx` pass. That is deliberate — a gate people wait on is a gate people
+# route around.
+#
+# ## One definition of "the desktop gates"
+#
+# This workflow does NOT enumerate gates. It runs `npm run gates`, which reads
+# `apps/desktop/quality-gates.json`. The pre-push hook at `apps/desktop/scripts/hooks/pre-push`
+# runs the same command. Two hand-maintained lists drift: `ci-local.sh:145` claims to mirror
+# "the 8 blocking gates, same order as ci.yml" while running 9 and omitting 3 that ci.yml has.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/desktop/**"
+      - "eslint.config.mjs"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    branches: [main, general-work]
+    paths:
+      - "apps/desktop/**"
+      - "eslint.config.mjs"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch: {}
+
+jobs:
+  desktop-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/desktop/package-lock.json
+
+      # Root deps as well as desktop's own: the complexity gate re-lints through the repo-root
+      # `eslint.config.mjs`, whose desktop block is what registers the sonarjs plugin for
+      # `.js`/`.mjs`/`.cjs`. Without root `node_modules` that gate exits 2, not 1 — and exit 2 is a
+      # crash with empty stdout, which `src/complexity-debt.js` refuses rather than reading as a
+      # pass.
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop
+
+      # The whole workflow, in one command. `check-gates.mjs` runs every enabled gate even after an
+      # earlier one fails, so a red run reports EVERY problem rather than the first; prints every
+      # gate including the disabled ones, with reason and date; and exits non-zero if a gate failed,
+      # if a disablement is undocumented or stale, or if a `scripts/check-*.mjs` exists that nothing
+      # runs. There is deliberately no `continue-on-error` here.
+      - name: Desktop quality gates
+        working-directory: apps/desktop
+        run: npm run gates
