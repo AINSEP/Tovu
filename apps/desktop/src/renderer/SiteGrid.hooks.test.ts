@@ -37,7 +37,7 @@ test("Enter or Space on the DELETE BUTTON does not open the project", () => {
 
 test("the card's keydown handler routes through isCardOpenKey rather than checking keys inline", () => {
   // Source text, because the component itself has no runner in this package (see
-  // `rescan-wiring.test.js`'s header). Without this, the predicate above could be correct and
+  // `rescan-wiring.test.ts`'s header). Without this, the predicate above could be correct and
   // simply not called — the exact shape of "correct primitive, unwired call site".
   //
   // The handler moved out of `SiteGrid.tsx`'s JSX and into `cardOpenProps` (this module) when the

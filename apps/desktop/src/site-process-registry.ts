@@ -11,8 +11,8 @@
  * `project-provisioner.ts:617-871` (~255 lines) cluster (`isProcessAlive`, `isProjectSidecar`,
  * `terminateOrphan`, `reconcile`), reproduced at the size this shell actually needs.
  *
- * **Storage shape, decided and justified (not inherited from `site-dir-store.js`'s MRU file):**
- * still a flat JSON file in `userData`, for the exact reason `site-dir-store.js`'s own header gives
+ * **Storage shape, decided and justified (not inherited from `site-dir-store.ts`'s MRU file):**
+ * still a flat JSON file in `userData`, for the exact reason `site-dir-store.ts`'s own header gives
  * for its MRU list — one Electron main process, no concurrent writers, no query beyond "read the
  * whole list", so `better-sqlite3` plus its `electron-rebuild` postinstall step would buy nothing at
  * this scale (a handful of rows) that a flat file doesn't already give for free. What DOES change
@@ -37,7 +37,7 @@
  * handle {@link import("./tovu-server.js").startTovuServer}'s `stop()` could ever use — so
  * "reclaiming" it would mean fabricating a fake handle around a process the shell cannot actually
  * supervise. Terminating it and leaving the site closed (findable again through "Open Recent",
- * `site-dir-store.js`'s existing MRU) is the smaller, honest surface this pass actually verified;
+ * `site-dir-store.ts`'s existing MRU) is the smaller, honest surface this pass actually verified;
  * auto-restoring a full session is a follow-up, not this fix.
  */
 import fs from "node:fs";
@@ -90,7 +90,7 @@ function registryFilePath(userDataDir: string): string {
 }
 
 /**
- * Forgiving read, mirroring `site-dir-store.js`'s `readDesktopState` — a corrupt or missing cache
+ * Forgiving read, mirroring `site-dir-store.ts`'s `readDesktopState` — a corrupt or missing cache
  * must not block launch; it just means nothing is reconciled this boot.
  * @complexity O(n) in file size.
  */

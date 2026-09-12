@@ -1,9 +1,10 @@
 {
-  // Compiles ONLY the preload and the shared contracts it imports — never `main.js` or anything
-  // else under `src/`. This shell's main process is hand-written JavaScript (`main.js`,
-  // `src/*.js`, `src/speech/*.js` — ESM, per this package's `"type": "module"`) and is not
-  // typechecked; Tovu-Runner's equivalent `tsconfig.json` additionally compiled `src/main/**`,
-  // which has no counterpart here until phase 2 of the port.
+  // Compiles ONLY the preload and the shared contracts it imports — never `main.ts` or anything
+  // else under `src/`. This shell's main process is TypeScript (`main.ts`, `src/*.ts`,
+  // `src/speech/*.ts` — ESM, per this package's `"type": "module"`, with no compile step: Electron
+  // and Node strip the types at load time) and is typechecked separately, under
+  // `tsconfig.main.json`'s strict ratchet; Tovu-Runner's equivalent `tsconfig.json` additionally
+  // compiled `src/main/**`, which has no counterpart here until phase 2 of the port.
   //
   // `preload.mts` -> `dist/preload/preload.mjs`: Electron 43 supports a native-ESM preload only in
   // an unsandboxed, context-isolated renderer, which is exactly how `main.js` creates the sites home

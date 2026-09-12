@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `selftest-tracker.js`. No Electron: a fake window is just
+ * @file Direct tests for `selftest-tracker.ts`. No Electron: a fake window is just
  * `{ webContents: { once, getURL, getTitle } }`, the only surface this module touches.
  */
 import test from "node:test";

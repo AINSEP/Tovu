@@ -1,5 +1,5 @@
 /**
- * @file End-to-end coverage for `bin/mcp-bridge.mjs` against a REAL child process over real pipes.
+ * @file End-to-end coverage for `bin/mcp-bridge.ts` against a REAL child process over real pipes.
  *
  * The unit tests cover the protocol and the tools; none of them can catch the failures that only
  * exist once there is a process:
@@ -14,7 +14,7 @@
  * - **Framing.** Two messages written in one chunk must be handled as two.
  *
  * The child is Node running the script directly, which is what the generated `/bin/sh` launcher
- * ends up doing (`sites-mcp-registration.js`) once `ELECTRON_RUN_AS_NODE` has made Electron's
+ * ends up doing (`sites-mcp-registration.ts`) once `ELECTRON_RUN_AS_NODE` has made Electron's
  * binary behave as Node. The launcher itself is covered by its own unit tests; spawning a real
  * Electron here would test Electron, not this.
  */

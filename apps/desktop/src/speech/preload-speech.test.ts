@@ -6,7 +6,7 @@
  * testable without Electron, and is exactly the property this file's own header says matters, is its
  * SOURCE TEXT: no `require()` of anything but `"electron"` (a sandboxed preload's `require` resolves
  * only `"electron"`/`"events"`/`"timers"`/`"url"` — a relative specifier throws), and its two inlined
- * channel-name literals never drifting from `speech-ipc.js`'s own exports, which stay the source of
+ * channel-name literals never drifting from `speech-ipc.ts`'s own exports, which stay the source of
  * truth for both files.
  */
 import test from "node:test";

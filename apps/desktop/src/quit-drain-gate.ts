@@ -12,12 +12,12 @@
  *
  * **Held, not let through.** An attempt during the drain is prevented and dropped: the drain's own
  * closing `app.quit()` is the one that ends the app. Held whatever the counts say by then:
- * `site-supervisor.js` removes a site from `openSites` as soon as its child exits, so "nothing to
+ * `site-supervisor.ts` removes a site from `openSites` as soon as its child exits, so "nothing to
  * drain" can read true while the drain has not finished. `main.js` arms a force-exit deadline when the
  * drain starts, so holding can never keep a hung drain alive forever.
  *
  * No `electron` import, so it can be tested under plain `node --test`, the same convention as
- * `shutdown-tracker.js` and `quit-signals.js`.
+ * `shutdown-tracker.ts` and `quit-signals.ts`.
  */
 
 /** Where `main.js`'s quit is. See {@link decideBeforeQuit}. */

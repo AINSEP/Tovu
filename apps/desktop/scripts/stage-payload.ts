@@ -18,7 +18,7 @@
  * must ship is a whole *runnable* tree. It is staged at the SAME relative paths it occupies in the
  * checkout (`dist/`, `apps/admin/dist`, `apps/site-chat/dist`, `package.json`, `node_modules/`),
  * because that is exactly what lets `resolveCliEntry` and `buildServeEnv` keep one `path.join`
- * against `packaged-paths.js`'s `payloadRoot` that is correct in dev and packaged alike. A flatter
+ * against `packaged-paths.ts`'s `payloadRoot` that is correct in dev and packaged alike. A flatter
  * staged layout would force every one of those consumers to branch on mode individually.
  *
  * Only the `dependencies` closure is staged. devDependencies (astro, drizzle-kit, tsx, typescript…)

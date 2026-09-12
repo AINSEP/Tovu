@@ -1,13 +1,13 @@
 /**
  * @file The Tasks nav entry is hidden from the top nav at the owner's request, checked as source
  * text — this repo has no DOM runner for `.tsx` (see `use-add-site.hooks.test.ts`'s own header, and
- * `marketplace-nav-wiring.test.js` for the sibling case). `RunnerSectionId` values are a public
+ * `marketplace-nav-wiring.test.ts` for the sibling case). `RunnerSectionId` values are a public
  * contract used in agent tool schemas and URLs (see `sections.ts`'s header): "add, deprecate, alias
  * — but do not rename in place." Hiding Tasks must not delete the `tasks` id, its section record, or
  * any of its `desktop.*` tools — only `visibleSections()`'s existing `hidden` flag changes, the same
  * mechanism `templates`, `deploy`, `diagnostics`, `api-keys`, `settings`, and `account` already use.
  *
- * Every assertion runs against COMMENT-STRIPPED source, same discipline `marketplace-nav-wiring.test.js`
+ * Every assertion runs against COMMENT-STRIPPED source, same discipline `marketplace-nav-wiring.test.ts`
  * uses — this file's own doc comments discuss `hidden`, `tasks`, and `desktop.queue_task` by name, and
  * a naive substring match would pass on the prose instead of the code.
  */
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function withoutComments(source) {
+function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 

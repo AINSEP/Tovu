@@ -32,7 +32,7 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * **The error text is surfaced VERBATIM, and that is the load-bearing choice here.** Main's
  * refusals already name the fix — "use Create website to make a new site in an empty folder", "if
  * your site lives in a subfolder, point at that subfolder instead", "it may be on an unmounted
- * volume" — and they are written once, in `add-site-pointer.js`, so the CLI, the assistant and this
+ * volume" — and they are written once, in `add-site-pointer.ts`, so the CLI, the assistant and this
  * button all say the same thing about the same folder. Paraphrasing here (the way
  * `useSiteRescan` flattens every failure into "Couldn't scan for sites.") would re-create
  * exactly the three-way drift that one shared implementation exists to prevent, and would replace

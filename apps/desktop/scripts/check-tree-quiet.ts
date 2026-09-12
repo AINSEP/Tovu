@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
  * @file The `tree-quiet` gate (registered in `quality-gates.json`) — the PRIMARY half of the
- * packaging safety gate. Gathers the three signals `../src/tree-quiet.js`'s pure predicate decides
+ * packaging safety gate. Gathers the three signals `../src/tree-quiet.ts`'s pure predicate decides
  * on and turns the result into an exit code. See that file's header for why each signal is shaped
  * the way it is, and for why this lives in `quality-gates.json` at all (it runs before
  * `electron-builder`, which is the only place in the `package` script chain that can refuse a pack
  * before it starts).
  *
  * The backstop half — byte-for-byte verification of the finished `app.asar` — is
- * `scripts/verify-package.mjs`, appended after `electron-builder` in `package.json`'s `package`
+ * `scripts/verify-package.ts`, appended after `electron-builder` in `package.json`'s `package`
  * script. It cannot live here: there is no artifact yet for this gate to inspect.
  *
- * Usage: node scripts/check-tree-quiet.mjs
+ * Usage: node scripts/check-tree-quiet.ts
  * Exit codes: 0 = apps/desktop was quiet. 1 = it was not (message names which signal fired).
  */
 import { execFileSync } from "node:child_process";
@@ -32,14 +32,14 @@ interface Snapshot {
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
 
-/** Exactly the surface `scripts/verify-package.mjs` checks byte-for-byte after the pack — keeping
+/** Exactly the surface `scripts/verify-package.ts` checks byte-for-byte after the pack — keeping
  *  the two halves scoped to the same files means a pass here is describing the thing the backstop
  *  will actually verify, not a different guess at what matters. */
 const VERIFIED_RELATIVE_PATHS = ["apps/desktop/src", "apps/desktop/bin", "apps/desktop/main.ts"];
 
 /** How far apart the two live snapshots are taken. Short enough not to make `npm run gates`
  *  noticeably slower; long enough to catch a write that lands mid-check. This is a SAMPLE, not a
- *  guarantee — see `tree-quiet.js`'s header on what this precondition can and cannot prove. */
+ *  guarantee — see `tree-quiet.ts`'s header on what this precondition can and cannot prove. */
 const SNAPSHOT_WINDOW_SECONDS = 0.8;
 
 /** True when a `vite build --watch` is live. `pgrep` exits 1 for "no match", which is a normal "not

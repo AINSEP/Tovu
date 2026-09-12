@@ -5,13 +5,13 @@
  *
  * The CAPTURE itself is not here — that needs a `BrowserWindow` and lives in `main.js`. Splitting
  * at that line is what makes all of this testable under plain `node --test`, same convention as
- * `tracked-sites.js`, `site-dir-store.js` and `site-config.js`.
+ * `tracked-sites.js`, `site-dir-store.ts` and `site-config.ts`.
  *
  * **WHY A FILE KEYED BY A DIGEST, AND NOT A FIELD IN THE REGISTRY.** `desktop-projects.json`'s row
  * keys are frozen (`siteDir`, `origin`, `siteId`, `createdAt`, plus the top-level `dismissed`), and
  * a preview needs no new one: the filename is DERIVED from `siteDir`, which is already the row key
  * and already `SiteRecord.id`. The digest is `sitePartition`'s own
- * (`sha256(path.resolve(siteDir)).slice(0, 32)`, `desktop-auth.js`) rather than a second scheme,
+ * (`sha256(path.resolve(siteDir)).slice(0, 32)`, `desktop-auth.ts`) rather than a second scheme,
  * so one site has one identity across this app rather than two that can disagree.
  *
  * **WHY THE RECORD CARRIES A VERSION AND NOT THE IMAGE.** `useSitesPolling` calls `listSites()`
@@ -42,7 +42,7 @@ const PREVIEW_EXTENSION = ".png";
  * A site's preview filename stem — the SAME digest `sitePartition` derives, so this app has one
  * notion of "which site is this" rather than two.
  *
- * Deliberately not re-exported from `desktop-auth.js`: that module's export is a session-partition
+ * Deliberately not re-exported from `desktop-auth.ts`: that module's export is a session-partition
  * string (`persist:tovu-site-<digest>`), not the digest, and parsing the digest back out of it
  * would couple this file to that string's shape.
  *
@@ -122,7 +122,7 @@ function readPreviewDataUrl(userDataDir: string, siteDir: string): string | null
 /**
  * Store `bytes` as `siteDir`'s preview, replacing any previous one.
  *
- * Written to a temp file and renamed, for a narrower reason than `site-config.js`'s: a torn PNG
+ * Written to a temp file and renamed, for a narrower reason than `site-config.ts`'s: a torn PNG
  * here breaks nothing that matters, but a half-written file would still have a NEWER mtime than the
  * good one it replaced, so {@link readPreviewVersion} would report a new version for an image that
  * cannot decode — and the renderer would swap a working thumbnail for a broken one. Same-directory

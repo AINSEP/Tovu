@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `speech-ipc.js`. No real Electron `ipcMain` — a tiny fake that records
+ * @file Direct tests for `speech-ipc.ts`. No real Electron `ipcMain` — a tiny fake that records
  * `handle(channel, fn)` registrations and lets the test invoke them directly, plus an injected
  * fake port so no real recognizer or filesystem is touched.
  */

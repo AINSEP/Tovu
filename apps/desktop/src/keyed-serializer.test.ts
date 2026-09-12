@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `keyed-serializer.js`. No Electron, no real child process — pure promise
+ * @file Direct tests for `keyed-serializer.ts`. No Electron, no real child process — pure promise
  * ordering, asserted against a controllable fake `fn`.
  */
 import test from "node:test";

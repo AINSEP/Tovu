@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `transcription-port.js`'s platform-selection logic. No Electron, no real
+ * @file Direct tests for `transcription-port.ts`'s platform-selection logic. No Electron, no real
  * macOS port — `createMacPort` is a plain injected factory here.
  */
 import test from "node:test";

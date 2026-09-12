@@ -1,8 +1,8 @@
 /**
- * @file Wires the {@link TranscriptionPort} (`transcription-port.js`) to the two IPC channels
+ * @file Wires the {@link TranscriptionPort} (`transcription-port.ts`) to the two IPC channels
  * `preload-speech.cjs`'s renderer-side bridge calls. This is the one module that knows both "there
  * is an Electron IPC channel" and "there is a transcription port" — neither
- * `transcription-port.js` nor `mac-on-device-transcriber.js` knows Electron exists, and this
+ * `transcription-port.ts` nor `mac-on-device-transcriber.ts` knows Electron exists, and this
  * file has no recognition logic of its own.
  *
  * Wired into `main.js`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cjs`,

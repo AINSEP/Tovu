@@ -67,7 +67,7 @@ function buildWavHeader({ sampleCount, sampleRate }: { sampleCount: number; samp
  * @param args
  * @param args.samples - Mono samples in `[-1, 1]`.
  * @param args.sampleRate - In Hz (the recognizer accepts any rate; 16000 keeps the
- *   IPC payload small — see `speech-ipc.js`'s capture-side comment).
+ *   IPC payload small — see `speech-ipc.ts`'s capture-side comment).
  * @returns a complete, playable WAV file.
  * @complexity O(n) in sample count.
  */

@@ -70,7 +70,7 @@ interface ResolveAdminDevProxyInput extends AdminDevProxyInput {
  * their desktop at a different server than the one they named.
  *
  * @param input.isPackaged Electron's `app.isPackaged` — the same dev/packaged distinction
- *   `packaged-paths.js` consumes, deliberately not a second, independently-derived one.
+ *   `packaged-paths.ts` consumes, deliberately not a second, independently-derived one.
  * @param input.env environment to read (`process.env` in production; injectable for tests).
  * @returns candidate origins, in probe order.
  * @complexity O(1).

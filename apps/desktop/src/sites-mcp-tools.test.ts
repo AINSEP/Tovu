@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `sites-mcp-tools.js` — the tool table the assistant is offered and the
+ * @file Coverage for `sites-mcp-tools.ts` — the tool table the assistant is offered and the
  * handlers behind it.
  *
  * Two groups of load-bearing assertions:

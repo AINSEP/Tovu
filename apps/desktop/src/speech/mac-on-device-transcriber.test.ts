@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `mac-on-device-transcriber.js`. No real `swiftc`, no real child process,
+ * @file Direct tests for `mac-on-device-transcriber.ts`. No real `swiftc`, no real child process,
  * no real filesystem — every dependency is a fake, injected exactly the way
  * `createMacOnDeviceTranscriptionPort`'s `overrides` parameter is designed for. The real helper
  * binary itself was verified by hand (see this feature's handoff notes for the transcript).

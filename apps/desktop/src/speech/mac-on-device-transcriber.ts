@@ -1,5 +1,5 @@
 /**
- * @file The only concrete {@link TranscriptionPort} (see `transcription-port.js`) that exists
+ * @file The only concrete {@link TranscriptionPort} (see `transcription-port.ts`) that exists
  * today: macOS's own on-device `Speech` framework, reached by spawning
  * `tovu-speech-helper.swift`'s compiled binary as a child process — the same "spawn a small CLI,
  * read its stdout" shape `tovu-server.js` already uses for `tovu serve`.
@@ -218,7 +218,7 @@ function realDependencies(): MacTranscriberDeps {
 
 /**
  * Builds the macOS on-device {@link TranscriptionPort}. Call only on `darwin` — see
- * `transcription-port.js`'s `resolveTranscriptionPort`, which is the one caller that decides
+ * `transcription-port.ts`'s `resolveTranscriptionPort`, which is the one caller that decides
  * platform eligibility before ever reaching this factory.
  *
  * @param overrides - Partial dependency overrides for testing (e.g. a fake `fs` and

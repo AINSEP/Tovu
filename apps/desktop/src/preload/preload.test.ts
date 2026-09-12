@@ -1,8 +1,8 @@
 /**
  * @file Drift guard for the two speech channel literals inlined in `preload.mts`.
  *
- * Mirrors `src/speech/preload-speech.test.js` exactly — same regex-over-source approach, same
- * source of truth (`speech-ipc.js`'s own exports), for the same reason: two preloads now expose
+ * Mirrors `src/speech/preload-speech.test.ts` exactly — same regex-over-source approach, same
+ * source of truth (`speech-ipc.ts`'s own exports), for the same reason: two preloads now expose
  * `window.tovuVoice` (the sandboxed `.cjs` one on site-admin windows, this ESM one on the sites home
  * window), and a channel rename that updated only one of them would leave the mic silently dead on
  * whichever window was missed.
@@ -10,10 +10,10 @@
  * Reads the `.mts` SOURCE rather than the compiled `dist/preload/preload.mjs`, so the guard works
  * in a checkout that has not been built. The `tovuRunner` half of that file needs no guard here:
  * its channel names are imported from `src/contracts/*.ts`, so `npm run typecheck` already catches
- * a rename, and `src/runner-ipc-stubs.test.js` covers the main-process side.
+ * a rename, and `src/runner-ipc-stubs.test.ts` covers the main-process side.
  *
  * The bridging itself is deliberately not tested: `contextBridge.exposeInMainWorld` only runs
- * inside Electron's real preload context, exactly as `preload-speech.test.js`'s own header
+ * inside Electron's real preload context, exactly as `preload-speech.test.ts`'s own header
  * records.
  */
 

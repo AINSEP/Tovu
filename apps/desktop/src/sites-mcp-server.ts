@@ -3,7 +3,7 @@
  * `null` for a notification) out. Pure — no stdio, no process, no clock — so the whole handshake is
  * assertable from `node --test` without spawning anything.
  *
- * `mcp-bridge.mjs` is then only framing: read a line, parse it, call {@link handleSitesMcpRequest},
+ * `mcp-bridge.ts` is then only framing: read a line, parse it, call {@link handleSitesMcpRequest},
  * write the result. That split exists because the protocol is where the mistakes are (a reply to a
  * notification wedges a client, a missing `capabilities.tools` makes a server look toolless, an
  * `id: 0` treated as absent drops a real request) and none of those are visible in a test that has
@@ -135,7 +135,7 @@ function hasRequestId(id: unknown): boolean {
  *   (answered with `null`) rather than as an error to send back: a reply to something that was not
  *   a request either goes to a correlation id that does not exist, or — worse, with a fabricated id
  *   — resolves a pending request of the client's with the wrong answer.
- * @param context the dependency bag `sites-mcp-tools.js` handlers take (`projectsPath`,
+ * @param context the dependency bag `sites-mcp-tools.ts` handlers take (`projectsPath`,
  *   `revealPath`, optionally `classifySiteDir`).
  * @returns the response object to send, or `null` when nothing must be sent.
  * @complexity O(1) beyond the dispatched handler's own cost.

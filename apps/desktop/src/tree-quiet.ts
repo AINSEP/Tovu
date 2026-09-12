@@ -1,7 +1,7 @@
 /**
  * @file The PRIMARY half of the packaging safety gate: decides whether `apps/desktop` is quiet
  * enough to pack, before `electron-builder` ever runs. Pure decision logic only — the process and
- * filesystem probing that gathers `signals` lives in `scripts/check-tree-quiet.mjs`, wired into
+ * filesystem probing that gathers `signals` lives in `scripts/check-tree-quiet.ts`, wired into
  * `quality-gates.json` as the `tree-quiet` gate.
  *
  * ## Why refusing to pack beats detecting corruption after the fact
@@ -16,23 +16,23 @@
  *
  * This predicate can only see what changed DURING however long the caller chose to look, though —
  * it is a sample, not a proof of quiescence for the whole pack that follows. `scripts/verify-package.
- * mjs` (`src/asar-verify.js`) is the real backstop: it compares the FINISHED archive's content
+ * mjs` (`src/asar-verify.ts`) is the real backstop: it compares the FINISHED archive's content
  * against source, byte-for-byte, after the pack completes. A pass here does not make that check
  * optional.
  *
  * ## Why "moving" is a live snapshot diff, never an absolute mtime age
  *
- * `npm run gates` — where this precondition has to live, because `scripts/check-gates.mjs` runs
+ * `npm run gates` — where this precondition has to live, because `scripts/check-gates.ts` runs
  * before `electron-builder` in the `package` script chain — also runs in CI on every push, straight
  * after a fresh `actions/checkout` (`.github/workflows/desktop.yml:79`). A checkout sets EVERY file's
  * mtime to "now", so "anything under src modified in the last N seconds" would read true on literally
  * every CI run, for reasons that have nothing to do with a moving tree. Comparing two live snapshots
  * taken a short interval apart has no dependency on when the checkout happened: a quiescent tree
  * (checked out and then left alone) produces two IDENTICAL snapshots regardless of how "new" its
- * mtimes are in absolute terms. See `scripts/check-tree-quiet.mjs` for how the snapshots are taken.
+ * mtimes are in absolute terms. See `scripts/check-tree-quiet.ts` for how the snapshots are taken.
  */
 
-/** What `scripts/check-tree-quiet.mjs` observed. See {@link treeQuietProblems} for each field. */
+/** What `scripts/check-tree-quiet.ts` observed. See {@link treeQuietProblems} for each field. */
 export interface TreeQuietSignals {
   viteWatchRunning: boolean;
   gitDirtyPaths?: readonly string[];

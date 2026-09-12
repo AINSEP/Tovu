@@ -1,6 +1,6 @@
 /**
  * @file The drift rules for `apps/desktop`'s complexity ceiling, as pure functions. The CLI that
- * runs ESLint and calls these is `scripts/check-complexity.mjs`.
+ * runs ESLint and calls these is `scripts/check-complexity.ts`.
  *
  * Mirrors `development/scripts/check-admin-complexity-drift.ts`'s design, including the two choices
  * that file's own header argues for and which are worth restating because getting either wrong

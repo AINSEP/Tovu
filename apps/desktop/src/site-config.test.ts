@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `site-config.js` — the name rule and the atomic `config.json` write behind
+ * @file Coverage for `site-config.ts` — the name rule and the atomic `config.json` write behind
  * "Rename…". Real files in a temp dir, not fakes: the whole point of this module is what ends up
  * ON DISK after a write, and a mocked `fs` would assert that the code calls the functions it
  * obviously calls while proving nothing about the file a site's next boot has to parse.

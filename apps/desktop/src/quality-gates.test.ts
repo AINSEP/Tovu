@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `quality-gates.js` — the policy that keeps a gate from going quiet.
+ * @file Direct tests for `quality-gates.ts` — the policy that keeps a gate from going quiet.
  *
  * These assert the FOUR anti-silence properties named in that file's header, because each one
  * corresponds to a way this repo's existing harness actually rotted, not to a hypothetical:
@@ -9,8 +9,8 @@
  *  3. a gate script on disk that nothing runs is a hard failure
  *  4. a disablement ages out and must be re-confirmed
  *
- * No spawning and no filesystem here — `check-gates.mjs` owns those, and its own end-to-end
- * exit-code behaviour is covered by `check-gates-exit-code.test.js`.
+ * No spawning and no filesystem here — `check-gates.ts` owns those, and its own end-to-end
+ * exit-code behaviour is covered by `check-gates-exit-code.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -1,6 +1,6 @@
 /**
- * @file Tests for `tree-quiet.js`'s pure predicate. The signal-gathering half
- * (`scripts/check-tree-quiet.mjs`) is not exercised here — it spawns `pgrep` and `git` — so these
+ * @file Tests for `tree-quiet.ts`'s pure predicate. The signal-gathering half
+ * (`scripts/check-tree-quiet.ts`) is not exercised here — it spawns `pgrep` and `git` — so these
  * tests hand it every combination of signals directly.
  */
 import test from "node:test";

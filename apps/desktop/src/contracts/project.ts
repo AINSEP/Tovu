@@ -30,7 +30,7 @@ export interface SiteRecord {
   installDir: string;
   port: number;
   /**
-   * This project's own Electron session-partition string (`desktop-auth.js`'s `sitePartition`,
+   * This project's own Electron session-partition string (`desktop-auth.ts`'s `sitePartition`,
    * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `SiteWorkspace`) sets this
    * as its `<webview partition>` so the guest's cookie jar is the exact one main seeded with a
    * signed-in session — see that function's own header, property 2, on why one jar per site is a
@@ -48,7 +48,7 @@ export interface SiteRecord {
    * What `SITE_IPC_CHANNELS.delete` will actually DO to this project's folder: `true` erases
    * the install directory, `false` only drops the row and leaves every byte where it is.
    *
-   * Main decides it (`project-delete-guard.js`) and sends the ANSWER, never the inputs, so the
+   * Main decides it (`project-delete-guard.ts`) and sends the ANSWER, never the inputs, so the
    * renderer cannot re-derive the rule and drift from the one main enforces. The renderer's only job
    * is to say which of the two a click will do — see `SiteGrid.hooks.ts`'s `deleteActionCopy`.
    */
@@ -63,7 +63,7 @@ export interface SiteRecord {
    * forever. A POLLED RECORD CARRIES REFERENCES, NOT PAYLOADS: the renderer fetches the actual
    * `data:` URL on demand (`SITE_IPC_CHANNELS.preview`) only when this number CHANGES, not when it
    * increases — a restored backup or a clock-skewed capture can move an mtime backward as easily as
-   * forward, and a "did it grow" check would silently ignore that case. See `site-preview-store.js`.
+   * forward, and a "did it grow" check would silently ignore that case. See `site-preview-store.ts`.
    */
   previewVersion: number | null;
   createdAt: string;
@@ -132,7 +132,7 @@ export const SITE_IPC_CHANNELS = {
   /**
    * "Add Tovu Website" — the operator picks ONE folder that already holds a Tovu site, and it
    * becomes a tracked row. Real (`project-ipc.js`'s `handleAddSite` over
-   * `add-site-pointer.js`'s `addSitePointer`).
+   * `add-site-pointer.ts`'s `addSitePointer`).
    *
    * **Pointer semantics, and the whole reason this is not `create`.** The folder is never moved,
    * copied, renamed, or written to, and no site is ever created: a folder that is empty, is
@@ -185,7 +185,7 @@ export const SITE_IPC_CHANNELS = {
   /**
    * A site's cached preview as a `data:` URL — the on-demand fetch `SiteRecord.previewVersion`
    * exists to trigger. Carries an id, never a path: main derives the cache file from the tracked
-   * row's own directory (`site-preview-store.js`'s digest), so the renderer names nothing on disk.
+   * row's own directory (`site-preview-store.ts`'s digest), so the renderer names nothing on disk.
    *
    * @returns the URL, or `null` when no capture exists yet — the ordinary state for a site that has
    *   never been opened, not an error to surface.

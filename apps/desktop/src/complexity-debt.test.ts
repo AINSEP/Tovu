@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `complexity-debt.js`.
+ * @file Direct tests for `complexity-debt.ts`.
  *
  * The two groups that matter most are the ones about results that LOOK clean:
  *

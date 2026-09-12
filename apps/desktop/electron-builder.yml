@@ -5,15 +5,15 @@ directories:
   buildResources: build
 
 # Only what the main process actually reads at runtime. `src/**` is NOT optional despite `dist/**`
-# existing: `main.js` imports its siblings from `./src/*.js` directly (they are plain ESM, never
+# existing: `main.ts` imports its siblings from `./src/*.ts` directly (they are plain ESM, never
 # bundled), `SPEECH_PRELOAD_PATH` points at `src/speech/preload-speech.cjs`, and `APP_ICON_PATH`
 # points at `src/renderer/public/brand/tovu-app-icon.png` — a Vite `publicDir` SOURCE whose copy
 # under `dist/renderer/brand/` is a different file. Shipping `dist/**` alone would leave
-# `applyDockIcon()` silently falling back (`main.js` swallows that error).
+# `applyDockIcon()` silently falling back (`main.ts` swallows that error).
 files:
   - main.ts
   - package.json
-  # The MCP bridge the generated launcher execs (sites-mcp-registration.js). NOT covered by
+  # The MCP bridge the generated launcher execs (sites-mcp-registration.ts). NOT covered by
   # the src/** entry: it lives in bin/, and a positive files: list REPLACES electron-builder's
   # default all-files glob -- app-builder-lib/out/fileMatcher.js only prepends that default when
   # the list is empty or contains nothing but negations. Omitting this shipped a packaged app
@@ -23,9 +23,8 @@ files:
   - "dist/**"
   - "src/**"
   - "!**/*.map"
-  - "!src/**/*.test.js"
   - "!src/**/*.test.ts"
-  # `scripts/stage-payload.mjs` builds the payload; it is not part of the app.
+  # `scripts/stage-payload.ts` builds the payload; it is not part of the app.
   - "!scripts/**"
   # The staged payload is 427 MB and ships via `extraResources` below. Without this negation the
   # default `files` walk would ALSO pack the whole tree into app.asar — the same bytes twice.
@@ -41,7 +40,7 @@ files:
   # `@modelcontextprotocol/ext-apps@0.3.1` (nested under `@mcp-ui/server`, reached from
   # `@jini-ai/chat`), which uses Bun only to build and test ITSELF: every `bun` reference in the
   # published package is in its own `package.json` scripts (`build`, `test`, `postinstall`,
-  # `examples:*`), and its shipped `dist/` contains none. `stage-payload-lib.js`'s
+  # `examples:*`), and its shipped `dist/` contains none. `stage-payload-lib.ts`'s
   # `EXCLUDED_PACKAGES` already keeps both out of the staged PAYLOAD for exactly this reason; these
   # two lines apply the same finding to the SHELL's own bundle, which has its own node_modules copy.
   #
@@ -52,13 +51,13 @@ files:
   - "!node_modules/@oven/**/*"
   - "!node_modules/@rollup/**/*"
 
-# The runnable Tovu tree the shell spawns as a child (`src/tovu-server.js`), assembled by
-# `scripts/stage-payload.mjs`. It lands OUTSIDE app.asar because it carries native `.node` addons
+# The runnable Tovu tree the shell spawns as a child (`src/tovu-server.ts`), assembled by
+# `scripts/stage-payload.ts`. It lands OUTSIDE app.asar because it carries native `.node` addons
 # that must be real files on disk to `dlopen`, and because 385 MB of node_modules in an asar buys
 # nothing while making `asarUnpack` patterns the only thing between you and a broken load.
 #
 # Each entry keeps the payload's checkout-relative shape under `Resources/tovu/`, which is what lets
-# `packaged-paths.js`'s `payloadRoot` be a single directory that `resolveCliEntry` and
+# `packaged-paths.ts`'s `payloadRoot` be a single directory that `resolveCliEntry` and
 # `buildServeEnv` join against identically in dev and packaged mode.
 extraResources:
   - from: staging/tovu-payload/dist
@@ -66,7 +65,7 @@ extraResources:
     filter:
       - "**/*"
   # Both SPAs (`apps/admin/dist`, `apps/site-chat/dist`). Without these every site tab answers
-  # `/admin` and `/site-chat` with a 503; `stage-payload.mjs` refuses to stage a tree missing either.
+  # `/admin` and `/site-chat` with a 503; `stage-payload.ts` refuses to stage a tree missing either.
   - from: staging/tovu-payload/apps
     to: tovu/apps
     filter:

@@ -2,7 +2,7 @@
  * @file Drift guard for the runner split: which test globs run on bare node and which under tsx.
  *
  * The split is written down twice. `npm test` runs `package.json`'s `test` script, and
- * `scripts/check-coverage.mjs` runs `TEST_PASSES` from `coverage-floors.js`. If the two disagree, a
+ * `scripts/check-coverage.ts` runs `TEST_PASSES` from `coverage-floors.ts`. If the two disagree, a
  * test file runs under a different runner in the gate than in the suite, or in only one of them.
  * The runner is not cosmetic: probe P4 showed tsx corrupts lcov counters. This fails naming every
  * glob the two disagree on.

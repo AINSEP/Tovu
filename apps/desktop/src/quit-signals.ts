@@ -22,7 +22,7 @@
  *
  * **Once, not per copy.** Calling `app.quit()` for each copy re-enters `before-quit` while its drain
  * is still running. `before-quit`'s old `shuttingDown` guard let that call through, and Electron
- * exited mid-drain, which is the same leak with extra steps (also measured). `quit-drain-gate.js` now
+ * exited mid-drain, which is the same leak with extra steps (also measured). `quit-drain-gate.ts` now
  * holds any quit attempt made during the drain. The first signal requests the quit, and later copies
  * do nothing.
  *
@@ -32,7 +32,7 @@
  * lets the next launch's `reconcileOrphans()` reap whatever the drain did not reach.
  *
  * No `electron` import, so it can be tested under plain `node --test`, the same convention as
- * `shutdown-tracker.js`.
+ * `shutdown-tracker.ts`.
  */
 
 /** The same three signals Chromium's one-shot handler takes. */

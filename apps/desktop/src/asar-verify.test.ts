@@ -1,5 +1,5 @@
 /**
- * @file Tests for `asar-verify.js`. The last group here is the one the packaging incident actually
+ * @file Tests for `asar-verify.ts`. The last group here is the one the packaging incident actually
  * demands: it builds a REAL asar archive from a fixture tree, corrupts one entry's content IN PLACE
  * while preserving its exact byte length — reproducing the length-correct/content-wrong signature
  * from ADS-memory/reports/2026-09-12-packaging-asar-corruption.md by construction rather than by

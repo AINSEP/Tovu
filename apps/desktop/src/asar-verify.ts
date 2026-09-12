@@ -1,9 +1,9 @@
 /**
  * @file Byte-for-byte verification of a packaged `app.asar` against the source tree it was built
  * from — the BACKSTOP half of the packaging safety gate. The PRIMARY half refuses to pack a moving
- * tree at all: see `tree-quiet.js` + `scripts/check-tree-quiet.mjs`, registered as the `tree-quiet`
+ * tree at all: see `tree-quiet.ts` + `scripts/check-tree-quiet.ts`, registered as the `tree-quiet`
  * gate in `quality-gates.json`. This half runs AFTER `electron-builder`, from
- * `scripts/verify-package.mjs`, because there is no artifact to inspect before that step runs.
+ * `scripts/verify-package.ts`, because there is no artifact to inspect before that step runs.
  *
  * ## Why this has to compare CONTENT, and never size or asar's own recorded hash
  *
@@ -138,7 +138,7 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
  * filesystem. It is kept here anyway (rather than moved into `scripts/`, this repo's usual home for
  * anything that touches disk) specifically so it stays under `src/**\/*.test.js` and can be proven,
  * against a real built-then-corrupted fixture archive, to actually catch the failure it exists for
- * — see `asar-verify.test.js`.
+ * — see `asar-verify.test.ts`.
  *
  * @param asarPath path to the built `app.asar`.
  * @param sourceRoot the source tree root the archive should match (`apps/desktop` in production).

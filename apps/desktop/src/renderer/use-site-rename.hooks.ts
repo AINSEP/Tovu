@@ -29,7 +29,7 @@ import type { RenameSiteInput, SiteRecord } from '../contracts/project.js';
  * `validateConfig`'s bound (`apps/website/src/platform/site-dir/read-site-dir.ts`), mirrored so the
  * Save button can refuse the same names main refuses.
  *
- * **This is the first line, never the guarantee.** `site-config.js` re-applies the identical rule
+ * **This is the first line, never the guarantee.** `site-config.ts` re-applies the identical rule
  * on the other side of the wire, because a name that slipped past here would not break the running
  * site — it would stop the NEXT boot, with an error naming a file the operator never edited.
  */

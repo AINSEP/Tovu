@@ -2,12 +2,12 @@
  * @file "Add Tovu Website" — the one implementation behind all three ways an operator points this
  * app at a site folder that already exists: the Projects header button (IPC), `tovu-desktop
  * add-site` (CLI), and the `add_site_pointer` MCP tool the assistant reaches through
- * `mcp-bridge.mjs`. One function, three entry points, so the three can never disagree about what
+ * `mcp-bridge.ts`. One function, three entry points, so the three can never disagree about what
  * counts as a site or about what adding one does to the operator's files.
  *
  * **POINTER SEMANTICS, and this is the whole point of the file existing.** The registry stores the
  * PATH. Nothing is moved, nothing is copied, and nothing is created. That is why this cannot be
- * `adoptSiteDir` (`site-dir-store.js`) even though the name sounds right: `adoptSiteDir` is a
+ * `adoptSiteDir` (`site-dir-store.ts`) even though the name sounds right: `adoptSiteDir` is a
  * fixed-policy wrapper over `resolveOrInitSiteDir({onMissingSite: "init"})`, so handing it an EMPTY
  * folder runs `tovu init` and creates a site there. For "Open Site…" that is correct — a person just
  * picked an empty folder and meant "start one here". For "Add Tovu Website" it is exactly wrong: the
@@ -19,7 +19,7 @@
  * {@link addSitePointer}. A pointer can therefore never authorize `project-ipc.js`'s `fs.rm`.
  *
  * No `electron` import, so every path here is testable under plain `node --test` — the same
- * convention `tracked-sites.js` and `site-dir-store.js` follow, and the reason the CLI and the
+ * convention `tracked-sites.js` and `site-dir-store.ts` follow, and the reason the CLI and the
  * MCP bridge can both call it without an Electron runtime at all.
  */
 import path from "node:path";
@@ -163,7 +163,7 @@ interface AddSitePointerResult {
  * @param input.siteDir the folder to point at. Absolute, or relative to `input.cwd`.
  * @param input.projectsPath `tracked-sites.js`'s tracked-project JSON file.
  * @param input.cwd base for a relative `siteDir`. Defaults to `process.cwd()`.
- * @param input.classifySiteDir injected classifier, defaulting to `site-dir-store.js`'s
+ * @param input.classifySiteDir injected classifier, defaulting to `site-dir-store.ts`'s
  *   throw-free form — injected for the same reason `seedDevFallbackSite` takes it, so the
  *   decision is testable without a real directory, and SAFE rather than throwing because a caller
  *   here is an MCP tool and a CLI, neither of which should turn an EACCES into a stack trace.
@@ -188,7 +188,7 @@ function addSitePointer(input: AddSitePointerInput): AddSitePointerResult {
 
   // ALWAYS `adopted`, and passed explicitly rather than left to `trackSite`'s default. This
   // folder existed as a site before this app ever saw it — every byte under it is someone else's —
-  // and `project-delete-guard.js` reads exactly this field to decide whether a later delete may
+  // and `project-delete-guard.ts` reads exactly this field to decide whether a later delete may
   // reach `fs.rm`. `created` here would hand a stranger's site to a recursive erase.
   trackSite(input.projectsPath, siteDir, SITE_ORIGIN.adopted);
 

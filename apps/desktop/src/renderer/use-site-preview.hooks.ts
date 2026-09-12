@@ -7,7 +7,7 @@
  * distinct version rather than once per poll.
  *
  * Refetches when `previewVersion` CHANGES, not when it "increases". The token is a filesystem
- * mtime (`site-preview-store.js`), and a restored backup or a clock-skewed capture can move it
+ * mtime (`site-preview-store.ts`), and a restored backup or a clock-skewed capture can move it
  * backward as easily as forward — a growth check would silently keep serving a stale image in
  * exactly that case. React's dependency-array comparison (`Object.is`) already does the right thing
  * here for free; the only discipline this file owes is not "improving" it into a `>` comparison.

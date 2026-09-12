@@ -21,11 +21,11 @@
  * Assigning the shell's own absolute path is strictly stronger than deleting: the page still cannot
  * choose, and the grant is the same one the standalone window already makes to the same origin. The
  * surface is two channels — `tovu:speech:isAvailable` and `tovu:speech:transcribe`, both on-device
- * with no filesystem or network reach (`speech-ipc.js`) — and `registerGuestNavigationPolicy`
+ * with no filesystem or network reach (`speech-ipc.ts`) — and `registerGuestNavigationPolicy`
  * already confines the guest to its own origin.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
- * `site-supervisor.js`, `keyed-serializer.js` and `shutdown-tracker.js`.
+ * `site-supervisor.ts`, `keyed-serializer.ts` and `shutdown-tracker.ts`.
  */
 
 /** The three `webPreferences` fields this policy owns. Electron's own `WebPreferences` satisfies it. */

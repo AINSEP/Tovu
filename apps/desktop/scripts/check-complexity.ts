@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * @file The desktop complexity gate: re-lints `apps/desktop` at a hard 9/9 ceiling and fails on any
- * violation not in `complexity-debt.json`. The rules live in `../src/complexity-debt.js` and are
+ * violation not in `complexity-debt.json`. The rules live in `../src/complexity-debt.ts` and are
  * tested there.
  *
  * ## Why a --rule re-lint rather than the shared config's severity
@@ -26,7 +26,7 @@
  *    indistinguishable from an exit code. `minFilesLinted` fails the run when the scan shrinks —
  *    the check that four now-nonexistent scopes in `check-src-complexity-drift.ts` never had.
  *
- * Usage: node scripts/check-complexity.mjs [--update]
+ * Usage: node scripts/check-complexity.ts [--update]
  *   --update rewrites complexity-debt.json from the current run. Use it to SEED the baseline or to
  *   record a deliberate, reviewed addition — never to make a red gate green.
  * Exit codes: 0 = no violation outside the debt list, and the scan was the expected size.

@@ -5,7 +5,7 @@
  * exercise, so what this file can and does check is narrower — that `SiteCard` actually calls the
  * hook and renders its result, and that the existing port fallback still exists for when it does not.
  *
- * Every assertion runs against COMMENT-STRIPPED source, same discipline `site-card-menu-wiring.test.js`
+ * Every assertion runs against COMMENT-STRIPPED source, same discipline `site-card-menu-wiring.test.ts`
  * uses — this file's own doc comments discuss `previewVersion`, `<img>` and the port fallback by
  * name, and a naive substring match would pass on the prose instead of the code.
  */
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function withoutComments(source) {
+function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 

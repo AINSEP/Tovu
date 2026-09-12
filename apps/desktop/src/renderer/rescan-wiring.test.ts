@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
+const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 const preload = read("..", "preload", "preload.mts");
 const runnerApi = read("runner-api.ts");
 const appHooks = read("App.hooks.ts");

@@ -1,7 +1,7 @@
 /**
  * @file The ⋮ overflow menu's wiring, checked as source text — this repo has no DOM runner for
  * `.tsx` (see `use-add-site.hooks.test.ts`'s own header). The behaviour behind the menu IS covered
- * directly where it lives: `use-site-rename.hooks.ts`'s rule in `site-config.test.js`, and the
+ * directly where it lives: `use-site-rename.hooks.ts`'s rule in `site-config.test.ts`, and the
  * whole rename guard in `project-ipc.test.js`. What only this file can check is that the component
  * actually wires them together, and does not reintroduce the two bugs the card already fixed once.
  *
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function withoutComments(source) {
+function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
@@ -95,7 +95,7 @@ test("the rename overlay makes the card inert, the same way the delete confirmat
 
 test("the rename input is bounded and its Save refuses what Tovu would refuse", () => {
   // maxLength is the courtesy half; `canSave` is the one that reflects the real rule, and
-  // `site-config.js` re-applies it on the other side of the wire regardless.
+  // `site-config.ts` re-applies it on the other side of the wire regardless.
   assert.match(grid, /maxLength=\{200\}/);
   assert.match(grid, /disabled=\{!rename\.canSave\}/);
   // Escape cancels and Enter submits — a text field must own both, or the card interprets them.

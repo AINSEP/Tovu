@@ -1,9 +1,9 @@
 /**
- * @file Direct tests for `stage-payload-lib.js`. Real directories throughout — `newestMtime` and
+ * @file Direct tests for `stage-payload-lib.ts`. Real directories throughout — `newestMtime` and
  * `stageTransitiveDependencies` each walk a real filesystem tree, and only the filesystem can
- * produce that honestly (see `project-delete-guard.test.js`'s header for the same reasoning).
+ * produce that honestly (see `project-delete-guard.test.ts`'s header for the same reasoning).
  * Every fixture lives under a fresh `fs.mkdtempSync` directory; nothing here ever touches the real
- * `apps/desktop/staging/tovu-payload` tree `scripts/stage-payload.mjs` uses.
+ * `apps/desktop/staging/tovu-payload` tree `scripts/stage-payload.ts` uses.
  *
  * `newestMtime` section: `touch()` returns the mtime the filesystem actually stored rather than the
  * millisecond value it was asked to set. `fs.utimesSync` round-trips some millisecond values through

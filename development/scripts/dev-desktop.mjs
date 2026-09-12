@@ -6,9 +6,9 @@
  *
  * 1. `cd apps/desktop && npm run dev` (just `electron .`).
  * 2. A renderer edit does not show up until `npm run build:renderer` runs — the Projects window
- *    loads the BUILT `dist/renderer/index.html` (`main.js`'s `FLEET_RENDERER_PATH`), not a Vite dev
+ *    loads the BUILT `dist/renderer/index.html` (`main.ts`'s `FLEET_RENDERER_PATH`), not a Vite dev
  *    server. A live loop needed `vite build --watch` running by hand in a second terminal.
- * 3. A first run with no `dist/` yet fails hard: `main.js`'s `openFleetWindow` shows "The fleet UI
+ * 3. A first run with no `dist/` yet fails hard: `main.ts`'s `openFleetWindow` shows "The fleet UI
  *    is not built" and quits, instead of building it for you.
  *
  * This script builds the preload once, then starts the renderer's watch build and waits for ITS

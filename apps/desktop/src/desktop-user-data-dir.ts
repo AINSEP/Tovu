@@ -16,7 +16,7 @@
  *    `--user-data-dir=.../tovu-desktop`, in dev and packaged alike.
  * 2. {@link DESKTOP_APP_NAME} is asserted against `package.json` by this module's own test, so a
  *    rename of the package cannot leave this constant behind.
- * 3. The CLI PRINTS the directory it resolved on every run (`bin/tovu-desktop.mjs`), so a wrong
+ * 3. The CLI PRINTS the directory it resolved on every run (`bin/tovu-desktop.ts`), so a wrong
  *    answer is visible to the operator immediately instead of being discovered as a missing card.
  *
  * `TOVU_DESKTOP_USER_DATA_DIR` is honoured first, which is the same override `main.js:139-141`

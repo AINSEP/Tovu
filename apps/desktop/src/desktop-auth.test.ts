@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `desktop-auth.js`.
+ * @file Coverage for `desktop-auth.ts`.
  *
  * The security-relevant assertions here are the negative ones. `assertLoopbackAdminUrl` is the
  * client-side half of what stands between a boot token and the network, so it is tested against the

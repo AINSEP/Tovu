@@ -19,7 +19,7 @@
  *
  * The same env replacement is why the shell does not name this file as the connection's `command`
  * directly: the command would have to be Electron's binary, and `ELECTRON_RUN_AS_NODE=1` does not
- * survive either, so it would launch a GUI app instead of Node. `sites-mcp-registration.js`
+ * survive either, so it would launch a GUI app instead of Node. `sites-mcp-registration.ts`
  * writes a tiny `/bin/sh` launcher that sets that variable itself and execs this script.
  *
  * ## Three rules this file exists to keep

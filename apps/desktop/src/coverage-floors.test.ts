@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `coverage-floors.js`.
+ * @file Direct tests for `coverage-floors.ts`.
  *
  * The assertions that matter most here are the ones about files that are NOT in the lcov, because
  * that is the failure this module exists for: node's `--test-coverage-include` filters what was
@@ -97,7 +97,7 @@ test("an explicitly grandfathered gap does NOT fail — debt is allowed when it 
   assert.deepEqual(result.unmeasured, ["src/b.ts"], "but it is still reported");
 });
 
-test("a TENTH unmeasured file fails even when nine are grandfathered — the list cannot grow", () => {
+test("a THIRD unmeasured file fails even when two are grandfathered — the list cannot grow", () => {
   const known = ["src/1.ts", "src/2.ts"];
   const area = { id: "ts", knownUnmeasured: known };
   const result = evaluateArea(area, [...known, "src/3.ts", "src/a.ts"], cov([["src/a.ts", perfect]]));

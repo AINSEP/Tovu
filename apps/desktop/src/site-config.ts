@@ -26,7 +26,7 @@
  * on this side of the wire too, rather than trusted to a disabled Save button.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js`, `site-dir-store.js` and `site-process-registry.js`.
+ * `tracked-sites.js`, `site-dir-store.ts` and `site-process-registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";

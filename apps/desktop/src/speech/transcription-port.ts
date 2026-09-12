@@ -2,8 +2,8 @@
  * @file The transcription port the desktop speech feature is built behind: a tiny seam so the
  * concrete recognizer — macOS on-device Speech today, whisper.cpp or a hosted API later — can be
  * swapped without the IPC layer or the composer UI knowing which one is behind it. See
- * `mac-on-device-transcriber.js` for the only implementation that exists today, and
- * `speech-ipc.js` for the one caller that resolves a port and puts it behind two IPC handlers.
+ * `mac-on-device-transcriber.ts` for the only implementation that exists today, and
+ * `speech-ipc.ts` for the one caller that resolves a port and puts it behind two IPC handlers.
  */
 
 /** One recognition's outcome. */
@@ -31,7 +31,7 @@ interface TranscriptionPort {
   isAvailable(): Promise<TranscriptionAvailability>;
   /** Transcribes one complete mono 16-bit PCM WAV recording. Rejects rather than silently
    *  transcribing over the network when on-device recognition is unavailable — see
-   *  `mac-on-device-transcriber.js`'s own header for why silent network fallback is treated as a
+   *  `mac-on-device-transcriber.ts`'s own header for why silent network fallback is treated as a
    *  correctness bug, not a convenience. */
   transcribe(wavBuffer: Buffer): Promise<TranscriptionResult>;
 }

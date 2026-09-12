@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `project-delete-guard.js` — the rule that decides whether a project delete
+ * @file Direct tests for `project-delete-guard.ts` — the rule that decides whether a project delete
  * may recursively erase a directory.
  *
  * Real directories and real symlinks on disk throughout, never string fixtures: the guard's whole

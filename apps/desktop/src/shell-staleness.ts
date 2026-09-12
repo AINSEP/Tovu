@@ -1,9 +1,9 @@
 /**
- * @file The staleness predicate `scripts/stage-payload.mjs` uses to refuse a shell whose build
+ * @file The staleness predicate `scripts/stage-payload.ts` uses to refuse a shell whose build
  * output is older than its own source. Pure, so it can be tested without a filesystem or a
  * packaging run.
  *
- * **The defect this exists for.** Until 2026-09-12 `stage-payload.mjs` checked only that each
+ * **The defect this exists for.** Until 2026-09-12 `stage-payload.ts` checked only that each
  * shell's marker file EXISTED. A packaged app therefore shipped an `apps/admin` bundle dated
  * Aug 31 — twelve days stale, missing two committed bug fixes — and the package step reported
  * SUCCESS. The user-visible failure rendered as silence for hours.
@@ -16,7 +16,7 @@
 
 const MS_PER_DAY = 86_400_000;
 
-/** The fields of a `stage-payload.mjs` shell entry the staleness message names. */
+/** The fields of a `stage-payload.ts` shell entry the staleness message names. */
 export interface StalenessShell {
   relative: string;
   marker: string;
@@ -52,7 +52,7 @@ export function isBundleInput(relPath: string): boolean {
  * Returns `null` when either timestamp is 0 — an absent build is the EXISTENCE check's job (it
  * runs first and produces a better message), and an absent source tree means the caller pointed at
  * something this predicate cannot reason about. Silently passing in that second case is a real
- * risk, which is why `stage-payload.mjs` derives `sourceAt` from the shell's own declared
+ * risk, which is why `stage-payload.ts` derives `sourceAt` from the shell's own declared
  * `sourceDirs`, and why a missing declaration is a config bug rather than a soft pass.
  *
  * @param builtAt mtime (ms) of the shell's marker file.

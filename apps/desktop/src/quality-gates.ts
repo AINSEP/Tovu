@@ -1,7 +1,7 @@
 /**
  * @file The rules that keep `apps/desktop`'s quality gates from going quiet. Pure functions only —
  * no spawning, no filesystem — so the whole policy is testable under plain `node --test`. The CLI
- * that actually runs the gates is `scripts/check-gates.mjs`.
+ * that actually runs the gates is `scripts/check-gates.ts`.
  *
  * **The defect this exists for.** A 2026-09-12 survey of this repo's existing harness found 11 of
  * 22 `check:*` npm scripts invoked from nowhere at all, and one gate
@@ -141,11 +141,11 @@ export function validateManifest(manifest: GateManifest | null | undefined, toda
  * Gate scripts present on disk that no manifest entry runs — the check that makes a written-but-
  * unwired gate impossible to leave lying around. Matching is by substring of the `run` command
  * rather than by exact path, because a `run` legitimately carries flags and a wrapper
- * (`node scripts/check-coverage.mjs --areas ...`).
+ * (`node scripts/check-coverage.ts --areas ...`).
  *
  * @param gates the manifest's gate list (disabled ones count as registered — being off is a
  *   decision, being absent is not).
- * @param scriptNames basenames of the gate scripts found on disk, e.g. `["check-coverage.mjs"]`.
+ * @param scriptNames basenames of the gate scripts found on disk, e.g. `["check-coverage.ts"]`.
  * @returns the basenames nothing references.
  * @complexity O(gates x scripts); both are single digits here.
  */

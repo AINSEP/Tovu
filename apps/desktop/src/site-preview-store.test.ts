@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `site-preview-store.js` — the preview cache's path convention, its version
+ * @file Coverage for `site-preview-store.ts` — the preview cache's path convention, its version
  * token, and its two cleanup paths. Real files in a temp userData dir: the whole module is about
  * what is on disk, and a mocked `fs` would assert that it calls the functions it plainly calls.
  */
@@ -32,7 +32,7 @@ const PNG = Buffer.from(
 );
 
 test("the digest is sitePartition's own, so one site has ONE identity in this app", () => {
-  // Not a second hashing scheme. `desktop-auth.js` already derives a per-site digest for the
+  // Not a second hashing scheme. `desktop-auth.ts` already derives a per-site digest for the
   // Electron session partition; two schemes could disagree about which site a file belongs to.
   const dir = "/sites/example";
   assert.equal(sitePartition(dir), `persist:tovu-site-${siteDigest(dir)}`);

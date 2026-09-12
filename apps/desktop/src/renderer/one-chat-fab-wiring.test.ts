@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
+const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 
 /**
  * `App.tsx` with every comment stripped. Load-bearing: this file's assertions are all "the string
@@ -33,7 +33,7 @@ const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8
  * wrong one. A naive scan of `.tsx` for markup false-positives on comment prose in this repo
  * generally, not just here.
  */
-function withoutComments(source) {
+function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 

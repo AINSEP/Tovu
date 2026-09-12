@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `desktop-user-data-dir.js` — the CLI's answer to "where is the app's data?".
+ * @file Coverage for `desktop-user-data-dir.ts` — the CLI's answer to "where is the app's data?".
  *
  * This module mirrors Electron rather than asking it, so the tests that matter are the ones that
  * catch DRIFT: the app name pinned to the manifest Electron actually reads, and the macOS path

@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `add-site-pointer.js` — the one implementation behind "Add Tovu Website" on
+ * @file Coverage for `add-site-pointer.ts` — the one implementation behind "Add Tovu Website" on
  * all three surfaces (header button, `tovu-desktop add-site`, the `add_site_pointer` MCP tool).
  *
  * **The load-bearing tests here are the NEGATIVE ones.** The function under test exists because
@@ -125,7 +125,7 @@ test("addSitePointer tracks a real site as `adopted`, so a later delete can neve
   const rows = readTrackedSites(projectsPath);
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.siteDir, siteDir);
-  // The single most consequential assertion in this file. `project-delete-guard.js` reads `origin`
+  // The single most consequential assertion in this file. `project-delete-guard.ts` reads `origin`
   // to decide whether a delete reaches `fs.rm` on this directory; `created` would authorize erasing
   // a site this app did not make. Asserted as an exact value, not `!== "created"`, so a third
   // origin value added later has to be considered here rather than passing by default.
@@ -202,7 +202,7 @@ test("addSitePointer refuses an unmapped classification rather than admitting it
   );
   assert.ok(err instanceof AddSitePointerError, `threw ${err?.name}: ${err?.message}`);
 
-  // The fail-closed direction: a fifth classification added to `site-dir-store.js` later must be
+  // The fail-closed direction: a fifth classification added to `site-dir-store.ts` later must be
   // REFUSED by this function until someone maps it, never silently tracked.
   assert.equal(err.code, "SITE_DIR_UNUSABLE");
   assert.deepEqual(readTrackedSites(projectsPath), []);

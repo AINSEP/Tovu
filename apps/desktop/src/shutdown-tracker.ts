@@ -23,8 +23,8 @@
  * teardown unawaited while `before-quit` drains only the others.
  *
  * Deliberately knows nothing about sites, servers, windows or Electron — it holds promises. That is
- * what makes it testable under plain `node --test`, the same convention as `keyed-serializer.js`,
- * `selftest-tracker.js` and `site-supervisor.js`.
+ * what makes it testable under plain `node --test`, the same convention as `keyed-serializer.ts`,
+ * `selftest-tracker.ts` and `site-supervisor.ts`.
  */
 
 /** What {@link createShutdownTracker} returns. */

@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `sites-mcp-server.js` — the JSON-RPC handshake.
+ * @file Coverage for `sites-mcp-server.ts` — the JSON-RPC handshake.
  *
  * These are the assertions that cannot be made from an integration test without owning a child
  * process, and they are the ones a protocol bug hides in: answering a notification (which wedges the

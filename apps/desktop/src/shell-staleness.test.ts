@@ -1,10 +1,10 @@
 /**
- * @file Regression tests for the staleness predicate behind `stage-payload.mjs`'s shell check.
+ * @file Regression tests for the staleness predicate behind `stage-payload.ts`'s shell check.
  *
  * The first test is the one that matters: it reproduces the ACTUAL 2026-09-12 incident — an
  * apps/admin bundle twelve days older than its source, staged and shipped while the package step
  * reported success — and asserts the guard now refuses it. Before `shellStalenessFailure` existed,
- * `stage-payload.mjs` only checked that `index.html` was present, so that exact input passed.
+ * `stage-payload.ts` only checked that `index.html` was present, so that exact input passed.
  */
 import test from "node:test";
 import assert from "node:assert/strict";

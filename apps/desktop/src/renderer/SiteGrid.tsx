@@ -131,7 +131,7 @@ function SiteCard({
             Until then — and forever as the fallback if a capture ever failed — the tile carries the
             port instead: the project's real address, the thing you would type to reach it, which is
             more useful than a placeholder glyph. See `use-site-preview.hooks.ts` and
-            `site-preview-store.js` for why the record carries only a version token, never bytes. */}
+            `site-preview-store.ts` for why the record carries only a version token, never bytes. */}
         {previewUrl ? (
           <img className="card__preview" src={previewUrl} alt="" />
         ) : (
@@ -357,7 +357,7 @@ function SiteCardMenu({
  * also freezes the IPC this window answers on.
  *
  * Save is disabled for a name Tovu would reject, but that is the courtesy half only — main
- * re-applies the identical rule (`site-config.js`), because a bad name does not break the running
+ * re-applies the identical rule (`site-config.ts`), because a bad name does not break the running
  * site, it stops the NEXT boot. See `isValidSiteName`'s own doc.
  *
  * `role="group"` and both event handlers stopped, identical to `CardConfirmOverlay` and for the

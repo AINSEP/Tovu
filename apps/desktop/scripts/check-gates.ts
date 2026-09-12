@@ -3,7 +3,7 @@
  * @file The desktop quality-gate runner. Reads `quality-gates.json`, runs every ENABLED gate, and
  * prints every gate — enabled, failing, or disabled — on every run.
  *
- * The policy it enforces lives in `../src/quality-gates.js` (and is tested there, under the normal
+ * The policy it enforces lives in `../src/quality-gates.ts` (and is tested there, under the normal
  * `npm test` glob); this file is the part that touches the process table and the filesystem. The
  * split exists so the rules can be tested without spawning anything.
  *
@@ -13,7 +13,7 @@
  * existing one, and every user-visible failure it explains was the same shape — a check that ran,
  * found the problem, and reported success:
  *
- *  - `stage-payload.mjs`'s staleness check wrote a WARNING to stderr and let the script exit 0, so a
+ *  - `stage-payload.ts`'s staleness check wrote a WARNING to stderr and let the script exit 0, so a
  *    packaged app shipped a twelve-day-stale admin bundle and the package step said SUCCESS;
  *  - ESLint exits 2 with EMPTY stdout when a config crashes, and a caller testing `rc !== 1` reads
  *    that as a pass;
@@ -23,11 +23,11 @@
  * So, here: no pipes, ever. `spawnSync` with `stdio: "inherit"` so a gate's own output goes straight
  * to the terminal and its status comes back as a number rather than through a stream. A gate that
  * yields no numeric status at all — killed by a signal, or a command that could not be spawned —
- * is a FAILURE, never a pass (see `isFailure`). And `check-gates-exit-code.test.js` proves the
+ * is a FAILURE, never a pass (see `isFailure`). And `check-gates-exit-code.test.ts` proves the
  * non-zero actually reaches a caller, by running THIS file against deliberately-failing gates,
  * rather than by anybody reading this comment and believing it.
  *
- * Usage: node scripts/check-gates.mjs
+ * Usage: node scripts/check-gates.ts
  * Exit codes: 0 = every enabled gate passed and the manifest is sound.
  *             1 = a gate failed, or the manifest is unsound (undocumented/stale disablement, or a
  *                 gate script on disk that nothing runs).
@@ -100,7 +100,7 @@ function reportProblems(heading: string, problems: readonly string[]): boolean {
 }
 
 /**
- * The manifest to run. `--manifest <path>` exists so `check-gates-exit-code.test.js` can point this
+ * The manifest to run. `--manifest <path>` exists so `check-gates-exit-code.test.ts` can point this
  * runner at deliberately-broken manifests and assert the exit code that comes back — the one claim
  * about this file that must be demonstrated rather than reasoned about.
  *

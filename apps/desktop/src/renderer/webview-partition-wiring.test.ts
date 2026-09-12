@@ -2,13 +2,13 @@
  * @file Wiring guard for `<webview partition={project.partition}>` in `SiteWorkspace` —
  * the binding that keeps two different sites' logins from sharing one cookie jar (see
  * `SiteWorkspace`'s own doc in `App.tsx`, and `contracts/project.ts`'s `partition` field).
- * `desktop-auth.test.js` and `project-ipc.test.js` prove main hands out a distinct `partition`
+ * `desktop-auth.test.ts` and `project-ipc.test.js` prove main hands out a distinct `partition`
  * per site dir; nothing before this file proved the renderer actually threads that value onto
  * the guest element rather than dropping it or hardcoding one partition for every tab.
  *
  * Source text, for the reason every other `*-wiring.test.js` in this directory states at length:
  * `apps/desktop`'s test script runs `.test.js` under plain `node --test`, with no JSX/DOM runner
- * for `.tsx` in this package at all — see `webview-failure-wiring.test.js`'s header.
+ * for `.tsx` in this package at all — see `webview-failure-wiring.test.ts`'s header.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
+const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 const appTsx = read("App.tsx");
 const contracts = read("..", "contracts", "project.ts");
 

@@ -38,7 +38,7 @@
  * distrust — and it self-corrects for every project created from here on.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js` and `site-dir-store.js`.
+ * `tracked-sites.js` and `site-dir-store.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";

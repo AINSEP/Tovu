@@ -5,21 +5,21 @@
  * `npm run gates` (which that manifest drives) runs FIRST in that chain, before any `app.asar`
  * exists to inspect:
  *
- *     "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.mjs"
+ *     "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.ts"
  *
  * The PRIMARY half — refusing to start a pack while apps/desktop is still moving — is
- * `scripts/check-tree-quiet.mjs`, wired into `quality-gates.json` as the `tree-quiet` gate. Both are
+ * `scripts/check-tree-quiet.ts`, wired into `quality-gates.json` as the `tree-quiet` gate. Both are
  * required: refusing a dirty tree is free and should catch nearly everything, but this file is what
  * makes a corrupt artifact structurally impossible to ship even if that precondition were ever wrong
  * or bypassed — a corrupt, signed `app.asar` is a shipping incident, and this is the last chance to
  * catch one before it leaves the machine.
  *
  * All comparison logic — and the reasoning for why it must be byte-for-byte, never size, never
- * asar's own recorded integrity hash — lives in `../src/asar-verify.js`, so it is unit-tested
+ * asar's own recorded integrity hash — lives in `../src/asar-verify.ts`, so it is unit-tested
  * (including a DELIBERATE-CORRUPTION test) under the normal `npm test` glob. This file only locates
  * the freshly built `app.asar` and turns the result into an exit code.
  *
- * Usage: node scripts/verify-package.mjs [--asar <path-to-app.asar>]
+ * Usage: node scripts/verify-package.ts [--asar <path-to-app.asar>]
  * Exit codes: 0 = every file under src/, bin/, main.js is byte-identical to source.
  *             1 = a mismatch was found, or no app.asar could be located.
  */

@@ -22,7 +22,7 @@
  * **The channel literals below are INLINED rather than read from `src/contracts/*.ts`.** This is
  * CommonJS main-process code and those are TypeScript; the compiled `dist/contracts/*.js` exists
  * only after a build, and the stubs must be registerable from a source checkout. Same trade
- * `src/speech/preload-speech.cjs` makes. `runner-ipc-stubs.test.js` parses the contract sources
+ * `src/speech/preload-speech.cjs` makes. `runner-ipc-stubs.test.ts` parses the contract sources
  * and fails if any literal here drifts from them, so the contracts stay the source of truth.
  */
 

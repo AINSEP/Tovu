@@ -1,6 +1,6 @@
 /**
  * @file Per-area coverage floors for `apps/desktop`, as pure functions, plus the test passes that
- * produce the lcov. `scripts/check-coverage.mjs` runs those passes and calls these functions.
+ * produce the lcov. `scripts/check-coverage.ts` runs those passes and calls these functions.
  *
  * ## The trap this is shaped around: a coverage percentage cannot see its own scope shrinking
  *
@@ -10,10 +10,11 @@
  * blind to the one regression that matters most: code arriving with no test at all.
  *
  * This is not hypothetical. The 2026-09-12 survey that produced this harness reported the desktop
- * `.ts` area at "80.78% line over 9 files". There are 18 non-test `.ts` files. Ten had no lcov
- * record, the reported number described eight of them, and the missing half had pushed the
- * percentage UP rather than down. The survey's own author wrote that trap down as item 2 of a trap
- * list and was caught by it in the same session. That is how quiet this failure is.
+ * `.ts` area at "80.78% line over 9 files", when the area held 18 non-test TypeScript files that
+ * day (27 today, close-out — renderer+contracts has grown since). Ten had no lcov record, the
+ * reported number described eight of them, and the missing half had pushed the percentage UP
+ * rather than down. The survey's own author wrote that trap down as item 2 of a trap list and was
+ * caught by it in the same session. That is how quiet this failure is.
  *
  * The same shape had already eaten a real gate elsewhere in this repo:
  * `check-src-complexity-drift.ts` scans nine directories, four of which no longer exist after a
@@ -45,7 +46,7 @@
  * ## Node's line% is not comparable to anyone else's
  *
  * Node's lcov sets `LF` to EVERY line in the file, comments and blanks included (verified:
- * `keyed-serializer.js` LF:51 / `wc -l` 51; `App.hooks.ts` 1272/1272). This codebase is unusually
+ * `keyed-serializer.ts` LF:51 / `wc -l` 51; `App.hooks.ts` 1272/1272). This codebase is unusually
  * comment-dense, so these line percentages read HIGHER than a statement-based tool's and must never
  * be compared with a c8, vitest or istanbul number — including `apps/admin`'s vitest coverage.
  */
@@ -65,7 +66,7 @@ export interface LcovCounters {
 export type CoverageAxis = "line" | "branch" | "funcs";
 
 /** One entry of `coverage-floors.json`'s `areas`, as far as this file reads it. `dirs`,
- *  `excludeDirs` and `extensions` are read by `scripts/check-coverage.mjs` to build `onDisk`. */
+ *  `excludeDirs` and `extensions` are read by `scripts/check-coverage.ts` to build `onDisk`. */
 export interface CoverageArea {
   id: string;
   dirs?: readonly string[];
@@ -82,7 +83,7 @@ export interface RunnerGlobs {
   globs: readonly string[];
 }
 
-/** One test pass `scripts/check-coverage.mjs` runs; `id` names its lcov file. */
+/** One test pass `scripts/check-coverage.ts` runs; `id` names its lcov file. */
 export interface TestPass extends RunnerGlobs {
   id: string;
 }
@@ -129,20 +130,20 @@ export function isInExcludedDir(relPath: string, excludeDirs: readonly string[] 
 }
 
 /**
- * The test passes `scripts/check-coverage.mjs` runs, split by DIRECTORY. Probe P4 (2026-09-12,
+ * The test passes `scripts/check-coverage.ts` runs, split by DIRECTORY. Probe P4 (2026-09-12,
  * `ADS-memory/.local-artifacts/desktop-ts/phase0-probes.md`): after a `.js`-to-`.ts` rename, bare
  * node reproduces the file's lcov image exactly, but tsx does not. esbuild's `__name` helper adds a
  * fake function and branch per file and lands hits on the wrong lines. So every main-process test,
  * `.js` or `.ts`, runs on bare node. Only the renderer and contracts `.test.ts` files, whose `.js`
  * specifiers need bundler resolution, run under tsx. `package.json`'s `test` script carries the
- * same split, and `coverage-runner-split.test.js` fails when the two disagree.
+ * same split, and `coverage-runner-split.test.ts` fails when the two disagree.
  *
  * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
- * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.mjs`'s
+ * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.ts`'s
  * `runSuite` refuses to run a pass whose globs match no test file at all.
  */
 export const TEST_PASSES: readonly TestPass[] = [
-  { id: "node", nodeArgs: [], globs: ["src/**/*.test.js", "src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
+  { id: "node", nodeArgs: [], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
   { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
 ];
 

@@ -469,8 +469,8 @@ function SiteWorkspaces({
  * navigation on a redirect is a visible flash on every open.
  *
  * `partition` is set explicitly to the project's own `sitePartition` (`contracts/project.ts`,
- * `desktop-auth.js`) — a deliberate departure from Tovu-Runner's own `SiteWorkspace`, which
- * sets no `partition` at all. Tovu's own `desktop-auth.js` documents why this shell cannot skip
+ * `desktop-auth.ts`) — a deliberate departure from Tovu-Runner's own `SiteWorkspace`, which
+ * sets no `partition` at all. Tovu's own `desktop-auth.ts` documents why this shell cannot skip
  * it: cookies ignore port, so two sites both answering on `127.0.0.1` would otherwise share one
  * cookie jar and each open would overwrite the other's session — the exact bug that motivated
  * `sitePartition` for the per-project `BrowserWindow` model in the first place. Setting the same

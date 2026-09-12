@@ -26,7 +26,7 @@ interface DesktopRoots {
  * its inputs precisely so the packaged answers are assertable without building a `.app`.
  *
  * **Dev mode is byte-identical to what `main.js` computed before this module existed** — every
- * packaged-mode branch is additive. That is the property `packaged-paths.test.js` pins first.
+ * packaged-mode branch is additive. That is the property `packaged-paths.test.ts` pins first.
  *
  * ## The payload root
  *
@@ -41,7 +41,7 @@ interface DesktopRoots {
  * ## The delete-guard boundary moves with `payloadRoot` — deliberately, and it is narrower than it
  * looks
  *
- * `project-delete-guard.js`'s containment rule is "nothing under `repoRoot` may be erased", and
+ * `project-delete-guard.ts`'s containment rule is "nothing under `repoRoot` may be erased", and
  * `main.js` passes this function's `payloadRoot` as that `repoRoot`. In dev that is the checkout,
  * exactly as before. In a packaged app it becomes the read-only staged payload — which contains no
  * user site and never will, so the rule is vacuous there rather than wrong. What it does NOT do is

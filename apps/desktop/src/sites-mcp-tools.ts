@@ -1,7 +1,7 @@
 /**
  * @file The tool table the desktop shell publishes to the assistant, and the handlers behind it.
  *
- * This is the SEAM, not one tool. `mcp-bridge.mjs` is a transport and knows nothing about what any
+ * This is the SEAM, not one tool. `mcp-bridge.ts` is a transport and knows nothing about what any
  * tool does; everything shell-owned that the assistant should be able to reach is one row in
  * {@link SITES_MCP_TOOLS}. Adding the second, fifth or twentieth tool is adding a row, and the
  * transport, the trust declaration, the registration row and the tests all keep working unchanged.
@@ -38,7 +38,7 @@
  *
  *   Declaring `false` means the operator must name the tool in BOTH `allowedToolNames` and
  *   `writeAllowedToolNames` (`trust.ts` R3's override, enforced at `trust.ts:326` + `:370`), which
- *   `sites-mcp-registration.js` derives from this table rather than restating.
+ *   `sites-mcp-registration.ts` derives from this table rather than restating.
  * - `destructiveHint` is **never declared true by anything here, and must not be.** `trust.ts:325`
  *   refuses such a tool unconditionally, before either allowlist is consulted — so a destructive
  *   tool cannot be federated at all, and the answer is not to lie about it. Deletion is reached by

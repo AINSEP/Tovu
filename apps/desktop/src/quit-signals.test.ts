@@ -1,5 +1,5 @@
 /**
- * @file Behavioural proof for `quit-signals.js` — the persistent SIGINT/SIGTERM/SIGHUP handler that
+ * @file Behavioural proof for `quit-signals.ts` — the persistent SIGINT/SIGTERM/SIGHUP handler that
  * routes a termination signal into `main.js`'s graceful `before-quit` drain instead of letting a
  * repeated copy of it kill Electron mid-drain. See that file's header for the defect.
  */

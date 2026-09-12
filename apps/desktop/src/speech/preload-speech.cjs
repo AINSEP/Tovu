@@ -40,12 +40,12 @@ const IPC_CHANNEL_IS_AVAILABLE = "tovu:speech:isAvailable";
 const IPC_CHANNEL_TRANSCRIBE = "tovu:speech:transcribe";
 
 contextBridge.exposeInMainWorld("tovuVoice", {
-  /** @returns {Promise<import("./transcription-port.js").TranscriptionAvailability>} */
+  /** @returns {Promise<import("./transcription-port.ts").TranscriptionAvailability>} */
   isAvailable: () => ipcRenderer.invoke(IPC_CHANNEL_IS_AVAILABLE),
   /**
    * @param {Float32Array|number[]} samples - Mono PCM samples in `[-1, 1]`.
    * @param {number} sampleRate - In Hz, whatever the capturing `AudioContext` actually opened at.
-   * @returns {Promise<import("./transcription-port.js").TranscriptionResult>}
+   * @returns {Promise<import("./transcription-port.ts").TranscriptionResult>}
    */
   transcribe: (samples, sampleRate) => ipcRenderer.invoke(IPC_CHANNEL_TRANSCRIBE, samples, sampleRate),
 });

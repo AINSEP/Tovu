@@ -8,7 +8,7 @@
  *    surface — CLI, assistant, this button — is supposed to say the same sentence. A helper that
  *    flattened them into "Couldn't add that website." would pass any test that only checked "an
  *    error is shown", so the tests here assert on the REAL refusal strings.
- * 2. **The wiring**, asserted against the source text, the way `rescan-wiring.test.js` does for
+ * 2. **The wiring**, asserted against the source text, the way `rescan-wiring.test.ts` does for
  *    the sibling button. These catch what a unit test structurally cannot: logic creeping into
  *    `.tsx`, the button never being rendered, or the deleted dashed tile coming back.
  */
@@ -64,7 +64,7 @@ function siteRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): SiteRec
 }
 
 test("a refusal reaches the operator VERBATIM, fix and all", () => {
-  // Not a paraphrase of a refusal — the real one, lifted from `add-site-pointer.js`'s own source so
+  // Not a paraphrase of a refusal — the real one, lifted from `add-site-pointer.ts`'s own source so
   // this test fails if that message is ever rewritten without this surface being reconsidered.
   const real =
     '/Users/la/Documents is a folder of unrelated files, not a Tovu site (no config.json and no ' +

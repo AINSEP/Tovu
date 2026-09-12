@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `site-supervisor.js` — the owner of the `running -> exited` transition that
+ * @file Coverage for `site-supervisor.ts` — the owner of the `running -> exited` transition that
  * D-06 found had no owner at all.
  *
  * Every behavioural test here runs TWICE, against two stores built by `stores()`: the supervisor,

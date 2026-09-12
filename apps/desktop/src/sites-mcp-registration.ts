@@ -45,7 +45,7 @@
  * and it declines to write at all when it cannot tell.
  *
  * No `electron` import: the HTTP call takes `net` and `session` as injected dependencies, exactly as
- * `desktop-auth.js` does, so all of it is testable under plain `node --test`.
+ * `desktop-auth.ts` does, so all of it is testable under plain `node --test`.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -247,7 +247,7 @@ function writeSitesMcpLauncher({ userDataDir, electronPath, bridgePath }: WriteL
  * write-authorized, and that `destructiveHint` is nowhere — is assertable without a server, a
  * session or a site.
  *
- * The two allowlists are DERIVED from `sites-mcp-tools.js`'s own table rather than restated:
+ * The two allowlists are DERIVED from `sites-mcp-tools.ts`'s own table rather than restated:
  *
  * - `allowedToolNames` is every tool. `trust.ts` R2 is default-deny, so a tool absent here is
  *   discovered and then refused; deriving the list means adding a tool to the table cannot
@@ -298,7 +298,7 @@ function buildSitesMcpRegistration({ launcherPath, enabled = true }: BuildRegist
 
 /**
  * The admin route that registers one server. A literal rather than an import for the same reason
- * `desktop-auth.js` inlines its own paths: this directory stays self-contained, so nothing under
+ * `desktop-auth.ts` inlines its own paths: this directory stays self-contained, so nothing under
  * `apps/website/` has to be resolvable for this shell to build.
  *
  * @complexity O(1).
@@ -319,7 +319,7 @@ function sitesMcpListPath(workspaceId: string): string {
  * Shared by the `enabled` read and the registration write so the two cannot drift on the one option
  * that makes either work — `useSessionCookies`. Dropping that flag turns a call into an
  * unauthenticated request that 401s while every other signal still looks healthy, which is exactly
- * the silent failure `desktop-auth.js`'s own doc pins a test against.
+ * the silent failure `desktop-auth.ts`'s own doc pins a test against.
  *
  * Never rejects: an auth or transport failure comes back as `{ok: false}`. Both callers run during
  * a launch and must not be able to abort one.
@@ -404,7 +404,7 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  * minting any new credential: the boot token is single-use and already spent, and the session in
  * that partition is an ordinary revocable admin session belonging to the operator. `useSessionCookies`
  * is what sends it — dropping that flag turns this into an unauthenticated request that 401s while
- * every other signal still looks healthy, which is exactly the failure `desktop-auth.js`'s own doc
+ * every other signal still looks healthy, which is exactly the failure `desktop-auth.ts`'s own doc
  * pins a test against.
  *
  * **Never throws for a failed registration.** A site whose assistant lacks the desktop tools is a

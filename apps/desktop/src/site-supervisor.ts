@@ -29,7 +29,7 @@
  * module owns exactly the transition that had no owner: the one nobody asked for.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js`, `site-process-registry.js` and `project-delete-guard.js`.
+ * `tracked-sites.js`, `site-process-registry.ts` and `project-delete-guard.ts`.
  */
 
 /** How a site's child exited: the `code` and `signal` of Node's own child `exit` event. */
@@ -69,9 +69,9 @@ interface SiteSupervisor<E extends SiteEntry> {
  * @param deps
  * @param deps.onUnexpectedExit called once per site whose child dies without a {@link delete} first.
  *   Receives the entry that was holding it, because the caller needs its `server.pid` to drop the
- *   right crash-safety row — `site-process-registry.js` can hold a live sibling instance's row for the
+ *   right crash-safety row — `site-process-registry.ts` can hold a live sibling instance's row for the
  *   same site dir, and closing by site dir alone would take that one too (D-07).
- *   Injected rather than reaching for `site-process-registry.js` directly so this module needs no
+ *   Injected rather than reaching for `site-process-registry.ts` directly so this module needs no
  *   `registryPath`, no filesystem, and no knowledge of what the caller does about it — `main.js`
  *   drops the crash-safety row and logs; a test just records the call.
  * @returns a `Map`-compatible store with {@link lastExitOf} added.

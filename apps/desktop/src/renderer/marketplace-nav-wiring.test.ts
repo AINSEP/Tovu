@@ -8,7 +8,7 @@
  * it has its own icon, and that the generic disable rule in `App.tsx` still covers every id but
  * `projects` — i.e. nobody special-cased Marketplace into being clickable.
  *
- * Every assertion runs against COMMENT-STRIPPED source, same discipline `site-card-menu-wiring.test.js`
+ * Every assertion runs against COMMENT-STRIPPED source, same discipline `site-card-menu-wiring.test.ts`
  * uses — this file's own doc comments discuss `aria-disabled`, `NavLink` and `tabIndex` by name, and
  * a naive substring match would pass on the prose instead of the code.
  */
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function withoutComments(source) {
+function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 

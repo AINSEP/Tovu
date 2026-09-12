@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `pcm-wav-encoder.js` — pure buffer math, no Electron and no audio
+ * @file Direct tests for `pcm-wav-encoder.ts` — pure buffer math, no Electron and no audio
  * hardware involved.
  */
 import test from "node:test";

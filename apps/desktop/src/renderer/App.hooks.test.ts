@@ -4,7 +4,7 @@
  *
  * **How this file runs.** `apps/desktop`'s own suite is `node --test "src/**\/*.test.cjs"`, which
  * has no runner for TypeScript at all; that is why every renderer test before this one was a
- * source-text assertion (see `rescan-wiring.test.js`'s own header). This file is executed by the
+ * source-text assertion (see `rescan-wiring.test.ts`'s own header). This file is executed by the
  * second half of the package's `test` script, `node --import tsx --test "src/**\/*.test.ts"`.
  *
  * `tsx` is this package's OWN devDependency, declared at the same `^4.19.3` the repo root declares.

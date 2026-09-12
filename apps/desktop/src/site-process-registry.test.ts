@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `site-process-registry.js`.
+ * @file Direct tests for `site-process-registry.ts`.
  *
  * `isProcessAlive`/`readProcessCommand`/`terminateOrphan`/`reconcileOrphans` spawn REAL (tiny, plain
  * `node`) child processes rather than faking `ps` output — the identity proof reads a live process's

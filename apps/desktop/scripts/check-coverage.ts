@@ -2,7 +2,7 @@
 /**
  * @file The desktop coverage gate. Runs the test suite under node's own coverage, then checks each
  * configured area in `coverage-floors.json` against its floors AND against the files actually
- * present on disk. The rules live in `../src/coverage-floors.js` and are tested there.
+ * present on disk. The rules live in `../src/coverage-floors.ts` and are tested there.
  *
  * ## This gate runs the tests itself, on purpose
  *
@@ -20,17 +20,17 @@
  *
  * But include patterns only FILTER WHAT WAS LOADED — they do not force files in. So the area
  * evaluation compares the lcov against a DISK scan, never against itself. See
- * `../src/coverage-floors.js`'s header for the measurement in this very repo that the omission
+ * `../src/coverage-floors.ts`'s header for the measurement in this very repo that the omission
  * corrupted.
  *
  * ## Runners and areas are both split by directory, never by extension
  *
  * Main-process tests run on bare node and only renderer and contracts tests run under tsx, because
- * tsx corrupts lcov counters (see `TEST_PASSES` in `../src/coverage-floors.js`). The areas are cut
+ * tsx corrupts lcov counters (see `TEST_PASSES` in `../src/coverage-floors.ts`). The areas are cut
  * the same way, through `excludeDirs`. Renaming a main-process file from `.js` to `.ts` therefore
  * moves it between neither runners nor floors.
  *
- * Usage: node scripts/check-coverage.mjs
+ * Usage: node scripts/check-coverage.ts
  * Exit codes: 0 = every area at/above its floors with no undeclared unmeasured file.
  *             1 = an area failed, the suite failed or matched no test file, or the config is
  *                 missing/unusable.

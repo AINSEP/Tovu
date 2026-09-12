@@ -1,9 +1,9 @@
 /**
- * @file END-TO-END exit-code tests for `scripts/check-gates.mjs`. This file exists because reading
+ * @file END-TO-END exit-code tests for `scripts/check-gates.ts`. This file exists because reading
  * the runner and concluding "it propagates" is exactly the standard that failed in this repo, in
  * both directions:
  *
- *  - `stage-payload.mjs` shipped a twelve-day-stale admin bundle because nobody ever watched its
+ *  - `stage-payload.ts` shipped a twelve-day-stale admin bundle because nobody ever watched its
  *    staleness check FAIL — it wrote a warning to stderr and the script exited 0;
  *  - `npm run admin:build` was reported as "prints Build blocked and exits 0" and carried
  *    downstream as a root cause, when it exits 1 correctly and the reporter had read the status
@@ -179,7 +179,7 @@ test("a gate script the manifest DOES run is not reported as drift", () => {
 });
 
 test("the runner does not report ITSELF as an unregistered gate script", () => {
-  // `check-gates.mjs` matches the `check-*.mjs` convention but is the runner, not a gate. Without
+  // `check-gates.ts` matches the `check-*.mjs` convention but is the runner, not a gate. Without
   // the explicit exclusion it would fail every single run, including this one.
   const { status, stderr } = runWith({ gates: [{ id: "ok", run: "node -e \"process.exit(0)\"" }] }, [
     "check-gates.ts",

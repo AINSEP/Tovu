@@ -1,11 +1,11 @@
 /**
- * @file Coverage for `runner-ipc-stubs.js`.
+ * @file Coverage for `runner-ipc-stubs.ts`.
  *
  * Two jobs. The behavioural one: prove every stub REJECTS rather than resolving — a stub that
  * quietly returned `[]` or `null` would render as real, correct, empty state, which is the exact
  * failure mode this module exists to prevent.
  *
- * The drift one: `runner-ipc-stubs.js` inlines its channel literals because it is CommonJS
+ * The drift one: `runner-ipc-stubs.ts` inlines its channel literals because it is CommonJS
  * main-process code and the contracts are TypeScript (see that file's header). This test parses
  * `src/contracts/*.ts` for the real `*_CHANNELS` object literals and compares both
  * directions, so renaming a channel in a contract, or adding a new verb to one, fails here instead
@@ -42,7 +42,7 @@ function declaredChannels(): Set<string> {
     for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]!);
   }
   // Main->renderer sends, not `invoke` targets: there is no handler to register for any of them, so
-  // `runner-ipc-stubs.js` deliberately omits them.
+  // `runner-ipc-stubs.ts` deliberately omits them.
   found.delete("workspace:chat:event");
   found.delete("workspace:chat:navigate");
   found.delete("runner:sites:history");

@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `sites-mcp-registration.js` — the generated launcher and the PUT body.
+ * @file Coverage for `sites-mcp-registration.ts` — the generated launcher and the PUT body.
  *
  * The load-bearing assertions here are all about things that fail SILENTLY in production:
  *
@@ -133,7 +133,7 @@ test("the registration write-authorizes EXACTLY the tools declaring readOnlyHint
   assert.deepEqual(body.writeAllowedToolNames.split(",").filter(Boolean).sort(), expected.sort());
   assert.ok(expected.includes("add_site_pointer"));
   // `reveal_site_folder` IS here, and that is the deliberate choice defended in
-  // `sites-mcp-tools.js`'s header: it modifies nothing, but it makes a window appear on the
+  // `sites-mcp-tools.ts`'s header: it modifies nothing, but it makes a window appear on the
   // operator's machine, and `readOnlyHint: true` over an action with an effect outside Tovu is the
   // self-declaration `trust.ts` exists to distrust. Pinned so nobody "optimizes" the write grant
   // away by relaxing the hint.
@@ -280,7 +280,7 @@ test("registerSitesMcpServer reads the existing row, then PUTs as the site sessi
   assert.equal(write.options.method, "PUT");
   assert.equal(write.options.url, "http://127.0.0.1:3601/api/admin/v1/workspaces/ws-7/mcp-servers/tovu-desktop");
   // Both calls carry the session. Without `useSessionCookies` a request sends no cookie and 401s
-  // while every other signal still looks healthy — the silent failure `desktop-auth.js` pins a test
+  // while every other signal still looks healthy — the silent failure `desktop-auth.ts` pins a test
   // against.
   for (const call of net.calls) {
     assert.equal(call.options.session, session);
