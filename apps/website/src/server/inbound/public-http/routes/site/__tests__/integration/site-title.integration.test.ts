@@ -138,20 +138,28 @@ test("AC-05 (REQ-02): an owner title is HTML-escaped in <title>", async (t) => {
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), "Acme &amp; Co", "S3 GET /products");
 });
 
-test("AC-14 subset (REQ-08 trim, REQ-09): a stored title renders trimmed; a blank or over-200-character value renders the no-owner-title value instead", async (t) => {
+test("AC-14 (REQ-08): a padded title is stored and rendered trimmed; a blank or over-200-character write is rejected and the previous title keeps rendering", async (t) => {
   const site = await bootSite(t);
 
-  assert.equal((await putSiteTitle(site, "  My Site  ")).status, 200);
+  const accepted = await putSiteTitle(site, "  My Site  ");
+  assert.equal(accepted.status, 200, "the padded owner write must be accepted");
+  assert.equal(((await accepted.json()) as { value: unknown }).value, "My Site", "the stored value is the trimmed string");
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), "My Site", "trimmed owner title");
 
-  for (const unusable of ["", "   ", "x".repeat(201)]) {
-    await putSiteTitle(site, unusable);
-    assertSingleTitle(
-      await getHtml(site.baseUrl, "/products"),
-      IN_MEMORY_WORKSPACE_NAME,
-      `unusable value ${JSON.stringify(unusable.slice(0, 8))}`
+  const revisionCount = async () => (await site.deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
+  const before = await revisionCount();
+  for (const invalid of ["", "   ", "x".repeat(201)]) {
+    const label = `invalid value ${JSON.stringify(invalid.slice(0, 8))} (length ${invalid.length})`;
+    const res = await putSiteTitle(site, invalid);
+    assert.equal(res.status, 400, `${label} must be rejected`);
+    assert.deepEqual(
+      await res.json(),
+      { error: "value for 'core.site.title' must be 1..200 characters after trimming", code: "VALUE_VALIDATION_FAILED" },
+      label
     );
+    assertSingleTitle(await getHtml(site.baseUrl, "/products"), "My Site", `${label}: the previous title keeps rendering`);
   }
+  assert.equal(await revisionCount(), before, "a rejected write must append no revision");
 });
 
 test("AC-15 (REQ-01): core.site/title accepts a workspace-scope write and rejects global- and user-scope writes without appending a revision", async (t) => {

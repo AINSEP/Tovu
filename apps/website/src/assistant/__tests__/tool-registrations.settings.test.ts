@@ -397,6 +397,26 @@ test("settings_set_ui_preference: a key outside the allowlist is refused by the 
   assert.equal(authorizeCalls.length, 0, "an unlisted key is refused before any authorize() call — it cannot be used to probe grants");
 });
 
+test("settings_set_ui_preference: core.site.title is not agent-writable, so no agent tool writes the site title (SPEC-050 REQ-08)", async () => {
+  const { deps, authorizeCalls, settingsRepo } = fakeRouteDeps();
+  authorizeCalls.length = 0;
+  const revisionsBefore = (await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
+
+  // This tool writes through the package's own `set`, not the host's REQ-08 chokepoint, so the
+  // allowlist refusal is what keeps both a blank and a valid title off this path.
+  for (const value of ["", "Acme Field Notes"]) {
+    await assert.rejects(
+      () => wired(deps, "settings_set_ui_preference").handler(executionContext({ setting: "core.site.title", value })),
+      (err: unknown) => {
+        assert.match((err as Error).message, /^'core\.site\.title' is not an agent-writable preference\. Allowed: /);
+        return true;
+      },
+    );
+  }
+  assert.equal((await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length, revisionsBefore, "nothing is written");
+  assert.equal(authorizeCalls.length, 0);
+});
+
 test("settings_set_ui_preference: writes land on the CALLER's own user layer", async () => {
   const { deps, settingsRepo } = fakeRouteDeps();
 
