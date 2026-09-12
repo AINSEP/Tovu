@@ -33,15 +33,15 @@ const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 
 /** What this gate verifies — exactly the recommendation in the incident report: the shell's own
  *  code. The staged Tovu payload (`apps/admin/dist`, `apps/site-chat/dist`, the runnable tree under
- *  `extraResources`) has its OWN freshness guard in `stage-payload.mjs` — a different failure, and
+ *  `extraResources`) has its OWN freshness guard in `stage-payload.ts` — a different failure, and
  *  explicitly out of scope here. */
-const VERIFIED_PREFIXES = ["src", "bin", "main.ts"];
+const VERIFIED_PREFIXES: string[] = ["src", "bin", "main.ts"];
 
 /** Every `*.app` bundle under `dir`, recursively. `release/` can hold leftovers from earlier builds
  *  or probes, so finding ONE bundle is not enough on its own — see {@link resolveAsarPath}.
  *  @complexity O(n) in directory entries under `dir`. */
-function findAppBundles(dir) {
-  const found = [];
+function findAppBundles(dir: string): string[] {
+  const found: string[] = [];
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -65,9 +65,10 @@ function findAppBundles(dir) {
  *
  * @complexity O(n) in bundles found under `release/`.
  */
-function resolveAsarPath(argv) {
+function resolveAsarPath(argv: string[]): string {
   const flagAt = argv.indexOf("--asar");
-  if (flagAt !== -1 && argv[flagAt + 1]) return path.resolve(argv[flagAt + 1]);
+  // `!`: only read once the check to its left has confirmed the arg after `--asar` is present.
+  if (flagAt !== -1 && argv[flagAt + 1]) return path.resolve(argv[flagAt + 1]!);
 
   const releaseDir = path.join(DESKTOP_ROOT, "release");
   const bundles = findAppBundles(releaseDir);
@@ -75,16 +76,17 @@ function resolveAsarPath(argv) {
     throw new Error(`verify-package: no *.app bundle found under ${releaseDir} — did electron-builder run?`);
   }
   bundles.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-  return path.join(bundles[0], "Contents/Resources/app.asar");
+  // `!`: `bundles.length === 0` above already threw, so index 0 exists.
+  return path.join(bundles[0]!, "Contents/Resources/app.asar");
 }
 
-function main() {
+function main(): void {
   const argv = process.argv.slice(2);
-  let asarPath;
+  let asarPath: string;
   try {
     asarPath = resolveAsarPath(argv);
   } catch (error) {
-    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(`${(error as Error).message}\n`);
     process.exit(1);
     return;
   }
