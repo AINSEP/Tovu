@@ -37,6 +37,7 @@ export type RunnerSectionId =
   | 'home'
   | 'projects'
   | 'templates'
+  | 'marketplace'
   | 'tasks'
   | 'generation'
   | 'activity'
@@ -121,6 +122,19 @@ export const RUNNER_SECTIONS = [
     agentDescription:
       "Starter templates a new project is instantiated from. Per ADR-012, creating a site copies a template's data and config into a fresh install dir.",
     tools: ['desktop.template.list', 'desktop.template.inspect'],
+  },
+  {
+    // Visible (not `hidden`) but tool-less on purpose: the owner wants the destination signposted
+    // now — agent plugins, themes, and regular plugins will all live here eventually — while
+    // `NavLink`'s existing `section.id !== 'projects'` rule keeps it grayed out and inert until one
+    // of those three actually ships. An empty `tools` array is this file's documented spelling for
+    // "read-only/navigation-only", so this grants the left chat nothing new.
+    id: 'marketplace',
+    group: 'workspace',
+    label: 'Marketplace',
+    agentDescription:
+      'Where agent plugins, themes, and regular plugins will be discovered and installed across the fleet. Not built yet — no tools here.',
+    tools: [],
   },
   {
     id: 'tasks',

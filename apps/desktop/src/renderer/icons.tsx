@@ -40,6 +40,14 @@ const paths: Record<RunnerSectionId, JSX.Element> = {
       <path d="M10.5 5.5H17M10.5 13.5H17" />
     </>
   ),
+  // A shopping bag: agent plugins, themes, and plugins arrive here, so a storefront/goods
+  // metaphor reads clearer than anything drawn from `templates`' single rectangle.
+  marketplace: (
+    <>
+      <path d="M4.5 7.4h11l-0.9 8.7a1.3 1.3 0 0 1-1.3 1.2H6.7a1.3 1.3 0 0 1-1.3-1.2L4.5 7.4z" />
+      <path d="M7.3 7.4V6a2.7 2.7 0 0 1 5.4 0v1.4" />
+    </>
+  ),
   // A video camera. The id is still `generation` (a public contract — see sections.ts), but the
   // section is labelled "Media", and a sparkle read as "AI magic" rather than "images and video".
   generation: (
