@@ -15,16 +15,21 @@ import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import {
   resolveChatFabClearance,
+  resolveSiteSectionRouteGate,
   translateAssistantDockLabel,
   useAdminAssistantAvailability,
   useAdminSession,
   useAgentPageBridge,
   useChatDockLayout,
   useCollapsibleNavGroupLabels,
+  useDefaultSectionRedirect,
   useInternalLinkInterceptor,
   useLogoutConfirm,
   useScreenshotAnnouncement,
   useSidebarDrawer,
+  useSiteSectionAvailability,
+  withoutSiteSection,
+  type SiteSectionAvailability,
   type UseLogoutConfirm,
 } from "./App.hooks";
 
@@ -128,12 +133,30 @@ export function agentPageId(route: Route): string {
  * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
  * without a shared dispatch to edit.
  */
-function renderRoute(route: Route): ReactNode {
+function renderRoute(route: Route, siteSection: SiteSectionAvailability): ReactNode {
   if (route.unknownSectionId !== undefined) {
     return <Placeholder sectionId={route.unknownSectionId} />;
   }
+  // The Sites section does not exist on every deployment — see `resolveSiteSectionRouteGate`. The
+  // gate sits HERE rather than inside `panels.tsx`'s own `sites` render thunk so the panel manifest
+  // stays a pure declaration of what this admin can show, and so "which sections this deployment
+  // has" is answered in the one place that already owns routing.
+  const gate = resolveSiteSectionRouteGate(route.panelId, siteSection);
+  if (gate === "redirect") return <UnavailableSectionRedirect />;
+  if (gate === "hold") return null;
   const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
   return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
+}
+
+/**
+ * The screen for a route whose section this deployment does not have: no markup at all, just the
+ * redirect to the default section. Same shape as `features/workspace/WorkspaceRedirect.tsx` — the
+ * effect lives in `App.hooks.tsx`'s `useDefaultSectionRedirect`, so this component carries no logic
+ * of its own.
+ */
+function UnavailableSectionRedirect() {
+  useDefaultSectionRedirect();
+  return null;
 }
 
 /**
@@ -413,6 +436,11 @@ export function App(props: AppProps) {
   // (before the `checking`/`!user` early returns below) even though it only fetches once `user` is
   // set: React's rules of hooks forbid calling it conditionally.
   const adminAssistantEnabled = useAdminAssistantAvailability(user);
+  // `TOVU_ENABLE_SITE_SWITCHER` — whether this deployment has a Sites section at all. Called
+  // unconditionally here for the same rules-of-hooks reason as the line above, and read TWICE
+  // below (the nav filter and the route gate) from this one value, so the sidebar and the router
+  // can never disagree about whether the section exists. See `useSiteSectionAvailability`.
+  const siteSection = useSiteSectionAvailability(user);
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
 
@@ -443,8 +471,15 @@ export function App(props: AppProps) {
    * slices are guaranteed to come from the same array instance. `getNav()` is memoized internally
    * (see `nav.ts`), so this is about intent rather than cost: it makes "one nav model, split for
    * layout" explicit instead of leaving two independent lookups to be kept in agreement by hand.
+   *
+   * `withoutSiteSection` is applied HERE, to the single shared read, for that same reason — the two
+   * slices below must not be able to disagree about whether the Sites row exists. It filters items
+   * and never groups, so the `slice(0, 1)`/`slice(1)` boundary below is unaffected; see its own doc.
+   * `nav.ts` itself is left alone: `getNav()` is a cached, synchronous module-level derivation of
+   * `ADMIN_PANELS` that `components/Placeholder.tsx` also reads for its own label lookup, and it has
+   * no access to a value that only arrives from the server.
    */
-  const rawNavGroups = getNav();
+  const rawNavGroups = withoutSiteSection(getNav(), siteSection);
 
   /**
    * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
@@ -468,7 +503,7 @@ export function App(props: AppProps) {
   if (checking) return <div className="boot-screen">Loading Tovu…</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
-  const content: ReactNode = renderRoute(route);
+  const content: ReactNode = renderRoute(route, siteSection);
 
   return (
     <div className="admin-layout">
@@ -497,7 +532,9 @@ export function App(props: AppProps) {
             beside the sections it collapses, not adrift at the bottom of a 26-item list.
             `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
             Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
-            and every later group is a labelled section starting with CONTENT.
+            and every later group is a labelled section starting with CONTENT. Sites is absent from
+            that row on a deployment that has no Sites section (`withoutSiteSection` above); Overview
+            and AI Assistant are not, so the row itself always exists and this index is stable.
 
             Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
             `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —

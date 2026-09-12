@@ -10,13 +10,13 @@ import {
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
-import { installInternalLinkInterceptor } from "./lib/router";
+import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
 import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
-import type { AdminNavGroup } from "./nav";
+import type { AdminNavGroup, AdminNavItem } from "./nav";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -190,6 +190,181 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
   }, [user]);
 
   return enabled;
+}
+
+/**
+ * `panels.tsx`'s own id for the Sites section, named once here rather than inlined at the two call
+ * sites that gate on it ({@link withoutSiteSection} and {@link resolveSiteSectionRouteGate}).
+ *
+ * The id itself is untouched by this gate, deliberately: `ADMIN_PANELS` still declares `sites` in
+ * the same position with the same `nav` block, `matchRoute` still resolves `/sites` to it, and
+ * `ADMIN_AGENT_PAGE_PATHS` still publishes it. Hiding a section here means "do not show it and do
+ * not let this route render it on this deployment" — never renaming, renumbering, or removing a
+ * panel, which would move every other section's identity with it.
+ */
+export const SITES_PANEL_ID = "sites";
+
+/**
+ * Whether this deployment has a Sites section at all.
+ *
+ * Three states, not a boolean, and the third one is the point: the answer comes from the server,
+ * so "not answered yet" has to be distinguishable from "no". Collapsing `unknown` into `false`
+ * would redirect a developer's own `/admin/sites` deep link to the dashboard in the window before
+ * the flag arrives; collapsing it into `true` would flash the Sites screen inside the desktop app,
+ * which is the exact thing this gate exists to prevent.
+ */
+export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
+
+/**
+ * Reads the deployment's site-switcher capability flag and reports it as a section-visibility
+ * answer.
+ *
+ * ## Why this reuses `switchingEnabled` rather than introducing a second flag
+ *
+ * `TOVU_ENABLE_SITE_SWITCHER` (`apps/website/src/server/runtime/composition/site-switcher-enabled.ts`)
+ * already exists, is already default-OFF, and its own header already enumerates exactly the three
+ * deployments this section cares about: ON for local `npm run dev` (set by
+ * `development/scripts/dev.mjs`), OFF for a Tovu-Runner/desktop host, OFF for a hosted install.
+ * That is the owner's requirement verbatim — "sites page is for when a dev runs `npm run dev`
+ * themselves" — with no new variable, and with nothing to set on the desktop side: the Electron
+ * shell's `buildServeEnv` never sets this var, so every server it spawns already reports it off.
+ *
+ * The flag also already reaches this client. `GET .../system/sites` is deliberately NOT gated on
+ * it; the route carries its value instead, and that route's own header states the intended use in
+ * as many words — "its response CARRIES the flag's value (`switchingEnabled`) so the UI can decide
+ * whether to render the 'Sites' nav item, a disabled Create button, etc. without a second round
+ * trip". Until now only the second half of that sentence was wired: `Sites.tsx` disabled Create and
+ * Activate and explained why, while the nav item and the route stayed live everywhere. This hook is
+ * the first half.
+ *
+ * A plain `useState`/`useEffect` pair rather than `useFetchQuery`, matching
+ * {@link useAdminAssistantAvailability} directly above it: this file's imports stop at `lib/`, and
+ * reaching into `features/sites/rules.ts` for its cache key to share one request would invert that.
+ * The cost is one extra `GET .../system/sites` on the Sites screen itself, where the screen's own
+ * query runs anyway — a directory listing, on the one screen that was always going to make it.
+ *
+ * Fails CLOSED, the opposite of `useAdminAssistantAvailability`'s fail-open posture, because the
+ * server's own default is the opposite: absent the var the capability is off, and
+ * `features/sites/rules.ts`'s `readSnapshot` already records the same rule for the same field
+ * ("`switchingEnabled` in particular must fall back to `false`, not true"). A rejected read —
+ * including the 403 an operator without `system.read` gets — therefore hides the section rather
+ * than showing a screen whose every request would fail.
+ *
+ * Gated on `user` for the same reason its sibling is: a pre-login request would 401, and the value
+ * plays no role before `App.tsx`'s `<Login>` gate clears.
+ *
+ * @param user - `useAdminSession()`'s current session, or `null` before login.
+ * @returns `unknown` until the read settles, then `available` only if the server said the flag is on.
+ * @complexity O(1) plus one server round trip per session.
+ */
+export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionAvailability {
+  const [availability, setAvailability] = useState<SiteSectionAvailability>("unknown");
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .listSites()
+      .then((snapshot) => {
+        if (!cancelled) setAvailability(snapshot.switchingEnabled === true ? "available" : "unavailable");
+      })
+      .catch(() => {
+        // Fails closed — see this function's own doc comment.
+        if (!cancelled) setAvailability("unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  return availability;
+}
+
+/** {@link withoutSiteSection}'s predicate, hoisted out of the `.filter` call so the id comparison is
+ *  one named thing rather than an inline arrow repeated per group. */
+function isNotSiteSection(item: AdminNavItem): boolean {
+  return item.id !== SITES_PANEL_ID;
+}
+
+/**
+ * The sidebar nav model with the Sites row dropped when this deployment has no Sites section.
+ *
+ * Filters ITEMS, never groups. `App.tsx` splits the rendered nav by group index
+ * (`navGroups.slice(0, 1)` for the ungrouped top row, `.slice(1)` for the labelled sections), so
+ * dropping a group would shift that boundary and move the rail toggle. Sites lives in the ungrouped
+ * top row alongside Overview and AI Assistant, both of which survive, so the group itself is never
+ * emptied and every index either side of it is unchanged. `AdminNavItem` carries no positional
+ * field — `buildNav` sorts by `order` with registration order as the tiebreak — so removing one row
+ * cannot renumber another.
+ *
+ * Returns the input array unchanged (same reference) when the section is visible, so the common
+ * case allocates nothing.
+ *
+ * @param groups - `nav.ts`'s `getNav()` output, untranslated.
+ * @param availability - {@link useSiteSectionAvailability}'s answer. Anything but `available` hides
+ *   the row, so the desktop app never paints a Sites item it would then have to take away.
+ * @complexity O(n) in total nav items.
+ */
+export function withoutSiteSection(
+  groups: readonly AdminNavGroup[],
+  availability: SiteSectionAvailability,
+): readonly AdminNavGroup[] {
+  if (availability === "available") return groups;
+  return groups.map((group) => ({ ...group, items: group.items.filter(isNotSiteSection) }));
+}
+
+/** What `App.tsx`'s `renderRoute` should do with the route it just resolved. `hold` is the
+ *  not-yet-known case — render nothing for this one frame rather than guess. */
+export type SiteSectionRouteGate = "render" | "hold" | "redirect";
+
+/**
+ * Whether this route may render, must wait, or must leave.
+ *
+ * This is the half of the change that makes the section genuinely absent rather than merely
+ * unlinked. A hidden nav row with a live route still answers `/admin/sites` — to a typed URL, to a
+ * bookmark, to `page.navigate("sites")`, and to anything that restores the last section an operator
+ * was on — which is precisely the surface the desktop app must not have.
+ *
+ * `redirect` sends the browser to the default section (`/`, the dashboard) rather than rendering a
+ * "not available here" screen. Both satisfy "unreachable"; the redirect is chosen because a
+ * not-available screen is still a Sites screen, in a shell whose own tabs already own site
+ * switching, offering the operator nothing to do — and because this admin already resolves exactly
+ * this shape that way twice (`WorkspaceRedirect`, `IntegrationsRedirect`), so a third case behaves
+ * like the two beside it.
+ *
+ * Every non-Sites route returns `render` on the first branch, so no other section can be affected
+ * by this gate however the flag resolves.
+ *
+ * @param panelId - the resolved route's panel id (`null` for a route matching no panel).
+ * @param availability - {@link useSiteSectionAvailability}'s answer.
+ * @complexity O(1).
+ */
+export function resolveSiteSectionRouteGate(
+  panelId: string | null | undefined,
+  availability: SiteSectionAvailability,
+): SiteSectionRouteGate {
+  if (panelId !== SITES_PANEL_ID) return "render";
+  if (availability === "available") return "render";
+  if (availability === "unknown") return "hold";
+  return "redirect";
+}
+
+/**
+ * Sends the browser from a section this deployment does not have to the default one.
+ *
+ * `replace: true`, not a pushed entry, for the reason `useWorkspaceRedirect` already documents for
+ * its own near-identical call: a pushed entry would make Back land on the route that just
+ * redirected and bounce straight forward again.
+ *
+ * Empty dependency array — the target is a fixed string, and the component owning this effect is
+ * only mounted once the gate has already decided.
+ *
+ * @complexity O(1) — one fixed navigation call.
+ */
+export function useDefaultSectionRedirect(): void {
+  useEffect(() => {
+    navigate("/", { replace: true });
+  }, []);
 }
 
 export interface UseLogoutConfirm {
