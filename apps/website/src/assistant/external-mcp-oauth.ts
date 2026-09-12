@@ -31,6 +31,7 @@ import {
   resolveExternalMcpAuthMode,
   resolveExternalMcpOAuthStatus,
   sealExternalMcpOAuthPayload,
+  type ExternalMcpOAuthGrant,
   type ExternalMcpOAuthStatus,
   type ExternalMcpOAuthTokenResolverPort,
   type ExternalMcpServerRecord,
@@ -498,13 +499,48 @@ async function discoverConnectionAuthorizationServer(
   );
 }
 
-/** The grant types to register for, derived from the row's own grant rather than asked for twice.
+/** RFC 8628's grant-type identifier — how both RFC 8414's `grant_types_supported` and RFC 7591's own
+ *  `grant_types` name the device flow. Tovu's internal grant alias is the shorter `device_code`
+ *  (`EXTERNAL_MCP_OAUTH_GRANTS`), so this is the one place that URN gets spelled out — everywhere
+ *  else compares against or registers the short name and translates through this constant instead of
+ *  repeating the URN. */
+const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
+
+/** The grant types to register for. Takes the RESOLVED grant rather than reading `record.oauthGrant`
+ *  itself, because a row self-configuring its grant for the first time has not persisted it yet at
+ *  the point registration runs — reading the record here would silently register for
+ *  `authorization_code` on a connection that is actually about to become a device grant.
  *  `refresh_token` is always included: it is what decides whether this connection survives its first
  *  access-token expiry, and a server that does not support it ignores the entry. @complexity O(1). */
-function registrationGrantTypes(record: ExternalMcpServerRecord): readonly string[] {
-  return record.oauthGrant === "device_code"
-    ? ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"]
-    : ["authorization_code", "refresh_token"];
+function registrationGrantTypes(grant: ExternalMcpOAuthGrant): readonly string[] {
+  return grant === "device_code" ? [DEVICE_CODE_GRANT_TYPE, "refresh_token"] : ["authorization_code", "refresh_token"];
+}
+
+/**
+ * Resolves the sign-in method for a connection whose row names none, from what its OWN
+ * authorization server advertises — the same "ask the server, don't ask the operator" move as
+ * {@link discoverConnectionAuthorizationServer} makes for endpoints and {@link mintClientForConnection}
+ * makes for client identity.
+ *
+ * `authorization_code` wins whenever the server offers it: it is the redirect-based grant every
+ * browser-capable client uses, and it is what an operator would pick by default anyway.
+ * `device_code` exists specifically for the flow a browser cannot run (RFC 8628 — the human types a
+ * code at the provider instead of being redirected), so it is a fallback rather than a co-equal
+ * choice, taken only when the server names no other grant Tovu implements.
+ *
+ * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the metadata names neither grant Tovu
+ *   implements — naming exactly what the server DID advertise, since an operator who only sees
+ *   "connect failed" has no way to guess that from the failure alone.
+ * @complexity O(n) in the number of advertised grant types.
+ */
+function resolveGrantFromDiscovery(grantTypesSupported: readonly string[], serverId: string): ExternalMcpOAuthGrant {
+  if (grantTypesSupported.includes("authorization_code")) return "authorization_code";
+  if (grantTypesSupported.includes(DEVICE_CODE_GRANT_TYPE)) return "device_code";
+  throw new OAuthError(
+    "OAUTH_INVALID_REQUEST",
+    `the authorization server for external MCP server '${serverId}' advertises no grant Tovu supports (it offers: ${grantTypesSupported.join(", ") || "none"})`,
+    { operatorAction: "Set this connection's sign-in method by hand in Settings → External MCP." },
+  );
 }
 
 /**
@@ -514,6 +550,8 @@ function registrationGrantTypes(record: ExternalMcpServerRecord): readonly strin
  *   URIs will refuse an authorization whose `redirect_uri` was not registered, so the value used at
  *   authorization time is the value registered here — not a re-derived one. `undefined` registers no
  *   callback at all, which is correct (and the only honest option) for a device-grant client.
+ * @param input.grant - The RESOLVED grant — see {@link registrationGrantTypes} for why this must not
+ *   be read back off `record`.
  * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the authorization server offers no registration
  *   endpoint, which is the point at which an operator genuinely does have to supply a client id.
  * @complexity O(1) — one bounded outbound request.
@@ -522,7 +560,7 @@ async function mintClientForConnection(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
   discovered: DiscoveredOAuthConfiguration,
-  input: { readonly redirectUri: string | undefined; readonly scopes: readonly string[] },
+  input: { readonly redirectUri: string | undefined; readonly scopes: readonly string[]; readonly grant: ExternalMcpOAuthGrant },
 ) {
   const registrationEndpoint = discovered.server.registrationEndpoint;
   if (registrationEndpoint === null) {
@@ -543,7 +581,7 @@ async function mintClientForConnection(
       // nothing serves.
       redirectUris: input.redirectUri === undefined ? [] : [input.redirectUri],
       scopes: input.scopes,
-      grantTypes: registrationGrantTypes(record),
+      grantTypes: registrationGrantTypes(input.grant),
       timeoutMs: CONNECT_TIMEOUT_MS,
     },
   );
@@ -560,6 +598,7 @@ async function persistSelfConfiguration(
   identity: {
     readonly endpoints: StoredOAuthEndpoints;
     readonly scopes: readonly string[];
+    readonly grant: ExternalMcpOAuthGrant;
     readonly clientId: string;
     readonly clientSecret: string | undefined;
   },
@@ -573,6 +612,7 @@ async function persistSelfConfiguration(
 
   const next: ExternalMcpServerRecord = {
     ...record,
+    oauthGrant: identity.grant,
     oauthClientId: identity.clientId,
     oauthEndpointsJson: JSON.stringify(identity.endpoints),
     oauthScopesJson: JSON.stringify(identity.scopes),
@@ -589,15 +629,17 @@ async function persistSelfConfiguration(
  * Fills in whatever a connection is missing, persists it, and returns the row as it now stands.
  *
  * A no-op — and, importantly, ZERO outbound requests — for a connection that already names its
- * endpoints and its client id. That is what keeps every existing connection behaving exactly as it
- * did: self-configuration is reached only by a row that could not have connected at all before.
+ * endpoints, its grant AND its client id. That is what keeps every existing connection behaving
+ * exactly as it did: self-configuration is reached only by a row that could not have connected at
+ * all before, or that named everything except which grant to use.
  *
  * Nothing is written until every step has succeeded, so a failed registration leaves the row exactly
  * as it was and the operator's retry is a clean retry rather than one over half-written state.
  *
  * @param redirectUri - The absolute callback URL this connect will use, registered verbatim.
  * @returns The row, self-configured if it needed to be.
- * @throws {OAuthError} From discovery or registration; every one is terminal and nothing is retried.
+ * @throws {OAuthError} From discovery, grant resolution, or registration; every one is terminal and
+ *   nothing is retried.
  * @complexity O(1) in row size; a bounded, small number of outbound requests, and none at all on the
  *   already-configured path.
  */
@@ -608,10 +650,19 @@ async function selfConfigureConnection(
 ): Promise<ExternalMcpServerRecord> {
   const stored = readStoredEndpoints(record);
   const mustDiscover = needsEndpointDiscovery(record, stored);
-  if (!mustDiscover && record.oauthClientId !== null) return record;
+  const mustResolveGrant = record.oauthGrant === null;
+  if (!mustDiscover && !mustResolveGrant && record.oauthClientId !== null) return record;
 
   const discovered = await discoverConnectionAuthorizationServer(deps, record);
   const endpoints: StoredOAuthEndpoints = mustDiscover ? toStoredEndpoints(discovered) : { ...stored };
+  // Resolved from the SAME discovery call that found the endpoints, on the same terms as those and
+  // the client id below: an operator-named grant always wins, and only a row that left it blank asks
+  // the server what it actually supports rather than have `beginConnect` guess. The cast is safe:
+  // every non-null `oauthGrant` on a row was either validated by `assertOAuthGrant` at save time or
+  // written by a PRIOR call to this same resolver, so it is always one of `EXTERNAL_MCP_OAUTH_GRANTS`
+  // even though the column's declared type is a bare `string | null`.
+  const grant: ExternalMcpOAuthGrant =
+    record.oauthGrant === null ? resolveGrantFromDiscovery(discovered.server.grantTypesSupported, record.serverId) : (record.oauthGrant as ExternalMcpOAuthGrant);
   // Scopes the operator named win; an empty list adopts what the resource itself asks for, because a
   // resource that advertises `offline_access` is naming the scope that decides whether this
   // connection can ever refresh.
@@ -621,14 +672,15 @@ async function selfConfigureConnection(
   // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
   // empty client id if the two ever disagreed.
   if (record.oauthClientId !== null) {
-    return persistSelfConfiguration(deps, record, { endpoints, scopes, clientId: record.oauthClientId, clientSecret: undefined });
+    return persistSelfConfiguration(deps, record, { endpoints, scopes, grant, clientId: record.oauthClientId, clientSecret: undefined });
   }
 
-  const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes });
+  const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes, grant });
   if (minted.clientSecret !== null) endpoints.clientAuth = minted.tokenEndpointAuthMethod;
   return persistSelfConfiguration(deps, record, {
     endpoints,
     scopes,
+    grant,
     clientId: minted.clientId,
     clientSecret: minted.clientSecret ?? undefined,
   });

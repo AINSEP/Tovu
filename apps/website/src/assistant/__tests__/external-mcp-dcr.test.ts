@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPendingAuthorizationStore } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthFetch } from "../../platform/oauth/index.js";
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -16,20 +16,25 @@ import {
 } from "../external-mcp-store.js";
 
 /**
- * @file The wiring: an external-MCP connection that has no `client_id` because its authorization
- * server offers no way for a human to obtain one, and self-registers instead.
+ * @file The wiring: an external-MCP connection that has no `client_id` — or, since, no `grant` —
+ * because its authorization server offers no way for a human to obtain a client id, or no way to
+ * know which sign-in method it even supports before asking. Both are resolved from what connecting
+ * to the server itself reveals, rather than left to an operator's guess.
  *
  * This is the case the subsystem could not previously express at all. `saveExternalMcpServer`
- * required both a provider identity and a client id, which assumed an operator had already visited a
- * developer console. A hosted MCP server that advertises a `registration_endpoint` and no console is
- * the standard shape, and there is no human path to a client id on one.
+ * required a provider identity, a client id AND a grant, which assumed an operator had already
+ * visited a developer console and read its docs. A hosted MCP server that advertises a
+ * `registration_endpoint`, `grant_types_supported`, and no console is the standard shape, and there
+ * is no human path to a client id — or a confident answer about the grant — on one.
  *
  * The invariants worth the most here:
  * 1. **The client is minted ONCE.** A second connect must reuse the stored `client_id`, not register
  *    a second client on every retry — registrations are not garbage-collected server-side.
- * 2. **An operator-supplied client id still wins.** Existing connections must not start
- *    self-registering behind their operator's back.
+ * 2. **An operator-supplied client id or grant still wins.** Existing connections must not start
+ *    self-registering, or have their sign-in method silently switched, behind their operator's back.
  * 3. **A volunteered `client_secret` is sealed and never surfaces in a read model.**
+ * 4. **A grant is resolved ONCE and persisted**, exactly like the client id — a reconnect must not
+ *    re-run discovery just to ask the server the same question again.
  */
 
 const WORKSPACE = "workspace-dcr";
@@ -77,7 +82,25 @@ async function save(store: ReturnType<typeof makeStore>, options: SaveOptions) {
   });
 }
 
-function makeService(store: ReturnType<typeof makeStore>) {
+/** Like {@link save}, but does not default `grant` — for tests about resolving it, where the whole
+ *  point is that the operator left it blank. */
+async function saveWithoutGrant(store: ReturnType<typeof makeStore>, options: SaveOptions) {
+  return saveExternalMcpServer(store.deps, {
+    workspaceId: WORKSPACE,
+    serverId: SERVER,
+    label: "Remote One",
+    transport: options.transport ?? "streamable_http",
+    authMode: "oauth",
+    enabled: true,
+    command: options.command ?? "",
+    url: options.url,
+    args: "",
+    allowedToolNames: "",
+    oauth: { ...(options.oauth ?? {}) },
+  });
+}
+
+function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly fetchFn?: OAuthFetch } = {}) {
   return createExternalMcpOAuthService({
     workspaceId: WORKSPACE,
     repo: store.repo,
@@ -86,12 +109,27 @@ function makeService(store: ReturnType<typeof makeStore>) {
     clock: store.clock,
     pending: createPendingAuthorizationStore({ clock: store.clock }),
     devices: createDeviceAuthorizationStore(),
+    ...overrides,
   });
 }
 
 /** How many times the fixture's registration endpoint was hit. */
 function registrationCalls(fixture: { requests: readonly { url: string }[] }): number {
   return fixture.requests.filter((request) => request.url.split("?")[0] === "/oauth2/register").length;
+}
+
+/** Answers ONE url with a scripted JSON response and forwards everything else — including the
+ *  discovery fixture's own real requests — to the real network. `device_authorization_endpoint` has
+ *  no route on {@link startDiscoveryFixture}'s loopback server, so a device-grant test that wants
+ *  REAL RFC 8414 discovery (to prove the grant was actually resolved from what the server advertised,
+ *  not hardcoded) needs exactly one endpoint stubbed rather than the whole fetch. */
+function stubOneEndpoint(url: string, json: unknown): OAuthFetch {
+  return (async (input, init) => {
+    if (String(input).split("?")[0] === url) {
+      return new Response(JSON.stringify(json), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return fetch(input, init);
+  }) as OAuthFetch;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +192,41 @@ test("a STDIO OAuth connection still requires a provider identity", async () => 
       assert.ok(error instanceof ExternalMcpValidationError);
       assert.equal(error.message, "an OAuth connection needs either a registered provider id or its own token endpoint");
       assert.equal(error.field, "oauth.providerId");
+      return true;
+    },
+  );
+});
+
+test("a remote OAuth connection can be saved with no sign-in method — it is resolved at connect time", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    const view = await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    assert.equal(view.oauth.grant, null);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a STDIO OAuth connection still requires a sign-in method — it has no URL to discover from", async () => {
+  const store = makeStore();
+  await assert.rejects(
+    () =>
+      saveExternalMcpServer(store.deps, {
+        workspaceId: WORKSPACE,
+        serverId: "stdio-3",
+        transport: "stdio",
+        authMode: "oauth",
+        enabled: true,
+        command: "npx",
+        args: "-y some-mcp",
+        allowedToolNames: "",
+        oauth: { providerId: "example-oidc", clientId: "typed-by-hand", tokenEnvName: "SOME_TOKEN" },
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpValidationError);
+      assert.equal(error.message, "an OAuth connection needs a sign-in method");
+      assert.equal(error.field, "oauth.grant");
       return true;
     },
   );
@@ -257,6 +330,124 @@ test("scopes the operator DID name win over the discovered ones", async () => {
     const started = await makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
     assert.ok(started.kind === "redirect_required");
     assert.equal(new URL(started.authorizationUrl).searchParams.get("scope"), "email");
+  } finally {
+    await fixture.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Connecting resolves a grant — the same discovery, extended to the sign-in method
+// ---------------------------------------------------------------------------
+
+test("connecting a connection with no sign-in method resolves authorization_code from what the server advertises", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    const started = await makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+
+    assert.ok(started.kind === "redirect_required");
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthGrant, "authorization_code");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("connecting falls back to device_code when that is the only grant the server offers", async () => {
+  const deviceAuthorizationEndpoint = "https://device.example.com/device";
+  const fixture = await startDiscoveryFixture({
+    metadata: {
+      grant_types_supported: ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+      device_authorization_endpoint: deviceAuthorizationEndpoint,
+    },
+  });
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    // Discovery and registration run against the REAL loopback fixture, so the grant is genuinely
+    // resolved from what it advertised; only the device-authorization POST itself is stubbed, since
+    // `startDiscoveryFixture` has no route for it and nothing under `device.example.com` is real.
+    const service = makeService(store, {
+      fetchFn: stubOneEndpoint(deviceAuthorizationEndpoint, {
+        device_code: "device-secret",
+        user_code: "WDJB-MJHT",
+        verification_uri: "https://device.example.com/activate",
+        expires_in: 900,
+        interval: 5,
+      }),
+    });
+
+    const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+
+    assert.equal(started.kind, "device_code");
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthGrant, "device_code");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a resolved grant is PERSISTED — a second connect does not re-discover it", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    const service = makeService(store);
+    await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+    const requestsAfterFirstConnect = fixture.requests.length;
+
+    await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+
+    assert.equal(fixture.requests.length, requestsAfterFirstConnect);
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthGrant, "authorization_code");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("an operator who typed endpoints and a client id but left the sign-in method blank still gets it resolved, without re-registering", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, {
+      url: fixture.resourceUrl,
+      oauth: {
+        clientId: "operator-typed-client",
+        authorizationEndpoint: `${fixture.origin}/oauth2/authorize`,
+        tokenEndpoint: `${fixture.origin}/oauth2/token`,
+      },
+    });
+    const started = await makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+
+    assert.ok(started.kind === "redirect_required");
+    assert.equal(registrationCalls(fixture), 0);
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.equal(record?.oauthGrant, "authorization_code");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a connection whose authorization server advertises no grant Tovu supports fails with an actionable error", async () => {
+  const fixture = await startDiscoveryFixture({ metadata: { grant_types_supported: ["client_credentials"] } });
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    await assert.rejects(
+      () => makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.equal(
+          error.message,
+          `the authorization server for external MCP server '${SERVER}' advertises no grant Tovu supports (it offers: client_credentials)`,
+        );
+        return true;
+      },
+    );
+    // No client was registered for a connection that was never going to be reachable anyway.
+    assert.equal(registrationCalls(fixture), 0);
   } finally {
     await fixture.close();
   }

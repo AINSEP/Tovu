@@ -151,6 +151,9 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
         "oauthDeviceAuthorizationEndpoint",
       ]),
     );
+    // Still required here: a blank draft is stdio, which has no URL to run discovery against — so
+    // there is no `grant_types_supported` to read the sign-in method from either, same as the client
+    // id immediately below.
     expect(requiredOf(values, "oauthGrant")).toBe(true);
     // Still required here: a blank draft is stdio, which has no URL to discover a registration
     // endpoint from.
@@ -169,6 +172,9 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
     // Nor a provider identity — discovery supplies both.
     expect(requiredOf(values, "oauthProviderId")).toBe(false);
     expect(requiredOf(values, "oauthTokenEndpoint")).toBe(false);
+    // Nor a sign-in method — the server's own `grant_types_supported` (read via RFC 8414 discovery
+    // at connect time) answers the question a human would otherwise have to guess.
+    expect(requiredOf(values, "oauthGrant")).toBe(false);
   });
 
   it("the OAuth access-token env var is only required for stdio + oauth, never for a hosted transport", () => {

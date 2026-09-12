@@ -165,21 +165,50 @@ function buildEnvField(isUpdate: boolean): SurfaceField {
   };
 }
 
-function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean): SurfaceField[] {
+/**
+ * `isStdio` decides which OAuth fields a human must actually fill in, and it is not a cosmetic
+ * distinction: `external-mcp-store.ts`'s `assertOAuthClientId` / `assertOAuthGrant` /
+ * `assertOAuthProviderIdentity` admit an EMPTY client id, sign-in method and provider identity on any
+ * non-stdio row, because a row carrying a remote URL can run RFC 8414 discovery against it, read the
+ * server's own `grant_types_supported`, and mint its own client by RFC 7591 dynamic registration. A
+ * growing share of hosted MCP servers publish a registration endpoint and no developer console at
+ * all, so for those there is no client id — or a confident answer about the grant — a human could
+ * type; marking either field required made the form unsubmittable by any amount of operator effort.
+ * A stdio row has no URL to discover from, so there the requirement stands. Same rule, same
+ * reasoning, same wording as `apps/admin/src/features/settings/rules.ts`'s
+ * `buildExternalMcpFieldSpecs`.
+ */
+function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
   return [
-    { kind: "string", name: "oauthProviderId", label: "Provider ID", ...fieldValue(input.oauthProviderId), hint: "Leave blank to use your own endpoints below." },
+    {
+      kind: "string",
+      name: "oauthProviderId",
+      label: "Provider ID",
+      ...fieldValue(input.oauthProviderId),
+      hint: isStdio
+        ? "Leave blank to use your own endpoints below."
+        : "Leave blank unless this server is a registered provider — a hosted server discovers its own endpoints.",
+    },
     {
       kind: "enum",
       name: "oauthGrant",
       label: "Sign-in method",
-      required: true,
+      required: isStdio,
       options: [
         { value: "authorization_code", label: "Browser sign-in" },
         { value: "device_code", label: "Device code" },
       ],
       ...fieldValue(input.oauthGrant),
+      ...(isStdio ? {} : { hint: "Detected from the server unless overridden." }),
     },
-    { kind: "string", name: "oauthClientId", label: "Client ID", required: true, ...fieldValue(input.oauthClientId) },
+    {
+      kind: "string",
+      name: "oauthClientId",
+      label: "Client ID",
+      required: isStdio,
+      ...fieldValue(input.oauthClientId),
+      ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
+    },
     { kind: "string", name: "oauthClientSecret", label: "Client secret", secret: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
     { kind: "string", name: "oauthScopes", label: "Scopes", ...fieldValue(input.oauthScopes), placeholder: "space- or comma-separated" },
   ];
@@ -195,16 +224,38 @@ function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SurfaceField {
   };
 }
 
-function buildOAuthEndpointFields(input: ExternalMcpSaveInput): SurfaceField[] {
+/** What an endpoint field means on a row that self-configures: a manual override for the case where
+ *  discovery does not answer, not something to go and look up. See {@link buildOAuthCoreFields}. */
+const DISCOVERABLE_ENDPOINT_HINT = "Leave blank unless discovery against this server's URL fails.";
+
+function buildOAuthEndpointFields(input: ExternalMcpSaveInput, isStdio: boolean): SurfaceField[] {
   return [
-    { kind: "string", name: "oauthAuthorizationEndpoint", label: "Authorization endpoint", ...fieldValue(input.oauthAuthorizationEndpoint), hint: "Needed for Browser sign-in, unless Provider ID is set." },
-    { kind: "string", name: "oauthTokenEndpoint", label: "Token endpoint", ...fieldValue(input.oauthTokenEndpoint), hint: "Needed unless Provider ID is set." },
-    { kind: "string", name: "oauthDeviceAuthorizationEndpoint", label: "Device authorization endpoint", ...fieldValue(input.oauthDeviceAuthorizationEndpoint), hint: "Needed for Device code, unless Provider ID is set." },
+    {
+      kind: "string",
+      name: "oauthAuthorizationEndpoint",
+      label: "Authorization endpoint",
+      ...fieldValue(input.oauthAuthorizationEndpoint),
+      hint: isStdio ? "Needed for Browser sign-in, unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
+    },
+    {
+      kind: "string",
+      name: "oauthTokenEndpoint",
+      label: "Token endpoint",
+      ...fieldValue(input.oauthTokenEndpoint),
+      hint: isStdio ? "Needed unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
+    },
+    {
+      kind: "string",
+      name: "oauthDeviceAuthorizationEndpoint",
+      label: "Device authorization endpoint",
+      ...fieldValue(input.oauthDeviceAuthorizationEndpoint),
+      hint: isStdio ? "Needed for Device code, unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
+    },
   ];
 }
 
 function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
-  return [...buildOAuthCoreFields(input, isUpdate), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields(input)];
+  return [...buildOAuthCoreFields(input, isUpdate, isStdio), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields(input, isStdio)];
 }
 
 /**

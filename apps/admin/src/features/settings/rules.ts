@@ -183,65 +183,83 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
     ],
   });
 
-  if (isOAuth) {
-    specs.push(
-      {
-        key: "oauthProviderId",
-        label: "Provider ID",
-        kind: "text",
-        placeholder: "leave blank to define this connection's own endpoints below",
-      },
-      {
-        key: "oauthGrant",
-        label: "Sign-in method",
-        kind: "select",
-        required: true,
-        options: [
-          { value: "authorization_code", label: "Browser sign-in" },
-          { value: "device_code", label: "Device code" },
-        ],
-      },
-      {
-        key: "oauthClientId",
-        label: "Client ID",
-        kind: "text",
-        // Required only for stdio, matching the server rule in `external-mcp-store.ts`: a REMOTE
-        // connection can run OAuth discovery against its own URL and mint a client for itself by
-        // RFC 7591 dynamic client registration, and a growing share of hosted MCP servers publish a
-        // registration endpoint and no developer console — so for those there is no client id a
-        // human could type. A stdio connection has no URL to discover from, so there it stands.
-        required: isStdio,
-        ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
-      },
-      { key: "oauthClientSecret", label: "Client secret", kind: "password", placeholder: "leave blank to keep the stored secret" },
-      { key: "oauthScopes", label: "Scopes", kind: "text", placeholder: "space- or comma-separated" },
-    );
-    if (isStdio) {
-      specs.push({
-        key: "oauthTokenEnvName",
-        label: "Access token environment variable",
-        kind: "text",
-        required: true,
-        placeholder: "the variable name the command reads its token from",
-      });
-    }
-    specs.push(
-      {
-        key: "oauthAuthorizationEndpoint",
-        label: "Authorization endpoint",
-        kind: "text",
-        placeholder: "needed for Browser sign-in, unless Provider ID is set",
-      },
-      { key: "oauthTokenEndpoint", label: "Token endpoint", kind: "text", placeholder: "needed unless Provider ID is set" },
-      {
-        key: "oauthDeviceAuthorizationEndpoint",
-        label: "Device authorization endpoint",
-        kind: "text",
-        placeholder: "needed for Device code, unless Provider ID is set",
-      },
-    );
-  }
+  if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio));
 
+  return specs;
+}
+
+/**
+ * The OAuth-mode field specs — split out purely to keep {@link buildExternalMcpFieldSpecs} under the
+ * shop's complexity ceiling, the same move this file's header describes for `mergeSourceUpdate`'s
+ * 2026-08-12 pass: every field here shares one revealing condition (`authMode === 'oauth'`), so
+ * extracting the whole block removes it from the caller's own branch count entirely, rather than
+ * just relocating branches that would still be counted there.
+ *
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+function buildOAuthFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
+  const specs: SourceFieldSpec[] = [
+    {
+      key: "oauthProviderId",
+      label: "Provider ID",
+      kind: "text",
+      placeholder: "leave blank to define this connection's own endpoints below",
+    },
+    {
+      key: "oauthGrant",
+      label: "Sign-in method",
+      kind: "select",
+      options: [
+        { value: "authorization_code", label: "Browser sign-in" },
+        { value: "device_code", label: "Device code" },
+      ],
+      // Required only for stdio, same discovery precedent as `oauthClientId` right below: a
+      // REMOTE connection can run RFC 8414 discovery against its own URL at connect time and read
+      // the authorization server's own `grant_types_supported`, so an operator does not have to
+      // guess between "Browser sign-in" and "Device code" before knowing what the server even
+      // offers. A stdio connection has no URL to discover from, so there it stands.
+      required: isStdio,
+      ...(isStdio ? {} : { placeholder: "detected from the server unless set here" }),
+    },
+    {
+      key: "oauthClientId",
+      label: "Client ID",
+      kind: "text",
+      // Required only for stdio, matching the server rule in `external-mcp-store.ts`: a REMOTE
+      // connection can run OAuth discovery against its own URL and mint a client for itself by
+      // RFC 7591 dynamic client registration, and a growing share of hosted MCP servers publish a
+      // registration endpoint and no developer console — so for those there is no client id a
+      // human could type. A stdio connection has no URL to discover from, so there it stands.
+      required: isStdio,
+      ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
+    },
+    { key: "oauthClientSecret", label: "Client secret", kind: "password", placeholder: "leave blank to keep the stored secret" },
+    { key: "oauthScopes", label: "Scopes", kind: "text", placeholder: "space- or comma-separated" },
+  ];
+  if (isStdio) {
+    specs.push({
+      key: "oauthTokenEnvName",
+      label: "Access token environment variable",
+      kind: "text",
+      required: true,
+      placeholder: "the variable name the command reads its token from",
+    });
+  }
+  specs.push(
+    {
+      key: "oauthAuthorizationEndpoint",
+      label: "Authorization endpoint",
+      kind: "text",
+      placeholder: "needed for Browser sign-in, unless Provider ID is set",
+    },
+    { key: "oauthTokenEndpoint", label: "Token endpoint", kind: "text", placeholder: "needed unless Provider ID is set" },
+    {
+      key: "oauthDeviceAuthorizationEndpoint",
+      label: "Device authorization endpoint",
+      kind: "text",
+      placeholder: "needed for Device code, unless Provider ID is set",
+    },
+  );
   return specs;
 }
 

@@ -1130,8 +1130,27 @@ function firstTrimmed(...candidates: readonly (string | null | undefined)[]): st
   return "";
 }
 
-/** @throws {ExternalMcpValidationError} On a grant outside {@link EXTERNAL_MCP_OAUTH_GRANTS}. */
-function assertOAuthGrant(grant: string): ExternalMcpOAuthGrant {
+/**
+ * Validates a sign-in method, or admits its absence on a row that can discover it for itself.
+ *
+ * The same exception {@link assertOAuthClientId} documents, extended to the grant: a REMOTE row can
+ * run RFC 8414 discovery against its own URL at connect time and read the authorization server's own
+ * `grant_types_supported` (`discovery.ts`) instead of an operator having to guess between "Browser
+ * sign-in" and "Device code" before they know what the server even offers. See
+ * `external-mcp-oauth.ts`'s `selfConfigureConnection`, which resolves and persists a concrete grant
+ * the first time such a row connects. A stdio row has no URL to discover from, so for those the
+ * requirement stands unchanged.
+ *
+ * @returns The validated grant, or `null` when the row will resolve one at connect.
+ * @throws {ExternalMcpValidationError} On an empty grant the row cannot leave to discovery, or one
+ * outside {@link EXTERNAL_MCP_OAUTH_GRANTS}.
+ * @complexity O(1).
+ */
+function assertOAuthGrant(grant: string, selfConfigurable: boolean): ExternalMcpOAuthGrant | null {
+  if (grant === "") {
+    if (selfConfigurable) return null;
+    throw new ExternalMcpValidationError("an OAuth connection needs a sign-in method", "oauth.grant");
+  }
   if (!EXTERNAL_MCP_OAUTH_GRANTS.includes(grant as ExternalMcpOAuthGrant)) {
     throw new ExternalMcpValidationError(
       `OAuth grant '${grant}' is not supported — expected one of ${EXTERNAL_MCP_OAUTH_GRANTS.join(", ")}`,
@@ -1281,13 +1300,13 @@ function resolveOAuthFields(
 
   const oauth = input.oauth ?? {};
   // Only a remote row has a URL for `external-mcp-oauth.ts` to run RFC 9728 / RFC 8414 discovery
-  // against, so only a remote row may leave its provider identity and client id to be filled in at
-  // connect time.
+  // against, so only a remote row may leave its provider identity, grant and client id to be filled
+  // in at connect time.
   const selfConfigurable = transport !== "stdio";
 
   return {
     ...resolveOAuthProviderIdentity(oauth, existing, selfConfigurable),
-    oauthGrant: assertOAuthGrant(firstTrimmed(oauth.grant, existing?.oauthGrant)),
+    oauthGrant: assertOAuthGrant(firstTrimmed(oauth.grant, existing?.oauthGrant), selfConfigurable),
     oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId), selfConfigurable),
     oauthScopesJson: JSON.stringify(resolveSavedOAuthScopes(oauth, existing)),
     oauthTokenEnvName: resolveOAuthTokenEnvName(transport, oauth, existing),

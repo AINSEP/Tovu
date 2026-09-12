@@ -192,3 +192,87 @@ test("neither env nor secret fields ever carry a `value` key, regardless of inpu
   assert.equal("value" in env, false);
   assert.equal("value" in secret, false);
 });
+
+// ---------------------------------------------------------------------------
+// `required` flags — the rule these restate lives in `external-mcp-store.ts`'s
+// `assertOAuthClientId` / `resolveOAuthTokenEnvName` / `assertOAuthGrant`, and is mirrored on the
+// admin side by `apps/admin/src/features/settings/rules.ts`'s `buildExternalMcpFieldSpecs`. A form
+// that marks a field required the store would happily accept empty is unsubmittable by any amount
+// of operator effort — which is exactly what a hosted server with no developer console hits.
+
+function requiredOf(input: ExternalMcpSaveInput, isUpdate: boolean, name: string): boolean | undefined {
+  const field = buildExternalMcpSaveFormFields(input, isUpdate).find((f) => f.name === name) as { required?: boolean } | undefined;
+  return field?.required;
+}
+
+test("streamable_http + oauth: Client ID is NOT required — the row registers itself by RFC 7591", () => {
+  assert.notEqual(requiredOf({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false, "oauthClientId"), true);
+});
+
+test("streamable_http + oauth: Client ID says so, rather than leaving the human hunting for one", () => {
+  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false).find(
+    (f) => f.name === "oauthClientId",
+  ) as { placeholder?: string };
+  assert.equal(field.placeholder, "leave blank to register with this server automatically");
+});
+
+test("stdio + oauth: Client ID IS required — there is no URL to discover from", () => {
+  assert.equal(requiredOf({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false, "oauthClientId"), true);
+  assert.equal(
+    (buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false).find((f) => f.name === "oauthClientId") as {
+      placeholder?: string;
+    }).placeholder,
+    undefined,
+  );
+});
+
+test("the fields the store genuinely rejects when empty stay required", () => {
+  assert.equal(requiredOf({ id: "srv-1", transport: "stdio" }, false, "id"), true);
+  assert.equal(requiredOf({ id: "srv-1", transport: "stdio" }, false, "command"), true);
+  assert.equal(requiredOf({ id: "srv-1", transport: "streamable_http" }, false, "url"), true);
+  assert.equal(requiredOf({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false, "oauthGrant"), true);
+  assert.equal(requiredOf({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false, "oauthTokenEnvName"), true);
+});
+
+test("streamable_http + oauth: Sign-in method is NOT required — it is detected from the server", () => {
+  assert.notEqual(requiredOf({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false, "oauthGrant"), true);
+});
+
+test("streamable_http + oauth: Sign-in method says so, rather than leaving the human guessing", () => {
+  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false).find(
+    (f) => f.name === "oauthGrant",
+  ) as { hint?: string };
+  assert.equal(field.hint, "Detected from the server unless overridden.");
+});
+
+test("stdio + oauth: Sign-in method carries no such hint — there is no server to detect it from", () => {
+  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false).find(
+    (f) => f.name === "oauthGrant",
+  ) as { hint?: string };
+  assert.equal(field.hint, undefined);
+});
+
+test("every other oauth field the store treats as optional is rendered optional", () => {
+  const http: ExternalMcpSaveInput = { id: "srv-1", transport: "streamable_http", authMode: "oauth" };
+  for (const name of ["oauthProviderId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]) {
+    assert.notEqual(requiredOf(http, false, name), true, `${name} must not be required`);
+  }
+});
+
+test("a self-configuring remote connection's identity hints do not tell it to supply endpoints", () => {
+  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false);
+  const hintOf = (name: string) => (fields.find((f) => f.name === name) as { hint?: string }).hint;
+  assert.equal(hintOf("oauthProviderId"), "Leave blank unless this server is a registered provider — a hosted server discovers its own endpoints.");
+  assert.equal(hintOf("oauthAuthorizationEndpoint"), "Leave blank unless discovery against this server's URL fails.");
+  assert.equal(hintOf("oauthTokenEndpoint"), "Leave blank unless discovery against this server's URL fails.");
+  assert.equal(hintOf("oauthDeviceAuthorizationEndpoint"), "Leave blank unless discovery against this server's URL fails.");
+});
+
+test("a stdio connection still gets the hints that tell it to supply its own endpoints", () => {
+  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false);
+  const hintOf = (name: string) => (fields.find((f) => f.name === name) as { hint?: string }).hint;
+  assert.equal(hintOf("oauthProviderId"), "Leave blank to use your own endpoints below.");
+  assert.equal(hintOf("oauthAuthorizationEndpoint"), "Needed for Browser sign-in, unless Provider ID is set.");
+  assert.equal(hintOf("oauthTokenEndpoint"), "Needed unless Provider ID is set.");
+  assert.equal(hintOf("oauthDeviceAuthorizationEndpoint"), "Needed for Device code, unless Provider ID is set.");
+});
