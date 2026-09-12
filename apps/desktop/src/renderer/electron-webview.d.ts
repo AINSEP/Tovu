@@ -48,7 +48,7 @@ declare module 'react' {
         src?: string;
         /** Names the guest's session partition. Set to the project's own `partition`
          *  (`contracts/project.ts`) so the guest's cookie jar is the one main already
-         *  authenticated — see `ProjectWorkspace`'s own doc in `App.tsx`. */
+         *  authenticated — see `SiteWorkspace`'s own doc in `App.tsx`. */
         partition?: string;
       };
     }

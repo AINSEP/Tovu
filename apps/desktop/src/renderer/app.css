@@ -599,7 +599,7 @@ button { font: inherit; color: inherit; }
 .workspace__act--icon svg { width: 14px; height: 14px; }
 .workspace__act--icon[aria-pressed='true'] { border-color: var(--primary); color: var(--primary); }
 
-/* Positions the guest and its recovery overlay in the same box (see `ProjectWorkspace` in
+/* Positions the guest and its recovery overlay in the same box (see `SiteWorkspace` in
    App.tsx) — `min-height: 0` is load-bearing for the same reason `.workspace__frame` needed it
    directly before this wrapper existed: without it this flex item is sized by its content, and a
    <webview> reports none, collapsing the guest to a zero-height strip under the bar. */

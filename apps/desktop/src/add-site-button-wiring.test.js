@@ -51,18 +51,18 @@ function siteFixture(name = "existing-site") {
  * The channel `window.tovuRunner.addSite()` invokes, read from the preload's own source.
  *
  * Resolved in two steps because the preload names the channel through the contract object: find
- * which `RUNNER_PROJECT_CHANNELS` key `addSite` invokes, then read that key's literal out of
+ * which `SITE_IPC_CHANNELS` key `addSite` invokes, then read that key's literal out of
  * `contracts/project.ts`. Both files are therefore load-bearing for this test, which is the point —
  * the button's channel is only correct if the preload, the contract and the handler all agree.
  */
 function channelTheButtonInvokes() {
   const preload = fs.readFileSync(path.join(here, "preload", "preload.mts"), "utf8");
-  const invoke = /addSite:\s*\(\)\s*=>\s*ipcRenderer\.invoke\(RUNNER_PROJECT_CHANNELS\.(\w+)\)/.exec(preload);
-  assert.ok(invoke, "the preload does not expose addSite over RUNNER_PROJECT_CHANNELS");
+  const invoke = /addSite:\s*\(\)\s*=>\s*ipcRenderer\.invoke\(SITE_IPC_CHANNELS\.(\w+)\)/.exec(preload);
+  assert.ok(invoke, "the preload does not expose addSite over SITE_IPC_CHANNELS");
 
   const contracts = fs.readFileSync(path.join(here, "contracts", "project.ts"), "utf8");
   const literal = new RegExp(`${invoke[1]}:\\s*'([^']+)'`).exec(contracts);
-  assert.ok(literal, `contracts/project.ts declares no literal for RUNNER_PROJECT_CHANNELS.${invoke[1]}`);
+  assert.ok(literal, `contracts/project.ts declares no literal for SITE_IPC_CHANNELS.${invoke[1]}`);
   return literal[1];
 }
 
@@ -120,7 +120,7 @@ test("the preload, the contract and the handler all agree on the button's channe
   // rejects with "No handler registered", which reaches the operator as a button that does nothing
   // they can interpret.
   assert.ok(handlers.has(channel), `no handler is registered on '${channel}'`);
-  assert.equal(channel, "runner:projects:add-site");
+  assert.equal(channel, "runner:sites:add-site");
 });
 
 test("CLICKING the button adds a pointer for an existing site folder", async () => {

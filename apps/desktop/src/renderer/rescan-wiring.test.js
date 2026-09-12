@@ -25,22 +25,22 @@ const appHooks = read("App.hooks.ts");
 const appTsx = read("App.tsx");
 
 test("the preload bridges rescanSites onto the contract's own rescan channel", () => {
-  assert.match(preload, /rescanSites: \(\) => ipcRenderer\.invoke\(RUNNER_PROJECT_CHANNELS\.rescan\)/);
+  assert.match(preload, /rescanSites: \(\) => ipcRenderer\.invoke\(SITE_IPC_CHANNELS\.rescan\)/);
 });
 
 test("runner-api declares rescanSites, or the renderer cannot see the bridge method", () => {
-  assert.match(runnerApi, /rescanSites: \(\) => Promise<readonly ProjectRecord\[\]>/);
+  assert.match(runnerApi, /rescanSites: \(\) => Promise<readonly SiteRecord\[\]>/);
 });
 
 test("a hook owns the rescan call, not the component — this repo keeps logic out of .tsx", () => {
-  assert.match(appHooks, /export function useProjectRescan\(/);
+  assert.match(appHooks, /export function useSiteRescan\(/);
   assert.match(appHooks, /rescanSites\(\)/);
 });
 
 test("the rescan result replaces the project list rather than waiting for the next poll", () => {
   // Discarding it would leave the operator staring at the old grid for up to 4s after a rescan
   // that had already found their site — indistinguishable, to them, from the button not working.
-  const hook = appHooks.slice(appHooks.indexOf("export function useProjectRescan("));
+  const hook = appHooks.slice(appHooks.indexOf("export function useSiteRescan("));
   assert.match(hook.slice(0, hook.indexOf("\nexport ")), /setProjects\(/);
 });
 

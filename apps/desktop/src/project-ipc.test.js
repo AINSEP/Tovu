@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `project-ipc.js` — the seven real `runner:projects:*` handlers the Projects
+ * @file Coverage for `project-ipc.js` — the seven real `runner:sites:*` handlers the Projects
  * screen needs. No real Electron anywhere: `ipcMain`/`dialog`/`shell` are plain fakes, `openSites`
  * is a real `Map` standing in for `main.js`'s module-level one, and `openSiteServer`/`adoptSiteDir`
  * are spies rather than the real functions — those are covered by `main.js`'s own doc and by the
@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { RUNNER_PROJECT_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, rescanSites, registerSiteIpcHandlers } from "./project-ipc.js";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.js";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.js";
 import { addSitePointer } from "./add-site-pointer.js";
@@ -64,7 +64,7 @@ function baseDeps(overrides = {}) {
 
 test("every channel literal here matches contracts/project.ts exactly (no drift)", () => {
   const source = fs.readFileSync(path.join(__dirname, "contracts", "project.ts"), "utf8");
-  for (const [key, channel] of Object.entries(RUNNER_PROJECT_CHANNELS)) {
+  for (const [key, channel] of Object.entries(SITE_IPC_CHANNELS)) {
     assert.ok(source.includes(`'${channel}'`), `contracts/project.ts is missing the '${channel}' literal for ${key}`);
   }
 });
@@ -111,7 +111,7 @@ test("buildSiteRecord gives two different site dirs two different partitions", (
 test("a crashed project is reported stopped, with a statusDetail saying why", async () => {
   // D-06 end to end at the sink the renderer actually reads. Before the supervisor owned the
   // `running -> exited` transition this record kept saying `running` with the dead child's port
-  // forever, and `useProjectsPolling`'s 4s re-poll re-read the same unchanged answer.
+  // forever, and `useSitesPolling`'s 4s re-poll re-read the same unchanged answer.
   const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
   const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
 
@@ -363,7 +363,7 @@ test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries n
 
 test("handleOpenExternal throws when the project is not currently open", async () => {
   const deps = baseDeps();
-  await assert.rejects(() => handleOpenExternal({ projectId: "/sites/a", view: "admin" }, deps), /not open/);
+  await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps), /not open/);
 });
 
 test("handleOpenExternal opens the admin surface by default, the site surface when asked", async () => {
@@ -371,8 +371,8 @@ test("handleOpenExternal opens the admin surface by default, the site surface wh
   const deps = baseDeps({ shell: { openExternal: async (url) => opened.push(url) } });
   deps.openSites.set("/sites/a", { server: { origin: "http://127.0.0.1:4321" } });
 
-  await handleOpenExternal({ projectId: "/sites/a", view: "admin" }, deps);
-  await handleOpenExternal({ projectId: "/sites/a", view: "site" }, deps);
+  await handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps);
+  await handleOpenExternal({ siteId: "/sites/a", view: "site" }, deps);
 
   assert.deepEqual(opened, ["http://127.0.0.1:4321/admin/", "http://127.0.0.1:4321/"]);
 });
@@ -405,7 +405,7 @@ test("registerSiteIpcHandlers registers exactly the five real channels", () => {
 
   registerSiteIpcHandlers(deps);
 
-  assert.deepEqual([...registered.keys()].sort(), Object.values(RUNNER_PROJECT_CHANNELS).sort());
+  assert.deepEqual([...registered.keys()].sort(), Object.values(SITE_IPC_CHANNELS).sort());
 });
 
 // --- delete guard (2026-09-06) -------------------------------------------------------------
@@ -695,7 +695,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
   const alpha = siteFolder(deps.scanRoot, "alpha");
   const registered = new Map();
   registerSiteIpcHandlers({ ...deps, ipcMain: { handle: (c, h) => registered.set(c, h) }, dialog: {}, shell: {} });
-  const records = await registered.get(RUNNER_PROJECT_CHANNELS.rescan)({});
+  const records = await registered.get(SITE_IPC_CHANNELS.rescan)({});
   assert.deepEqual(records.map((r) => r.id), [alpha]);
 });
 

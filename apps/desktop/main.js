@@ -12,7 +12,7 @@
  * 0. **Sites Home** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
  *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
  *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this
- *    SAME window, in a `<webview>` (`App.tsx`'s `ProjectWorkspace`), rather than popping it into its
+ *    SAME window, in a `<webview>` (`App.tsx`'s `SiteWorkspace`), rather than popping it into its
  *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was
  *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.js`),
  *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse
@@ -405,11 +405,11 @@ function createWindow(url, title, partition) {
  * Two webPreferences differ from {@link createWindow}. `sandbox: false` is forced by the renderer
  * rather than chosen: {@link SITES_PRELOAD_PATH} is a native-ESM preload and Electron 43 loads one
  * only in an unsandboxed renderer. `webviewTag: true` is what lets a project tab embed that site's
- * own `tovu serve` output in a `<webview>` inside THIS window (`App.tsx`'s `ProjectWorkspace`) —
+ * own `tovu serve` output in a `<webview>` inside THIS window (`App.tsx`'s `SiteWorkspace`) —
  * matching Tovu-Runner's own `main.ts`, which needs the same tag for the same reason.
  *
  * `webviewTag` on its own lets the PAGE choose the guest's `webPreferences` via attributes. Runner
- * writes those attributes today (partition aside — see `ProjectWorkspace`'s own doc on why this
+ * writes those attributes today (partition aside — see `SiteWorkspace`'s own doc on why this
  * shell's guest sets one and Runner's does not), and `will-attach-webview` below is the boundary
  * that keeps that trustworthy: the guest never gets Node, never gets this window's own preload, and
  * can never re-enable either from inside the page. `registerGuestNavigationPolicy` (called once,
@@ -723,7 +723,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
  * The sites home UI's counterpart to {@link openSiteWindow}: ensure `siteDir`'s own `tovu serve` is
  * running and return its `server` handle, WITHOUT a `BrowserWindow`. The Projects screen embeds the
  * result directly in a `<webview>` tab inside its one window instead (`App.tsx`'s
- * `ProjectWorkspace`, reading `port`/`partition` off the `ProjectRecord` `project-ipc.js`'s
+ * `SiteWorkspace`, reading `port`/`partition` off the `SiteRecord` `project-ipc.js`'s
  * `handleStart` returns). Reused, not re-spawned, when already open — same as `openSiteWindow`.
  *
  * Nothing here ever closes what it opens. Unlike a `BrowserWindow`, a `<webview>` tab has no

@@ -9,7 +9,7 @@
  *
  * What went wrong, so a future reader can tell whether a change to this file is a fix or a
  * regression: the effect's deps were `[webviewRef, resetKey]`, and it returned early when
- * `webviewRef.current === null`. `ProjectWorkspace` renders the `<webview>` only when
+ * `webviewRef.current === null`. `SiteWorkspace` renders the `<webview>` only when
  * `running && !failed`. A ref OBJECT is stable for the component's whole life, so on the two
  * ordinary paths that mount a guest — a stopped tab whose poll flips to `running`, and the failure
  * panel's own retry — neither dep changed, the effect never re-ran, and no `did-fail-load`

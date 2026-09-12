@@ -18,8 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CANCELLED_MESSAGE, describeAddFailure, mergeAddedProject } from './use-add-site.hooks.js';
-import type { ProjectRecord } from '../contracts/project.js';
+import { CANCELLED_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
+import type { SiteRecord } from '../contracts/project.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appTsx = fs.readFileSync(path.join(here, 'App.tsx'), 'utf8');
@@ -43,7 +43,7 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 }
 
-function projectRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): ProjectRecord {
+function siteRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): SiteRecord {
   return {
     id,
     slug: path.basename(id),
@@ -60,7 +60,7 @@ function projectRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): Proj
     deleteErasesFiles: false,
     createdAt,
     updatedAt: createdAt,
-  } as ProjectRecord;
+  } as SiteRecord;
 }
 
 test("a refusal reaches the operator VERBATIM, fix and all", () => {
@@ -71,16 +71,16 @@ test("a refusal reaches the operator VERBATIM, fix and all", () => {
     '.site-meta.json). If your site lives in a subfolder, point at that subfolder instead.';
   assert.ok(pointerSource.includes('If your site lives in a subfolder'), 'the refusal text moved');
 
-  const shown = describeAddFailure(new Error(`Error invoking remote method 'runner:projects:add-site': Error: ${real}`));
+  const shown = describeAddFailure(new Error(`Error invoking remote method 'runner:sites:add-site': Error: ${real}`));
 
-  // The whole sentence, including the part that tells them what to do. `useProjectRescan` flattens
+  // The whole sentence, including the part that tells them what to do. `useSiteRescan` flattens
   // every failure into one string; doing that here would throw away the only actionable half.
   assert.equal(shown, real);
 });
 
 test("the Electron IPC prefix is stripped but nothing after it is", () => {
   const shown = describeAddFailure(
-    new Error("Error invoking remote method 'runner:projects:add-site': Error: /tmp/x has no Tovu site in it yet."),
+    new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet."),
   );
 
   assert.equal(shown, '/tmp/x has no Tovu site in it yet.');
@@ -101,10 +101,10 @@ test("an empty or non-Error rejection still produces something sayable", () => {
 });
 
 test("re-adding a tracked website REPLACES its row instead of showing a second card", () => {
-  const existing = projectRecord('/sites/a', '2026-01-01T00:00:00.000Z');
-  const other = projectRecord('/sites/b');
+  const existing = siteRecord('/sites/a', '2026-01-01T00:00:00.000Z');
+  const other = siteRecord('/sites/b');
 
-  const merged = mergeAddedProject([existing, other], projectRecord('/sites/a', '2026-05-05T00:00:00.000Z'));
+  const merged = mergeAddedSite([existing, other], siteRecord('/sites/a', '2026-05-05T00:00:00.000Z'));
 
   // The duplicate case is real, not defensive: `addSitePointer` is idempotent and returns the
   // EXISTING record, so a plain append would show two identical cards for one website until the
@@ -117,7 +117,7 @@ test("re-adding a tracked website REPLACES its row instead of showing a second c
 });
 
 test("a newly added website appears first", () => {
-  const merged = mergeAddedProject([projectRecord('/sites/a')], projectRecord('/sites/new'));
+  const merged = mergeAddedSite([siteRecord('/sites/a')], siteRecord('/sites/new'));
 
   assert.deepEqual(
     merged.map((project) => project.id),
@@ -190,5 +190,5 @@ test("removing the tile did not leave an operator with no websites staring at no
 
 test("runner-api declares addSite, or the renderer cannot see the bridge method", () => {
   const runnerApi = fs.readFileSync(path.join(here, 'runner-api.ts'), 'utf8');
-  assert.match(runnerApi, /addSite: \(\) => Promise<ProjectRecord>/);
+  assert.match(runnerApi, /addSite: \(\) => Promise<SiteRecord>/);
 });

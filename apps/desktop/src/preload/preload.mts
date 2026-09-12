@@ -25,7 +25,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import {
-  RUNNER_PROJECT_CHANNELS,
+  SITE_IPC_CHANNELS,
   type CreateSiteInput,
   type OpenSiteSurfaceInput,
 } from '../contracts/project.js';
@@ -72,19 +72,19 @@ contextBridge.exposeInMainWorld(
     listAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.list),
     rescanAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.rescan),
     daemonOnline: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.daemonOnline),
-    listProjects: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.list),
-    rescanSites: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.rescan),
+    listSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.list),
+    rescanSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.rescan),
     /** "Add Tovu Website" — track a folder that ALREADY holds a site. Takes no argument: main owns
      *  the folder dialog, so the renderer never names a filesystem path. Rejects when the operator
      *  cancels, or when the folder is not already a complete Tovu site — surface that message
-     *  verbatim, it names the fix. See `RUNNER_PROJECT_CHANNELS.addSite`. */
-    addSite: () => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.addSite),
-    createProject: (input: CreateSiteInput) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.create, input),
-    startProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.start, id),
-    stopProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.stop, id),
-    deleteProject: (id: string) => ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.delete, id),
+     *  verbatim, it names the fix. See `SITE_IPC_CHANNELS.addSite`. */
+    addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
+    createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
+    startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
+    stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
+    deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),
     openSiteExternal: (input: OpenSiteSurfaceInput) =>
-      ipcRenderer.invoke(RUNNER_PROJECT_CHANNELS.openExternal, input),
+      ipcRenderer.invoke(SITE_IPC_CHANNELS.openExternal, input),
     chatStart: (input: RunnerChatStartInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.start, input),
     chatReattach: (input: RunnerChatReattachInput) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.reattach, input),
     chatDetach: (subscriptionId: string) => ipcRenderer.invoke(RUNNER_CHAT_CHANNELS.detach, { subscriptionId }),

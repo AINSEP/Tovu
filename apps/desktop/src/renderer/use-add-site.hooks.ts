@@ -6,14 +6,14 @@
  * call, and the only interesting decision in it is what happens to the error text — see
  * {@link useAddSite}.
  *
- * Mirrors `useProjectRescan`'s shape on purpose (same file's neighbour): both are "press a button,
+ * Mirrors `useSiteRescan`'s shape on purpose (same file's neighbour): both are "press a button,
  * get a refreshed project list or a message", and two different shapes for one interaction would
  * make the header's two quiet buttons behave differently for no reason the operator can see.
  */
 import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
-import type { ProjectRecord } from '../contracts/project.js';
+import type { SiteRecord } from '../contracts/project.js';
 import { runnerInventoryBridge } from './runner-api.js';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
@@ -34,7 +34,7 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * your site lives in a subfolder, point at that subfolder instead", "it may be on an unmounted
  * volume" — and they are written once, in `add-site-pointer.js`, so the CLI, the assistant and this
  * button all say the same thing about the same folder. Paraphrasing here (the way
- * `useProjectRescan` flattens every failure into "Couldn't scan for sites.") would re-create
+ * `useSiteRescan` flattens every failure into "Couldn't scan for sites.") would re-create
  * exactly the three-way drift that one shared implementation exists to prevent, and would replace
  * an actionable sentence with a dead end.
  *
@@ -42,13 +42,13 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * operator's own decision back to them as an error.
  *
  * @param setProjects the Projects screen's list setter. The new record is PREPENDED rather than
- *   triggering a re-list: `handleAddSite` already returns the record, and a second `listProjects`
+ *   triggering a re-list: `handleAddSite` already returns the record, and a second `listSites`
  *   round trip would let the card appear a poll-interval late.
  * @returns `adding` for the pending state, `addError` for the message to show (`null` when there is
  *   none), `addSite` to invoke, and `clearAddError` for a dismiss affordance.
  * @complexity O(n) in the current project count, for the duplicate check.
  */
-export function useAddSite(setProjects: Dispatch<SetStateAction<readonly ProjectRecord[]>>): {
+export function useAddSite(setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>): {
   adding: boolean;
   addError: string | null;
   addSite: () => Promise<void>;
@@ -69,7 +69,7 @@ export function useAddSite(setProjects: Dispatch<SetStateAction<readonly Project
     setAddError(null);
     try {
       const added = await bridge.addSite();
-      setProjects((current) => mergeAddedProject(current, added));
+      setProjects((current) => mergeAddedSite(current, added));
     } catch (error) {
       setAddError(describeAddFailure(error));
     } finally {
@@ -91,10 +91,10 @@ export function useAddSite(setProjects: Dispatch<SetStateAction<readonly Project
  *
  * @complexity O(n) in the current project count.
  */
-function mergeAddedProject(
-  current: readonly ProjectRecord[],
-  added: ProjectRecord
-): readonly ProjectRecord[] {
+function mergeAddedSite(
+  current: readonly SiteRecord[],
+  added: SiteRecord
+): readonly SiteRecord[] {
   return [added, ...current.filter((project) => project.id !== added.id)];
 }
 
@@ -115,4 +115,4 @@ function describeAddFailure(error: unknown): string | null {
   return message === CANCELLED_MESSAGE ? null : message;
 }
 
-export { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedProject };
+export { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite };

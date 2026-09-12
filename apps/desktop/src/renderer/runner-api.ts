@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
-import type { ProjectRecord, CreateSiteInput, OpenSiteSurfaceInput } from '../contracts/project.js';
+import type { SiteRecord, CreateSiteInput, OpenSiteSurfaceInput } from '../contracts/project.js';
 import type {
   RunnerChatEventMessage,
   RunnerChatReattachInput,
@@ -20,21 +20,21 @@ export interface RunnerInventoryBridge {
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;
-  listProjects: () => Promise<readonly ProjectRecord[]>;
+  listSites: () => Promise<readonly SiteRecord[]>;
   /** Adopts any untracked Tovu site found on disk and returns the refreshed list. Never resurrects
-   *  a project the operator removed — see `RUNNER_PROJECT_CHANNELS.rescan`. */
-  rescanSites: () => Promise<readonly ProjectRecord[]>;
+   *  a project the operator removed — see `SITE_IPC_CHANNELS.rescan`. */
+  rescanSites: () => Promise<readonly SiteRecord[]>;
   /** "Add Tovu Website" — tracks a folder that ALREADY holds a site. Takes no argument: main owns
    *  the folder picker. The folder is only pointed at — never moved, copied, or written to, and no
    *  site is ever created — so an empty, half-initialized, or unrelated folder REJECTS with an
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
-  addSite: () => Promise<ProjectRecord>;
-  createProject: (input: CreateSiteInput) => Promise<ProjectRecord>;
-  startProject: (id: string) => Promise<ProjectRecord>;
-  stopProject: (id: string) => Promise<ProjectRecord>;
+  addSite: () => Promise<SiteRecord>;
+  createSite: (input: CreateSiteInput) => Promise<SiteRecord>;
+  startSite: (id: string) => Promise<SiteRecord>;
+  stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */
-  deleteProject: (id: string) => Promise<void>;
+  deleteSite: (id: string) => Promise<void>;
   /** Hands one of a project's surfaces to the default browser. Main derives the url from the id. */
   openSiteExternal: (input: OpenSiteSurfaceInput) => Promise<void>;
   chatStart: (input: RunnerChatStartInput) => Promise<RunnerChatStartResult>;

@@ -8,7 +8,7 @@
  * child's exit once ready, so after a crash:
  *
  * - `buildSiteRecord` (`project-ipc.js`) kept reporting `status: "running"` and the old port;
- * - `useProjectsPolling`'s 4 s re-poll — whose own comment claims it is there to catch a crash —
+ * - `useSitesPolling`'s 4 s re-poll — whose own comment claims it is there to catch a crash —
  *   re-read a map that never changed, so the comment was false;
  * - `openSiteServer` (`main.js`) returned `already.server`, so "Start site" handed back the corpse
  *   and spawned nothing. Wedged for the rest of the session.
@@ -124,7 +124,7 @@ function createSiteSupervisor(deps) {
     },
 
     /**
-     * How the site at `siteDir` last died, when it died on its own — the fact `ProjectRecord`'s
+     * How the site at `siteDir` last died, when it died on its own — the fact `SiteRecord`'s
      * `statusDetail` reports so a stopped tab can say "the server exited" rather than presenting a
      * crashed site as one the operator simply never started.
      *

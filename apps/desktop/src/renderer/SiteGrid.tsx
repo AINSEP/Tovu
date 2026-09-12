@@ -18,7 +18,7 @@
 import { useDeleteConfirmation } from './App.hooks.js';
 import { databaseLabel, deleteActionCopy, isCardOpenKey, isCardOpenable, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
-import type { ProjectRecord } from '../contracts/project.js';
+import type { SiteRecord } from '../contracts/project.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
@@ -41,7 +41,7 @@ export function SiteGrid({
   onDelete,
   useDeleteState = useDeleteConfirmation,
 }: {
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   useDeleteState?: typeof useDeleteConfirmation;
@@ -78,7 +78,7 @@ function SiteCard({
   onCancelDelete,
   onConfirmDelete,
 }: {
-  project: ProjectRecord;
+  project: SiteRecord;
   confirming: boolean;
   deleting: boolean;
   deleteError: string | null;
@@ -185,7 +185,7 @@ function CardConfirmOverlay({
   onCancel,
   onConfirm,
 }: {
-  project: ProjectRecord;
+  project: SiteRecord;
   copy: DeleteActionCopy;
   deleting: boolean;
   deleteError: string | null;

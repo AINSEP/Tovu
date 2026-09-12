@@ -1,7 +1,7 @@
 /**
- * @file Wiring guard for `<webview partition={project.partition}>` in `ProjectWorkspace` —
+ * @file Wiring guard for `<webview partition={project.partition}>` in `SiteWorkspace` —
  * the binding that keeps two different sites' logins from sharing one cookie jar (see
- * `ProjectWorkspace`'s own doc in `App.tsx`, and `contracts/project.ts`'s `partition` field).
+ * `SiteWorkspace`'s own doc in `App.tsx`, and `contracts/project.ts`'s `partition` field).
  * `desktop-auth.test.js` and `project-ipc.test.js` prove main hands out a distinct `partition`
  * per site dir; nothing before this file proved the renderer actually threads that value onto
  * the guest element rather than dropping it or hardcoding one partition for every tab.
@@ -22,19 +22,19 @@ const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), "utf8
 const appTsx = read("App.tsx");
 const contracts = read("..", "contracts", "project.ts");
 
-/** `ProjectWorkspace`'s body, up to the next top-level `function`. */
+/** `SiteWorkspace`'s body, up to the next top-level `function`. */
 function workspaceBody() {
-  const start = appTsx.indexOf("function ProjectWorkspace(");
-  assert.notEqual(start, -1, "ProjectWorkspace must still exist in App.tsx");
+  const start = appTsx.indexOf("function SiteWorkspace(");
+  assert.notEqual(start, -1, "SiteWorkspace must still exist in App.tsx");
   const rest = appTsx.slice(start);
   const end = rest.indexOf("\nfunction ", 1);
   return rest.slice(0, end === -1 ? undefined : end);
 }
 
-/** `ProjectWorkspaces`' body (the plural component that maps over open projects). */
+/** `SiteWorkspaces`' body (the plural component that maps over open projects). */
 function workspacesBody() {
-  const start = appTsx.indexOf("function ProjectWorkspaces(");
-  assert.notEqual(start, -1, "ProjectWorkspaces must still exist in App.tsx");
+  const start = appTsx.indexOf("function SiteWorkspaces(");
+  assert.notEqual(start, -1, "SiteWorkspaces must still exist in App.tsx");
   const rest = appTsx.slice(start);
   const end = rest.indexOf("\nfunction ", 1);
   return rest.slice(0, end === -1 ? undefined : end);
@@ -57,21 +57,21 @@ test("the guest webview's partition reads off THIS project's own prop, not a sha
   );
 });
 
-test("each open project gets its OWN ProjectWorkspace instance, carrying its own project prop", () => {
+test("each open project gets its OWN SiteWorkspace instance, carrying its own project prop", () => {
   // Combined with the per-instance binding above, this is what makes two different projects render
-  // two different partitions: `openProjects.map` hands each call site a different `project`, and
+  // two different partitions: `openSites.map` hands each call site a different `project`, and
   // that same `project` is what the instance's webview reads `partition` from — no lifted or
   // module-level partition value in between that could flatten them to one.
   const body = workspacesBody();
-  assert.match(body, /openProjects\.map\(\(project\) =>/, "must render one instance per open project, not a single shared instance");
+  assert.match(body, /openSites\.map\(\(project\) =>/, "must render one instance per open project, not a single shared instance");
   assert.match(
     body,
-    /<ProjectWorkspace\s+key=\{project\.id\}\s+project=\{project\}/,
+    /<SiteWorkspace\s+key=\{project\.id\}\s+project=\{project\}/,
     "each instance must be keyed by and receive its own project, or two tabs could collapse onto the same rendered workspace",
   );
 });
 
-test("ProjectRecord's partition field is a required string, not optional — a workspace cannot silently render with no partition at all", () => {
-  const field = contracts.slice(contracts.indexOf("export interface ProjectRecord"));
+test("SiteRecord's partition field is a required string, not optional — a workspace cannot silently render with no partition at all", () => {
+  const field = contracts.slice(contracts.indexOf("export interface SiteRecord"));
   assert.match(field.slice(0, field.indexOf("export interface CreateSiteDatabaseInput")), /\n  partition: string;\n/);
 });

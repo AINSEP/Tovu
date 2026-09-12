@@ -48,20 +48,20 @@ function declaredChannels() {
 
 /**
  * Channels the Projects screen needs for real, given real handlers in `project-ipc.js` (registered
- * in `main.js` before `registerRunnerIpcStubs` runs) — see `RUNNER_PROJECT_CHANNELS`'s own doc.
+ * in `main.js` before `registerRunnerIpcStubs` runs) — see `SITE_IPC_CHANNELS`'s own doc.
  * Declared by the contracts, on purpose absent from `RUNNER_STUB_CHANNELS`: a real handler and a
  * stub for the same channel is a duplicate `ipcMain.handle` registration, which Electron itself
  * refuses. `stop` stays stubbed — no control in the per-project bar calls it yet — so it is NOT in
  * this list.
  */
 const IMPLEMENTED_CHANNELS = new Set([
-  "runner:projects:list",
-  "runner:projects:create",
-  "runner:projects:delete",
-  "runner:projects:open-external",
-  "runner:projects:start",
-  "runner:projects:rescan",
-  "runner:projects:add-site",
+  "runner:sites:list",
+  "runner:sites:create",
+  "runner:sites:delete",
+  "runner:sites:open-external",
+  "runner:sites:start",
+  "runner:sites:rescan",
+  "runner:sites:add-site",
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {
@@ -115,7 +115,7 @@ test("every registered handler throws rather than returning any value", () => {
 
 test("notPortedError names the channel it was built for, not a shared one", () => {
   assert.notEqual(
-    notPortedError("runner:projects:list").message,
-    notPortedError("runner:projects:stop").message,
+    notPortedError("runner:sites:list").message,
+    notPortedError("runner:sites:stop").message,
   );
 });

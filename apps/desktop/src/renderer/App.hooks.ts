@@ -45,7 +45,7 @@ import { createRunnerChatTransport, type RunnerChatTransport } from './fleet-cha
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
-import type { CreateSiteInput, DatabaseProviderKind, ProjectRecord } from '../contracts/project.js';
+import type { CreateSiteInput, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
 import type { RunnerConversationSummary } from '../contracts/fleet-conversations.js';
 
 /**
@@ -55,13 +55,13 @@ import type { RunnerConversationSummary } from '../contracts/fleet-conversations
  * booting, with no user action in this window. A mount-only fetch would leave the grid showing a
  * state that stopped being true minutes ago, so re-poll on an interval.
  */
-export function useProjectsPolling(): {
-  projects: readonly ProjectRecord[];
-  setProjects: Dispatch<SetStateAction<readonly ProjectRecord[]>>;
+export function useSitesPolling(): {
+  projects: readonly SiteRecord[];
+  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
   projectsLoading: boolean;
   loadError: string | null;
 } {
-  const [projects, setProjects] = useState<readonly ProjectRecord[]>([]);
+  const [projects, setProjects] = useState<readonly SiteRecord[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export function useProjectsPolling(): {
 
     const load = () =>
       bridge
-        .listProjects()
+        .listSites()
         .then((result) => {
           if (cancelled) return;
           setProjects(result);
@@ -107,7 +107,7 @@ export function useProjectsPolling(): {
  * next to this one. Without it the answer to "my site is right there and Tovu cannot see it" is
  * "quit and relaunch".
  *
- * Takes `setProjects` — `useProjectsPolling`'s own setter — and applies main's returned list
+ * Takes `setProjects` — `useSitesPolling`'s own setter — and applies main's returned list
  * immediately rather than leaving the grid to the next 4s poll. To the operator those are not the
  * same thing: a rescan that has already found their site but shows nothing for four seconds reads
  * as a button that does not work.
@@ -115,7 +115,7 @@ export function useProjectsPolling(): {
  * `rescanning` is deliberately not derived from the polling hook's `projectsLoading`: that one is
  * true only until the first list arrives, so it would report nothing at all here.
  */
-export function useProjectRescan(setProjects: Dispatch<SetStateAction<readonly ProjectRecord[]>>): {
+export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>): {
   rescanning: boolean;
   rescanError: string | null;
   rescan: () => Promise<void>;
@@ -259,8 +259,8 @@ export interface ProjectTabsState {
  * state this hook does not have.
  *
  * `openProjectTab` only ever adds a tab and selects it — it does not itself ask main to start
- * anything. `ProjectWorkspace` (`App.tsx`) is what shows a "not running" panel for a freshly opened
- * tab and lets the operator start it from there (`useProjectStart`), the same split Tovu-Runner's
+ * anything. `SiteWorkspace` (`App.tsx`) is what shows a "not running" panel for a freshly opened
+ * tab and lets the operator start it from there (`useSiteStart`), the same split Tovu-Runner's
  * own `App.hooks.ts` makes: opening a tab and starting a site are two different actions, one
  * instant and local, the other async and IPC-backed.
  */
@@ -285,12 +285,12 @@ export function useProjectTabs(): ProjectTabsState {
   return { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab };
 }
 
-export interface ProjectMutationsState {
+export interface SiteMutationsState {
   /**
    * The created record, not just its name: the notice reports the port and template version the
    * provisioner actually produced, which is the only place those are known to be true.
    */
-  lastCreated: ProjectRecord | null;
+  lastCreated: SiteRecord | null;
   openCreateWebsite: () => void;
   handleCreate: (input: CreateSiteInput) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
@@ -330,13 +330,13 @@ export interface ProjectMutationsState {
  * clears a stale notice before the form opens rather than after.
  */
 export function useProjectMutations(deps: {
-  setProjects: Dispatch<SetStateAction<readonly ProjectRecord[]>>;
+  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
   closeProjectTab: (id: string) => void;
   stopCreating: () => void;
   startCreating: () => void;
-}): ProjectMutationsState {
-  const [lastCreated, setLastCreated] = useState<ProjectRecord | null>(null);
-  // See `createFormKey` on `ProjectMutationsState`. Starts at 0 and only ever goes up; the actual
+}): SiteMutationsState {
+  const [lastCreated, setLastCreated] = useState<SiteRecord | null>(null);
+  // See `createFormKey` on `SiteMutationsState`. Starts at 0 and only ever goes up; the actual
   // number carries no meaning beyond "changed since the form last mounted".
   const [createFormKey, setCreateFormKey] = useState(0);
 
@@ -362,7 +362,7 @@ export function useProjectMutations(deps: {
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to create a website.');
     }
-    const result = await bridge.createProject(input);
+    const result = await bridge.createSite(input);
     deps.setProjects((current) => [...current, result]);
     setLastCreated(result);
     deps.stopCreating();
@@ -386,7 +386,7 @@ export function useProjectMutations(deps: {
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to delete a website.');
     }
-    await bridge.deleteProject(id);
+    await bridge.deleteSite(id);
     // Dropped locally rather than left to the 4s poll: the card the operator just confirmed
     // against would otherwise sit there looking untouched for up to four seconds. Its tab goes
     // too — a tab pointing at a deleted project has nothing left to render.
@@ -398,11 +398,11 @@ export function useProjectMutations(deps: {
 }
 
 export interface SitesHomeView {
-  openProjects: readonly ProjectRecord[];
+  openSites: readonly SiteRecord[];
   // Tabs are a Projects mechanic. Every other section is a single Runner screen, so a strip above
   // one would advertise routes that section cannot take.
-  inProjects: boolean;
-  activeProject: ProjectRecord | undefined;
+  inSites: boolean;
+  activeSite: SiteRecord | undefined;
   showSiteTab: boolean;
   showSitesHome: boolean;
   visibleWorkspaceId: string | null;
@@ -426,23 +426,23 @@ export function deriveSitesHomeView(input: {
   appearanceOpen: boolean;
   activeTab: string | null;
   openTabs: readonly string[];
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   isCreating: boolean;
 }): SitesHomeView {
-  const openProjects = input.openTabs
+  const openSites = input.openTabs
     .map((id) => input.projects.find((project) => project.id === id))
-    .filter((project): project is ProjectRecord => project !== undefined);
+    .filter((project): project is SiteRecord => project !== undefined);
 
   // Gating on `activeId` hides the strip without touching `openTabs`/`activeTab`, so navigating
   // away and back leaves the same tabs open.
-  const inProjects = input.activeId === 'projects';
+  const inSites = input.activeId === 'projects';
 
   // A project deleted or lost between polls must not strand its tab pointing at nothing.
-  const activeProject =
-    input.activeTab === null ? undefined : openProjects.find((p) => p.id === input.activeTab);
-  // Deriving this from `inProjects` as well — not from `activeTab` alone — is what makes a
+  const activeSite =
+    input.activeTab === null ? undefined : openSites.find((p) => p.id === input.activeTab);
+  // Deriving this from `inSites` as well — not from `activeTab` alone — is what makes a
   // project's workspace unreachable outside Projects rather than merely unlikely to be reached.
-  const showSiteTab = inProjects && activeProject !== undefined;
+  const showSiteTab = inSites && activeSite !== undefined;
   const showSitesHome = !showSiteTab;
   // Every open project's workspace stays mounted (see `App`'s `<main>` body); this is the one that
   // is not hidden. Appearance layers over the whole content area, so it hides the workspace too.
@@ -450,12 +450,12 @@ export function deriveSitesHomeView(input: {
   // The create form is a fourth layer competing for the same space as Appearance and a project's
   // workspace, so it is visible only when none of those are: not over Appearance, not over a
   // project tab, not over a non-Projects section.
-  const showCreateForm = input.isCreating && !input.appearanceOpen && showSitesHome && inProjects;
+  const showCreateForm = input.isCreating && !input.appearanceOpen && showSitesHome && inSites;
 
   return {
-    openProjects,
-    inProjects,
-    activeProject,
+    openSites,
+    inSites,
+    activeSite,
     showSiteTab,
     showSitesHome,
     visibleWorkspaceId,
@@ -570,7 +570,7 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
  *
  * Starting from here rather than only from the grid matters because this is where the operator
  * already is when they find out — the tab was opened expecting a site. Nothing is set locally on
- * success: `useProjectsPolling`'s 4s poll flips `status` to `running`, which swaps the panel this
+ * success: `useSitesPolling`'s 4s poll flips `status` to `running`, which swaps the panel this
  * hook backs for the webview on its own.
  *
  * Deliberately NOT built on `useDeleteConfirmation`'s shape, even though both are a "pending flag
@@ -582,7 +582,7 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
  * special-casing it (which defeats sharing) or setting `starting` true for one tick it was never
  * true for before. That is a real, if small, behaviour change, so the two stay separate.
  */
-export function useProjectStart(project: ProjectRecord): {
+export function useSiteStart(project: SiteRecord): {
   starting: boolean;
   error: string | null;
   start: () => Promise<void>;
@@ -599,7 +599,7 @@ export function useProjectStart(project: ProjectRecord): {
     setStarting(true);
     setError(null);
     try {
-      await bridge.startProject(project.id);
+      await bridge.startSite(project.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -616,7 +616,7 @@ export function useProjectStart(project: ProjectRecord): {
  * real error, as opposed to a normal in-flight navigation being cancelled. `stalled`, a GUESS:
  * neither `did-fail-load` nor `did-finish-load` showed up at all within `STALL_TIMEOUT_MS`, which
  * means exactly nothing — Chromium never told this hook anything either way, and the guest may
- * still be about to answer on its own. `ProjectWorkspace` treats the two accordingly: `failed`
+ * still be about to answer on its own. `SiteWorkspace` treats the two accordingly: `failed`
  * swaps the guest out outright, the same way a stopped project does, because there is nothing left
  * to wait for. `stalled` only lays a recovery panel over the still-loading guest, because there
  * might be.
@@ -635,7 +635,7 @@ export function useProjectStart(project: ProjectRecord): {
  * local admin normally takes to answer, comfortably short of leaving the operator staring at a
  * blank pane for the rest of the session.
  *
- * `resetKey` is `ProjectWorkspace`'s own `` `${reloadNonce}:${view}` ``, not read here for its
+ * `resetKey` is `SiteWorkspace`'s own `` `${reloadNonce}:${view}` ``, not read here for its
  * value — only for when it changes. A manual reload remounts the guest (new DOM node, so listeners
  * must move with it) and a view switch renavigates the same node; both deserve a clean slate, since
  * without one a single transient failure would pin the recovery panel in place even after the
@@ -644,7 +644,7 @@ export function useProjectStart(project: ProjectRecord): {
  *
  * **The guest arrives through `guestRef`, a callback ref, and that is the D-03 fix.** This used to
  * take a `RefObject` and depend on `[webviewRef, resetKey]`. A ref OBJECT is stable for the
- * component's whole life, and `ProjectWorkspace` renders the `<webview>` only when
+ * component's whole life, and `SiteWorkspace` renders the `<webview>` only when
  * `running && !failed` — so on the two ordinary paths that mount a guest (a stopped tab whose 4 s
  * poll flips to `running`, and the failure panel's own retry) neither dependency changed, the
  * effect never re-ran, and NO listener and no stall timer were ever installed on the node actually
@@ -689,7 +689,7 @@ export function useWebviewLoadFailure(
       if (!event.isMainFrame || event.errorCode === -3) return;
       window.clearTimeout(stallTimer);
       // A fact arriving after a guess: the guess was wrong (or overtaken), so withdraw it rather
-      // than leave both true and ask `ProjectWorkspace` to decide which one wins.
+      // than leave both true and ask `SiteWorkspace` to decide which one wins.
       setStalled(false);
       setFailed(true);
     };

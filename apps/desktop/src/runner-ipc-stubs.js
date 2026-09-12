@@ -11,7 +11,7 @@
  * **Every handler throws. None returns a value.** An empty array from a stubbed list channel would
  * render as a real, correct, empty result — a lie the UI has no way to detect. A rejection surfaces
  * in the renderer's own error paths as text naming the channel, which is the honest answer to "why
- * is nothing here". (`runner:projects:list`/`create`/`delete`/`open-external`/`start` are no
+ * is nothing here". (`runner:sites:list`/`create`/`delete`/`open-external`/`start` are no
  * longer stubbed here — see `project-ipc.js` for their real handlers.)
  *
  * The two push channels — `runner:chat:event` and `runner:chat:navigate` — are deliberately absent.
@@ -41,8 +41,8 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
   "runner:daemon:online",
   // contracts/project.ts — list/create/delete/open-external/start are real handlers now
   // (`project-ipc.js`, registered in `main.js` before this module runs). `stop` stays stubbed —
-  // no control in the per-project bar calls it yet; see `RUNNER_PROJECT_CHANNELS.stop`'s own doc.
-  "runner:projects:stop",
+  // no control in the per-project bar calls it yet; see `SITE_IPC_CHANNELS.stop`'s own doc.
+  "runner:sites:stop",
   // contracts/fleet-chat.ts — `event` and `navigate` are push-only, see this file's header
   "runner:chat:start",
   "runner:chat:reattach",

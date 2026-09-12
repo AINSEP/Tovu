@@ -23,7 +23,7 @@ export interface SiteDatabaseSummary {
   label?: string;
 }
 
-export interface ProjectRecord {
+export interface SiteRecord {
   id: string;
   slug: string;
   displayName: string;
@@ -31,7 +31,7 @@ export interface ProjectRecord {
   port: number;
   /**
    * This project's own Electron session-partition string (`desktop-auth.js`'s `sitePartition`,
-   * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `ProjectWorkspace`) sets this
+   * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `SiteWorkspace`) sets this
    * as its `<webview partition>` so the guest's cookie jar is the exact one main seeded with a
    * signed-in session — see that function's own header, property 2, on why one jar per site is a
    * correctness requirement (cookies ignore port) and not a hardening nicety.
@@ -45,7 +45,7 @@ export interface ProjectRecord {
   /** Human-readable detail for the current status (e.g. a failure reason). Never a secret. */
   statusDetail: string | null;
   /**
-   * What `RUNNER_PROJECT_CHANNELS.delete` will actually DO to this project's folder: `true` erases
+   * What `SITE_IPC_CHANNELS.delete` will actually DO to this project's folder: `true` erases
    * the install directory, `false` only drops the row and leaves every byte where it is.
    *
    * Main decides it (`project-delete-guard.js`) and sends the ANSWER, never the inputs, so the
@@ -76,20 +76,20 @@ export interface CreateSiteInput {
 export type SiteSurface = 'admin' | 'site';
 
 export interface OpenSiteSurfaceInput {
-  projectId: string;
+  siteId: string;
   view: SiteSurface;
 }
 
-export const RUNNER_PROJECT_CHANNELS = {
-  list: 'runner:projects:list',
-  create: 'runner:projects:create',
+export const SITE_IPC_CHANNELS = {
+  list: 'runner:sites:list',
+  create: 'runner:sites:create',
   /**
    * A project tab's own answer to "not running yet": ensure the site's `tovu serve` is up
    * (spawning it, or reusing it if another tab already has it open), then return its fresh
-   * `ProjectRecord`. Real (`project-ipc.js`'s `handleStart`/`openSiteServer`) — not a stub — as
+   * `SiteRecord`. Real (`project-ipc.js`'s `handleStart`/`openSiteServer`) — not a stub — as
    * of the embedded-tab model; nothing here creates a `BrowserWindow`.
    */
-  start: 'runner:projects:start',
+  start: 'runner:sites:start',
   /**
    * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
    * no stored answer about, and return the refreshed list. Real (`project-ipc.js`'s
@@ -99,7 +99,7 @@ export const RUNNER_PROJECT_CHANNELS = {
    * pressed — see `adoptDiscoveredSites` in `tracked-sites.js`. Their way back is the
    * folder dialog, which is them asking explicitly.
    */
-  rescan: 'runner:projects:rescan',
+  rescan: 'runner:sites:rescan',
   /**
    * "Add Tovu Website" — the operator picks ONE folder that already holds a Tovu site, and it
    * becomes a tracked row. Real (`project-ipc.js`'s `handleAddSite` over
@@ -114,22 +114,22 @@ export const RUNNER_PROJECT_CHANNELS = {
    * Takes no argument: main owns the folder dialog, the same way `create` does, so the renderer
    * never names a filesystem path and main has nothing to validate on arrival.
    *
-   * @returns the new `ProjectRecord`, so the grid can render the card without a second `list`
+   * @returns the new `SiteRecord`, so the grid can render the card without a second `list`
    *   round trip.
    * @throws when the operator cancels the dialog, or when the folder is not already a complete
    *   Tovu site — the message is operator-facing and names the fix, so a renderer must surface it
    *   verbatim rather than paraphrasing it.
    */
-  addSite: 'runner:projects:add-site',
+  addSite: 'runner:sites:add-site',
   /** Not implemented yet — no control in the per-project bar calls it. Closing the app
    *  (`before-quit`) or deleting the project are the two ways a sites-home-opened site stops today. */
-  stop: 'runner:projects:stop',
+  stop: 'runner:sites:stop',
   /** Irreversible: stops the process, removes the install dir, drops the row. Returns nothing. */
-  delete: 'runner:projects:delete',
+  delete: 'runner:sites:delete',
   /**
    * Opens one of a project's surfaces in the operator's default browser. Carries an id and a
    * view, never a url: main builds the url from the registry row, so the renderer has no way to
    * name a destination and main has nothing to validate on arrival.
    */
-  openExternal: 'runner:projects:open-external',
+  openExternal: 'runner:sites:open-external',
 } as const;

@@ -12,10 +12,10 @@ import {
   useDismissibleDropdown,
   useExpandedMode,
   useProjectMutations,
-  useProjectStart,
+  useSiteStart,
   useProjectTabs,
-  useProjectRescan,
-  useProjectsPolling,
+  useSiteRescan,
+  useSitesPolling,
   useRunnerChatTransport,
   useRunnerConversations,
   useRunnerNavigation,
@@ -27,11 +27,11 @@ import { useAddSite } from './use-add-site.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { STATUS_LABEL } from './site-status.js';
-import type { CreateSiteInput, ProjectRecord, SiteSurface } from '../contracts/project.js';
+import type { CreateSiteInput, SiteRecord, SiteSurface } from '../contracts/project.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 
-// Admin first because that is where a workspace opens. See `ProjectWorkspace` for why.
+// Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
 /**
@@ -43,7 +43,7 @@ const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
  * object defaults to `{}`.
  *
  * Two rules decided what is on this list and what is not. First, the prop is the hook FUNCTION,
- * never its result: a default of `useProjectsPolling()` would only be evaluated when the caller
+ * never its result: a default of `useSitesPolling()` would only be evaluated when the caller
  * omits the prop, so hook order would change with the call site — a rules-of-hooks violation that
  * fails at runtime rather than at compile time. Second, only hooks whose RETURN VALUE this
  * component renders from are worth injecting. `useRunnerNavigation` returns nothing and no-ops
@@ -56,19 +56,19 @@ const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
  * of what injection buys.
  */
 export function App({
-  useProjects = useProjectsPolling,
+  useProjects = useSitesPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
 }: {
-  useProjects?: typeof useProjectsPolling;
+  useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
-  const { rescanning, rescanError, rescan } = useProjectRescan(setProjects);
+  const { rescanning, rescanError, rescan } = useSiteRescan(setProjects);
   const { adding, addError, addSite } = useAddSite(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
@@ -85,7 +85,7 @@ export function App({
     startCreating,
     stopCreating,
   } = useNav(setActiveTab);
-  const { openProjects, inProjects, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
+  const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
   useRunnerNavigation(setActiveId, setActiveTab);
@@ -114,9 +114,9 @@ export function App({
       />
       )}
 
-      {inProjects && !appearanceOpen && !expanded && (
+      {inSites && !appearanceOpen && !expanded && (
         <TabStrip
-          projects={openProjects}
+          projects={openSites}
           activeTab={showSiteTab ? activeTab : null}
           onSelectSitesHome={() => setActiveTab(null)}
           onSelectTab={setActiveTab}
@@ -154,9 +154,9 @@ export function App({
           onCreate={handleCreate}
         />
 
-        <ProjectWorkspaces
-          inProjects={inProjects}
-          openProjects={openProjects}
+        <SiteWorkspaces
+          inSites={inSites}
+          openSites={openSites}
           visibleWorkspaceId={visibleWorkspaceId}
           expanded={expanded}
           onToggleExpanded={toggleExpanded}
@@ -372,7 +372,7 @@ function TabStrip({
   onSelectTab,
   onCloseTab,
 }: {
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   activeTab: string | null;
   onSelectSitesHome: () => void;
   onSelectTab: (id: string) => void;
@@ -425,24 +425,24 @@ function TabStrip({
  * unmounting one on a tab switch would throw away the site's admin route, scroll position and any
  * half-written form, and re-run its whole boot the next time the operator came back to it.
  */
-function ProjectWorkspaces({
-  inProjects,
-  openProjects,
+function SiteWorkspaces({
+  inSites,
+  openSites,
   visibleWorkspaceId,
   expanded,
   onToggleExpanded,
 }: {
-  inProjects: boolean;
-  openProjects: readonly ProjectRecord[];
+  inSites: boolean;
+  openSites: readonly SiteRecord[];
   visibleWorkspaceId: string | null;
   expanded: boolean;
   onToggleExpanded: () => void;
 }) {
-  if (!inProjects) return null;
+  if (!inSites) return null;
   return (
     <>
-      {openProjects.map((project) => (
-        <ProjectWorkspace
+      {openSites.map((project) => (
+        <SiteWorkspace
           key={project.id}
           project={project}
           hidden={project.id !== visibleWorkspaceId}
@@ -470,7 +470,7 @@ function ProjectWorkspaces({
  * navigation on a redirect is a visible flash on every open.
  *
  * `partition` is set explicitly to the project's own `sitePartition` (`contracts/project.ts`,
- * `desktop-auth.js`) — a deliberate departure from Tovu-Runner's own `ProjectWorkspace`, which
+ * `desktop-auth.js`) — a deliberate departure from Tovu-Runner's own `SiteWorkspace`, which
  * sets no `partition` at all. Tovu's own `desktop-auth.js` documents why this shell cannot skip
  * it: cookies ignore port, so two sites both answering on `127.0.0.1` would otherwise share one
  * cookie jar and each open would overwrite the other's session — the exact bug that motivated
@@ -480,13 +480,13 @@ function ProjectWorkspaces({
  *
  * `hidden` is a CSS concern, not a mount one. See the <main> body in `App` for why.
  */
-function ProjectWorkspace({
+function SiteWorkspace({
   project,
   hidden,
   expanded,
   onToggleExpanded,
 }: {
-  project: ProjectRecord;
+  project: SiteRecord;
   hidden: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
@@ -514,7 +514,7 @@ function ProjectWorkspace({
   // between the last poll and this click, and that same poll is about to take the tab away.
   const openInBrowser = () => {
     void runnerInventoryBridge()
-      ?.openSiteExternal({ projectId: project.id, view })
+      ?.openSiteExternal({ siteId: project.id, view })
       .catch(() => undefined);
   };
 
@@ -642,7 +642,7 @@ function ProjectWorkspace({
 
 /**
  * What a project tab shows when its process is not up — or when it is up but just failed to
- * answer the guest (`ProjectWorkspace`'s `did-fail-load` branch). `body` and `onStarted` are what
+ * answer the guest (`SiteWorkspace`'s `did-fail-load` branch). `body` and `onStarted` are what
  * let the second case share this panel instead of duplicating it: the registry status text this
  * panel shows by default would read "Running", which is true and explains nothing, so the wedge
  * caller overrides it; and that caller's `running` never flips on its own the way a genuinely
@@ -658,11 +658,11 @@ function SiteStartPanel({
   body,
   onStarted,
 }: {
-  project: ProjectRecord;
+  project: SiteRecord;
   body?: string;
   onStarted?: () => void;
 }) {
-  const { starting, error, start } = useProjectStart(project);
+  const { starting, error, start } = useSiteStart(project);
 
   const handleStart = async () => {
     await start();
@@ -769,10 +769,10 @@ function MainArea({
   activeId: RunnerSectionId;
   isCreating: boolean;
   active: RunnerSection | undefined;
-  lastCreated: ProjectRecord | null;
+  lastCreated: SiteRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   onCreateWebsite: () => void;
   onOpenProject: (id: string) => void;
   onDeleteProject: (id: string) => Promise<void>;
@@ -896,7 +896,7 @@ function ProjectsBody({
    * `use-add-site.hooks.ts` on why paraphrasing it here would be a regression.
    */
   addError: string | null;
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
 }) {
@@ -962,12 +962,12 @@ function MainContent({
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
-  lastCreated: ProjectRecord | null;
+  lastCreated: SiteRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
   rescanError: string | null;
   addError: string | null;
-  projects: readonly ProjectRecord[];
+  projects: readonly SiteRecord[];
   activeLabel: string;
   activeDescription: string;
   onCreateWebsite: () => void;
@@ -1109,7 +1109,7 @@ function RunnerChatPane({ onClose }: { onClose: () => void }) {
             <ConversationList
               // `ConversationListItem[]` (mutable) is the package's own prop type; this hook's
               // return stays `readonly` for consistency with every other list in `App.hooks.ts`
-              // (`useProjectsPolling`'s `projects`, etc.), so the boundary is a shallow copy here
+              // (`useSitesPolling`'s `projects`, etc.), so the boundary is a shallow copy here
               // rather than widening the hook's own contract for one caller.
               conversations={[...conversations.conversations]}
               activeConversationId={conversations.activeId}

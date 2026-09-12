@@ -1,6 +1,6 @@
 /**
- * @file Real handlers for the seven `runner:projects:*` IPC verbs the Projects screen needs — see
- * `contracts/project.ts`'s `RUNNER_PROJECT_CHANNELS` for what each one is for. Registered in
+ * @file Real handlers for the seven `runner:sites:*` IPC verbs the Projects screen needs — see
+ * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
  * `main.js` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
  * that ever regresses (see `runner-ipc-stubs.js`'s own doc).
@@ -25,14 +25,14 @@ import { SITE_ORIGIN, readTrackedSites, trackSite, untrackSite, discoverSiteDirs
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.js";
 import { sitePartition } from "./desktop-auth.js";
 
-const RUNNER_PROJECT_CHANNELS = Object.freeze({
-  list: "runner:projects:list",
-  create: "runner:projects:create",
-  delete: "runner:projects:delete",
-  openExternal: "runner:projects:open-external",
-  start: "runner:projects:start",
-  rescan: "runner:projects:rescan",
-  addSite: "runner:projects:add-site",
+const SITE_IPC_CHANNELS = Object.freeze({
+  list: "runner:sites:list",
+  create: "runner:sites:create",
+  delete: "runner:sites:delete",
+  openExternal: "runner:sites:open-external",
+  start: "runner:sites:start",
+  rescan: "runner:sites:rescan",
+  addSite: "runner:sites:add-site",
 });
 
 /**
@@ -53,7 +53,7 @@ function describeLastExit(openSites, siteDir) {
 }
 
 /**
- * One tracked row plus `openSites` (ground truth for "running") joined into the `ProjectRecord`
+ * One tracked row plus `openSites` (ground truth for "running") joined into the `SiteRecord`
  * shape `contracts/project.ts` declares. Every field this shell cannot really know — `templateId`,
  * `templateVersion`, `database` — gets a stated, honest default rather than a fabricated value:
  * every project a JSON-file-tracked site can describe today was created outside a provisioner this
@@ -72,7 +72,7 @@ function buildSiteRecord(row, deps) {
     port: running ? openEntry.server.port : 0,
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.js`'s `sitePartition`), not of whether a server currently answers on it. The
-    // embedded-tab renderer needs it either way: `ProjectWorkspace`'s `<webview>` sets it up front,
+    // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
     // before the tab knows whether the site is up yet.
     partition: sitePartition(row.siteDir),
     templateId: "tovu",
@@ -249,7 +249,7 @@ function liveForeignServers(deps, siteDir, ownPid) {
  * point at a folder the app merely adopted (`seedDevFallbackSite` seeds exactly one such row,
  * `<repo>/sites/tovu-com`, someone's real 44 MB site), and for those the delete means "take this
  * card off my Projects screen" — the row goes, every byte stays. The renderer says which of the two
- * a given card will do, from the same guard's answer carried on `ProjectRecord.deleteErasesFiles`,
+ * a given card will do, from the same guard's answer carried on `SiteRecord.deleteErasesFiles`,
  * so the confirm overlay never promises a consequence this function will not deliver.
  *
  * Idempotent on an id that is not tracked (already gone) rather than throwing — the
@@ -339,7 +339,7 @@ async function deleteProject(id, deps) {
  * @complexity O(1).
  */
 async function handleOpenExternal(input, deps) {
-  const openEntry = deps.openSites.get(input.projectId);
+  const openEntry = deps.openSites.get(input.siteId);
   if (openEntry === undefined) {
     throw new Error("That project is not open. Open it first, then try again.");
   }
@@ -416,7 +416,7 @@ function rescanSites(deps) {
 }
 
 /**
- * Registers the seven real `runner:projects:*` handlers above.
+ * Registers the seven real `runner:sites:*` handlers above.
  *
  * @param {object} deps
  * @param {{handle: Function}} deps.ipcMain
@@ -454,17 +454,17 @@ function rescanSites(deps) {
  * @complexity O(1) — seven registrations.
  */
 function registerSiteIpcHandlers(deps) {
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.list, () => handleList(deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.create, (_event, input) => handleCreate(input, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.start, (_event, id) => handleStart(id, deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.rescan, () => rescanSites(deps));
-  deps.ipcMain.handle(RUNNER_PROJECT_CHANNELS.addSite, () => handleAddSite(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => handleStart(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
 }
 
 export {
-  RUNNER_PROJECT_CHANNELS,
+  SITE_IPC_CHANNELS,
   foreignServerMessage,
   buildSiteRecord,
   handleList,

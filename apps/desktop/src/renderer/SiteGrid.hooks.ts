@@ -5,9 +5,9 @@
  * functions and derived logic out of `.tsx` files — components render, a sibling `*.hooks.ts` owns
  * everything they derive — which is the same rule `App.tsx`/`App.hooks.ts` already follow. Moving
  * them also makes them directly assertable without mounting the grid: neither touches React,
- * `window`, or IPC, so a test can call them on a plain `ProjectRecord`.
+ * `window`, or IPC, so a test can call them on a plain `SiteRecord`.
  */
-import type { ProjectRecord } from '../contracts/project.js';
+import type { SiteRecord } from '../contracts/project.js';
 
 /**
  * Whether clicking a project's card should open it.
@@ -18,7 +18,7 @@ import type { ProjectRecord } from '../contracts/project.js';
  *
  * @complexity O(1) time, O(1) space.
  */
-export function isCardOpenable(project: ProjectRecord, confirming: boolean): boolean {
+export function isCardOpenable(project: SiteRecord, confirming: boolean): boolean {
   return project.status !== 'provisioning' && project.status !== 'blocked' && !confirming;
 }
 
@@ -57,7 +57,7 @@ export function isCardOpenKey(event: {
  *
  * @complexity O(1) time, O(1) space.
  */
-export function databaseLabel(project: ProjectRecord): string {
+export function databaseLabel(project: SiteRecord): string {
   if (project.database.kind === 'supabase') return 'Supabase';
   if (project.database.kind === 'custom') return project.database.label ?? 'Custom DB provider';
   return 'SQLite';
@@ -89,7 +89,7 @@ export interface DeleteActionCopy {
  *
  * @complexity O(1) time, O(1) space.
  */
-export function deleteActionCopy(project: ProjectRecord): DeleteActionCopy {
+export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
   if (project.deleteErasesFiles) {
     return {
       cardButtonLabel: `Delete ${project.displayName}`,
