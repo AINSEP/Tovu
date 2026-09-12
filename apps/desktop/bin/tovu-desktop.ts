@@ -51,6 +51,19 @@ Options:
   -h, --help               Show this message.
 `;
 
+/** Where this CLI writes its two output streams — injected so the whole CLI is assertable from
+ *  `node --test` without capturing the real `process.stdout`/`process.stderr`. */
+interface Io {
+  out: (text: string) => void;
+  err: (text: string) => void;
+}
+
+/** {@link parseArgv}'s return shape. */
+interface ParsedArgv {
+  positional: string[];
+  userDataDir?: string;
+}
+
 /**
  * Pull `--user-data-dir <path>` out of argv, returning it and the remaining positional arguments.
  *
@@ -59,16 +72,16 @@ Options:
  *
  * @complexity O(n) in argv length.
  */
-function parseArgv(argv) {
-  const positional = [];
-  let userDataDir;
+function parseArgv(argv: string[]): ParsedArgv {
+  const positional: string[] = [];
+  let userDataDir: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === "--user-data-dir") {
       userDataDir = argv[index + 1];
       index += 1;
       continue;
     }
-    positional.push(argv[index]);
+    positional.push(argv[index]!); // within bounds: the loop condition guards `index < argv.length`
   }
   return { positional, userDataDir };
 }
@@ -88,7 +101,7 @@ function parseArgv(argv) {
  *
  * @complexity O(1).
  */
-function resolveAnnouncedUserDataDir(override, log) {
+function resolveAnnouncedUserDataDir(override: string | undefined, log: (line: string) => void): string {
   const userDataDir = override?.trim() ? path.resolve(override.trim()) : resolveDesktopUserDataDir();
   log(`Using app data: ${userDataDir}`);
   if (!fs.existsSync(userDataDir)) {
@@ -104,7 +117,7 @@ function resolveAnnouncedUserDataDir(override, log) {
  * @returns an exit code.
  * @complexity O(n) in the tracked-row count, plus one classification.
  */
-function runAddSite(positional, userDataDirOverride, io) {
+function runAddSite(positional: string[], userDataDirOverride: string | undefined, io: Io): number {
   const [rawSiteDir, ...extra] = positional;
   if (rawSiteDir === undefined) {
     io.err("add-site needs the path to a site folder.\n");
@@ -135,7 +148,7 @@ function runAddSite(positional, userDataDirOverride, io) {
 }
 
 /** The operator-facing outcome line. @complexity O(1). */
-function describeAddSiteResult(result) {
+function describeAddSiteResult(result: ReturnType<typeof addSitePointer>): string {
   if (result.alreadyTracked) return `Already in your websites: ${result.siteDir}\nNothing changed.\n`;
   const restored = result.alreadyDismissed ? "\nYou had removed this website before; adding it by name brings it back.\n" : "\n";
   return `Added: ${result.siteDir}\nThe folder was not moved, copied, or changed.${restored}`;
@@ -150,7 +163,7 @@ function describeAddSiteResult(result) {
  * @returns an exit code.
  * @complexity O(1) beyond the dispatched command's own cost.
  */
-function runTovuDesktopCli(argv, io) {
+function runTovuDesktopCli(argv: string[], io: Io): number {
   const { positional, userDataDir } = parseArgv(argv);
   const [command, ...rest] = positional;
 

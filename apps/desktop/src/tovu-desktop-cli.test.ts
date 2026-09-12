@@ -17,11 +17,11 @@ import path from "node:path";
 import { EXIT_OK, EXIT_REFUSED, EXIT_USAGE, parseArgv, runTovuDesktopCli } from "../bin/tovu-desktop.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites, untrackSite } from "./tracked-sites.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-cli-"));
 }
 
-function siteFixture(name = "site") {
+function siteFixture(name = "site"): string {
   const dir = path.join(tempDir(), name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
@@ -31,9 +31,15 @@ function siteFixture(name = "site") {
 
 /** Collect stdout and stderr separately — which stream a message went to is part of the contract. */
 function capture() {
-  const out = [];
-  const err = [];
-  return { out, err, io: { out: (t) => out.push(t), err: (t) => err.push(t) }, stdout: () => out.join(""), stderr: () => err.join("") };
+  const out: string[] = [];
+  const err: string[] = [];
+  return {
+    out,
+    err,
+    io: { out: (t: string) => out.push(t), err: (t: string) => err.push(t) },
+    stdout: () => out.join(""),
+    stderr: () => err.join("")
+  };
 }
 
 test("add-site adds a real site and reports the path it recorded", () => {
@@ -48,7 +54,7 @@ test("add-site adds a real site and reports the path it recorded", () => {
   assert.ok(io.stdout().includes(siteDir));
   // Stated in the output because the promise is load-bearing and people do not read source.
   assert.match(io.stdout(), /not moved, copied, or changed/);
-  assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
 });
 
 test("add-site ALWAYS announces which app-data directory it used", () => {

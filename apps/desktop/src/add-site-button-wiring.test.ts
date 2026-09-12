@@ -28,6 +28,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { registerSiteIpcHandlers } from "./project-ipc.ts";
+import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
@@ -63,7 +64,7 @@ function channelTheButtonInvokes() {
   const contracts = fs.readFileSync(path.join(here, "contracts", "project.ts"), "utf8");
   const literal = new RegExp(`${invoke[1]}:\\s*'([^']+)'`).exec(contracts);
   assert.ok(literal, `contracts/project.ts declares no literal for SITE_IPC_CHANNELS.${invoke[1]}`);
-  return literal[1];
+  return literal[1]!; // the pattern's one capturing group matched — assert.ok(literal) above proved the regex matched
 }
 
 /**
@@ -74,29 +75,29 @@ function channelTheButtonInvokes() {
  * REAL — the only fakes are `ipcMain` (a Map) and the folder dialog (which cannot be driven
  * headlessly). A test that also faked the adder would prove the wiring reaches a stub.
  */
-function registerRealHandlers(pickedPath) {
-  const handlers = new Map();
-  const shown = [];
+function registerRealHandlers(pickedPath: string | null) {
+  const handlers = new Map<string, Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]>();
+  const shown: Array<Parameters<ProjectIpcDeps["dialog"]["showOpenDialog"]>[0]> = [];
   const userDataDir = tempDir();
   const projectsPath = sitesFilePath(userDataDir);
 
   registerSiteIpcHandlers({
-    ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+    ipcMain: { handle: (channel: string, handler: Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]) => handlers.set(channel, handler) },
     dialog: {
-      showOpenDialog: async (options) => {
+      showOpenDialog: async (options: Parameters<ProjectIpcDeps["dialog"]["showOpenDialog"]>[0]) => {
         shown.push(options);
         return pickedPath === null ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [pickedPath] };
       },
     },
     shell: { openExternal: async () => {} },
     openSites: new Map(),
-    serializer: { run: (_key, fn) => fn() },
+    serializer: { run: (_key: string, fn: () => unknown) => fn() },
     projectsPath,
     registryPath: path.join(userDataDir, "open-sites.json"),
     repoRoot: "/repo",
     statePath: path.join(userDataDir, "desktop-state.json"),
     cliMode: "source",
-    readSiteName: (siteDir) => path.basename(siteDir),
+    readSiteName: (siteDir: string) => path.basename(siteDir),
     readPreviewVersion: () => null,
     adoptSiteDir: async () => assert.fail("adoptSiteDir must not be reached — it inits empty folders"),
     classifySiteDir: classifySiteDirSafely,
@@ -108,7 +109,9 @@ function registerRealHandlers(pickedPath) {
     siteScanRoots: [],
     recentSiteDirs: () => [],
     ctx: {},
-  });
+    // `writeSiteName`/`readPreviewDataUrl`/`deletePreview` are absent — this suite never renames,
+    // fetches, or drops a preview, and the pre-migration JS never had to supply them either.
+  } as unknown as ProjectIpcDeps);
 
   return { handlers, shown, projectsPath };
 }
@@ -131,7 +134,7 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
 
   // Invoked exactly as Electron would: the handler for the preload's channel, with an event object
   // and no argument (main owns the dialog).
-  const record = await handlers.get(channelTheButtonInvokes())({});
+  const record = await handlers.get(channelTheButtonInvokes())!({}); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   // 1. The renderer gets a usable record back, so the card can render without a second round trip.
   assert.equal(record.id, siteDir);
@@ -140,9 +143,9 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
   // 2. A POINTER is on disk — read back through the same reader the Projects screen uses.
   const rows = readTrackedSites(projectsPath);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].siteDir, siteDir);
+  assert.equal(rows[0]!.siteDir, siteDir); // just asserted rows.length === 1 above, so index 0 exists
   // 3. `adopted`, so a later delete can never erase someone else's website.
-  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(rows[0]!.origin, SITE_ORIGIN.adopted); // just asserted rows.length === 1 above, so index 0 exists
   assert.equal(record.deleteErasesFiles, false);
   // 4. Pointer semantics, proven rather than promised: the folder is byte-for-byte as it was found.
   assert.deepEqual(fs.readdirSync(siteDir).sort(), before);
@@ -153,10 +156,10 @@ test("CLICKING the button REFUSES an empty folder and creates nothing in it", as
   fs.mkdirSync(empty);
   const { handlers, projectsPath } = registerRealHandlers(empty);
 
-  await assert.rejects(() => handlers.get(channelTheButtonInvokes())({}), /no Tovu site here to add/);
+  await assert.rejects(() => handlers.get(channelTheButtonInvokes())!({}), /no Tovu site here to add/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   // The refusal names the fix, which is what the renderer surfaces verbatim.
-  await assert.rejects(() => handlers.get(channelTheButtonInvokes())({}), /Create website/);
+  await assert.rejects(() => handlers.get(channelTheButtonInvokes())!({}), /Create website/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
   // No site was initialized — the exact difference from "Create website", which WOULD init here.
   assert.deepEqual(fs.readdirSync(empty), []);
   assert.deepEqual(readTrackedSites(projectsPath), []);
@@ -171,9 +174,9 @@ test("CLICKING the button REFUSES a folder of unrelated files and an incomplete 
   fs.writeFileSync(path.join(incomplete, "config.json"), "{}");
 
   const first = registerRealHandlers(occupied);
-  await assert.rejects(() => first.handlers.get(channelTheButtonInvokes())({}), /folder of unrelated files/);
+  await assert.rejects(() => first.handlers.get(channelTheButtonInvokes())!({}), /folder of unrelated files/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
   const second = registerRealHandlers(incomplete);
-  await assert.rejects(() => second.handlers.get(channelTheButtonInvokes())({}), /half-initialized or damaged/);
+  await assert.rejects(() => second.handlers.get(channelTheButtonInvokes())!({}), /half-initialized or damaged/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   assert.deepEqual(readTrackedSites(first.projectsPath), []);
   assert.deepEqual(readTrackedSites(second.projectsPath), []);
@@ -184,17 +187,17 @@ test("CLICKING the button REFUSES a folder of unrelated files and an incomplete 
 test("the button's dialog cannot create the folder it is about to refuse", async () => {
   const { handlers, shown } = registerRealHandlers(siteFixture());
 
-  await handlers.get(channelTheButtonInvokes())({});
+  await handlers.get(channelTheButtonInvokes())!({}); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   // `handleCreate` passes `createDirectory` deliberately; this must not. A folder made in the
   // dialog is empty by definition, and empty is exactly what this verb refuses.
-  assert.deepEqual(shown[0].properties, ["openDirectory"]);
+  assert.deepEqual(shown[0]!.properties, ["openDirectory"]); // this test's own call above pushed exactly one entry
 });
 
 test("a cancelled dialog rejects and writes nothing", async () => {
   const { handlers, projectsPath } = registerRealHandlers(null);
 
-  await assert.rejects(() => handlers.get(channelTheButtonInvokes())({}), /No folder was chosen/);
+  await assert.rejects(() => handlers.get(channelTheButtonInvokes())!({}), /No folder was chosen/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   assert.deepEqual(readTrackedSites(projectsPath), []);
 });

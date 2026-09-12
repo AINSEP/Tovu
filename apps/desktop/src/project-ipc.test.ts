@@ -12,26 +12,34 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleRename, handleGetPreview, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 import { createSiteSupervisor } from "./site-supervisor.ts";
+import type { SupervisedServer } from "./site-supervisor.ts";
 import { readRegistry, writeRegistry, isLiveServeRow } from "./site-process-registry.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-project-ipc-"));
+}
+
+/** What these tests store per site through `createSiteSupervisor` — mirrors
+ *  `site-supervisor.test.ts`'s own `TestEntry`, its established precedent for this exact generic. */
+interface SupervisorEntry {
+  server: SupervisedServer & { port: number };
 }
 
 /**
  * A real site directory on disk: both marker files, with `.site-meta.json` carrying `siteId` — the
  * identity `project-delete-guard.js` proves before any `created` row's directory may be erased.
  */
-function writeSite(dir, siteId, contents = {}) {
+function writeSite(dir: string, siteId: string, contents: Record<string, string> = {}): string {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: path.basename(dir) }));
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId, schemaVersion: 58 }));
@@ -39,8 +47,36 @@ function writeSite(dir, siteId, contents = {}) {
   return dir;
 }
 
-/** A minimal `deps` object every handler needs, with per-test overrides layered on. */
-function baseDeps(overrides = {}) {
+/** A minimal `deps` object every handler needs, with per-test overrides layered on. The return type
+ *  keeps the 16 unconditional defaults definite, admits any other `ProjectIpcDeps` field as
+ *  optional (so a test may assign one, e.g. `deps.openSiteServer = ...`, after construction, or a
+ *  caller may need an inline `as` where a handler's own `Pick<...>` requires a field this helper has
+ *  no meaningful default for — `dialog`, `adoptSiteDir`, `shell`, `openSiteServer` and the like —
+ *  because the test's own control flow never reaches it), and folds in `O` so a caller's own
+ *  overrides (e.g. `dialog`, `addSitePointer`) come back definite rather than merely optional. */
+function baseDeps<O extends Partial<ProjectIpcDeps>>(
+  overrides: O = {} as O
+): Partial<ProjectIpcDeps> &
+  Pick<
+    ProjectIpcDeps,
+    | "projectsPath"
+    | "registryPath"
+    | "repoRoot"
+    | "statePath"
+    | "cliMode"
+    | "openSites"
+    | "readSiteName"
+    | "readPreviewVersion"
+    | "readPreviewDataUrl"
+    | "deletePreview"
+    | "classifySiteDir"
+    | "recordSiteClosed"
+    | "readRegistry"
+    | "isLiveServeRow"
+    | "serializer"
+    | "ctx"
+  > &
+  O {
   const dir = tempDir();
   return {
     projectsPath: sitesFilePath(dir),
@@ -49,7 +85,7 @@ function baseDeps(overrides = {}) {
     statePath: path.join(dir, "desktop-state.json"),
     cliMode: "source",
     openSites: new Map(),
-    readSiteName: (siteDir) => path.basename(siteDir),
+    readSiteName: (siteDir: string) => path.basename(siteDir),
     // No capture exists for any fixture site by default — every test that cares about a real
     // version overrides this explicitly.
     readPreviewVersion: () => null,
@@ -62,7 +98,7 @@ function baseDeps(overrides = {}) {
     // behaves exactly as it did before the D-08 guard existed.
     readRegistry,
     isLiveServeRow,
-    serializer: { run: (_key, fn) => fn() },
+    serializer: { run: (_key: string, fn: () => unknown) => fn() },
     ctx: {},
     ...overrides,
   };
@@ -121,9 +157,9 @@ test("buildSiteRecord reports no preview for a site that has never been captured
 });
 
 test("buildSiteRecord surfaces whatever version deps.readPreviewVersion reports, keyed by siteDir", () => {
-  const seen = [];
+  const seen: string[] = [];
   const deps = baseDeps({
-    readPreviewVersion: (siteDir) => {
+    readPreviewVersion: (siteDir: string) => {
       seen.push(siteDir);
       return siteDir === "/sites/a" ? 12345 : null;
     },
@@ -136,7 +172,7 @@ test("buildSiteRecord surfaces whatever version deps.readPreviewVersion reports,
 });
 
 test("handleGetPreview delegates straight to deps.readPreviewDataUrl, keyed by the id it was given", () => {
-  const deps = baseDeps({ readPreviewDataUrl: (id) => (id === "/sites/a" ? "data:image/png;base64,AA==" : null) });
+  const deps = baseDeps({ readPreviewDataUrl: (id: string) => (id === "/sites/a" ? "data:image/png;base64,AA==" : null) });
   assert.equal(handleGetPreview("/sites/a", deps), "data:image/png;base64,AA==");
   assert.equal(handleGetPreview("/sites/unknown", deps), null);
 });
@@ -145,14 +181,14 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
   // D-06 end to end at the sink the renderer actually reads. Before the supervisor owned the
   // `running -> exited` transition this record kept saying `running` with the dead child's port
   // forever, and `useSitesPolling`'s 4s re-poll re-read the same unchanged answer.
-  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
+  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
 
-  let died;
+  let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
   deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
   assert.equal(buildSiteRecord(row, deps).status, "running");
 
-  died({ code: 1, signal: null });
+  died!({ code: 1, signal: null });
 
   const record = buildSiteRecord(row, deps);
   assert.equal(record.status, "stopped");
@@ -161,17 +197,17 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
 });
 
 test("a project that was simply never started has no statusDetail to report", () => {
-  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
+  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   const record = buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps);
   assert.equal(record.status, "stopped");
   assert.equal(record.statusDetail, null);
 });
 
 test("a killed project reports its signal rather than an exit code", () => {
-  const deps = baseDeps({ openSites: createSiteSupervisor({ onUnexpectedExit: () => {} }) });
-  let died;
+  const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
+  let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
   deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
-  died({ code: null, signal: "SIGKILL" });
+  died!({ code: null, signal: "SIGKILL" });
   assert.equal(buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps).statusDetail, "The site's server was stopped by SIGKILL.");
 });
 
@@ -184,19 +220,19 @@ test("handleList returns one record per tracked row, joined against openSites", 
   const records = handleList(deps);
   assert.equal(records.length, 2);
   const byId = new Map(records.map((r) => [r.id, r]));
-  assert.equal(byId.get("/sites/a").status, "stopped");
-  assert.equal(byId.get("/sites/b").status, "running");
-  assert.equal(byId.get("/sites/b").port, 9000);
+  assert.equal(byId.get("/sites/a")!.status, "stopped"); // just built from `records`, so a row for this id always exists
+  assert.equal(byId.get("/sites/b")!.status, "running");
+  assert.equal(byId.get("/sites/b")!.port, 9000);
 });
 
 /** A folder that is a complete Tovu site, via this file's existing {@link writeSite}. */
-function siteFixture(name = "existing-site") {
+function siteFixture(name = "existing-site"): string {
   return writeSite(path.join(tempDir(), name), `id-${name}`);
 }
 
 /** `baseDeps` plus the folder dialog and the real pointer adder `handleAddSite` needs. */
-function addSiteDeps(pickedPath, overrides = {}) {
-  const shown = [];
+function addSiteDeps<O extends Partial<ProjectIpcDeps>>(pickedPath: string | null, overrides: O = {} as O) {
+  const shown: Array<Parameters<ProjectIpcDeps["dialog"]["showOpenDialog"]>[0]> = [];
   const deps = baseDeps({
     classifySiteDir: classifySiteDirSafely,
     addSitePointer,
@@ -223,7 +259,7 @@ test("handleAddSite tracks an existing site as `adopted` and returns its record"
   // The consequence that matters: `deleteErasesFiles` false means a later delete drops the card and
   // leaves every byte of someone else's site where it is.
   assert.equal(record.deleteErasesFiles, false);
-  assert.equal(readTrackedSites(deps.projectsPath)[0].origin, "adopted");
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, "adopted");
 });
 
 test("handleAddSite REFUSES an empty folder and never initializes a site in it", async () => {
@@ -267,8 +303,8 @@ test("handleAddSite's dialog does NOT offer to create a folder", async () => {
   // `handleCreate` passes `createDirectory` on purpose; this must not. A folder the operator makes
   // in the dialog is empty by definition, and an empty folder is exactly what this verb refuses —
   // offering the button would invite the one mistake the refusal then has to explain.
-  assert.deepEqual(shown[0].properties, ["openDirectory"]);
-  assert.equal(shown[0].properties.includes("createDirectory"), false);
+  assert.deepEqual(shown[0]!.properties, ["openDirectory"]); // this test's own call above pushed exactly one entry
+  assert.equal(shown[0]!.properties.includes("createDirectory"), false); // this test's own call above pushed exactly one entry
 });
 
 test("handleAddSite rejects a cancelled dialog without writing anything", async () => {
@@ -304,7 +340,7 @@ test("handleCreate refuses a hosted-database choice instead of quietly making a 
 
   for (const kind of ["supabase", "custom"]) {
     await assert.rejects(
-      () => handleCreate({ displayName: "New Site", database: { kind } }, deps),
+      () => handleCreate({ displayName: "New Site", database: { kind } }, deps as typeof deps & Pick<ProjectIpcDeps, "adoptSiteDir">), // never reached — refused before adoptSiteDir
       /only creates SQLite sites/,
       `a "${kind}" choice must be refused, not silently narrowed`,
     );
@@ -327,12 +363,12 @@ test("handleCreate accepts an explicit sqlite choice, and an input with no datab
 
 test("handleCreate throws when the folder picker is cancelled", async () => {
   const deps = baseDeps({ dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) } });
-  await assert.rejects(() => handleCreate({ displayName: "New Site" }, deps), /No folder was chosen/);
+  await assert.rejects(() => handleCreate({ displayName: "New Site" }, deps as typeof deps & Pick<ProjectIpcDeps, "adoptSiteDir">), /No folder was chosen/); // never reached — refused before adoptSiteDir
 });
 
 test("handleCreate adopts the picked folder, tracks it, and returns its record", async () => {
   const picked = "/sites/new-one";
-  let adoptCalledWith = null;
+  let adoptCalledWith: Parameters<ProjectIpcDeps["adoptSiteDir"]>[0] | null = null;
   const deps = baseDeps({
     dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
     adoptSiteDir: async (input) => {
@@ -343,8 +379,8 @@ test("handleCreate adopts the picked folder, tracks it, and returns its record",
 
   const record = await handleCreate({ displayName: "New Site" }, deps);
 
-  assert.equal(adoptCalledWith.dir, picked);
-  assert.equal(adoptCalledWith.name, "New Site");
+  assert.equal(adoptCalledWith!.dir, picked); // handleCreate above always calls adoptSiteDir before returning
+  assert.equal(adoptCalledWith!.name, "New Site"); // handleCreate above always calls adoptSiteDir before returning
   assert.equal(record.id, picked);
   assert.deepEqual(readTrackedSites(deps.projectsPath).map((r) => r.siteDir), [picked]);
 });
@@ -357,7 +393,7 @@ test("handleDelete on an untracked id is a no-op — no stop, no fs.rm, no throw
 test("handleDelete on a running project the app CREATED stops the server before removing the directory", async () => {
   const siteDir = writeSite(path.join(tempDir(), "site-to-delete"), "site-a");
 
-  const order = [];
+  const order: string[] = [];
   const deps = baseDeps();
   // `created`, outside `deps.repoRoot`, and still holding the site whose id the row recorded — the
   // only combination the guard lets through, which is what makes this the proof that the guard did
@@ -396,7 +432,7 @@ test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries n
 
 test("handleDelete drops the cached preview for a project it ERASES", async () => {
   const siteDir = writeSite(path.join(tempDir(), "erased-with-preview"), "site-erase");
-  const deleted = [];
+  const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
   trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-erase" });
 
@@ -411,7 +447,7 @@ test("handleDelete drops the cached preview for a project it only REMOVES (adopt
   // thumbnail sits as litter the boot sweep alone would have to catch.
   const siteDir = path.join(tempDir(), "removed-with-preview");
   fs.mkdirSync(siteDir);
-  const deleted = [];
+  const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
   trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
 
@@ -422,7 +458,7 @@ test("handleDelete drops the cached preview for a project it only REMOVES (adopt
 });
 
 test("handleDelete on an untracked id never calls deletePreview — there is no row to clean up after", async () => {
-  const deleted = [];
+  const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: (id) => deleted.push(id) });
 
   await handleDelete("/sites/never-tracked", deps);
@@ -432,11 +468,11 @@ test("handleDelete on an untracked id never calls deletePreview — there is no 
 
 test("handleOpenExternal throws when the project is not currently open", async () => {
   const deps = baseDeps();
-  await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps), /not open/);
+  await assert.rejects(() => handleOpenExternal({ siteId: "/sites/a", view: "admin" }, deps as typeof deps & Pick<ProjectIpcDeps, "shell">), /not open/); // never reached — refused before shell.openExternal
 });
 
 test("handleOpenExternal opens the admin surface by default, the site surface when asked", async () => {
-  const opened = [];
+  const opened: string[] = [];
   const deps = baseDeps({ shell: { openExternal: async (url) => opened.push(url) } });
   deps.openSites.set("/sites/a", { server: { origin: "http://127.0.0.1:4321" } });
 
@@ -472,7 +508,7 @@ test("registerSiteIpcHandlers registers exactly the real channels declared in SI
   const registered = new Map();
   const deps = baseDeps({ ipcMain: { handle: (channel, listener) => registered.set(channel, listener) } });
 
-  registerSiteIpcHandlers(deps);
+  registerSiteIpcHandlers(deps as ProjectIpcDeps); // none of the nine registered handlers is ever invoked here — this only inspects what got registered
 
   assert.deepEqual([...registered.keys()].sort(), Object.values(SITE_IPC_CHANNELS).sort());
 });
@@ -494,9 +530,9 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
   const deps = baseDeps({ serializer: createKeyedSerializer() });
   trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-a" });
 
-  const order = [];
-  let releaseBoot;
-  const booted = new Promise((resolve) => { releaseBoot = resolve; });
+  const order: string[] = [];
+  let releaseBoot!: () => void; // assigned synchronously by the Promise executor below
+  const booted = new Promise<void>((resolve) => { releaseBoot = resolve; });
   deps.openSiteServer = async (id) => {
     order.push("boot:started");
     await booted;
@@ -504,7 +540,7 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
     deps.openSites.set(id, { server: { port: 4321, stop: async () => order.push("stopped") } });
   };
 
-  const starting = handleStart(siteDir, deps);
+  const starting = handleStart(siteDir, deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
   const deleting = handleDelete(siteDir, deps);
   releaseBoot();
   await Promise.all([starting, deleting]);
@@ -527,7 +563,7 @@ test("handleStart refuses a project that was deleted while its start was queued 
   deps.openSites.set(siteDir, { server: { stop: async () => { await new Promise((r) => setTimeout(r, 20)); } } });
 
   const deleting = handleDelete(siteDir, deps);
-  const starting = handleStart(siteDir, deps);
+  const starting = handleStart(siteDir, deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
 
   await deleting;
   await assert.rejects(() => starting, /Unknown project/);
@@ -542,7 +578,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
   writeSite(siteDir, "site-a");
 
   const deps = baseDeps();
-  await handleCreateInto(deps, siteDir, "site-a");
+  await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
 
   writeSite(siteDir, "site-b-someone-elses", { "content.db": "someone else's real database" });
   await handleDelete(siteDir, deps);
@@ -556,9 +592,9 @@ test("handleCreate stamps the new site's own identity on its created row", async
   writeSite(siteDir, "site-a");
   const deps = baseDeps();
 
-  const record = await handleCreateInto(deps, siteDir, "site-a");
+  const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
 
-  assert.equal(readTrackedSites(deps.projectsPath)[0].siteId, "site-a");
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.siteId, "site-a");
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
 });
 
@@ -576,13 +612,13 @@ test("handleCreate records no identity for a folder it merely adopted", async ()
   await handleCreate({ displayName: "Adopted" }, deps);
 
   const [row] = readTrackedSites(deps.projectsPath);
-  assert.equal(row.origin, SITE_ORIGIN.adopted);
-  assert.equal(row.siteId, undefined);
+  assert.equal(row!.origin, SITE_ORIGIN.adopted); // handleCreate above just tracked exactly one row
+  assert.equal(row!.siteId, undefined); // handleCreate above just tracked exactly one row
 });
 
 /** Drive `handleCreate` through the folder picker onto a site that already exists at `siteDir`,
  *  classified `empty` so the row records `created` — what a real `tovu init` run produces. */
-function handleCreateInto(deps, siteDir, _siteId) {
+function handleCreateInto(deps: Parameters<typeof handleCreate>[1], siteDir: string, _siteId: string) {
   deps.dialog = { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) };
   deps.classifySiteDir = () => "empty";
   deps.adoptSiteDir = async () => siteDir;
@@ -620,7 +656,7 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
 });
 
 test("handleCreate records 'created' when it initialized an empty folder, 'adopted' when the folder was already a site", async () => {
-  for (const [kind, expected] of [["empty", SITE_ORIGIN.created], ["site", SITE_ORIGIN.adopted]]) {
+  for (const [kind, expected] of [["empty", SITE_ORIGIN.created], ["site", SITE_ORIGIN.adopted]] as const) {
     // A real site on disk either way — `adoptSiteDir` has run by the time the row is written, so
     // what the classifier said about the folder BEFOREHAND is the only thing separating these two.
     const picked = writeSite(path.join(tempDir(), `${kind}-one`), `site-${kind}`);
@@ -634,7 +670,7 @@ test("handleCreate records 'created' when it initialized an empty folder, 'adopt
 
     const record = await handleCreate({ displayName: "New Site" }, deps);
 
-    assert.equal(readTrackedSites(deps.projectsPath)[0].origin, expected, `a "${kind}" folder must be tracked as ${expected}`);
+    assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, expected, `a "${kind}" folder must be tracked as ${expected}`);
     assert.equal(record.deleteErasesFiles, expected === SITE_ORIGIN.created);
   }
 });
@@ -664,7 +700,7 @@ test("handleDelete still stops and closes a running project it may not erase", a
   fs.mkdirSync(siteDir);
   fs.writeFileSync(path.join(siteDir, "content.db"), "keep me");
 
-  const order = [];
+  const order: string[] = [];
   const deps = baseDeps();
   trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
   deps.openSites.set(siteDir, {
@@ -683,7 +719,7 @@ test("handleDelete still stops and closes a running project it may not erase", a
 // ---------------------------------------------------------------------------------------------
 
 /** A directory the REAL `classifySiteDir` will call a site: both marker files present. */
-function siteFolder(parent, name) {
+function siteFolder(parent: string, name: string): string {
   const dir = path.join(parent, name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), "{}");
@@ -720,8 +756,8 @@ test("rescanSites records a discovery as adopted, so deleting its card can never
   const deps = scanDeps();
   siteFolder(deps.scanRoot, "alpha");
   const [record] = rescanSites(deps);
-  assert.equal(record.deleteErasesFiles, false);
-  assert.equal(readTrackedSites(deps.projectsPath)[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(record!.deleteErasesFiles, false); // this test's own siteFolder call above seeds exactly one discoverable site
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("rescanSites never resurrects a project the operator removed on purpose", async () => {
@@ -763,8 +799,13 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
   const registered = new Map();
-  registerSiteIpcHandlers({ ...deps, ipcMain: { handle: (c, h) => registered.set(c, h) }, dialog: {}, shell: {} });
-  const records = await registered.get(SITE_IPC_CHANNELS.rescan)({});
+  registerSiteIpcHandlers({
+    ...deps,
+    ipcMain: { handle: (c: string, h: Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]) => registered.set(c, h) },
+    dialog: {},
+    shell: {}
+  } as unknown as ProjectIpcDeps); // only the rescan channel is ever invoked below
+  const records = await registered.get(SITE_IPC_CHANNELS.rescan)({}) as ReturnType<typeof rescanSites>;
   assert.deepEqual(records.map((r) => r.id), [alpha]);
 });
 
@@ -776,7 +817,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 
 /** Registry state as a second app instance would have left it: a row for `siteDir` under a pid this
  *  process is not holding. */
-function seedForeignRegistryRow(deps, siteDir, pid = 999_001) {
+function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, siteDir: string, pid = 999_001): void {
   writeRegistry(deps.registryPath, {
     sites: [{ siteDir, port: 41234, workspaceId: "ws-foreign", pid, updatedAt: Date.now() }],
   });
@@ -865,7 +906,7 @@ test("handleRename renames an ADOPTED row, which carries no siteId and never wil
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "adopted-site"), "id-a");
   trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
-  assert.equal(readTrackedSites(deps.projectsPath)[0].siteId, undefined, "precondition: adopted rows carry no siteId");
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.siteId, undefined, "precondition: adopted rows carry no siteId");
 
   const record = handleRename({ id: dir, name: "Renamed Site" }, deps);
 
@@ -933,7 +974,7 @@ test("handleRename retitles an OPEN own-server window, so the native Window menu
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "open-site"), "id-a");
   trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
-  const titles = [];
+  const titles: string[] = [];
   deps.openSites.set(dir, {
     server: { port: 4321 },
     window: { isDestroyed: () => false, setTitle: (title) => titles.push(title) },

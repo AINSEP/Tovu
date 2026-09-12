@@ -38,6 +38,165 @@ const SITE_IPC_CHANNELS = Object.freeze({
 });
 
 /**
+ * A tracked-project row as {@link buildSiteRecord} and its siblings need it — loosened from
+ * `tracked-sites.js`'s own `TrackedSiteRow` (not exported) in exactly the two fields a caller here
+ * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseSiteDirectory}
+ * already treats an absent `origin` as "not created" (refuse) and {@link identityHasChanged} already
+ * treats an absent `siteId` as "nothing recorded" — this type describes that existing tolerance
+ * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.js`'s own
+ * `RowLike`: a real `TrackedSiteRow` (also no index signature) must flow into this type at every
+ * real call site, and TypeScript does not consider a plain interface assignable to one that HAS an
+ * index signature. See the `as MayEraseRowLike` casts where a `SiteRow` is handed to
+ * {@link mayEraseSiteDirectory} instead.
+ */
+interface SiteRow {
+  siteDir: string;
+  createdAt: string;
+  origin?: string;
+  siteId?: string;
+}
+
+/** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
+ *  rather than by name — see {@link SiteRow}'s own doc on why a `SiteRow` needs a cast to reach it. */
+type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0];
+
+/** How a site's server exited. Mirrors `site-supervisor.js`'s own `ServerExit` structurally rather
+ *  than importing it — this file's `openSites` contract is a plain duck type on purpose (see
+ *  {@link OpenSites}), never coupled to the concrete supervisor. */
+interface ServerExitLike {
+  code: number | null;
+  signal: string | null;
+}
+
+/** One `openSites` entry. Every field is optional: a caller — this file's own tests included — only
+ *  ever fills in what the handler under test actually reads. The real production shape
+ *  (`main.js`'s `openSiteServer`) always sets `server.port`/`pid`/`stop` and `window` only for an
+ *  own-server-mode entry. */
+interface OpenSiteEntry {
+  server: {
+    port?: number;
+    pid?: number;
+    origin?: string;
+    stop?: () => Promise<unknown>;
+    onExit?: (listener: (exit: ServerExitLike) => void) => void;
+  };
+  window?: {
+    isDestroyed?: () => boolean;
+    destroy?: () => void;
+    setTitle?: (title: string) => void;
+  };
+}
+
+/** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
+ *  it is `site-supervisor.js`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
+ *  handlers only ever call `get`/`delete`, but `set`/`has` are part of the type because the
+ *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.js`) build
+ *  entries with before a handler ever sees them. */
+interface OpenSites {
+  get(siteDir: string): OpenSiteEntry | undefined;
+  set(siteDir: string, entry: OpenSiteEntry): unknown;
+  has(siteDir: string): boolean;
+  delete(siteDir: string): boolean;
+  lastExitOf?(siteDir: string): ServerExitLike | null;
+}
+
+/** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
+ *  `site-process-registry.js`'s own `SiteProcessRow`, duplicated rather than imported for the same
+ *  reason `readRegistry`/`isLiveServeRow` arrive on `deps` rather than as a direct import: every
+ *  handler here stays callable from plain `node --test` against fakes. */
+interface RegistryRow {
+  siteDir: string;
+  port: number;
+  workspaceId: string;
+  pid: number;
+  updatedAt: number;
+}
+
+/** `deps.dialog.showOpenDialog`'s options — the subset of Electron's `OpenDialogOptions` every
+ *  caller here actually passes. */
+interface OpenDialogOptions {
+  title: string;
+  message: string;
+  buttonLabel: string;
+  properties: Array<"openDirectory" | "createDirectory">;
+}
+
+/** Electron's `dialog.showOpenDialog` resolution — the subset read here. */
+interface OpenDialogResult {
+  canceled: boolean;
+  filePaths: string[];
+}
+
+/** `deps.dialog` — injected so `handleCreate`/`handleAddSite` are testable without a real native
+ *  dialog. */
+interface DialogLike {
+  showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult>;
+}
+
+/** `deps.shell` — injected so {@link handleOpenExternal} is testable without a real browser launch.
+ *  Typed to return `Promise<unknown>` rather than Electron's own `Promise<void>`: this file only
+ *  ever awaits the call, and several tests report what they opened by returning their own array
+ *  length from the fake. */
+interface ShellLike {
+  openExternal(url: string): Promise<unknown>;
+}
+
+/** `deps.ipcMain` — Electron's own `ipcMain.handle` listener signature is itself
+ *  `(event: any, ...args: any[]) => any` (see Electron's `ipcMain.d.ts`): the per-channel
+ *  payload/return shape is not something this generic registration API can express, so each
+ *  `deps.ipcMain.handle(...)` call below still gives its own listener a real, specific parameter
+ *  type at the point that matters — the handler function it delegates to. */
+interface IpcMainLike {
+  handle(channel: string, listener: (event: any, ...args: any[]) => any): void; // eslint-disable-line @typescript-eslint/no-explicit-any -- mirrors Electron's own ipcMain.handle signature
+}
+
+/** `deps.serializer` — `keyed-serializer.js`'s per-key promise chain, loosened from that file's own
+ *  exported `KeyedSerializer` type (`run<T>(...): Promise<T>`) to `T | PromiseLike<T>`: this file
+ *  only ever `await`s the result, and the plain synchronous fakes several tests use return `fn()`'s
+ *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer()` still satisfies
+ *  this — `Promise<T>` is one of the two arms. */
+interface Serializer {
+  run<T>(key: string, fn: () => T | PromiseLike<T>): T | PromiseLike<T>;
+}
+
+/** {@link handleCreate}'s input — mirrors `contracts/project.ts`'s `CreateSiteInput`, kept local for
+ *  the same reason {@link SITE_IPC_CHANNELS} is inlined rather than imported: see this file's
+ *  header. */
+interface CreateSiteInput {
+  displayName: string;
+  database?: { kind: string };
+}
+
+/** {@link handleRename}'s input — mirrors `contracts/project.ts`'s `RenameSiteInput`. */
+interface RenameSiteInput {
+  id?: string;
+  name?: string;
+}
+
+/** {@link handleOpenExternal}'s input — mirrors `contracts/project.ts`'s `OpenSiteSurfaceInput`. */
+interface OpenSiteSurfaceInput {
+  siteId: string;
+  view: "site" | "admin";
+}
+
+/** {@link handleCreate}/{@link rescanSites}'s own `adoptSiteDir` shape — loosened from
+ *  `site-dir-store.js`'s own `AdoptSiteDirInput` (not exported) since this field arrives on `deps`,
+ *  injected rather than imported, for the same testability reason as every other collaborator here. */
+interface AdoptSiteDirInput {
+  dir: string;
+  repoRoot: string;
+  statePath: string;
+  name?: string;
+  cliMode?: string;
+}
+
+/** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.js`'s real
+ *  `addSitePointer`, duplicated rather than imported for the same reason as {@link AdoptSiteDirInput}. */
+interface AddSitePointerLike {
+  (input: { siteDir: string; projectsPath: string }): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
+}
+
+/**
  * Why this site's server is not running, when it stopped on its own — `null` when it was never
  * started, was stopped deliberately, or when `openSites` is a store that cannot say (a plain `Map`
  * in a test that is not exercising liveness).
@@ -47,7 +206,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
  *
  * @complexity O(1).
  */
-function describeLastExit(openSites, siteDir) {
+function describeLastExit(openSites: OpenSites, siteDir: string): string | null {
   const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf(siteDir) : null;
   if (exit === null) return null;
   if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
@@ -63,7 +222,7 @@ function describeLastExit(openSites, siteDir) {
  *
  * @complexity O(1).
  */
-function buildSiteRecord(row, deps) {
+function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   const openEntry = deps.openSites.get(row.siteDir);
   const running = openEntry !== undefined;
   return {
@@ -91,7 +250,7 @@ function buildSiteRecord(row, deps) {
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
     // and label a button with a consequence that will not happen. See `project-delete-guard.js`.
-    deleteErasesFiles: mayEraseSiteDirectory(row, { repoRoot: deps.repoRoot }),
+    deleteErasesFiles: mayEraseSiteDirectory(row as unknown as MayEraseRowLike, { repoRoot: deps.repoRoot }),
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.
@@ -100,7 +259,7 @@ function buildSiteRecord(row, deps) {
 }
 
 /** @complexity O(n) in the tracked-project count. */
-function handleList(deps) {
+function handleList(deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   return readTrackedSites(deps.projectsPath).map((row) => buildSiteRecord(row, deps));
 }
 
@@ -127,7 +286,10 @@ function handleList(deps) {
  *   operator-facing message either way).
  * @complexity O(1) beyond `adoptSiteDir`'s own cost.
  */
-async function handleCreate(input, deps) {
+async function handleCreate(
+  input: CreateSiteInput,
+  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion">
+) {
   const kind = input.database?.kind;
   if (kind !== undefined && kind !== "sqlite") {
     throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
@@ -147,9 +309,9 @@ async function handleCreate(input, deps) {
   // the first of those is a directory this app made, and only that one may ever be erased again —
   // see `project-delete-guard.js`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
   // only two classifications that reach `trackSite` are the two this maps.
-  const wasEmpty = deps.classifySiteDir(picked.filePaths[0]) === "empty";
+  const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
   const siteDir = await deps.adoptSiteDir({
-    dir: picked.filePaths[0],
+    dir: picked.filePaths[0]!, // same non-empty check as above
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
     name: input.displayName,
@@ -160,6 +322,11 @@ async function handleCreate(input, deps) {
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
   // at a path, and a path is not an identity. See `project-delete-guard.js`'s test 3.
+  // TOO-NARROW DEPENDENCY TYPE (reported, not cast — see handoff): `readSiteIdentity` (project-delete-guard.ts)
+  // returns `string | null`, but `trackSite`'s own `TrackSiteOptions.siteId` (tracked-sites.ts) is typed
+  // `string | undefined` and does not admit `null`, even though `buildTrackedRow`'s `typeof siteId === "string"`
+  // check treats null and undefined identically at runtime. Left as a genuine strict-tsc error per the
+  // migration rules rather than cast past.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
   return buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
@@ -188,7 +355,7 @@ async function handleCreate(input, deps) {
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps) {
+async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose your Tovu website's folder",
     message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
@@ -202,8 +369,8 @@ async function handleAddSite(deps) {
     throw new Error("No folder was chosen.");
   }
 
-  const { siteDir } = deps.addSitePointer({ siteDir: picked.filePaths[0], projectsPath: deps.projectsPath });
-  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
+  const { siteDir } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
   return buildSiteRecord(row, deps);
@@ -215,7 +382,7 @@ async function handleAddSite(deps) {
  *
  * @complexity O(n) in foreign row count.
  */
-function foreignServerMessage(siteDir, foreign) {
+function foreignServerMessage(siteDir: string, foreign: Array<{ pid: number }>): string {
   const pids = foreign.map((row) => row.pid).join(", ");
   return (
     `Another copy of Tovu still has this site open (process ${pids}). Close that window first. ` +
@@ -240,7 +407,7 @@ function foreignServerMessage(siteDir, foreign) {
  * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
  *   zero or one).
  */
-function liveForeignServers(deps, siteDir, ownPid) {
+function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow">, siteDir: string, ownPid: number | undefined): RegistryRow[] {
   return deps
     .readRegistry(deps.registryPath)
     .sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
@@ -282,7 +449,7 @@ function liveForeignServers(deps, siteDir, ownPid) {
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleDelete(id, deps) {
+async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
   await deps.serializer.run(id, () => deleteProject(id, deps));
 }
 
@@ -292,12 +459,12 @@ async function handleDelete(id, deps) {
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject(id, deps) {
+async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
-  const erasesFiles = mayEraseSiteDirectory(row, { repoRoot: deps.repoRoot });
+  const erasesFiles = mayEraseSiteDirectory(row as unknown as MayEraseRowLike, { repoRoot: deps.repoRoot });
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
@@ -319,14 +486,14 @@ async function deleteProject(id, deps) {
   }
 
   if (openEntry !== undefined) {
-    await openEntry.server.stop();
+    await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — `OpenSiteEntry.server.stop` is optional only because other, non-delete tests build entries that omit it
     deps.openSites.delete(id);
     // By pid: `recordSiteOpened` can leave a live sibling instance's row for this same site dir,
     // and a close by site dir alone would drop that one too (D-07).
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
     // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
     // `main.js` — so this is optional, not a missing null check.
-    if (openEntry.window && !openEntry.window.isDestroyed()) openEntry.window.destroy();
+    if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
   }
 
   untrackSite(deps.projectsPath, id);
@@ -355,7 +522,7 @@ async function deleteProject(id, deps) {
  *
  * @complexity O(1) beyond `readSiteIdentity`'s single file read.
  */
-function identityHasChanged(row) {
+function identityHasChanged(row: SiteRow): boolean {
   if (typeof row.siteId !== "string" || row.siteId === "") return false;
   return readSiteIdentity(row.siteDir) !== row.siteId;
 }
@@ -400,7 +567,7 @@ function identityHasChanged(row) {
  *   every boot).
  * @complexity O(n) in the tracked-site count, for the row lookup.
  */
-function handleRename(input, deps) {
+function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   const id = input?.id;
   const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
   if (row === undefined) {
@@ -436,7 +603,7 @@ function handleRename(input, deps) {
   // "Open Recent" itself needs no refresh: `main.js` builds those items with the directory path as
   // the label, not the site name, so a rename cannot stale them.
   const openWindow = deps.openSites.get(row.siteDir)?.window;
-  if (openWindow && !openWindow.isDestroyed()) openWindow.setTitle(name);
+  if (openWindow && !openWindow.isDestroyed!()) openWindow.setTitle!(name); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc)
 
   return buildSiteRecord(row, deps);
 }
@@ -450,7 +617,7 @@ function handleRename(input, deps) {
  * @throws {Error} when the project is not open.
  * @complexity O(1).
  */
-async function handleOpenExternal(input, deps) {
+async function handleOpenExternal(input: OpenSiteSurfaceInput, deps: Pick<ProjectIpcDeps, "openSites" | "shell">): Promise<void> {
   const openEntry = deps.openSites.get(input.siteId);
   if (openEntry === undefined) {
     throw new Error("That project is not open. Open it first, then try again.");
@@ -473,7 +640,7 @@ async function handleOpenExternal(input, deps) {
  *   never been opened, not an error to surface.
  * @complexity O(1) beyond `readPreviewDataUrl`'s own cost.
  */
-function handleGetPreview(id, deps) {
+function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDataUrl">) {
   return deps.readPreviewDataUrl(id);
 }
 
@@ -500,7 +667,7 @@ function handleGetPreview(id, deps) {
  * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
  *   operation on the same site takes to settle.
  */
-async function handleStart(id, deps) {
+async function handleStart(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -534,11 +701,22 @@ async function handleStart(id, deps) {
  *   generally do not live under any scan root.
  * @returns the same records {@link handleList} would return, after the pass.
  * @complexity O(n) in the scanned child count, times the registry size.
+ *
+ * **Too-narrow dependency type, reported rather than cast (see handoff):**
+ * `discoverSiteDirs`'s own `classifySiteDir` parameter (`tracked-sites.ts`'s unexported
+ * `ClassifySiteDirFn`) is typed to return only `SiteClassification`'s four values, but every real
+ * caller of `deps.classifySiteDir` in this codebase (`main.js`'s production wiring, and this file's
+ * own `add-site-button-wiring.test.ts`) passes `classifySiteDirSafely`, which can also return
+ * `"unreadable"` (`site-dir-store.ts:187`). `deps.classifySiteDir` is typed here to match that real,
+ * wider value (`ProjectIpcDeps.classifySiteDir`, below), so the call one line down is the one place
+ * that friction surfaces as a strict error rather than being silently narrowed by a cast.
  */
-function rescanSites(deps) {
+function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   const found = discoverSiteDirs({
     scanRoots: deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
+    // TOO-NARROW DEPENDENCY TYPE (reported, not cast — see this function's own doc above): left as a
+    // genuine strict-tsc error rather than cast past it.
     classifySiteDir: deps.classifySiteDir,
   });
   adoptDiscoveredSites(deps.projectsPath, found);
@@ -548,53 +726,50 @@ function rescanSites(deps) {
 /**
  * Registers the nine real `runner:sites:*` handlers above.
  *
- * @param {object} deps
- * @param {{handle: Function}} deps.ipcMain
- * @param {{showOpenDialog: Function}} deps.dialog
- * @param {{openExternal: Function}} deps.shell
- * @param {object} deps.openSites live open sites, keyed by site dir — `main.js`'s own module-level
+ * @param deps
+ * @param deps.openSites live open sites, keyed by site dir — `main.js`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
  *   `site-supervisor.js`'s supervisor, which additionally drops an entry whose child has died and
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
- * @param {{run: Function}} deps.serializer per-site-dir operation serializer (`keyed-serializer.js`).
- * @param {string} deps.projectsPath `tracked-sites.js`'s tracked-project JSON file.
- * @param {string} deps.registryPath crash-safety registry file (`site-process-registry.js`), for
+ * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.js`).
+ * @param deps.projectsPath `tracked-sites.js`'s tracked-project JSON file.
+ * @param deps.registryPath crash-safety registry file (`site-process-registry.js`), for
  *   `recordSiteClosed` on a delete of a running project.
- * @param {string} deps.repoRoot Tovu repo root.
- * @param {string} deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
- * @param {string} deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
- * @param {Function} deps.readSiteName `main.js`'s site-display-name reader.
- * @param {Function} deps.writeSiteName `site-config.js`'s validating, atomic `config.json` name
+ * @param deps.repoRoot Tovu repo root.
+ * @param deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
+ * @param deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
+ * @param deps.readSiteName `main.js`'s site-display-name reader.
+ * @param deps.writeSiteName `site-config.js`'s validating, atomic `config.json` name
  *   writer, used by {@link handleRename}. Injected rather than imported for the same reason
  *   `adoptSiteDir` is — every handler in this file stays callable from plain `node --test` against
  *   fakes, and a rename test must never write into a real site directory.
- * @param {Function} deps.readPreviewVersion `site-preview-store.js`'s reader, bound to this launch's
+ * @param deps.readPreviewVersion `site-preview-store.js`'s reader, bound to this launch's
  *   userData at the same call site every other consumer resolves it from — feeds
  *   `buildSiteRecord`'s `previewVersion` field.
- * @param {Function} deps.readPreviewDataUrl `site-preview-store.js`'s reader, bound the same way —
+ * @param deps.readPreviewDataUrl `site-preview-store.js`'s reader, bound the same way —
  *   {@link handleGetPreview}'s on-demand fetch.
- * @param {Function} deps.deletePreview `site-preview-store.js`'s remover, bound the same way —
+ * @param deps.deletePreview `site-preview-store.js`'s remover, bound the same way —
  *   called beside `untrackSite` in {@link deleteProject}.
- * @param {Function} deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
- * @param {Function} deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
+ * @param deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
+ * @param deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
  *   {@link handleAddSite}. Injected rather than imported for the same reason `adoptSiteDir` is —
  *   every handler in this file stays callable from plain `node --test` against fakes.
- * @param {Function} deps.classifySiteDir `site-dir-store.js`'s classifier, called by `handleCreate`
+ * @param deps.classifySiteDir `site-dir-store.js`'s classifier, called by `handleCreate`
  *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.js`.
- * @param {Function} deps.openSiteServer `main.js`'s spawn-or-reuse-a-site's-backend function
+ * @param deps.openSiteServer `main.js`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
- * @param {Function} deps.recordSiteClosed `site-process-registry.js`'s crash-safety row remover.
- * @param {Function} deps.readRegistry `site-process-registry.js`'s crash-safety registry reader, used by
+ * @param deps.recordSiteClosed `site-process-registry.js`'s crash-safety row remover.
+ * @param deps.readRegistry `site-process-registry.js`'s crash-safety registry reader, used by
  *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
  *   this process's own memory, cannot.
- * @param {Function} deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
+ * @param deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
- * @param {object} deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
+ * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — nine registrations.
  */
-function registerSiteIpcHandlers(deps) {
+function registerSiteIpcHandlers(deps: ProjectIpcDeps): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
@@ -604,6 +779,44 @@ function registerSiteIpcHandlers(deps) {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
+}
+
+/**
+ * The full `deps` bag {@link registerSiteIpcHandlers} needs — every individual handler above takes
+ * only the `Pick` of this it actually reads, so a caller wiring one handler in isolation (as this
+ * file's own tests do) never has to fabricate the fields it does not touch.
+ */
+interface ProjectIpcDeps {
+  ipcMain: IpcMainLike;
+  dialog: DialogLike;
+  shell: ShellLike;
+  openSites: OpenSites;
+  serializer: Serializer;
+  projectsPath: string;
+  registryPath: string;
+  repoRoot: string;
+  statePath: string;
+  cliMode: string;
+  readSiteName: (siteDir: string) => string;
+  writeSiteName: (siteDir: string, rawName: unknown) => string;
+  readPreviewVersion: (siteDir: string) => number | null;
+  readPreviewDataUrl: (id: string) => string | null;
+  deletePreview: (id: string) => void;
+  adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
+  addSitePointer: AddSitePointerLike;
+  // Loosened to a plain `string`-returning classifier, matching `add-site-pointer.ts`'s own
+  // `SiteDirClassifierFn` convention: every real value assigned here (`classifySiteDirSafely`, the
+  // throwing `classifySiteDir`, or a test's `() => "empty"`) returns some subtype of `string`, and
+  // this file only ever compares the result with `===` against specific literals. See
+  // `rescanSites`'s own doc for the one place this looseness meets a narrower dependency type.
+  classifySiteDir: (dir: string) => string;
+  openSiteServer: (siteDir: string, ctx: unknown) => Promise<void>;
+  recordSiteClosed: (registryPath: string, siteDir: string, options?: { pid?: number }) => void;
+  readRegistry: (registryPath: string) => { sites: RegistryRow[] };
+  isLiveServeRow: (row: RegistryRow) => boolean;
+  siteScanRoots: string[];
+  recentSiteDirs: () => string[];
+  ctx: unknown;
 }
 
 export {
@@ -621,3 +834,4 @@ export {
   rescanSites,
   registerSiteIpcHandlers,
 };
+export type { ProjectIpcDeps, SiteRow, OpenSiteEntry, OpenSites, RegistryRow };
