@@ -108,6 +108,7 @@ const WIRED_THEMES_TOOL_IDS = [
   "theme_list_files",
   "theme_read_file",
   "theme_rename_file",
+  "theme_reset_file",
   "theme_restore_trashed_file",
   "theme_trash_file",
   "theme_write_file",
@@ -125,6 +126,7 @@ const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "co
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
   "theme_write_file",
   "theme_edit_file",
+  "theme_reset_file",
   "theme_rename_file",
   "theme_copy_file",
   "theme_trash_file",
@@ -137,14 +139,13 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 
 // Registry-lock test, NOT a safety assertion (contrast the destructive-exclusion test just below,
 // which stays byte-identical) — this one is EXPECTED to change every time the catalog legitimately
-// grows. Updated 2026-09-12: 8 -> 9 (added theme_copy_file, one of the two gaps a read-only survey
-// found against the human Explore screen's own per-file operations — see
-// `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`; theme_reset_file, the other gap,
-// follows in its own commit).
-test("exactly the 9 themes entries are registered — nothing else", () => {
+// grows. Updated 2026-09-12: 8 -> 10 (added theme_copy_file then theme_reset_file, the last two
+// gaps a read-only survey found against the human Explore screen's own per-file operations — see
+// `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`).
+test("exactly the 10 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 9, "sanity: the full themes catalog is still 9 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 10, "sanity: the full themes catalog is still 10 entries");
 });
 
 // `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
@@ -230,6 +231,7 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
     ["theme_read_file", { themeId: "plain", path: "tokens.json" }],
     ["theme_write_file", { themeId: "plain", path: "tokens.json", content: "{}" }],
     ["theme_edit_file", { themeId: "plain", path: "tokens.json", oldString: "{}", newString: "{ }" }],
+    ["theme_reset_file", { themeId: "plain", path: "tokens.json" }],
     ["theme_rename_file", { themeId: "plain", path: "tokens.json", name: "tokens2.json" }],
     ["theme_copy_file", { themeId: "plain", path: "tokens.json" }],
     ["theme_trash_file", { themeId: "plain", path: "styles.css" }],

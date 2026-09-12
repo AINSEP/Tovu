@@ -2,13 +2,13 @@
  * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
  * onto real filesystem reads/writes inside one theme's own folder, as `ToolRegistration`s
  * (`theme_list`/`theme_list_files`/`theme_read_file`/`theme_write_file`/`theme_edit_file`/
- * `theme_rename_file`/`theme_copy_file`/`theme_trash_file`/`theme_restore_trashed_file` as of
- * 2026-09-12, when `theme_copy_file` closed one of the two gaps a read-only survey found against
- * the human Explore screen's own file operations — see
- * `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`). The catalog is wired in full —
- * there is no `unwiredToolIds` set here, which means the kit treats ANY future catalog entry added
- * without a handler as a build failure. See `agent-tools.ts`'s own file header for the operations
- * deliberately never put in the catalog at all (hard file-delete,
+ * `theme_reset_file`/`theme_rename_file`/`theme_copy_file`/`theme_trash_file`/
+ * `theme_restore_trashed_file` as of 2026-09-12, when `theme_reset_file`/`theme_copy_file` closed
+ * the last two gaps a read-only survey found against the human Explore screen's own file
+ * operations — see `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`). The catalog is
+ * wired in full — there is no `unwiredToolIds` set here, which means the kit treats ANY future
+ * catalog entry added without a handler as a build failure. See `agent-tools.ts`'s own file header
+ * for the operations deliberately never put in the catalog at all (hard file-delete,
  * rename/create/delete a whole theme's folder) and why.
  *
  * Authorization shape: nothing in `theme.ts`/`theme-files.ts` accepts an `authorize` dependency —
@@ -28,6 +28,8 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import {
   type AuthorizeFn,
   buildDomainRegistrations,
@@ -67,7 +69,7 @@ import {
   ThemePathError,
   writeThemeFile,
 } from "./theme-files.js";
-import { loadTheme, type DiscoveredTheme } from "./theme.js";
+import { loadTheme, THEME_CATALOG_DIR, type DiscoveredTheme } from "./theme.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -134,6 +136,20 @@ class ThemeFileEditMatchError extends Error {
   }
 }
 
+/** Raised when `theme_reset_file` has nothing to reset FROM — either this theme has no stored
+ * original at all (a hand-authored theme, never installed from a catalog copy), or this particular
+ * file has no original of its own (added after install, e.g. via `theme_copy_file`). A different
+ * `themeId`/`path` is what would fix the second case; the first is a property of the theme itself —
+ * either way, retrying with the SAME input cannot succeed, so this is a shape rejection like
+ * {@link ThemePathError}, matching `explore.ts`'s own `NO_ORIGINAL`/`NOT_IN_ORIGINAL` HTTP codes for
+ * the identical two refusals on its per-file reset route. */
+class ThemeFileNoOriginalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeFileNoOriginalError";
+  }
+}
+
 /** Raised when `theme_rename_file`/`theme_trash_file` targets a path
  * {@link validateFileIdentityChange} refuses to let change identity — a theme's own required file,
  * a `script`/`other`-group file, or (message-only overlap with {@link ThemeFileReadOnlyError}'s own
@@ -158,7 +174,8 @@ function isShapeRejection(error: unknown): boolean {
     error instanceof ThemeNotFoundError ||
     error instanceof ThemeFileReadOnlyError ||
     error instanceof ThemeFileEditMatchError ||
-    error instanceof ThemeFileIdentityLockedError
+    error instanceof ThemeFileIdentityLockedError ||
+    error instanceof ThemeFileNoOriginalError
   );
 }
 
@@ -236,6 +253,32 @@ function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): 
     throw new ThemeFileReadOnlyError(
       `'${relativePath}' is inside the trash and cannot be written to directly — restore it first with theme_restore_trashed_file`
     );
+  }
+}
+
+/**
+ * Read `relativePath`'s pristine copy out of the originals catalog for `theme_reset_file`, mirroring
+ * `explore.ts`'s own `readOriginalForReset` (same read, same two refusal reasons) but throwing
+ * instead of writing an HTTP response, matching every other refusal in this file. Read through
+ * {@link readThemeFile}'s own containment check against the CATALOG root, exactly like every other
+ * theme-relative path in this domain — `path` is operator input, and this is the one place in this
+ * file that resolves it against a directory OUTSIDE the theme's own folder.
+ *
+ * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all, or the catalog
+ * has no copy of this particular file.
+ */
+function readOriginalForToolReset(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, relativePath: string): string {
+  const catalogDir = join(routeDeps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+  if (!existsSync(catalogDir)) {
+    throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
+  }
+  try {
+    return readThemeFile({ themeDir: catalogDir, themesRoot: join(routeDeps.themesDir, THEME_CATALOG_DIR), relativePath });
+  } catch (err) {
+    if (err instanceof ThemePathError) {
+      throw new ThemeFileNoOriginalError(`'${relativePath}' is not in this theme's original, so there is nothing to reset it to`);
+    }
+    throw err;
   }
 }
 
@@ -403,6 +446,9 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   // -> readThemeFile() + writeThemeFile(): same durable write as theme_write_file, just computed
   //    from a read instead of taking the whole content as input.
   ["theme_edit_file", "mutates-durable-state"],
+  // -> readThemeFile() against the catalog + writeThemeFile(): same durable write as theme_write_file,
+  //    just sourced from the theme's own stored original instead of caller-supplied content.
+  ["theme_reset_file", "mutates-durable-state"],
   // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
   ["theme_rename_file", "mutates-durable-state"],
   // -> copyThemeFile(): copyFileSync creating a NEW file on disk, then loadTheme() + in-place
@@ -549,6 +595,51 @@ export function buildThemesRegistrations(
           path: relativePath,
           occurrencesReplaced,
           bytesWritten: Buffer.byteLength(nextContent, "utf8"),
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    /**
+     * Restores one file to the pristine copy in the originals catalog — the payoff of the copy-not-
+     * inherit model `explore.ts`'s own per-file reset route documents: "put it back" is a plain file
+     * read from a directory that was never mutated, needing no diff or history. Only the PER-FILE
+     * path: unlike the HTTP route's `writeScope.kind === "generated-readonly"` branch (which restores
+     * a compiled theme's whole generated tree as one atomic operation via
+     * `restoreBuiltThemeGeneratedTree`), this tool refuses that case outright through
+     * `assertThemeFileWritable` — whole-tree revert is a separate, wider-blast-radius decision the
+     * owner has not extended to agents (see `2026-09-12-theme-agent-tools-survey.md`'s gap table).
+     */
+    theme_reset_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const relativePath = requireString(input, "path");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_reset_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        // Same three refusals theme_write_file/theme_edit_file check — a reset is still a write, and
+        // this also correctly refuses a compiled theme's generated tree (see this handler's own doc)
+        // and a `.trash/...` path (restore it first with theme_restore_trashed_file).
+        assertThemeFileWritable(theme, relativePath);
+
+        const original = readOriginalForToolReset(routeDeps, theme, relativePath);
+        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: original });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: relativePath,
+          bytesWritten: Buffer.byteLength(original, "utf8"),
+          content: original,
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),

@@ -247,6 +247,16 @@ const TRASH_FILE_SCHEMA = {
   properties: { themeId: THEME_ID_PROPERTY, path: RELATIVE_PATH_PROPERTY },
 } as const;
 
+/** Same `{themeId, path}` shape as {@link READ_FILE_SCHEMA} — kept as its own named constant for the
+ *  same reason {@link TRASH_FILE_SCHEMA} is: so `theme_reset_file`'s schema reads as its own
+ *  contract in the catalog, not a borrowed one that would look coincidental. */
+const RESET_FILE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["themeId", "path"],
+  properties: { themeId: THEME_ID_PROPERTY, path: RELATIVE_PATH_PROPERTY },
+} as const;
+
 /** Same `{themeId, path}` shape again, for `theme_copy_file` — the destination name is always
  *  server-computed (the next available `name-1`, `name-2`, … suffix), never operator input, so
  *  unlike {@link RENAME_FILE_SCHEMA} there is no second field to add. */
@@ -326,6 +336,14 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: EDIT_FILE_SCHEMA,
+    },
+    {
+      name: "theme_reset_file",
+      description:
+        "Resets one file inside a theme's folder back to its pristine original — the exact bytes captured when this theme was installed or downloaded — discarding whatever is there now, whether it was changed by theme_write_file, theme_edit_file, or a human editing it directly. This is the undo for those tools when 'undo' means 'go back to where it started', not 'go back one step': there is no history, so a reset cannot be reset again except by re-editing. Refused if this theme has no stored original at all (a hand-authored theme with nothing to reset to), or if this particular file has no original of its own — for example a file created after the theme was installed, or landed here via theme_copy_file. This is offered whenever an original exists, regardless of whether the live file actually differs from it byte-for-byte: there is no separate 'was this file actually modified' check, so a reset on an already-pristine file is a harmless no-op write, not a refusal.",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: THEME_WRITE_PERMISSION },
+      inputSchema: RESET_FILE_SCHEMA,
     },
     {
       name: "theme_rename_file",
