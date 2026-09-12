@@ -356,16 +356,20 @@ function failIfDistIsStale() {
 
 /** Newest mtime under a directory tree, or 0 if it does not exist.
  *  @complexity O(n) in files walked. */
+/** Whether to descend into / consider one directory entry at all.
+ *  @complexity O(1). */
+function isWalkable(entry) {
+  if (entry.name === "node_modules" || entry.name.startsWith(".")) return false;
+  return isBundleInput(entry.isDirectory() ? `${entry.name}/` : entry.name);
+}
+
 function newestMtime(abs) {
   if (!existsSync(abs)) return 0;
   const stat = statSync(abs);
   if (!stat.isDirectory()) return isBundleInput(abs) ? stat.mtimeMs : 0;
   let newest = 0;
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-    if (!entry.isDirectory() && !isBundleInput(entry.name)) continue;
-    if (entry.isDirectory() && !isBundleInput(`${entry.name}/`)) continue;
-    newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));
+    if (isWalkable(entry)) newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));
   }
   return newest;
 }

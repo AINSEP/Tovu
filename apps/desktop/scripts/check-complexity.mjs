@@ -43,8 +43,20 @@ const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
 const DEBT_PATH = path.join(DESKTOP_ROOT, "complexity-debt.json");
 const THRESHOLD = 9;
-/** The 2026-09-12 measured scan size. A run smaller than this is not trusted — see the header. */
-const MIN_FILES_LINTED = 90;
+/**
+ * A few under the 2026-09-12 measured scan size. A run smaller than this is not trusted.
+ *
+ * Measured twice, by two independent routes that agree exactly: 62 non-test source files exist on
+ * disk under `apps/desktop` (find, excluding build outputs), and this gate's own command reports 62
+ * linted. Set to 58 for the same reason the coverage floors sit a few points under their baseline —
+ * a gate that fails on ordinary churn gets disabled.
+ *
+ * Calibrating this was itself the guard's first catch: the initial value of 90 came from a scan
+ * that did NOT apply the `--ignore-pattern` for test files, and the gate refused to report a clean
+ * result against it. A number copied from a differently-scoped measurement is exactly the mistake
+ * this check exists to make loud, and it made it loud about its own configuration.
+ */
+const MIN_FILES_LINTED = 58;
 
 const RULE_OVERRIDE = JSON.stringify({
   complexity: ["error", THRESHOLD],

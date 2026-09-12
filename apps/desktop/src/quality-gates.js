@@ -80,6 +80,20 @@ function disabledGateProblems(gate, today, maxDisabledDays) {
   return problems;
 }
 
+/** Problems with ONE gate entry: shape, uniqueness, and (when off) its paperwork. Split out so
+ *  {@link validateManifest} stays under the 9/9 ceiling this harness enforces on everything else —
+ *  which it would be absurd to exempt itself from.
+ *  @complexity O(1). */
+function gateProblems(gate, seen, today, maxDisabledDays) {
+  if (!gate.id || !gate.run) {
+    return [`every gate needs an "id" and a "run"; found ${JSON.stringify(gate)}.`];
+  }
+  const problems = seen.has(gate.id) ? [`duplicate gate id "${gate.id}".`] : [];
+  seen.add(gate.id);
+  if (gate.enabled === false) problems.push(...disabledGateProblems(gate, today, maxDisabledDays));
+  return problems;
+}
+
 /**
  * Every reason this manifest is not a legitimate description of the harness. An empty array means
  * the manifest itself is sound — it says nothing about whether the gates pass.
@@ -98,15 +112,7 @@ export function validateManifest(manifest, today) {
   const problems = [];
   const seen = new Set();
 
-  for (const gate of gates) {
-    if (!gate.id || !gate.run) {
-      problems.push(`every gate needs an "id" and a "run"; found ${JSON.stringify(gate)}.`);
-      continue;
-    }
-    if (seen.has(gate.id)) problems.push(`duplicate gate id "${gate.id}".`);
-    seen.add(gate.id);
-    if (gate.enabled === false) problems.push(...disabledGateProblems(gate, today, maxDisabledDays));
-  }
+  for (const gate of gates) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
   return problems;
 }
 

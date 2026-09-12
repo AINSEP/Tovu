@@ -111,6 +111,28 @@ function flagValue(argv, flag, fallback) {
   return path.resolve(argv[at + 1]);
 }
 
+/** True when a gate is one this run should execute. A gate missing `id` or `run` is already
+ *  reported by `validateManifest`; skipping it here avoids a second, noisier complaint.
+ *  @complexity O(1). */
+function isRunnable(gate) {
+  return gate.enabled !== false && Boolean(gate.id) && Boolean(gate.run);
+}
+
+/** Reports every way the manifest fails to describe this harness honestly. Returns whether any did.
+ *  @complexity O(n) in gates. */
+function reportManifestProblems(manifest, gates, scriptsDir) {
+  const driftProblems = detectGateDrift(gates, gateScriptsOnDisk(scriptsDir)).map(
+    (name) =>
+      `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
+      `how this repo ended up with 11 dead check scripts — register it or delete it.`
+  );
+  const unsound = reportProblems(
+    "quality-gates.json is not a sound description of this harness:",
+    validateManifest(manifest, todayIso())
+  );
+  return reportProblems("gate scripts on disk that nothing runs:", driftProblems) || unsound;
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const manifestPath = flagValue(argv, "--manifest", path.join(DESKTOP_ROOT, "quality-gates.json"));
@@ -118,30 +140,20 @@ function main() {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   const gates = manifest.gates ?? [];
 
-  const problems = validateManifest(manifest, todayIso());
-  const drift = detectGateDrift(gates, gateScriptsOnDisk(scriptsDir));
-  const driftProblems = drift.map(
-    (name) =>
-      `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
-      `how this repo ended up with 11 dead check scripts — register it or delete it.`
-  );
-
-  let unsound = reportProblems("quality-gates.json is not a sound description of this harness:", problems);
-  unsound = reportProblems("gate scripts on disk that nothing runs:", driftProblems) || unsound;
+  const unsound = reportManifestProblems(manifest, gates, scriptsDir);
 
   // Every enabled gate runs even after an earlier one fails: a run that halts at the first failure
   // reports exactly one problem when several exist, which is the behaviour `ci-local.sh` was
   // written to avoid for the same reason.
   const outcomes = new Map();
   for (const gate of gates) {
-    if (gate.enabled === false || !gate.id || !gate.run) continue;
-    outcomes.set(gate.id, runGate(gate));
+    if (isRunnable(gate)) outcomes.set(gate.id, runGate(gate));
   }
 
   process.stdout.write(`${formatSummary(gates, outcomes)}\n`);
 
   const anyGateFailed = [...outcomes.values()].some(isFailure);
-  const missingOutcome = gates.some((gate) => gate.enabled !== false && gate.id && gate.run && !outcomes.has(gate.id));
+  const missingOutcome = gates.some((gate) => isRunnable(gate) && !outcomes.has(gate.id));
   if (anyGateFailed || missingOutcome || unsound) {
     process.stderr.write("\ncheck-gates: FAILED\n");
     process.exit(1);
