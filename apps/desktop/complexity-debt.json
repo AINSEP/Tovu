@@ -3,11 +3,6 @@
   "violations": [
     {
       "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/desktop/src/stage-payload-lib.js",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
       "file": "apps/desktop/src/renderer/App.hooks.ts",
       "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
     },

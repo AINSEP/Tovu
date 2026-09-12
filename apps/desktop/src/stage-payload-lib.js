@@ -142,16 +142,18 @@ export function stagedPackageDirs(modulesDir) {
  */
 export function assertClosureComplete({ outDir }) {
   const modulesDir = path.join(outDir, "node_modules");
-  const missing = [];
-  for (const packageDir of stagedPackageDirs(modulesDir)) {
-    for (const dep of declaredDependencies(packageDir)) {
-      if (isExcluded(dep)) continue;
-      const hoisted = path.join(modulesDir, dep, "package.json");
-      const nested = path.join(packageDir, "node_modules", dep, "package.json");
-      if (existsSync(hoisted) || existsSync(nested)) continue;
-      missing.push(`${path.relative(modulesDir, packageDir)} -> ${dep}`);
-    }
-  }
+  const unresolved = (packageDir, dep) => {
+    const hoisted = path.join(modulesDir, dep, "package.json");
+    const nested = path.join(packageDir, "node_modules", dep, "package.json");
+    return !existsSync(hoisted) && !existsSync(nested);
+  };
+  // flatMap/filter/map preserve array order throughout, so this reports missing dependencies in
+  // the same order the equivalent nested loop would have.
+  const missing = stagedPackageDirs(modulesDir).flatMap((packageDir) =>
+    declaredDependencies(packageDir)
+      .filter((dep) => !isExcluded(dep) && unresolved(packageDir, dep))
+      .map((dep) => `${path.relative(modulesDir, packageDir)} -> ${dep}`)
+  );
   if (missing.length > 0) {
     throw new Error(
       `staged tree is missing ${missing.length} declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${missing.join("\n  ")}`
