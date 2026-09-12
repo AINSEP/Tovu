@@ -200,6 +200,20 @@ test("stageTransitiveDependencies: skips an excluded package before ever resolvi
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "playwright")), false);
 });
 
+test("stageTransitiveDependencies: skips lucide-react before ever resolving it", () => {
+  const tmp = tempDir();
+  const pkgA = path.join(tmp, "pkgA");
+  writePackage(pkgA, { "lucide-react": "^1" });
+  // Resolvable, same as the playwright case above, so only the exclusion check can skip it.
+  writePackage(path.join(pkgA, "node_modules", "lucide-react"), {});
+  const outDir = path.join(tmp, "out");
+
+  const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
+
+  assert.equal(count, 0);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "lucide-react")), false);
+});
+
 test("stageTransitiveDependencies: does not re-copy a dependency whose staged destination already exists, but still walks its own dependencies", () => {
   const tmp = tempDir();
   const pkgA = path.join(tmp, "pkgA");
@@ -269,6 +283,15 @@ test("assertClosureComplete: an excluded package is exempt from the check even w
   const outDir = path.join(tmp, "out");
   const modulesDir = path.join(outDir, "node_modules");
   writePackage(path.join(modulesDir, "pkgA"), { playwright: "^1" });
+
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+test("assertClosureComplete: an absent lucide-react is exempt even when a staged package still declares it", () => {
+  const tmp = tempDir();
+  const outDir = path.join(tmp, "out");
+  const modulesDir = path.join(outDir, "node_modules");
+  writePackage(path.join(modulesDir, "@jini-ai", "ui"), { "lucide-react": "^1.32.0" });
 
   assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });

@@ -32,8 +32,13 @@ import { isBundleInput } from "./shell-staleness.js";
  *   which uses Bun only to build and test ITSELF. Reached only through the `@jini-ai/*` pnpm store.
  * - `@rollup` — same package, same root cause: every `@rollup/rollup-<platform>` native listed under
  *   its `optionalDependencies`.
+ * - `lucide-react` — 41.3 MB. The server never loads it: a static import walk from
+ *   `dist/src/cli/main.js` never reaches it, and all 21 server files importing `@jini-ai/ui` still
+ *   loaded with it hidden (`ADS-memory/reports/2026-09-12-desktop-payload-slim.md`). Its only
+ *   importers were three shadcn primitives in `@jini-ai/ui`, which now use vendored icons, so no Jini
+ *   compiled code imports it. `@jini-ai/ui` 0.3.7 and earlier still declare it.
  */
-export const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup"]);
+export const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup", "lucide-react"]);
 
 export function isExcluded(name) {
   const [head] = name.split(path.sep);
