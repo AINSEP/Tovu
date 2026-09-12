@@ -344,6 +344,15 @@ function buildServeEnv(input) {
     env.TOVU_SITE_CHAT_DIST = siteChatDist;
   }
 
+  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.js` probes; a
+  // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
+  // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
+  // static branch is reached — which is exactly the point: the built bundle is what goes stale.
+  // Omitted by every caller that passes nothing, so the child env is unchanged for them.
+  if (typeof input.adminDevProxyUrl === "string" && input.adminDevProxyUrl !== "") {
+    env.TOVU_ADMIN_DEV_PROXY_URL = input.adminDevProxyUrl;
+  }
+
   return env;
 }
 
@@ -473,6 +482,11 @@ function createExitSignal(child) {
  *   seeding exactly as it was.
  * @param input.cliMode `"source"` or `"compiled"` — see {@link buildCliSpawnPlan}; defaults to
  *   `"compiled"` when omitted (unchanged prior behavior for any existing caller).
+ * @param input.adminDevProxyUrl a live admin Vite dev-server origin, which makes this site serve
+ *   `/admin/*` from current source instead of the built `apps/admin/dist`. Resolve it with
+ *   `admin-dev-proxy.js`'s `resolveAdminDevProxyUrl` — which probes, and yields nothing when
+ *   packaged — rather than passing a bare URL, since an unreachable origin turns `/admin/` into a
+ *   502 rather than falling back. Omit to serve the built bundle exactly as before.
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —
  *   `onExit` is the post-ready liveness signal a supervisor needs; see {@link createExitSignal}.
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
@@ -501,7 +515,7 @@ async function startTovuServer(input) {
     plan.command,
     plan.args,
     {
-      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential }),
+      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl }),
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason

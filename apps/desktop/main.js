@@ -104,6 +104,7 @@ import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session } from "electron";
 
 import { startTovuServer } from "./src/tovu-server.js";
+import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.js";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.js";
 import { registryFilePath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-registry.js";
 import { createKeyedSerializer } from "./src/keyed-serializer.js";
@@ -534,12 +535,21 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
   // what actually works, but nothing in this app has ever shown it to them). An unnecessary token is inert (single-use, process-scoped, never
   // written to disk); an unnecessary REDEEM is the 30-day-session pile-up, and that is what
   // `ensureSiteSession` still keeps conditional.
+
+  // Resolved per site-start rather than once at boot: a developer routinely starts `npm run dev`
+  // after the shell is already open, and a boot-time answer would stay "no Vite" for the rest of
+  // the session. Yields `null` when packaged and when nothing is listening, in which case the child
+  // serves `apps/admin/dist` exactly as before — see `admin-dev-proxy.js` for why this is probed
+  // rather than set optimistically.
+  const adminDevProxyUrl = await resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env });
+
   const server = await startTovuServer({
     repoRoot: PAYLOAD_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
     port: options.port,
     emitBootToken: true,
+    adminDevProxyUrl,
   });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
