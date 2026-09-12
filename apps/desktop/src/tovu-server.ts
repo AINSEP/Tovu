@@ -19,6 +19,8 @@ import fs from "node:fs";
 import { spawn as nodeSpawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
+import type { SpawnOptions } from "node:child_process";
+import type { Readable, Writable } from "node:stream";
 
 // {@link buildCliSpawnPlan} needs `require.resolve("tsx")`'s CommonJS resolution, which walks up
 // from THIS file to `apps/desktop/node_modules/tsx`. `import.meta.resolve` would pick the package's
@@ -52,7 +54,7 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  *
  * @complexity O(n) in the text length.
  */
-function redactBootToken(text) {
+function redactBootToken(text: string): string {
   return text.replace(BOOT_TOKEN_LINE_GLOBAL, "");
 }
 
@@ -60,9 +62,9 @@ function redactBootToken(text) {
  * The boot token from accumulated child output, or `null` when none was printed.
  * @complexity O(n) in the text length.
  */
-function parseBootToken(text) {
+function parseBootToken(text: string): string | null {
   const match = BOOT_TOKEN_LINE.exec(text);
-  return match === null ? null : match[1];
+  return match === null ? null : match[1]!;
 }
 
 /** `apps/website/src/cli/errors.ts`'s single stderr line — `stderrLine()` builds exactly this shape. */
@@ -78,6 +80,14 @@ const DEFAULT_READY_TIMEOUT_MS = 60_000;
 /** Grace given to `serve.ts`'s own SIGTERM drain (BR-07) before the process group is force-killed. */
 const DEFAULT_STOP_GRACE_MS = 5_000;
 
+/** The fields {@link BOOT_LINE} captures, parsed. */
+interface BootLineFields {
+  dir: string;
+  port: number;
+  schemaVersion: number;
+  workspaceId: string;
+}
+
 /**
  * Parse the startup line out of accumulated stdout.
  *
@@ -85,10 +95,16 @@ const DEFAULT_STOP_GRACE_MS = 5_000;
  * @returns the reported fields, or `null` if the line has not been printed yet.
  * @complexity O(n) in `text` length per call.
  */
-function parseBootLine(text) {
+function parseBootLine(text: string): BootLineFields | null {
   const match = BOOT_LINE.exec(text);
   if (match === null) return null;
-  return { dir: match[1], port: Number(match[2]), schemaVersion: Number(match[3]), workspaceId: match[4] };
+  return { dir: match[1]!, port: Number(match[2]!), schemaVersion: Number(match[3]!), workspaceId: match[4]! };
+}
+
+/** The fields {@link CLI_ERROR_LINE} captures, parsed. */
+interface CliErrorFields {
+  code: string;
+  message: string;
 }
 
 /**
@@ -98,9 +114,14 @@ function parseBootLine(text) {
  * @returns `{ code, message }`, or `null` when the child failed without printing one.
  * @complexity O(n) in `text` length per call.
  */
-function parseCliErrorLine(text) {
+function parseCliErrorLine(text: string): CliErrorFields | null {
   const match = CLI_ERROR_LINE.exec(text);
-  return match === null ? null : { code: match[1], message: match[2] };
+  return match === null ? null : { code: match[1]!, message: match[2]! };
+}
+
+/** The one field this module reads out of the repo's own `package.json`. */
+interface TovuPackageManifest {
+  bin?: { tovu?: string };
 }
 
 /**
@@ -115,9 +136,9 @@ function parseCliErrorLine(text) {
  * @throws {Error} when the manifest has no `bin.tovu`, or the entry it names is not built yet.
  * @complexity O(1).
  */
-function resolveCliEntry(repoRoot) {
+function resolveCliEntry(repoRoot: string): string {
   const manifestPath = path.join(repoRoot, "package.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as TovuPackageManifest;
   if (typeof manifest.bin?.tovu !== "string") {
     throw new Error(`${manifestPath} has no "bin.tovu" field.`);
   }
@@ -150,12 +171,28 @@ function resolveCliEntry(repoRoot) {
  *   at all, which "packaged" mode would use instead — see {@link buildCliSpawnPlan}).
  * @complexity O(1).
  */
-function resolveDevCliEntry(repoRoot) {
+function resolveDevCliEntry(repoRoot: string): string {
   const entry = path.join(repoRoot, "apps", "website", "src", "cli", "main.ts");
   if (!fs.existsSync(entry)) {
     throw new Error(`Tovu's CLI source is missing: ${entry} does not exist.`);
   }
   return entry;
+}
+
+/** `buildCliSpawnPlan`'s two supported invocation modes. See that function's own doc. */
+type CliMode = "source" | "compiled";
+
+/** Input to {@link buildCliSpawnPlan}. */
+interface CliSpawnPlanInput {
+  repoRoot: string;
+  cliMode?: CliMode;
+  cliArgs: string[];
+}
+
+/** The `{ command, args }` {@link buildCliSpawnPlan} builds, ready for `spawn`. */
+interface CliSpawnPlan {
+  command: string;
+  args: string[];
 }
 
 /**
@@ -190,7 +227,7 @@ function resolveDevCliEntry(repoRoot) {
  * @param input.cliArgs the CLI's own argv, e.g. `["serve", siteDir, "--port", "3601"]`.
  * @complexity O(1).
  */
-function buildCliSpawnPlan(input) {
+function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
   const cliMode = input.cliMode ?? "compiled";
   if (cliMode === "source") {
     return { command: process.execPath, args: ["--import", require.resolve("tsx"), resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
@@ -223,8 +260,8 @@ function buildCliSpawnPlan(input) {
  *   specific site in mind (none exists today) still gets a valid env.
  * @complexity O(n) in the number of inherited environment variables.
  */
-function buildCliEnv(baseEnv, siteDir) {
-  const env = { ...(baseEnv ?? process.env) };
+function buildCliEnv(baseEnv: NodeJS.ProcessEnv | undefined, siteDir: string | undefined): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...(baseEnv ?? process.env) };
 
   env.ELECTRON_RUN_AS_NODE = "1";
 
@@ -237,6 +274,21 @@ function buildCliEnv(baseEnv, siteDir) {
   delete env.TOVU_DB;
 
   return env;
+}
+
+/** The desktop shell's own owner account, seeded into a brand-new site — see {@link buildServeEnv}. */
+interface DesktopCredential {
+  username: string;
+  password: string;
+}
+
+/** Input to {@link buildServeEnv}. */
+interface BuildServeEnvInput {
+  repoRoot: string;
+  siteDir?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  desktopCredential?: DesktopCredential;
+  adminDevProxyUrl?: string;
 }
 
 /**
@@ -301,7 +353,7 @@ function buildCliEnv(baseEnv, siteDir) {
  * @param input.baseEnv environment to layer onto (defaults to `process.env`).
  * @complexity O(n) in the number of inherited environment variables.
  */
-function buildServeEnv(input) {
+function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
   const env = buildCliEnv(input.baseEnv, input.siteDir);
 
@@ -394,15 +446,32 @@ function buildServeEnv(input) {
  *
  * @complexity O(1); one bind/close round trip.
  */
-function allocatePort() {
+function allocatePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
+      const { port } = server.address() as net.AddressInfo;
       server.close(() => resolve(port));
     });
   });
+}
+
+/**
+ * The subset of Node's `ChildProcess` surface this module touches. Kept narrow, rather than
+ * importing `ChildProcess` itself, so `spawnFn`'s test double (`fakeChild()` in the test file) only
+ * has to implement the fields `startTovuServer` actually reads — a real `ChildProcess` satisfies
+ * this structurally, so `nodeSpawn` needs no cast.
+ */
+interface SpawnedChild {
+  pid: number | undefined;
+  stdout: Readable | null;
+  stderr: Readable | null;
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+  kill(signal?: NodeJS.Signals | number): boolean;
+  once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
+  once(event: "error", listener: (error: Error) => void): this;
 }
 
 /**
@@ -417,13 +486,13 @@ function allocatePort() {
  *
  * @complexity O(1); bounded by `graceMs`.
  */
-function stopChild(child, graceMs) {
+function stopChild(child: SpawnedChild, graceMs: number): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       try {
-        process.kill(-child.pid, "SIGKILL");
+        process.kill(-child.pid!, "SIGKILL");
       } catch {
         // Already reaped between the timer firing and this call — nothing to kill.
       }
@@ -445,11 +514,22 @@ function stopChild(child, graceMs) {
 }
 
 /** Compose the most useful failure message available: Tovu's own error line, else the raw tail. */
-function describeBootFailure(output, fallback) {
+function describeBootFailure(output: string, fallback: string): string {
   const cliError = parseCliErrorLine(output);
   if (cliError !== null) return `tovu serve failed: ${cliError.code}: ${cliError.message}`;
   const tail = output.trim().split("\n").slice(-5).join("\n");
   return tail.length > 0 ? `${fallback}\n${tail}` : fallback;
+}
+
+/** One child exit, as {@link createExitSignal} replays it. */
+interface ExitOutcome {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}
+
+/** What {@link createExitSignal} returns. */
+interface ExitSignal {
+  onExit(listener: (exit: ExitOutcome) => void): void;
 }
 
 /**
@@ -472,9 +552,9 @@ function describeBootFailure(output, fallback) {
  *   or immediately if it already has. Listeners fire once each and are then dropped.
  * @complexity O(1) per registration; O(n) in registered listeners at exit time.
  */
-function createExitSignal(child) {
-  let exit = null;
-  const waiting = [];
+function createExitSignal(child: SpawnedChild): ExitSignal {
+  let exit: ExitOutcome | null = null;
+  const waiting: Array<(exit: ExitOutcome) => void> = [];
 
   child.once("exit", (code, signal) => {
     exit = { code, signal };
@@ -490,6 +570,44 @@ function createExitSignal(child) {
       waiting.push(listener);
     },
   };
+}
+
+/** Injectable `child_process.spawn` — the test seam. See {@link SpawnedChild}. */
+type SpawnFn = (command: string, args: string[], options: SpawnOptions) => SpawnedChild;
+
+/** Where a spawned child's output is echoed — defaults to this process's own streams. */
+interface MirrorStreams {
+  stdout: Writable;
+  stderr: Writable;
+}
+
+/** Input to {@link startTovuServer}. */
+interface StartTovuServerInput {
+  repoRoot: string;
+  siteDir: string;
+  port?: number;
+  spawnFn?: SpawnFn;
+  readyTimeoutMs?: number;
+  stopGraceMs?: number;
+  mirror?: MirrorStreams;
+  desktopCredential?: DesktopCredential;
+  cliMode?: CliMode;
+  adminDevProxyUrl?: string;
+  baseEnv?: NodeJS.ProcessEnv;
+  emitBootToken?: boolean;
+}
+
+/** What a resolved {@link startTovuServer} call hands back. */
+interface TovuServerHandle {
+  port: number;
+  pid: number | undefined;
+  origin: string;
+  adminUrl: string;
+  workspaceId: string;
+  schemaVersion: number;
+  bootToken: string | null;
+  stop(): Promise<void>;
+  onExit: ExitSignal["onExit"];
 }
 
 /**
@@ -521,8 +639,8 @@ function createExitSignal(child) {
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
-async function startTovuServer(input) {
-  const spawnFn = input.spawnFn ?? nodeSpawn;
+async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerHandle> {
+  const spawnFn = input.spawnFn ?? nodeSpawn as SpawnFn;
   const readyTimeoutMs = input.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const stopGraceMs = input.stopGraceMs ?? DEFAULT_STOP_GRACE_MS;
   const port = input.port ?? (await allocatePort());
@@ -555,7 +673,7 @@ async function startTovuServer(input) {
 
   const exitSignal = createExitSignal(child);
 
-  return await new Promise((resolve, reject) => {
+  return await new Promise<TovuServerHandle>((resolve, reject) => {
     let output = "";
     let settled = false;
 
@@ -564,14 +682,14 @@ async function startTovuServer(input) {
     }, readyTimeoutMs);
 
     /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
-    function finish(settleWith) {
+    function finish(settleWith: () => void): void {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       settleWith();
     }
 
-    function readStream(stream, mirror) {
+    function readStream(stream: Readable, mirror: Writable): void {
       stream.setEncoding("utf8");
       // Mirroring is LINE-buffered rather than chunk-passthrough so a boot-token line can be
       // removed whole. A chunk boundary can fall inside that line, and a substring filter applied
@@ -609,8 +727,8 @@ async function startTovuServer(input) {
     }
 
     const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
-    readStream(child.stdout, mirror.stdout);
-    readStream(child.stderr, mirror.stderr);
+    readStream(child.stdout!, mirror.stdout);
+    readStream(child.stderr!, mirror.stderr);
 
     child.once("error", (error) => finish(() => reject(error)));
     child.once("exit", (code, signal) => {

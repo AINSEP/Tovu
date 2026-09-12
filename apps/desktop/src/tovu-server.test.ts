@@ -19,6 +19,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { createRequire } from "node:module";
+import type { SpawnOptions } from "node:child_process";
 
 import { parseBootLine, parseCliErrorLine, resolveCliEntry, resolveDevCliEntry, buildCliSpawnPlan, buildServeEnv, allocatePort, startTovuServer } from "./tovu-server.ts";
 
@@ -30,8 +31,18 @@ const require = createRequire(import.meta.url);
 const REAL_BOOT_LINE = "tovu serve: dir=/Users/la/Programming/Tovu/sites/tovu-com port=3601 schemaVersion=42 workspaceId=wm2\n";
 
 /** A `ChildProcess` stand-in with just the surface `startTovuServer` touches. */
-function fakeChild() {
-  const child = new EventEmitter();
+interface FakeChild extends EventEmitter {
+  stdout: PassThrough;
+  stderr: PassThrough;
+  pid: number;
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+  killed: NodeJS.Signals[];
+  kill(signal?: NodeJS.Signals): boolean;
+}
+
+function fakeChild(): FakeChild {
+  const child = new EventEmitter() as FakeChild;
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   child.pid = 424242;
@@ -39,7 +50,7 @@ function fakeChild() {
   child.signalCode = null;
   child.killed = [];
   child.kill = (signal) => {
-    child.killed.push(signal);
+    child.killed.push(signal!);
     return true;
   };
   return child;
@@ -50,7 +61,21 @@ function silentMirror() {
   return { stdout: new PassThrough(), stderr: new PassThrough() };
 }
 
-function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false, withSiteChatDist = true } = {}) {
+/** One `startTovuServer`-shaped `spawnFn` call, captured for later assertion. */
+interface RecordedSpawnCall {
+  command: string;
+  args: string[];
+  options: SpawnOptions;
+}
+
+interface MakeTempRepoOptions {
+  withCli?: boolean;
+  withAdminDist?: boolean;
+  withTsCli?: boolean;
+  withSiteChatDist?: boolean;
+}
+
+function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false, withSiteChatDist = true }: MakeTempRepoOptions = {}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-test-"));
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ bin: { tovu: "dist/src/cli/main.js" } }));
   if (withCli) {
@@ -81,8 +106,8 @@ test("parseBootLine reads dir, port, schemaVersion and workspaceId from serve.ts
 
 test("parseBootLine tolerates a site dir containing spaces", () => {
   const line = "tovu serve: dir=/Users/la/My Sites/blog port=8080 schemaVersion=7 workspaceId=wm11\n";
-  assert.equal(parseBootLine(line).dir, "/Users/la/My Sites/blog");
-  assert.equal(parseBootLine(line).port, 8080);
+  assert.equal(parseBootLine(line)!.dir, "/Users/la/My Sites/blog");
+  assert.equal(parseBootLine(line)!.port, 8080);
 });
 
 test("parseBootLine returns null until the whole line has arrived", () => {
@@ -153,7 +178,7 @@ test("buildServeEnv sets ELECTRON_RUN_AS_NODE so the Electron binary runs the CL
 
 test("buildServeEnv mints a daemon token, because `tovu serve` never does and the gate is fail-closed", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
-  assert.match(env.TOVU_AGENT_DAEMON_TOKEN, /^[0-9a-f]{64}$/);
+  assert.match(env.TOVU_AGENT_DAEMON_TOKEN!, /^[0-9a-f]{64}$/);
 });
 
 test("buildServeEnv keeps an operator-set daemon token instead of replacing it", () => {
@@ -311,7 +336,7 @@ test("startTovuServer resolves with the admin URL for the port the child reports
 test("startTovuServer passes the site dir and port through as `serve <dir> --port <n>`", async () => {
   const child = fakeChild();
   const root = makeTempRepo();
-  let recorded;
+  let recorded: RecordedSpawnCall | undefined;
   const started = startTovuServer({
     repoRoot: root,
     siteDir: "/tmp/my-site",
@@ -326,8 +351,8 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
   child.stdout.write(REAL_BOOT_LINE);
   await started;
 
-  assert.equal(recorded.command, process.execPath);
-  assert.deepEqual(recorded.args, [
+  assert.equal(recorded!.command, process.execPath);
+  assert.deepEqual(recorded!.args, [
     path.join(root, "dist", "src", "cli", "main.js"),
     "serve",
     "/tmp/my-site",
@@ -335,7 +360,7 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
     "3601",
   ]);
   // Own process group, so the SIGKILL escalation can reap the agent daemon `tovu serve` spawns.
-  assert.equal(recorded.options.detached, true);
+  assert.equal(recorded!.options.detached, true);
 });
 
 // The sink, not the primitive. `buildServeEnv` returning the right value proves nothing on its own:
@@ -344,7 +369,7 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
 // path `main.js` actually uses.
 test("startTovuServer hands the spawned `tovu serve` a TOVU_AGENT_CWD, so the daemon it starts runs agents in the site dir rather than `/`", async () => {
   const child = fakeChild();
-  let recorded;
+  let recorded: SpawnOptions | undefined;
   const started = startTovuServer({
     repoRoot: makeTempRepo(),
     siteDir: "/tmp/my-site",
@@ -359,16 +384,16 @@ test("startTovuServer hands the spawned `tovu serve` a TOVU_AGENT_CWD, so the da
   child.stdout.write(REAL_BOOT_LINE);
   await started;
 
-  assert.equal(recorded.env.TOVU_AGENT_CWD, "/tmp/my-site");
+  assert.equal(recorded!.env!.TOVU_AGENT_CWD, "/tmp/my-site");
   // No `cwd` is passed to `spawn` — the fix is the explicit env var the server already reads, not a
   // change to the child's own working directory, which other code resolves the site from.
-  assert.equal(recorded.cwd, undefined);
+  assert.equal(recorded!.cwd, undefined);
 });
 
 test("startTovuServer in source mode runs the TS entry under --import tsx instead of the compiled CLI", async () => {
   const child = fakeChild();
   const root = makeTempRepo({ withTsCli: true });
-  let recorded;
+  let recorded: RecordedSpawnCall | undefined;
   const started = startTovuServer({
     repoRoot: root,
     siteDir: "/tmp/my-site",
@@ -384,8 +409,8 @@ test("startTovuServer in source mode runs the TS entry under --import tsx instea
   child.stdout.write(REAL_BOOT_LINE);
   await started;
 
-  assert.equal(recorded.command, process.execPath);
-  assert.deepEqual(recorded.args, [
+  assert.equal(recorded!.command, process.execPath);
+  assert.deepEqual(recorded!.args, [
     "--import",
     require.resolve("tsx"),
     path.join(root, "apps", "website", "src", "cli", "main.ts"),
@@ -518,7 +543,7 @@ test("startTovuServer's handle reports the child's exit AFTER boot, which is the
   child.stdout.write(REAL_BOOT_LINE);
   const handle = await started;
 
-  const seen = [];
+  const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
   handle.onExit((exit) => seen.push(exit));
   child.emit("exit", 1, null);
 
@@ -542,7 +567,7 @@ test("startTovuServer's onExit replays an exit that already happened before the 
   const handle = await started;
 
   child.emit("exit", null, "SIGKILL");
-  const seen = [];
+  const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
   handle.onExit((exit) => seen.push(exit));
 
   assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
