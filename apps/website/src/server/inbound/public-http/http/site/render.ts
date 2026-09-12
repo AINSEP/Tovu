@@ -1266,7 +1266,10 @@ function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {
   const tagline = !compact && typeof props.tagline === "string"
     ? `<p class="tagline">${escapeHtml(props.tagline)}</p>`
     : "";
-  return `<header class="site-header"><div class="wrap"><a class="wordmark" href="/">${escapeHtml(ctx.siteTitle)}</a>${tagline}<nav class="site-nav"><a href="/">Home</a><a href="/admin/">Admin</a></nav></div></header>`;
+  // No admin link: under no-theme this header is the site's primary, public-facing output — every
+  // visitor sees it — so advertising the admin panel's URL here would hand it to anyone who looks.
+  // An operator who deliberately turned the theme off already knows where their own admin lives.
+  return `<header class="site-header"><div class="wrap"><a class="wordmark" href="/">${escapeHtml(ctx.siteTitle)}</a>${tagline}<nav class="site-nav"><a href="/">Home</a></nav></div></header>`;
 }
 
 function entryList(ctx: SiteRenderContext, props: JsonObject): string {
