@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 83
+ * Tables: 84
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -1187,6 +1187,11 @@ export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
 }, (t) => [
     check("site_assistant_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
   ]);
+
+export const siteTitlePreexistingWorkspaces = pgTable("site_title_preexisting_workspaces", {
+  workspaceId: text("workspace_id").primaryKey(),
+  preservedAt: text("preserved_at"),
+});
 
 export const sourceControlCredentialSets = pgTable("source_control_credential_sets", {
   id: text("id").notNull(),

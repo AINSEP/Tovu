@@ -47,6 +47,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
+import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { resolveSiteRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -166,7 +167,8 @@ import {
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
-import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
+import { ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
+import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
 import {
@@ -575,6 +577,23 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOve
 }
 
 /**
+ * SPEC-050 (NC-2 = B): the served site's display name, `config.json` `name` in the directory holding
+ * `dbPath`. Every boot path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass
+ * `<dir>/content.db`, the default boot `siteDir()`'s), so no caller has to thread it. `undefined` when
+ * that directory is not a valid site directory (a bare `TOVU_CONTENT_DB`, a temp test database,
+ * `:memory:`); the site title then falls back to `workspaces.name`. Read once per boot, so a
+ * `config.json` rename shows after a restart (SPEC-050 OQ-01).
+ */
+function readSiteDisplayName(dbPath: string): string | undefined {
+  if (dbPath === ":memory:") return undefined;
+  try {
+    return readSiteDir({ dir: dirname(dbPath) }).config.name;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * 2026-09-03 (complexity pass) — `overrides.db ?? openContentDb(...)`, hoisted for the same reason
  * {@link assertOverridesPairedOrAbsent} is. When `overrides.db` is supplied (the install-dir
  * `serve` path), reuse that SAME handle rather than opening/migrating a second db — `bootSiteDir`
@@ -837,15 +856,22 @@ export function createSqliteRouteDeps(
     ).then(() => undefined)
   );
 
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`). Chained after
+  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
+  // pin for every workspace the marker migration recorded as pre-existing (REQ-06). Chained after
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
-  // above documents.
-  const siteTitleReady = analyticsSettingsReady.then(() =>
-    ensureSiteTitleSettingDefinition(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+  // above documents; the pin writes through the same ledger.
+  const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(db);
+  const siteDisplayName = readSiteDisplayName(dbPath);
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
+  const siteTitleReady = analyticsSettingsReady
+    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() =>
+      preserveLegacySiteTitles(
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
+        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+      )
     )
-  );
+    .then(() => undefined);
 
   // ADR-PIPE-012 D-5/D-8 (T043/T044): the persistent composition root uses the real SQLite
   // adapters for both navigation repo ports, and runs the binding-index rebuild once at boot
@@ -1323,6 +1349,8 @@ export function createSqliteRouteDeps(
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteTitlePreservationStore,
+    siteDisplayName,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.

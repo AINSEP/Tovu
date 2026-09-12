@@ -39,7 +39,7 @@ function mkTempDbPath(): string {
  * the NEXT test rather than the one that caused it. Awaiting them first, mirroring `index.ts`,
  * closes the same window here.
  */
-async function settle(deps: { identityReady: Promise<void>; settingsReady: Promise<void>; seoReady: Promise<void>; commentsReady: Promise<void>; commentsSettingsReady: Promise<void>; executionSettingsReady: Promise<void>; settingsUiTabsReady: Promise<void>; analyticsSettingsReady: Promise<void> }): Promise<void> {
+async function settle(deps: { identityReady: Promise<void>; settingsReady: Promise<void>; seoReady: Promise<void>; commentsReady: Promise<void>; commentsSettingsReady: Promise<void>; executionSettingsReady: Promise<void>; settingsUiTabsReady: Promise<void>; analyticsSettingsReady: Promise<void>; siteTitleReady: Promise<void> }): Promise<void> {
   await Promise.all([
     deps.identityReady,
     deps.settingsReady,
@@ -49,6 +49,7 @@ async function settle(deps: { identityReady: Promise<void>; settingsReady: Promi
     deps.executionSettingsReady,
     deps.settingsUiTabsReady,
     deps.analyticsSettingsReady,
+    deps.siteTitleReady,
   ]);
 }
 

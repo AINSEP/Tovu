@@ -16,9 +16,9 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
  * real HTTP against `createApp`, one surface at a time. The defect this spec guards against
  * repeats per call site, so one representative route would prove nothing about the others.
  *
- * The in-memory composition root still renders `Tovu Demo Site` for a workspace with no owner
- * value in Step 1 (NC-1 B shape). Step 2 moves that default to the site display name, together
- * with preservation.
+ * Since Step 2 the in-memory composition root is a new site with no site directory (EC-03): with no
+ * owner value it renders `workspaces.name`. The pre-existing-site pin (AC-01/AC-02 on a pinned
+ * site) is asserted against a real SQLite database in `site-title-preservation.integration.test.ts`.
  */
 
 // Same saturated-machine guard as `seo-site-serving.test.ts`: a loaded box can push a real theme
@@ -26,6 +26,8 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
 const LEGACY_TITLE = "Tovu Demo Site";
+/** `seededWorkspace.name`, the in-memory root's no-owner-title value (REQ-05 fallback, EC-03). */
+const IN_MEMORY_WORKSPACE_NAME = "Local Tovu Workspace";
 const OWNER_TITLE = "Acme Field Notes";
 
 /** Every real `<title>` text, with HTML comments stripped first (see `seo-site-serving.test.ts`'s
@@ -79,16 +81,16 @@ async function getHtml(baseUrl: string, pathname: string): Promise<string> {
   return res.text();
 }
 
-test("AC-01/AC-02 (REQ-04): with no owner-set title, S1-S3 and the header/footer chrome render Tovu Demo Site", async (t) => {
+test("EC-03 (REQ-05): the in-memory root is a new site with no site directory, so S1-S3 and the header/footer chrome render workspaces.name", async (t) => {
   const site = await bootSite(t);
   await unpublishHomePage(site.deps);
 
-  assertSingleTitle(await getHtml(site.baseUrl, "/"), LEGACY_TITLE, "S1 GET /");
-  assertSingleTitle(await getHtml(site.baseUrl, "/pricing"), LEGACY_TITLE, "S2 GET /pricing");
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), IN_MEMORY_WORKSPACE_NAME, "S1 GET /");
+  assertSingleTitle(await getHtml(site.baseUrl, "/pricing"), IN_MEMORY_WORKSPACE_NAME, "S2 GET /pricing");
   const products = await getHtml(site.baseUrl, "/products");
-  assertSingleTitle(products, LEGACY_TITLE, "S3 GET /products");
-  assert.ok(products.includes(`<a class="wordmark" href="/">${LEGACY_TITLE}</a>`), "B: header wordmark");
-  assert.ok(products.includes(`<span>${LEGACY_TITLE} — powered by Tovu</span>`), "B: footer");
+  assertSingleTitle(products, IN_MEMORY_WORKSPACE_NAME, "S3 GET /products");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${IN_MEMORY_WORKSPACE_NAME}</a>`), "B: header wordmark");
+  assert.ok(products.includes(`<span>${IN_MEMORY_WORKSPACE_NAME} — powered by Tovu</span>`), "B: footer");
 });
 
 test("AC-03 (REQ-02, INV-06): entry routes keep the entry's own title, with and without an owner title", async (t) => {
@@ -136,7 +138,7 @@ test("AC-05 (REQ-02): an owner title is HTML-escaped in <title>", async (t) => {
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), "Acme &amp; Co", "S3 GET /products");
 });
 
-test("AC-14 subset (REQ-08 trim, REQ-09): a stored title renders trimmed; a blank or over-200-character value never renders", async (t) => {
+test("AC-14 subset (REQ-08 trim, REQ-09): a stored title renders trimmed; a blank or over-200-character value renders the no-owner-title value instead", async (t) => {
   const site = await bootSite(t);
 
   assert.equal((await putSiteTitle(site, "  My Site  ")).status, 200);
@@ -144,7 +146,11 @@ test("AC-14 subset (REQ-08 trim, REQ-09): a stored title renders trimmed; a blan
 
   for (const unusable of ["", "   ", "x".repeat(201)]) {
     await putSiteTitle(site, unusable);
-    assertSingleTitle(await getHtml(site.baseUrl, "/products"), LEGACY_TITLE, `unusable value ${JSON.stringify(unusable.slice(0, 8))}`);
+    assertSingleTitle(
+      await getHtml(site.baseUrl, "/products"),
+      IN_MEMORY_WORKSPACE_NAME,
+      `unusable value ${JSON.stringify(unusable.slice(0, 8))}`
+    );
   }
 });
 

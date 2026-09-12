@@ -166,6 +166,9 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
+  // SPEC-050: until `core.site.title` is registered every workspace renders the legacy title, so the
+  // workspace-name assertion below would race the boot chain.
+  await deps.siteTitleReady;
 
   const res = await fetch(`${baseUrl}/pricing`);
   assert.equal(res.status, 200);
@@ -177,9 +180,9 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   assert.equal(titleMatches.length, 1, "the theme's own hardcoded <title> must be suppressed, not doubled up");
   assert.match(
     html,
-    // SPEC-050: the resolved `core.site.title` for a workspace with no owner value (Wiring Order
-    // Step 1 keeps the legacy literal as that value).
-    /<title>Tovu Demo Site<\/title>/,
+    // SPEC-050: the resolved `core.site.title` for a workspace with no owner value. The in-memory
+    // root is a new site with no site directory (EC-03), so that value is `workspaces.name`.
+    /<title>Local Tovu Workspace<\/title>/,
     "the fold's site-level title (no backing entry, same shape as home) must win over the theme's stale 'Pricing — Basic'"
   );
   // Must be THIS page's own path, not silently reusing home's hardcoded "/" — the exact defect a

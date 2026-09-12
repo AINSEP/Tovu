@@ -135,7 +135,11 @@ import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
-import { ensureSiteTitleSettingDefinition } from "#src/features/settings/site-title";
+import {
+  ensureSiteTitleSettingDefinition,
+  InMemorySiteTitlePreservationStore,
+  preserveLegacySiteTitles,
+} from "#src/features/settings/site-title";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import {
@@ -372,15 +376,21 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ).then(() => undefined)
   );
 
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`). Chained after
-  // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
-  // above documents.
-  const siteTitleReady = analyticsSettingsReady.then(() =>
-    ensureSiteTitleSettingDefinition(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
-      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
+  // pin for workspaces that existed before the setting. This root always seeds fresh, so it records
+  // no pre-existing workspace (EC-03) and the pin is a no-op. Chained after `analyticsSettingsReady`
+  // for the single-SQLite-connection-transaction reason every registration above documents.
+  const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
+  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
+  const siteTitleReady = analyticsSettingsReady
+    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() =>
+      preserveLegacySiteTitles(
+        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
+        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+      )
     )
-  );
+    .then(() => undefined);
 
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
@@ -588,6 +598,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteTitlePreservationStore,
+    // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
+    siteDisplayName: undefined,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),

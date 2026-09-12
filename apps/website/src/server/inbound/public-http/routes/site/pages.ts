@@ -176,7 +176,15 @@ async function tryRedirectPhase(
  * preview exactly as it renders live. Never throws (see `resolveSiteTitle`).
  */
 export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string> {
-  return resolveSiteTitle({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  return resolveSiteTitle(
+    {
+      settingsRepo: deps.settingsRepo,
+      preservationStore: deps.siteTitlePreservationStore,
+      workspaceRepo: deps.workspaceRepo,
+      siteDisplayName: deps.siteDisplayName,
+    },
+    { workspaceId: deps.workspaceId }
+  );
 }
 
 /**

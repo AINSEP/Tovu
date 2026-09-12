@@ -27,6 +27,7 @@ import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
+import type { SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
@@ -1068,11 +1069,21 @@ export interface AnalyticsDeps {
   analyticsSettingsReady: Promise<void>;
   /**
    * SPEC-050: resolves once `ensureSiteTitleSettingDefinition()` registers `core.site.title`, the
-   * setting every public render reads through `resolveSiteTitle`. Chained after
-   * `analyticsSettingsReady` in both composition roots for the same single-SQLite-connection
-   * transaction reason. A render served before it settles resolves the legacy title, never another.
+   * setting every public render reads through `resolveSiteTitle`, AND `preserveLegacySiteTitles()`
+   * has pinned every workspace that existed before it. Chained after `analyticsSettingsReady` in both
+   * composition roots for the same single-SQLite-connection transaction reason. `index.ts` and `serve`
+   * await it before spawning the agent daemon, so the daemon's own boot never races the pin. A render
+   * served before it settles never flips a pre-existing site: the resolver renders the legacy title
+   * while that workspace's pin is pending (REQ-07).
    */
   siteTitleReady: Promise<void>;
+  /** SPEC-050 (NC-3 = A): which workspaces existed before `core.site.title` and still wait for their pin. */
+  siteTitlePreservationStore: SiteTitlePreservationStorePort;
+  /**
+   * SPEC-050 (NC-2 = B): `config.json` `name` of the served site directory, read once at boot, or
+   * `undefined` when there is no site directory (the title then falls back to `workspaces.name`).
+   */
+  siteDisplayName: string | undefined;
 }
 
 /**

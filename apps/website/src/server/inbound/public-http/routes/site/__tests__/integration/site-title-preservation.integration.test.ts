@@ -1,0 +1,265 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test, { type TestContext } from "node:test";
+
+import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
+
+import { migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
+import { seedContentDb } from "#src/platform/db/sqlite/content-db";
+import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
+import { initSite } from "#src/platform/site-dir/init-site";
+import { readTemplate } from "#src/platform/site-dir/read-template";
+import { createApp } from "#src/server/runtime/composition/app";
+import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
+import type { RouteDeps } from "#src/server/routes/types";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+
+/**
+ * @file SPEC-050 v0.2.0, Wiring Order Step 2, end to end: a real site directory, a real SQLite
+ * database, the real SQLite composition root composed the way `tovu serve <dir>` composes it, and
+ * every assertion over HTTP. Covers T-W1 (AC-10), T-W3 (AC-12), T-W4 (AC-13), AC-06, AC-07 and AC-08.
+ *
+ * Both fixtures carry the config name "My Site". A pre-existing site that loses its pin therefore
+ * flips to a visible, different title instead of passing by coincidence.
+ */
+
+// Same saturated-machine guard as `site-title.integration.test.ts`.
+process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
+
+const LEGACY_TITLE = "Tovu Demo Site";
+const SITE_NAME = "My Site";
+const SYSTEM_PRINCIPAL_ID = "system-settings-migration";
+
+interface BootedSite {
+  deps: RouteDeps;
+  baseUrl: string;
+  cookie: string;
+}
+
+function tempSiteDir(t: TestContext): string {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "site-title-preservation-"));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  return path.join(parent, "site");
+}
+
+/** A site created with `tovu init --name "My Site"` after this feature shipped (REQ-05). */
+function createNewSite(t: TestContext): string {
+  const dir = tempSiteDir(t);
+  initSite({ dir, name: SITE_NAME });
+  return dir;
+}
+
+/**
+ * The same site directory, but holding the database every site had before this feature: migrated to
+ * just before the marker migration, then seeded, with a matching `.site-meta.json` stamp. Its first
+ * boot runs the marker migration against an existing workspace row, as tovu-com's will.
+ */
+function createPreExistingSite(t: TestContext): string {
+  const dir = createNewSite(t);
+  const dbPath = path.join(dir, "content.db");
+  for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
+
+  const { seed } = readTemplate({ templateId: "starter" });
+  const lastPreFeatureMigration = migrateToBeforeSiteTitleMarker(dbPath, (db) => seedContentDb({ db, seed }));
+
+  const metaPath = path.join(dir, ".site-meta.json");
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
+  fs.writeFileSync(
+    metaPath,
+    JSON.stringify({ ...meta, schemaVersion: lastPreFeatureMigration.idx, schemaTag: lastPreFeatureMigration.tag })
+  );
+  return dir;
+}
+
+/** Every boot-readiness promise `cli/commands/serve.ts` awaits before it spawns the agent daemon. */
+async function drainBootReadiness(deps: RouteDeps): Promise<void> {
+  await Promise.all([
+    deps.identityReady,
+    deps.settingsReady,
+    deps.seoReady,
+    deps.commentsReady,
+    deps.commentsSettingsReady,
+    deps.executionSettingsReady,
+    deps.settingsUiTabsReady,
+    deps.analyticsSettingsReady,
+    deps.siteTitleReady,
+  ]).catch(() => undefined);
+}
+
+/** `/pricing` ships unpublished; flip it on in memory only, as `site-title.integration.test.ts` does. */
+function publishPricingPage(deps: RouteDeps): void {
+  const basic = deps.themes.find((theme) => theme.manifest.id === "basic");
+  if (!basic) throw new Error("expected the site's 'basic' theme to be discovered");
+  basic.manifest.publishedPages = [...(basic.manifest.publishedPages ?? []), "pricing"];
+}
+
+/**
+ * Boots `dir` with the same `bootSiteDir` + `createSqliteRouteDeps` overrides `tovu serve <dir>`
+ * passes. `beforeBootChain` runs synchronously right after `createSqliteRouteDeps` returns, before
+ * any step of its chained boot registrations has run.
+ */
+async function bootSite(t: TestContext, dir: string, beforeBootChain?: (deps: RouteDeps) => void): Promise<BootedSite> {
+  const boot = bootSiteDir({ dir });
+  const deps = createSqliteRouteDeps(path.join(dir, "content.db"), {
+    db: boot.db,
+    workspaceId: boot.workspaceId,
+    uploadsDir: path.join(dir, "uploads"),
+    themesDir: path.join(dir, "themes"),
+    siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
+  });
+  beforeBootChain?.(deps);
+  t.after(async () => {
+    await drainBootReadiness(deps);
+    boot.db.$client.close();
+  });
+  publishPricingPage(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  return { deps, baseUrl, cookie };
+}
+
+function realTitles(html: string): string[] {
+  const withoutComments = html.replace(/<!--[\s\S]*?-->/g, "");
+  return [...withoutComments.matchAll(/<title>([\s\S]*?)<\/title>/g)].map((match) => match[1] ?? "");
+}
+
+function assertSingleTitle(html: string, expected: string, surface: string): void {
+  assert.deepEqual(realTitles(html), [expected], `${surface}: expected exactly one <title>${expected}</title>`);
+}
+
+async function getHtml(baseUrl: string, pathname: string): Promise<string> {
+  const res = await fetch(`${baseUrl}${pathname}`);
+  assert.equal(res.status, 200, `GET ${pathname} must render, got ${res.status}`);
+  return res.text();
+}
+
+/** S1 needs a home with no published Page claiming `/`; the starter seed ships one ("Home"). */
+async function unpublishHomePage(deps: RouteDeps): Promise<void> {
+  const page = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug: "/" });
+  assert.ok(page, "expected the seeded Page claiming '/'");
+  await deps.postRepo.save({ ...page, status: "draft" });
+}
+
+/** AC-01/AC-02: S1, S2, S3 and the header and footer chrome. Call after {@link unpublishHomePage}. */
+async function assertSiteTitleSurfaces(site: BootedSite, expected: string): Promise<void> {
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), expected, "S1 GET / (no Page claims /)");
+  assertSingleTitle(await getHtml(site.baseUrl, "/pricing"), expected, "S2 GET /pricing");
+  const products = await getHtml(site.baseUrl, "/products");
+  assertSingleTitle(products, expected, "S3 GET /products");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${expected}</a>`), `B: header wordmark ${expected}`);
+  assert.ok(products.includes(`<span>${expected} — powered by Tovu</span>`), `B: footer ${expected}`);
+}
+
+async function systemPinRevisions(deps: RouteDeps): Promise<SettingRevisionRecord[]> {
+  const definition = await resolveDefinitionRaw(
+    { repo: deps.settingsRepo },
+    { namespace: "core.site", key: "title", workspaceId: null }
+  );
+  assert.ok(definition, "core.site/title must be registered at boot");
+  const revisions = await deps.settingsRepo.listRevisions({ settingId: definition.settingId });
+  return revisions.filter((rev) => rev.op === "set" && rev.actor === SYSTEM_PRINCIPAL_ID && rev.workspaceId === deps.workspaceId);
+}
+
+test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature boots through the real SQLite root pinned to Tovu Demo Site on every surface", async (t) => {
+  const site = await bootSite(t, createPreExistingSite(t));
+  await site.deps.siteTitleReady;
+
+  // INV-06: entry routes keep the entry's own title on a pre-existing site too.
+  assertSingleTitle(await getHtml(site.baseUrl, "/welcome"), "Welcome to Tovu", "S5 GET /welcome");
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), "Home", "S5 GET / with the seeded Page");
+
+  await unpublishHomePage(site.deps);
+  await assertSiteTitleSurfaces(site, LEGACY_TITLE);
+
+  const effective = await getEffective(
+    { repo: site.deps.settingsRepo },
+    { namespace: "core.site", key: "title", scopeContext: { workspaceId: site.deps.workspaceId } }
+  );
+  assert.deepEqual({ value: effective?.value, sourceLayer: effective?.sourceLayer }, { value: LEGACY_TITLE, sourceLayer: "workspace" });
+  assert.equal((await systemPinRevisions(site.deps)).length, 1, "exactly one op='set' revision by system-settings-migration");
+});
+
+test("AC-06 (REQ-05): a site created with tovu init --name \"My Site\" renders its display name and is never pinned", async (t) => {
+  const site = await bootSite(t, createNewSite(t));
+  await site.deps.siteTitleReady;
+
+  const products = await getHtml(site.baseUrl, "/products");
+  assertSingleTitle(products, "My Site", "S3 GET /products");
+  assert.ok(products.includes(`<a class="wordmark" href="/">My Site</a>`), "B: header wordmark");
+  assert.equal((await systemPinRevisions(site.deps)).length, 0);
+});
+
+test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name", async (t) => {
+  let releasePin: () => void = () => undefined;
+  const pinGate = new Promise<void>((resolve) => {
+    releasePin = resolve;
+  });
+  let signalPinReached: () => void = () => undefined;
+  const pinReached = new Promise<void>((resolve) => {
+    signalPinReached = resolve;
+  });
+
+  try {
+    const site = await bootSite(t, createPreExistingSite(t), (deps) => {
+      const store = deps.siteTitlePreservationStore;
+      const listPendingWorkspaceIds = store.listPendingWorkspaceIds.bind(store);
+      store.listPendingWorkspaceIds = async () => {
+        signalPinReached();
+        await pinGate;
+        return listPendingWorkspaceIds();
+      };
+    });
+    await pinReached;
+
+    const definition = await resolveDefinitionRaw(
+      { repo: site.deps.settingsRepo },
+      { namespace: "core.site", key: "title", workspaceId: null }
+    );
+    assert.ok(definition, "the window under test: the definition is registered and the pin is not written");
+    assert.equal((await systemPinRevisions(site.deps)).length, 0, "the pin must still be pending here");
+    assertSingleTitle(await getHtml(site.baseUrl, "/products"), LEGACY_TITLE, "S3 GET /products while the pin is pending");
+
+    releasePin();
+    await site.deps.siteTitleReady;
+    assertSingleTitle(await getHtml(site.baseUrl, "/products"), LEGACY_TITLE, "S3 GET /products after the pin");
+  } finally {
+    releasePin();
+  }
+});
+
+test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check fails, so AC-10 does not pass by coincidence", async (t) => {
+  const site = await bootSite(t, createPreExistingSite(t), (deps) => {
+    const store = deps.siteTitlePreservationStore;
+    store.listPendingWorkspaceIds = async () => [];
+    store.isPending = async () => false;
+  });
+  await site.deps.siteTitleReady;
+  await unpublishHomePage(site.deps);
+
+  await assert.rejects(assertSiteTitleSurfaces(site, LEGACY_TITLE), assert.AssertionError);
+  assertSingleTitle(await getHtml(site.baseUrl, "/products"), SITE_NAME, "the unpreserved pre-existing site flips to its display name");
+});
+
+test("AC-08 (REQ-06): after the owner resets the pinned title, two restarts append no system pin and the site renders its display name", async (t) => {
+  const dir = createPreExistingSite(t);
+  const first = await bootSite(t, dir);
+  await first.deps.siteTitleReady;
+  assert.equal((await systemPinRevisions(first.deps)).length, 1);
+
+  const reset = await fetch(`${first.baseUrl}/api/admin/v1/workspaces/${first.deps.workspaceId}/settings/value`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie: first.cookie },
+    body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace" }),
+  });
+  assert.equal(reset.status, 200, "the owner reset must be accepted");
+  await drainBootReadiness(first.deps);
+
+  let latest = first;
+  for (const restart of [1, 2]) {
+    latest = await bootSite(t, dir);
+    await latest.deps.siteTitleReady;
+    assert.equal((await systemPinRevisions(latest.deps)).length, 1, `restart ${restart} must not re-pin`);
+  }
+  assertSingleTitle(await getHtml(latest.baseUrl, "/products"), SITE_NAME, "S3 GET /products after the reset and two restarts");
+});

@@ -383,6 +383,18 @@ export const settingRevisions = sqliteTable(
 );
 
 /**
+ * SPEC-050 (`core.site.title`, NC-3 = A): one row per workspace that existed when the marker migration
+ * (`*_site_title_preexisting_workspaces`) ran, i.e. before the site-title setting shipped. Only that
+ * migration inserts rows, so a site created later has none and renders its display name. The pin
+ * (`features/settings/site-title.ts`) sets `preservedAt` once it has pinned or skipped the workspace;
+ * a NULL `preservedAt` is a pin still pending. No foreign key: a row for a deleted workspace is inert.
+ */
+export const siteTitlePreexistingWorkspaces = sqliteTable("site_title_preexisting_workspaces", {
+  workspaceId: text("workspace_id").primaryKey(),
+  preservedAt: text("preserved_at"),
+});
+
+/**
  * Forms (SPEC-010, ADR-PIPE-010, state.spec.md §0/§1.1). Core-owned tables — same precedent as
  * `settingDefinitions`/`assetBlobs`/`webhookSubscriptions`, not the generic ADR-022 `entries`
  * model (which doesn't exist in this repo). `slug` is unique per workspace via a real DB unique

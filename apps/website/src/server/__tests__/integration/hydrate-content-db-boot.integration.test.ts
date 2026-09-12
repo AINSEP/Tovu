@@ -42,6 +42,7 @@ async function drainBootReadiness(deps: ReturnType<typeof createSqliteRouteDeps>
     deps.executionSettingsReady,
     deps.settingsUiTabsReady,
     deps.analyticsSettingsReady,
+    deps.siteTitleReady,
   ]).catch(() => undefined);
 }
 
