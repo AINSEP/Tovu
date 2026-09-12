@@ -249,6 +249,29 @@ test("buildServeEnv's TOVU_AGENT_CWD is the site dir and NOT this process's cwd 
   assert.notEqual(env.TOVU_AGENT_CWD, "/");
 });
 
+// The equivalence invariant, stated as such. A fix in this area was twice declared "verified
+// working" on 2026-08-29 and was still wrong, because its test pinned the daemon's PORT while the
+// broken axis was which SITE the daemon had opened. The same trap applies here one layer down: a
+// run that reaches the agent proves only that its cwd was WRITABLE, not that it was the right
+// directory, and `/tmp` is writable. So this asserts the identity that actually matters — the
+// agent's working directory tracks whichever site is being served — by driving two different sites
+// through the same function. A value hardcoded to one site, or copied from somewhere that happens
+// to be writable, passes every other test in this group and fails this one.
+test("TOVU_AGENT_CWD tracks the site being served — writable is not the same claim as correct", () => {
+  const root = makeTempRepo();
+  assert.equal(buildServeEnv({ repoRoot: root, siteDir: "/Users/x/site-one", baseEnv: {} }).TOVU_AGENT_CWD, "/Users/x/site-one");
+  assert.equal(buildServeEnv({ repoRoot: root, siteDir: "/Users/x/site-two", baseEnv: {} }).TOVU_AGENT_CWD, "/Users/x/site-two");
+});
+
+// The two variables must name the SAME site. `TOVU_SITE_DIR` is what the daemon opens its database
+// from and `TOVU_AGENT_CWD` is where its agent runs; a shell that disagreed with itself would hand
+// the agent one site's filesystem while the tools it calls read another site's rows — the quiet
+// wrong-site failure catalogued on 2026-08-29, reintroduced on a second axis.
+test("TOVU_AGENT_CWD and TOVU_SITE_DIR name the same site, so the agent's filesystem and the daemon's database cannot disagree", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: {} });
+  assert.equal(env.TOVU_AGENT_CWD, env.TOVU_SITE_DIR);
+});
+
 test("buildServeEnv keeps an operator-set TOVU_AGENT_CWD instead of replacing it", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: { TOVU_AGENT_CWD: "/operator/pinned" } });
   assert.equal(env.TOVU_AGENT_CWD, "/operator/pinned");
