@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
+import type { TestContext } from "node:test";
 
 import { adminDevProxyCandidates, resolveAdminDevProxyUrl, DEFAULT_VITE_PORT } from "./admin-dev-proxy.ts";
 import { buildServeEnv } from "./tovu-server.ts";
@@ -8,10 +9,12 @@ import { buildServeEnv } from "./tovu-server.ts";
 const REPO_ROOT = "/Users/someone/Programming/Tovu";
 
 /** A stand-in Vite: any listener that speaks HTTP is "up" as far as the probe is concerned. */
-async function listeningServer(t) {
+async function listeningServer(t: TestContext): Promise<number> {
   const server = createServer((_req, res) => res.end("ok"));
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(() => server.close());
+  // @ts-expect-error `.address()` types as `AddressInfo | string | null`; bound to a host/port
+  // (never a Unix socket path), it is always an AddressInfo with `.port`, which the type can't narrow.
   return server.address().port;
 }
 
@@ -72,6 +75,9 @@ test("buildServeEnv sets TOVU_ADMIN_DEV_PROXY_URL only when a resolved origin is
   const base = { repoRoot: REPO_ROOT, siteDir: "/tmp/site", baseEnv: {} };
 
   assert.equal(buildServeEnv(base).TOVU_ADMIN_DEV_PROXY_URL, undefined);
+  // @ts-expect-error tovu-server.ts's BuildServeEnvInput types this field `string | undefined`, but
+  // buildServeEnv also guards `typeof input.adminDevProxyUrl === "string"` at runtime — this case
+  // exercises that guard against a non-string value the declared type no longer admits.
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: null }).TOVU_ADMIN_DEV_PROXY_URL, undefined);
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: "" }).TOVU_ADMIN_DEV_PROXY_URL, undefined);
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: "https://localhost:5173" }).TOVU_ADMIN_DEV_PROXY_URL, "https://localhost:5173");
