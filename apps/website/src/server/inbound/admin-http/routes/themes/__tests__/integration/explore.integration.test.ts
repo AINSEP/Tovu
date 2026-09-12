@@ -516,27 +516,32 @@ test("explore: a no-extension file lists as unreadable/'other', a root-level .ht
   assert.equal(nav!.readable, true);
 });
 
-test("explore: copying/renaming a file over the theme-file size ceiling 400s ThemePathError, not 500", async (t) => {
+test("explore: copying and renaming an image over the 1 MB text-read limit both succeed byte for byte", async (t) => {
   const themesDir = makeThemesRoot();
-  fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "huge.css"), "x".repeat(1_000_001), "utf8");
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const bytes = Buffer.concat([signature, Buffer.alloc(1_200_000).map((_, i) => i % 256)]);
+  const themeDir = path.join(themesDir, "static", THEME_ID);
+  fs.writeFileSync(path.join(themeDir, "huge.png"), bytes);
   const app = createApp(testDeps(themesDir));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const copy = await fetch(`${baseUrl}${BASE}/file/copy`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ path: "huge.css" }),
+    body: JSON.stringify({ path: "huge.png" }),
   });
-  assert.equal(copy.status, 400);
-  assert.equal(((await copy.json()) as { code?: string }).code, "INVALID_THEME_PATH");
+  assert.equal(copy.status, 200);
+  assert.equal(((await copy.json()) as { path?: string }).path, "huge-1.png");
+  assert.ok(fs.readFileSync(path.join(themeDir, "huge-1.png")).equals(bytes));
 
   const rename = await fetch(`${baseUrl}${BASE}/file/rename`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ path: "huge.css", name: "still-huge.css" }),
+    body: JSON.stringify({ path: "huge.png", name: "still-huge.png" }),
   });
-  assert.equal(rename.status, 400);
-  assert.equal(((await rename.json()) as { code?: string }).code, "INVALID_THEME_PATH");
+  assert.equal(rename.status, 200);
+  assert.ok(fs.readFileSync(path.join(themeDir, "still-huge.png")).equals(bytes));
+  assert.equal(fs.existsSync(path.join(themeDir, "huge.png")), false);
 });
 
 test("explore: PUT into a compiled theme's sourceDir refuses a non-framework extension (.php), the bypass is a bounded allowlist", async (t) => {

@@ -719,13 +719,14 @@ export function resetThemeFileToOriginal(
  * Shared containment + preflight for {@link copyThemeFile}/{@link renameThemeFile}: resolves both
  * the source and destination through {@link resolveThemeFilePath} (so a destination built from
  * operator input — a rename's new filename — is validated exactly as strictly as a write target),
- * confirms the source is a regular file within the size ceiling, and refuses to clobber an existing
- * destination.
+ * confirms the source is a regular file, and refuses to clobber an existing destination.
  *
  * Deliberately does NOT decode either path through `readFileSync(…, "utf8")` /
  * `writeFileSync(…, "utf8")` the way {@link readThemeFile}/{@link writeThemeFile} do: a binary asset
  * (a font, an image) round-tripped through UTF-8 would come back byte-corrupted, and copy/rename
- * must work on every file in a theme's folder, not only the text-editable ones.
+ * must work on every file in a theme's folder, not only the text-editable ones. For the same reason
+ * there is no {@link MAX_THEME_FILE_BYTES} ceiling here, as in {@link resetThemeFileToOriginal}: that
+ * limit bounds text a caller reads or writes, and copy/rename carry no text.
  */
 function resolveCopyOrRenameTargets(
   required: { themeDir: string; themesRoot: string; sourcePath: string; destPath: string }
@@ -741,9 +742,6 @@ function resolveCopyOrRenameTargets(
   const sourceStat = statOrThemePathError(source, sourcePath);
   if (!sourceStat) throw new ThemePathError(`file '${sourcePath}' does not exist in this theme`);
   if (!sourceStat.isFile()) throw new ThemePathError(`path '${sourcePath}' is not a regular file`);
-  if (sourceStat.size > MAX_THEME_FILE_BYTES) {
-    throw new ThemePathError(`file '${sourcePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte limit`);
-  }
 
   const dest = resolveThemeFilePath({ themeDir, themesRoot, relativePath: destPath });
   if (existsSync(dest)) {
@@ -757,8 +755,8 @@ function resolveCopyOrRenameTargets(
  * Duplicate one file inside a theme's folder to a new path also inside it, byte-for-byte.
  *
  * @returns The absolute destination path written.
- * @throws {ThemePathError} On containment failure for either path, a missing/oversized/non-file
- * source, or a destination that already exists.
+ * @throws {ThemePathError} On containment failure for either path, a missing/non-file source, or a
+ * destination that already exists. There is no size limit.
  * @complexity O(s) in the file size.
  * @overallScore 100/100
  */
@@ -831,8 +829,8 @@ export function nextAvailableFileName(
  * Move (rename) one file within a theme's folder, byte-for-byte.
  *
  * @returns The absolute destination path.
- * @throws {ThemePathError} On containment failure for either path, a missing/oversized/non-file
- * source, or a destination that already exists.
+ * @throws {ThemePathError} On containment failure for either path, a missing/non-file source, or a
+ * destination that already exists. There is no size limit.
  * @complexity O(1) — same-filesystem rename, not a copy.
  * @overallScore 100/100
  */

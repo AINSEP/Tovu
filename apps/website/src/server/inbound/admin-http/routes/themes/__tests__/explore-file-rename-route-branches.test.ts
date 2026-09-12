@@ -196,21 +196,23 @@ test("an ordinary same-extension rename succeeds end to end (sanity check the su
   assert.equal(fs.existsSync(path.join(themesDir, "static", "plain", "pages", "about.html")), false);
 });
 
-test("renaming a file over the theme-file size ceiling 400s ThemePathError via the route's own catch, not 409/500", async (t) => {
-  // `renameThemeFile` -> `resolveCopyOrRenameTargets` checks the same `MAX_THEME_FILE_BYTES` ceiling
-  // as copy, thrown as `ThemePathError` -- the one realistic way to reach rename's own
-  // `catch (err) { sendThemeFileError(res, err) }` 400 branch (every other refusal in this file's
-  // tests is a deliberate 400/404/409 BEFORE `renameThemeFile` is ever called).
+test("renaming an image over 1 MB succeeds byte for byte -- the 1 MB text-read limit does not apply to rename", async (t) => {
   const themesDir = makeThemesRoot();
-  fs.writeFileSync(path.join(themesDir, "static", "plain", "pages", "huge.html"), "x".repeat(1_000_001), "utf8");
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const bytes = Buffer.concat([signature, Buffer.alloc(1_200_000).map((_, i) => i % 256)]);
+  const dir = path.join(themesDir, "static", "plain", "assets");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "hero.png"), bytes);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
 
-  const res = await rename(baseUrl, "plain", "pages/huge.html", "still-huge.html");
-  const body = (await res.json()) as { code?: string };
-  assert.equal(res.status, 400, `expected an oversized rename to 400, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.code, "INVALID_THEME_PATH");
-  assert.equal(fs.existsSync(path.join(themesDir, "static", "plain", "pages", "still-huge.html")), false);
+  const res = await rename(baseUrl, "plain", "assets/hero.png", "banner.png");
+  const body = (await res.json()) as { path?: string; renamedFrom?: string };
+  assert.equal(res.status, 200, `expected a large image rename to succeed, got ${res.status}: ${JSON.stringify(body)}`);
+  assert.equal(body.path, "assets/banner.png");
+  assert.equal(body.renamedFrom, "assets/hero.png");
+  assert.ok(fs.readFileSync(path.join(dir, "banner.png")).equals(bytes), "the renamed file must hold the original bytes");
+  assert.equal(fs.existsSync(path.join(dir, "hero.png")), false);
 });
 
 test("rename that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch", async (t) => {

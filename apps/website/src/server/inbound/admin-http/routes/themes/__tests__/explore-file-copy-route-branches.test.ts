@@ -88,26 +88,32 @@ test("copy when both 'name-1' and the base name already exist lands on 'name-2' 
   assert.equal(fs.existsSync(path.join(themesDir, "static", "plain", "pages", "about-2.html")), true);
 });
 
-test("copying a file over the theme-file size ceiling 400s ThemePathError via the route's own catch, not 500", async (t) => {
-  // `copyThemeFile` -> `resolveCopyOrRenameTargets` checks `sourceStat.size > MAX_THEME_FILE_BYTES`
-  // (1,000,000 bytes) BEFORE ever touching the destination, throwing `ThemePathError` -- the one
-  // realistic way to reach copy's `catch (err) { sendThemeFileError(res, err) }` 400 branch, which no
-  // other copy test reaches (every other refusal here is a deliberate 403/404/409 BEFORE
-  // `copyThemeFile` is even called).
+/** 1.2 MB of image bytes, past the 1 MB text-read limit: a PNG signature, then every byte value repeated. */
+function largeImageBytes(): Buffer {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  return Buffer.concat([signature, Buffer.alloc(1_200_000).map((_, i) => i % 256)]);
+}
+
+test("copying an image over 1 MB succeeds byte for byte -- the 1 MB text-read limit does not apply to copy", async (t) => {
   const themesDir = makeThemesRoot();
-  fs.writeFileSync(path.join(themesDir, "static", "plain", "pages", "huge.html"), "x".repeat(1_000_001), "utf8");
+  const bytes = largeImageBytes();
+  const dir = path.join(themesDir, "static", "plain", "assets");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "hero.png"), bytes);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE("plain")}/file/copy`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path: "pages/huge.html" }),
+    body: JSON.stringify({ path: "assets/hero.png" }),
   });
-  const body = (await res.json()) as { code?: string };
-  assert.equal(res.status, 400, `expected an oversized copy to 400, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.code, "INVALID_THEME_PATH");
-  assert.equal(fs.existsSync(path.join(themesDir, "static", "plain", "pages", "huge-1.html")), false);
+  const body = (await res.json()) as { path?: string; copiedFrom?: string };
+  assert.equal(res.status, 200, `expected a large image copy to succeed, got ${res.status}: ${JSON.stringify(body)}`);
+  assert.equal(body.path, "assets/hero-1.png");
+  assert.equal(body.copiedFrom, "assets/hero.png");
+  assert.ok(fs.readFileSync(path.join(dir, "hero-1.png")).equals(bytes), "the copy must hold the source's exact bytes");
+  assert.ok(fs.readFileSync(path.join(dir, "hero.png")).equals(bytes), "the source must be unchanged");
 });
 
 test("copy that fails for a reason OTHER than ThemePathError 500s via the route's generic catch branch", async (t) => {

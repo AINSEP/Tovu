@@ -221,6 +221,26 @@ test("theme_restore_trashed_file restores a trashed file to its original path by
   assert.equal((await listFiles(deps)).includes("styles.css"), true);
 });
 
+test("an image over 1 MB trashes and restores byte for byte -- the 1 MB text-read limit does not apply to either move", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const bytes = Buffer.concat([signature, Buffer.alloc(1_200_000).map((_, i) => i % 256)]);
+  fs.mkdirSync(path.join(themesDir, "plain", "assets"), { recursive: true });
+  fs.writeFileSync(path.join(themesDir, "plain", "assets", "hero.png"), bytes);
+
+  const trashed = (await trashFile(deps, { themeId: "plain", path: "assets/hero.png" })) as { trashedPath: string };
+  assert.match(trashed.trashedPath, /^\.trash\/\d+\/assets\/hero\.png$/);
+  assert.ok(fs.readFileSync(path.join(themesDir, "plain", trashed.trashedPath)).equals(bytes), "trashing must not alter the bytes");
+  assert.equal(existsInTheme(themesDir, "assets/hero.png"), false);
+
+  const restored = (await wired(deps, "theme_restore_trashed_file").handler(
+    executionContext({ themeId: "plain", trashedPath: trashed.trashedPath })
+  )) as { path: string };
+  assert.equal(restored.path, "assets/hero.png");
+  assert.ok(fs.readFileSync(path.join(themesDir, "plain", "assets", "hero.png")).equals(bytes), "restoring must not alter the bytes");
+  assert.equal(existsInTheme(themesDir, trashed.trashedPath), false);
+});
+
 test("theme_restore_trashed_file honors an explicit restoreTo, different from the original path", async () => {
   const { deps, themesDir } = fakeRouteDeps();
   const trashed = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
