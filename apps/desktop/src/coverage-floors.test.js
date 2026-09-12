@@ -1,0 +1,133 @@
+/**
+ * @file Direct tests for `coverage-floors.js`.
+ *
+ * The assertions that matter most here are the ones about files that are NOT in the lcov, because
+ * that is the failure this module exists for: node's `--test-coverage-include` filters what was
+ * loaded rather than forcing files in, so a file with no test leaves the denominator and the
+ * percentage goes UP. A percentage-only floor cannot see that. Several tests below therefore check
+ * that a HIGH percentage still fails when the scope quietly shrank.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { evaluateArea, formatArea, pct, isMeasurableSource } from "./coverage-floors.js";
+
+const perfect = { lf: 100, lh: 100, brf: 10, brh: 10, fnf: 5, fnh: 5 };
+const poor = { lf: 100, lh: 50, brf: 10, brh: 5, fnf: 5, fnh: 1 };
+
+function cov(entries) {
+  return new Map(entries);
+}
+
+test("pct treats zero-found as 100 — correct for a file with no branches", () => {
+  assert.equal(pct(0, 0), 100);
+  assert.equal(pct(1, 2), 50);
+});
+
+test("test files and .d.ts files are not production source", () => {
+  assert.equal(isMeasurableSource("src/a.js"), true);
+  assert.equal(isMeasurableSource("src/a.test.js"), false);
+  assert.equal(isMeasurableSource("src/a.spec.ts"), false);
+  assert.equal(isMeasurableSource("src/a.d.ts"), false);
+  assert.equal(isMeasurableSource("src/renderer/electron-webview.d.ts"), false);
+});
+
+// --- the core trap: percentages cannot see their own scope shrinking ---------------------------
+
+test("a file on disk with NO coverage record fails the area, even at 100% on what was measured", () => {
+  const area = { id: "js", floors: { line: 90 } };
+  const result = evaluateArea(area, ["src/a.js", "src/b.js"], cov([["src/a.js", perfect]]));
+
+  assert.equal(result.actual.line, 100, "the measured half really is at 100%");
+  assert.ok(result.failures.length > 0, "and the area must STILL fail");
+  assert.deepEqual(result.newlyUnmeasured, ["src/b.js"]);
+  assert.match(result.failures[0], /NO coverage record/);
+  assert.match(result.failures[0], /src\/b\.js/, "the untested file must be named");
+});
+
+test("an explicitly grandfathered gap does NOT fail — debt is allowed when it is declared", () => {
+  const area = { id: "ts", floors: { line: 90 }, knownUnmeasured: ["src/b.ts"] };
+  const result = evaluateArea(area, ["src/a.ts", "src/b.ts"], cov([["src/a.ts", perfect]]));
+
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.unmeasured, ["src/b.ts"], "but it is still reported");
+});
+
+test("a TENTH unmeasured file fails even when nine are grandfathered — the list cannot grow", () => {
+  const known = ["src/1.ts", "src/2.ts"];
+  const area = { id: "ts", knownUnmeasured: known };
+  const result = evaluateArea(area, [...known, "src/3.ts", "src/a.ts"], cov([["src/a.ts", perfect]]));
+
+  assert.deepEqual(result.newlyUnmeasured, ["src/3.ts"]);
+  assert.ok(result.failures.some((f) => /src\/3\.ts/.test(f)));
+});
+
+test("a grandfathered file that regained coverage is flagged so the list shrinks", () => {
+  const area = { id: "ts", knownUnmeasured: ["src/b.ts"] };
+  const result = evaluateArea(area, ["src/b.ts"], cov([["src/b.ts", perfect]]));
+
+  assert.deepEqual(result.recovered, ["src/b.ts"]);
+  assert.deepEqual(result.failures, [], "recovering is not itself a failure, only a prompt");
+});
+
+test("an area whose directory vanished fails instead of reading as a clean 100%", () => {
+  // pct()'s zero-found-is-100 convention would otherwise report perfect scores on an empty area —
+  // the exact shape of a gate that has silently stopped gating.
+  const area = { id: "bin", floors: { line: 85, branch: 80, funcs: 62 }, minFilesOnDisk: 2 };
+  const result = evaluateArea(area, [], cov([]));
+
+  assert.equal(result.actual.line, 100, "the percentages really do read 100");
+  assert.ok(result.failures.some((f) => /expected at least 2/.test(f)));
+  assert.ok(result.failures.some((f) => /NOT a pass/.test(f)));
+});
+
+test("a partial disappearance fails too, not only a total one", () => {
+  const area = { id: "js", minFilesOnDisk: 24 };
+  const result = evaluateArea(area, ["src/a.js", "src/b.js"], cov([["src/a.js", perfect], ["src/b.js", perfect]]));
+  assert.ok(result.failures.some((f) => /only 2 file\(s\) found on disk, expected at least 24/.test(f)));
+});
+
+// --- ordinary floor behaviour -------------------------------------------------------------------
+
+test("an area below its line floor fails and names the axis", () => {
+  const area = { id: "js", floors: { line: 90, branch: 90, funcs: 90 } };
+  const result = evaluateArea(area, ["src/a.js"], cov([["src/a.js", poor]]));
+
+  assert.ok(result.failures.some((f) => /line 50\.00% < floor 90%/.test(f)));
+  assert.ok(result.failures.some((f) => /branch 50\.00% < floor 90%/.test(f)));
+  assert.ok(result.failures.some((f) => /funcs 20\.00% < floor 90%/.test(f)));
+});
+
+test("an axis with NO configured floor is never a failure — the .ts area sets no funcs floor", () => {
+  const area = { id: "ts", floors: { line: 40, branch: 40 } };
+  const result = evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", poor]]));
+
+  assert.deepEqual(result.failures, [], "funcs at 20% must not fail when no funcs floor is set");
+  assert.equal(result.actual.funcs, 20);
+});
+
+test("an area at exactly its floor passes", () => {
+  const area = { id: "js", floors: { line: 50 } };
+  const result = evaluateArea(area, ["src/a.js"], cov([["src/a.js", poor]]));
+  assert.deepEqual(result.failures, []);
+});
+
+// --- output ------------------------------------------------------------------------------------
+
+test("the rendered area names every unmeasured file, every run", () => {
+  const area = { id: "ts", floors: { line: 70 }, knownUnmeasured: ["src/b.ts", "src/c.ts"] };
+  const result = evaluateArea(area, ["src/a.ts", "src/b.ts", "src/c.ts"], cov([["src/a.ts", perfect]]));
+  const text = formatArea(result, area);
+
+  assert.match(text, /OK {2}\s+ts/);
+  assert.match(text, /UNMEASURED \(2, known gap/);
+  assert.match(text, /- src\/b\.ts/);
+  assert.match(text, /- src\/c\.ts/);
+  assert.match(text, /1 measured of 3 on disk/, "the disk denominator must be visible");
+});
+
+test("an axis with no floor is rendered as such rather than as a silent pass", () => {
+  const area = { id: "ts", floors: { line: 70 } };
+  const text = formatArea(evaluateArea(area, ["src/a.ts"], cov([["src/a.ts", perfect]])), area);
+  assert.match(text, /funcs.*no floor/);
+});

@@ -1,0 +1,48 @@
+{
+  "_comment": "Per-area coverage floors for apps/desktop, enforced by scripts/check-coverage.mjs. Floors were captured a few points under the 2026-09-12 measured baseline so the gate is GREEN on arrival and fails only on real backsliding. The denominator for every area is a DISK SCAN, never the lcov — see src/coverage-floors.js's header for why, and for the measurement in this repo that the omission silently corrupted.",
+  "_comment_not_comparable": "These percentages come from node's own --experimental-test-coverage lcov, whose LF counts EVERY line including comments and blanks (verified: keyed-serializer.js LF:51 / wc -l 51; App.hooks.ts 1272/1272). This codebase is exceptionally comment-dense, so these line numbers read HIGHER than a statement-based tool's and are NOT comparable to any c8, vitest or istanbul figure — including apps/admin's vitest coverage. Do not put a desktop number and an admin number in the same table and draw a conclusion from the gap.",
+  "coverageInclude": ["src/**", "bin/**", "main.js"],
+  "areas": [
+    {
+      "id": "src .js/.cjs",
+      "dirs": ["src"],
+      "extensions": [".js", ".cjs"],
+      "minFilesOnDisk": 27,
+      "floors": { "line": 96, "branch": 90, "funcs": 90 },
+      "_comment_knownUnmeasured": "preload-speech.cjs is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.js reads it as source text, the same convention main.js uses. Grandfathered 2026-09-12; this list is printed on every run and a SECOND entry fails the gate.",
+      "knownUnmeasured": ["src/speech/preload-speech.cjs"]
+    },
+    {
+      "id": "src .ts",
+      "_comment_no_funcs_floor": "Deliberately NO funcs floor. Measured 22.54% on 2026-09-12, and a floor set at a measured-but-terrible number locks in the badness and makes it invisible — the same disease this harness exists to treat. The real gate for this area today is the knownUnmeasured list below, which is printed every run and cannot grow. Set a funcs floor once the pure-function tests exist.",
+      "dirs": ["src"],
+      "extensions": [".ts"],
+      "minFilesOnDisk": 18,
+      "floors": { "line": 76, "branch": 88 },
+      "_comment_knownUnmeasured": "Nine .ts modules no test loads. NOT untestable — mostly pure functions (contracts/sections.ts-style lookups, folder-drop.ts's folderPathsFromDataTransfer). Grandfathered 2026-09-12 rather than failed, because a gate that is red from birth gets disabled within a week; the list is printed every run and a TENTH entry fails the gate. Shrink it, do not extend it. NOTE: several of these files are mid-rename (fleet-conversations.ts, project.ts) — write their tests after the rename commits settle, or the tests land against dead names.",
+      "knownUnmeasured": ["src/contracts/chat-attachments.ts", "src/contracts/fleet-conversations.ts", "src/contracts/project.ts", "src/contracts/runtime-inventory.ts", "src/contracts/site-assistant-tools.ts", "src/contracts/working-directory.ts", "src/renderer/folder-drop.ts", "src/renderer/site-status.ts", "src/renderer/theme.ts"]
+    },
+    {
+      "id": "bin .mjs",
+      "dirs": ["bin"],
+      "extensions": [".mjs"],
+      "minFilesOnDisk": 2,
+      "floors": { "line": 85, "branch": 80, "funcs": 62 },
+      "knownUnmeasured": []
+    }
+  ],
+  "notMeasured": [
+    {
+      "what": "main.js",
+      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.js, shutdown-tracker.js, speech-ipc.js are why the .js area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
+    },
+    {
+      "what": "src/renderer/*.tsx",
+      "why": "there is no DOM test runner in this package — no jsdom, no testing-library, no .tsx runner. The renderer wiring tests are source-text guards. Measuring these means adopting apps/admin's vitest+jsdom stack here, which is a separate decision nobody has taken."
+    },
+    {
+      "what": "src/preload/preload.mts",
+      "why": "preload.test.js reads it as source text; nothing imports it. Measurable only via a test that imports the COMPILED dist/preload/preload.mjs, or by running the suite through tsx."
+    }
+  ]
+}

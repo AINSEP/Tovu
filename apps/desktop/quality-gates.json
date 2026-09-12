@@ -12,6 +12,11 @@
       "id": "typecheck",
       "run": "npm run typecheck",
       "enabled": true
+    },
+    {
+      "id": "coverage",
+      "run": "node scripts/check-coverage.mjs",
+      "enabled": true
     }
   ]
 }
