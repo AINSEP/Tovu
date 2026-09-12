@@ -175,15 +175,20 @@ test("AC-15 (REQ-01): core.site/title accepts a workspace-scope write and reject
   );
   assert.ok(definition, "core.site/title must be registered at boot");
 
-  const revisionCount = async () => (await site.deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
+  // `workspaceId` is load-bearing: without it the ledger returns only platform-wide revisions, so a
+  // rejected write that leaked a workspace-tagged revision would go unseen.
+  const revisionCount = async () =>
+    (await site.deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: site.deps.workspaceId })).length;
+  const beforeAccepted = await revisionCount();
+  assert.equal((await putSiteTitle(site, OWNER_TITLE, "workspace")).status, 200, "the workspace-scope write is the one allowed shape");
   const before = await revisionCount();
+  assert.equal(before, beforeAccepted + 1, "the revision count must see this workspace's value writes");
+
   for (const scope of ["global", "user"] as const) {
     const res = await putSiteTitle(site, OWNER_TITLE, scope);
     assert.notEqual(res.status, 200, `a ${scope}-scope write must be rejected`);
   }
   assert.equal(await revisionCount(), before, "a rejected write must append no revision");
-
-  assert.equal((await putSiteTitle(site, OWNER_TITLE, "workspace")).status, 200, "the workspace-scope write is the one allowed shape");
 });
 
 test("AC-16 (REQ-09): a settings read that throws for core.site/title still renders 200 with one non-empty title", async (t) => {
