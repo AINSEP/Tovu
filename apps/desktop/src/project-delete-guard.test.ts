@@ -16,7 +16,7 @@ import path from "node:path";
 import { resolveRealPath, isInsideDirectory, mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { SITE_ORIGIN } from "./tracked-sites.ts";
 
-function tempDir() {
+function tempDir(): string {
   // Resolved on creation: `os.tmpdir()` is `/var/folders/...` on macOS, itself a symlink to
   // `/private/var/folders/...`. Comparing an unresolved fixture path against the guard's resolved
   // answer would fail for a reason that has nothing to do with the rule under test.
@@ -24,13 +24,13 @@ function tempDir() {
 }
 
 /** A row in `readTrackedSites`'s shape. */
-function row(siteDir, origin) {
+function row(siteDir: string, origin: string): { siteDir: string; createdAt: string; origin: string } {
   return { siteDir, createdAt: "2026-01-01T00:00:00.000Z", origin };
 }
 
 /** Write `.site-meta.json` into `dir` (creating it), carrying `siteId` — the identity `tovu init`
  *  stamps and the one the guard proves a `created` row still names. */
-function writeSiteMeta(dir, siteId) {
+function writeSiteMeta(dir: string, siteId: string): string {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId, schemaVersion: 58 }));
   return dir;
@@ -38,7 +38,7 @@ function writeSiteMeta(dir, siteId) {
 
 /** A `created` row for a site that really is on disk, stamped with that site's own identity — the
  *  shape `trackSite` writes for a directory this app created. */
-function createdRow(siteDir, siteId) {
+function createdRow(siteDir: string, siteId: string): { siteDir: string; createdAt: string; origin: string; siteId: string } {
   return { ...row(siteDir, SITE_ORIGIN.created), siteId };
 }
 

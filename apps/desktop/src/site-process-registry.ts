@@ -52,8 +52,40 @@ const REGISTRY_FILE_NAME = "open-sites.json";
 const DEFAULT_TERMINATE_GRACE_MS = 5_000;
 const TERMINATE_POLL_MS = 200;
 
+/** One persisted row: everything reconciliation needs to prove identity before killing anything. */
+interface SiteProcessRow {
+  siteDir: string;
+  port: number;
+  workspaceId: string;
+  pid: number;
+  updatedAt: number;
+}
+
+/** The registry file's whole shape. */
+interface SiteProcessRegistry {
+  sites: SiteProcessRow[];
+}
+
+/** A raw parsed row, before {@link readRegistry} checks which fields are actually usable. */
+interface RawSiteProcessRow {
+  siteDir?: unknown;
+  pid?: unknown;
+  [key: string]: unknown;
+}
+
+/**
+ * The fields {@link isServeProcessForSite}, {@link isLiveServeRow} and {@link terminateOrphan} need
+ * to prove a pid is still its row's own `tovu serve` — a subset of {@link SiteProcessRow}, since
+ * none of them touch `workspaceId` or `updatedAt`.
+ */
+interface ServeIdentityRow {
+  siteDir: string;
+  port: number;
+  pid: number;
+}
+
 /** @returns the registry file's path inside Electron's per-user `userData` directory. */
-function registryFilePath(userDataDir) {
+function registryFilePath(userDataDir: string): string {
   return path.join(userDataDir, REGISTRY_FILE_NAME);
 }
 
@@ -62,20 +94,52 @@ function registryFilePath(userDataDir) {
  * must not block launch; it just means nothing is reconciled this boot.
  * @complexity O(n) in file size.
  */
-function readRegistry(registryPath) {
+function readRegistry(registryPath: string): SiteProcessRegistry {
   try {
-    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-    const sites = Array.isArray(parsed?.sites) ? parsed.sites : [];
-    return { sites: sites.filter((row) => row && typeof row.siteDir === "string" && typeof row.pid === "number") };
+    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as { sites?: unknown };
+    const sites: unknown[] = Array.isArray(parsed?.sites) ? parsed.sites : [];
+    return {
+      // Kept as one expression (not restructured into a block body, and the predicate cast to the
+      // array result rather than the callback's own return type) to match the pre-batch shape
+      // token-for-token once types are stripped — every `as` here is pure type syntax, erased
+      // entirely, leaving plain `row.siteDir`/`row.pid` reads and a bare `.filter(...)` call exactly
+      // as before. A `row is SiteProcessRow` predicate on the callback itself would force its return
+      // to be exactly `boolean`, which `row && ...` on an `unknown` row is not.
+      sites: sites.filter((row) => row && typeof (row as RawSiteProcessRow).siteDir === "string" && typeof (row as RawSiteProcessRow).pid === "number") as SiteProcessRow[]
+    };
   } catch {
     return { sites: [] };
   }
 }
 
+/**
+ * A row as {@link writeRegistry} accepts it — every field `unknown`, so a test proving
+ * {@link readRegistry}'s own filtering can write deliberately malformed rows (a missing `siteDir`, a
+ * non-numeric `pid`) straight through this same function rather than reaching for a second, raw
+ * `fs.writeFileSync` just for that.
+ */
+interface WritableSiteProcessRow {
+  siteDir?: unknown;
+  port?: unknown;
+  workspaceId?: unknown;
+  pid?: unknown;
+  updatedAt?: unknown;
+}
+
+/** {@link writeRegistry}'s own parameter shape. */
+interface WritableSiteProcessRegistry {
+  sites: WritableSiteProcessRow[];
+}
+
 /** @complexity O(n) in row count. */
-function writeRegistry(registryPath, state) {
+function writeRegistry(registryPath: string, state: WritableSiteProcessRegistry): void {
   fs.mkdirSync(path.dirname(registryPath), { recursive: true });
   fs.writeFileSync(registryPath, JSON.stringify(state, null, 2));
+}
+
+/** {@link recordSiteOpened}'s own options. */
+interface RecordSiteOpenedOptions {
+  isLiveRow?: (row: SiteProcessRow) => boolean;
 }
 
 /**
@@ -102,7 +166,7 @@ function writeRegistry(registryPath, state) {
  *   predicate. Defaults to {@link isLiveServeRow}, which really asks the OS.
  * @complexity O(n) in row count, times one `ps` call per same-`siteDir` row (in practice zero or one).
  */
-function recordSiteOpened(registryPath, row, options = {}) {
+function recordSiteOpened(registryPath: string, row: SiteProcessRow, options: RecordSiteOpenedOptions = {}): void {
   const isLiveRow = options.isLiveRow ?? isLiveServeRow;
   const { sites } = readRegistry(registryPath);
   const retained = sites.filter((existing) => existing.siteDir !== row.siteDir || isLiveRow(existing));
@@ -114,9 +178,14 @@ function recordSiteOpened(registryPath, row, options = {}) {
  * enough, since the OS is free to have reassigned that number to something unrelated.
  * @complexity O(1) beyond one `ps` call.
  */
-function isLiveServeRow(row) {
+function isLiveServeRow(row: ServeIdentityRow): boolean {
   if (!isProcessAlive(row.pid)) return false;
   return isServeProcessForSite(readProcessCommand(row.pid) ?? "", row);
+}
+
+/** {@link recordSiteClosed}'s own options. */
+interface RecordSiteClosedOptions {
+  pid?: number;
 }
 
 /**
@@ -133,9 +202,9 @@ function isLiveServeRow(row) {
  *   site entirely" still has that, and no existing call site changed meaning silently.
  * @complexity O(n) in row count.
  */
-function recordSiteClosed(registryPath, siteDir, options = {}) {
+function recordSiteClosed(registryPath: string, siteDir: string, options: RecordSiteClosedOptions = {}): void {
   const { sites } = readRegistry(registryPath);
-  const isDoomed = (existing) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
+  const isDoomed = (existing: SiteProcessRow) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
   writeRegistry(registryPath, { sites: sites.filter((existing) => !isDoomed(existing)) });
 }
 
@@ -145,7 +214,7 @@ function recordSiteClosed(registryPath, siteDir, options = {}) {
  * `isProcessAlive` makes.
  * @complexity O(1).
  */
-function isProcessAlive(pid) {
+function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -164,7 +233,7 @@ function isProcessAlive(pid) {
  *   and this call, or the row's pid was never real).
  * @complexity O(1); one subprocess call.
  */
-function readProcessCommand(pid) {
+function readProcessCommand(pid: number): string | null {
   try {
     const output = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
     return output.trim() || null;
@@ -180,7 +249,7 @@ function readProcessCommand(pid) {
  * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable.
  * @complexity O(1); one subprocess call.
  */
-function readProcessParentPid(pid) {
+function readProcessParentPid(pid: number): number | null {
   try {
     const parsed = Number.parseInt(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim(), 10);
     return Number.isNaN(parsed) ? null : parsed;
@@ -214,7 +283,7 @@ function readProcessParentPid(pid) {
  *
  * @complexity O(1) beyond {@link readProcessParentPid}'s own subprocess call.
  */
-function isOrphanedProcess(pid) {
+function isOrphanedProcess(pid: number): boolean {
   return readProcessParentPid(pid) === 1;
 }
 
@@ -224,12 +293,12 @@ function isOrphanedProcess(pid) {
  * because a number in a persisted row happens to still name a running process.
  * @complexity O(1) — two substring checks.
  */
-function isServeProcessForSite(commandLine, row) {
+function isServeProcessForSite(commandLine: string, row: Pick<ServeIdentityRow, "siteDir" | "port">): boolean {
   return commandLine.includes(row.siteDir) && commandLine.includes(`--port ${row.port}`);
 }
 
 /** @complexity O(1); the caller bounds how many times this is awaited. */
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -242,7 +311,7 @@ function sleep(ms) {
  *
  * @complexity O(graceMs / TERMINATE_POLL_MS) — a bounded poll loop, not recursion or unbounded I/O.
  */
-async function terminateOrphan(row, graceMs = DEFAULT_TERMINATE_GRACE_MS) {
+async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_TERMINATE_GRACE_MS): Promise<void> {
   try {
     process.kill(row.pid, "SIGTERM");
   } catch {
@@ -283,10 +352,10 @@ async function terminateOrphan(row, graceMs = DEFAULT_TERMINATE_GRACE_MS) {
  * @returns the rows that were found to be live orphans and terminated — for logging/reporting only.
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll.
  */
-async function reconcileOrphans(registryPath) {
+async function reconcileOrphans(registryPath: string): Promise<SiteProcessRow[]> {
   const { sites } = readRegistry(registryPath);
-  const reconciled = [];
-  const stillSupervised = [];
+  const reconciled: SiteProcessRow[] = [];
+  const stillSupervised: SiteProcessRow[] = [];
 
   for (const row of sites) {
     if (!isProcessAlive(row.pid)) continue;

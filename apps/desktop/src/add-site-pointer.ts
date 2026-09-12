@@ -37,11 +37,22 @@ import { classifySiteDirSafely } from "./site-dir-store.ts";
  * tell "you typed the wrong path" apart from "this app is broken".
  */
 class AddSitePointerError extends Error {
-  constructor(code, message) {
+  declare code: string; // `declare`: zero runtime footprint, so stripping types leaves no class-field
+  // line here — a real `code: string;` field would strip to `code;`, a runtime own-property
+  // definition that does not exist in the pre-batch JS and shifts `code`'s key-insertion order
+  // ahead of `name`. `this.code = code` below still does the actual assignment.
+
+  constructor(code: string, message: string) {
     super(message);
     this.name = "AddSitePointerError";
     this.code = code;
   }
+}
+
+/** One {@link REFUSALS} entry. */
+interface RefusalEntry {
+  code: string;
+  describe: (dir: string) => string;
 }
 
 /**
@@ -56,7 +67,7 @@ class AddSitePointerError extends Error {
  * Each message names the FIX, not just the fault: these are read by someone who mistyped a path or
  * pointed at a parent directory, and by a model that has to decide what to try next.
  */
-const REFUSALS = Object.freeze({
+const REFUSALS: Record<string, RefusalEntry> = Object.freeze({
   empty: {
     code: "SITE_DIR_EMPTY",
     describe: (dir) =>
@@ -87,7 +98,7 @@ const REFUSALS = Object.freeze({
 
 /** The refusal for one non-`"site"` verdict, with an unmapped verdict refused rather than admitted
  *  — see {@link REFUSALS}. @complexity O(1). */
-function refusalFor(kind, dir) {
+function refusalFor(kind: string, dir: string): AddSitePointerError {
   const refusal = REFUSALS[kind];
   if (refusal === undefined) {
     return new AddSitePointerError("SITE_DIR_UNUSABLE", `${dir} is not a usable Tovu site (${kind}). Nothing was added.`);
@@ -111,8 +122,28 @@ function refusalFor(kind, dir) {
  *
  * @complexity O(n) in the path length.
  */
-function normalizeSiteDirPath(rawSiteDir, cwd) {
+function normalizeSiteDirPath(rawSiteDir: string, cwd: string): string {
   return path.resolve(cwd, rawSiteDir);
+}
+
+/** Injectable classifier — deliberately a bare `string` return, not the closed verdict union
+ *  `classifySiteDirSafely` itself returns: {@link refusalFor}'s whole point is to stay correct
+ *  against a FUTURE verdict nobody has mapped yet, and a test proves exactly that. */
+type SiteDirClassifierFn = (dir: string) => string;
+
+/** Input to {@link addSitePointer}. */
+interface AddSitePointerInput {
+  siteDir: string;
+  projectsPath: string;
+  cwd?: string;
+  classifySiteDir?: SiteDirClassifierFn;
+}
+
+/** What {@link addSitePointer} returns. */
+interface AddSitePointerResult {
+  siteDir: string;
+  alreadyTracked: boolean;
+  alreadyDismissed: boolean;
 }
 
 /**
@@ -142,7 +173,7 @@ function normalizeSiteDirPath(rawSiteDir, cwd) {
  *   any throwing path.
  * @complexity O(n) in the tracked-row count, plus `classifySiteDir`'s own cost.
  */
-function addSitePointer(input) {
+function addSitePointer(input: AddSitePointerInput): AddSitePointerResult {
   const classify = input.classifySiteDir ?? classifySiteDirSafely;
   const siteDir = normalizeSiteDirPath(input.siteDir, input.cwd ?? process.cwd());
 

@@ -47,6 +47,24 @@ import { SITE_ORIGIN } from "./tracked-sites.ts";
 import { SITE_META_FILE } from "./site-dir-store.ts";
 
 /**
+ * A tracked-project row, as loosely as {@link mayEraseSiteDirectory} must tolerate it: every field
+ * may be garbage, missing, or of the wrong type (a hand-edited `desktop-projects.json`, or a test
+ * proving the fail-closed direction), and this module must refuse rather than throw or admit it.
+ */
+interface RowLike {
+  siteDir?: unknown;
+  origin?: unknown;
+  siteId?: unknown;
+  [key: string]: unknown;
+}
+
+/** {@link mayEraseSiteDirectory}'s second argument — just as loosely typed as {@link RowLike}. */
+interface MayEraseOptions {
+  repoRoot?: unknown;
+  [key: string]: unknown;
+}
+
+/**
  * The identity a site carries in its own directory — `.site-meta.json`'s `siteId`, the UUID
  * `tovu init` stamps once at creation and nothing afterwards rewrites.
  *
@@ -62,9 +80,9 @@ import { SITE_META_FILE } from "./site-dir-store.ts";
  *   of which is "cannot prove identity", and all of which the caller must treat identically.
  * @complexity O(1) — one file read.
  */
-function readSiteIdentity(siteDir) {
+function readSiteIdentity(siteDir: string): string | null {
   try {
-    const meta = JSON.parse(fs.readFileSync(path.join(siteDir, SITE_META_FILE), "utf8"));
+    const meta = JSON.parse(fs.readFileSync(path.join(siteDir, SITE_META_FILE), "utf8")) as { siteId?: unknown };
     return typeof meta?.siteId === "string" && meta.siteId !== "" ? meta.siteId : null;
   } catch {
     return null;
@@ -79,9 +97,9 @@ function readSiteIdentity(siteDir) {
  *
  * @complexity O(1) beyond {@link readSiteIdentity}'s own file read.
  */
-function isStillTheRecordedSite(row) {
+function isStillTheRecordedSite(row: RowLike | undefined): boolean {
   if (typeof row?.siteId !== "string" || row.siteId === "") return false;
-  return readSiteIdentity(row.siteDir) === row.siteId;
+  return readSiteIdentity(row.siteDir as string) === row.siteId;
 }
 
 /**
@@ -103,9 +121,9 @@ function isStillTheRecordedSite(row) {
  *   still collapses `..` and trailing slashes) only when not even the filesystem root resolves.
  * @complexity O(depth) stat calls, worst case one per path segment.
  */
-function resolveRealPath(target) {
+function resolveRealPath(target: string): string {
   const absolute = path.resolve(target);
-  const unresolved = [];
+  const unresolved: string[] = [];
   let candidate = absolute;
   for (;;) {
     try {
@@ -130,7 +148,7 @@ function resolveRealPath(target) {
  *
  * @complexity O(depth) — two {@link resolveRealPath} calls plus a string compare.
  */
-function isInsideDirectory(target, container) {
+function isInsideDirectory(target: string, container: string): boolean {
   const relative = path.relative(resolveRealPath(container), resolveRealPath(target));
   if (relative === "") return true;
   return !relative.startsWith("..") && !path.isAbsolute(relative);
@@ -143,10 +161,10 @@ function isInsideDirectory(target, container) {
  * too so the renderer can label the button with what will actually happen — the UI must never be
  * left to re-derive this rule for itself and drift from it.
  *
- * @param {{siteDir: string, origin: string, siteId?: string}} row a row from `readTrackedSites`,
- *   whose `origin` is already normalized fail-closed by that function. `siteId` is present only on
- *   rows `trackSite` wrote as `created` once identity recording existed.
- * @param {{repoRoot: string}} options
+ * @param row a row from `readTrackedSites`, whose `origin` is already normalized fail-closed by that
+ *   function. `siteId` is present only on rows `trackSite` wrote as `created` once identity
+ *   recording existed. Typed loosely (every field `unknown`) because a hand-edited registry file, or
+ *   a row written before a field existed, must be refused rather than crash this check.
  * @param options.repoRoot the Tovu checkout root. A missing or non-string value refuses everything:
  *   containment cannot be PROVEN without it, and this module never permits what it cannot prove.
  *   `main.js` always supplies it, so that arm is a guard against a future miswiring, not a
@@ -156,11 +174,11 @@ function isInsideDirectory(target, container) {
  * @complexity O(depth) — {@link isInsideDirectory}'s cost plus one file read, and only for a
  *   `created` row.
  */
-function mayEraseSiteDirectory(row, options) {
+function mayEraseSiteDirectory(row: RowLike | undefined, options: MayEraseOptions | undefined): boolean {
   if (row?.origin !== SITE_ORIGIN.created) return false;
   if (typeof options?.repoRoot !== "string" || options.repoRoot === "") return false;
   if (!isStillTheRecordedSite(row)) return false;
-  return !isInsideDirectory(row.siteDir, options.repoRoot);
+  return !isInsideDirectory(row!.siteDir as string, options.repoRoot); // row!: the line 178 check above already returned false for an undefined row via optional chaining, but that does not narrow `row` itself
 }
 
 export {

@@ -13,21 +13,22 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 
 import { registryFilePath, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.ts";
 
-function tempStatePath() {
+function tempStatePath(): string {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-registry-")), "open-sites.json");
 }
 
 /** A long-lived child whose argv contains `siteDir` and `--port <port>` — the exact substrings
  *  `isServeProcessForSite` looks for, standing in for a real `tovu serve <siteDir> --port <port>`. */
-function spawnFakeServeChild(siteDir, port, { ignoreSigterm = false } = {}) {
+function spawnFakeServeChild(siteDir: string, port: number, { ignoreSigterm = false } = {}): ChildProcess {
   const script = ignoreSigterm ? "process.on('SIGTERM', () => {}); setTimeout(() => {}, 60000);" : "setTimeout(() => {}, 60000);";
   return spawn(process.execPath, ["-e", script, siteDir, "--port", String(port)], { stdio: "ignore" });
 }
 
-async function waitForExit(child) {
+async function waitForExit(child: ChildProcess): Promise<void> {
   await new Promise((resolve) => child.once("exit", resolve));
 }
 
@@ -37,7 +38,7 @@ async function waitForExit(child) {
  * — its parent is this test process, which is very much alive, which is exactly the live-sibling
  * case `reconcileOrphans` must now refuse to kill.
  */
-async function spawnOrphanedServeChild(siteDir, port) {
+async function spawnOrphanedServeChild(siteDir: string, port: number): Promise<number> {
   const launcher = [
     'const { spawn } = require("node:child_process");',
     `const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000);", ${JSON.stringify(siteDir)}, "--port", ${JSON.stringify(String(port))}], { detached: true, stdio: "ignore" });`,
@@ -97,20 +98,20 @@ test("isProcessAlive is true for this very process and false once a child has ac
 
   const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" });
   await waitForExit(child);
-  assert.equal(isProcessAlive(child.pid), false);
+  assert.equal(isProcessAlive(child.pid!), false);
 });
 
 test("readProcessCommand reads a live process's own argv, and null once it is gone", async () => {
   const child = spawnFakeServeChild("/fake/site/marker-1", 4001);
   try {
-    const commandLine = readProcessCommand(child.pid);
+    const commandLine = readProcessCommand(child.pid!)!;
     assert.match(commandLine, /\/fake\/site\/marker-1/);
     assert.match(commandLine, /--port 4001/);
   } finally {
     child.kill("SIGKILL");
     await waitForExit(child);
   }
-  assert.equal(readProcessCommand(child.pid), null);
+  assert.equal(readProcessCommand(child.pid!), null);
 });
 
 test("isServeProcessForSite requires BOTH the site dir and the exact --port token", () => {
@@ -124,8 +125,8 @@ test("terminateOrphan sends SIGTERM and confirms the child actually exited, need
   const siteDir = "/fake/site/marker-3";
   const port = 4003;
   const child = spawnFakeServeChild(siteDir, port);
-  await terminateOrphan({ siteDir, port, pid: child.pid }, 2000);
-  assert.equal(isProcessAlive(child.pid), false);
+  await terminateOrphan({ siteDir, port, pid: child.pid! }, 2000);
+  assert.equal(isProcessAlive(child.pid!), false);
 });
 
 test("terminateOrphan escalates to SIGKILL when the child ignores SIGTERM, but only after re-confirming identity", async () => {
@@ -133,17 +134,17 @@ test("terminateOrphan escalates to SIGKILL when the child ignores SIGTERM, but o
   const port = 4004;
   const child = spawnFakeServeChild(siteDir, port, { ignoreSigterm: true });
   try {
-    await terminateOrphan({ siteDir, port, pid: child.pid }, 400);
-    assert.equal(isProcessAlive(child.pid), false);
+    await terminateOrphan({ siteDir, port, pid: child.pid! }, 400);
+    assert.equal(isProcessAlive(child.pid!), false);
   } finally {
-    if (isProcessAlive(child.pid)) child.kill("SIGKILL");
+    if (isProcessAlive(child.pid!)) child.kill("SIGKILL");
   }
 });
 
 test("terminateOrphan on an already-gone pid is a safe no-op", async () => {
   const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" });
   await waitForExit(child);
-  await assert.doesNotReject(terminateOrphan({ siteDir: "/gone", port: 1, pid: child.pid }, 200));
+  await assert.doesNotReject(terminateOrphan({ siteDir: "/gone", port: 1, pid: child.pid! }, 200));
 });
 
 test("reconcileOrphans terminates a live, identity-confirmed orphan and empties the registry", async () => {
@@ -165,14 +166,14 @@ test("reconcileOrphans terminates a live, identity-confirmed orphan and empties 
 test("readProcessParentPid reports the real parent, and null once the pid is gone", async () => {
   const child = spawnFakeServeChild("/fake/site/marker-8", 4008);
   try {
-    assert.equal(readProcessParentPid(child.pid), process.pid);
-    assert.equal(isOrphanedProcess(child.pid), false, "a child of a live parent is not an orphan");
+    assert.equal(readProcessParentPid(child.pid!), process.pid);
+    assert.equal(isOrphanedProcess(child.pid!), false, "a child of a live parent is not an orphan");
   } finally {
     child.kill("SIGKILL");
     await waitForExit(child);
   }
-  assert.equal(readProcessParentPid(child.pid), null);
-  assert.equal(isOrphanedProcess(child.pid), false, "a pid that is gone cannot be proven orphaned");
+  assert.equal(readProcessParentPid(child.pid!), null);
+  assert.equal(isOrphanedProcess(child.pid!), false, "a pid that is gone cannot be proven orphaned");
 });
 
 test("isOrphanedProcess is true for a process whose parent has exited", async () => {
@@ -195,12 +196,12 @@ test("reconcileOrphans leaves an unrelated process alone when a recycled pid no 
   // OS having reused the recorded pid for something else entirely since the row was written.
   const unrelated = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" });
   try {
-    recordSiteOpened(registryPath, { siteDir: "/fake/site/marker-6", port: 4006, workspaceId: "w6", pid: unrelated.pid, updatedAt: Date.now() });
+    recordSiteOpened(registryPath, { siteDir: "/fake/site/marker-6", port: 4006, workspaceId: "w6", pid: unrelated.pid!, updatedAt: Date.now() });
 
     const reconciled = await reconcileOrphans(registryPath);
 
     assert.deepEqual(reconciled, []);
-    assert.equal(isProcessAlive(unrelated.pid), true, "an unrelated live process must never be killed on a stale row's authority");
+    assert.equal(isProcessAlive(unrelated.pid!), true, "an unrelated live process must never be killed on a stale row's authority");
     assert.deepEqual(readRegistry(registryPath).sites, [], "the stale, unverifiable row is still dropped so it is never re-processed");
   } finally {
     unrelated.kill("SIGKILL");
@@ -212,7 +213,7 @@ test("reconcileOrphans silently drops a row whose pid is already gone", async ()
   const registryPath = tempStatePath();
   const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" });
   await waitForExit(child);
-  recordSiteOpened(registryPath, { siteDir: "/fake/site/marker-7", port: 4007, workspaceId: "w7", pid: child.pid, updatedAt: Date.now() });
+  recordSiteOpened(registryPath, { siteDir: "/fake/site/marker-7", port: 4007, workspaceId: "w7", pid: child.pid!, updatedAt: Date.now() });
 
   const reconciled = await reconcileOrphans(registryPath);
 
@@ -229,7 +230,7 @@ test("reconcileOrphans silently drops a row whose pid is already gone", async ()
 // Only the child's own parentage distinguishes the two cases.
 
 /** A fake `tovu serve` whose parent process is STILL ALIVE — a live sibling instance's child. */
-function spawnSupervisedServeChild(siteDir, port) {
+function spawnSupervisedServeChild(siteDir: string, port: number): Promise<{ supervisor: ChildProcess; childPid: number }> {
   const launcher = [
     'const { spawn } = require("node:child_process");',
     `const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000);", ${JSON.stringify(siteDir)}, "--port", ${JSON.stringify(String(port))}], { detached: true, stdio: "ignore" });`,
@@ -277,12 +278,12 @@ test("recordSiteOpened keeps a LIVE sibling instance's row for the same site ins
   // it, so no later boot can ever reconcile it.
   const registryPath = tempStatePath();
   const siblingChild = spawnFakeServeChild("/site-x", 100);
-  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid, updatedAt: 1 });
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid!, updatedAt: 1 });
 
   recordSiteOpened(registryPath, { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 999_999, updatedAt: 2 });
 
   const pids = readRegistry(registryPath).sites.map((row) => row.pid);
-  assert.ok(pids.includes(siblingChild.pid), "the live sibling's child must still be recorded and therefore still reapable");
+  assert.ok(pids.includes(siblingChild.pid!), "the live sibling's child must still be recorded and therefore still reapable");
   assert.ok(pids.includes(999_999), "and this instance's own child must be recorded too");
 
   siblingChild.kill("SIGKILL");
@@ -305,12 +306,12 @@ test("recordSiteClosed narrowed by pid drops only that child's row, not a siblin
   // close side.
   const registryPath = tempStatePath();
   const siblingChild = spawnFakeServeChild("/site-x", 100);
-  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid, updatedAt: 1 });
+  recordSiteOpened(registryPath, { siteDir: "/site-x", port: 100, workspaceId: "w1", pid: siblingChild.pid!, updatedAt: 1 });
   recordSiteOpened(registryPath, { siteDir: "/site-x", port: 101, workspaceId: "w1", pid: 999_999, updatedAt: 2 });
 
   recordSiteClosed(registryPath, "/site-x", { pid: 999_999 });
 
-  assert.deepEqual(readRegistry(registryPath).sites.map((row) => row.pid), [siblingChild.pid]);
+  assert.deepEqual(readRegistry(registryPath).sites.map((row) => row.pid), [siblingChild.pid!]);
 
   siblingChild.kill("SIGKILL");
   await waitForExit(siblingChild);

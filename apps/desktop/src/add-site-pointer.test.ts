@@ -23,12 +23,12 @@ import { AddSitePointerError, addSitePointer, normalizeSiteDirPath } from "./add
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite, untrackSite } from "./tracked-sites.ts";
 import { STATE_FILE_NAME, classifySiteDir } from "./site-dir-store.ts";
 
-function tempDir() {
+function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-add-site-"));
 }
 
 /** A folder that is a complete Tovu site: both marker files `classifySiteDir` requires. */
-function siteFixture(name = "site") {
+function siteFixture(name = "site"): string {
   const dir = path.join(tempDir(), name);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
@@ -41,7 +41,7 @@ function siteFixture(name = "site") {
  * not a readable directory (absent, or a plain file), since there is then nothing an accidental
  * `tovu init` could have left behind for this probe to find.
  */
-function snapshot(dir) {
+function snapshot(dir: string): string[] | null {
   try {
     return fs.readdirSync(dir).sort();
   } catch {
@@ -56,11 +56,11 @@ function snapshot(dir) {
  * error itself — and a bare try/catch that forgets the "did not throw" case would turn every
  * refusal test into a silent pass the moment the refusal stopped happening.
  */
-function captureThrow(fn) {
+function captureThrow(fn: () => void): AddSitePointerError {
   try {
     fn();
   } catch (err) {
-    return err;
+    return err as AddSitePointerError;
   }
   return assert.fail("expected a throw, but the call returned normally");
 }
@@ -71,7 +71,7 @@ function captureThrow(fn) {
  *
  * The three assertions are bundled so no refusal case can be added later with only the cheap one.
  */
-function assertRefused(siteDir, code) {
+function assertRefused(siteDir: string, code: string): void {
   const userData = tempDir();
   const projectsPath = sitesFilePath(userData);
   const before = snapshot(siteDir);
@@ -124,15 +124,15 @@ test("addSitePointer tracks a real site as `adopted`, so a later delete can neve
   assert.deepEqual(result, { siteDir, alreadyTracked: false, alreadyDismissed: false });
   const rows = readTrackedSites(projectsPath);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].siteDir, siteDir);
+  assert.equal(rows[0]!.siteDir, siteDir);
   // The single most consequential assertion in this file. `project-delete-guard.js` reads `origin`
   // to decide whether a delete reaches `fs.rm` on this directory; `created` would authorize erasing
   // a site this app did not make. Asserted as an exact value, not `!== "created"`, so a third
   // origin value added later has to be considered here rather than passing by default.
-  assert.equal(rows[0].origin, SITE_ORIGIN.adopted);
+  assert.equal(rows[0]!.origin, SITE_ORIGIN.adopted);
   // And no `siteId` stamp: `trackSite` records one only alongside `created`, and a stamp on an
   // adopted row is a fact nothing reads that a future rule could misread as permission.
-  assert.equal("siteId" in rows[0], false);
+  assert.equal("siteId" in rows[0]!, false);
 });
 
 test("addSitePointer never writes into the site folder it points at", () => {
@@ -248,7 +248,7 @@ test("addSitePointer resolves a relative path against cwd and records the absolu
   const result = addSitePointer({ siteDir: "relative-site", cwd: path.dirname(siteDir), projectsPath });
 
   assert.equal(result.siteDir, siteDir);
-  assert.equal(readTrackedSites(projectsPath)[0].siteDir, siteDir);
+  assert.equal(readTrackedSites(projectsPath)[0]!.siteDir, siteDir);
 });
 
 test("addSitePointer normalizes a trailing slash so one site cannot become two rows", () => {
