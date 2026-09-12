@@ -21,11 +21,23 @@
   addons carrying a signature from the same Team ID, which is a property of what electron-builder
   signs, not something Runner's reasoning settles.
 
-  So this file starts at one key on purpose, and the packaged app is LAUNCHED to find out. If a
-  native module is refused at load, the fix is to add `disable-library-validation` here together
-  with the observed failure that motivated it — the same discipline Runner's file applies to the
-  two keys it dropped. Do not add it pre-emptively: it is the single largest weakening available
-  here, since it is what otherwise stops arbitrary unsigned code being loaded into the process.
+  MEASURED 2026-09-11 against the signed x86_64 bundle this file produced, and the answer is that
+  one key is enough. With this exact file and nothing else, running the packaged app's own binary as
+  `ELECTRON_RUN_AS_NODE=1` from a cwd OUTSIDE the repo:
+
+  * `better-sqlite3` 13.0.3 loaded from `Resources/tovu/node_modules/` and completed a real SQLite
+    roundtrip (CREATE/INSERT/SELECT, sqlite 3.53.4).
+  * `sharp` 0.35.3 loaded with libvips 8.18.3, and `argon2` loaded.
+  * A full `tovu init` + `tovu serve` ran out of the payload: `/`, `/admin/` and
+    `/site-chat/site-assistant.js` all answered 200, and the agent daemon came up.
+
+  So `com.apple.security.cs.disable-library-validation` is NOT needed and is deliberately absent —
+  electron-builder signs the nested `.node` addons under `Resources/` with this same Developer ID,
+  which is exactly what library validation requires. It is the single largest weakening available
+  here, since it is what otherwise stops arbitrary unsigned code being loaded into the process, so
+  do not add it speculatively. If a future dependency IS refused at load, add it together with the
+  observed failure that motivated it — the discipline Runner's file applies to the two keys it
+  dropped, and this note applies to the key it kept out.
 -->
 <plist version="1.0">
   <dict>
