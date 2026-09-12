@@ -4,6 +4,12 @@
   "maxDisabledDays": 30,
   "gates": [
     {
+      "id": "tree-quiet",
+      "run": "node scripts/check-tree-quiet.mjs",
+      "enabled": true,
+      "_comment": "The PRIMARY half of the packaging safety gate (2026-09-12): refuses to let `npm run package` proceed while apps/desktop is still being written to. It runs first in this list on purpose — a dirty-tree refusal is cheap and should catch nearly everything before the expensive build/stage/electron-builder steps even start. The BACKSTOP half — byte-for-byte verification of the finished app.asar against source — cannot live in this manifest at all: `npm run gates` runs before `electron-builder` in the `package` script, so there is no artifact yet for a gate here to inspect. That half is `scripts/verify-package.mjs`, appended as the final step of `package.json`'s `package` script instead. See ADS-memory/reports/2026-09-12-packaging-asar-corruption.md and src/tree-quiet.js's header for the full mechanism this protects against."
+    },
+    {
       "id": "tests",
       "run": "npm test",
       "enabled": true
