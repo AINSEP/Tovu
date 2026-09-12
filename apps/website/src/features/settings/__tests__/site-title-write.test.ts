@@ -47,8 +47,9 @@ async function storedValue(ledger: Ledger, target: { namespace: string; key: str
   return resolved?.sourceLayer === "workspace" ? resolved.value : undefined;
 }
 
+/** `workspaceId` is load-bearing: without it the ledger returns only platform-wide revisions, never a workspace value's. */
 async function revisionCount(ledger: Ledger): Promise<number> {
-  return (await ledger.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
+  return (await ledger.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: WORKSPACE_ID })).length;
 }
 
 function isTitleRejection(err: unknown): true {
@@ -83,8 +84,10 @@ test("REQ-08: both bounds apply after trimming, so 1 and 200 characters are acce
 
 test("AC-14 (REQ-08): an empty, blank or 201-character title is rejected with a validation error and nothing stored changes", async () => {
   const ledger = await makeLedger();
+  const beforeAccepted = await revisionCount(ledger);
   await ownerWrite(ledger, SITE_TITLE, "My Site");
   const before = await revisionCount(ledger);
+  assert.equal(before, beforeAccepted + 1, "the revision count must see this workspace's value writes");
 
   for (const invalid of ["", "   ", "\t\n ", "x".repeat(201), ` ${"x".repeat(201)} `]) {
     await assert.rejects(() => ownerWrite(ledger, SITE_TITLE, invalid), isTitleRejection, `length ${invalid.length}`);

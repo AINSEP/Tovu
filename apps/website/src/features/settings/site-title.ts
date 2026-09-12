@@ -1,13 +1,17 @@
 import type { JsonValue, UUID } from "@jini-ai/cms/core";
-import { resolveDefinitionRaw, set, type AuthorizeFn } from "@jini-ai/cms/settings";
-import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
+// From the package, not `./index.js`: the barrel's `set` comes from `site-title-write.ts`, which
+// imports this file.
 import {
   ensureSettingDefinitions,
   type EnsureSettingDefinitionsDeps,
   getEffective,
+  resolveDefinitionRaw,
   SCOPE_BIT,
+  set,
+  type AuthorizeFn,
   type SettingsRepoPort,
-} from "./index.js";
+} from "@jini-ai/cms/settings";
+import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 
 /**
  * @file SPEC-050 (`core.site.title`): the public site title as a per-workspace setting, the one

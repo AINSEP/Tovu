@@ -72,7 +72,6 @@ export {
   type RegisterDefinitionsRequired,
   registerDefinitions,
   type SetValueRequired,
-  set,
   type ClearValueRequired,
   clear,
   type ResetNamespaceRequired,
@@ -88,6 +87,9 @@ export {
   type TombstoneDefinitionRequired,
   tombstoneDefinition,
 } from "@jini-ai/cms/settings";
+
+// Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
+export { set } from "./site-title-write.js";
 
 export {
   type PurgeServiceDeps,

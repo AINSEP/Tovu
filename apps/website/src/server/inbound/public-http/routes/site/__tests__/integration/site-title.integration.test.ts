@@ -140,14 +140,19 @@ test("AC-05 (REQ-02): an owner title is HTML-escaped in <title>", async (t) => {
 
 test("AC-14 (REQ-08): a padded title is stored and rendered trimmed; a blank or over-200-character write is rejected and the previous title keeps rendering", async (t) => {
   const site = await bootSite(t);
+  // `workspaceId` is load-bearing: without it the ledger returns only platform-wide revisions, never
+  // a workspace value's, and the no-revision assertion below could not fail.
+  const revisionCount = async () =>
+    (await site.deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: site.deps.workspaceId })).length;
+  const beforeAccepted = await revisionCount();
 
   const accepted = await putSiteTitle(site, "  My Site  ");
   assert.equal(accepted.status, 200, "the padded owner write must be accepted");
   assert.equal(((await accepted.json()) as { value: unknown }).value, "My Site", "the stored value is the trimmed string");
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), "My Site", "trimmed owner title");
 
-  const revisionCount = async () => (await site.deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
   const before = await revisionCount();
+  assert.equal(before, beforeAccepted + 1, "the revision count must see this workspace's value writes");
   for (const invalid of ["", "   ", "x".repeat(201)]) {
     const label = `invalid value ${JSON.stringify(invalid.slice(0, 8))} (length ${invalid.length})`;
     const res = await putSiteTitle(site, invalid);

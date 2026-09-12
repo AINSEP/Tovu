@@ -400,7 +400,9 @@ test("settings_set_ui_preference: a key outside the allowlist is refused by the 
 test("settings_set_ui_preference: core.site.title is not agent-writable, so no agent tool writes the site title (SPEC-050 REQ-08)", async () => {
   const { deps, authorizeCalls, settingsRepo } = fakeRouteDeps();
   authorizeCalls.length = 0;
-  const revisionsBefore = (await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length;
+  // `workspaceId` is load-bearing: without it the ledger returns only platform-wide revisions.
+  const revisionCount = async () => (await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000, workspaceId: WORKSPACE_ID })).length;
+  const revisionsBefore = await revisionCount();
 
   // This tool writes through the package's own `set`, not the host's REQ-08 chokepoint, so the
   // allowlist refusal is what keeps both a blank and a valid title off this path.
@@ -413,8 +415,12 @@ test("settings_set_ui_preference: core.site.title is not agent-writable, so no a
       },
     );
   }
-  assert.equal((await settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 10_000 })).length, revisionsBefore, "nothing is written");
+  assert.equal(await revisionCount(), revisionsBefore, "nothing is written");
   assert.equal(authorizeCalls.length, 0);
+
+  // The count above must be able to move: an allowlisted write through the same tool appends one.
+  await wired(deps, "settings_set_ui_preference").handler(executionContext({ setting: "core.language.locale", value: "es" }));
+  assert.equal(await revisionCount(), revisionsBefore + 1, "the revision count sees this tool's writes");
 });
 
 test("settings_set_ui_preference: writes land on the CALLER's own user layer", async () => {
