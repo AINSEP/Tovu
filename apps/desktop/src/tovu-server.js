@@ -334,6 +334,35 @@ function buildServeEnv(input) {
     env.TOVU_ADMIN_PASSWORD = input.desktopCredential.password;
   }
 
+  // **`TOVU_AGENT_CWD` is pinned to the site dir.** The agent daemon `tovu serve` spawns runs every
+  // assistant turn in `process.env.TOVU_AGENT_CWD ?? process.cwd()`
+  // (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`), and a macOS app launched
+  // from Finder/dock has cwd `/`. `tovu serve` inherits that, the daemon inherits it from
+  // `tovu serve`, so before this line every turn in the packaged app died before spawn with
+  // `EROFS: read-only file system, open '/.mcp.jini-<runId>.json'` — the daemon writes a per-run
+  // `.mcp.json` into the agent's cwd, and `/` is not writable. The run finished `failed` with
+  // `code=null, signal=null` ~13ms after starting, which reaches the pane as an `end` frame carrying
+  // no message, so the operator saw their own turn render and then nothing at all, three times over.
+  // Measured live 2026-09-12: the running daemon's cwd was `/` (`lsof -a -p <pid> -d cwd`), and the
+  // same packaged daemon binary re-launched from a writable cwd streamed a reply.
+  //
+  // The SITE dir rather than merely some writable dir, and that is the substantive choice here: it
+  // is the active site's own tree (`content.db`, `uploads/`, `themes/`, `skills/`,
+  // `agent-plugins/`), so "which site am I working on" is answered by the agent's own working
+  // directory. `AssistantDock.tsx` already names this variable as the only thing that can really
+  // move the agent — a browser directory picker yields a folder name and never a path — and says the
+  // feature belongs to the Electron shell, which is this line.
+  //
+  // Set through the child's env rather than `spawn`'s own `cwd` option on purpose: several code
+  // paths in the child resolve their site from `process.cwd()` when `TOVU_SITE_DIR` is absent (see
+  // {@link buildCliEnv}), so moving the real cwd would change more than the agent's working
+  // directory. It also keeps the server side free of any knowledge that a desktop shell exists —
+  // this is a variable `agent-daemon-server.ts` already reads for its own reasons, not a new hook.
+  // An operator-set value wins, same rule as `TOVU_AGENT_DAEMON_TOKEN` above.
+  if (!env.TOVU_AGENT_CWD && input.siteDir) {
+    env.TOVU_AGENT_CWD = input.siteDir;
+  }
+
   const adminDist = path.join(repoRoot, "apps", "admin", "dist");
   if (!env.TOVU_ADMIN_DIST && fs.existsSync(adminDist)) {
     env.TOVU_ADMIN_DIST = adminDist;

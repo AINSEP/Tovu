@@ -217,6 +217,43 @@ test("buildServeEnv keeps an operator-set TOVU_SITE_DIR instead of replacing it"
   assert.equal(env.TOVU_SITE_DIR, "/operator/pinned");
 });
 
+// The three tests below are the regression for the 2026-09-12 live blocker: EVERY assistant turn in
+// the packaged app died ~13ms after starting, with no reply and no error, because the agent daemon
+// `tovu serve` spawns runs each turn in `process.env.TOVU_AGENT_CWD ?? process.cwd()`
+// (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`) and nothing in this shell
+// ever set that variable. A macOS app launched from Finder/dock has cwd `/`; `tovu serve` inherits
+// it and the daemon inherits it from there, so the daemon's per-run `.mcp.json` write landed on the
+// read-only root and the executor failed the run before spawn:
+//
+//   AgentExecutor: could not write .mcp.json for agent "claude":
+//   EROFS: read-only file system, open '/.mcp.jini-<runId>.json'
+//
+// Measured, not inferred: the owner's live daemon reported cwd `/` (`lsof -a -p <pid> -d cwd`) and
+// three consecutive runs ended `failed` with `code=null, signal=null`; the same packaged daemon
+// binary launched from a writable cwd streamed a reply.
+test("buildServeEnv pins TOVU_AGENT_CWD to the site being served, so the daemon never falls back to this app's own cwd", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: {} });
+  assert.equal(env.TOVU_AGENT_CWD, "/Users/x/my-site");
+});
+
+// The load-bearing half. The assertion above passes for a wrong-but-plausible implementation that
+// forwards `process.cwd()`, or one that leaves the variable unset on the belief that the child's own
+// inherited cwd is good enough — which is the exact bug. This asserts what must NOT be true: the
+// child's env must not hand the daemon a value that resolves to the LAUNCHER's directory, and must
+// not leave it absent, because absent is what produced `/`.
+test("buildServeEnv's TOVU_AGENT_CWD is the site dir and NOT this process's cwd — an unset or inherited value is the `/` bug", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: {} });
+  assert.notEqual(env.TOVU_AGENT_CWD, undefined);
+  assert.notEqual(env.TOVU_AGENT_CWD, "");
+  assert.notEqual(env.TOVU_AGENT_CWD, process.cwd());
+  assert.notEqual(env.TOVU_AGENT_CWD, "/");
+});
+
+test("buildServeEnv keeps an operator-set TOVU_AGENT_CWD instead of replacing it", () => {
+  const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: { TOVU_AGENT_CWD: "/operator/pinned" } });
+  assert.equal(env.TOVU_AGENT_CWD, "/operator/pinned");
+});
+
 test("allocatePort returns a port that is actually bindable", async () => {
   const port = await allocatePort();
   assert.ok(port > 0 && port < 65536);
@@ -276,6 +313,33 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
   ]);
   // Own process group, so the SIGKILL escalation can reap the agent daemon `tovu serve` spawns.
   assert.equal(recorded.options.detached, true);
+});
+
+// The sink, not the primitive. `buildServeEnv` returning the right value proves nothing on its own:
+// the defect class this repo keeps hitting is a correct helper whose call site never passes its
+// result on. This asserts the variable is in the env the REAL spawn receives, through the one code
+// path `main.js` actually uses.
+test("startTovuServer hands the spawned `tovu serve` a TOVU_AGENT_CWD, so the daemon it starts runs agents in the site dir rather than `/`", async () => {
+  const child = fakeChild();
+  let recorded;
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(),
+    siteDir: "/tmp/my-site",
+    port: 3601,
+    baseEnv: {},
+    mirror: silentMirror(),
+    spawnFn: (command, args, options) => {
+      recorded = options;
+      return child;
+    },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  await started;
+
+  assert.equal(recorded.env.TOVU_AGENT_CWD, "/tmp/my-site");
+  // No `cwd` is passed to `spawn` — the fix is the explicit env var the server already reads, not a
+  // change to the child's own working directory, which other code resolves the site from.
+  assert.equal(recorded.cwd, undefined);
 });
 
 test("startTovuServer in source mode runs the TS entry under --import tsx instead of the compiled CLI", async () => {
