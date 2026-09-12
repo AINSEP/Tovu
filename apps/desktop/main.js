@@ -111,6 +111,7 @@ import { createKeyedSerializer } from "./src/keyed-serializer.js";
 import { createSiteSupervisor } from "./src/site-supervisor.js";
 import { createShutdownTracker } from "./src/shutdown-tracker.js";
 import { routeQuitSignals } from "./src/quit-signals.js";
+import { decideBeforeQuit } from "./src/quit-drain-gate.js";
 import { applyGuestWebPreferences } from "./src/webview-guest-policy.js";
 import { createSelftestTracker } from "./src/selftest-tracker.js";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.js";
@@ -273,9 +274,20 @@ const serializer = createKeyedSerializer();
  *  wait for them — see `shutdown-tracker.js`'s own header for the leak this closes (D-09). */
 const pendingTeardowns = createShutdownTracker();
 
-/** Guards `before-quit` against re-entering once the graceful multi-site shutdown is already under
- *  way — mirrors the single-site shell's own prior `shuttingDown` variable. */
-let shuttingDown = false;
+/** Where `before-quit`'s graceful multi-site shutdown is: `"idle"`, `"draining"` (stopping every open
+ *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
+ *  through). `decideBeforeQuit` reads it — see `quit-drain-gate.js` for why an attempt mid-drain is
+ *  held rather than let through. */
+let quitPhase = "idle";
+
+/**
+ * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
+ * (`quit-signals.js`), and so does `before-quit` when its drain starts. The drain stops every open
+ * site in parallel, and each `server.stop()` escalates to SIGKILL after one `DEFAULT_STOP_GRACE_MS`,
+ * so those stops take about one grace however many sites are open. It then waits on
+ * `pendingTeardowns`, whose loopback logout has no timeout of its own, and only this deadline bounds that.
+ */
+const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 
 /** `"source"` (default) or `"compiled"` — see this file's own header. Read once at module load,
  *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
@@ -1207,13 +1219,13 @@ app
   .then(async () => {
     // First, before anything below can spawn a `tovu serve`: a termination signal must reach
     // `before-quit`'s drain exactly once rather than kill Electron on its second copy. Here and not at
-    // module load, where Chromium's own one-shot handler replaces it. Three stop graces: the open
-    // sites' parallel stops, then a closing window's logout plus its own stop. See `quit-signals.js`.
+    // module load, where Chromium's own one-shot handler replaces it. See `quit-signals.js`, and
+    // `QUIT_DEADLINE_MS` for what the deadline does and does not cover.
     routeQuitSignals({
       processLike: process,
       quit: () => app.quit(),
       forceExit: () => app.exit(1),
-      deadlineMs: DEFAULT_STOP_GRACE_MS * 3,
+      deadlineMs: QUIT_DEADLINE_MS,
     });
 
     // Registered before either boot-mode branch below so a window's very first `isAvailable()`
@@ -1369,13 +1381,23 @@ app.on("before-quit", (event) => {
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned
   // `detached`, so it outlives the app. See `shutdown-tracker.js`'s own header.
-  if ((openSites.size === 0 && pendingTeardowns.size === 0) || shuttingDown) return;
+  const action = decideBeforeQuit({ phase: quitPhase, nothingToDrain: openSites.size === 0 && pendingTeardowns.size === 0 });
+  if (action === "proceed") return;
   event.preventDefault();
-  shuttingDown = true;
+  // A second Cmd+Q, menu Quit, signal or `app.quit()` during the drain: prevented and dropped, so
+  // only the drain's own closing `app.quit()` below ends the app. See `quit-drain-gate.js`.
+  if (action === "hold") return;
+  quitPhase = "draining";
+  // Holding removed a repeat quit's escape from a hung drain, so every route gets the deadline here,
+  // not only a termination signal. See `QUIT_DEADLINE_MS`.
+  setTimeout(() => app.exit(1), QUIT_DEADLINE_MS).unref();
   const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));
   Promise.all(stops)
     .then(() => pendingTeardowns.drain())
-    .finally(() => app.quit());
+    .finally(() => {
+      quitPhase = "drained";
+      app.quit();
+    });
 });
 
 app.on("window-all-closed", () => {

@@ -21,9 +21,10 @@
  * replaces a listener registered at module load. The probe showed no module-load listener ever firing.
  *
  * **Once, not per copy.** Calling `app.quit()` for each copy re-enters `before-quit` while its drain
- * is still running. The `shuttingDown` guard then lets that call through, and Electron exits
- * mid-drain, which is the same leak with extra steps (also measured). The first signal requests the
- * quit, and later copies do nothing.
+ * is still running. `before-quit`'s old `shuttingDown` guard let that call through, and Electron
+ * exited mid-drain, which is the same leak with extra steps (also measured). `quit-drain-gate.js` now
+ * holds any quit attempt made during the drain. The first signal requests the quit, and later copies
+ * do nothing.
  *
  * **Bounded.** Absorbing repeats removes the old accidental escape hatch: a second signal can no longer
  * end a drain that has hung (`endSiteSession`'s loopback logout has no timeout of its own). The

@@ -30,6 +30,16 @@ function closedHandler() {
   return source.slice(start, end);
 }
 
+/** Just the `app.on("before-quit", ...)` handler, up to its closing `});`. Anchored at a line start:
+ *  a doc comment earlier in main.js mentions `app.on("before-quit")` in prose. */
+function beforeQuitHandler() {
+  const start = source.indexOf('\napp.on("before-quit", ');
+  assert.notEqual(start, -1, 'expected an app.on("before-quit", ...) handler in main.js');
+  const end = source.indexOf("\n});", start);
+  assert.notEqual(end, -1, "could not find the end of the before-quit handler");
+  return source.slice(start, end);
+}
+
 test("before-quit waits on in-flight teardowns, not only on openSites", () => {
   // The defect: the `closed` handler empties `openSites` synchronously and only then begins
   // stopping the child, so closing the last window made this read "nothing to drain" while a
@@ -56,6 +66,36 @@ test("termination signals route into the graceful quit, armed once the app is re
   assert.notEqual(route, -1, "main.js must route termination signals into app.quit()");
   assert.ok(route > ready, "a process.on handler registered at module load is replaced by Chromium's and never fires");
   assert.ok(route < reconcile, "must be armed before anything in the ready chain can spawn a tovu serve");
+});
+
+test("a quit attempt during the drain is held until the drain completes, not let through", () => {
+  // The second Cmd+Q: it re-entered before-quit with the drain already running, and the old
+  // `|| shuttingDown) return;` let it through without preventDefault(), so Electron exited before the
+  // parallel server.stop() calls finished and stranded detached tovu serve children.
+  const handler = beforeQuitHandler();
+  assert.doesNotMatch(handler, /\|\| shuttingDown\) return;/, "a guard that returns mid-drain lets a second quit exit Electron");
+  const decide = handler.indexOf("decideBeforeQuit({ phase: quitPhase,");
+  const proceed = handler.indexOf('if (action === "proceed") return;');
+  const prevent = handler.indexOf("event.preventDefault();");
+  const hold = handler.indexOf('if (action === "hold") return;');
+  assert.notEqual(decide, -1, "before-quit must ask decideBeforeQuit with the current quitPhase");
+  assert.ok(decide < proceed && proceed < prevent && prevent < hold, "a held attempt must be preventDefault()ed before it returns");
+  assert.match(handler, /quitPhase = "draining";/);
+  assert.match(
+    handler,
+    /\.finally\(\(\) => \{\s*quitPhase = "drained";\s*app\.quit\(\);\s*\}\)/,
+    "the drain's own closing app.quit() must be the one decideBeforeQuit lets through",
+  );
+});
+
+test("the drain arms the force-exit deadline itself, so a held quit cannot outlive a hung drain", () => {
+  // Holding a second Cmd+Q removed its accidental escape from a hung drain (endSiteSession's loopback
+  // logout has no timeout of its own). quit-signals.js arms its deadline only for a signal.
+  const handler = beforeQuitHandler();
+  const draining = handler.indexOf('quitPhase = "draining";');
+  assert.notEqual(draining, -1, "expected before-quit to enter the draining phase");
+  assert.match(handler.slice(draining), /setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\)\.unref\(\);/);
+  assert.match(source, /deadlineMs: QUIT_DEADLINE_MS,/, "a signal and a Cmd+Q must get the same bound");
 });
 
 test("the closed handler tracks its teardown so the drain can find it", () => {
