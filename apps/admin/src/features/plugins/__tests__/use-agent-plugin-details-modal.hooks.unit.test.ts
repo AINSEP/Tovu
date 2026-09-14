@@ -1,47 +1,50 @@
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { AdminAgentPluginFiles } from "@/lib/api";
+import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
-import { UI_UX_DESIGN_SOURCE_FILES } from "../agent-plugin-source-catalog";
 
 /**
- * @file `useAgentPluginDetailsModal` — the file-tree selection state extracted out of
- * `AgentPluginDetailsModal.tsx`. Pins the hook's own contract: it defaults to the first catalogued
- * file, `selectFile` moves the selection, an unrecognized plugin id resolves to an empty list with
- * a `null` selection, and an unrecognized path is a no-op rather than clearing the selection.
+ * @file `useAgentPluginDetailsModal` — REWRITTEN 2026-09-13 with the hook itself: it reads
+ * `AGENT_PLUGIN_FILES` through `AgentPluginsPort` instead of a compile-time catalog. Stale-read and
+ * selection edge cases belong to `usePluginPackageFiles` and are covered in
+ * `use-plugin-package-files.hooks.unit.test.ts`; this file pins that the Agent Plugins adapter
+ * reaches that hook with the right id and surfaces both outcomes.
  */
+
+const identity = (key: string) => key;
+
+const SUPABASE_FILES: AdminAgentPluginFiles = {
+  pluginId: "supabase",
+  files: [
+    { relativePath: "plugin.json", sizeBytes: 19, content: '{"name":"supabase"}', omitted: null },
+    { relativePath: "skills/supabase/SKILL.md", sizeBytes: 10, content: "# Supabase", omitted: null },
+  ],
+  truncated: false,
+  limits: { maxFiles: 200, maxEntries: 2000, maxFileBytes: 524288, maxTotalBytes: 4194304 },
+};
+
 describe("useAgentPluginDetailsModal", () => {
-  it("defaults selectedFile to the plugin's first catalogued file", () => {
-    const { result } = renderHook(() => useAgentPluginDetailsModal("ui-ux-design"));
+  it("lists a switched-off plugin's installed files from the port, defaulting to the first file", async () => {
+    const port = createFakeAgentPluginsPort({ files: { supabase: SUPABASE_FILES } });
+    const { result } = renderHook(() => useAgentPluginDetailsModal({ pluginId: "supabase", port, t: identity }));
 
-    expect(result.current.files).toBe(UI_UX_DESIGN_SOURCE_FILES);
-    expect(result.current.selectedFile).toEqual(UI_UX_DESIGN_SOURCE_FILES[0]);
+    expect(result.current.status).toEqual({ text: "Loading package files…", role: "status" });
+    await waitFor(() => expect(result.current.files.map((file) => file.relativePath)).toEqual(["plugin.json", "skills/supabase/SKILL.md"]));
+    expect(result.current.selectedFile?.relativePath).toBe("plugin.json");
+    expect(result.current.status).toBeNull();
+
+    act(() => result.current.selectFile("skills/supabase/SKILL.md"));
+    expect(result.current.selectedFile?.content).toBe("# Supabase");
   });
 
-  it("selectFile moves the selection to the given relativePath", () => {
-    const { result } = renderHook(() => useAgentPluginDetailsModal("ui-ux-design"));
-    const target = UI_UX_DESIGN_SOURCE_FILES[3]!;
+  it("a failed read reaches the viewer as an alert, not a silently empty list", async () => {
+    const port = createFakeAgentPluginsPort();
+    const { result } = renderHook(() => useAgentPluginDetailsModal({ pluginId: "not-installed", port, t: identity }));
 
-    act(() => result.current.selectFile(target.relativePath));
-
-    expect(result.current.selectedFile).toEqual(target);
-  });
-
-  it("an unrecognized plugin id resolves to an empty file list and a null selection", () => {
-    const { result } = renderHook(() => useAgentPluginDetailsModal("not-a-real-plugin"));
-
+    await waitFor(() => expect(result.current.status?.role).toBe("alert"));
     expect(result.current.files).toEqual([]);
     expect(result.current.selectedFile).toBeNull();
-  });
-
-  it("selectFile with an unrecognized path leaves the current selection in place", () => {
-    const { result } = renderHook(() => useAgentPluginDetailsModal("ui-ux-design"));
-    const firstFile = result.current.selectedFile;
-
-    act(() => result.current.selectFile("not/a/real/path.md"));
-
-    // `findBundledAgentPluginSourceFile` returns null for the miss, but the `?? files[0]` fallback
-    // in the hook resolves back to the same first file rather than surfacing a null selection.
-    expect(result.current.selectedFile).toEqual(firstFile);
   });
 });

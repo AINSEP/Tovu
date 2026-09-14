@@ -95,7 +95,7 @@ export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): stri
  * turned on. Downloaded (every plugin `PLUGINS_LIST` returns, unfiltered) and Installed read the
  * exact same underlying list; this filter is the one line of difference between them, kept as its
  * own named, independently testable function rather than an inline `.filter()` repeated in a
- * `.tsx` panel — mirrors `filterEnabledAgentPlugins`'s identical role for the sibling screen.
+ * `.tsx` panel.
  *
  * `null` in, `null` out: a `null` `plugins` means the initial load hasn't settled yet, a fact about
  * the LOAD rather than about which rows are enabled — collapsing it to `[]` here would make
@@ -123,19 +123,36 @@ export function pluginSubline(plugin: AdminPlugin): string {
 }
 
 /**
+ * Why the Downloaded tab's Remove cannot succeed for `plugin`, or `null` when it can — the two
+ * refusals `PLUGIN_UNINSTALL` itself makes (`features/plugin-runtime/uninstall.ts`), built-in first:
+ * a built-in has nothing on disk to remove whether or not it is on, while an enabled site plugin
+ * only needs turning off (`PLUGIN_ENABLED`). The screen shows Remove disabled and pointing at the
+ * matching note, instead of offering a click the server always refuses (2026-09-13 fix).
+ *
+ * `enabled` is this workspace's activation; the server also refuses a plugin still enabled in
+ * ANOTHER workspace, which this row cannot see — that rare refusal still reaches `rowError`.
+ *
+ * @complexity O(1).
+ */
+export function pluginRemoveBlocker(plugin: AdminPlugin): "built-in" | "enabled" | null {
+  if (plugin.source === "built-in") return "built-in";
+  return plugin.enabled ? "enabled" : null;
+}
+
+/**
  * The Downloaded tab's Remove button `aria-label` — every row's button reads "Remove" identically,
  * so the plugin's own name has to be in the accessible name for anything reading the accessibility
  * tree to tell rows apart (same reasoning {@link pluginToggleAriaLabel} gives for the Installed
- * tab's switch). Reads "unavailable" for a built-in row instead of naming an action nobody can
- * take — `PLUGIN_NOT_UNINSTALLABLE`'s reason lives in the section note the disabled button's
- * `aria-describedby` points at (`AgentPluginRow`'s own honest-disabled idiom), not repeated here.
+ * tab's switch). Reads "unavailable" whenever {@link pluginRemoveBlocker} names a reason instead of
+ * naming an action nobody can take — the reason itself lives in the section note the disabled
+ * button's `aria-describedby` points at (`AgentPluginRow`'s own honest-disabled idiom).
  *
  * @complexity O(1).
  */
 export function pluginRemoveAriaLabel(plugin: AdminPlugin, locale: string): string {
-  return plugin.source === "built-in"
-    ? `${t(locale, "Remove")} ${plugin.name} — ${t(locale, "unavailable")}`
-    : `${t(locale, "Remove")} ${plugin.name}`;
+  return pluginRemoveBlocker(plugin) === null
+    ? `${t(locale, "Remove")} ${plugin.name}`
+    : `${t(locale, "Remove")} ${plugin.name} — ${t(locale, "unavailable")}`;
 }
 
 /** {@link buildPluginRemoveConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
@@ -307,22 +324,6 @@ export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: 
   return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
 }
 
-/**
- * The Installed tab's own scope. Downloaded (every package on disk for this workspace) and
- * Installed (only the rows an operator has actually turned on) read the exact same underlying
- * list — this filter is the one line of difference between them, kept as its own named,
- * independently testable function rather than an inline `.filter()` repeated in a `.tsx` panel.
- *
- * `null` in, `null` out: a `null` `agentPlugins` means the initial load hasn't settled yet, which
- * is a fact about the LOAD, not about which rows are enabled — collapsing it to `[]` here would
- * make `AgentPlugins.tsx` unable to tell "still loading" from "loaded, and none are enabled".
- *
- * @complexity Time O(n) in `agentPlugins.length`; space O(k) for the k enabled rows kept.
- */
-export function filterEnabledAgentPlugins(agentPlugins: AdminAgentPlugin[] | null): AdminAgentPlugin[] | null {
-  return agentPlugins ? agentPlugins.filter((plugin) => plugin.enabled) : null;
-}
-
 /** {@link buildAgentPluginDisableConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
  *  `features/settings/rules.ts`'s `RemoveConfirmCopy`, the precedent this dialog mirrors. */
 export interface AgentPluginDisableConfirmCopy {
@@ -455,9 +456,13 @@ export function packageFilesListNotice(listing: Pick<AdminPluginFiles, "truncate
   return listing?.truncated ? translate("Some files are not listed: this package is larger than the viewer's limits.") : null;
 }
 
-/** One settled `PLUGIN_FILES` read: the listing, or the failure text in its place. */
+/** The part of a files listing the viewer reads — shared by `PLUGIN_FILES` and
+ *  `AGENT_PLUGIN_FILES`, whose responses differ only outside it. */
+export type PackageFilesListing = Pick<AdminPluginFiles, "files" | "truncated">;
+
+/** One settled package-files read: the listing, or the failure text in its place. */
 export interface PackageFilesRead {
-  readonly listing: AdminPluginFiles | null;
+  readonly listing: PackageFilesListing | null;
   readonly error: string | null;
 }
 

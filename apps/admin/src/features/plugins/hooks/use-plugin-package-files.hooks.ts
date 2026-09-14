@@ -6,18 +6,18 @@ import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
   packageFilesViewState,
+  type PackageFilesListing,
   type PackageFilesRead,
   type PackageFilesStatus,
   type PackageFileView,
 } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
-import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
  * @file `PluginPackageFilesModal`'s data: one `PLUGIN_FILES` read for the inspected plugin, mapped
  * onto the shared `PackageFilesModal`'s row shape, plus which file is selected. The Agent Plugins
- * counterpart (`use-agent-plugin-details-modal.hooks.ts`) reads a compile-time catalog instead; both
- * return the same `files`/`selectedFile`/`selectFile` trio so the two screens drive one component.
+ * viewer (`use-agent-plugin-details-modal.hooks.ts`) reuses this same hook over `AGENT_PLUGIN_FILES`
+ * (2026-09-13), so both screens share one stale-read and selection implementation.
  *
  * `useX(dependencies)` / `useWiredX()` pair, same as `use-plugins.hooks.ts`: a test composes
  * {@link usePluginPackageFiles} with `createFakePluginsPort`.
@@ -25,7 +25,9 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 export interface PluginPackageFilesDependencies {
   readonly pluginId: string;
-  readonly port: Pick<PluginsPort, "getPluginFiles">;
+  /** Any read that yields a listing — `PluginsPort.getPluginFiles`, or an adapter over
+   *  `AgentPluginsPort.getAgentPluginFiles`. */
+  readonly port: { getPluginFiles(pluginId: string): Promise<PackageFilesListing> };
   readonly t: Translate;
 }
 

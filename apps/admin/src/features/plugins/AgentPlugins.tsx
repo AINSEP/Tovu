@@ -14,7 +14,7 @@ import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
-import { filterEnabledAgentPlugins, humanizeAgentPluginId } from "./rules";
+import { humanizeAgentPluginId } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
@@ -136,9 +136,9 @@ function AgentPluginList({
  * tabs — which differ only in WHICH rows they scope to and their own copy, never in markup — share
  * one implementation instead of two copies that could drift.
  *
- * `visiblePlugins` is the tab's own already-scoped list (all of them for Downloaded, only the
- * enabled ones for Installed via `filterEnabledAgentPlugins`) — `null` while the underlying load
- * hasn't settled yet, same convention `AgentPluginsController.agentPlugins` uses.
+ * `visiblePlugins` is the tab's own list — every installed plugin on both tabs since 2026-09-13,
+ * when Installed stopped filtering to enabled rows — `null` while the underlying load hasn't settled
+ * yet, same convention `AgentPluginsController.agentPlugins` uses.
  */
 function AgentPluginListPanel({
   controller,
@@ -237,20 +237,22 @@ function DownloadedPanel(props: AgentPluginListPanelProps) {
 }
 
 /**
- * Installed tab: only the rows this workspace has actually turned on (`plugin.enabled === true`).
- * New with the Downloaded/Installed split (2026-09-09) — before it, "installed" meant "on disk",
- * which is now Downloaded's job. Reuses the pre-split tab label, section aria-label, and subtitle
- * verbatim: "Installed"/"Installed Agent Plugins"/"Portable packages installed for this workspace."
- * already meant "the ones actually installed", which is precisely this tab's new, narrower scope.
+ * Installed tab: every installed plugin, each with its real Enabled switch — off where it's off.
+ *
+ * Owner decision 2026-09-13: "all agent plugins should be shown even if switched off". Until then
+ * this tab listed only `enabled: true` rows, and since every bundled plugin seeds switched off
+ * (`seed-bundled.ts`), a newly bundled one like `supabase` was absent from the default tab with no
+ * visible way to turn it on. Showing it here changes only the listing: a switched-off plugin's
+ * skills, tools, and MCP servers stay out of every assistant run.
  */
 function InstalledOnlyPanel(props: AgentPluginListPanelProps) {
   return (
     <AgentPluginListPanel
       {...props}
       sectionLabel={props.controller.t("Installed Agent Plugins")}
-      lede={props.controller.t("These plugins are enabled. Their skills reach the assistant's prompt on every run.")}
-      emptyMessage={props.controller.t("No Agent Plugins are enabled for this workspace.")}
-      visiblePlugins={filterEnabledAgentPlugins(props.controller.agentPlugins)}
+      lede={props.controller.t("Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.")}
+      emptyMessage={props.controller.t("No Agent Plugins are installed in this workspace.")}
+      visiblePlugins={props.controller.agentPlugins}
     />
   );
 }
@@ -329,6 +331,9 @@ export interface AgentPluginsProps {
  *     the exact same `AGENT_PLUGIN_SET_ENABLED` call either way — only which CONTROL asks, and
  *     whether it interrupts first, differs. See `AgentPluginDisableConfirmDialog`'s own header for
  *     the two `variant`s that follow from this.
+ *  6. Owner decision 2026-09-13: Installed lists EVERY installed plugin, switched on or off, so its
+ *     switch's off state is reachable again and a switched-off bundled plugin can be turned on
+ *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
 export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
   const controller = useAgentPluginsHook();

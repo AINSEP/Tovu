@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins } from "../AgentPlugins";
 import type { AgentPluginsController, InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
@@ -103,7 +103,7 @@ function row(name: string): HTMLElement {
 }
 
 describe("AgentPlugins", () => {
-  it("renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, scoped to enabled rows only", async () => {
+  it("renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, listing every installed plugin", async () => {
     renderAgentPlugins();
     const installedTab = screen.getByRole("button", { name: "Installed" });
     const downloadedTab = screen.getByRole("button", { name: "Downloaded" });
@@ -112,13 +112,8 @@ describe("AgentPlugins", () => {
     expect(installedTab.compareDocumentPosition(downloadedTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(downloadedTab.compareDocumentPosition(marketplaceTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // Installed is scoped to enabled rows only — TOVU_DEPLOY_FLY (`enabled: false`) belongs on
-    // Downloaded, not here.
-    expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(row("Site Compliance")).toBeInTheDocument();
-
-    // Downloaded is unfiltered — both the enabled and the disabled fixture plugin show up.
-    await userEvent.click(downloadedTab);
+    // Owner decision 2026-09-13: Installed lists every installed plugin, switched on or off —
+    // TOVU_DEPLOY_FLY (`enabled: false`) is listed here too.
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     const compliance = row("Site Compliance");
     expect(within(compliance).getByText("v1.0.0")).toBeInTheDocument();
@@ -127,33 +122,42 @@ describe("AgentPlugins", () => {
     // No version chip for a plugin whose installed package carries none — honest omission, not a
     // stale placeholder (same "no invented value" rule the old card's own comment stated).
     expect(within(row("Fly.io Deploy")).queryByText(/^v\d/)).not.toBeInTheDocument();
+
+    await userEvent.click(downloadedTab);
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
-  it("scopes the Installed tab to enabled rows only, and gives it its own empty state", async () => {
-    renderAgentPlugins();
-    await userEvent.click(screen.getByRole("button", { name: "Installed" }));
+  it("lists a switched-off bundled plugin on Installed with its switch off, so it can be turned on right there", async () => {
+    const supabase: AdminAgentPlugin = {
+      pluginId: "supabase",
+      version: "1.0.0",
+      description: "Supabase projects, tables, and edge functions.",
+      keywords: [],
+      enabled: false,
+      skills: [{ name: "supabase", summary: "Works with Supabase." }],
+      mcpServerIds: ["supabase"],
+    };
+    const onToggleEnabled = vi.fn(async () => {});
+    renderAgentPlugins({ agentPlugins: [SITE_COMPLIANCE, supabase], onToggleEnabled });
 
-    // TOVU_DEPLOY_FLY is `enabled: false` in the fixture — it belongs on Downloaded, not here.
-    expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(row("Site Compliance")).toBeInTheDocument();
-    expect(screen.queryByRole("listitem", { name: "Fly.io Deploy" })).not.toBeInTheDocument();
+    const offSwitch = within(row("Supabase")).getByRole("switch");
+    expect(offSwitch).toHaveAttribute("aria-checked", "false");
+    expect(offSwitch).toHaveAccessibleName("Enable Supabase");
+    expect(within(row("Supabase")).getByText("Disabled")).toBeInTheDocument();
+
+    // Turning one ON is a plain one-click toggle; only turning one off asks first.
+    await userEvent.click(offSwitch);
+    expect(onToggleEnabled).toHaveBeenCalledWith(supabase);
   });
 
-  it("shows Installed's own honest empty state when nothing in the workspace is enabled, while Downloaded still lists it", async () => {
-    renderAgentPlugins({ agentPlugins: [{ ...TOVU_DEPLOY_FLY, enabled: false }] });
-    await userEvent.click(screen.getByRole("button", { name: "Installed" }));
+  it("shows Installed's empty state only when nothing is installed at all", () => {
+    renderAgentPlugins({ agentPlugins: [] });
 
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("No Agent Plugins are enabled for this workspace.");
-
-    await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
-    expect(screen.getByRole("listitem", { name: "Fly.io Deploy" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No Agent Plugins are installed in this workspace.");
   });
 
   it("reports Installed's switch state with aria-checked AND a word, never colour alone", () => {
-    // Installed only ever lists enabled rows (see the tab-scoping test above), so the switch's
-    // "off" state is not reachable here, and Downloaded drops the switch entirely in favor of
-    // Remove/Enable — see the Downloaded-tab tests below for that row's own state reporting.
     renderAgentPlugins();
 
     const enabledSwitch = within(row("Site Compliance")).getByRole("switch");
@@ -272,9 +276,9 @@ describe("AgentPlugins", () => {
 
   it("says what enabling actually does, and still offers no install or run action", () => {
     renderAgentPlugins();
-    // Installed is the default tab now, so its own lede is what's on screen at load — not
-    // Downloaded's "Enabling one puts its skills..." text, which now requires navigating there.
-    expect(screen.getByText(/Their skills reach the assistant's prompt on every run/i)).toBeInTheDocument();
+    // Installed is the default tab, so its own lede is what's on screen at load. Since 2026-09-13 it
+    // lists switched-off plugins too, so the lede says only switched-on ones reach the prompt.
+    expect(screen.getByText(/Only switched-on plugins reach the assistant's prompt/i)).toBeInTheDocument();
     // Kept from this suite's pre-redesign version. Enable is no longer in this list — the screen
     // now has a real one — but Install and Run remain things Tovu genuinely cannot do from here.
     for (const action of [/^Install$/i, /^Run$/i]) {
@@ -431,6 +435,23 @@ describe("AgentPlugins disable-confirm dialog", () => {
 });
 
 describe("AgentPlugins inspector (stateful)", () => {
+  // The inspector reads AGENT_PLUGIN_FILES through the real api client (2026-09-13); every other
+  // request (`useAdminLocale()`'s settings read) gets an empty default-locale body.
+  beforeEach(() => {
+    vi.stubGlobal("fetch", (url: string) => {
+      const body = String(url).includes("/agent-plugins/site-compliance/files")
+        ? {
+            pluginId: "site-compliance",
+            files: [{ relativePath: "plugin.json", sizeBytes: 27, content: '{ "name": "site-compliance" }', omitted: null }],
+            truncated: false,
+            limits: { maxFiles: 200, maxEntries: 2000, maxFileBytes: 524288, maxTotalBytes: 4194304 },
+          }
+        : { data: [] };
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
   function useStatefulFakeAgentPlugins(): AgentPluginsController {
     // A minimal, real `useState`-backed fake — mirrors this suite's own precedent
     // (`AgentPluginDetailsModal.unit.test.tsx`'s `useFakeMultiFileDetails`) for a hook fake whose
@@ -461,12 +482,10 @@ describe("AgentPlugins inspector (stateful)", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Site Compliance package files preview/i });
     expect(dialog).toHaveAttribute("aria-modal", "true");
-    // `site-compliance` now has its own catalog entry in `agent-plugin-source-catalog.ts` (it is a
-    // real, installed, enabled plugin — see that file's own header), so the inspector shows its
-    // real manifest instead of the empty-catalog message. That empty-catalog rendering itself is
-    // still covered directly, via its own `useDetails` seam, by `AgentPluginDetailsModal.unit.test.tsx`.
+    // The inspector lists the plugin's installed files from AGENT_PLUGIN_FILES (2026-09-13), not a
+    // compile-time catalog — so any installed plugin, switched on or off, shows its real files.
+    expect(await within(dialog).findByRole("button", { name: "plugin.json" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("status")).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "plugin.json" })).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "plugin.json" })).toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));

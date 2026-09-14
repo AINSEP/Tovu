@@ -9,7 +9,7 @@ import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
-import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
+import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
 /**
@@ -32,14 +32,14 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  *  - **Installed** — `plugin.enabled === true` only. Carries the Enable/Disable toggle unchanged
  *    from the pre-split table (`pluginToggleControl`/`onToggleEnabled`).
  *  - **Downloaded** — every plugin `PLUGINS_LIST` returns, unfiltered (this workspace's on-disk
- *    set). Row-state-dependent action (2026-09-10 fix): an enabled row carries Remove instead of
- *    the toggle — showing the same switch on both tabs would be redundant once Downloaded already
- *    answers "is it on disk", and unlike `AgentPlugins.tsx`'s own Downloaded tab (which has no real
- *    uninstall route and only relabels its toggle), this Remove drives the REAL `PLUGIN_UNINSTALL`
- *    route: it deletes the plugin's on-disk artifact, gated behind `PluginRemoveConfirmDialog`. A
- *    built-in plugin's Remove is honestly disabled — see `pluginRemoveAriaLabel`/the section note
- *    below. A disabled row instead carries a direct, unconfirmed Enable — the only lever on this
- *    screen to re-activate a plugin once it's off, since Installed only ever lists enabled rows.
+ *    set). Every row carries Remove, which drives the REAL `PLUGIN_UNINSTALL` route: it deletes the
+ *    plugin's on-disk artifact, gated behind `PluginRemoveConfirmDialog`. Remove is usable only
+ *    where that route can succeed — a switched-off site plugin. On a built-in row, or a row that is
+ *    still on, it is honestly disabled and points at a section note saying why
+ *    (`pluginRemoveBlocker`; 2026-09-13 fix — before it, Remove showed ONLY on enabled rows, which
+ *    the route always refuses). A disabled row also carries a direct, unconfirmed Enable — the only
+ *    lever on this screen to re-activate a plugin once it's off, since Installed only ever lists
+ *    enabled rows.
  *  - **Marketplace** — a designed empty state; nothing is fetched, listed, or installable (REQ-02:
  *    install is a filesystem operation, placing files under this site's plugin install directory,
  *    not an HTTP one — `api.spec.md` §1 lists no install/marketplace route for this family either).
@@ -115,13 +115,12 @@ function InstalledPluginRows({
   );
 }
 
-/** The Downloaded tab's own row list — context-sensitive by row state, mirroring the identical split
- *  `AgentPluginRow`'s `"remove-or-enable"` variant already made for the sibling `AgentPlugins.tsx`
- *  screen (2026-09-09, `9eb2b4ab`/`b65d1695`): an enabled row keeps Remove (confirm-gated, see this
- *  file's own header), a disabled row gets a direct, unconfirmed Enable instead. Before this split
- *  (2026-09-10 fix), Downloaded's action slot was unconditionally Remove, and since Installed only
- *  ever lists `enabled: true` rows, there was no control anywhere on this screen to re-enable a
- *  plugin once disabled — including a quarantined one — short of removing and reinstalling it.
+/** The Downloaded tab's own row list. Every row carries Remove (confirm-gated, see this file's own
+ *  header), usable only when {@link pluginRemoveBlocker} finds no reason `PLUGIN_UNINSTALL` would
+ *  refuse; otherwise it is disabled and described by the matching section note. A disabled row
+ *  also gets a direct, unconfirmed Enable. Before the 2026-09-10 fix there was no control anywhere
+ *  on this screen to re-enable a plugin once disabled — including a quarantined one — short of
+ *  removing and reinstalling it.
  *
  *  Enable is offered regardless of `source`: unlike Remove (irreversibly destructive for a real
  *  on-disk artifact, so a built-in row's Remove stays honestly disabled), turning a plugin back on
@@ -132,7 +131,6 @@ function DownloadedPluginRows({
   expandedIds,
   onToggleExpanded,
   rowHandleById,
-  removeNoteId,
   onRequestRemove,
 }: {
   plugins: AdminPlugin[];
@@ -140,30 +138,32 @@ function DownloadedPluginRows({
   expandedIds: ReadonlySet<string>;
   onToggleExpanded: (id: string) => void;
   rowHandleById: Map<string, string>;
-  removeNoteId: string;
   onRequestRemove: (plugin: AdminPlugin) => void;
 }) {
   const { t, locale, rowSavingId, onToggleEnabled } = controller;
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
-        const builtIn = plugin.source === "built-in";
+        const removeBlocker = pluginRemoveBlocker(plugin);
         const busy = rowSavingId === plugin.id;
-        const action = plugin.enabled ? (
-          <button
-            type="button"
-            className="plugin-icon-btn"
-            disabled={builtIn || busy}
-            onClick={() => onRequestRemove(plugin)}
-            aria-label={pluginRemoveAriaLabel(plugin, locale)}
-            aria-describedby={builtIn ? removeNoteId : undefined}
-          >
-            <PluginTrashIcon />
-          </button>
-        ) : (
-          <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel(plugin, locale)}>
-            {t("Enable")}
-          </button>
+        const action = (
+          <>
+            {plugin.enabled ? null : (
+              <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel(plugin, locale)}>
+                {t("Enable")}
+              </button>
+            )}
+            <button
+              type="button"
+              className="plugin-icon-btn"
+              disabled={removeBlocker !== null || busy}
+              onClick={() => onRequestRemove(plugin)}
+              aria-label={pluginRemoveAriaLabel(plugin, locale)}
+              aria-describedby={removeBlocker ? PLUGINS_REMOVE_NOTE_IDS[removeBlocker] : undefined}
+            >
+              <PluginTrashIcon />
+            </button>
+          </>
         );
         return (
           <PluginRow
@@ -189,8 +189,12 @@ interface PluginsTabPanelProps {
   rowHandleById: Map<string, string>;
 }
 
-/** The Downloaded tab's built-in note — a built-in row's disabled Remove points at it. */
-const PLUGINS_REMOVE_NOTE_ID = "plugins-remove-unavailable-note";
+/** The Downloaded tab's two Remove notes, by {@link pluginRemoveBlocker} reason — a disabled Remove
+ *  points at the one that explains it. */
+const PLUGINS_REMOVE_NOTE_IDS = {
+  "built-in": "plugins-remove-unavailable-note",
+  enabled: "plugins-remove-enabled-note",
+} as const;
 
 /** Installed: the enabled rows, or an honest empty note when none are. */
 function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
@@ -242,11 +246,13 @@ function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanel
         expandedIds={controller.expandedIds}
         onToggleExpanded={controller.onToggleExpanded}
         rowHandleById={rowHandleById}
-        removeNoteId={PLUGINS_REMOVE_NOTE_ID}
         onRequestRemove={controller.onRequestRemove}
       />
-      <p id={PLUGINS_REMOVE_NOTE_ID} className="page-description">
+      <p id={PLUGINS_REMOVE_NOTE_IDS["built-in"]} className="page-description">
         {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
+      </p>
+      <p id={PLUGINS_REMOVE_NOTE_IDS.enabled} className="page-description">
+        {t("Turn a plugin off on Installed before removing it.")}
       </p>
     </>
   );

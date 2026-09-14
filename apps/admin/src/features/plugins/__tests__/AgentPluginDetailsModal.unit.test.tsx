@@ -21,8 +21,8 @@ const identity = (key: string) => key;
 
 describe("AgentPluginDetailsModal details-hook injection", () => {
   it("renders purely off an injected fake, proving useAgentPluginDetailsModal is not hardcoded", () => {
-    // A fake with a file the real catalog lookup could never produce (an id outside the compile-time
-    // allowlist) is proof this render used the fake, not the real hook.
+    // A fake with a file no real listing for this plugin would carry is proof this render used the
+    // fake, not the real hook.
     function useFakeDetails(): AgentPluginDetailsModalController {
       return {
         files: [{ relativePath: "fake/only.md", content: "fake content body" }],
@@ -37,14 +37,20 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
     expect(screen.getByText("fake content body")).toBeInTheDocument();
   });
 
-  it("shows the empty-catalog message when the fake resolves no files", () => {
+  it("shows the hook's own status when the fake resolves no files", () => {
     function useFakeDetails(): AgentPluginDetailsModalController {
-      return { files: [], selectedFile: null, selectFile: vi.fn() };
+      return {
+        files: [],
+        selectedFile: null,
+        selectFile: vi.fn(),
+        status: { text: "No files to show for this plugin.", role: "status" },
+        listNotice: null,
+      };
     }
 
     render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("No source files are catalogued for this package.");
+    expect(screen.getByRole("status")).toHaveTextContent("No files to show for this plugin.");
   });
 });
 

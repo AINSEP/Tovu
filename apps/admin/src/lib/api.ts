@@ -1928,6 +1928,11 @@ export interface AdminAgentPlugin {
   mcpServerIds: string[];
 }
 
+/** `AGENT_PLUGIN_FILES`' response (`server/inbound/admin-http/routes/agent-plugins/files.ts`,
+ *  2026-09-13): one installed Agent Plugin's own files — the same entries and caps as
+ *  {@link AdminPluginFiles}, minus the `.tovu-plugin`-only `source`. */
+export type AdminAgentPluginFiles = Omit<AdminPluginFiles, "source">;
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -3671,6 +3676,11 @@ export const api = {
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).
   listAgentPlugins: () => request<{ agentPlugins: AdminAgentPlugin[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins`),
+  /** AGENT_PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/agent-plugins/:pluginId/files`: one
+   *  installed Agent Plugin's files, switched on or off, behind the Agent Plugins eye button.
+   *  Refuses `AGENT_PLUGIN_NOT_FOUND` (404). */
+  getAgentPluginFiles: (pluginId: string) =>
+    request<AdminAgentPluginFiles>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files`),
   /**
    * AGENT_PLUGIN_SET_ENABLED — turns one installed Agent Plugin on or off for this workspace.
    *

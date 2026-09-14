@@ -1,4 +1,4 @@
-import { api, type AdminAgentPlugin } from "@/lib/api";
+import { api, type AdminAgentPlugin, type AdminAgentPluginFiles } from "@/lib/api";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
 /**
@@ -11,6 +11,7 @@ import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 export const defaultAgentPluginsPort: AgentPluginsPort = {
   listAgentPlugins: () => api.listAgentPlugins(),
   setAgentPluginEnabled: (pluginId, input) => api.setAgentPluginEnabled(pluginId, input),
+  getAgentPluginFiles: (pluginId) => api.getAgentPluginFiles(pluginId),
 };
 
 /** Seed state for {@link createFakeAgentPluginsPort}. */
@@ -24,6 +25,8 @@ export interface FakeAgentPluginsPortOptions {
    *  test can hold two toggles in flight at once and settle them out of order. Without it the fake
    *  resolves immediately. */
   deferToggles?: boolean;
+  /** `AGENT_PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the route's 404. */
+  files?: Readonly<Record<string, AdminAgentPluginFiles>>;
 }
 
 /**
@@ -54,6 +57,11 @@ export function createFakeAgentPluginsPort(options: FakeAgentPluginsPortOptions 
       agentPlugins[index] = updated;
       if (options.deferToggles) await new Promise<void>((resolve) => pendingToggles.push(resolve));
       return { agentPlugin: updated };
+    },
+    async getAgentPluginFiles(pluginId) {
+      const listing = options.files?.[pluginId];
+      if (!listing) throw new Error(`fake port: '${pluginId}' is not installed`);
+      return listing;
     },
   };
 }

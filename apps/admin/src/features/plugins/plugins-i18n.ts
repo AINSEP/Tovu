@@ -49,6 +49,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "No Agent Plugins are enabled for this workspace.": "No hay Plugins de agentes activados en este espacio de trabajo.",
     "These plugins are enabled. Their skills reach the assistant's prompt on every run.":
       "Estos plugins están activados. Sus habilidades llegan al prompt del asistente en cada ejecución.",
+    // 2026-09-13: Installed lists every installed Agent Plugin, switched on or off.
+    "Every plugin installed in this workspace. Only switched-on plugins reach the assistant's prompt.":
+      "Todos los plugins instalados en este espacio de trabajo. Solo los activados llegan al prompt del asistente.",
     "Until then, the downloaded packages on the Downloaded tab are the ones Tovu ships.":
       "Mientras tanto, los paquetes descargados en la pestaña Descargados son los que incluye Tovu.",
 
@@ -80,6 +83,7 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Enabled plugins extend what this site can do.": "Los plugins activados amplían lo que este sitio puede hacer.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.":
       "Los plugins integrados se incluyen con el propio Tovu y no tienen archivos en disco para eliminar.",
+    "Turn a plugin off on Installed before removing it.": "Desactiva el plugin en Instalado antes de eliminarlo.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.":
       "El mercado está planeado para una versión futura. Tovu aún no descarga, lista ni instala plugins desde un mercado.",
     "Install a plugin by placing its files in this site's plugin install directory.":
