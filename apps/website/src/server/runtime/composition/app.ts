@@ -924,6 +924,84 @@ function startModule(mod: ServerModuleHandle): void {
   mod.start?.();
 }
 
+/** Buses that already carry the handlers {@link subscribeSiteEventHandlersOnce} attaches. */
+const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
+
+/**
+ * Attaches the site's outbox event handlers to `routeDeps.bus`, once per bus (2026-09-14).
+ *
+ * `createApp` runs more than once on the same `routeDeps` in one process: the serving app first, then
+ * `routeDeps.createSiteApp()` for every static export (`platform/export/site-exporter.ts`) and every
+ * published-page fetch (`features/site-inspection/published-page.ts`). These subscriptions used to
+ * sit inline in `createApp`, so each rebuild added another copy of every handler to the same bus and
+ * one event then ran each handler once per build (a duplicate forms notify mail per export, for
+ * one). Pinned by `server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts`.
+ *
+ * Keyed on the bus because the bus is what holds the handlers. The first build's handlers serve every
+ * later build; they capture fields of `routeDeps`, which is the same object in every build.
+ *
+ * @param routeDeps the composed deps whose `bus` receives the handlers.
+ * @complexity O(1): a fixed set of subscriptions.
+ */
+function subscribeSiteEventHandlersOnce(routeDeps: RouteDeps): void {
+  if (busesWithSiteEventHandlers.has(routeDeps.bus)) return;
+  busesWithSiteEventHandlers.add(routeDeps.bus);
+
+  void routeDeps.bus.subscribe("workspace.created", async (event) => {
+    // Demonstration side effect. Replace with indexers/webhooks/etc.
+    console.log("event handled:", event.name, event.payload);
+  });
+
+  // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
+  // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
+  // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
+  // is itself idempotent). Delivered by the serving process's background outbox drainer
+  // (`serving-app.ts`) or by a route's own inline `processOutbox` call.
+  const seoEventSubscriptions = createSeoEventSubscriptions();
+  void routeDeps.bus.subscribe("entry.published", (event) => seoEventSubscriptions.onEntryPublished(event as never));
+  void routeDeps.bus.subscribe("entry.updated", (event) => seoEventSubscriptions.onEntryUpdated(event as never));
+  void routeDeps.bus.subscribe("entry.unpublished", (event) => seoEventSubscriptions.onEntryUnpublished(event as never));
+
+  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
+  // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
+  // own file header names as the one piece of Stage 4 wiring no composition root had done yet
+  // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
+  // `processOutbox` for this campaign). Mirrors the demonstration `bus.subscribe("workspace.created",
+  // ...)` above. In practice this handler is never reached in either composition root today: no real
+  // `MailerPort` adapter exists yet, so `authorizeSend`'s Launch Gate check always rejects before
+  // `freezeAudience` ever enqueues a batch (tasks.md's disclosed, by-design "Real Sending Is
+  // Inherently Blocked Today" flag) — wired now anyway so the pipeline is genuinely complete end to
+  // end the moment a real adapter lands, not silently half-wired.
+  void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+    await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
+  });
+
+  /**
+   * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
+   * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify
+   * subscriber (its own business logic); `integrations` owns the webhook-fanout subscriber to
+   * the SAME `form.submission.received` topic (cross-feature integration owned by the
+   * consumer, per the ADR's explicit Phase 3 rule — see `modules/integrations.ts`'s header).
+   */
+  startModule(
+    createFormsModule({
+      bus: routeDeps.bus,
+      mailer: routeDeps.mailer,
+      formDefinitionRepo: routeDeps.formDefinitionRepo,
+      formSubmissionRepo: routeDeps.formSubmissionRepo,
+    })
+  );
+  startModule(
+    createIntegrationsModule({
+      bus: routeDeps.bus,
+      webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
+      webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
+      idGen: routeDeps.idGen,
+      clock: routeDeps.clock,
+    })
+  );
+}
+
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` is
   // not guaranteed to run only once per process — this file's own eager `export const app =
@@ -965,21 +1043,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // multipart/octet-stream instead of inflating bytes through base64 JSON.
   app.use(express.json({ limit: "15mb" }));
 
-  void routeDeps.bus.subscribe("workspace.created", async (event) => {
-    // Demonstration side effect. Replace with indexers/webhooks/etc.
-    console.log("event handled:", event.name, event.payload);
-  });
-
-  // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
-  // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
-  // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
-  // is itself idempotent). Real event delivery requires the producing route to drain the outbox
-  // (see `routes/admin/posts/update.ts`'s `processOutbox` call, mirroring the `/workspaces` route
-  // below).
-  const seoEventSubscriptions = createSeoEventSubscriptions();
-  void routeDeps.bus.subscribe("entry.published", (event) => seoEventSubscriptions.onEntryPublished(event as never));
-  void routeDeps.bus.subscribe("entry.updated", (event) => seoEventSubscriptions.onEntryUpdated(event as never));
-  void routeDeps.bus.subscribe("entry.unpublished", (event) => seoEventSubscriptions.onEntryUnpublished(event as never));
+  // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
+  subscribeSiteEventHandlersOnce(routeDeps);
 
   // SPEC-008 (ADR-PIPE-008 Decision §2/§3, T009) — SEO's `page.head` contributor, registered once
   // at boot into the core-owned `page-head.ts` registry (never imported directly by `render.ts`).
@@ -1060,19 +1125,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     idGen: newsletterAdminDeps.idGen,
   };
   mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
-
-  // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
-  // own file header names as the one piece of Stage 4 wiring no composition root had done yet
-  // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
-  // `processOutbox` for this campaign). Mirrors the demonstration `bus.subscribe("workspace.created",
-  // ...)` above. In practice this handler is never reached in either composition root today: no real
-  // `MailerPort` adapter exists yet, so `authorizeSend`'s Launch Gate check always rejects before
-  // `freezeAudience` ever enqueues a batch (tasks.md's disclosed, by-design "Real Sending Is
-  // Inherently Blocked Today" flag) — wired now anyway so the pipeline is genuinely complete end to
-  // end the moment a real adapter lands, not silently half-wired.
-  void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {
-    await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
-  });
 
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
@@ -1311,31 +1363,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
   mountRoutes(app, createSeoModule(routeDeps));
-
-  /**
-   * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
-   * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify
-   * subscriber (its own business logic); `integrations` owns the webhook-fanout subscriber to
-   * the SAME `form.submission.received` topic (cross-feature integration owned by the
-   * consumer, per the ADR's explicit Phase 3 rule — see `modules/integrations.ts`'s header).
-   */
-  startModule(
-    createFormsModule({
-      bus: routeDeps.bus,
-      mailer: routeDeps.mailer,
-      formDefinitionRepo: routeDeps.formDefinitionRepo,
-      formSubmissionRepo: routeDeps.formSubmissionRepo,
-    })
-  );
-  startModule(
-    createIntegrationsModule({
-      bus: routeDeps.bus,
-      webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
-      webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
-      idGen: routeDeps.idGen,
-      clock: routeDeps.clock,
-    })
-  );
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
