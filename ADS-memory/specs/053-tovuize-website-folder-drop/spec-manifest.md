@@ -12,7 +12,7 @@
 | spec_id | SPEC-053 |
 | feature_name | FEAT-053-tovuize-website-folder-drop |
 | version | 1.0.0 |
-| last_edited | 2026-09-13T00:00:00Z |
+| last_edited | 2026-09-14T00:00:00Z |
 | spec_naming | standard |
 | spec_root | ADS-memory/specs/053-tovuize-website-folder-drop |
 | spec_entrypoint | feature.spec.md |
@@ -53,7 +53,7 @@
 
 | Evidence / Touchpoint | Type | Why It Matters |
 |---|---|---|
-| `apps/desktop/src/renderer/folder-drop.ts` and `apps/desktop/src/renderer/App.tsx:1076-1111` (`WorkspaceChatPane`, `onDropCapture`) | source touchpoint | The existing, already-shipped folder-path-insertion behavior this feature must not regress (REQ-01) and must extend, not replace (REQ-02). |
+| Jini `packages/ui/src/features/folder-path-drop/` (`@jini-ai/ui`, Jini `59acc4db`; the admin chat, through `apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts`); `apps/desktop/src/renderer/folder-drop.ts` and `apps/desktop/src/renderer/use-workspace-chat-pane.hooks.ts` (`captureFolderDrop`, used by `App.tsx`'s `WorkspaceChatPane`) | source touchpoint | The existing, already-shipped folder-path-insertion behavior this feature must not regress (REQ-01) and must extend, not replace (REQ-02). |
 | `apps/desktop/src/preload/preload.mts:115` | source touchpoint | Bridges Electron's main-process-only `webUtils.getPathForFile` into the renderer; the reason this capability is desktop-only (EC-05). |
 | `apps/website/src/features/fs-files/{agent-tools.ts,fs-files.ts,layout.ts,custom-root-store.ts,tool-registrations.ts}` | source touchpoint | The entire existing sandboxed folder-read mechanism (denylist, listing exclusions, size cap, `custom` root) this feature wires into rather than rebuilding (REQ-02, REQ-03, REQ-10). |
 | `apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts` | source touchpoint | The existing admin-HTTP endpoint the new desktop wiring calls (REQ-02, REQ-04). |

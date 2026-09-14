@@ -14,7 +14,7 @@
 | status | APPROVED |
 | content_hash | sha256:7dd48cc27c0fbf8a55ef9203796b00442fa7d1349aac86a774015d34e583be70 |
 | feature_name | FEAT-053-tovuize-website-folder-drop |
-| last_edited | 2026-09-13T00:00:00Z |
+| last_edited | 2026-09-14T00:00:00Z |
 | owner | Leona Burime |
 | spec_agent | Spec Agent (s10-plugin-specs) |
 | spec_mode | brownfield |
@@ -30,7 +30,7 @@ Lets a user drop a folder containing a website they already built onto the deskt
 ## Problem Statement
 
 **Current state:** Two of the three pieces this feature needs already exist in the codebase but are not connected end to end, and the third exists but is effectively undiscoverable:
-1. Dropping a folder onto the desktop chat composer already inserts the folder's absolute path as text (`apps/desktop/src/renderer/folder-drop.ts`, wired in `apps/desktop/src/renderer/App.tsx:1076-1111`) instead of attaching every file inside it — this part is done.
+1. Dropping a folder onto the desktop chat composer already inserts the folder's absolute path as text (`apps/desktop/src/renderer/folder-drop.ts`, wired through `captureFolderDrop` in `apps/desktop/src/renderer/use-workspace-chat-pane.hooks.ts`; the admin chat now uses the same rules from `@jini-ai/ui`'s `features/folder-path-drop`, Jini `59acc4db`) instead of attaching every file inside it — this part is done.
 2. A general-purpose, already-sandboxed "read this folder" agent tool already exists (`fs_list_files`/`fs_read_file` with `root: "custom"`, `apps/website/src/features/fs-files/*`) — but it only works once an operator has set the `custom` root via an **admin-HTTP route** (`PUT /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root`) driven by an **admin-only** UI component (`FsFolderIndicator`) that the desktop chat surface does not use at all. So today, dropping a folder in desktop chat inserts the path as text, but the agent's very next `fs_list_files(root:"custom")` call fails, because nothing set the `custom` root — the two halves were built independently and never wired together.
 3. A working "convert a static site into a Tovu theme" agent-plugin skill already exists (`content/agent-plugins/tovuize-site/`, proven against a real site per its own worked example) — but every bundled plugin, including this one, ships **inactive by default** (`{enabled:false, origin:"bundled"}`, `apps/website/src/features/agent-plugins/seed-bundled.ts`), by deliberate, product-wide design. The owner's own worklist (`ADS-memory/.local-artifacts/owner-worklist.md` §3, item 15) independently records "not among the installed plugins... if it doesn't exist, it needs building" — the plugin exists, but nothing today makes an operator aware it does.
 
@@ -127,7 +127,7 @@ Note: precedence between a theme-shaped and a Page-shaped conversion, and the "m
 ## Edge Cases
 
 - EC-01: What happens when the user drops a folder that is empty? Expected behavior: `fs_list_files` returns an empty result (already the existing tool's documented behavior for a root that exists but has nothing in it); the agent tells the user the folder appears empty rather than treating it as an error.
-- EC-02: What happens when the user drops a file, not a folder? Expected behavior: the existing folder-vs-file detection (`folderPathsFromDataTransfer`) does not treat it as a folder drop; it goes through the normal chat-attachment upload path unchanged (REQ-01 only applies to folder drops).
+- EC-02: What happens when the user drops a file, not a folder? Expected behavior: the existing folder-vs-file detection (`folderPathsFromDataTransfer`: `@jini-ai/ui`'s `features/folder-path-drop/rules.ts` for the admin chat, `apps/desktop/src/renderer/folder-drop.ts` for the desktop chat) does not treat it as a folder drop; it goes through the normal chat-attachment upload path unchanged (REQ-01 only applies to folder drops).
 - EC-03: What happens when the dropped folder is extremely large (tens of thousands of files, e.g., an unpruned `node_modules`-heavy project)? Expected behavior: listing exclusions already keep `node_modules`/`.git`/build output out of the walk; if the remaining file count is still large, the existing tool's own limits (e.g., a maximum listed-files cap) apply unmodified — this feature does not add a separate, folder-drop-specific limit.
 - EC-04: What happens when the user drops a second folder mid-conversion, before the first conversion finishes? Expected behavior: per REQ-05/INV-02, the `custom` root moves to the new folder; any in-flight `fs_read_file` calls already issued for the first folder are unaffected (they addressed absolute paths already resolved), but new `root:"custom"` calls resolve to the second folder — this is a genuine behavior seam the user should be warned about, see Open Questions.
 - EC-05: What happens when a folder is dropped onto the browser-based (non-desktop) admin chat? Expected behavior: a plain browser cannot recover a dropped folder's real filesystem path (`webUtils.getPathForFile` is an Electron-only, main-process-bridged API) — this feature does not change or fix that; it is documented here as a known platform limitation, not silently glossed over.
@@ -140,7 +140,7 @@ Note: precedence between a theme-shaped and a Page-shaped conversion, and the "m
 
 | Dependency | What It Provides | Failure Mode | Fallback |
 |------------|------------------|--------------|----------|
-| `apps/desktop/src/renderer/folder-drop.ts` + `App.tsx`'s `onDropCapture` | Existing, already-shipped folder-path insertion on drop | A regression reintroduces per-file attachment on folder drop | None — this is treated as a P1 regression, covered by AC-01 |
+| `@jini-ai/ui` `features/folder-path-drop` (admin chat, through `apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts`; Jini `59acc4db`); `apps/desktop/src/renderer/folder-drop.ts` + `use-workspace-chat-pane.hooks.ts`'s `captureFolderDrop` (desktop chat) | Existing, already-shipped folder-path insertion on drop | A regression reintroduces per-file attachment on folder drop | None — this is treated as a P1 regression, covered by AC-01 |
 | `apps/website/src/features/fs-files/*` (`agent-tools.ts`, `fs-files.ts`, `layout.ts`, `custom-root-store.ts`) | The sandboxed `fs_list_files`/`fs_read_file` tools and the `custom` root mechanism this feature wires into | Denylist or size-cap logic regresses | None — this feature adds no independent safety net; it depends entirely on this existing one |
 | `PUT /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` (existing admin route) | The endpoint the drop handler calls to set the `custom` root | Endpoint unreachable from the desktop app's local server | Drop still inserts the path as text (REQ-01 still holds); only the auto-wiring (REQ-02) degrades, with a visible error per REQ-04 |
 | `content/agent-plugins/tovuize-site/` (existing plugin skill) | The actual theme-conversion knowledge and worked example this feature's discoverability requirement surfaces | Plugin content becomes unavailable or corrupted | Agent falls back to explaining it cannot convert the site right now — no silent partial conversion |
