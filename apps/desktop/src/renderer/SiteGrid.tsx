@@ -16,10 +16,10 @@
  * instead — this grid is only ever asked to draw cards.
  */
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
-import { useSiteRename, isValidSiteName } from './use-site-rename.hooks.js';
+import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenProps, cardOverlay, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardDeleteClick, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
@@ -147,12 +147,8 @@ function SiteCard({
           className="card__delete"
           title={copy.cardButtonLabel}
           aria-label={copy.cardButtonLabel}
-          onClick={(event) => {
-            // The card itself is the open target, so without this every delete click
-            // would also open the project it is about to remove.
-            event.stopPropagation();
-            onRequestDelete(project.id);
-          }}
+          // Stops the click first: the card itself is the open target. See `cardDeleteClick`.
+          onClick={cardDeleteClick(onRequestDelete, project.id)}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
             <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" strokeLinecap="round" strokeLinejoin="round" />
@@ -287,12 +283,8 @@ function SiteCardMenu({
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   const running = project.status === 'running';
 
-  // Every entry closes the menu first, then acts — the same order `SettingsControl` uses. Acting
-  // first would leave an open menu floating over whatever the action changed.
-  const choose = (act: () => void) => () => {
-    setOpen(false);
-    act();
-  };
+  // Every entry closes the menu first, then acts. See `closeMenuThen`.
+  const choose = closeMenuThen(setOpen);
 
   return (
     <div
@@ -367,7 +359,7 @@ function SiteCardMenu({
  * @complexity O(1).
  */
 function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: SiteRenameState }) {
-  const invalid = rename.draft.length > 0 && !isValidSiteName(rename.draft);
+  const invalid = showsInvalidNameHint(rename.draft);
 
   return (
     <div
@@ -392,10 +384,8 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         // control the operator just clicked — landing focus anywhere else would cost them a tab.
         autoFocus
         onChange={(event) => rename.setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') rename.cancelRename();
-          if (event.key === 'Enter' && rename.canSave) void rename.submitRename(project.id);
-        }}
+        // Escape cancels, Enter submits when Save is enabled. See `renameInputKeyDown`.
+        onKeyDown={renameInputKeyDown(rename, project.id)}
         disabled={rename.saving}
       />
       {invalid && <p className="card__confirmerror">A name must be 1 to 200 characters, not counting spaces at either end.</p>}

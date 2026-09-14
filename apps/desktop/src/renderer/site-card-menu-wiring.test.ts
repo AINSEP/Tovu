@@ -78,7 +78,9 @@ test("Start shows only for a stopped site and Open in browser only for a running
 test("every menu item closes the menu before acting, never after", () => {
   // Acting first leaves an open menu floating over whatever the action changed.
   const body = menuBody();
-  assert.match(body, /const choose = \(act: \(\) => void\) => \(\) => \{\s*setOpen\(false\);\s*act\(\);/);
+  // The close-then-act order itself is asserted against the real function in
+  // `SiteGrid.hooks.test.ts` (`closeMenuThen`); this checks the menu builds `choose` from it.
+  assert.match(body, /const choose = closeMenuThen\(setOpen\);/);
   // And every item goes through it, rather than some calling their action directly.
   const items = body.match(/role="menuitem"[\s\S]*?onClick=\{([^}]*)\}/g) ?? [];
   assert.equal(items.length, 3, `expected 3 menu items, found ${items.length}`);
@@ -98,9 +100,13 @@ test("the rename input is bounded and its Save refuses what Tovu would refuse", 
   // `site-config.ts` re-applies it on the other side of the wire regardless.
   assert.match(grid, /maxLength=\{200\}/);
   assert.match(grid, /disabled=\{!rename\.canSave\}/);
-  // Escape cancels and Enter submits — a text field must own both, or the card interprets them.
-  assert.match(grid, /event\.key === 'Escape'/);
-  assert.match(grid, /event\.key === 'Enter' && rename\.canSave/);
+  // Escape cancels and Enter submits — a text field must own both, or the card interprets them. The
+  // key rule itself is asserted against the real handler in `use-site-rename.hooks.test.ts`
+  // (`renameInputKeyDown`); this checks the input is wired to it.
+  assert.match(grid, /onKeyDown=\{renameInputKeyDown\(rename, project\.id\)\}/);
+  // The invalid-name hint is gated on the extracted rule (`showsInvalidNameHint`, tested there).
+  assert.match(grid, /const invalid = showsInvalidNameHint\(rename\.draft\);/);
+  assert.match(grid, /\{invalid && <p className="card__confirmerror">/);
 });
 
 test("main's refusal is surfaced verbatim, never paraphrased", () => {

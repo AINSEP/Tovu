@@ -19,7 +19,9 @@ import {
   describeRenameFailure,
   isValidSiteName,
   NO_BRIDGE_RENAME_MESSAGE,
+  renameInputKeyDown,
   renameSubmission,
+  showsInvalidNameHint,
 } from './use-site-rename.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 
@@ -122,4 +124,74 @@ test('an Error rejection surfaces its message verbatim, fix and all', () => {
 test('a non-Error rejection is coerced with String(), not left as [object Object]', () => {
   assert.equal(describeRenameFailure('offline'), 'offline');
   assert.equal(describeRenameFailure(42), '42');
+});
+
+// ---------------------------------------------------------------------------------------------
+// showsInvalidNameHint
+// ---------------------------------------------------------------------------------------------
+
+test('the invalid-name hint shows for a non-empty draft Tovu would reject', () => {
+  assert.equal(showsInvalidNameHint('   '), true);
+  assert.equal(showsInvalidNameHint('a'.repeat(201)), true);
+});
+
+test('no invalid-name hint for an empty draft', () => {
+  assert.equal(showsInvalidNameHint(''), false);
+});
+
+test('no invalid-name hint for a valid draft, including one exactly at the 200 boundary', () => {
+  assert.equal(showsInvalidNameHint('My Site'), false);
+  assert.equal(showsInvalidNameHint('a'.repeat(200)), false);
+});
+
+// ---------------------------------------------------------------------------------------------
+// renameInputKeyDown
+// ---------------------------------------------------------------------------------------------
+
+/** A rename state that records every call the key handler makes, in order. */
+function recordingRename(canSave: boolean) {
+  const calls: string[] = [];
+  const rename = {
+    canSave,
+    cancelRename: () => {
+      calls.push('cancel');
+    },
+    submitRename: async (id: string) => {
+      calls.push(`submit:${id}`);
+    },
+  };
+  return { calls, rename };
+}
+
+test('Escape cancels the rename, whether or not Save is enabled', () => {
+  for (const canSave of [true, false]) {
+    const { calls, rename } = recordingRename(canSave);
+    renameInputKeyDown(rename, 'site-1')({ key: 'Escape' });
+    assert.deepEqual(calls, ['cancel'], `canSave=${canSave}`);
+  }
+});
+
+test('Enter submits the card being renamed when Save is enabled', () => {
+  const { calls, rename } = recordingRename(true);
+  renameInputKeyDown(rename, 'site-3')({ key: 'Enter' });
+  assert.deepEqual(calls, ['submit:site-3']);
+});
+
+test('Enter does nothing while Save is disabled', () => {
+  const { calls, rename } = recordingRename(false);
+  renameInputKeyDown(rename, 'site-3')({ key: 'Enter' });
+  assert.deepEqual(calls, []);
+});
+
+test('every other key is left alone', () => {
+  const { calls, rename } = recordingRename(true);
+  const onKeyDown = renameInputKeyDown(rename, 'site-1');
+  for (const key of ['a', ' ', 'Tab', 'Esc', 'NumpadEnter']) onKeyDown({ key });
+  assert.deepEqual(calls, []);
+});
+
+test('building the handler runs nothing', () => {
+  const { calls, rename } = recordingRename(true);
+  renameInputKeyDown(rename, 'site-1');
+  assert.deepEqual(calls, []);
 });

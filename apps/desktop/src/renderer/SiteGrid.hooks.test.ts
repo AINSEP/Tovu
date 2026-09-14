@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { isCardOpenKey } from "./SiteGrid.hooks.js";
+import { cardDeleteClick, closeMenuThen, isCardOpenKey } from "./SiteGrid.hooks.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
  *  objects are a truthful model of it and no DOM is needed. */
@@ -69,4 +69,40 @@ test("the card's keydown handler routes through isCardOpenKey rather than checki
       `an inline key check in ${name} is what swallowed the delete button's keyboard activation`,
     );
   }
+});
+
+test("the delete button stops the click BEFORE requesting that card's delete", () => {
+  // Stopping it at all is what keeps the card (the open target) from also opening the project
+  // about to be removed; recording the order proves the stop is not skipped or deferred.
+  const calls: string[] = [];
+  const onClick = cardDeleteClick((id) => calls.push(`delete:${id}`), "site-9");
+  assert.equal(calls.length, 0, "building the handler must not request anything");
+  onClick({ stopPropagation: () => calls.push("stop") });
+  assert.deepEqual(calls, ["stop", "delete:site-9"]);
+});
+
+test("the delete button is wired to cardDeleteClick for its own card", () => {
+  // Source text for the same "unwired call site" reason as the keydown test above.
+  const tsx = fs.readFileSync(path.join(import.meta.dirname, "SiteGrid.tsx"), "utf8");
+  assert.match(tsx, /onClick=\{cardDeleteClick\(onRequestDelete, project\.id\)\}/);
+});
+
+test("a menu entry closes the menu BEFORE running its action", () => {
+  // Acting first would leave an open menu floating over whatever the action changed.
+  const calls: string[] = [];
+  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
+  const onClick = choose(() => calls.push("act"));
+  assert.equal(calls.length, 0, "building an entry's handler must run nothing");
+  onClick();
+  assert.deepEqual(calls, ["setOpen:false", "act"]);
+});
+
+test("every entry built from one closeMenuThen runs only its own action", () => {
+  const calls: string[] = [];
+  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
+  const rename = choose(() => calls.push("rename"));
+  const start = choose(() => calls.push("start"));
+  start();
+  rename();
+  assert.deepEqual(calls, ["setOpen:false", "start", "setOpen:false", "rename"]);
 });

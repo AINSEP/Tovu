@@ -18,6 +18,10 @@
  * inside `useSiteRename`'s body is untestable without one. Each takes exactly what it needs as an
  * argument rather than closing over hook state, so `submitRename` below is reduced to calling them
  * and writing whatever they decide into `useState` — no decision of its own left to get wrong.
+ *
+ * `showsInvalidNameHint` and `renameInputKeyDown` are the rename overlay's own rules
+ * (`CardRenameOverlay`, `SiteGrid.tsx`), kept here beside the state they read so the overlay carries
+ * markup only.
  */
 import { useState } from 'react';
 
@@ -103,6 +107,39 @@ export interface SiteRenameState {
   startRename: (project: SiteRecord) => void;
   cancelRename: () => void;
   submitRename: (id: string) => Promise<void>;
+}
+
+/**
+ * Whether the rename overlay shows its "1 to 200 characters" hint: only for a NON-EMPTY draft Tovu
+ * would reject. An empty draft shows no hint; Save stays disabled for it through `canSave`.
+ *
+ * @complexity O(n) in the draft length (delegates to {@link isValidSiteName}).
+ */
+export function showsInvalidNameHint(draft: string): boolean {
+  return draft.length > 0 && !isValidSiteName(draft);
+}
+
+/**
+ * The rename input's `onKeyDown`: Escape cancels, and Enter submits only when Save itself is enabled
+ * (`canSave`). Every other key is left alone. A text field must own both keys here rather than let
+ * the card underneath read them as "open me" — see `CardRenameOverlay`'s doc.
+ *
+ * `canSave` is read off the `rename` object this was built with — the same render's value the inline
+ * handler it replaced closed over.
+ *
+ * @param rename the grid's rename state, narrowed to what the handler reads.
+ * @param id the card being renamed, handed to `submitRename`.
+ * @returns the handler; its event is narrowed to `key`, so a test can pass a plain object.
+ * @complexity O(1).
+ */
+export function renameInputKeyDown(
+  rename: Pick<SiteRenameState, 'canSave' | 'cancelRename' | 'submitRename'>,
+  id: string,
+): (event: { key: string }) => void {
+  return (event) => {
+    if (event.key === 'Escape') rename.cancelRename();
+    if (event.key === 'Enter' && rename.canSave) void rename.submitRename(id);
+  };
 }
 
 /**

@@ -1,11 +1,12 @@
 /**
  * `SiteGrid.tsx`'s derived logic.
  *
- * Both functions below arrived from Tovu-Runner inside `SiteGrid.tsx` itself. This repo keeps
- * functions and derived logic out of `.tsx` files — components render, a sibling `*.hooks.ts` owns
- * everything they derive — which is the same rule `App.tsx`/`App.hooks.ts` already follow. Moving
- * them also makes them directly assertable without mounting the grid: neither touches React,
- * `window`, or IPC, so a test can call them on a plain `SiteRecord`.
+ * The first of these arrived from Tovu-Runner inside `SiteGrid.tsx` itself; the rest were pulled out
+ * of that file's component bodies later. This repo keeps functions and derived logic out of `.tsx`
+ * files — components render, a sibling `*.hooks.ts` owns everything they derive — which is the same
+ * rule `App.tsx`/`App.hooks.ts` already follow. Moving them also makes them directly assertable
+ * without mounting the grid: none touches React, `window`, or IPC, so a test can call them on a
+ * plain `SiteRecord` or a plain-object event.
  */
 import type { SiteRecord } from '../contracts/project.js';
 
@@ -189,5 +190,43 @@ export function cardOpenProps(
       event.preventDefault();
       onOpen();
     },
+  };
+}
+
+/**
+ * The card's delete button `onClick`: stops the click, then asks to delete this card's project.
+ *
+ * The card itself is the open target, so without the stop every delete click would also open the
+ * project it is about to remove.
+ *
+ * @param onRequestDelete the grid's `requestDelete`.
+ * @param id the project this card shows.
+ * @returns the handler; its event is narrowed to the one method it calls, so a test can pass a
+ *   plain object.
+ * @complexity O(1) time, O(1) space.
+ */
+export function cardDeleteClick(
+  onRequestDelete: (id: string) => void,
+  id: string,
+): (event: { stopPropagation: () => void }) => void {
+  return (event) => {
+    event.stopPropagation();
+    onRequestDelete(id);
+  };
+}
+
+/**
+ * The ⋮ menu's per-entry `onClick` builder: every entry closes the menu first, then acts — the same
+ * order `SettingsControl` (`App.tsx`) uses for its Appearance link. Acting first would leave an open
+ * menu floating over whatever the action changed.
+ *
+ * @param setOpen the menu's open-state setter (`useDismissibleDropdown`'s).
+ * @returns `choose(act)`, which builds one entry's handler. Building it runs nothing.
+ * @complexity O(1) time, O(1) space.
+ */
+export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => void) => () => void {
+  return (act) => () => {
+    setOpen(false);
+    act();
   };
 }
