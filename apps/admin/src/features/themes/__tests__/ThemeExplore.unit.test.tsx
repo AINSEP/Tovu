@@ -73,6 +73,9 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     },
     files: FILES,
     selected: "pages/index.html",
+    // Follows an overridden `selected` unless a test sets it, so a test that only moves `selected`
+    // still sees that row highlighted, the way the real hook reports it when no switch is in flight.
+    highlightedPath: "selected" in overrides ? (overrides.selected ?? null) : "pages/index.html",
     select: vi.fn(),
     view: "preview",
     setView: vi.fn(),
@@ -530,6 +533,22 @@ describe("per-file overflow menu — copy, rename, and delete", () => {
     const indexRow = screen.getByRole("button", { name: "index" }).closest("li");
     expect(aboutRow).toHaveClass("theme-explore-file-row", "is-active");
     expect(indexRow).toHaveClass("theme-explore-file-row");
+    expect(indexRow).not.toHaveClass("is-active");
+  });
+
+  // 2026-09-14: in the HTML view a clicked file stays unopened until its text lands (see the hook's
+  // `highlightedPath`), so the list must follow the click, not the file still open in the editor.
+  it("highlights the clicked file's row while its text is still loading, not the file still open", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/index.html", highlightedPath: "pages/about.html" })}
+      />
+    );
+    const aboutButton = screen.getByRole("button", { name: "about" });
+    const indexRow = screen.getByRole("button", { name: "index" }).closest("li");
+    expect(aboutButton.closest("li")).toHaveClass("is-active");
+    expect(aboutButton).toHaveAttribute("aria-current", "true");
     expect(indexRow).not.toHaveClass("is-active");
   });
 

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError } from "@/lib/api";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
+import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
 import {
   canResetThemeFile,
   isThemeFileModified,
@@ -10,6 +11,7 @@ import {
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
+  shouldAwaitFileText,
   themeExploreHtmlMode,
   useThemeExplore,
   useWiredThemeExplore,
@@ -2678,5 +2680,214 @@ describe("themeExploreHtmlMode", () => {
 
   it("is editable for a loaded file that is readable and editable", () => {
     expect(themeExploreHtmlMode(file({}), true)).toBe("editable");
+  });
+});
+
+/**
+ * 2026-09-14 owner bug: "Theme editor goes blank and read-only briefly on every file load." In the HTML
+ * view, `select` committed the new `selected` before that file's text was read, so `sourceLoaded` went
+ * false and the tab rendered the empty read-only "unloaded" source until the read landed. Reproduced
+ * live on every switch: 2-10ms unthrottled, and the whole read under a 400ms delay. The switch now
+ * waits for the incoming file's text and lands in one render, while the file list's highlight moves at
+ * once. 12232a2b's guarantee is unchanged: no buffer is written over a file it was not read from.
+ */
+describe("useThemeExplore — switching files in the HTML view never shows the editor unloaded", () => {
+  const TWO_PAGES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "pages/about.html", group: "page" as const, readable: true, editable: true, resettable: true },
+  ];
+  const TWO_CONTENTS = { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" };
+
+  /** Holds every read of `path` open until `release()`; other reads go straight to the fake server. */
+  function holdReads(port: ThemeExplorePort, path: string): { release: () => void } {
+    const serverRead = port.getThemeFile;
+    let open: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    port.getThemeFile = async (themeId, requested) => {
+      if (requested === path) await gate;
+      return serverRead(themeId, requested);
+    };
+    return { release: () => open() };
+  }
+
+  /** The HTML tab's mode for the controller's open file. */
+  function modeOf(controller: ThemeExploreController): string {
+    return themeExploreHtmlMode(
+      controller.files.find((f) => f.path === controller.selected),
+      controller.sourceLoaded
+    );
+  }
+
+  it("never renders the unloaded mode on any render across a switch", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    const about = holdReads(port, "pages/about.html");
+    const modes: string[] = [];
+    const { result } = renderHook(() => {
+      const controller = useThemeExplore("basic", { port, t: (k) => k });
+      modes.push(modeOf(controller));
+      return controller;
+    });
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+    modes.length = 0;
+
+    act(() => result.current.select("pages/about.html"));
+    about.release();
+    await waitFor(() => expect(result.current.source).toBe("<h1>About</h1>"));
+
+    expect(modes).not.toContain("unloaded");
+    expect(result.current.selected).toBe("pages/about.html");
+    expect(modeOf(result.current)).toBe("editable");
+  });
+
+  it("keeps the open file's text editable, and moves only the list highlight, while the next file's text is in flight", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    holdReads(port, "pages/about.html");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+
+    act(() => result.current.select("pages/about.html"));
+
+    expect(modeOf(result.current)).toBe("editable");
+    expect(result.current.selected).toBe("pages/index.html");
+    expect(result.current.source).toBe("<h1>Home</h1>");
+    expect(result.current.highlightedPath).toBe("pages/about.html");
+  });
+
+  it("saves the file still open, never the incoming one, when Save lands while the next file's text is in flight", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    holdReads(port, "pages/about.html");
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+    act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+
+    act(() => result.current.select("pages/about.html"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(putSpy).toHaveBeenCalledWith("basic", "pages/index.html", "<h1>Home</h1><p>typed</p>");
+  });
+
+  it("still lands a file whose read failed unloaded, with Save refused", async () => {
+    const tooLarge = "file 'pages/big.html' exceeds the 1000000-byte readable limit";
+    const port = createFakeThemeExplorePort({
+      files: [TWO_PAGES[0]!, { path: "pages/big.html", group: "page", readable: true, editable: true, resettable: true }],
+      contents: { "pages/index.html": "<h1>Home</h1>" },
+    });
+    const serverRead = port.getThemeFile;
+    port.getThemeFile = (themeId, path) =>
+      path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead(themeId, path);
+    const putSpy = vi.spyOn(port, "putThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+
+    act(() => result.current.select("pages/big.html"));
+    await waitFor(() => expect(result.current.error).toBe(tooLarge));
+    act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.selected).toBe("pages/big.html");
+    expect(result.current.highlightedPath).toBe("pages/big.html");
+    expect(modeOf(result.current)).toBe("unloaded");
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it("cancels a switch when the open file is clicked again mid-flight, without re-reading it over typed edits", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    holdReads(port, "pages/about.html");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+    act(() => result.current.setSource("<h1>Home</h1><p>typed</p>"));
+    const readSpy = vi.spyOn(port, "getThemeFile");
+
+    act(() => result.current.select("pages/about.html"));
+    act(() => result.current.select("pages/index.html"));
+    await act(async () => {});
+
+    expect(result.current.highlightedPath).toBe("pages/index.html");
+    expect(result.current.selected).toBe("pages/index.html");
+    expect(readSpy.mock.calls.filter(([, path]) => path === "pages/index.html")).toHaveLength(0);
+    expect(result.current.source).toBe("<h1>Home</h1><p>typed</p>");
+    expect(result.current.dirty).toBe(true);
+  });
+
+  it("lets a copy that settles mid-switch own the selection, and ignores the late read", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    const about = holdReads(port, "pages/about.html");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+
+    act(() => result.current.select("pages/about.html"));
+    await act(async () => {
+      await result.current.copyFile("pages/index.html");
+    });
+    await waitFor(() => expect(result.current.sourceLoaded).toBe(true));
+    about.release();
+    await act(async () => {});
+
+    expect(result.current.selected).toBe("pages/index-1.html");
+    expect(result.current.highlightedPath).toBe("pages/index-1.html");
+    expect(result.current.source).toBe("<h1>Home</h1>");
+  });
+
+  it("never reads a switch started in one theme against the next theme", async () => {
+    const port = createFakeThemeExplorePort({ files: TWO_PAGES, contents: TWO_CONTENTS });
+    holdReads(port, "pages/about.html");
+    const { result, rerender } = renderHook(
+      ({ themeId }: { themeId: string }) => useThemeExplore(themeId, { port, t: (k) => k }),
+      { initialProps: { themeId: "a" } }
+    );
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+    act(() => result.current.setView("html"));
+    const readSpy = vi.spyOn(port, "getThemeFile");
+
+    act(() => result.current.select("pages/about.html"));
+    rerender({ themeId: "b" });
+    await waitFor(() => expect(result.current.sourceLoaded).toBe(true));
+
+    expect(readSpy).not.toHaveBeenCalledWith("b", "pages/about.html");
+    expect(result.current.selected).toBe("pages/index.html");
+    expect(result.current.highlightedPath).toBe("pages/index.html");
+  });
+});
+
+describe("shouldAwaitFileText", () => {
+  const readable: ThemeExploreFile = {
+    path: "pages/about.html",
+    label: "about",
+    kind: "page",
+    readable: true,
+    editable: true,
+    resettable: true,
+    modified: false,
+    published: null,
+    collidingContent: null,
+  };
+  const base = { view: "html" as const, file: readable, path: "pages/about.html", selected: "pages/index.html", sourceLoaded: true };
+
+  it("holds a click on another readable file in the HTML view while the open file's text is loaded", () => {
+    expect(shouldAwaitFileText(base)).toBe(true);
+  });
+
+  it.each([
+    ["the Preview view", { view: "preview" as const }],
+    ["a file that is not readable", { file: { ...readable, readable: false } }],
+    ["a path with no file entry", { file: undefined }],
+    ["the file already open", { path: "pages/index.html" }],
+    ["an open file whose text is not loaded", { sourceLoaded: false }],
+  ])("opens at once for %s", (_case, override) => {
+    expect(shouldAwaitFileText({ ...base, ...override })).toBe(false);
   });
 });

@@ -171,6 +171,12 @@ export interface ThemeExploreController {
   /** Currently open file's path, or `null` before the first load settles. */
   selected: string | null;
   select: (path: string) => void;
+  /**
+   * The path the file list marks as open: a clicked file whose text {@link select} is still holding
+   * for (HTML view only, see `shouldAwaitFileText`), else {@link selected}. The editor, toolbar,
+   * preview and every file action keep following `selected` until that text lands.
+   */
+  highlightedPath: string | null;
   view: ThemeExploreView;
   setView: (value: ThemeExploreView) => void;
   /** Working copy of the open file — what the HTML tab edits. */
@@ -433,6 +439,48 @@ function isOpenFileLoaded(
 }
 
 /**
+ * Whether `select` holds a click on `path` until that file's text is read, instead of opening it at
+ * once. Only in the HTML view, only for a readable file other than the open one, and only while the
+ * open file's text is loaded: that text stays on screen, editable and saveable as itself, until the
+ * clicked file's text lands and both swap in one render. Opening at once shows the empty read-only
+ * unloaded source for the whole read (2026-09-14 owner bug: "Theme editor goes blank and read-only
+ * briefly on every file load"). With nothing loaded there is nothing better to show, and the Preview
+ * view shows no source, so those still open at once.
+ *
+ * @complexity O(1).
+ */
+export function shouldAwaitFileText({
+  view,
+  file,
+  path,
+  selected,
+  sourceLoaded,
+}: {
+  view: ThemeExploreView;
+  file: ThemeExploreFile | undefined;
+  path: string;
+  selected: string | null;
+  sourceLoaded: boolean;
+}): boolean {
+  return view === "html" && file?.readable === true && path !== selected && sourceLoaded;
+}
+
+/**
+ * The file the file-read effect is for: a click `select` is holding in `themeId`, else `selected`. A
+ * hold from another theme is ignored, so a theme switch never reads the old theme's click against the
+ * new one.
+ *
+ * @complexity O(1).
+ */
+function readPathFor(
+  pending: { themeId: string; path: string } | null,
+  themeId: string,
+  selected: string | null
+): string | null {
+  return pending !== null && pending.themeId === themeId ? pending.path : selected;
+}
+
+/**
  * `files` with each entry's `resettable` and `modified` taken from the entry at the same path in
  * `serverFiles`, a fresh detail read. Entries `serverFiles` lacks keep their own object, and nothing
  * is added or removed: a rename, copy or delete that settled while the read was in flight owns the
@@ -621,6 +669,10 @@ export function useThemeExplore(
   // reset (see `sourceLoaded`). Keyed by theme too, so opening another theme at the same path does not
   // count as loaded before that theme's own read lands.
   const [loadedFile, setLoadedFile] = useState<{ themeId: string; path: string } | null>(null);
+  // A click `select` is holding until the clicked file's text is read (see `shouldAwaitFileText`),
+  // keyed by theme. Cleared when that read settles, or when another action sets the selection itself
+  // (a load, copy, rename or delete).
+  const [pendingSelection, setPendingSelection] = useState<{ themeId: string; path: string } | null>(null);
   // Bumped to read the open file again without changing the selection: only after a reset that
   // returned no text.
   const [fileReadNonce, setFileReadNonce] = useState(0);
@@ -676,6 +728,7 @@ export function useThemeExplore(
           apiVersion: nextDetail.apiVersion,
         });
         setSelected(path);
+        setPendingSelection(null);
         // Only when something was actually asked for and NEITHER param resolved to a file this
         // theme has — an intentional layered fallback (`fileId` failing over to a valid `pageId`)
         // is not a miss. This is the fix for the owner-reported bug: a stale/mistyped link must
@@ -704,15 +757,24 @@ export function useThemeExplore(
   // `source` and discard edits typed since.
   const selectedReadable = files.find((f) => f.path === selected)?.readable;
   const sourceLoaded = isOpenFileLoaded(loadedFile, themeId, selected);
+  // The read below is for a click `select` is holding, else the open file. It keys off that file's own
+  // `readable` flag and loaded state, for the same reason given for `selectedReadable` above.
+  const readPath = readPathFor(pendingSelection, themeId, selected);
+  const readPathReadable = files.find((f) => f.path === readPath)?.readable;
+  const readPathLoaded = isOpenFileLoaded(loadedFile, themeId, readPath);
 
-  // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read.
+  // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read. Every
+  // outcome opens `readPath` (a no-op when it is already `selected`) and drops a held click in the same
+  // render its buffer lands in, so the HTML tab never shows a file as open before its text is there.
   useEffect(() => {
-    if (selected === null) return;
+    if (readPath === null) return;
     // Non-text files are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake,
     // and saving that back would genuinely corrupt the file — so the request is not made at all
     // rather than made and then guarded against in the UI. Gated on `readable`, NOT `editable`: a
     // script is not editable but IS readable, and still needs its source fetched to be viewed.
-    if (selectedReadable === false) {
+    if (readPathReadable === false) {
+      setSelected(readPath);
+      setPendingSelection(null);
       setSource("");
       setSavedSource("");
       // Also drop the loaded-file marker, not just the buffer: `loadedFile` otherwise still names
@@ -723,22 +785,31 @@ export function useThemeExplore(
       setLoadedFile(null);
       return;
     }
+    // Already open with its text. Clicking the open file again while another file's text is held
+    // cancels that switch, and must not read the open file again over edits typed since.
+    if (readPathLoaded) return;
     let cancelled = false;
     port
-      .getThemeFile(themeId, selected)
+      .getThemeFile(themeId, readPath)
       .then((r) => {
         if (cancelled) return;
+        setSelected(readPath);
+        setPendingSelection(null);
         setSource(r.content);
         setSavedSource(r.content);
-        setLoadedFile({ themeId, path: selected });
+        setLoadedFile({ themeId, path: readPath });
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "failed to read file");
+        if (cancelled) return;
+        // A failed read still opens the file, unloaded: the error toast says why, and Save refuses.
+        setSelected(readPath);
+        setPendingSelection(null);
+        setError(e instanceof Error ? e.message : "failed to read file");
       });
     return () => {
       cancelled = true;
     };
-  }, [themeId, selected, selectedReadable, port, fileReadNonce]);
+  }, [themeId, readPath, readPathReadable, readPathLoaded, port, fileReadNonce]);
 
   // Same stale-settlement guard as `renameSettlement` above: two saves, or a save then a reset, can
   // have their detail reads land out of order, and the older read must not overwrite the newer one.
@@ -854,6 +925,7 @@ export function useThemeExplore(
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(nextSelected);
+        setPendingSelection(null);
         setNotice(`Renamed to ${r.path}`);
         setPreviewNonce((n) => n + 1);
       } catch (e) {
@@ -951,6 +1023,7 @@ export function useThemeExplore(
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(r.path);
+        setPendingSelection(null);
         setNotice(`Copied to ${r.path}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "failed to copy file");
@@ -1006,6 +1079,7 @@ export function useThemeExplore(
       setDetail(nextDetail);
       setFiles(nextFiles);
       setSelected((current) => (current === path ? defaultSelectedPath(nextFiles, nextDetail.apiVersion) : current));
+      setPendingSelection(null);
       setNotice(`Deleted ${path}`);
       setDeleteTarget(null);
     } catch (e) {
@@ -1021,14 +1095,23 @@ export function useThemeExplore(
    * {@link writeThemeExploreSelectionToUrl}'s own doc (`theme-explore-url.hooks.ts`) for why the
    * two forms differ and why that write is a plain `history.replaceState` rather than a round trip
    * through this app's `navigate()`.
+   *
+   * In the HTML view a readable file is not opened here: the click is held until its text is read (see
+   * {@link shouldAwaitFileText}) and the file-read effect opens it. The address bar and
+   * `highlightedPath` still follow the click at once.
    */
   const select = useCallback(
     (path: string) => {
-      setSelected(path);
       const file = files.find((f) => f.path === path);
       if (file) writeThemeExploreSelectionToUrl(file);
+      if (shouldAwaitFileText({ view, file, path, selected, sourceLoaded })) {
+        setPendingSelection({ themeId, path });
+        return;
+      }
+      setPendingSelection(null);
+      setSelected(path);
     },
-    [files]
+    [files, view, selected, sourceLoaded, themeId]
   );
 
   /**
@@ -1093,6 +1176,7 @@ export function useThemeExplore(
     files,
     selected,
     select,
+    highlightedPath: readPath,
     view,
     setView,
     source,

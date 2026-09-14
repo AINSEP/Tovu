@@ -1144,6 +1144,7 @@ export function ThemeExplore({
     files,
     selected,
     select,
+    highlightedPath,
     view,
     setView,
     source,
@@ -1289,7 +1290,7 @@ export function ThemeExplore({
       <div className="theme-explore">
         <ThemeExploreFileList
           files={files}
-          selected={selected}
+          selected={highlightedPath}
           select={select}
           renamingPath={renamingPath}
           renameDraft={renameDraft}
