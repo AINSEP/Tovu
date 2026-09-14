@@ -20,7 +20,7 @@
   "scripts": {
     "dev": "node development/scripts/dev.mjs",
     "desktop": "node development/scripts/dev-desktop.mjs",
-    "seed:site": "node development/scripts/seed-site.mjs",
+    "seed:site": "node --import tsx development/scripts/seed-site.mjs",
     "dev:server": "tsx watch apps/website/src/index.ts",
     "start": "node dist/src/index.js",
     "export": "tsx apps/website/src/cli/main.ts export",

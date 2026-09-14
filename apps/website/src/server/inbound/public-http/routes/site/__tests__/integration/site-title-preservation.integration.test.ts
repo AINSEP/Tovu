@@ -8,7 +8,9 @@ import Database from "better-sqlite3";
 import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
 
 import { migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { seedContentDb } from "#src/platform/db/sqlite/content-db";
+import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
@@ -17,12 +19,14 @@ import { createApp } from "#src/server/runtime/composition/app";
 import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { seedSite } from "../../../../../../../../../../development/scripts/seed-site.mjs";
 
 /**
  * @file SPEC-050 v0.2.0, Wiring Order Step 2, end to end: a real site directory, a real SQLite
  * database, the real SQLite composition root composed the way `tovu serve <dir>` composes it, and
  * every assertion over HTTP. Covers T-W1 (AC-10), T-W3 (AC-12), T-W4 (AC-13), AC-06, AC-07 and AC-08.
- * SPEC-050 v0.3.0 adds the database-copy paths over the same fixtures: `duplicateSite` (AC-20, AC-21).
+ * SPEC-050 v0.3.0 adds the database-copy paths over the same fixtures: `duplicateSite` (AC-20, AC-21),
+ * and a `seed-site.mjs` seed hydrated into a fresh deploy (AC-23, AC-24).
  *
  * Both fixtures carry the config name "My Site". A pre-existing site that loses its pin therefore
  * flips to a visible, different title instead of passing by coincidence.
@@ -305,21 +309,23 @@ async function bootPinnedPreExistingSite(t: TestContext): Promise<{ dir: string;
   return { dir, site };
 }
 
+/** A booted pre-existing site's own database: the system pin and a resolved marker. */
+const PINNED_COPY_STATE: SiteTitleCopyState = {
+  titleRows: [{ updatedBy: SYSTEM_PRINCIPAL_ID, valueJson: JSON.stringify(LEGACY_TITLE) }],
+  markerRows: 1,
+};
+
 test("AC-20 (REQ-12, INV-07): a duplicate of a pinned pre-existing site carries neither the pin nor its marker, and renders its own name", async (t) => {
   const { dir: sourceDir, site: source } = await bootPinnedPreExistingSite(t);
   const workspaceId = source.deps.workspaceId;
   const sourceDbPath = path.join(sourceDir, "content.db");
-  const pinnedState: SiteTitleCopyState = {
-    titleRows: [{ updatedBy: SYSTEM_PRINCIPAL_ID, valueJson: JSON.stringify(LEGACY_TITLE) }],
-    markerRows: 1,
-  };
-  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), pinnedState, "precondition: the source is pinned and marked");
+  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "precondition: the source is pinned and marked");
 
   const targetDir = path.join(path.dirname(sourceDir), "client-b");
   duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
 
   assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), { titleRows: [], markerRows: 0 });
-  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), pinnedState, "duplicating must not reset the source itself");
+  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "duplicating must not reset the source itself");
 
   const duplicate = await bootSite(t, targetDir);
   await duplicate.deps.siteTitleReady;
@@ -356,4 +362,46 @@ test("AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplica
   const duplicate = await bootSite(t, targetDir);
   await duplicate.deps.siteTitleReady;
   assertSingleTitle(await getHtml(duplicate.baseUrl, "/products"), OWNER_TITLE, "S3 GET /products on the duplicate");
+});
+
+const DEPLOY_NAME = "Fresh Deploy";
+
+test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships neither the pin nor its marker, and a deploy hydrated from it renders its own name", async (t) => {
+  const { dir: liveDir, site: live } = await bootPinnedPreExistingSite(t);
+  const liveDbPath = path.join(liveDir, "content.db");
+  assert.deepEqual(readSiteTitleCopyState(liveDbPath, live.deps.workspaceId), PINNED_COPY_STATE, "precondition: the live site is pinned and marked");
+  // `openContentDb` drops the three chat tables while they are empty, and `seed-site.mjs` prunes them
+  // by name without checking that they exist. Recreate them empty, as on a live site that has chatted.
+  openChatDb(liveDbPath).close();
+
+  const seedDbPath = path.join(path.dirname(liveDir), "content.seed.db");
+  seedSite({ siteName: "site-title-seed", liveDir, liveDbPath, seedDbPath });
+
+  // AC-23 is about whole tables, not one workspace: a shipped seed carries no marker and no system pin.
+  const seed = new Database(seedDbPath, { readonly: true });
+  try {
+    const { markers } = seed.prepare("SELECT COUNT(*) AS markers FROM site_title_preexisting_workspaces").get() as { markers: number };
+    const { pins } = seed
+      .prepare(
+        `SELECT COUNT(*) AS pins FROM setting_values_workspace
+         WHERE updated_by = ? AND setting_id IN (SELECT setting_id FROM setting_definitions WHERE namespace = 'core.site' AND key = 'title')`
+      )
+      .get(SYSTEM_PRINCIPAL_ID) as { pins: number };
+    assert.deepEqual({ markers, pins }, { markers: 0, pins: 0 }, "AC-23: the published seed");
+  } finally {
+    seed.close();
+  }
+
+  // AC-24: a clean container deploy hydrates its content.db from that seed and boots under its own name.
+  const deployDir = path.join(path.dirname(liveDir), "deploy");
+  initSite({ dir: deployDir, name: DEPLOY_NAME });
+  const deployDbPath = path.join(deployDir, "content.db");
+  for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${deployDbPath}${suffix}`, { force: true });
+  assert.equal(hydrateContentDbFromSeed({ seedDbPath, dbPath: deployDbPath }).status, "seeded");
+
+  const deploy = await bootSite(t, deployDir);
+  await deploy.deps.siteTitleReady;
+  const products = await getHtml(deploy.baseUrl, "/products");
+  assertSingleTitle(products, DEPLOY_NAME, "S3 GET /products on the hydrated deploy");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${DEPLOY_NAME}</a>`), "B: header wordmark on the hydrated deploy");
 });

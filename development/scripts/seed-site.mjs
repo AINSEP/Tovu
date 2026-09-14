@@ -24,9 +24,11 @@
  * `TOVU_CONTENT_DB` to point at it directly) is a Dockerfile/entrypoint concern, deliberately left
  * out of this script — see this change's own report for the open coordination item.
  *
- * Usage: `npm run seed:site` (or `node development/scripts/seed-site.mjs [--site <name>]`).
+ * Usage: `npm run seed:site` (or `node --import tsx development/scripts/seed-site.mjs [--site <name>]`).
  * `--site` defaults to `TOVU_SITE`, then `"tovu-com"` — the same precedence
  * `platform/site-dir/site-root.ts`'s `resolveSiteRoot()` uses for its own `TOVU_SITE` fallback.
+ * The tsx loader is there because this script imports one TypeScript module, the site-title pin reset
+ * it shares with `duplicateSite` (SPEC-050 REQ-12/REQ-14), so both copy paths run the same SQL.
  */
 import Database from "better-sqlite3";
 import { createHash, randomBytes } from "node:crypto";
@@ -34,6 +36,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { resetLegacySiteTitlePin } from "../../apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -270,8 +274,19 @@ function formatMb(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function main() {
-  const { siteName, liveDir, liveDbPath, seedDbPath } = resolvePaths();
+/**
+ * The whole `npm run seed:site` flow for one site: copy the live db to scratch, prune, scrub and
+ * reset the copy, check its blobs, publish it to `seedDbPath`, and prove the live db was never written.
+ *
+ * Exported (SPEC-050 REQ-14) so a test can run this exact flow against a temporary site directory;
+ * {@link main} is the only caller that points it at the real `sites/<site>/`.
+ *
+ * @param {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} required
+ * @throws if the live db is missing, a scratch-copy check fails, a blob is missing, or the live db
+ *   changed during the run. Nothing is published unless every check before `publishSeed` passed.
+ */
+export function seedSite(required) {
+  const { siteName, liveDir, liveDbPath, seedDbPath } = required;
   const liveStatBefore = statLiveDb(liveDbPath);
 
   const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-seed-site-"));
@@ -285,6 +300,10 @@ function main() {
 
       const removed = pruneTransientTables(db);
       const scrubbedLoginTimestamps = scrubPii(db);
+      // SPEC-050 REQ-14: the legacy site-title marker and pin record THIS machine's migration history.
+      // A deploy that hydrates its content.db from the seed is a different database and renders its
+      // own name, so both are reset here, before the VACUUM that reclaims their pages.
+      const siteTitleReset = resetLegacySiteTitlePin({ db });
       vacuumAndVerify(db);
 
       // Rows and bytes ship together or not at all — fail LOUD, before `publishSeed` ever runs, so
@@ -312,6 +331,9 @@ function main() {
           .join(", ")}`
       );
       console.log(`  scrubbed: identity_users.last_login_at nulled on ${scrubbedLoginTimestamps} row(s)`);
+      console.log(
+        `  site title: ${siteTitleReset.markerRowsDeleted} legacy marker row(s) and ${siteTitleReset.pinRowsDeleted} system pin(s) reset`
+      );
       console.log(`  blobs:    every asset_blobs.storage_key has a matching file under ${path.join(liveDir, "uploads")}`);
     } finally {
       db.close();
@@ -321,6 +343,10 @@ function main() {
   }
 
   assertLiveDbUntouched(liveDbPath, liveStatBefore);
+}
+
+function main() {
+  seedSite(resolvePaths());
 }
 
 // Only run when invoked directly, never as a side effect of import — mirrors
