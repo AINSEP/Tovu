@@ -1,14 +1,20 @@
 /**
  * Recovers the absolute OS path of any FOLDER in a raw drop.
  *
- * Pulled out of `App.hooks.ts` into its own module with zero repo-internal imports — deliberately,
- * so it can be unit-tested with Node's built-in test runner (`folder-drop.test.ts`). This repo
- * imports its own `.ts` sources with a `.js` specifier (required for `tsc`'s NodeNext resolution
- * elsewhere in this project), and Node's native TypeScript support does NOT remap that back to the
- * real `.ts` file at run time — confirmed empirically: `node --test` fails with
- * `ERR_MODULE_NOT_FOUND` on the first such specifier it hits, however many imports deep. A module
- * reachable only through a chain of `.js`-specifier imports can't be exercised by `node --test` at
- * all; a module with no repo-internal imports has no chain to break.
+ * Pulled out of `App.hooks.ts` into its own module with zero repo-internal imports — originally so
+ * it could be unit-tested with Node's own BARE `node --test` runner: this repo imports its own `.ts`
+ * sources with a `.js` specifier (required for `tsc`'s NodeNext resolution elsewhere in this
+ * project), Node's native TypeScript support does not remap that back to the real `.ts` file at run
+ * time, and a module reachable only through a chain of `.js`-specifier imports could not be
+ * exercised by bare `node --test` at all — confirmed empirically: it fails with
+ * `ERR_MODULE_NOT_FOUND` on the first such specifier it hits, however many imports deep.
+ *
+ * That specific constraint is no longer why THIS file's own test runs the way it does:
+ * `folder-drop.test.ts` lives under `src/renderer/`, which this package's `test` script now runs
+ * through its second command, `node --import tsx --test` (tsx resolves a `.js` specifier back to
+ * the real `.ts` file, so the `ERR_MODULE_NOT_FOUND` failure above would not reproduce there either
+ * way — see that test file's own header). The zero-import shape stayed regardless of which runner
+ * ended up executing it.
  *
  * Read directly off `dataTransfer.items`/`.files` — BEFORE `@jini-ai/chat`'s own drop handling
  * (which runs afterward, on the very same event, once the capture-phase listener that calls this,

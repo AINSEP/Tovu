@@ -503,8 +503,9 @@ export function useExpandedMode(showSiteTab: boolean): {
 
 /**
  * A dropdown's open state plus the "click/tap outside closes it" behaviour every dropdown in the
- * top nav wants (`NavLink`'s sub-link menu, `SettingsControl`'s appearance menu). Was duplicated
- * inline in both call sites before this extraction.
+ * top nav wants (`SettingsControl`'s appearance menu, `SiteGrid`'s per-card `SiteCardMenu`). `NavLink`
+ * has no dropdown of its own — it is a plain section link — so it is not a caller here. Was
+ * duplicated inline in both call sites before this extraction.
  */
 export function useDismissibleDropdown<T extends HTMLElement = HTMLDivElement>(): {
   open: boolean;

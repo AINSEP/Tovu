@@ -4,10 +4,12 @@
  * bodies (`countRunningSites`, `navLinkClick`, `settingsControlHandlers`, `startThenNotify`) — run
  * against the real functions, not against their source text.
  *
- * **How this file runs.** `apps/desktop`'s own suite is `node --test "src/**\/*.test.cjs"`, which
- * has no runner for TypeScript at all; that is why every renderer test before this one was a
- * source-text assertion (see `rescan-wiring.test.ts`'s own header). This file is executed by the
- * second half of the package's `test` script, `node --import tsx --test "src/**\/*.test.ts"`.
+ * **How this file runs.** `apps/desktop`'s `test` script is two commands: a bare
+ * `node --test "src/*.test.ts" "src/!(renderer|contracts)/**\/*.test.ts"` first, which has no
+ * runner for TypeScript imported across a `.js`-specifier boundary (see `folder-drop.ts`'s own
+ * header for why); that is why every renderer test before this one was a source-text assertion (see
+ * `rescan-wiring.test.ts`'s own header). This file, living under `src/renderer/`, is executed by the
+ * second command instead, `node --import tsx --test "src/renderer/**\/*.test.ts" "src/contracts/**\/*.test.ts"`.
  *
  * `tsx` is this package's OWN devDependency, declared at the same `^4.19.3` the repo root declares.
  * It briefly was not: the script worked only because Node resolves a bare specifier by walking up to

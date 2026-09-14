@@ -145,6 +145,15 @@ export function cardOverlay(
   return renamingId === id ? 'rename' : null;
 }
 
+/** Exactly what {@link isCardOpenKey} reads, plus the one method the handler calls — so a test can
+ *  drive `cardOpenProps` with a plain object and no DOM, the same way `isCardOpenKey` already can. */
+export interface CardOpenKeyEvent {
+  key: string;
+  target: EventTarget | null;
+  currentTarget: EventTarget | null;
+  preventDefault: () => void;
+}
+
 /**
  * The card's "I am an open target" props, or the inert equivalents.
  *
@@ -160,15 +169,6 @@ export function cardOverlay(
  * @param onOpen invoked with nothing — the caller closes over which site it means.
  * @complexity O(1) time, O(1) space.
  */
-/** Exactly what {@link isCardOpenKey} reads, plus the one method the handler calls — so a test can
- *  drive `cardOpenProps` with a plain object and no DOM, the same way `isCardOpenKey` already can. */
-export interface CardOpenKeyEvent {
-  key: string;
-  target: EventTarget | null;
-  currentTarget: EventTarget | null;
-  preventDefault: () => void;
-}
-
 export function cardOpenProps(
   openable: boolean,
   onOpen: () => void,
