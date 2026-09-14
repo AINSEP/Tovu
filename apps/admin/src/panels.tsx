@@ -323,7 +323,11 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     nav: {
       label: "Categories & Tags",
       group: "Content",
-      icon: '<path d="M9 2l2 3.5 4 .6-3 2.9.7 4L9 11.5 5.6 13l.7-4-3-2.9 4-.6L9 2z"/>',
+      // A price-tag outline with its punch hole — replaces a plain 5-point star (owner report,
+      // 2026-09-13: the star didn't read as "tags" at a glance). Same stroke-based glyph language
+      // as every other row here (18x18 box, `currentColor` stroke, a `circle` for the hole the way
+      // `posts`'/`members`' icons already use circles for their own dots).
+      icon: '<path d="M15.4 10.1 10.1 15.4a1.5 1.5 0 0 1-2.1 0L1.5 9V1.5h7.5l6.4 6.4a1.5 1.5 0 0 1 0 2.1z"/><circle cx="5.3" cy="5.3" r="1"/>',
     },
     agentReachable: true,
   },
