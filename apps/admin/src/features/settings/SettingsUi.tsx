@@ -136,6 +136,7 @@ import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter }
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
+import { t as tSettingsExecution } from "./settings-execution-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
@@ -314,6 +315,9 @@ export function SettingsUi(props: SettingsUiProps) {
   /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
+  /** The Execution tab's two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy constants), which
+   *  neither settings-dialog dictionary behind `t` carries — see `settings-execution-i18n.ts`'s header. */
+  const tExecution = (key: string): string => tSettingsExecution(settingsLocale, key);
 
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
   // falls back to `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which
@@ -375,8 +379,8 @@ export function SettingsUi(props: SettingsUiProps) {
             apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
             canDiscoverModels={adminCredential.canDiscoverModels}
-            describeProbeError={createProbeErrorDescriber(t)}
-            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
+            describeProbeError={createProbeErrorDescriber(tExecution)}
+            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
             formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
             agentHandle="settings-execution"
           />

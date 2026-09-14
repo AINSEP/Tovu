@@ -376,6 +376,29 @@ describe("Execution tab — a Google key saved, the form moved to another provid
     ).toBeInTheDocument();
     expect(screen.queryByText(/save a base URL for the credential first/)).not.toBeInTheDocument();
   });
+
+  it("in Spanish, the key line asks for the new provider's key in Spanish", async () => {
+    const user = userEvent.setup();
+    await mountOnGoogleThenForgetItsDiscovery({ locale: "es" });
+
+    await user.click(screen.getByRole("tab", { name: presetFor(OPENAI).title }));
+
+    expect(screen.getByText("Tu clave guardada es de otro proveedor. Pega una clave para este.")).toBeInTheDocument();
+    expect(screen.queryByText(OTHER_PROVIDER_COPY)).not.toBeInTheDocument();
+  });
+
+  it("in Spanish, a refused discovery is worded in Spanish", async () => {
+    renderSettingsWithKeySaved(formOn(GOOGLE, "gemini-flash-latest"), {
+      stored: { ...GOOGLE_ADMIN_KEY, baseUrl: null },
+      locale: "es",
+    });
+
+    expect(
+      await screen.findByText(
+        /No se pudieron cargar los modelos en vivo: Tu clave guardada no tiene un proveedor guardado\. Pega la clave de nuevo para probarla\./,
+      ),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("save status pill", () => {
