@@ -8,7 +8,6 @@ import Database from "better-sqlite3";
 import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
 
 import { migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
-import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { seedContentDb } from "#src/platform/db/sqlite/content-db";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
@@ -370,9 +369,6 @@ test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships n
   const { dir: liveDir, site: live } = await bootPinnedPreExistingSite(t);
   const liveDbPath = path.join(liveDir, "content.db");
   assert.deepEqual(readSiteTitleCopyState(liveDbPath, live.deps.workspaceId), PINNED_COPY_STATE, "precondition: the live site is pinned and marked");
-  // `openContentDb` drops the three chat tables while they are empty, and `seed-site.mjs` prunes them
-  // by name without checking that they exist. Recreate them empty, as on a live site that has chatted.
-  openChatDb(liveDbPath).close();
 
   const seedDbPath = path.join(path.dirname(liveDir), "content.seed.db");
   seedSite({ siteName: "site-title-seed", liveDir, liveDbPath, seedDbPath });

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { findMissingSeedBlobs } from "../seed-site.mjs";
+import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { findMissingSeedBlobs, seedSite } from "../seed-site.mjs";
 
 /**
  * @file Direct unit test for `seed-site.mjs`'s `findMissingSeedBlobs()` — the build-time guard that
@@ -157,5 +158,27 @@ test("findMissingSeedBlobs: REGRESSION — a regular file with the WRONG bytes a
     } finally {
       db.close();
     }
+  });
+});
+
+/**
+ * `openContentDb` drops `ai_chat_messages`/`assistant_agent_sessions`/`ai_chats` (via
+ * `dropEmptyLegacyChatTables`) the moment they are empty — which is every site that has never
+ * chatted, including a brand-new one. `pruneTransientTables` (this file) then ran an unconditional
+ * `DELETE FROM "<table>"` for each of its `PRUNE_TABLES` entries, so seeding such a site failed with
+ * "no such table" even though there was nothing to prune. Reproduces without booting a whole site:
+ * `openContentDb` on a bare temp path is enough to leave the live db in the exact missing-tables
+ * state `site-title-preservation.integration.test.ts`'s AC-23/AC-24 previously had to work around by
+ * recreating the three tables empty with `openChatDb` before calling `seedSite`.
+ */
+test("seedSite: succeeds against a live db that has never chatted, so openContentDb already dropped the empty legacy chat tables", () => {
+  withTempLiveDir((liveDir) => {
+    const liveDbPath = join(liveDir, "content.db");
+    openContentDb(liveDbPath).$client.close();
+
+    const seedDbPath = join(liveDir, "content.seed.db");
+    seedSite({ siteName: "prune-guard-test", liveDir, liveDbPath, seedDbPath });
+
+    assert.ok(existsSync(seedDbPath), "seedSite must still publish content.seed.db");
   });
 });

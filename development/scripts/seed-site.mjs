@@ -154,16 +154,42 @@ function checkpointAndVerify(db) {
   }
 }
 
-/** Deletes every row of every table in {@link PRUNE_TABLES} and returns the per-table counts removed. */
+/** @returns the {@link PRUNE_TABLES} entries that actually exist as tables in `db` right now. */
+function existingPruneTables(db) {
+  const placeholders = PRUNE_TABLES.map(() => "?").join(", ");
+  const rows = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
+    .all(...PRUNE_TABLES);
+  const present = new Set(rows.map((row) => row.name));
+  return PRUNE_TABLES.filter((table) => present.has(table));
+}
+
+/**
+ * Deletes every row of every table in {@link PRUNE_TABLES} that exists in `db`, and returns
+ * `{ removed, skipped }`: `removed` is the per-table count deleted, `skipped` is the entries whose
+ * table was not there to begin with.
+ *
+ * A table can legitimately be absent: `content-db.ts`'s `openContentDb` runs
+ * `dropEmptyLegacyChatTables` on every open, which drops `ai_chat_messages`/
+ * `assistant_agent_sessions`/`ai_chats` the moment they hold zero rows — true of every site that has
+ * never chatted, including a brand-new one. An unconditional `DELETE FROM "<table>"` for those three
+ * threw `SqliteError: no such table` in exactly that case; checking `sqlite_master` first (mirroring
+ * `dropEmptyLegacyChatTables`'s own `existingChatTables` guard) makes "the table was already gone"
+ * an expected, logged outcome rather than a crash. Which tables get pruned and the secret-table list
+ * itself are unchanged — this only skips a DELETE against a table that isn't there.
+ */
 function pruneTransientTables(db) {
+  const tablesToPrune = existingPruneTables(db);
+  const skipped = PRUNE_TABLES.filter((table) => !tablesToPrune.includes(table));
+
   const removed = {};
   const pruneAll = db.transaction(() => {
-    for (const table of PRUNE_TABLES) {
+    for (const table of tablesToPrune) {
       removed[table] = db.prepare(`DELETE FROM "${table}"`).run().changes;
     }
   });
   pruneAll();
-  return removed;
+  return { removed, skipped };
 }
 
 /**
@@ -298,7 +324,7 @@ export function seedSite(required) {
       db.pragma("foreign_keys = ON");
       checkpointAndVerify(db);
 
-      const removed = pruneTransientTables(db);
+      const { removed, skipped } = pruneTransientTables(db);
       const scrubbedLoginTimestamps = scrubPii(db);
       // SPEC-050 REQ-14: the legacy site-title marker and pin record THIS machine's migration history.
       // A deploy that hydrates its content.db from the seed is a different database and renders its
@@ -330,6 +356,9 @@ export function seedSite(required) {
           .map(([table, count]) => `${table}=${count}`)
           .join(", ")}`
       );
+      if (skipped.length > 0) {
+        console.log(`  skipped:  ${skipped.join(", ")} (table(s) not present — nothing to prune)`);
+      }
       console.log(`  scrubbed: identity_users.last_login_at nulled on ${scrubbedLoginTimestamps} row(s)`);
       console.log(
         `  site title: ${siteTitleReset.markerRowsDeleted} legacy marker row(s) and ${siteTitleReset.pinRowsDeleted} system pin(s) reset`
