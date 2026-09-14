@@ -31,6 +31,8 @@ function controller(overrides: Partial<AdminExecutionCredentialController> = {})
     stored: null,
     apiKeyStoredExternally: false,
     apiKeyPlaceholder: undefined,
+    storedKeyIsForOtherEndpoint: false,
+    canDiscoverModels: true,
     saveState: { status: "idle" },
     settingsSaveState: { status: "idle" },
     canSaveKey: true,
