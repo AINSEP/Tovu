@@ -872,7 +872,7 @@ function MainHeader({
               the owner's call, so it no longer reads as quiet as Rescan does; it stays distinct
               from "Create website", the only button here that makes a NEW site, by wearing the
               neutral high-contrast fill rather than `--primary`. */}
-          <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding}>
+          <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>

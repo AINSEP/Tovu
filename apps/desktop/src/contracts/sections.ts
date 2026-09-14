@@ -95,13 +95,16 @@ export const RUNNER_SECTIONS = [
     tools: ['desktop.status'],
   },
   {
-    // Label changed to 'Sites' (owner's vocabulary ruling: a website project is a "site" — see
-    // Commit 4's ProjectRecord -> SiteRecord). Id stays `projects` deliberately: RunnerSectionId
-    // values are a public contract in agent tool schemas and URLs (see this file's header), same
-    // precedent as `id: 'generation'` keeping its id while only `label` moved to 'Media'.
+    // Label changed to 'Websites' (owner request, 2026-09-13: the top-nav tooltip should read
+    // "Websites" rather than "Sites"). Was 'Sites' before that per an earlier vocabulary ruling
+    // (a website project is a "site" — see Commit 4's ProjectRecord -> SiteRecord); that renaming
+    // still lives on in code identifiers (`SiteRecord`, `openSites`, `inSites`, etc.), which this
+    // change does not touch — only the user-facing label moves. Id stays `projects` deliberately:
+    // RunnerSectionId values are a public contract in agent tool schemas and URLs (see this file's
+    // header), same precedent as `id: 'generation'` keeping its id while only `label` moved to 'Media'.
     id: 'projects',
     group: 'workspace',
-    label: 'Sites',
+    label: 'Websites',
     agentDescription:
       'The project list and its lifecycle. Each project is one install dir served by one `tovu serve` OS process on one port, serving exactly one workspace for that process lifetime. Creating, starting, stopping, and opening projects all happen here.',
     // `create_site` keeps ADR-014's exact verb name rather than being renamed to fit
@@ -133,7 +136,7 @@ export const RUNNER_SECTIONS = [
     // "read-only/navigation-only", so this grants the left chat nothing new.
     id: 'marketplace',
     group: 'workspace',
-    label: 'Marketplace',
+    label: 'Marketplace (not available yet)',
     agentDescription:
       'Where agent plugins, themes, and regular plugins will be discovered and installed across the fleet. Not built yet — no tools here.',
     tools: [],

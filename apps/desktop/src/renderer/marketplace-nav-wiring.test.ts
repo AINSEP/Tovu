@@ -51,7 +51,7 @@ test("marketplace is visible (not hidden) and grants no tools yet", () => {
   const entry = marketplaceEntry();
   assert.doesNotMatch(entry, /hidden:\s*true/, "Marketplace must render in the nav, not be parked hidden");
   assert.match(entry, /tools:\s*\[\s*\]/, "Marketplace has nothing built yet, so it must own zero desktop.* tools");
-  assert.match(entry, /label:\s*'Marketplace'/);
+  assert.match(entry, /label:\s*'Marketplace \(not available yet\)'/);
 });
 
 test("marketplace has its own nav icon, not a reused one", () => {

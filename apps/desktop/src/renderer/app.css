@@ -452,7 +452,22 @@ button { font: inherit; color: inherit; }
 
 .tab:hover { background: var(--surface); color: var(--fg); }
 
-.tab.is-active { background: var(--fg); color: var(--bg); }
+/* Selected website tab: same burnt orange as "+ Create website" (`--primary`, `.button--create`),
+   on the owner's request — tabs and the button that opens one should read as the same action.
+   `#fff` text for the same reason `.button--create` hardcodes it rather than a token: no
+   `--primary`-on token exists yet, and `--primary` is dark enough in both themes for white text. */
+.tab.is-active { background: var(--primary); color: #fff; }
+
+/* The dot the running check re-inserts. Left at `--primary` (see `.tab__dot.is-running` below) it
+   would sit on a same-colour tab background and disappear, so an active running tab's dot swaps to
+   white instead — everything else about the dot (failed/blocked colour, unselected background) is
+   untouched. */
+.tab.is-active .tab__dot.is-running { background: #fff; }
+
+/* The "All" tab is not a website — selected, it keeps the original near-black look rather than
+   the burnt orange website tabs use below. Three classes so this always outranks `.tab.is-active`
+   above regardless of source order. */
+.tab.tab--sites-home.is-active { background: var(--fg); color: var(--bg); }
 
 .tab--sites-home {
   padding: 0 1.375rem;
