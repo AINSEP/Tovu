@@ -482,6 +482,25 @@ export function pageEditorSurface(view: PageEditorView, canvasStyling: ThemeCanv
   return { kind: "interactive", styling: canvasStyling.styling };
 }
 
+/** The pending-html preview form's `target` — see `PageEditorController.previewFormRef`. `""` before
+ *  `page` loads, since `PagePreview` never renders that early. Split out of `usePageEditor` under the
+ *  complexity ceiling. */
+export function pagePreviewFormTarget(page: AdminPost | null): string {
+  return page ? `page-preview-pending-${page.id}` : "";
+}
+
+/** The Page editor's `useDirtyGuard` baseline: the loaded row's title/slug/status plus the saved html
+ *  and template choice. `null` before `page` loads, which the guard reads as "nothing is dirty yet".
+ *  Split out of `usePageEditor` under the complexity ceiling. */
+export function pageDirtyGuardBaseline(
+  page: AdminPost | null,
+  savedHtml: string,
+  savedTemplateChoice: string | null,
+): { title: string; slug: string; status: AdminPost["status"]; html: string; templateChoice: string | null } | null {
+  if (!page) return null;
+  return { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice };
+}
+
 // ---------------------------------------------------------------------------
 // Column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own column-sort block exactly, same
 // "twin screens" convention as the rest of this file (this file's own header). "My Pages" had no

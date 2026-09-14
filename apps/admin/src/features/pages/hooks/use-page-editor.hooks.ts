@@ -16,6 +16,8 @@ import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
   pageAcceptsHtmlBody,
+  pageDirtyGuardBaseline,
+  pagePreviewFormTarget,
   pageSaveSuccessMessage,
   readPageVersionConflict,
   type PageSaveConflict,
@@ -658,7 +660,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `page` loads for the same reason `templatePreviewUrl` below is — `PagePreview` never renders
   // that early.
   const previewFormRef = useRef<HTMLFormElement>(null);
-  const previewFormTarget = page ? `page-preview-pending-${page.id}` : "";
+  const previewFormTarget = pagePreviewFormTarget(page);
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
@@ -670,7 +672,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // what the Save button itself considers dirty.
   const { confirmLeave } = useDirtyGuard(
     { title, slug, status, html, templateChoice },
-    page ? { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice } : null
+    pageDirtyGuardBaseline(page, savedHtml, savedTemplateChoice)
   );
 
   // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually

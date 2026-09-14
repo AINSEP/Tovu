@@ -15,7 +15,9 @@ import {
   pageAutosaveBannerMessage,
   pageAutosaveStaleBasisMessage,
   pageColumnSortLabel,
+  pageDirtyGuardBaseline,
   pageEditorSurface,
+  pagePreviewFormTarget,
   pagePublicPath,
   pageRowMenuItems,
   themePageRowMenuItems,
@@ -535,5 +537,38 @@ describe("pageAutosaveStaleBasisMessage", () => {
     } });
 
     expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
+  });
+});
+
+const LOADED_PAGE = {
+  id: "pg-1",
+  title: "Landing",
+  slug: "landing",
+  status: "published",
+} as AdminPost;
+
+describe("pagePreviewFormTarget", () => {
+  it("is empty before the page loads", () => {
+    expect(pagePreviewFormTarget(null)).toBe("");
+  });
+
+  it("names the loaded page's id", () => {
+    expect(pagePreviewFormTarget(LOADED_PAGE)).toBe("page-preview-pending-pg-1");
+  });
+});
+
+describe("pageDirtyGuardBaseline", () => {
+  it("is null before the page loads", () => {
+    expect(pageDirtyGuardBaseline(null, "<p>saved</p>", "pages-default.html")).toBeNull();
+  });
+
+  it("pairs the loaded row's title/slug/status with the SAVED html and template choice", () => {
+    expect(pageDirtyGuardBaseline(LOADED_PAGE, "<p>saved</p>", "pages-default.html")).toEqual({
+      title: "Landing",
+      slug: "landing",
+      status: "published",
+      html: "<p>saved</p>",
+      templateChoice: "pages-default.html",
+    });
   });
 });

@@ -411,6 +411,41 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     expect(result.current.error).toBe("boom");
     expect(deps.navigate).not.toHaveBeenCalled();
   });
+
+  // Characterization (complexity-ceiling pass): the per-render values `usePageEditor` derives from
+  // `page` directly, pinned on both sides of the load so moving them into pure helpers cannot drift.
+  it("before the page loads, previewFormTarget and templatePreviewUrl are both empty", () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    deps.port.getPage = () => new Promise(() => {});
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+
+    expect(result.current.page).toBeNull();
+    expect(result.current.previewFormTarget).toBe("");
+    expect(result.current.templatePreviewUrl).toBe("");
+  });
+
+  it("once the page loads, previewFormTarget names that page's id", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    expect(result.current.previewFormTarget).toBe("page-preview-pending-pg-html");
+  });
+
+  it("before the page loads, confirmLeave never prompts, even with an edited working copy (no baseline yet)", () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    deps.port.getPage = () => new Promise(() => {});
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    act(() => result.current.setTitle("typed before load"));
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      expect(result.current.confirmLeave()).toBe(true);
+      expect(confirmSpy).not.toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
 });
 
 /**
