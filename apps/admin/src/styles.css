@@ -3496,6 +3496,30 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * and Notifications, but only `ExecutionTab` ever emits `.jini-seg-meta`. */
 .settings-ui-section .jini-seg-meta { display: none; }
 
+/* ------------------------------------------------------------------------
+   Observability screen (Observability.tsx) — scoped to `.observability-section`
+   so no other `SettingsDialogShell` consumer (Settings, AI Assistant, Agent
+   Plugins, Authentication — all of which also pass a tab `subtitle`) is
+   affected.
+
+   Owner report 2026-09-12 (screenshots `12-observability-header.png` vs.
+   `13-secrets-header-spacing-reference.png`): this page's header should match
+   Secrets' (`Security.tsx`'s `.page-header`) — kicker top-left, title below
+   it, description below THAT at full width. `@jini-ai/ui`'s own
+   `.jini-tabbed-dialog-head-line` (`tabbed-dialog.css`) instead renders the
+   active tab's title and subtitle on ONE baseline row
+   (`display: flex; align-items: baseline; gap: 12px`), so the subtitle read
+   as a caption glued to the title's right edge rather than a stacked
+   description line. Fixed here as a layout-only override — not an
+   `@jini-ai/ui` edit, since that file is a published package asset several
+   other screens above share unchanged. */
+.observability-section .jini-tabbed-dialog-head-line {
+  display: block;
+}
+.observability-section .jini-tabbed-dialog-subtitle {
+  margin-top: 4px;
+}
+
 /* --- Page-flow variant: the shell inside a NORMALLY SCROLLING admin page ----
  *
  * Used by `features/ai-assistant/AiAssistant.tsx`. The Settings screen owns its whole
