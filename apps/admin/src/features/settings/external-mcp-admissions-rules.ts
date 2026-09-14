@@ -1,4 +1,9 @@
-import type { AdminExternalMcpAdmissionsSnapshot, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/lib/api";
+import type {
+  AdminExternalMcpAdmissionsSnapshot,
+  AdminExternalMcpConfigFailure,
+  AdminFederatedAdmissionEntry,
+  AdminToolRefusalReason,
+} from "@/lib/api";
 
 /**
  * @file What the RUNNING assistant actually admitted, turned into operator-facing rows — the
@@ -52,7 +57,13 @@ export type AdmissionDriftKind =
   // one. Both looked identical to this file — no roster card either way — until each live
   // connection's report started carrying `isPreset`. See {@link removedButStillRunningEntry}. Fixed
   // by the same restart as the other three.
-  | "removed-but-still-running";
+  | "removed-but-still-running"
+  // A more specific reading of `not-running` (2026-09-13): the daemon did not merely fail to admit
+  // this connection, it never even ATTEMPTED to — `readEnabledExternalMcpConfigs` could not decrypt
+  // its sealed env because the site token is not available, and the operator was being told to
+  // restart the assistant for a problem restarting cannot fix on its own. See
+  // {@link isDecryptFailureReason} and the `configFailures` plumbing in {@link describeAdmissionDrift}.
+  | "decrypt-failed";
 
 /** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
@@ -158,6 +169,35 @@ const DISABLED_BUT_RUNNING_KEY = "This server is switched off, but the assistant
  *  the card's own remove button — rather than a database term they never see. */
 const REMOVED_BUT_STILL_RUNNING_KEY =
   "This server was removed from your configuration, but the assistant is still running it. Restart the assistant to unload it.";
+
+/**
+ * A saved, enabled connection that failed to decrypt at boot — same English-only choice as the three
+ * keys above, for the same reason (2026-09-13). Names the site token specifically, by the tab's own
+ * current label (`SiteTokenTab.tsx`, renamed from "Root key" the same day), rather than the generic
+ * "restart the assistant" {@link NOT_RUNNING_KEY} gives for this exact case: restarting alone changes
+ * nothing here, because the decrypt will fail again on the next boot until the token itself is fixed.
+ */
+const DECRYPT_FAILED_KEY =
+  "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.";
+
+/**
+ * Whether a boot-time config-resolution failure names a decrypt failure specifically, the one case
+ * {@link DECRYPT_FAILED_KEY} exists for. Matches `external-mcp-store.ts`'s own `openExternalMcpEnv`
+ * wording (`"stored credentials could not be decrypted: ..."`) by substring rather than by importing
+ * a server-side string constant across the admin/website package boundary — the same loose-coupling
+ * choice `probe.ts`'s own `looksLikeReauthFailure` makes for the identical reason: a future wording
+ * change on that side just stops matching here (falling back to the pre-existing generic message),
+ * never throws.
+ *
+ * Deliberately does NOT surface `reason` itself in the banner even though `external-mcp-store.ts`
+ * guarantees it is secret-free (`probe.ts`'s INV-006 doc) — this file's whole job is translated,
+ * predictable operator copy, not a window onto whatever a future error message happens to say.
+ *
+ * @complexity O(1).
+ */
+function isDecryptFailureReason(reason: string): boolean {
+  return reason.includes("could not be decrypted");
+}
 
 /** The gate refusals worth showing, in the daemon's own order. */
 function refusalEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntry[] {
@@ -275,12 +315,33 @@ export function describeConnectionDrift(
  * @returns The disagreement's kind, or `null` when intent and reality agree.
  * @complexity O(1).
  */
-function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolCount: number): AdmissionDriftKind | null {
+function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolCount: number): "not-running" | "disabled-but-running" | null {
   if (!isLive) return enabled ? "not-running" : null;
   // A live connection with an empty admitted set says nothing either way — the daemon may hold the
   // session open having admitted none of its tools, which the per-tool rows already explain.
   if (!enabled && liveToolCount > 0) return "disabled-but-running";
   return null;
+}
+
+/**
+ * Resolves a `not-running`/`disabled-but-running` connection-level row's final kind and copy, giving
+ * the `not-running` arm a more specific reading when a boot-time config-resolution failure names a
+ * decrypt problem — see {@link DECRYPT_FAILED_KEY}'s own doc on why the generic "restart the
+ * assistant" copy is actively wrong for that one case. A `disabled-but-running` connection never
+ * takes this branch: it is live by definition, and a config-resolution failure means the connection
+ * never got that far. Split out of {@link connectionLevelEntry}, the same "flat chain rather than a
+ * nested ternary" extraction {@link resolveConnectionLevelKind} above already models.
+ *
+ * @complexity O(1).
+ */
+function resolveNotRunningCopy(
+  kind: "not-running" | "disabled-but-running",
+  configFailureReason: string | undefined,
+): { readonly kind: AdmissionDriftKind; readonly messageKey: string } {
+  if (kind === "not-running" && configFailureReason !== undefined && isDecryptFailureReason(configFailureReason)) {
+    return { kind: "decrypt-failed", messageKey: DECRYPT_FAILED_KEY };
+  }
+  return { kind, messageKey: kind === "not-running" ? NOT_RUNNING_KEY : DISABLED_BUT_RUNNING_KEY };
 }
 
 /**
@@ -293,6 +354,9 @@ function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolC
  * still-live is the same freeze seen from the other side. The other two agree and must render
  * nothing: an off server that is not running is not a fault, it is the switch working.
  *
+ * @param configFailureReason - The daemon's own boot-time reason this connection never even reached
+ *   an admission attempt, when one was reported (`describeAdmissionDrift`'s `configFailures`). See
+ *   {@link resolveNotRunningCopy}.
  * @returns The connection row, or `null` when intent and reality agree.
  * @complexity O(t) in the saved name count.
  */
@@ -300,11 +364,13 @@ function connectionLevelEntry(
   connectionId: string,
   saved: SavedConnectionIntent,
   liveEntry: AdminFederatedAdmissionEntry | undefined,
+  configFailureReason?: string,
 ): AdmissionDriftConnection | null {
   const savedNames = parseSavedToolNames(saved.allowedToolNames);
   const liveToolCount = liveEntry?.admitted.length ?? 0;
   const kind = resolveConnectionLevelKind(saved.enabled, liveEntry !== undefined, liveToolCount);
   if (!kind) return null;
+  const resolved = resolveNotRunningCopy(kind, configFailureReason);
 
   return {
     connectionId,
@@ -318,8 +384,8 @@ function connectionLevelEntry(
       {
         connectionId,
         remoteName: null,
-        kind,
-        messageKey: kind === "not-running" ? NOT_RUNNING_KEY : DISABLED_BUT_RUNNING_KEY,
+        kind: resolved.kind,
+        messageKey: resolved.messageKey,
         messageVars: {},
       },
     ],
@@ -353,12 +419,18 @@ export function describeAdmissionDrift(
 ): readonly AdmissionDriftConnection[] {
   if (!snapshot) return [];
   const liveIds = new Set(snapshot.connections.map((entry) => entry.connectionId));
+  // A connection in here never reached `attachFederatedMcpTools` at all, so it can never also be in
+  // `liveIds` above — the two sets are disjoint by construction (see `AdminExternalMcpConfigFailure`'s
+  // own doc), which is why only the second, no-live-entry pass below ever consults this map.
+  const configFailureReasonById = new Map(
+    (snapshot.configFailures ?? []).map((failure: AdminExternalMcpConfigFailure): [string, string] => [failure.connectionId, failure.reason]),
+  );
 
   return [
     ...snapshot.connections.map((entry) => describeLiveConnection(entry, savedById[entry.connectionId])),
     ...Object.entries(savedById)
       .filter(([connectionId]) => !liveIds.has(connectionId))
-      .map(([connectionId, saved]) => connectionLevelEntry(connectionId, saved, undefined)),
+      .map(([connectionId, saved]) => connectionLevelEntry(connectionId, saved, undefined, configFailureReasonById.get(connectionId))),
   ].filter((connection): connection is AdmissionDriftConnection => connection !== null);
 }
 

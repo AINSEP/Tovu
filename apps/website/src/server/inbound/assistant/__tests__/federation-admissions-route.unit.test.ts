@@ -31,6 +31,7 @@ const TOKEN = "test-daemon-token";
 
 function buildApp(
   reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[],
+  configFailures?: readonly { readonly connectionId: string; readonly reason: string }[],
 ): express.Express {
   const app = express();
   // Same ordering as `agent-daemon-server.ts`: the gate mounts first, before any route — including
@@ -38,7 +39,9 @@ function buildApp(
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
   // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this test's
   // own fixture keeps passing a plain array, matching every call site's ergonomics unchanged.
-  registerFederationAdmissionsRoute(app, { reports: () => reports });
+  // `configFailures` stays undefined for every pre-existing test below, on purpose — it proves the
+  // route's response is byte-identical to before this field existed when a caller never wires it.
+  registerFederationAdmissionsRoute(app, { reports: () => reports, ...(configFailures ? { configFailures: () => configFailures } : {}) });
   return app;
 }
 
@@ -109,4 +112,31 @@ test("an empty snapshot (no connections reached admission) is served as an empty
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { connections: [] });
+});
+
+/**
+ * A saved, enabled external-MCP row can fail before it ever reaches `attachFederatedMcpTools` at
+ * all — most commonly a sealed env block that cannot be decrypted because the site token is not
+ * available (`external-mcp-store.ts`'s `openExternalMcpEnv`). Such a row has no admission report and
+ * is invisible to `reports` above; before this field existed, the ONLY place its real reason
+ * appeared was this process's own stderr (`agent-daemon-server.ts`'s
+ * `resolveStoredExternalMcpConnections`), which is unreachable from a desktop app's admin tab.
+ */
+test("carries a boot-time config-resolution failure alongside the admission reports, for a connection that never even reached admission", async (t) => {
+  const configFailures = [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: bad auth tag" }];
+  const baseUrl = await startTestServer(buildApp([], configFailures), t);
+
+  const res = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { connections: [], configFailures });
+});
+
+test("omits configFailures entirely (not as an empty list) when the caller never wired it — byte-identical to the pre-2026-09-13 wire shape", async (t) => {
+  const baseUrl = await startTestServer(buildApp([]), t);
+
+  const res = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
+  const body = (await res.json()) as Record<string, unknown>;
+
+  assert.equal("configFailures" in body, false);
 });
