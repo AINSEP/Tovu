@@ -1,8 +1,7 @@
 /**
  * @file `parseAgentPluginManifest()` / `parseAgentPluginMcpConfig()` — the Agent Plugins v1.0.0
  * `plugin.json` / `mcp.json` grammar (agent-plugins.org/specification), verified against the live
- * spec rather than inferred from the one example manifest bundled in this repo
- * (`apps/admin/src/features/plugins/bundled/ui-ux-design/plugin.json`).
+ * spec rather than inferred from an example manifest.
  *
  * Deliberately a SEPARATE, smaller validator from `src/features/plugin-runtime/manifest.ts`'s
  * `validateManifest()`. That file validates `.tovu-plugin`'s own tarball format — `integrity`

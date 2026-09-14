@@ -15,8 +15,9 @@ import { usePackageFileWrap } from "./hooks/use-package-file-wrap.hooks";
  * so Agent Plugins and Plugins render through one component and cannot drift apart.
  *
  * Presentational only: it loads nothing and holds no data. Each caller owns its source and passes
- * files in — Agent Plugins a compile-time allowlist (`agent-plugin-source-catalog.ts`), Plugins the
- * server's `PLUGIN_FILES` listing (`hooks/use-plugin-package-files.hooks.ts`).
+ * files in — Agent Plugins and Plugins both read the installed package live from the server via
+ * `AGENT_PLUGIN_FILES` / `PLUGIN_FILES` (see `hooks/use-agent-plugin-details-modal.hooks.ts` and
+ * `hooks/use-plugin-package-files.hooks.ts`).
  *
  * Class names keep the `agent-plugin-source-*` prefix they had before the extraction, so
  * `styles.css` needed no change.

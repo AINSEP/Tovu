@@ -51,17 +51,6 @@ export default [
       // fresh checkout), so this is a local-machine-only fix, exactly like dist-debug above --
       // without it a local complexity run reports failures that CI cannot reproduce.
       '.claude/worktrees/**',
-      // Vendored, read-only Agent Plugin package content (`agent-plugin-source-catalog.ts`'s 44
-      // `?raw` imports) — copied verbatim from Jini's `@jini-ai/agent-plugins` `ui-ux-design`
-      // package so the admin build no longer reaches outside this checkout. It is DATA the admin
-      // UI displays as inert text in a read-only viewer, not source this project compiles or
-      // executes: the bundled `.tsx` examples import `@tanstack/react-table` and local
-      // `@/components/ui/*` shadcn primitives that don't exist in this app on purpose (they
-      // belong to whatever project installs this plugin, not to Tovu itself), which trips both
-      // `no-restricted-imports` and `tsconfig.json`'s program (see that file's own `exclude`).
-      // Never hand-edit anything under here — see `agent-plugin-source-catalog.ts`'s own header
-      // for how to refresh it from Jini.
-      'apps/admin/src/features/plugins/bundled/**',
     ],
   },
   {
