@@ -168,17 +168,19 @@ Batches go **leaf-first** by import graph, computed at the end of Phase 3. That 
 
 Indicative batches. The recon's strict error counts set the sizes, and the import graph fixes the final order.
 
-| Batch | Files |
-|---|---|
-| B1 | Pure policy leaves: `keyed-serializer`, `shutdown-tracker`, `selftest-tracker`, `tree-quiet`, `quality-gates`, `complexity-debt`, `coverage-floors`, `shell-staleness`, `webview-guest-policy`, `site-supervisor`, `runner-ipc-stubs` |
-| B2 | `speech/*`, `desktop-auth`, `desktop-user-data-dir`, `packaged-paths`, `admin-dev-proxy`, `asar-verify` |
-| B3 | `tracked-sites` (40), `site-dir-store` (28) |
-| B4 | `site-process-registry` (27), `site-preview-store`, `site-config`, `project-delete-guard`, `add-site-pointer` |
-| B5 | `tovu-server` (49) |
-| B6 | `project-ipc` (49), `sites-mcp-registration`, `sites-mcp-server`, `sites-mcp-tools` |
-| B7 | `bin/*`, `scripts/*` (except stage-payload) |
-| B8 | `main.ts` (67) |
-| B9 | the `stage-payload` pair, **released** (Rule 4): rename and annotate, carrying the `lucide-react` exclusion from `c8824fa6`, with its tests |
+| Batch | Files | Status |
+|---|---|---|
+| B1 | Pure policy leaves: `keyed-serializer`, `shutdown-tracker`, `selftest-tracker`, `tree-quiet`, `quality-gates`, `complexity-debt`, `coverage-floors`, `shell-staleness`, `webview-guest-policy`, `site-supervisor`, `runner-ipc-stubs` | **Done** — `b4099135` |
+| B2 | `speech/*`, `desktop-auth`, `desktop-user-data-dir`, `packaged-paths`, `admin-dev-proxy`, `asar-verify` | **Done** — `f106b5df` |
+| B3 | `tracked-sites` (40), `site-dir-store` (28) | **Done** — `46160781` |
+| B4 | `site-process-registry` (27), `site-preview-store`, `site-config`, `project-delete-guard`, `add-site-pointer` | **Done** — `4e6d5dd9` |
+| B5 | `tovu-server` (49) | **Done** — `c8f0d7af` |
+| B6 | `project-ipc` (49), `sites-mcp-registration`, `sites-mcp-server`, `sites-mcp-tools` | **Done** — `80365c96` (project-ipc, bin/tovu-desktop), `b3c31a90` (sites-mcp trio, bin/mcp-bridge) |
+| B7 | `bin/*`, `scripts/*` (except stage-payload) | **Done**, folded into other lanes' commits — `2c8cb578` (verify-package), `4c1ed6bd` (gate scripts, self-labeled "batch B2" — see the progress section's label-drift note), `80365c96`/`b3c31a90` (bin/*) |
+| B8 | `main.ts` (67) | **Done** — `38f2f65b`, `fefefe41`, `95206dd9` |
+| B9 | the `stage-payload` pair, **released** (Rule 4): rename and annotate, carrying the `lucide-react` exclusion from `c8824fa6`, with its tests | **Done** — `e29043f3`, `c5b5ff5a`, `51e0357c` |
+
+*Status column added 2026-09-13; see "Progress: 2026-09-13" below for lane rotations, the B2/B7 label drift, and per-commit evidence.*
 
 **Per-batch rules.**
 - A batch is its source files **plus their tests**.
@@ -224,3 +226,70 @@ Indicative batches. The recon's strict error counts set the sizes, and the impor
   7. The owner restarts the dev app, following the Phase 3 restart order: app, then open one site, then any daemon.
 - The SPEC-050 site-title implementation (agent `site-title-impl`) is writing `apps/website` source and a DB migration, so the repackage also waits for it to commit.
 - **Still open for the owner:** publishing `@jini-ai/ui` 0.3.8 to npm, which is not done. The local Jini build already ships the vendored icons.
+
+---
+
+## Progress: 2026-09-13 — Phase 4 batches B1–B9, the backslide gate, Phase 5 close-out
+
+**Author of this section:** Docs Agent (Sonnet 5), dispatched by the coordinator. Every sha below was independently re-verified with `git show --stat <sha>` against this branch's history; none are agent claims. Sourced from `ADS-memory/.local-artifacts/owner-worklist.md`, the `ADS-memory/.local-artifacts/desktop-ts/ts-lanes/*/` lane folders, and current `git log`.
+
+**Ownership.** The owner transferred remaining B8 (`main.ts`) + close-out part 2 + follow-ups from session tovu-78 to tovu-bf on 2026-09-12 ~17:00, at HEAD `80365c96`, tree clean, no lock held. B8 and the rest of close-out landed the evening of 2026-09-13.
+
+### Execution ran as lanes, not the batch table verbatim
+
+The indicative B1–B9 table above set initial sizing, but real execution ran as parallel Sonnet lanes (A–D) plus the dedicated Opus B8 lane for `main.ts`, with lanes rotating to a fresh agent whenever one hit its context limit or the owner stopped it directly. Some commits' own "batch" labels drifted from the plan's table — noted inline below rather than silently corrected.
+
+**Lane rules actually followed** (from owner-worklist.md's "Lane rules" section): Opus for `main.ts`, Sonnet for everything else, always an explicit model per dispatch; a hard 350k-context stop with a context estimate in every dispatched agent's message; at most 3 test-running agents machine-wide, exact test files only, never a bare `npm test` or `npm run gates`, one node process at a time (check `uptime`, wait if load > 20); main-process tests on bare `node --test`, renderer tests on `node --import tsx --test` (fixed by Phase 0's P4 result above); a `gate.lock` directory `mkdir`/`rmdir`'d around `check-coverage`/`check-complexity` runs; commits as `git commit -F <unique msgfile> -- <exact paths>` then `git show --stat HEAD`, never `add -A`/stash/checkout/reset/restore/amend; never `pgrep -l`/`-fl` or `ps eww`; the shared proof tool is `desktop-ts/ts-phase4-b1-opus/type-only-proof.mjs`.
+
+### B1 — pure policy leaves
+`b4099135` (Opus, session tovu-1f). `complexity-debt`, `coverage-floors`, `keyed-serializer`, `quality-gates`, `quit-drain-gate`, `quit-signals`, `selftest-tracker`, `shell-staleness`, `shutdown-tracker`, `site-supervisor`, `tree-quiet`, `webview-guest-policy`, plus `coverage-runner-split.test`, annotated with their tests. `quit-signals`/`quit-drain-gate` weren't in the plan's B1 row (they landed after it) but are leaves; `runner-ipc-stubs` held out. This commit also creates the strict `tsconfig.main.json` (an explicit `files` ratchet) and the loose `tsconfig.main-pending.json` (everything not yet annotated).
+
+### B2 — modules whose desktop imports are already strict
+`f106b5df` (Opus, tovu-1f). `speech/{mac-on-device-transcriber,pcm-wav-encoder,speech-ipc,transcription-port}` + `preload-speech.test`, `desktop-auth`, `desktop-user-data-dir`, `packaged-paths`, `asar-verify`, `runner-ipc-stubs`, `site-history-menu`, `site-config`, `site-preview-store`, `admin-dev-proxy.ts`. `admin-dev-proxy.test.ts` stayed pending — it imports `tovu-server.ts`, not yet strict. 26 files moved from pending to strict.
+
+### Lane A — tovu-server, then tracked-sites/site-dir-store, then the orphan-registry group
+- Step 1: `c8f0d7af` — `tovu-server.ts` + test (plan row B5).
+- Step 2: `46160781` — `tracked-sites.ts` + `site-dir-store.ts` (plan rows B3/B4 boundary). `SITE_ORIGIN` gets `as const` so `SiteOrigin` derives from it directly.
+- Step 3: lane A stood down mid-step ("owner: past limit") and rotated to **A2**, which committed `4e6d5dd9` — `site-process-registry`, `project-delete-guard`, `add-site-pointer` (plan row B4), plus their tests. Coordinator re-ran the type-only proof on all 6 files from this lane, SAME; A2 stopped after the commit.
+
+### Lane B / B2 — the stage-payload pair (B9), then the gate scripts
+- `e29043f3` — B9 rename half: `scripts/stage-payload.mjs`→`.ts`, `src/stage-payload-lib.js` (+ its test) →`.ts`. Held out of the earlier mechanical rename per the plan's Rule 4 (the pair was released 2026-09-12 as part of PAYLOAD-SLIM); `c8824fa6`'s `lucide-react` exclusion in `EXCLUDED_PACKAGES` carries through unchanged.
+- `c5b5ff5a` — B9 annotate half. New interfaces: `Target`, `HostInfo`, `StripTally`, `PruneTally`, `PrebuildBuilt` in the lib; `RuntimeManifest`, `ShellEntry` in the script.
+- `51e0357c` — follow-up: repoints stage-payload doc comments to `.ts`. Unlike the earlier Phase 3 precedent (leaving old-extension prose alone), the coordinator asked specifically for this fix, because the type-only proof tokenizes real TS and strips comments — fixing prose here carries zero risk of masking a real diff.
+- Lane B was stopped by the owner directly at ~155k context (not a misread) and rotated to **B2**, which resumed from lane B's step-3 drafts and committed `4c1ed6bd`: `check-complexity.ts`, `check-gates.ts`, `check-tree-quiet.ts`, `check-coverage.ts`, `check-gates-exit-code.test.ts`, `electron-builder-files.test.ts`. **Label drift:** this commit's own message calls itself "batch B2," but by content it is scripts/gate work, closer to the plan table's B7 row (`bin/*`, `scripts/*` except stage-payload) than to B2 (already done by `f106b5df`). Recorded as observed, not corrected.
+
+### Lane C / C2 — the sites-mcp trio and mcp-bridge
+`b3c31a90` (commit message: "batch B6 tail"; lane C2 resuming lane C after a full rotation). `src/sites-mcp-tools.ts`, `src/sites-mcp-registration.ts`, `src/sites-mcp-server.ts`, `bin/mcp-bridge.ts`, plus their tests. Seven `any` types added, each with a same-line reason (JSON-RPC/tool-result payload shapes are polymorphic per method/tool, asserted by that method's own test) — the same convention as `c5b5ff5a`/`4c1ed6bd`. At rotation, lane C's 8 drafts were already mirrored into the tree with a post-tree strict tsc of 0; C2 finished acceptance and committed. Coordinator re-ran the proof on all 8 files, SAME.
+
+### Lane D / D2 / D3 — verify-package, admin-dev-proxy.test, project-ipc, the tovu-desktop CLI
+- `2c8cb578` — `scripts/verify-package.ts`. Not covered by the coverage gate (`scripts/` is outside every area's `dirs`) and has no direct test file. Also fixes a stale `stage-payload.mjs` comment.
+- `7421c646` — `src/admin-dev-proxy.test.ts`, once `tovu-server.ts` was strict. Two `@ts-expect-error` lines kept, each with a same-line reason (tests that deliberately exercise a runtime guard against input the new type now disallows), per the plan's "never loosen a test" rule.
+- Lane D had no uncommitted work left for step 3 (`project-ipc` + its test, `add-site-button-wiring.test`, `bin/tovu-desktop.ts`, `tovu-desktop-cli.test`), so a fresh **D2** was dispatched; D2 was stopped mid-step by the owner; **D3** resumed and committed `80365c96` ("batch B6/lane D3"). `project-ipc.ts` and `bin/tovu-desktop.ts` arrived from D2 already fully annotated and needed only a stray trailing comma removed from `handleCreate`'s signature — a real token-level diff the type-only proof caught. The two test files were still loose and were annotated in this commit.
+
+### The backslide gate (Phase 5 item 2 — not itself a lettered batch)
+`46df8bee` (agent `ts-jsguard`, Sonnet). `src/js-backslide-guard.ts` (a pure predicate; the `preload-speech.cjs` exemption is matched by exact path only, never a directory or pattern) + `scripts/check-js-backslide.ts` (candidates gathered via `git ls-files -co --exclude-standard`, so build output stays out) + a new `"js-backslide"` entry in `quality-gates.json`. RED-first and mutation-proofed. Per owner-worklist.md item 9, **this gate is not yet enforcing anything live**: `core.hooksPath` is unset (verified 2026-09-12), so `apps/desktop/scripts/hooks/pre-push` never runs, and `.github/workflows/desktop.yml` only helps if GitHub Actions CI is enabled for this repo (memory says CI is off; unverified by this report). Owner action still open: `git config core.hooksPath apps/desktop/scripts/hooks`.
+
+### Close-out, part 1 (Phase 5, everything not waiting on `main.ts`)
+`fc3256b4` (agent `ts-closeout1`, Sonnet). `coverage-floors.json` extensions narrowed (`src main-process` to `.ts`+`.cjs`, `bin` to `.ts`; floors and `minFilesOnDisk` unchanged); dropped the now-empty `src/**/*.test.js` glob from `package.json`'s `test` script and from `TEST_PASSES`; `electron-builder.yml` dropped `!src/**/*.test.js` and fixed stale `main.js`/`stage-payload.mjs` comments; `tsconfig.renderer.json` re-included the 8 renamed renderer wiring tests Phase 3 had excluded. **Unverified by this report:** the lane notes record that this agent ran an unscoped `npm test` at some point, which is against the lane rules (exact test files only) — flagging as observed rather than re-litigating, since I did not re-run anything myself.
+
+### B8 — `main.ts`, 2026-09-13 (Opus)
+- `38f2f65b` (part 1, widenings only): `tovu-server.ts` — both `adminDevProxyUrl` fields admit `null` (already dropped by `buildServeEnv`'s `typeof` guard); `TovuServerHandle.pid: number` with one `child.pid!` at the resolve site. `site-dir-store.ts` — `devFallbackDir` admits `null`. `tracked-sites.ts` — `ClassifySiteDirFn` admits `"unreadable"`; `TrackSiteOptions.siteId` admits `null` (runtime-checked before widening, per the plan's precondition: `trackSite` treats `null` exactly like `undefined`/omitted — owner-worklist.md records "Widening-5 precondition HOLDS"). `admin-dev-proxy.test.ts` drops the now-unused `@ts-expect-error`. Type-only proof: all four files SAME with both sides stripped.
+- `fefefe41` (part 2, types and comments only): `project-ipc.ts` — `SiteRow.siteId` admits `null`; `classifySiteDir`'s return type spelled out inline (`site-dir-store.ts` doesn't export `SiteClassification`); `cliMode` typed `"source" | "compiled"`; `ProjectIpcDeps<TCtx = unknown>` for the opaque `openSiteServer`/`ctx` pass-through pair. `sites-mcp-registration.ts` — `AdminHttpResponse`'s data listener typed to take a `Buffer`, matching Electron's own declared type.
+- `95206dd9` (`main.ts` + 4 wiring tests): every function gets parameter/return annotations; 6 local types (`CliMode`, `TovuServerHandle`, `RejectedDefault`, `OpenSite`, `SiteOpenCtx`, `SiteOpenOptions`); 5 reasoned `!`, 7 `(error as Error)`, 1 `as const`, 0 `any`, 0 `@ts-expect-error`. `main-preview-wiring`'s three deps-arrow regexes were updated to match `main.ts`'s new typed `(siteDir: string)` parameter — the one approved non-type token change (same wiring asserted).
+- **Results** (owner-worklist.md, "O2 DONE"): strict tsc went from 82 errors to 0 (82→4 after the widenings in `38f2f65b`/`fefefe41` landed, then 4→0 with `main.ts` itself); the type-only proof came out SAME with 4 planted mutants failing; 17 test files' counts matched HEAD; complexity and coverage gates both passed. **The coverage gate ran suspiciously fast (~25 seconds)** — the coordinator flagged this and assigned agent `s16-tsconfig-closeout` to investigate whether it measured fresh coverage or a stale cache. As of this report I found no written resolution: there is no `s16` report file under `ADS-memory/.local-artifacts/agent-reports/`, so **this is still open, unresolved**, not merely "in progress" as implied elsewhere.
+- Full signature list and replay evidence: `ADS-memory/.local-artifacts/owner-worklist.md` ("O2 DONE" entry) and `ADS-memory/.local-artifacts/desktop-ts/ts-lanes/b8/` (`b8-phase2-handoff.md`, `edits*.txt`, `checks/`, `pre/`, `pre2/`).
+
+### Phase 5 close-out, part 2 — found DONE, not open
+The dispatch for this report described close-out part 2 as still in progress. Checking current HEAD found it already landed the same evening:
+- `40476c5e` — comment-only sweep across `*.ts` files replacing stale `main.js` mentions (~100 of them) with `main.ts`, in present-tense descriptions of current behavior. Left alone: genuinely historical narration (a postmortem describing pre-rename behavior), Tovu-Runner's own unrelated compiled `dist/src/cli/main.js`, and an unrelated generic fixture string in `coverage-floors.test.ts`.
+- `b4e47da7` — replaced `tsconfig.main.json`'s file-by-file `files` ratchet with glob coverage (`main.ts`, `bin/**/*.ts`, `scripts/**/*.ts`, `src/*.ts`, `src/speech/**/*.ts` — which also picks up `js-backslide-guard*.ts` and `check-js-backslide.ts`); deleted `tsconfig.main-pending.json` (confirmed nothing else referenced it: `package.json`'s `typecheck` script and the desktop CI workflow only ever named `tsconfig.main.json`). `npm run typecheck` reported green.
+- `07e8f78b` — two more stale `main.js` mentions outside `.ts` files: `tsconfig.preload.json`'s header comment, `coverage-floors.json`'s `_comment_knownUnmeasured` string.
+
+This is HEAD as of this report (`git log --oneline -1 -- apps/desktop` → `07e8f78b`).
+
+### Still genuinely open (checked against current HEAD)
+- **The `unknown`-type sweep** in `apps/desktop` (owner-worklist.md item 1.3), including the decision on whether to touch the deliberately-kept ones (7 reasoned `any`s in `sites-mcp-*`, 1 in `project-ipc`'s `IpcMainLike.handle`, 1 in the selftest-tracker test fake, and unreasoned test-file `!`s accepted per `c8f0d7af`/`46160781`) — no commits found.
+- **Repackage + the packaged file-count proof**: `verify-package`'s `checkedCount` must be recorded before Phase 3 and be `>=` that after `npm run package` — needs a quiet tree (owner-deferred); not run.
+- **The owner's app restart** (close the running app → `npm run desktop` → open one site → then any dev-stack daemon) and **the 5 toolbar checks from `40a5a4cd`** (arrows left + URL right; back/forward across admin↔site with pill and URL following; Reload keeps history; Cmd+[ / Cmd+]; History menu present, Help menu empty) — not done.
+- **Card preview timing** (`PREVIEW_PAINT_SETTLE_MS=1200`, `PREVIEW_CAPTURE_DEBOUNCE_MS=1500`, both currently guesses) and **`minWidth`** on the site/admin `createWindow` — unowned, no commits found.
+- **The coverage-gate-speed investigation** from B8 above (agent `s16-tsconfig-closeout`) — no written report found as of this update.
