@@ -602,9 +602,15 @@ export const FULL_SITE_CAPABILITIES: readonly DeploymentCapability[] = STATIC_SI
 
 /**
  * The Overview tab's per-env-var explanatory note, as a dictionary key. `TOVU_INTEGRATIONS_ROOT_KEY`
- * carries the "warning, not error" framing the brief asks for: unset does not fail boot, it surfaces
- * later as a 503 on the AI Assistant screen — worded here so the note itself states that, rather
- * than the UI inventing a severity color the underlying fact doesn't support.
+ * is boot-blocking in production (`REQUIRED_SECRETS` above; `boot-readiness-gate.ts`'s
+ * `hasMissingIntegrationsRootKey` calls `process.exit(1)` when neither the env var nor a valid key
+ * file resolves) but NOT in local/dev mode, where an unset value instead surfaces later as a 503 on
+ * the AI Assistant screen — worded here so the note itself states that split, rather than the UI
+ * inventing a severity color the underlying fact doesn't support.
+ *
+ * 2026-09-14: corrected from "Not required to boot" — that was true only for local/dev mode and
+ * read as a blanket claim; the production boot gate has required it since `boot-readiness-gate.ts`'s
+ * 2026-09-09 durability fix.
  *
  * @complexity O(1) — one map lookup.
  */
@@ -612,7 +618,7 @@ export function deploymentEnvVarNoteKey(name: string): string {
   const notes: Record<string, string> = {
     TOVU_ADMIN_PASSWORD: "Falls back to a public default.",
     TOVU_ADMIN_USER: 'Falls back to "admin".',
-    TOVU_INTEGRATIONS_ROOT_KEY: "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.",
+    TOVU_INTEGRATIONS_ROOT_KEY: "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.",
     JINI_AGENT_DAEMON_PORT: "Falls back to port 4319.",
   };
   return notes[name] ?? "";

@@ -103,8 +103,8 @@ describe("deploymentEnvVarNoteKey", () => {
     expect(notes.every((n) => n.length > 0)).toBe(true);
   });
 
-  it("frames the integrations root key as a later warning, not a boot failure — matches the brief's own wording", () => {
-    expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/not required to boot/i);
+  it("states the integrations root key is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
+    expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/required to boot in production/i);
     expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/503/);
   });
 

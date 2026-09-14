@@ -149,7 +149,7 @@ export function Security(props: SecurityProps) {
             label: t(locale, "Site Token"),
             icon: <SiteTokenIcon size={16} />,
             handle: "security-tab-site-token",
-            handleLabel: "Switch to the Site Token tab — view and generate the root key file that decrypts webhook signing and newsletter tokens on a local install",
+            handleLabel: "Switch to the Site Token tab — view and generate the site token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
           } satisfies TabBarTab,
         ]
       : []),
