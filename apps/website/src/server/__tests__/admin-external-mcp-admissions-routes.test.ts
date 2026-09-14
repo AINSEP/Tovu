@@ -76,12 +76,16 @@ async function withStandInDaemon(
   t: import("node:test").TestContext,
   daemonPort: number,
   reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[],
+  configFailures?: readonly { readonly connectionId: string; readonly reason: string }[],
 ): Promise<void> {
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
   // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this
   // harness's own fixture keeps passing a plain array, matching its call site's ergonomics unchanged.
-  registerFederationAdmissionsRoute(app, { reports: () => reports });
+  // `configFailures` stays undefined for every pre-existing test below, on purpose — see this file's
+  // own new "relayed verbatim, field included" test for why that must reproduce the exact pre-
+  // 2026-09-13 wire shape.
+  registerFederationAdmissionsRoute(app, { reports: () => reports, ...(configFailures ? { configFailures: () => configFailures } : {}) });
   const server = createServer(app);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -162,6 +166,21 @@ test("isPreset survives this proxy hop for both a preset and a roster connection
 
   assert.equal(body.connections.find((c) => c.connectionId === "supabase-preset")?.isPreset, true);
   assert.equal(body.connections.find((c) => c.connectionId === "higgsfield")?.isPreset, false);
+});
+
+test("a boot-time config-resolution failure (e.g. a decrypt failure) is relayed verbatim alongside the admission reports", async (t) => {
+  // The connection this failure names never reached admission at all, so `reports` for it is
+  // legitimately empty — the whole point of this field is to be visible even then.
+  const { buildApp, daemonPort } = await harness();
+  const configFailures = [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: bad auth tag" }];
+  await withStandInDaemon(t, daemonPort, [], configFailures);
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+
+  const response = await req(baseUrl, cookie);
+  const body = (await response.json()) as { connections: unknown; configFailures: unknown };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { connections: [], configFailures });
 });
 
 test("no daemon listening at all — 503 with a distinguishable code, never an empty connections list", async (t) => {

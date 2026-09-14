@@ -274,12 +274,41 @@ export interface AdminFederatedAdmissionEntry {
   isPreset?: boolean;
 }
 
+/**
+ * One SAVED, enabled external-MCP row the daemon could not even attempt to connect — it never
+ * reached `attachFederatedMcpTools` at all, so it has no matching {@link AdminFederatedAdmissionEntry}
+ * either. Most commonly a sealed env block that failed to decrypt because the site token is not
+ * available (`assistant/external-mcp-store.ts`'s `openExternalMcpEnv`).
+ *
+ * `reason` is the daemon's own operator-facing failure string
+ * (`readEnabledExternalMcpConfigs`/`external-mcp-store.ts`) — already guaranteed secret-free by that
+ * module's own contract (`admin-http/routes/external-mcp/probe.ts`'s INV-006 doc relays the
+ * identical string to an operator today), never a raw stack trace or provider error. Even so,
+ * `external-mcp-admissions-rules.ts` does not interpolate this string into the banner verbatim — it
+ * classifies known reasons (today: a decrypt failure) into fixed, translated-or-English copy, and
+ * falls back to the pre-existing generic message for anything it does not recognize, rather than
+ * rendering server-authored text straight into UI copy.
+ */
+export interface AdminExternalMcpConfigFailure {
+  connectionId: string;
+  reason: string;
+}
+
 /** `GET .../mcp-servers/admissions`'s response shape (C-008), AFTER {@link api.getExternalMcpAdmissions}
  *  has flattened it — see {@link RawAdmissionConnection}. A down daemon is a 503 — see
  *  {@link api.getExternalMcpAdmissions}'s own doc — never an empty `connections` array, so "the
  *  assistant is not running" and "it is running with nothing admitted" stay distinguishable. */
 export interface AdminExternalMcpAdmissionsSnapshot {
   connections: AdminFederatedAdmissionEntry[];
+  /**
+   * Optional and NOT defaulted to `[]` at this type's boundary — absent for an older daemon build
+   * that predates this field (`federation-admissions-route.ts`'s own doc), the same "absent means
+   * unknown, not zero" reasoning {@link AdminFederatedAdmissionEntry.isPreset} already uses one field
+   * over. `external-mcp-admissions-rules.ts`'s `describeAdmissionDrift` treats a missing array the
+   * same as an empty one (no known failures to report), so callers that never populate this — every
+   * pre-existing test fixture included — keep behaving exactly as before.
+   */
+  configFailures?: AdminExternalMcpConfigFailure[];
 }
 
 /**
@@ -2714,13 +2743,20 @@ export const api = {
    * daemon is running with nothing admitted".
    */
   getExternalMcpAdmissions: async (): Promise<AdminExternalMcpAdmissionsSnapshot> => {
-    const raw = await request<{ connections?: RawAdmissionConnection[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`);
+    const raw = await request<{ connections?: RawAdmissionConnection[]; configFailures?: AdminExternalMcpConfigFailure[] }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`,
+    );
     // `?? []` guards a malformed 200 (no `connections` key at all) — never reachable against the
     // real C-008 route, which always sends `{ connections: [...] }` on 200 and answers a down/
     // unreachable daemon with a 503 that `request()` already throws as an `ApiError` before this
     // line runs (see this function's own doc). Kept anyway: a 200 with a missing `connections` key
     // is a "we don't know" case, same as the 503 branch, not "the daemon reported zero admissions".
-    return { connections: (raw.connections ?? []).map(flattenAdmissionConnection) };
+    return {
+      connections: (raw.connections ?? []).map(flattenAdmissionConnection),
+      // Not defaulted to `[]` here — see `AdminExternalMcpAdmissionsSnapshot.configFailures`'s own
+      // doc on why "absent" and "empty" must stay distinguishable one more hop upstream too.
+      ...(raw.configFailures !== undefined ? { configFailures: raw.configFailures } : {}),
+    };
   },
   /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
    *  `unlocked` prop. Never carries key material. */
