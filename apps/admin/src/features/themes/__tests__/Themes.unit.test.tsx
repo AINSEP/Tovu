@@ -458,6 +458,16 @@ describe("rescan toast", () => {
     const button = screen.getByRole("button", { name: "Rescanning…" });
     expect(button).toBeDisabled();
   });
+
+  it("disables Rescan when the controller offers no rescan() at all", () => {
+    render(<Themes useThemesHook={() => baseController({ rescan: undefined, rescanning: false })} />);
+    expect(screen.getByRole("button", { name: "Rescan themes" })).toBeDisabled();
+  });
+
+  it("enables Rescan when rescan() exists and nothing is in flight", () => {
+    render(<Themes useThemesHook={() => baseController({ rescan: vi.fn(async () => {}), rescanning: false })} />);
+    expect(screen.getByRole("button", { name: "Rescan themes" })).toBeEnabled();
+  });
 });
 
 describe("Marketplace tab — loading state", () => {
@@ -522,6 +532,21 @@ describe("no theme (state 3 — the operator handles styling themselves)", () =>
     render(<Themes useThemesHook={themeOff} />);
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Activate/i }).length).toBeGreaterThan(0);
+  });
+
+  it("labels the turn-off control 'Turning off…' and disables it while turning the theme off is in flight", () => {
+    render(<Themes useThemesHook={() => baseController({ busyTheme: NO_THEME_ID })} />);
+    expect(screen.getByRole("button", { name: "Turning off…" })).toBeDisabled();
+  });
+
+  it("keeps the turn-off label but disables it while a DIFFERENT theme is activating", () => {
+    render(<Themes useThemesHook={() => baseController({ busyTheme: "column" })} />);
+    expect(screen.getByRole("button", { name: "Turn the theme off" })).toBeDisabled();
+  });
+
+  it("enables the turn-off control when no theme action is in flight", () => {
+    render(<Themes useThemesHook={() => baseController({ busyTheme: null })} />);
+    expect(screen.getByRole("button", { name: "Turn the theme off" })).toBeEnabled();
   });
 
   it("hides the turn-off control while the theme is already off, rather than offering a no-op", () => {

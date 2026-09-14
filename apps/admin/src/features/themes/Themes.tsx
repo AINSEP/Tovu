@@ -440,6 +440,70 @@ function ThemeGrid({
   );
 }
 
+/** "View site" and the rescan control share one row, the rescan pushed to the far right. The server
+ *  discovers themes once at boot, so anything that reaches the themes folder afterwards — a
+ *  marketplace download, a copy of an original, a `git pull`, the `npm run theme` CLI — is invisible
+ *  here until someone asks it to look again. In-app actions will rescan on their own; this is the
+ *  control for every change the app never saw happen. Extracted to a top-level component
+ *  (complexity-ceiling pass) so its disabled/label ternaries score independently of `Themes`'s own
+ *  complexity. */
+function ThemesToolbar({
+  settings,
+  rescanning,
+  rescan,
+  busyTheme,
+  activate,
+  t,
+}: {
+  settings: PresentationSettings;
+  rescanning: boolean;
+  rescan: ThemesController["rescan"];
+  busyTheme: ThemesController["busyTheme"];
+  activate: ThemesController["activate"];
+  t: Translate;
+}) {
+  return (
+    <div className="page-toolbar">
+      <a
+        href={siteUrl("/")}
+        target="_blank"
+        rel="noreferrer"
+        {...agentHandle("themes-view-site", { role: "link", label: "Open the public site in a new tab" })}
+      >
+        {t("View site ↗")}
+      </a>
+      <button
+        type="button"
+        className="btn-secondary"
+        disabled={rescanning || rescan === undefined}
+        onClick={() => void rescan?.()}
+        {...agentHandle("themes-rescan", { role: "button", label: "Rescan the themes folder for changes" })}
+      >
+        {rescanning ? t("Rescanning…") : t("Rescan themes")}
+      </button>
+      {/* Hidden once the theme is already off — a control whose only effect is to re-send the
+          state you are already in reads as broken when nothing changes. Getting back is the
+          Activate button on any card, which is always present. A toolbar control rather than a
+          card in the grid: the grid is split across tier tabs, so a card would be visible in only
+          one of them and invisible in the rest. */}
+      {isThemeDisabled(settings) ? null : (
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={busyTheme !== null}
+          onClick={() => void activate(NO_THEME_ID)}
+          {...agentHandle("themes-disable", {
+            role: "button",
+            label: "Turn the theme off and render the site unstyled",
+          })}
+        >
+          {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // `tabId` deliberately has no destructured default (unlike `useThemesHook`/`basePath` below) — this
 // package's ESLint `complexity` rule counts each default-parameter assignment as a branch, and this
 // screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
@@ -496,49 +560,14 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           </p>
         </div>
       </div>
-      {/* "View site" and the rescan control share one row, the rescan pushed to the far right. The
-          server discovers themes once at boot, so anything that reaches the themes folder afterwards
-          — a marketplace download, a copy of an original, a `git pull`, the `npm run theme` CLI — is
-          invisible here until someone asks it to look again. In-app actions will rescan on their own;
-          this is the control for every change the app never saw happen. */}
-      <div className="page-toolbar">
-        <a
-          href={siteUrl("/")}
-          target="_blank"
-          rel="noreferrer"
-          {...agentHandle("themes-view-site", { role: "link", label: "Open the public site in a new tab" })}
-        >
-          {t("View site ↗")}
-        </a>
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={rescanning || rescan === undefined}
-          onClick={() => void rescan?.()}
-          {...agentHandle("themes-rescan", { role: "button", label: "Rescan the themes folder for changes" })}
-        >
-          {rescanning ? t("Rescanning…") : t("Rescan themes")}
-        </button>
-        {/* Hidden once the theme is already off — a control whose only effect is to re-send the
-            state you are already in reads as broken when nothing changes. Getting back is the
-            Activate button on any card, which is always present. A toolbar control rather than a
-            card in the grid: the grid is split across tier tabs, so a card would be visible in only
-            one of them and invisible in the rest. */}
-        {isThemeDisabled(settings) ? null : (
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={busyTheme !== null}
-            onClick={() => void activate(NO_THEME_ID)}
-            {...agentHandle("themes-disable", {
-              role: "button",
-              label: "Turn the theme off and render the site unstyled",
-            })}
-          >
-            {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
-          </button>
-        )}
-      </div>
+      <ThemesToolbar
+        settings={settings}
+        rescanning={rescanning}
+        rescan={rescan}
+        busyTheme={busyTheme}
+        activate={activate}
+        t={t}
+      />
       <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
           longer resolves, so no card below can ever show the Active tag and nothing else said why —
