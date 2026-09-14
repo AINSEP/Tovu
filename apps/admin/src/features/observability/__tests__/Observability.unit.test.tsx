@@ -68,6 +68,30 @@ describe("Observability — Overview tab", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("could not reach the server");
     expect(screen.queryByText("Checking current status…")).not.toBeInTheDocument();
   });
+
+  it("marks the status card with an --on modifier when enabled and --off when disabled", () => {
+    const { container, unmount } = renderObservability({ status: { enabled: true, serviceName: "tovu" } });
+    expect(container.querySelector(".observability-status-card--on")).not.toBeNull();
+    expect(container.querySelector(".observability-status-card--off")).toBeNull();
+    unmount();
+
+    const off = renderObservability({ status: { enabled: false, serviceName: null } });
+    expect(off.container.querySelector(".observability-status-card--off")).not.toBeNull();
+    expect(off.container.querySelector(".observability-status-card--on")).toBeNull();
+  });
+
+  it("renders no status card and no loading copy while only an error is present", () => {
+    const { container } = renderObservability({ status: null, error: "boom" });
+    expect(container.querySelector(".observability-status-card")).toBeNull();
+    expect(screen.queryByText("Checking current status…")).not.toBeInTheDocument();
+  });
+
+  it("shows both the alert and the status card, and no loading copy, when an error and a status coexist", () => {
+    const { container } = renderObservability({ status: { enabled: false, serviceName: null }, error: "stale" });
+    expect(screen.getByRole("alert")).toHaveTextContent("stale");
+    expect(container.querySelector(".observability-status-card--off")).not.toBeNull();
+    expect(screen.queryByText("Checking current status…")).not.toBeInTheDocument();
+  });
 });
 
 describe("Observability — Providers tab", () => {

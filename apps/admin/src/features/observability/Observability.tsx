@@ -9,6 +9,42 @@ import type { Translate } from "@/lib/dictionary-translator";
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
 
 /**
+ * The ON/OFF status card the Overview tab shows once the status read has settled. Split out of
+ * {@link OverviewPanel} under the complexity ceiling.
+ */
+function ObservabilityStatusCard({
+  status,
+  t,
+}: {
+  status: NonNullable<ObservabilityStatusController["status"]>;
+  t: Translate;
+}) {
+  return (
+    <div
+      className={`observability-status-card observability-status-card--${status.enabled ? "on" : "off"}`}
+      role="status"
+      {...agentHandle("observability-status", { role: "status", label: "Current OpenTelemetry status" })}
+    >
+      <span className="observability-status-dot" aria-hidden="true" />
+      <div>
+        <p className="observability-status-headline">
+          {status.enabled
+            ? t("OpenTelemetry is ON — traces are being recorded.")
+            : t("OpenTelemetry is OFF (the default) — nothing is being recorded.")}
+        </p>
+        <p className="jini-field-hint">
+          {status.enabled
+            ? `${t("Reporting under the service name")} "${status.serviceName}".`
+            : t(
+                "No provider endpoint is configured on this server, so Tovu is running its safe, no-op default: requests are handled normally and nothing is sent anywhere.",
+              )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Overview tab: explains OpenTelemetry in plain language for an operator who does not already
  * know what it is, then reports this install's REAL current state — read from
  * `platform/observability/config.ts` via `GET .../system/observability-status`
@@ -38,29 +74,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
       ) : null}
       {!status && !error ? <p role="status">{t("Checking current status…")}</p> : null}
 
-      {status ? (
-        <div
-          className={`observability-status-card observability-status-card--${status.enabled ? "on" : "off"}`}
-          role="status"
-          {...agentHandle("observability-status", { role: "status", label: "Current OpenTelemetry status" })}
-        >
-          <span className="observability-status-dot" aria-hidden="true" />
-          <div>
-            <p className="observability-status-headline">
-              {status.enabled
-                ? t("OpenTelemetry is ON — traces are being recorded.")
-                : t("OpenTelemetry is OFF (the default) — nothing is being recorded.")}
-            </p>
-            <p className="jini-field-hint">
-              {status.enabled
-                ? `${t("Reporting under the service name")} "${status.serviceName}".`
-                : t(
-                    "No provider endpoint is configured on this server, so Tovu is running its safe, no-op default: requests are handled normally and nothing is sent anywhere.",
-                  )}
-            </p>
-          </div>
-        </div>
-      ) : null}
+      {status ? <ObservabilityStatusCard status={status} t={t} /> : null}
 
       <p className="jini-field-hint">
         <a
