@@ -14,6 +14,7 @@ import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
+import { FolderDropNotice } from "./FolderDropNotice";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
@@ -51,7 +52,9 @@ import {
   useRuntimeAccessSeam,
   useSelectedAgentPlugins,
   useSelectedPluginChips,
+  useFolderDropBridge,
 } from "./hooks/AssistantDock.hooks";
+import type { DragEvent } from "react";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
 // `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper), but has an
@@ -314,6 +317,17 @@ export interface AssistantDockProps {
    * a fake bypasses entirely.
    */
   useRuntimeAccess?: typeof useRuntimeAccess;
+  /**
+   * SPEC-053: invoked once `useFolderDrop`'s `handleDropCapture` is ready, so `App.tsx`'s wrapping
+   * `<aside onDropCapture={...}>` (`AssistantChrome`) can forward a real drop event into it — capture
+   * phase, before `@jini-ai/chat`'s own bubble-phase drop handling would expand a dropped folder into
+   * per-leaf attachment files. See {@link useFolderDropBridge}'s own doc (`AssistantDock.hooks.tsx`)
+   * for why this is a callback rather than a `forwardRef`/`useImperativeHandle` pair: it keeps
+   * `AssistantDock` a plain function component, unchanged for every existing caller that renders it
+   * without this prop (e.g. this component's own tests). Optional — a caller that does not pass it
+   * (any test rendering `AssistantDock` directly) simply never receives folder-drop capture events.
+   */
+  onFolderDropCaptureReady?: (handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void;
 }
 
 /**
@@ -365,6 +379,7 @@ export function AssistantDock({
   useAssistantTransport: useAssistantTransportOverride,
   useAttachmentUploader: useAttachmentUploaderOverride,
   useRuntimeAccess: useRuntimeAccessOverride,
+  onFolderDropCaptureReady,
 }: AssistantDockProps) {
   const agentBridge = resolveAgentBridge(agentBridgeProp);
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
@@ -424,6 +439,10 @@ export function AssistantDock({
    * `use-composer-voice-input.hooks.ts`.
    */
   const voiceInput = useComposerVoiceInput();
+  // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
+  // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
+  // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
+  const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady);
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
@@ -583,7 +602,19 @@ export function AssistantDock({
         // capability most sessions never use is clutter on the one surface that must stay quiet.
         // ONLY the mount is removed — the component, its route, and the `custom` fs root all still
         // work (`features/fs-files/`), so restoring this is re-adding the element, nothing more.
-        leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
+        //
+        // `FolderDropNotice` (SPEC-053) takes this same slot back, but only transiently: unlike the
+        // old always-visible chip, it renders `null` except right after a folder drop, and clears
+        // itself again (auto-dismiss or explicit dismiss) — a fragment here adds no DOM node of its
+        // own, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }` selector still reaches
+        // `ChatPane`'s own root exactly as before (see `App.tsx`'s own comment on why a real wrapper
+        // element in this position is a layout trap).
+        leadingAccessory={
+          <>
+            <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} />
+            <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
+          </>
+        }
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
         // through it. Append-only by contract, so a transcript can never clobber a half-written
         // message — see `use-composer-voice-input.hooks.ts`.

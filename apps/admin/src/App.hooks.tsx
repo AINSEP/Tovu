@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
@@ -536,6 +536,16 @@ export interface UseChatDockLayout {
   chatDockRef: React.RefObject<HTMLElement | null>;
   /** Ref for `App.tsx`'s `<ChatFab>` button — the programmatic focus target when the dock closes. */
   chatFabRef: React.RefObject<HTMLButtonElement | null>;
+  /**
+   * SPEC-053: holds `AssistantDock`'s `useFolderDrop().handleDropCapture` once it mounts, so
+   * `App.tsx`'s `<aside onDropCapture={...}>` (the SAME dock wrapper `chatDockRef` measures) can
+   * forward a raw drop event into it. A plain data ref, not a DOM ref like the two above — nothing
+   * ever attaches it to an element; `AssistantChrome` reads `.current` inside its own
+   * `onDropCapture` handler and `AssistantDock`'s `onFolderDropCaptureReady` prop writes it. Lives
+   * here (not a second, standalone hook) because it is conceptually the same thing `chatDockRef`
+   * already is: a handle onto this one dock's wrapper, owned by the hook that owns the wrapper.
+   */
+  dropCaptureRef: React.RefObject<((event: DragEvent<HTMLElement>) => void) | null>;
 }
 
 /**
@@ -555,6 +565,7 @@ export function useChatDockLayout(): UseChatDockLayout {
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const chatDockRef = useRef<HTMLElement | null>(null);
   const chatFabRef = useRef<HTMLButtonElement | null>(null);
+  const dropCaptureRef = useRef<((event: DragEvent<HTMLElement>) => void) | null>(null);
 
   const [isSheetMode, setIsSheetMode] = useState(() => window.matchMedia("(max-width: 640px)").matches);
   useEffect(() => {
@@ -654,6 +665,7 @@ export function useChatDockLayout(): UseChatDockLayout {
     dockWidthPx,
     chatDockRef,
     chatFabRef,
+    dropCaptureRef,
   };
 }
 

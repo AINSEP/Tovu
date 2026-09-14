@@ -84,6 +84,16 @@ vi.mock("../../hooks/use-assistant-chats.hooks", async (importOriginal) => {
   return { ...actual, useWiredAssistantChats: mockUseWiredAssistantChats };
 });
 
+// `useFolderDropBridge` (SPEC-053) only wires `useFolderDrop`'s return value to a callback prop —
+// its own logic (composer insertion, custom-root set/retry/dismiss) is `useFolderDrop`'s, already
+// covered directly by `features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts`. Mocked
+// here, by the SAME specifier `AssistantDock.hooks.tsx` itself imports it through, so this suite can
+// assert the bridging in isolation without re-driving every `useFolderDrop` branch.
+const mockUseFolderDrop = vi.hoisted(() => vi.fn());
+vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
+  useFolderDrop: mockUseFolderDrop,
+}));
+
 import {
   resolveRunContext,
   shouldPublishOnMessagesChange,
@@ -103,6 +113,7 @@ import {
   useSelectedPluginChips,
   useWorkingDirectoryAccess,
   useWorkingDirectoryAccessSeam,
+  useFolderDropBridge,
 } from "../AssistantDock/hooks/AssistantDock.hooks";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -180,6 +191,7 @@ beforeEach(() => {
   mockNavigate.mockClear();
   mockUseWiredAdminLocale.mockClear().mockReturnValue("en");
   mockUseWiredAssistantChats.mockClear();
+  mockUseFolderDrop.mockClear();
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   settingsRefreshListeners.length = 0;
 });
@@ -1462,5 +1474,56 @@ describe("useChatsSeam", () => {
 
     expect(result.current).toBe(fakeChats);
     expect(mockUseWiredAssistantChats).not.toHaveBeenCalled();
+  });
+});
+
+describe("useFolderDropBridge", () => {
+  it("publishes handleDropCapture to onReady once it is available", () => {
+    const handleDropCapture = vi.fn();
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture });
+    const onReady = vi.fn();
+    const composerHandle = { current: null };
+
+    renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady).toHaveBeenCalledWith(handleDropCapture);
+  });
+
+  it("does not throw when no onReady callback is given (a test rendering AssistantDock without one)", () => {
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: vi.fn() });
+    const composerHandle = { current: null };
+
+    expect(() => renderHook(() => useFolderDropBridge({ composerHandle }, undefined))).not.toThrow();
+  });
+
+  it("re-publishes only when handleDropCapture's identity actually changes", () => {
+    const handleDropCaptureA = vi.fn();
+    const handleDropCaptureB = vi.fn();
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: handleDropCaptureA });
+    const onReady = vi.fn();
+    const composerHandle = { current: null };
+
+    const { rerender } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    expect(onReady).toHaveBeenCalledTimes(1);
+
+    // Same identity on a re-render — no redundant re-publish.
+    rerender();
+    expect(onReady).toHaveBeenCalledTimes(1);
+
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: handleDropCaptureB });
+    rerender();
+    expect(onReady).toHaveBeenCalledTimes(2);
+    expect(onReady).toHaveBeenLastCalledWith(handleDropCaptureB);
+  });
+
+  it("returns useFolderDrop's own result unchanged, for AssistantDock.tsx to render notice/dismiss/retry from", () => {
+    const fake = { notice: { kind: "confirmation", path: "/x", replacedPreviousPath: null }, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: vi.fn() };
+    mockUseFolderDrop.mockReturnValue(fake);
+    const composerHandle = { current: null };
+
+    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, undefined));
+
+    expect(result.current).toBe(fake);
   });
 });

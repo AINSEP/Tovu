@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   createDaemonAttachmentUploader,
   type ChatPaneAgent,
@@ -40,6 +40,7 @@ import {
 } from "@/features/plugins/composer-capabilities";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
+import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
 /**
  * @file `AssistantDock`'s state/effects layer, split out of `AssistantDock.tsx` (2026-08-06
@@ -1491,4 +1492,35 @@ export function useWorkingDirectoryAccessSeam(
   override: typeof useWorkingDirectoryAccess | undefined,
 ): ChatPaneWorkingDirectoryAccess | undefined {
   return (override ?? useWorkingDirectoryAccess)();
+}
+
+/**
+ * Bridges `useFolderDrop`'s imperative `handleDropCapture` out of `AssistantDock` to the wrapping
+ * `<aside onDropCapture={...}>` in `App.tsx` (SPEC-053) — `AssistantDock.tsx` itself holds "props
+ * interface + JSX, and nothing else" per this file's own header, so the `useEffect` that publishes
+ * the handler through a caller-supplied ref lives here, not there. Not a `use*Seam` wrapper like its
+ * neighbors above: `useFolderDrop` is this feature's own new hook, not an existing DOM/IO hook this
+ * component previously called bare, so there is no "real hook to default to when no override is
+ * given" to resolve — `useComposerVoiceInput` (a bare call in `AssistantDock.tsx`, no seam) is the
+ * closer precedent, not the eight/nine `use*Seam` hooks.
+ *
+ * @param input - {@link UseFolderDropInput} — passed straight through to `useFolderDrop`.
+ * @param onReady - `AssistantDockProps.onFolderDropCaptureReady`. Invoked once per identity change
+ *   of `handleDropCapture` (which itself only changes if `input.composerHandle` or `useFolderDrop`'s
+ *   internal callbacks change — effectively once per mount). `undefined` when the caller (e.g. a
+ *   test rendering `AssistantDock` directly) does not care to receive it.
+ * @returns {@link UseFolderDrop} — `AssistantDock.tsx` renders `notice`/`dismiss`/`retry` from this
+ *   directly; `handleDropCapture` is consumed only via `onReady` above, never by `AssistantDock.tsx`
+ *   itself (nothing there needs to call it directly).
+ * @complexity Time/space: O(1) beyond what `useFolderDrop` itself costs.
+ */
+export function useFolderDropBridge(
+  input: UseFolderDropInput,
+  onReady: ((handleDropCapture: (event: DragEvent<HTMLElement>) => void) => void) | undefined,
+): UseFolderDrop {
+  const folderDrop = useFolderDrop(input);
+  useEffect(() => {
+    onReady?.(folderDrop.handleDropCapture);
+  }, [onReady, folderDrop.handleDropCapture]);
+  return folderDrop;
 }

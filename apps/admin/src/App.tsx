@@ -249,6 +249,9 @@ function AssistantChrome(props: {
   dockWidthPx: number;
   chatDockRef: React.RefObject<HTMLElement | null>;
   chatFabRef: React.RefObject<HTMLButtonElement | null>;
+  /** SPEC-053 — see `useChatDockLayout`'s own doc (`App.hooks.tsx`) for why this lives alongside
+   *  `chatDockRef` rather than as its own hook. */
+  dropCaptureRef: React.RefObject<((event: React.DragEvent<HTMLElement>) => void) | null>;
   agentBridge: FrontendSessionBridge | null;
   /** Bound translator — see `App`'s own `dockT` for where this comes from. */
   dockT: (key: string) => string;
@@ -266,6 +269,7 @@ function AssistantChrome(props: {
     dockWidthPx,
     chatDockRef,
     chatFabRef,
+    dropCaptureRef,
     agentBridge,
     dockT,
     locale,
@@ -308,6 +312,15 @@ function AssistantChrome(props: {
         inert={!chatOpen}
         tabIndex={-1}
         aria-label="Assistant"
+        // SPEC-053: capture phase, on this EXISTING element rather than a new wrapper inside
+        // `<AssistantDock>` — a `display: contents` (or any real) div added there is the exact
+        // layout trap `data-theme="light"`'s own comment two blocks up already documents for
+        // `.admin-chat-dock > * { flex: 1 }`. `dropCaptureRef.current` is `null` until
+        // `AssistantDock` mounts and its `onFolderDropCaptureReady` prop fires, so a drop before
+        // then just falls through to `ChatPane`'s own (bubble-phase) attachment-upload handling —
+        // the same "no-op until ready" behavior `getPathForFile === undefined` gives the desktop
+        // shell's own equivalent handler.
+        onDropCapture={(event) => dropCaptureRef.current?.(event)}
       >
         {/* Mobile-sheet-only chrome (`styles.css` hides this at desktop widths, where the docked
             panel closes only via the FAB same as before) — rendered here, around
@@ -342,7 +355,12 @@ function AssistantChrome(props: {
             </button>
           </span>
         </div>
-        <AssistantDock agentBridge={agentBridge} />
+        <AssistantDock
+          agentBridge={agentBridge}
+          onFolderDropCaptureReady={(handleDropCapture) => {
+            dropCaptureRef.current = handleDropCapture;
+          }}
+        />
       </aside>
       <ChatFab
         ref={chatFabRef}
@@ -459,6 +477,7 @@ export function App(props: AppProps) {
     dockWidthPx,
     chatDockRef,
     chatFabRef,
+    dropCaptureRef,
   } = useChatDock();
 
   const { setContentEl, agentBridge } = useAgentBridge();
@@ -605,6 +624,7 @@ export function App(props: AppProps) {
         dockWidthPx={dockWidthPx}
         chatDockRef={chatDockRef}
         chatFabRef={chatFabRef}
+        dropCaptureRef={dropCaptureRef}
         agentBridge={agentBridge}
         dockT={dockT}
         locale={navLocale}

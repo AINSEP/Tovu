@@ -67,6 +67,7 @@ it("renders the assistant dock's open state through a fake useChatDock, with no 
     dockWidthPx: 0,
     chatDockRef: { current: null },
     chatFabRef: { current: null },
+    dropCaptureRef: { current: null },
   };
 
   const { container } = render(<App useSession={() => fakeSession} useChatDock={() => fakeChatDock} />);

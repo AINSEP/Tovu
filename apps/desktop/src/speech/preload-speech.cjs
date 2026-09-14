@@ -14,6 +14,22 @@
  * Wired into `main.cjs` as every window's `webPreferences.preload` — see `speech-ipc.cjs`'s own
  * header and `main.cjs`'s `SPEECH_PRELOAD_PATH` doc.
  *
+ * **`window.tovuFiles` (SPEC-053) is this file's second, unrelated bridge — same file for the same
+ * structural reason `tovuVoice` lives here in the first place: Electron grants exactly ONE `preload`
+ * per window, and `SPEECH_PRELOAD_PATH` is already the one every admin surface (standalone window
+ * AND the sites-home `<webview>` guest, see `webview-guest-policy.ts`) receives.** Before this, the
+ * admin's own chat (`AssistantDock`) had no way to recover a dropped folder's real OS path at all —
+ * unlike the sites-home shell's own separate "Runner chat" (`apps/desktop/src/renderer/App.tsx`),
+ * which gets `preload.mts`'s full `tovuRunner` bridge (including `getPathForFile`) because it runs in
+ * the sites-home window itself, not this guest. Exposing ONLY `getPathForFile` here — not the rest of
+ * `tovuRunner` — keeps the admin's sandboxed surface exactly as narrow as `tovuVoice` already is: one
+ * synchronous, side-effect-free call, no IPC channel, no filesystem read (`webUtils.getPathForFile`
+ * reads a `File` handle's own OS path, already-Chromium-known metadata — it does not open or stat
+ * anything). `window.tovuFiles` existing is the renderer's own capability signal here too, the same
+ * shape `voice-input-port.ts` uses for `tovuVoice`: `apps/admin/src/features/fs-files/folder-drop-port.ts`
+ * checks for its presence before attempting to recover a folder path, and does nothing (falls through
+ * to the ordinary attachment-upload path) when it is absent — a plain browser tab, not this shell.
+ *
  * **The two channel names below are INLINED, not `require("./speech-ipc.cjs")`'d, on purpose.**
  * `createWindow`'s `webPreferences` already sets `sandbox: true` (see above), and Electron's
  * sandboxed preload context gives `require` a restricted polyfill that resolves only `"electron"`,
@@ -21,16 +37,20 @@
  * resolvable there and would throw the moment this preload is actually wired up, a bug otherwise
  * invisible until then since nothing calls it yet. `preload-speech.test.cjs` guards these two
  * literals against drifting from `speech-ipc.cjs`'s own exports, which stay the source of truth.
+ * `webUtils`, by contrast, needs no such guard — it is not a channel name, just another named export
+ * of the same already-required `"electron"` module `contextBridge`/`ipcRenderer` come from below, so
+ * adding it costs no new `require()` call (`preload-speech.test.ts` asserts exactly one).
  *
  * Deliberately NOT unit-tested beyond that guard: this file's `contextBridge.exposeInMainWorld` call
  * only runs inside Electron's real preload context (`contextBridge`/`ipcRenderer` do not exist under
  * plain Node — `require("electron")` there resolves to a path string, not the API), so a
  * `node --test` run cannot exercise the bridging itself. Verified by code review only — its whole
  * body beyond the two constants is two `ipcRenderer.invoke` calls with no branching of its own,
- * forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end.
+ * forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end, plus the one
+ * synchronous `webUtils.getPathForFile` passthrough `tovuFiles` adds.
  */
 
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 /** Mirrors `speech-ipc.cjs`'s own `IPC_CHANNEL_IS_AVAILABLE` — see this file's header for why this
  *  is a literal instead of an import. */
@@ -48,4 +68,17 @@ contextBridge.exposeInMainWorld("tovuVoice", {
    * @returns {Promise<import("./transcription-port.ts").TranscriptionResult>}
    */
   transcribe: (samples, sampleRate) => ipcRenderer.invoke(IPC_CHANNEL_TRANSCRIBE, samples, sampleRate),
+});
+
+/**
+ * See this file's header ("`window.tovuFiles` (SPEC-053)") for why this bridge lives here rather than
+ * in `preload.mts`. `getPathForFile` is Electron's own synchronous, in-process lookup — no IPC round
+ * trip, because `webUtils` only exists in the preload's Node-capable context, not the isolated page it
+ * bridges into (same rationale as `preload.mts`'s own copy of this call, which this mirrors byte-for-
+ * byte for `apps/desktop/src/renderer/folder-drop.ts`'s admin-side counterpart,
+ * `apps/admin/src/features/fs-files/folder-drop.ts`, to call).
+ */
+contextBridge.exposeInMainWorld("tovuFiles", {
+  /** @param {File} file @returns {string} the file's absolute OS path, or `''` if unresolvable. */
+  getPathForFile: (file) => webUtils.getPathForFile(file),
 });

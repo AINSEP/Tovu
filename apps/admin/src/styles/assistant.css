@@ -801,6 +801,63 @@
   font-size: 11px;
 }
 
+/* --- Folder-drop notice (FolderDropConfirmation/FolderDropError, SPEC-053) ------------------
+ * Same slot `.tovu-fs-folder-indicator` occupies (`AssistantDock.tsx`'s `leadingAccessory`), but
+ * transient rather than always-present — see that prop's own comment on why a fragment here, not a
+ * wrapping element, is what keeps `.admin-chat-dock > * { flex: 1 }` (App.tsx) reaching `ChatPane`'s
+ * own root unchanged. Reuses `.tovu-fs-folder-indicator`'s row/pill/token shape rather than
+ * introducing a second visual language for the same "folder + composer" concern.
+ */
+.tovu-folder-drop-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 16px 10px;
+  border-bottom: 1px solid var(--jini-chat-border-soft);
+  font-size: 12px;
+}
+
+.tovu-folder-drop-notice--error {
+  color: var(--danger);
+}
+
+.tovu-folder-drop-notice__icon {
+  display: inline-flex;
+  color: var(--faint);
+}
+
+.tovu-folder-drop-notice--error .tovu-folder-drop-notice__icon {
+  color: var(--danger);
+}
+
+.tovu-folder-drop-notice__label {
+  flex: 1;
+  min-width: 140px;
+}
+
+.tovu-folder-drop-notice__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tovu-folder-drop-notice__dismiss {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  padding: 2px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* --- Pinned Agent Plugin tray (SelectedAgentPluginTray.tsx) ---------------------------------
  *
  * `SelectedAgentPluginTray` deliberately reuses Jini's own `.jini-attachment-tray`/`-chip`/
