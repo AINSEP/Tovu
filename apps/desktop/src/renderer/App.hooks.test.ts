@@ -1,6 +1,8 @@
 /**
  * @file Behavioural tests for the plain rules `App.hooks.ts` keeps out of the components —
- * `siteSlug` and `computeCanCreate` — run against the real functions, not against their source text.
+ * `siteSlug`, `computeCanCreate`, and the handler builders pulled out of `App.tsx`'s component
+ * bodies (`countRunningSites`, `navLinkClick`, `settingsControlHandlers`, `startThenNotify`) — run
+ * against the real functions, not against their source text.
  *
  * **How this file runs.** `apps/desktop`'s own suite is `node --test "src/**\/*.test.cjs"`, which
  * has no runner for TypeScript at all; that is why every renderer test before this one was a
@@ -19,7 +21,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { computeCanCreate, siteSlug } from "./App.hooks.js";
+import {
+  computeCanCreate,
+  countRunningSites,
+  navLinkClick,
+  settingsControlHandlers,
+  siteSlug,
+  startThenNotify,
+} from "./App.hooks.js";
+import type { SiteRecord } from "../contracts/project.js";
+import type { SetStateAction } from "react";
 
 /** The form's real gate: `useCreateWebsiteForm` computes `slug` from the typed name and hands it
  *  straight to `computeCanCreate`, so an empty slug is a permanently disabled "Create website". */
@@ -62,4 +73,110 @@ test("combining marks stay attached to the letter they belong to", () => {
   // Devanagari writes its vowels as combining marks (`\p{M}`), not letters. Keeping only `\p{L}`
   // would split हिन्दी into three separator-joined fragments instead of one word.
   assert.equal(siteSlug("हिन्दी"), "हिन्दी");
+});
+
+/** A `SiteRecord` stand-in: `countRunningSites` reads nothing but `status`. */
+function siteWithStatus(status: SiteRecord["status"]): SiteRecord {
+  return { id: `/sites/${status}`, status } as unknown as SiteRecord;
+}
+
+test("countRunningSites counts running sites and nothing else", () => {
+  const projects = (["running", "starting", "running", "provisioning", "blocked"] as const).map(siteWithStatus);
+  assert.equal(countRunningSites(projects), 2);
+  assert.equal(countRunningSites([]), 0);
+});
+
+test("a NavLink click selects its own section when the link is enabled", () => {
+  for (const disabled of [false, undefined]) {
+    const selected: string[] = [];
+    navLinkClick({ disabled, id: "projects", onSelectSection: (id) => selected.push(id) })();
+    assert.deepEqual(selected, ["projects"], `disabled=${disabled}`);
+  }
+});
+
+test("a disabled NavLink never fires onSelectSection", () => {
+  // `aria-disabled`, not the native attribute, so the button still receives the click; this guard is
+  // the only thing keeping an unbuilt section (Marketplace, today) from being selected.
+  const selected: string[] = [];
+  navLinkClick({ disabled: true, id: "marketplace", onSelectSection: (id) => selected.push(id) })();
+  assert.equal(selected.length, 0);
+});
+
+/** `settingsControlHandlers` over a live open flag, recording every effect in order. */
+function recordingSettings(disabled: boolean) {
+  const calls: string[] = [];
+  let open = false;
+  const handlers = settingsControlHandlers({
+    disabled,
+    setOpen: (next: SetStateAction<boolean>) => {
+      open = typeof next === "function" ? next(open) : next;
+      calls.push(`open:${open}`);
+    },
+    onThemeChange: (theme) => calls.push(`theme:${theme}`),
+    onOpenAppearance: () => calls.push("appearance"),
+  });
+  return { calls, handlers };
+}
+
+test("the Settings gear flips its dropdown open, then shut", () => {
+  const { calls, handlers } = recordingSettings(false);
+  handlers.toggleOpen();
+  handlers.toggleOpen();
+  assert.deepEqual(calls, ["open:true", "open:false"]);
+});
+
+test("a disabled Settings gear never opens its dropdown", () => {
+  const { calls, handlers } = recordingSettings(true);
+  handlers.toggleOpen();
+  assert.equal(calls.length, 0);
+});
+
+test("picking a theme applies it FIRST, then closes the dropdown", () => {
+  const { calls, handlers } = recordingSettings(false);
+  handlers.chooseTheme("dark");
+  assert.deepEqual(calls, ["theme:dark", "open:false"]);
+});
+
+test("the Appearance link closes the dropdown FIRST, then opens the page", () => {
+  const { calls, handlers } = recordingSettings(false);
+  handlers.openAppearancePage();
+  assert.deepEqual(calls, ["open:false", "appearance"]);
+});
+
+test("Start waits for start to settle before notifying the caller", async () => {
+  const calls: string[] = [];
+  const pending: { finish?: () => void } = {};
+  const handleStart = startThenNotify(
+    () =>
+      new Promise<void>((resolve) => {
+        calls.push("start");
+        pending.finish = resolve;
+      }),
+    () => calls.push("onStarted"),
+  );
+  const done = handleStart();
+  assert.deepEqual(calls, ["start"], "onStarted must not run while start is still in flight");
+  pending.finish?.();
+  await done;
+  assert.deepEqual(calls, ["start", "onStarted"]);
+});
+
+test("Start with no onStarted just runs start", async () => {
+  const calls: string[] = [];
+  await startThenNotify(async () => {
+    calls.push("start");
+  }, undefined)();
+  assert.deepEqual(calls, ["start"]);
+});
+
+test("a start that rejects skips onStarted, and the SAME rejection reaches the caller", async () => {
+  const failure = new Error("bridge gone");
+  const calls: string[] = [];
+  await assert.rejects(
+    startThenNotify(async () => {
+      throw failure;
+    }, () => calls.push("onStarted")),
+    (error) => error === failure,
+  );
+  assert.equal(calls.length, 0);
 });

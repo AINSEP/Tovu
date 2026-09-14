@@ -6,7 +6,11 @@ import { findSection, visibleSections, type RunnerSection, type RunnerSectionId 
 import { GearIcon, NavIcon, SectionIcon } from './icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
+  countRunningSites,
   deriveSitesHomeView,
+  navLinkClick,
+  settingsControlHandlers,
+  startThenNotify,
   useConversationDeleteConfirmation,
   useDismissibleDropdown,
   useExpandedMode,
@@ -96,7 +100,7 @@ export function App({
       stopCreating,
     });
 
-  const runningCount = projects.filter((project) => project.status === 'running').length;
+  const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
 
   return (
@@ -274,10 +278,7 @@ function NavLink({
     <button
       type="button"
       className={`topnav__link ${isActive ? 'is-active' : ''} ${disabled ? 'topnav__link--disabled' : ''}`}
-      onClick={() => {
-        if (disabled) return;
-        onSelectSection(section.id);
-      }}
+      onClick={navLinkClick({ disabled, id: section.id, onSelectSection })}
       aria-current={isActive ? 'page' : undefined}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
@@ -306,16 +307,19 @@ function SettingsControl({
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   // Same temporary lock as the section links in `NavLink`: only Projects is live right now.
   const disabled = true;
+  const { toggleOpen, chooseTheme, openAppearancePage } = settingsControlHandlers({
+    disabled,
+    setOpen,
+    onThemeChange,
+    onOpenAppearance,
+  });
 
   return (
     <div className="settings" ref={containerRef}>
       <button
         type="button"
         className={`topnav__link ${open ? 'is-active' : ''} ${disabled ? 'topnav__link--disabled' : ''}`}
-        onClick={() => {
-          if (disabled) return;
-          setOpen((current) => !current);
-        }}
+        onClick={toggleOpen}
         aria-expanded={open}
         aria-haspopup="true"
         aria-disabled={disabled || undefined}
@@ -329,10 +333,7 @@ function SettingsControl({
         <div className="settings__dropdown" role="menu">
           <ThemeControl
             value={theme}
-            onChange={(next) => {
-              onThemeChange(next);
-              setOpen(false);
-            }}
+            onChange={chooseTheme}
           />
           {/* The quick pills above change the setting inline; this opens the real page for it —
               same relationship a form field has to "Advanced settings" elsewhere in the app. */}
@@ -340,10 +341,7 @@ function SettingsControl({
             type="button"
             role="menuitem"
             className="settings__pagelink"
-            onClick={() => {
-              setOpen(false);
-              onOpenAppearance();
-            }}
+            onClick={openAppearancePage}
           >
             Appearance
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -682,10 +680,7 @@ function SiteStartPanel({
 }) {
   const { starting, error, start } = useSiteStart(project);
 
-  const handleStart = async () => {
-    await start();
-    onStarted?.();
-  };
+  const handleStart = startThenNotify(start, onStarted);
 
   return (
     <div className="workspace__idle">

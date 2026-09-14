@@ -11,7 +11,9 @@
  * The plain functions mixed in here (`deriveSitesHomeView`, `computeCanCreate`,
  * `buildCreateProjectInput`, `siteSlug`) are deliberately NOT hooks. Each is a rule that used to
  * be inlined into a hook body, pulled out to where it can be called with an object and asserted
- * against directly — no React, no component, no hook harness. When something in this file can be
+ * against directly — no React, no component, no hook harness. `countRunningSites`, `navLinkClick`,
+ * `settingsControlHandlers` and `startThenNotify` are the same kind of thing pulled out of
+ * `App.tsx`'s component bodies instead, so those components define no functions of their own. When something in this file can be
  * a pure function, it should be one; the hooks around them exist for the state and the effects
  * they genuinely need.
  *
@@ -45,6 +47,7 @@ import { createWorkspaceChatTransport, type WorkspaceChatTransport } from './wor
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
+import type { ThemePreference } from './theme.js';
 import type { CreateSiteInput, DatabaseProviderKind, SiteRecord } from '../contracts/project.js';
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
@@ -524,6 +527,75 @@ export function useDismissibleDropdown<T extends HTMLElement = HTMLDivElement>()
 }
 
 /**
+ * How many tracked sites are running right now — the count `NavLink` badges on the Projects entry.
+ *
+ * @complexity O(n) in the number of sites.
+ */
+export function countRunningSites(projects: readonly SiteRecord[]): number {
+  return projects.filter((project) => project.status === 'running').length;
+}
+
+/**
+ * `NavLink`'s `onClick`: selects its section unless the link is disabled, in which case the click
+ * does nothing. `NavLink` disables through `aria-disabled` rather than the native attribute (see its
+ * doc), so a disabled button still receives clicks and this guard is what makes it inert.
+ *
+ * @param input.disabled `NavLink`'s own optional flag; `undefined` means enabled.
+ * @complexity O(1).
+ */
+export function navLinkClick(input: {
+  disabled: boolean | undefined;
+  id: RunnerSectionId;
+  onSelectSection: (id: RunnerSectionId) => void;
+}): () => void {
+  return () => {
+    if (input.disabled) return;
+    input.onSelectSection(input.id);
+  };
+}
+
+/** `SettingsControl`'s three handlers — see {@link settingsControlHandlers}. */
+export interface SettingsControlHandlers {
+  /** The gear button: flips the dropdown, unless the control is disabled. */
+  toggleOpen: () => void;
+  /** A theme pill: applies the theme, then closes the dropdown. */
+  chooseTheme: (next: ThemePreference) => void;
+  /** The "Appearance" link: closes the dropdown, then opens the page. */
+  openAppearancePage: () => void;
+}
+
+/**
+ * `SettingsControl`'s handlers, built from its dropdown setter and its two callbacks.
+ *
+ * Only the gear button checks `disabled`, for the same `aria-disabled` reason as
+ * {@link navLinkClick}. The two dropdown entries do not, because a dropdown that cannot open offers
+ * nothing to click.
+ *
+ * @complexity O(1).
+ */
+export function settingsControlHandlers(input: {
+  disabled: boolean;
+  setOpen: Dispatch<SetStateAction<boolean>>;
+  onThemeChange: (next: ThemePreference) => void;
+  onOpenAppearance: () => void;
+}): SettingsControlHandlers {
+  return {
+    toggleOpen: () => {
+      if (input.disabled) return;
+      input.setOpen((current) => !current);
+    },
+    chooseTheme: (next) => {
+      input.onThemeChange(next);
+      input.setOpen(false);
+    },
+    openAppearancePage: () => {
+      input.setOpen(false);
+      input.onOpenAppearance();
+    },
+  };
+}
+
+/**
  * The project grid's delete-confirm flow: which card (if any) is asking to be confirmed, which
  * one is mid-delete, and the error from the last failed attempt.
  *
@@ -608,6 +680,25 @@ export function useSiteStart(project: SiteRecord): {
   };
 
   return { starting, error, start };
+}
+
+/**
+ * `SiteStartPanel`'s Start handler: awaits `start`, then calls `onStarted` if the caller passed one.
+ *
+ * `onStarted` runs whenever `start` resolves. `useSiteStart`'s `start` also resolves on failure,
+ * since it records the error instead of throwing, so `onStarted` firing does not mean the site came
+ * up. If `start` does reject, `onStarted` is skipped and the rejection reaches the caller.
+ *
+ * @complexity O(1) plus `start`'s own cost.
+ */
+export function startThenNotify(
+  start: () => Promise<void>,
+  onStarted: (() => void) | undefined,
+): () => Promise<void> {
+  return async () => {
+    await start();
+    onStarted?.();
+  };
 }
 
 /**

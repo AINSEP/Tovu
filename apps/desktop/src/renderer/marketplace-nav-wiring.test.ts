@@ -70,7 +70,9 @@ test("NavLink never fires onSelectSection for a disabled entry", () => {
   const rest = app.slice(start);
   const end = rest.indexOf("\nfunction ");
   const body = end === -1 ? rest : rest.slice(0, end);
-  assert.match(body, /onClick=\{\(\) => \{\s*if \(disabled\) return;\s*onSelectSection\(section\.id\);\s*\}\}/);
+  // The guard itself is asserted against the real function in `App.hooks.test.ts` (`navLinkClick`);
+  // this checks NavLink's click is built from it with its own `disabled` flag and section id.
+  assert.match(body, /onClick=\{navLinkClick\(\{ disabled, id: section\.id, onSelectSection \}\)\}/);
   // Disabled state must use aria-disabled + tabIndex, never the native `disabled` attribute — the
   // native one would also kill the hover/focus tooltip that is the ONLY place an unbuilt section's
   // name is written (see NavLink's own doc comment).
