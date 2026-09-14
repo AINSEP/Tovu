@@ -3526,33 +3526,40 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-ui-section .jini-seg-meta { display: none; }
 
 /* ------------------------------------------------------------------------
-   Observability screen (Observability.tsx) — scoped to `.observability-section`
-   so no other `SettingsDialogShell` consumer (Settings, AI Assistant, Agent
-   Plugins, Authentication — all of which also pass a tab `subtitle`) is
-   affected.
+   Observability screen (Observability.tsx) header history.
 
    Owner report 2026-09-12 (screenshots `12-observability-header.png` vs.
    `13-secrets-header-spacing-reference.png`): this page's header should match
    Secrets' (`Security.tsx`'s `.page-header`) — kicker top-left, title below
-   it, description below THAT at full width. `@jini-ai/ui`'s own
-   `.jini-tabbed-dialog-head-line` (`tabbed-dialog.css`) instead renders the
-   active tab's title and subtitle on ONE baseline row
-   (`display: flex; align-items: baseline; gap: 12px`), so the subtitle read
-   as a caption glued to the title's right edge rather than a stacked
-   description line. Fixed here as a layout-only override — not an
-   `@jini-ai/ui` edit, since that file is a published package asset several
-   other screens above share unchanged. */
-.observability-section .jini-tabbed-dialog-head-line {
-  display: block;
-}
-.observability-section .jini-tabbed-dialog-subtitle {
-  margin-top: 4px;
-}
+   it, description below THAT at full width. First pass (this block, now
+   superseded) un-glued `@jini-ai/ui`'s `.jini-tabbed-dialog-head-line`
+   (`tabbed-dialog.css`), which renders the active tab's title and subtitle on
+   ONE baseline row (`display: flex; align-items: baseline; gap: 12px`) by
+   default, so the subtitle no longer read as a caption glued to the title's
+   right edge. That fixed the STACKING but not the POSITION: a follow-up
+   audit measured the title still sitting 24px right / ~24px down from
+   Secrets' — exactly `.jini-tabbed-dialog-head`'s own `padding: 24px 24px
+   12px` dialog-chrome inset, which Secrets' borderless `.page-header` has
+   none of.
+
+   2026-09-13 fix: `Observability.tsx` now renders its own `.page-header` —
+   the same kicker/title/description markup Secrets and `AiAssistant.tsx`
+   already use — above the shell, and the shell itself opts into
+   `settings-ui-section--page-flow` (below), whose `.jini-tabbed-dialog-head {
+   display: none }` retires the strip these two rules used to target. Scoped
+   to `.observability-section` was the right call for the stacking fix, but a
+   scoped PADDING override alone would still have left the title inside the
+   card's own rounded top-left corner rather than flush against the page —
+   see `Observability.tsx`'s own doc comment for why the page-header move won
+   out instead. Left here as history rather than deleted outright: the same
+   glued-baseline default will bite the next `SettingsDialogShell` consumer
+   that passes a tab `subtitle` without either fix. */
 
 /* --- Page-flow variant: the shell inside a NORMALLY SCROLLING admin page ----
  *
- * Used by `features/ai-assistant/AiAssistant.tsx`. The Settings screen owns its whole
- * viewport, so `.settings-ui-section`'s `height: 100%` above and the shell's own
+ * Used by `features/ai-assistant/AiAssistant.tsx` and, since 2026-09-13,
+ * `features/observability/Observability.tsx` (see that file's own doc comment). The
+ * Settings screen owns its whole viewport, so `.settings-ui-section`'s `height: 100%` above and the shell's own
  * `height: min(720px, 90vh)` (settings-dialog.css) cooperate: the panel becomes
  * a fixed-height box whose `.jini-tabbed-dialog-content` scrolls internally.
  *
@@ -3600,8 +3607,8 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * has NO page header precisely so this strip can be its heading. Two screens,
  * two different owners of the same job.
  *
- * `tab.title`/`tab.subtitle` are still supplied in AiAssistant.tsx — they are
- * part of the shell's contract and feed its accessible naming; this hides the
+ * `tab.title`/`tab.subtitle` are still supplied in AiAssistant.tsx and Observability.tsx — they
+ * are part of the shell's contract and feed its accessible naming; this hides the
  * visual duplicate, it does not strip the semantics. */
 .settings-ui-section--page-flow .jini-tabbed-dialog-head {
   display: none;
@@ -3623,9 +3630,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * including the dark-theme `--bg` at :root line 105, so this needs no second
  * rule per theme.
  *
- * Scoped to `--page-flow`, which only `features/ai-assistant/AiAssistant.tsx` sets. The
- * Settings screen renders the identical shell and keeps the panel look, which
- * is correct there: it owns its whole viewport and the panel IS the page.
+ * Scoped to `--page-flow`, which `features/ai-assistant/AiAssistant.tsx` and
+ * `features/observability/Observability.tsx` set. The Settings screen renders the identical
+ * shell and keeps the panel look, which is correct there: it owns its whole viewport and the
+ * panel IS the page.
  *
  * Upstream note: the shell has no `flat`/`chromeless` prop, so this is CSS
  * rather than a `@jini-ai/ui` change — same reasoning as the tab-strip block
