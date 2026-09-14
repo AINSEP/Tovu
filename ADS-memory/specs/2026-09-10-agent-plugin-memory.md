@@ -218,6 +218,19 @@ and this proposal uses both for different purposes:
   same point, `CTX-AGENTPLUGINS-2026-08-12.md` F2: "Agent Plugins v1 is a package format, not an
   install, permission, sandbox, or trust model"). Layout B is Tovu's client policy; this section does
   not change it — the extension only adds AUTHOR-DECLARED behavior on top.
+- The homepage (`agent-plugins.org/`, re-fetched 2026-09-14, "Why Agent Plugins?" section) states this
+  same division in plain language, and is the exact sentence the owner quoted: "Shared components can
+  use one predictable structure, while **distribution, installation, permissions, user experience, and
+  client-specific capabilities remain under each client's control**." Its "The portable package"
+  section is also the owner's verbatim quote: "Reverse-domain extension namespaces let individual
+  clients add behavior without changing the portable core." Its "Portable versus client-owned behavior"
+  section itemizes the client-owned half explicitly — the spec "does not prescribe: installation
+  sources, registries, or marketplaces" nor "enablement, update, or cache user experience; permission
+  prompts, trust policy, or sandboxing." That is the full list of what stays Tovu's to decide: install,
+  updates, integrity/hashing (§8's containment rule is a MUST on the client, but the DIGEST scheme
+  proving package authenticity is Tovu's own, not spec-mandated), permissions, trust/consent,
+  enable/disable, uninstall, and conflict resolution are all client policy, confirmed on the page itself
+  and not merely inferred from the earlier citations above.
 
 **Domain, verified from the repo, not guessed.** Tovu's canonical domain is `tovu.dev` — the root
 `package.json` name is `"tovu"`; `development/docs/themes/theme-authoring-guide-v2.md` ships
@@ -272,19 +285,35 @@ a branding call, not an architecture one.
 
 **Inventory addition (Part 3 of the ask).** Checked whether today's code would even let a
 `dev.tovu.memory/` directory or an `extensions` manifest field survive: install.ts's `extractEntries`
-has **no top-level directory allowlist at all** — every archive entry is extracted subject only to the
-existing path-containment/zip-slip/size/count checks, with no awareness of directory NAMES. A
-`dev.tovu.memory/` directory (or literally anything else) already survives extraction unchanged today;
-nothing in `install.ts` needs to change for the directory half of this. The manifest half does need a
-change: `manifest.ts`'s `KNOWN_MANIFEST_KEYS` (line 83) is `["$schema", "name", "version",
+(`apps/website/src/features/agent-plugins/install.ts:371`) has **no top-level directory allowlist at
+all** — every archive entry is extracted subject only to the existing path-containment/zip-slip/size/
+count checks (via `extractOneEntry`, called from the loop body), with no awareness of directory NAMES.
+A `dev.tovu.memory/` directory (or literally anything else, including a foreign vendor's own
+`com.other-vendor.thing/`) already survives extraction unchanged today, and nothing downstream treats
+it specially either — `indexInstalledRoot` (same file) only reads `plugin.json`/`mcp.json`, never
+enumerates or validates other top-level entries. Nothing in `install.ts` needs to change for the
+directory half of this. The manifest half does need a change: `manifest.ts`'s `KNOWN_MANIFEST_KEYS`
+(`apps/website/src/features/agent-plugins/manifest.ts:83`) is `["$schema", "name", "version",
 "description", "author", "license", "keywords"]` — **it does not include `"extensions"`**, so a
 spec-legitimate `plugin.json` with an `extensions` field produces a spurious "unrecognized plugin.json
-field 'extensions' (ignored per spec)" warning today, and `AgentPluginManifest`'s type does not expose
-an `extensions` property at all — the field is parsed as unknown and dropped. Building this proposal
-requires: adding `"extensions"` to `KNOWN_MANIFEST_KEYS`, adding `extensions?: Readonly<Record<string,
-unknown>>` to `AgentPluginManifest`, and a NEW, separate validator for the `dev.tovu.memory` sub-shape
-specifically (Tovu-owned schema, not the open spec's concern) — none of which is a Layout B change, all
-of which is additive to `manifest.ts` alone.
+field 'extensions' (ignored per spec)" warning today (`manifest.ts:144`), and `AgentPluginManifest`'s
+type does not expose an `extensions` property at all — the field is parsed as unknown and dropped.
+Building this proposal requires: adding `"extensions"` to `KNOWN_MANIFEST_KEYS`, adding `extensions?:
+Readonly<Record<string, unknown>>` to `AgentPluginManifest`, and a NEW, separate validator for the
+`dev.tovu.memory` sub-shape specifically (Tovu-owned schema, not the open spec's concern) — none of
+which is a Layout B change, all of which is additive to `manifest.ts` alone.
+
+**`<pluginId>/` as a top-level directory name is already grammar-checked, not a new gap.** The open
+standard's own `name` grammar (§5.5, quoted in `manifest.ts`'s header, re-verified 2026-08-12: 1-64
+chars, lowercase alphanumeric/hyphen/period, must start and end alphanumeric, no `--`/`..`) is the
+EXACT string that becomes Layout B's `<pluginId>/` folder name. `layout.ts`'s
+`SAFE_ID_SEGMENT_PATTERN` (`/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/`, max 64 chars) already enforces an
+equivalent — by construction, this pattern cannot admit two consecutive separators either, so it
+already matches the spec grammar's own "no `--`/`..`" rule without needing a separate check. Layout B's
+one NEW obligation is to run a plugin's manifest `name` through this SAME validation (already how
+`pluginDataDir()` and `forWorkspace()` treat every id today) before ever using it to `mkdir` the
+top-level `<pluginId>/` folder — not a new validator, a new CALL SITE for the existing one. RED test
+added below (#22).
 
 ## Alternatives considered and rejected
 
@@ -326,6 +355,56 @@ process) could read or overwrite the user's `notes/` with no way to keep them ap
 avoids that collision permanently. If `PLUGIN_DATA` is ever wired to a real spawned process, it should
 move to `<pluginId>/data/` for the same per-plugin-folder symmetry Layout B establishes here — that is
 a future spec's decision, not this one's.
+
+**Revision (2026-09-14, same day, later) — reconciling `learned/` with `PLUGIN_DATA` instead of
+inventing a third directory.** The paragraph above still holds for keeping `notes/` OUT of
+`PLUGIN_DATA` — that conclusion strengthens, it does not change. But re-reading `PLUGIN_DATA`'s full
+contract side by side with `learned/`'s own properties table above shows they are close enough in
+substance that a SEPARATE `<pluginId>/data/` directory later, alongside an already-separate
+`<pluginId>/memory/learned/`, would be a real mistake: two directories the plugin writes to, both meant
+to survive updates, both meant to hold "what this plugin needs to remember," governed by two different
+code paths that will drift apart. **The sustainable shape is one directory, not two:** when Tovu
+eventually builds stdio-process spawning (still unbuilt — see the inventory finding below),
+`PLUGIN_DATA` should be set to the SAME physical path `<pluginId>/memory/learned/` already occupies —
+`layout.ts`'s `pluginDataDir(pluginId)` becomes an alias for what will by then already be
+`memory/learned/`'s own path, not a distinct `data/<pluginId>` tree. One directory serves both
+framings: Tovu's own "what the plugin discovered, read on demand into skill context" (Decision 1) and
+the open standard's "client-managed persistent data directory... MUST be writable to that subprocess"
+(§9.1). **This supersedes this paragraph's own sentence above** ("it should move to `<pluginId>/data/`")
+— that was this section's first-pass answer from earlier today; pointing it at `memory/learned/`
+directly is the revised one, kept for the "avoid a third concept" reason just given.
+
+Two things worth stating plainly about this reconciliation, not glossing over:
+
+- **Today, before stdio spawning exists, this changes nothing operationally** — `learned/` is written
+  exclusively through Tovu's own scoped write tool (containment- and size-cap-checked, "Access" above),
+  because there is no subprocess to hand a raw directory to yet.
+- **Once stdio spawning does exist, the guarantee changes shape.** `PLUGIN_DATA`'s spec text says the
+  client "MUST make it writable to that subprocess" — i.e. the plugin's own process gets raw OS-level
+  read/write access to the whole directory, not just Tovu's single-file write-tool call. Tovu's
+  write-tool size cap stops being the only gate at that point; a directory-level quota or periodic sweep
+  becomes the real enforcement then, and that is a problem for whichever future spec builds stdio
+  spawning, not this one. Separately, and true regardless of this reconciliation: a local stdio process
+  runs as the same OS user Tovu itself runs as, so it can already write anywhere that user can no matter
+  which directory its `PLUGIN_DATA` env var happens to name — every containment check in this feature
+  (`package-paths.ts`'s included) is a guarantee about Tovu's OWN code cooperating with a boundary, never
+  a sandbox against a deliberately malicious local binary. Nothing here changes that; it is stated
+  plainly so it is not mistaken for a security boundary it was never meant to be.
+
+**Inventory finding on the `PLUGIN_DATA` conformance gap.** Checked whether Tovu today actually sets
+`PLUGIN_ROOT`/`PLUGIN_DATA` in a spawned stdio process's environment, creates the `PLUGIN_DATA`
+directory before launch, or expands `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` inside an `mcp.json` server's
+`env`/`args`/`cwd`. It does not, anywhere: `manifest.ts:168`'s `RESERVED_STDIO_ENV_KEYS` only VALIDATES
+that a plugin's OWN `mcp.json` doesn't try to set these two names itself — it never sets them itself,
+and no expansion logic for either exists anywhere in `features/agent-plugins` or `features/plugin-
+runtime`. `layout.ts:112`'s `pluginDataDir()` computes a path and is never called (confirmed earlier in
+this file — zero production call sites). No `spawn()` call exists in either feature directory,
+confirmed by grep. `capability-projection.ts:72-77,164` explains why: a `stdio` server is classified
+`"requires-confirmation"` and is "never auto-run" — Tovu does not launch Agent-Plugin stdio processes AT
+ALL yet, so every part of the spec's §9.1 subprocess-environment contract is unimplemented, not only
+the memory-relevant half. This is a pre-existing, already-scoped gap (stdio execution itself is future
+work per `capability-projection.ts`'s own header), not something this spec introduces or is responsible
+for closing.
 
 ## Install-time impact — the one place this is not a pure rename
 
@@ -470,6 +549,27 @@ The following extend the list for the "Tovu extension namespace" proposal above,
 19. A plugin shipping ANYTHING under a `notes-seed/`-shaped path inside `dev.tovu.memory/` — install either refuses it outright or silently ignores it (implementation's choice, but one of the two, decided before this ships) and in neither case does any content appear in `notes/` as a result. `notes/` remains empty (or whatever the user separately wrote) after install.
 20. A plugin's `extensions["dev.tovu.memory"]` block cannot cause a tool grant, an MCP allowlist entry, or any permission change — asserted by installing a plugin whose extension block contains extraneous fields shaped like a tool/permission grant and confirming they have zero effect on the workspace's tool registrations.
 21. A client (real or simulated) that does not implement `dev.tovu.memory` ignores both the manifest field and the directory without error, per §8.1/§11.3 — Tovu's own parser is exactly such a client for every OTHER vendor's reverse-domain namespace, so this is also a test that Tovu ignores a `com.other-vendor.thing` extension it doesn't implement.
+22. Installing a plugin whose manifest `name` fails `layout.ts`'s `SAFE_ID_SEGMENT_PATTERN` (already re-verified as equivalent to the spec's own §5.5 grammar) is refused BEFORE any `<pluginId>/` directory is created — no partial folder left behind on disk.
+23. (Deferred — see "Conformance follow-ups" below, not required until stdio-process spawning exists) once a stdio server is actually launched, its `PLUGIN_DATA` env var resolves to the exact same path `memory/learned/` uses for that plugin — asserted by path equality, not by re-implementing a second directory.
+
+## Conformance follow-ups (not required for this spec; tracked for whoever builds stdio spawning)
+
+These come from a peer's fetch of `agent-plugins.org/client-implementers`, re-fetched here where
+possible and marked accordingly — none of them block Layout B or the memory extension, all of them
+matter once Tovu actually launches an Agent Plugin's `stdio` server (unbuilt today, see the
+`PLUGIN_DATA` conformance-gap finding above):
+
+- **Verified this pass** (`client-implementers`, "Loading sequence" section): a missing component
+  location is "not itself an error," and an unrecognized client-extension namespace is handled by
+  "ignore all others" — both already reflected in this spec's own RED tests 16-21 above.
+  "Portable versus client-owned behavior" (verified, quoted above): install/update/enablement UX,
+  permission prompts, trust policy, and sandboxing are all client-owned, not spec-mandated.
+- **Relayed from peer tovu-e3, NOT independently verified this pass** (the fetched page excerpt did not
+  contain this section's full text) — re-verify before building stdio spawning: an MCP `stdio` server's
+  `command` field must be a single executable token, not a shell string carrying its own arguments; a
+  plugin-relative path (e.g. in `cwd`) must start with `./` and stay inside the plugin root, mirroring
+  the same containment `package-paths.ts` already enforces for extraction. Link:
+  `agent-plugins.org/client-implementers` (MCP runtime section, not reached by this pass's fetch).
 
 ## Ordering constraint
 
