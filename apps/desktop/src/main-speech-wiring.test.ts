@@ -52,13 +52,14 @@ test("createWindow's webPreferences names a preload script", () => {
 test("the preload path (inline or via a named constant) resolves to the speech feature's preload-speech.cjs", () => {
   const webPreferencesMatch = source.match(/webPreferences:\s*\{[^}]*preload:\s*([A-Za-z0-9_]+|"[^"]*"|'[^']*')/);
   assert.ok(webPreferencesMatch, "expected a preload value in webPreferences");
-  const preloadValue = webPreferencesMatch[1];
+  const preloadValue = webPreferencesMatch[1]!; // `!`: the pattern's one capture group is not optional, so a match always sets it.
   // A bare identifier means the path is built from a constant elsewhere in the file (e.g.
   // `path.join(__dirname, "src", "speech", "preload-speech.cjs")`) — resolve it there instead of
   // requiring the literal to be inlined in webPreferences itself.
   const isIdentifier = /^[A-Za-z0-9_]+$/.test(preloadValue) && !preloadValue.startsWith('"') && !preloadValue.startsWith("'");
+  // `[1]!` above: a match always sets the non-optional `([^;]+)` group, and the fallback's index 1 is "".
   const target = isIdentifier
-    ? (source.match(new RegExp(`const\\s+${preloadValue}\\s*=([^;]+);`)) ?? [, ""])[1]
+    ? (source.match(new RegExp(`const\\s+${preloadValue}\\s*=([^;]+);`)) ?? [, ""])[1]!
     : preloadValue;
   assert.match(target, /["']speech["']/, "preload path must live under the speech/ directory");
   assert.match(target, /["']preload-speech\.cjs["']/, "preload path must point at preload-speech.cjs");

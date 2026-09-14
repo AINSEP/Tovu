@@ -126,8 +126,45 @@ import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-r
 import { fileURLToPath } from "node:url";
 import { resolveDesktopRoots } from "./src/packaged-paths.ts";
 import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
+import type { MenuItemConstructorOptions } from "electron";
+import type { QuitPhase } from "./src/quit-drain-gate.ts";
+import type { SelftestTracker } from "./src/selftest-tracker.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** `"source"` or `"compiled"`: how a site's `tovu serve` is run. See this file's header. */
+type CliMode = "source" | "compiled";
+
+/** A resolved {@link startTovuServer} handle. `tovu-server.ts` does not export the type. */
+type TovuServerHandle = Awaited<ReturnType<typeof startTovuServer>>;
+
+/** The candidate {@link promptForSiteDir} is told was tried first and turned down: `site-dir-store.ts`'s
+ *  `RejectedDevFallback`, read off {@link resolveSiteDir}'s picker seam because that module does not
+ *  export it. */
+type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]>;
+
+/** One {@link openSites} entry. Only own-server mode's {@link openSiteWindow} sets `window`; a sites-home
+ *  tab, opened through {@link openSiteServer}, has none. */
+interface OpenSite {
+  server: TovuServerHandle;
+  window?: BrowserWindow;
+}
+
+/** The per-launch inputs a site open reads: {@link bootOwnServerMode}'s `ctx`, or the sites-home
+ *  branch's `sitesCtx`. */
+interface SiteOpenCtx {
+  cliMode: CliMode;
+  statePath: string;
+  registryPath: string;
+  /** Own-server mode only: the pinned `TOVU_DESKTOP_PORT`, set by {@link resolveStartupSiteDirs}. */
+  firstSitePort?: number;
+}
+
+/** Options for one site open. */
+interface SiteOpenOptions {
+  /** Pin this site's port. See {@link startSiteBackend}'s `options.port`. */
+  port?: number;
+}
 
 /**
  * E2E-only override for `app.getPath("userData")`. Must run before `app.whenReady()` — Electron
@@ -238,7 +275,7 @@ const SITE_SCAN_ROOTS = DESKTOP_ROOTS.siteScanRoots;
  * above, historically to force the sites home UI over a pinned site dir — that ordering is preserved:
  * explicit `runner` is checked, and returns, before any bypass condition below).
  */
-function sitesUiRequested() {
+function sitesUiRequested(): boolean {
   if (process.env.TOVU_DESKTOP_UI?.trim() === "runner") return true;
   const bypassesFrontPage =
     Boolean(process.env.TOVU_DESKTOP_URL?.trim()) ||
@@ -258,7 +295,7 @@ function sitesUiRequested() {
  * site stayed `running` for the rest of the session, `openSiteServer` handed its dead handle back
  * to "Start site", and the 4 s renderer poll re-read an answer that could not change.
  */
-const openSites = createSiteSupervisor({
+const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
@@ -279,7 +316,7 @@ const pendingTeardowns = createShutdownTracker();
  *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
  *  through). `decideBeforeQuit` reads it — see `quit-drain-gate.js` for why an attempt mid-drain is
  *  held rather than let through. */
-let quitPhase = "idle";
+let quitPhase: QuitPhase = "idle";
 
 /**
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
@@ -293,7 +330,7 @@ const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 /** `"source"` (default) or `"compiled"` — see this file's own header. Read once at module load,
  *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
  *  plain argument, never read directly by `tovu-server.js`/`site-dir-store.js`). */
-function resolveCliMode() {
+function resolveCliMode(): CliMode {
   const explicit = process.env.TOVU_DESKTOP_CLI_MODE?.trim();
   if (explicit === "compiled") return "compiled";
   if (explicit === "source") return "source";
@@ -305,7 +342,7 @@ function resolveCliMode() {
 
 /** `TOVU_DESKTOP_SITE_DIRS`, split and trimmed — `null` when unset, so callers fall back to the
  *  normal single-site `resolveSiteDir()` precedence untouched. */
-function explicitStartupSiteDirs() {
+function explicitStartupSiteDirs(): string[] | null {
   const raw = process.env.TOVU_DESKTOP_SITE_DIRS?.trim();
   if (!raw) return null;
   return raw.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
@@ -321,7 +358,7 @@ function explicitStartupSiteDirs() {
  *   (only ever non-null for the STARTUP picker, which tries `devFallbackDir` first — see
  *   `resolveSiteDir`), or `null` when there was nothing to try (every other call site).
  */
-function describeRejectedDefault(rejectedDefault) {
+function describeRejectedDefault(rejectedDefault: RejectedDefault): string {
   if (rejectedDefault.kind === "empty") return "has no site in it yet";
   // Before the `missing` read below: `classifySiteDirSafely` reports a candidate it could not
   // examine at all (EACCES/ENOTDIR/ELOOP — see D-01), and that verdict has no marker list to name,
@@ -330,13 +367,13 @@ function describeRejectedDefault(rejectedDefault) {
   if (rejectedDefault.kind === "unreadable") return "could not be read (check its permissions, or whether something replaced it)";
   // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
   // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
-  const missing = rejectedDefault.missing.join(" and ");
+  const missing = rejectedDefault.missing!.join(" and "); // `!`: "incomplete" and "occupied", the only kinds left, always carry it.
   return rejectedDefault.kind === "incomplete"
     ? `is missing ${missing} — it looks like a half-initialized site`
     : `is not a Tovu site (missing ${missing})`;
 }
 
-async function promptForSiteDir(rejectedDefault) {
+async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promise<string | null> {
   // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
   // the reason instead, so an unattended run reports rather than hangs.
   if (SELFTEST) {
@@ -353,14 +390,14 @@ async function promptForSiteDir(rejectedDefault) {
     buttonLabel: "Use this folder",
     properties: ["openDirectory", "createDirectory"],
   });
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]!; // `!`: the length check rules out an empty list.
 }
 
 /** The site's own display name — `config.json`'s `name` field, falling back to the folder's own
  *  basename when that is missing or unreadable. Used only for the window title, which is what makes
  *  Electron's native Window menu double as a site switcher (distinct titles, distinct entries).
  *  @complexity O(1). */
-function readSiteName(siteDir) {
+function readSiteName(siteDir: string): string {
   try {
     const config = JSON.parse(fs.readFileSync(path.join(siteDir, "config.json"), "utf8"));
     if (typeof config.name === "string" && config.name.trim().length > 0) return config.name;
@@ -370,7 +407,7 @@ function readSiteName(siteDir) {
   return path.basename(siteDir);
 }
 
-function createWindow(url, title, partition) {
+function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   const window = new BrowserWindow({
     width: 1360,
     height: 900,
@@ -434,7 +471,7 @@ function createWindow(url, title, partition) {
  * @returns the window, or `null` when the renderer has not been built yet.
  * @complexity O(1).
  */
-function openSitesHomeWindow() {
+function openSitesHomeWindow(): BrowserWindow | null {
   if (!fs.existsSync(SITES_RENDERER_PATH)) {
     const message = `The sites home UI is not built. Run \`npm run build\` in apps/desktop, or unset TOVU_DESKTOP_UI to launch a site instead.\n\nExpected: ${SITES_RENDERER_PATH}`;
     console.error(`tovu desktop: ${message}`);
@@ -496,10 +533,10 @@ function openSitesHomeWindow() {
  * not a gap: it must never turn "you have to type a password" into "the window is blank", and it
  * must never fabricate a session.
  *
- * @returns {Promise<boolean>} whether the session was authenticated.
+ * @returns whether the session was authenticated.
  * @complexity O(1) — one loopback request.
  */
-async function authenticateSiteSession(siteDir, server, partition) {
+async function authenticateSiteSession(siteDir: string, server: TovuServerHandle, partition: string): Promise<boolean> {
   if (typeof server.bootToken !== "string" || server.bootToken.length === 0) {
     console.log(`tovu desktop: ${siteDir} reported no boot token — the admin will ask for a login.`);
     return false;
@@ -516,7 +553,7 @@ async function authenticateSiteSession(siteDir, server, partition) {
   } catch (error) {
     // `assertLoopbackAdminUrl` throwing is a wiring bug, not an auth outcome — something handed
     // this a non-loopback origin, which must be loud rather than swallowed.
-    console.error(`tovu desktop: desktop sign-in refused for ${siteDir}: ${error.message}`);
+    console.error(`tovu desktop: desktop sign-in refused for ${siteDir}: ${(error as Error).message}`);
     return false;
   }
 
@@ -549,7 +586,7 @@ async function authenticateSiteSession(siteDir, server, partition) {
  *   caller's own `BrowserWindow`/`<webview>` must use, so the cookie this just seeded is visible to it.
  * @complexity O(1) beyond `startTovuServer`'s own cost.
  */
-async function startSiteBackend(siteDir, ctx, options = {}) {
+async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<{ server: TovuServerHandle; partition: string }> {
   const partition = sitePartition(siteDir);
 
   // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
@@ -625,7 +662,7 @@ async function startSiteBackend(siteDir, ctx, options = {}) {
  *
  * @complexity O(1) — one file write and one request.
  */
-function announceDesktopToolsToSite(server, partition) {
+function announceDesktopToolsToSite(server: TovuServerHandle, partition: string): void {
   try {
     const launcherPath = writeSitesMcpLauncher({
       userDataDir: app.getPath("userData"),
@@ -646,7 +683,7 @@ function announceDesktopToolsToSite(server, partition) {
       if (!result.ok) console.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
     });
   } catch (error) {
-    console.warn(`tovu-desktop: could not register the desktop MCP tools — ${error.message}`);
+    console.warn(`tovu-desktop: could not register the desktop MCP tools — ${(error as Error).message}`);
   }
 }
 
@@ -678,7 +715,7 @@ const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
  * (`site-preview-store.js`'s own header argues staleness is correct behaviour here), not an
  * oversight waiting for a cache-bust.
  */
-const previewCapturedThisRun = new Set();
+const previewCapturedThisRun = new Set<string>();
 
 /**
  * Capture `siteDir`'s own PUBLIC surface — `http://127.0.0.1:<port>/`, never `/admin/` — into its
@@ -704,7 +741,7 @@ const previewCapturedThisRun = new Set();
  *
  * @complexity O(1) beyond the hidden window's own load/capture/destroy cost.
  */
-async function captureSitePreview(siteDir, port, partition) {
+async function captureSitePreview(siteDir: string, port: number, partition: string): Promise<void> {
   let window;
   try {
     window = new BrowserWindow({
@@ -719,7 +756,7 @@ async function captureSitePreview(siteDir, port, partition) {
     const captured = await window.webContents.capturePage();
     writePreview(app.getPath("userData"), siteDir, captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG());
   } catch (error) {
-    console.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${error.message}`);
+    console.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${(error as Error).message}`);
   } finally {
     if (window && !window.isDestroyed()) window.destroy();
   }
@@ -735,7 +772,7 @@ async function captureSitePreview(siteDir, port, partition) {
  *
  * @complexity O(1) — one Set check, one timer.
  */
-function scheduleSitePreview(siteDir, port, partition) {
+function scheduleSitePreview(siteDir: string, port: number, partition: string): void {
   if (previewCapturedThisRun.has(siteDir)) return;
   previewCapturedThisRun.add(siteDir);
   setTimeout(() => {
@@ -753,12 +790,12 @@ function scheduleSitePreview(siteDir, port, partition) {
  *
  * @complexity O(n) in tracked-site count, plus `sweepOrphanedPreviews`'s own `readdir`.
  */
-function sweepSitePreviewsOnBoot(projectsPath) {
+function sweepSitePreviewsOnBoot(projectsPath: string): void {
   try {
     const trackedDirs = readTrackedSites(projectsPath).map((row) => row.siteDir);
     sweepOrphanedPreviews(app.getPath("userData"), trackedDirs);
   } catch (error) {
-    console.warn(`tovu desktop: could not sweep orphaned site previews — ${error.message}`);
+    console.warn(`tovu desktop: could not sweep orphaned site previews — ${(error as Error).message}`);
   }
 }
 
@@ -787,12 +824,14 @@ function sweepSitePreviewsOnBoot(projectsPath) {
  * @returns the site's `BrowserWindow`.
  * @complexity O(1) beyond `startSiteBackend`'s own cost.
  */
-async function openSiteWindow(siteDir, ctx, options = {}) {
+async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
   const already = openSites.get(siteDir);
   if (already) {
-    already.window.show();
-    already.window.focus();
-    return already.window;
+    // `window!`: own-server mode only. Every entry this can find was set here, with a window. The
+    // sites-home tabs' `openSiteServer` sets none, and no launch reaches both functions.
+    already.window!.show();
+    already.window!.focus();
+    return already.window!;
   }
 
   const { server, partition } = await startSiteBackend(siteDir, ctx, options);
@@ -860,7 +899,7 @@ async function openSiteWindow(siteDir, ctx, options = {}) {
  * @returns the started (or reused) server handle.
  * @complexity O(1) beyond `startSiteBackend`'s own cost.
  */
-async function openSiteServer(siteDir, ctx, options = {}) {
+async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<TovuServerHandle> {
   const already = openSites.get(siteDir);
   if (already) return already.server;
 
@@ -878,7 +917,7 @@ async function openSiteServer(siteDir, ctx, options = {}) {
  *
  * @complexity O(n) in currently open sites.
  */
-function isSupervisedGuestUrl(raw) {
+function isSupervisedGuestUrl(raw: string): boolean {
   let url;
   try {
     url = new URL(raw);
@@ -906,8 +945,8 @@ function isSupervisedGuestUrl(raw) {
  *
  * @complexity O(1) per event, beyond `isSupervisedGuestUrl`'s own cost.
  */
-function registerGuestNavigationPolicy() {
-  const openExternally = (url) => {
+function registerGuestNavigationPolicy(): void {
+  const openExternally = (url: string) => {
     if (isSupervisedGuestUrl(url)) void shell.openExternal(url);
   };
 
@@ -942,12 +981,12 @@ function registerGuestNavigationPolicy() {
  * failure where the user can see it instead of the app silently doing nothing.
  * @complexity O(1) beyond `adoptSiteDir`/`openSiteWindow`'s own cost.
  */
-async function adoptAndOpenSite(dir, ctx) {
+async function adoptAndOpenSite(dir: string, ctx: SiteOpenCtx): Promise<void> {
   try {
     const adopted = await adoptSiteDir({ dir, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode });
     await openSiteWindow(adopted, ctx);
   } catch (error) {
-    dialog.showErrorBox("Tovu could not open that site", error.message);
+    dialog.showErrorBox("Tovu could not open that site", (error as Error).message);
     return;
   }
   refreshAppMenu(ctx);
@@ -955,12 +994,12 @@ async function adoptAndOpenSite(dir, ctx) {
 
 /** The "Open Site…" menu action: ask for a folder with no MRU/dev-fallback precedence (those are
  *  startup-only conveniences — see `resolveSiteDir`), then hand it to `adoptAndOpenSite`. */
-async function promptAndOpenNewSite(ctx) {
+async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> {
   let dir;
   try {
     dir = await promptForSiteDir(null);
   } catch (error) {
-    dialog.showErrorBox("Tovu could not open that folder", error.message);
+    dialog.showErrorBox("Tovu could not open that folder", (error as Error).message);
     return;
   }
   if (dir === null) return;
@@ -974,10 +1013,11 @@ async function promptAndOpenNewSite(ctx) {
  * `refreshAppMenu`) so a just-opened site appears there next time.
  * @complexity O(n) in the MRU length (bounded, see `site-dir-store.js`'s `MAX_RECENT_SITE_DIRS`).
  */
-function buildAppMenu(ctx) {
+function buildAppMenu(ctx: SiteOpenCtx): Menu {
   const recents = existingRecentSiteDirs(ctx.statePath);
-  const template = [
-    ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
+  const template: MenuItemConstructorOptions[] = [
+    // `as const`: a conditional spread otherwise widens this role, and every entry after it, to `string`.
+    ...(process.platform === "darwin" ? [{ role: "appMenu" } as const] : []),
     {
       label: "File",
       submenu: [
@@ -999,7 +1039,7 @@ function buildAppMenu(ctx) {
   return Menu.buildFromTemplate(template);
 }
 
-function refreshAppMenu(ctx) {
+function refreshAppMenu(ctx: SiteOpenCtx): void {
   Menu.setApplicationMenu(buildAppMenu(ctx));
 }
 
@@ -1023,11 +1063,11 @@ function refreshAppMenu(ctx) {
  * "fail fast" policy for an automation-facing arm. An interactive picker failure still gets the
  * dialog, because a human is at the keyboard there to see and dismiss it.
  */
-function isUnattendedSiteLaunch() {
+function isUnattendedSiteLaunch(): boolean {
   return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs() !== null;
 }
 
-async function reportBootFailure(error) {
+async function reportBootFailure(error: Error): Promise<void> {
   if (error instanceof SiteDirSelectionCancelled) {
     if (!SELFTEST) {
       await dialog.showMessageBox({
@@ -1062,7 +1102,7 @@ async function reportBootFailure(error) {
  * logic is testable without Electron. See that file's own header for the two ordering hazards its
  * `expectedCount`-seeded design closes.
  */
-function buildSelftestTracker(expectedCount) {
+function buildSelftestTracker(expectedCount: number): SelftestTracker {
   return createSelftestTracker(expectedCount, {
     onWindowLoaded: ({ url, title }) => {
       console.log(`tovu desktop: loaded ${url}`);
@@ -1079,7 +1119,7 @@ function buildSelftestTracker(expectedCount) {
 /** `null` outside SELFTEST mode; otherwise created once, before any window opens, and consulted by
  *  `createWindow` for every window this launch creates — see {@link createSelftestTracker}'s own
  *  doc for why registration must happen per-window, at creation time. */
-let selftestTracker = null;
+let selftestTracker: SelftestTracker | null = null;
 
 /**
  * The policy BOTH env-var arms below declare for a folder they name that turns out to be empty.
@@ -1100,7 +1140,7 @@ const ENV_SITE_DIR_ON_MISSING = "fail";
  *  `resolveOrInitSiteDir`/`resolveSiteDir` chokepoint the picker uses, under the explicit policy
  *  {@link ENV_SITE_DIR_ON_MISSING} declares — see that constant's own doc for why.
  *  @complexity O(n) in the explicit-dirs count, plus `resolveSiteDir`'s own cost in the single-site case. */
-async function resolveStartupSiteDirs(ctx) {
+async function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
   const explicit = explicitStartupSiteDirs();
   if (explicit) {
     return await Promise.all(
@@ -1138,12 +1178,12 @@ async function resolveStartupSiteDirs(ctx) {
  * Best-effort: a missing or unreadable icon file must not stop the app booting.
  * @complexity O(1).
  */
-function applyDockIcon() {
+function applyDockIcon(): void {
   if (!app.dock) return;
   try {
     app.dock.setIcon(APP_ICON_PATH);
   } catch (error) {
-    console.log(`tovu desktop: could not set the dock icon (${error.message}) — using the default.`);
+    console.log(`tovu desktop: could not set the dock icon (${(error as Error).message}) — using the default.`);
   }
 }
 
@@ -1170,7 +1210,7 @@ function applyDockIcon() {
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
  *   so a launch can be delayed by up to that grace window per genuine orphan.
  */
-async function reconcileOrphansOnBoot(registryPath) {
+async function reconcileOrphansOnBoot(registryPath: string): Promise<void> {
   const reconciled = await reconcileOrphans(registryPath);
   if (reconciled.length === 0) return;
   console.log(
@@ -1189,8 +1229,8 @@ async function reconcileOrphansOnBoot(registryPath) {
  *
  * @complexity O(n) in the number of startup site dirs, beyond each site's own boot cost.
  */
-async function bootOwnServerMode() {
-  const ctx = {
+async function bootOwnServerMode(): Promise<void> {
+  const ctx: SiteOpenCtx = {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
     registryPath: registryFilePath(app.getPath("userData")),
@@ -1302,9 +1342,9 @@ app
         // site every other consumer resolves it from — an independently-resolved userData here
         // would write E2E previews into the real operator's profile (see `site-preview-store.js`'s
         // own header, and `main.js`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
-        readPreviewVersion: (siteDir) => readPreviewVersion(app.getPath("userData"), siteDir),
-        readPreviewDataUrl: (siteDir) => readPreviewDataUrl(app.getPath("userData"), siteDir),
-        deletePreview: (siteDir) => deletePreview(app.getPath("userData"), siteDir),
+        readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
+        readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
+        deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the

@@ -29,7 +29,7 @@ const rawSource = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8")
  * prose explaining why the code does NOT do that (see this file's `workspaceId` test below). A raw
  * scan for that literal would fail against the comment describing the fix, not against a bug.
  */
-function withoutComments(source) {
+function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 
@@ -37,7 +37,7 @@ const source = withoutComments(rawSource);
 
 /** The call site's index, asserted to exist first so a renamed function fails loudly here rather
  *  than making the ordering comparison below vacuously true against two -1s. */
-function callIndex(name) {
+function callIndex(name: string): number {
   const index = source.indexOf(`${name}(`);
   assert.notEqual(index, -1, `expected a ${name}(...) call in main.ts`);
   return index;

@@ -30,7 +30,7 @@ const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 /** The call site's index, asserted to exist first so a renamed function fails loudly here rather
  *  than making every ordering comparison below vacuously true against two -1s. */
-function callIndex(name) {
+function callIndex(name: string): number {
   const index = source.indexOf(`${name}(`);
   assert.notEqual(index, -1, `expected a ${name}(...) call in main.ts`);
   return index;
@@ -100,7 +100,7 @@ test("the scan root is the sites directory the dev fallback already lives in", (
   // The RELATIONSHIP, not two literals that happen to agree today: the fallback site must sit
   // directly inside the scanned root, or the seed offers a card the rescan then cannot re-find.
   const dev = resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs" });
-  assert.deepEqual(dev.siteScanRoots, [path.dirname(dev.devFallbackSiteDir)]);
+  assert.deepEqual(dev.siteScanRoots, [path.dirname(dev.devFallbackSiteDir!)]); // `!`: a checkout always has a dev fallback; only a packaged app has none.
 });
 
 test("a packaged app has no dev fallback, so the seed and the migration are skipped rather than handed null", () => {
@@ -168,10 +168,10 @@ test("the sites home window declares width AND height minimums", () => {
 
   // `.grid`'s own declared floor, which IS readable from the stylesheet rather than estimated:
   // one card column at `minmax(214px, 1fr)` plus `.grid`'s 1.75rem side padding (28px each).
-  const minWidth = Number(/minWidth: (\d+)/.exec(own)[1]);
+  const minWidth = Number(/minWidth: (\d+)/.exec(own)![1]); // `!`: the assert.match above already proved it matches.
   assert.ok(minWidth >= 270, `minWidth must fit at least one card column (214 + 2x28), got ${minWidth}`);
   // Not derived from the stylesheet: the owner chose 480 on 2026-09-12 after 960 worked in the real window.
   assert.equal(minWidth, 480, `minWidth must be the owner's chosen 480, got ${minWidth}`);
-  assert.ok(Number(/minHeight: (\d+)/.exec(own)[1]) >= 400, "minHeight must leave room for a card row");
+  assert.ok(Number(/minHeight: (\d+)/.exec(own)![1]) >= 400, "minHeight must leave room for a card row"); // `!`: asserted to match above.
 });
 

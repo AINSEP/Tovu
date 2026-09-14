@@ -21,7 +21,7 @@ const MAIN_PATH = path.join(__dirname, "..", "main.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 /** One function's own body, from its `function name(` header to the next top-level `function `. */
-function functionBody(name) {
+function functionBody(name: string): string {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `expected a function ${name}(...) in main.ts`);
   const rest = source.slice(start);
@@ -98,9 +98,9 @@ test("the sites-home deps object carries the three preview operations, bound to 
   assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
   const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
 
-  assert.match(depsBlock, /readPreviewVersion: \(siteDir\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
-  assert.match(depsBlock, /readPreviewDataUrl: \(siteDir\) => readPreviewDataUrl\(app\.getPath\("userData"\), siteDir\)/);
-  assert.match(depsBlock, /deletePreview: \(siteDir\) => deletePreview\(app\.getPath\("userData"\), siteDir\)/);
+  assert.match(depsBlock, /readPreviewVersion: \(siteDir: string\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
+  assert.match(depsBlock, /readPreviewDataUrl: \(siteDir: string\) => readPreviewDataUrl\(app\.getPath\("userData"\), siteDir\)/);
+  assert.match(depsBlock, /deletePreview: \(siteDir: string\) => deletePreview\(app\.getPath\("userData"\), siteDir\)/);
 });
 
 test("the boot sweep runs against the tracked list, after the boot discovery pass", () => {
