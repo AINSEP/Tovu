@@ -14,28 +14,23 @@
  * or bypassed — a corrupt, signed `app.asar` is a shipping incident, and this is the last chance to
  * catch one before it leaves the machine.
  *
- * All comparison logic — and the reasoning for why it must be byte-for-byte, never size, never
- * asar's own recorded integrity hash — lives in `../src/asar-verify.ts`, so it is unit-tested
- * (including a DELIBERATE-CORRUPTION test) under the normal `npm test` glob. This file only locates
- * the freshly built `app.asar` and turns the result into an exit code.
+ * All comparison logic — the checked prefix list (`VERIFIED_PREFIXES`), and the reasoning for why the
+ * comparison must be byte-for-byte, never size, never asar's own recorded integrity hash — lives in
+ * `../src/asar-verify.ts`, so it is unit-tested (including a DELIBERATE-CORRUPTION test) under the
+ * normal `npm test` glob. This file only locates the freshly built `app.asar` and turns the result
+ * into an exit code.
  *
  * Usage: node scripts/verify-package.ts [--asar <path-to-app.asar>]
- * Exit codes: 0 = every file under src/, bin/, main.ts is byte-identical to source.
+ * Exit codes: 0 = every file under VERIFIED_PREFIXES is byte-identical to source.
  *             1 = a mismatch was found, or no app.asar could be located.
  */
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { formatMismatchReport, verifyAsarAgainstSource } from "../src/asar-verify.ts";
+import { VERIFIED_PREFIXES, formatMismatchReport, verifyAsarAgainstSource } from "../src/asar-verify.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-/** What this gate verifies — exactly the recommendation in the incident report: the shell's own
- *  code. The staged Tovu payload (`apps/admin/dist`, `apps/site-chat/dist`, the runnable tree under
- *  `extraResources`) has its OWN freshness guard in `stage-payload.ts` — a different failure, and
- *  explicitly out of scope here. */
-const VERIFIED_PREFIXES: string[] = ["src", "bin", "main.ts"];
 
 /** Every `*.app` bundle under `dir`, recursively. `release/` can hold leftovers from earlier builds
  *  or probes, so finding ONE bundle is not enough on its own — see {@link resolveAsarPath}.

@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { createPackageWithOptions } from "@electron/asar";
 
-import { filesUnderPrefixes, formatMismatchReport, verifyAsarAgainstSource } from "./asar-verify.ts";
+import { VERIFIED_PREFIXES, filesUnderPrefixes, formatMismatchReport, verifyAsarAgainstSource } from "./asar-verify.ts";
 
 // --- filesUnderPrefixes: pure tree-walk, no real archive involved --------------------------------
 
@@ -130,5 +130,146 @@ test("a file present in the archive but deleted from source is reported as missi
     assert.match(mismatches[0]!.reason, /missing from the source tree/);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// --- dist/ coverage: the compiled preloads (and the contracts they import) ship inside app.asar via
+// electron-builder.yml's `dist/**` entry, exactly like src/bin/main.ts — see VERIFIED_PREFIXES's own doc
+// comment for why they belong in the same "shell's own code" scope rather than the staged Tovu payload. ------
+
+/** Same file shape as {@link buildFixture} plus a `dist/` tree mirroring apps/desktop's real
+ *  compiled-preload layout: `dist/preload/preload.mjs`, `dist/speech/preload-speech.cjs`, and
+ *  `dist/contracts/x.js` (a shared module the compiled preload imports at runtime — main.ts:523 loads
+ *  dist/renderer too, but one representative nested dist/ file per real shipped subdirectory is enough
+ *  to prove the tree-walk, which is already covered generically by the "nested directory prefix" test
+ *  above).
+ *
+ *  Unlike {@link buildFixture} (packed once, never touched again), several tests below add MORE files
+ *  to `root` after this returns and re-pack. `buildFixture` writes its archive to `path.join(root,
+ *  "app.asar")` — fine for a single pack, but re-packing `root` a SECOND time would then include that
+ *  first archive's own bytes as a file named "app.asar" inside the tree being packed, corrupting every
+ *  entry's offset (confirmed empirically: an earlier version of this helper did exactly that and every
+ *  fixture file, not just the intentionally-corrupted one, came back mismatched). So this helper keeps
+ *  the archive OUTSIDE the packed directory — a sibling under `outer` — so it can be re-packed any
+ *  number of times safely. `teardown()` removes both. */
+async function buildFixtureWithDist() {
+  const outer = mkdtempSync(path.join(os.tmpdir(), "tovu-asar-verify-dist-"));
+  const root = path.join(outer, "payload");
+  mkdirSync(path.join(root, "src", "sub"), { recursive: true });
+  mkdirSync(path.join(root, "bin"), { recursive: true });
+  mkdirSync(path.join(root, "dist", "preload"), { recursive: true });
+  mkdirSync(path.join(root, "dist", "speech"), { recursive: true });
+  mkdirSync(path.join(root, "dist", "contracts"), { recursive: true });
+
+  const files = {
+    "src/a.js": "// fixture file A ".repeat(20) + "UNIQUE-MARKER-AAAA\n",
+    "src/sub/b.js": "// fixture file B ".repeat(20) + "UNIQUE-MARKER-BBBB\n",
+    "bin/c.mjs": "// fixture bin C ".repeat(20) + "UNIQUE-MARKER-CCCC\n",
+    "main.ts": "// fixture main ".repeat(20) + "UNIQUE-MARKER-MMMM\n",
+    "dist/preload/preload.mjs": "// fixture compiled preload ".repeat(20) + "UNIQUE-MARKER-PPPP\n",
+    "dist/speech/preload-speech.cjs": "// fixture compiled speech preload ".repeat(20) + "UNIQUE-MARKER-SSSS\n",
+    "dist/contracts/x.js": "// fixture compiled contract ".repeat(20) + "UNIQUE-MARKER-CCCC2\n",
+  };
+  for (const [rel, content] of Object.entries(files)) {
+    writeFileSync(path.join(root, rel), content);
+  }
+
+  const asarPath = path.join(outer, "app.asar"); // sibling to `root`, never inside it — see doc comment above
+  await createPackageWithOptions(root, asarPath, {});
+  return { root, asarPath, files, teardown: () => rmSync(outer, { recursive: true, force: true }) };
+}
+
+test("VERIFIED_PREFIXES includes dist — the compiled preloads and the contracts they import are in scope", () => {
+  assert.ok(VERIFIED_PREFIXES.includes("dist"), "production config must cover dist/, not just src/bin/main.ts");
+});
+
+test("a corrupted compiled preload under dist/ IS caught, using the real production prefix list", async () => {
+  const { root, asarPath, files, teardown } = await buildFixtureWithDist();
+  try {
+    const target = "dist/preload/preload.mjs";
+    const originalContent = Buffer.from(files[target]);
+
+    const archiveBuf = readFileSync(asarPath);
+    const at = archiveBuf.indexOf(originalContent);
+    assert.notEqual(at, -1, "fixture content must be found in the packed archive");
+    const corrupted = Buffer.alloc(originalContent.length, 0x59 /* 'Y' */);
+    archiveBuf.set(corrupted, at);
+    writeFileSync(asarPath, archiveBuf);
+
+    // Uses the REAL exported production constant, not a hand-copied list — so this test tracks
+    // scripts/verify-package.ts's actual wiring and cannot silently drift out of sync with it.
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    assert.equal(mismatches.length, 1, "the corrupted compiled preload must be reported");
+    assert.equal(mismatches[0]!.relPath, target);
+  } finally {
+    teardown();
+  }
+});
+
+test("REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin, main.ts only) misses the same corruption", async () => {
+  const { root, asarPath, files, teardown } = await buildFixtureWithDist();
+  try {
+    const target = "dist/preload/preload.mjs";
+    const originalContent = Buffer.from(files[target]);
+    const archiveBuf = readFileSync(asarPath);
+    const at = archiveBuf.indexOf(originalContent);
+    assert.notEqual(at, -1);
+    archiveBuf.set(Buffer.alloc(originalContent.length, 0x59), at);
+    writeFileSync(asarPath, archiveBuf);
+
+    // This mirrors scripts/verify-package.ts's VERIFIED_PREFIXES value BEFORE this fix. It is a fixed
+    // literal on purpose — it documents the historical gap, not current production wiring (that is the
+    // job of the test above, which imports VERIFIED_PREFIXES directly).
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
+    assert.deepEqual(mismatches, [], "without dist/, the corrupted compiled preload goes undetected");
+  } finally {
+    teardown();
+  }
+});
+
+test("a .map file present in dist/ on disk but excluded from packing is never checked — not counted, not flagged missing", async () => {
+  const { root, asarPath, files, teardown } = await buildFixtureWithDist();
+  try {
+    // electron-builder.yml's `!**/*.map` means a .map never enters the packed tree, even though `tsc`'s
+    // `sourceMap: true` always emits one next to its .mjs/.cjs/.js sibling on disk (the real repo has
+    // dist/preload/preload.mjs.map right now). Written AFTER buildFixtureWithDist already packed
+    // asarPath, so it exists under `root` (what this test's sourceRoot inspects) but was never part of
+    // what got packed — the exact shape electron-builder's own exclusion leaves behind.
+    writeFileSync(path.join(root, "dist", "preload", "preload.mjs.map"), '{"version":3,"fixture":true}\n');
+
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    // filesUnderPrefixes walks the ARCHIVE header only (never scans the source directory), so a file
+    // that was never packed cannot appear in the checked set at all.
+    assert.equal(checkedCount, Object.keys(files).length, "the .map file must not be added to the checked set");
+    assert.deepEqual(mismatches, [], "an on-disk-only .map file must never be reported as a mismatch");
+  } finally {
+    teardown();
+  }
+});
+
+test("a stale dist/ file left behind by an incremental build (no current .ts source) still verifies cleanly — dead code, not a false gate failure", async () => {
+  const { root, asarPath, files, teardown } = await buildFixtureWithDist();
+  try {
+    // Mirrors what the real repo has right now: apps/desktop/dist/contracts/ contains BOTH
+    // fleet-conversations.js and workspace-conversations.js after the fleet -> workspace rename, because
+    // `tsc -p tsconfig.preload.json` (plain, non-incremental-cache, non-composite) recompiles every
+    // matched input on each run but never deletes an outDir file whose source was renamed or removed —
+    // `npm run build` does not clean dist/ first. Add one such orphan straight into root/dist (no .ts
+    // sibling needed: this module only ever compares dist/ to itself, never to src/contracts) and repack,
+    // exactly as `npm run build` -> `electron-builder` would leave it.
+    const orphanRel = "dist/contracts/orphaned-old-name.js";
+    writeFileSync(path.join(root, orphanRel), "// orphaned build output, no current .ts source\n");
+    await createPackageWithOptions(root, asarPath, {});
+
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, VERIFIED_PREFIXES);
+    assert.equal(checkedCount, Object.keys(files).length + 1, "the orphan was genuinely packed, so it IS checked");
+    assert.deepEqual(
+      mismatches,
+      [],
+      "it self-matches (packed dist/ vs the same dist/ on disk) — staleness relative to .ts source is invisible " +
+        "here by design; this check only ever proves 'asar == the dist/ that fed it', not 'dist/ == current .ts'",
+    );
+  } finally {
+    teardown();
   }
 });

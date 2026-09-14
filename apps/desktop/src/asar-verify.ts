@@ -47,6 +47,29 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { extractFile, getRawHeader } from "@electron/asar";
 
+/**
+ * What the packaging backstop verifies, matched as TOP-LEVEL `app.asar` entries: the shell's own code —
+ * `main.ts`, `src/` (main process + the unsandboxed and sandboxed preload sources), and `dist/` (that same
+ * preload code, but the COMPILED artifacts electron actually loads: `dist/preload/preload.mjs`,
+ * `dist/speech/preload-speech.cjs`, and `dist/contracts/*.js` — shared modules the compiled preload imports
+ * at runtime, see `src/preload/preload.mts`'s `../contracts/*.js` imports — plus `dist/renderer/**`, the
+ * sites-home window's UI that `main.ts` loads via `loadFile`). `electron-builder.yml`'s `files:` ships both
+ * `src/**` and `dist/**` into the same archive, so both are equally exposed to the length-correct/
+ * content-wrong packaging race this module exists to catch (see the file header above) — there is no reason
+ * to verify one and not the other.
+ *
+ * A single top-level `"dist"` entry is deliberately used instead of enumerating `dist/preload`,
+ * `dist/speech`, `dist/contracts` individually: {@link filesUnderPrefixes} already walks every nested file
+ * under ONE top-level prefix (see its "nested files under a directory prefix" test), so `"dist"` alone
+ * covers the whole subtree today AND any subdirectory added under it later, with no enumeration to keep in
+ * sync.
+ *
+ * Deliberately NOT covered — a different failure, out of scope here: the staged Tovu payload
+ * (`apps/admin/dist`, `apps/site-chat/dist`, the runnable tree under `extraResources`), which has its own
+ * freshness guard in `scripts/stage-payload.ts`.
+ */
+export const VERIFIED_PREFIXES: string[] = ["src", "bin", "main.ts", "dist"];
+
 /** A node in an asar header's `files` tree, as far as this module reads one: a directory carries
  *  `files`, a symlink carries `link`, and a file carries `size` and `offset`. */
 interface AsarHeaderNode {
