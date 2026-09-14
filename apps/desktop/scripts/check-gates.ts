@@ -37,7 +37,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateManifest, detectGateDrift, formatSummary, isFailure } from "../src/quality-gates.ts";
+import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "../src/quality-gates.ts";
 import type { GateEntry, GateExitCode, GateManifest } from "../src/quality-gates.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,9 +141,10 @@ function main(): void {
   const manifestPath = flagValue(argv, "--manifest", path.join(DESKTOP_ROOT, "quality-gates.json"));
   const scriptsDir = flagValue(argv, "--scripts-dir", path.join(DESKTOP_ROOT, "scripts"));
   const manifest: GateManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  // `as`: validateManifest (called by reportManifestProblems, below) reports it by name when this
-  // is not actually a GateEntry[]; either way the run ends in FAILED, never a silent pass.
-  const gates = manifest.gates as GateEntry[] ?? [];
+  // `asGateEntryArray` throws a clear, index-naming error for a malformed entry (e.g. `null`) rather
+  // than letting it pass a blind cast and crash later inside `gateProblems`/`detectGateDrift`; a
+  // non-array `gates` is left to `validateManifest`'s own "no gates array" problem, below.
+  const gates = asGateEntryArray(manifest.gates);
 
   const unsound = reportManifestProblems(manifest, gates, scriptsDir);
 

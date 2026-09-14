@@ -158,6 +158,12 @@ test("an empty manifest fails rather than passing by measuring nothing", () => {
   assert.match(stderr, /zero gates/);
 });
 
+test("a malformed gate entry (null, valid JSON) fails clearly instead of an obscure crash", () => {
+  const { status, stderr } = runWith({ gates: [null] });
+  assert.equal(status, 1, "a malformed entry must never pass silently");
+  assert.match(stderr, /gates\[0\] must be an object/, "the runner must name the bad entry, not just crash");
+});
+
 test("a gate script on disk that the manifest does not run fails the run", () => {
   const { status, stderr } = runWith({ gates: [{ id: "ok", run: "node -e \"process.exit(0)\"" }] }, [
     "check-orphaned.ts",

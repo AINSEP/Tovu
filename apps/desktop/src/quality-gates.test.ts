@@ -119,6 +119,23 @@ test("duplicate gate ids are reported — two entries silently collapsing to one
   assert.match(problems[0]!,/duplicate gate id "a"/);
 });
 
+test("a null gate entry throws a clear, index-naming error instead of an unhandled TypeError", () => {
+  // `manifest.gates` is `unknown` straight out of JSON.parse — a `null` array element (valid JSON)
+  // used to pass the old `gates as GateEntry[]` cast silently and then crash inside `gateProblems`
+  // as an unclear "Cannot read properties of null (reading 'id')".
+  assert.throws(
+    () => validateManifest(manifest([null as unknown as GateEntry]), TODAY),
+    /gates\[0\] must be an object/
+  );
+});
+
+test("a non-object gate entry (e.g. a bare string) throws the same clear, index-naming error", () => {
+  assert.throws(
+    () => validateManifest(manifest(["oops" as unknown as GateEntry]), TODAY),
+    /gates\[0\] must be an object/
+  );
+});
+
 // --- property 3: manifest-vs-disk drift ---------------------------------------------------------
 
 test("a gate script on disk that no manifest entry runs is detected", () => {
@@ -147,6 +164,16 @@ test("a run command carrying flags still matches its script", () => {
 
 test("drift detection over an empty manifest names every script, rather than passing", () => {
   assert.deepEqual(detectGateDrift([], ["check-a.mjs", "check-b.mjs"]), ["check-a.mjs", "check-b.mjs"]);
+});
+
+test("drift detection also rejects a null gate entry with a clear error, not a raw property-access crash", () => {
+  // `detectGateDrift` reads `gate.run` directly with no defensive check, so a `null` element used to
+  // throw "Cannot read properties of null (reading 'run')" from inside `.map()` — this is actually
+  // the FIRST crash `check-gates.ts`'s main() hit, since it calls this before `validateManifest`.
+  assert.throws(
+    () => detectGateDrift([null as unknown as GateEntry], ["check-x.ts"]),
+    /gates\[0\] must be an object/
+  );
 });
 
 // --- property 1: every gate is printed, every run -----------------------------------------------

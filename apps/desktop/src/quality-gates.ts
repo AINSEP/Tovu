@@ -49,6 +49,30 @@ export interface GateManifest {
 /** A gate command's exit status: `null` when it was killed by a signal or never spawned. */
 export type GateExitCode = number | null;
 
+/**
+ * Narrows `value` into `GateEntry[]`, replacing the blind `gates as GateEntry[]` cast this file and
+ * `scripts/check-gates.ts` used to do at their JSON-parsing boundary. Non-array input is left to each
+ * caller's own "no gates array" problem reporting (returns `[]`, same as the old cast's `?? []`
+ * fallback) — but a `null` or non-object array ELEMENT is valid JSON that used to pass that cast
+ * silently and then crash deep inside property access ({@link gateProblems}'s `gate.id`,
+ * {@link detectGateDrift}'s `gate.run`) as an unhelpful "Cannot read properties of null". That is a
+ * genuinely malformed gate entry, so it throws a clear error naming the index and value instead.
+ *
+ * @param value typically `manifest.gates`, fresh out of `JSON.parse` and not yet trustworthy.
+ * @returns `value` narrowed to `GateEntry[]`, or `[]` when `value` is not an array at all.
+ * @throws {Error} naming the array index and JSON value of the first `null`/non-object element.
+ * @complexity O(n) in entries.
+ */
+export function asGateEntryArray(value: unknown): GateEntry[] {
+  if (!Array.isArray(value)) return [];
+  value.forEach((entry, index) => {
+    if (entry === null || typeof entry !== "object") {
+      throw new Error(`quality-gates.json: gates[${index}] must be an object; found ${JSON.stringify(entry)}.`);
+    }
+  });
+  return value as GateEntry[];
+}
+
 /** How long a gate may stay disabled before the runner demands the date be re-confirmed. */
 const DEFAULT_MAX_DISABLED_DAYS = 30;
 
@@ -133,7 +157,7 @@ export function validateManifest(manifest: GateManifest | null | undefined, toda
   const problems: string[] = [];
   const seen = new Set<string>();
 
-  for (const gate of gates as GateEntry[]) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
+  for (const gate of asGateEntryArray(gates)) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
   return problems;
 }
 
@@ -150,7 +174,7 @@ export function validateManifest(manifest: GateManifest | null | undefined, toda
  * @complexity O(gates x scripts); both are single digits here.
  */
 export function detectGateDrift(gates: readonly GateEntry[] | null | undefined, scriptNames: readonly string[]): string[] {
-  const commands = (gates ?? []).map((gate) => String(gate.run ?? ""));
+  const commands = asGateEntryArray(gates).map((gate) => String(gate.run ?? ""));
   return scriptNames.filter((name) => !commands.some((command) => command.includes(name)));
 }
 
