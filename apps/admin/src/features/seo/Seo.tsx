@@ -663,7 +663,7 @@ export function Seo({ tabId, useSeoHook = useWiredSeo }: SeoProps = {}) {
   };
 
   return (
-    <div className="page">
+    <div className="page seo-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t(locale, "Marketing")}</p>

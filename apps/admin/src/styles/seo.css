@@ -59,6 +59,18 @@
  * current caller renders it — every `.seo-panel` on this screen now also carries `--full`.
  */
 
+/* Page measure (2026-09-13, owner: the Site defaults/Sitemap full-width fix above now runs the
+   whole screen edge to edge on a wide monitor). `.page` itself carries no max-width anywhere in
+   the app (`styles.css`'s own note on that rule), so the cap belongs on this scoped wrapper, same
+   precedent as `.workspace-page` there. Not `--form-measure`'s 42rem: that token is for a single-
+   column form and would re-create the truncation `seo-panel--full` was just built to fix (Canonical
+   URL, OG/Twitter image refs). 76rem instead — the codebase's other deliberate "wide but not
+   infinite" cap (`media.css`'s modal at `min(94vw, 76rem)`) — comfortably fits every full-width
+   field on this screen while still stopping short of the raw viewport. Plain `max-width` rather
+   than `min(100%, 76rem)`: a block's width is already 100% of its column below the cap, so it
+   shrinks fluidly with the window on its own. */
+.seo-page { max-width: 76rem; }
+
 .seo-panel {
   /* Both the section grid and the un-railed action row measure off these, so the fields and the
      Save button under them cannot drift apart. */
