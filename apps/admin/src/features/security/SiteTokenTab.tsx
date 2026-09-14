@@ -123,10 +123,15 @@ function SiteTokenStatusCard({ controller }: { controller: SiteTokenController }
   if (!status) return null;
   return (
     <section className="card site-token-status-card" {...agentHandle("security-site-token-status", { role: "region", label: "The active root key's source, fingerprint, and reveal control" })}>
-      <h3 className="site-token-status-heading">{translate("Root key")}</h3>
+      <h3 className="site-token-status-heading">{translate("Site token")}</h3>
       <p className="site-token-status-badge-row">
         <span className={`status ${siteTokenStatusBadgeClass(status.active, status.invalid)}`}>{siteTokenStatusBadgeLabel(status.active, status.source, translate)}</span>
-        {status.fingerprint ? <code className="site-token-fingerprint">{status.fingerprint}</code> : null}
+        {status.fingerprint ? (
+          <span className="site-token-fingerprint-group" title={translate("A short ID for this key. It changes if the key changes.")}>
+            <span className="site-token-fingerprint-label">{translate("Fingerprint")}</span>
+            <code className="site-token-fingerprint">{status.fingerprint}</code>
+          </span>
+        ) : null}
       </p>
       <p className="site-token-status-note">{siteTokenStatusNote(status, translate)}</p>
       <SiteTokenRevealAction controller={controller} />

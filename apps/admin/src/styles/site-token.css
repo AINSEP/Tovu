@@ -17,6 +17,8 @@
 .site-token-status-heading { margin: 0; }
 
 .site-token-status-badge-row { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+.site-token-fingerprint-group { display: flex; align-items: center; gap: var(--space-1); }
+.site-token-fingerprint-label { font-size: var(--text-sm); color: var(--muted); }
 .site-token-fingerprint { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2); }
 
 .site-token-status-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
