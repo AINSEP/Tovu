@@ -20,8 +20,14 @@
  * until that tool pair was removed 2026-08-26 — see
  * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.)
  *
- * So "inactive" means genuinely undiscoverable and genuinely unexecutable, not merely
- * unadvertised.
+ * So "inactive" means genuinely unexecutable, not merely unadvertised: its skills never reach a
+ * prompt, and its tools and MCP servers are never registered.
+ *
+ * It does NOT mean hidden from the operator. The admin Agent Plugins screen lists every installed
+ * plugin, with an inactive one's switch shown off, so a bundled plugin can be found and turned on
+ * there (owner decision, 2026-09-13; before it, that screen's default tab listed only active ones).
+ * Listing only READS the activation record, so the "absent means active" hazard described below is
+ * unaffected.
  *
  * ---------------------------------------------------------------------------
  * Why it runs on every boot

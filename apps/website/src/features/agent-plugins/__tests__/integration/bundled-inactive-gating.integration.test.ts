@@ -8,7 +8,7 @@ import { readAgentPluginActivations, setAgentPluginActivation } from "../../acti
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
-import { loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
+import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
 
 /**
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
@@ -84,6 +84,25 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
     assert.equal(activations.plugins[PLUGIN_ID]?.enabled, false);
     assert.equal(activations.plugins[PLUGIN_ID]?.origin, "bundled");
     assert.equal(activations.plugins[PLUGIN_ID]?.updatedBy, "system:seed");
+  });
+});
+
+// Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
+// listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
+test("every bundled plugin, supabase and tovuize-site included, is listed as switched off yet gets no tool and no prompt injection", async () => {
+  await withSeededWorkspace(async () => {
+    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const bundledIds = [...new Set((await listInstalledPlugins(layout.packages)).map((plugin) => plugin.pluginId))];
+    for (const expected of ["supabase", "tovuize-site"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
+
+    const listed = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_ID });
+    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    for (const pluginId of bundledIds) {
+      assert.equal(listed.find((candidate) => candidate.pluginId === pluginId)?.enabled, false, `${pluginId}: listed, switched off`);
+      assert.deepEqual(sources.filter((source) => source.pluginId === pluginId), [], `${pluginId}: no agent_plugin_* tool`);
+      const injected = await resolveAgentPluginRefs([pluginId], layout);
+      assert.ok(injected.ok === false && injected.reason.includes("is not enabled"), `${pluginId}: never reaches the prompt`);
+    }
   });
 });
 
