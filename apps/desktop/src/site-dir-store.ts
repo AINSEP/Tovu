@@ -363,7 +363,7 @@ interface ResolveDevFallbackResult {
  *   null` rather than a fabricated reason.
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
-function resolveDevFallback(devFallbackDir: string | undefined): ResolveDevFallbackResult {
+function resolveDevFallback(devFallbackDir: string | null | undefined): ResolveDevFallbackResult {
   if (!devFallbackDir) return { useDir: null, rejected: null };
   // Safely: a candidate NOBODY picked must be turned down, never allowed to take the launch with
   // it. `resolveStartupSiteDirs` runs this inside the `whenReady()` chain (D-01).
@@ -384,7 +384,7 @@ interface ResolveSiteDirInput {
   envDir?: string;
   onMissingSite?: OnMissingSite;
   statePath: string;
-  devFallbackDir?: string;
+  devFallbackDir?: string | null;
   repoRoot?: string;
   name?: string;
   baseEnv?: NodeJS.ProcessEnv;

@@ -46,8 +46,9 @@ type SiteOrigin = (typeof SITE_ORIGIN)[keyof typeof SITE_ORIGIN];
 /** What `site-dir-store.js`'s `classifySiteDir` returns — injected, not imported; see {@link discoverSiteDirs}. */
 type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
 
-/** Injected classifier shape every function below takes instead of importing `site-dir-store.js`. */
-type ClassifySiteDirFn = (dir: string) => SiteClassification;
+/** Injected classifier shape every function below takes instead of importing `site-dir-store.js`.
+ *  `"unreadable"` is `classifySiteDirSafely`'s extra verdict, which every caller here treats as "not a site". */
+type ClassifySiteDirFn = (dir: string) => SiteClassification | "unreadable";
 
 /** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc. */
 interface TrackedSiteRow {
@@ -175,7 +176,7 @@ function writeTrackedSites(projectsPath: string, rows: WritableTrackedRow[], dis
 
 /** {@link trackSite}'s own extra, provenance-only field. See its param doc. */
 interface TrackSiteOptions {
-  siteId?: string;
+  siteId?: string | null;
 }
 
 /**
@@ -220,7 +221,7 @@ function trackSite(projectsPath: string, siteDir: string, origin: SiteOrigin = S
  *
  * @complexity O(1).
  */
-function buildTrackedRow(siteDir: string, origin: SiteOrigin, siteId: string | undefined): TrackedSiteRow {
+function buildTrackedRow(siteDir: string, origin: SiteOrigin, siteId: string | null | undefined): TrackedSiteRow {
   const row = { siteDir, createdAt: new Date().toISOString(), origin };
   const stampable = origin === SITE_ORIGIN.created && typeof siteId === "string" && siteId !== "";
   return stampable ? { ...row, siteId } : row;

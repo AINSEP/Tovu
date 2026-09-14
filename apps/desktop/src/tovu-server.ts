@@ -288,7 +288,7 @@ interface BuildServeEnvInput {
   siteDir?: string;
   baseEnv?: NodeJS.ProcessEnv;
   desktopCredential?: DesktopCredential;
-  adminDevProxyUrl?: string;
+  adminDevProxyUrl?: string | null;
 }
 
 /**
@@ -592,7 +592,7 @@ interface StartTovuServerInput {
   mirror?: MirrorStreams;
   desktopCredential?: DesktopCredential;
   cliMode?: CliMode;
-  adminDevProxyUrl?: string;
+  adminDevProxyUrl?: string | null;
   baseEnv?: NodeJS.ProcessEnv;
   emitBootToken?: boolean;
 }
@@ -600,7 +600,7 @@ interface StartTovuServerInput {
 /** What a resolved {@link startTovuServer} call hands back. */
 interface TovuServerHandle {
   port: number;
-  pid: number | undefined;
+  pid: number;
   origin: string;
   adminUrl: string;
   workspaceId: string;
@@ -710,7 +710,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
         finish(() =>
           resolve({
             port: boot.port,
-            pid: child.pid,
+            pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
             origin,
             adminUrl: `${origin}/admin/`,
             workspaceId: boot.workspaceId,

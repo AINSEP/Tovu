@@ -75,9 +75,7 @@ test("buildServeEnv sets TOVU_ADMIN_DEV_PROXY_URL only when a resolved origin is
   const base = { repoRoot: REPO_ROOT, siteDir: "/tmp/site", baseEnv: {} };
 
   assert.equal(buildServeEnv(base).TOVU_ADMIN_DEV_PROXY_URL, undefined);
-  // @ts-expect-error tovu-server.ts's BuildServeEnvInput types this field `string | undefined`, but
-  // buildServeEnv also guards `typeof input.adminDevProxyUrl === "string"` at runtime — this case
-  // exercises that guard against a non-string value the declared type no longer admits.
+  // `null` is what resolveAdminDevProxyUrl returns when no Vite is running; the `typeof` guard drops it.
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: null }).TOVU_ADMIN_DEV_PROXY_URL, undefined);
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: "" }).TOVU_ADMIN_DEV_PROXY_URL, undefined);
   assert.equal(buildServeEnv({ ...base, adminDevProxyUrl: "https://localhost:5173" }).TOVU_ADMIN_DEV_PROXY_URL, "https://localhost:5173");
