@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme.js";
+import { resolveThemeLayout } from "./theme-layout.js";
 
 /**
  * @file Path containment and file I/O for the `themes` agent-tool domain
@@ -713,6 +714,71 @@ export function resetThemeFileToOriginal(
   mkdirSync(dirname(target), { recursive: true });
   writeFileAtomically(target, relativePath, (tempPath) => copyFileSync(original.path, tempPath));
   return { wasModified: true, bytes: original.size };
+}
+
+/** {@link themeOriginalResetRefusal}'s refusal: a stable `code` for a client to translate, and a fixed
+ *  English `message` with nothing interpolated into it. */
+export type ThemeOriginalResetRefusal = { readonly code: "ORIGINAL_LAYOUT_MISMATCH"; readonly message: string };
+
+const ORIGINAL_LAYOUT_MISMATCH_REFUSAL: ThemeOriginalResetRefusal = Object.freeze({
+  code: "ORIGINAL_LAYOUT_MISMATCH",
+  message: "this theme's saved original does not match its current layout, so its files cannot be reset",
+});
+
+/**
+ * The layout version one theme folder's own `theme.json` declares: `2`, or `undefined` for v1, the
+ * same normalization `loadTheme` applies (`theme.ts`, `parseRawManifestFields`). `null` when the
+ * manifest is missing, is not a regular file, is past {@link MAX_THEME_FILE_BYTES}, cannot be read, or
+ * is not a JSON object. Never throws.
+ *
+ * @complexity O(s) in the manifest size, bounded by {@link MAX_THEME_FILE_BYTES}.
+ */
+function manifestApiVersionOnDisk(themeDir: string): 2 | undefined | null {
+  const manifestPath = join(themeDir, "theme.json");
+  try {
+    const stat = statSync(manifestPath);
+    if (!stat.isFile() || stat.size > MAX_THEME_FILE_BYTES) return null;
+    const raw: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+    return (raw as { apiVersion?: unknown }).apiVersion === 2 ? 2 : undefined;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The one guard both per-file resets share (`explore.ts`'s reset route and `theme_reset_file`), and
+ * what the Explore listing uses to decide `resettable`. Refuses when a theme's catalog original cannot
+ * stand in for the live theme file by file: its `theme.json` resolves a different layout
+ * (`theme-layout.ts`) than the live one, or cannot be read, so its layout is unknown.
+ *
+ * The refusal covers every file, not only `theme.json`. Copying a v1 original's `theme.json` over a v2
+ * theme writes a manifest with no `apiVersion`, and `loadTheme` then requires v1's `pages/index.html`
+ * and marks the theme invalid; copying any other file mixes one layout's file into the other. Found on
+ * `basic`, 2026-09-14, whose saved original is still the layout from before `497c9d35`.
+ *
+ * An unreadable LIVE `theme.json` does not refuse: that theme already loads invalid, and resetting the
+ * file from its original is how it gets repaired.
+ *
+ * Both manifests are read from disk on every call rather than taken from `DiscoveredTheme.manifest`.
+ * That snapshot is stale whenever another process wrote the theme, and has no `apiVersion` at all when
+ * the live manifest failed to parse.
+ *
+ * @param required.themeDir - The live theme's own folder (`DiscoveredTheme.dir`).
+ * @param required.originalDir - The theme's catalog folder (`<themesRoot>/__original-themes__/<tier>/<id>`).
+ * @returns `null` when a per-file reset may go ahead; otherwise the refusal.
+ * @complexity O(s) in the two manifests' sizes, each bounded by {@link MAX_THEME_FILE_BYTES}.
+ */
+export function themeOriginalResetRefusal(
+  required: { themeDir: string; originalDir: string },
+  _optional: Record<string, never> = {}
+): ThemeOriginalResetRefusal | null {
+  const original = manifestApiVersionOnDisk(required.originalDir);
+  if (original !== null) {
+    const live = manifestApiVersionOnDisk(required.themeDir);
+    if (live === null || resolveThemeLayout(live) === resolveThemeLayout(original)) return null;
+  }
+  return ORIGINAL_LAYOUT_MISMATCH_REFUSAL;
 }
 
 /**

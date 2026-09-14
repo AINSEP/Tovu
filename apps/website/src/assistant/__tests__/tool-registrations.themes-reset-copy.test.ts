@@ -358,6 +358,59 @@ test("theme_reset_file refreshes the live routeDeps.themes entry, matching theme
   assert.equal(live?.status, "valid");
 });
 
+/**
+ * A v2 live theme over a v1 original, `basic`'s shape on 2026-09-14: `497c9d35` migrated the live
+ * copy and never touched `__original-themes__`. Its own root, so the four-theme fixture above is
+ * unchanged.
+ */
+function layoutDriftRouteDeps(): { deps: RouteDeps; themesDir: string } {
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-themes-reset-drift-"));
+  const live = path.join(themesDir, "static", "drifted");
+  fs.mkdirSync(path.join(live, "render", "pages"), { recursive: true });
+  fs.writeFileSync(
+    path.join(live, "theme.json"),
+    JSON.stringify({ apiVersion: 2, id: "drifted", name: "Drifted", version: "1.0.0", tier: "static", engine: 1 }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(live, "tokens.json"), '{"--ink":"#111"}', "utf8");
+  fs.writeFileSync(path.join(live, "render", "pages", "index.html"), "<html><body>v2</body></html>", "utf8");
+
+  const original = path.join(themesDir, THEME_CATALOG_DIR, "static", "drifted");
+  fs.mkdirSync(path.join(original, "pages"), { recursive: true });
+  fs.writeFileSync(
+    path.join(original, "theme.json"),
+    JSON.stringify({ id: "drifted", name: "Drifted", version: "1.0.0", tier: "static", engine: 1 }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(original, "tokens.json"), '{"--ink":"#000"}', "utf8");
+  fs.writeFileSync(path.join(original, "pages", "index.html"), "<html><body>v1</body></html>", "utf8");
+
+  const deps = {
+    workspaceId: WORKSPACE_ID,
+    themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
+    themesDir,
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+  };
+  return { deps: deps as unknown as RouteDeps, themesDir };
+}
+
+test("theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2", async () => {
+  const { deps, themesDir } = layoutDriftRouteDeps();
+  const before = readFile(themesDir, "drifted", "theme.json");
+
+  await assert.rejects(
+    () => wired(deps, "theme_reset_file").handler(executionContext({ themeId: "drifted", path: "theme.json" })),
+    (err: Error) => {
+      assert.ok(
+        err.message.startsWith("this theme's saved original does not match its current layout, so its files cannot be reset"),
+        err.message
+      );
+      return true;
+    }
+  );
+  assert.equal(readFile(themesDir, "drifted", "theme.json"), before, "a refused reset must not touch disk");
+});
+
 // ---------------------------------------------------------------------------
 // theme_copy_file
 // ---------------------------------------------------------------------------

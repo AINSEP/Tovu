@@ -23,6 +23,7 @@ import {
   resolveThemeFileWriteScope,
   restoreBuiltThemeGeneratedTree,
   themeFileDiffersFromOriginal,
+  themeOriginalResetRefusal,
   writeThemeFile,
   ThemePathError,
   readThemeLineageFile,
@@ -327,10 +328,22 @@ function contentRecordsBySlug(posts: readonly PostRecord[]): Map<string, ThemeFi
 const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = new Map();
 
 /**
+ * Whether files in `theme` can be compared against, and reset from, its catalog original at all: the
+ * catalog folder exists and {@link themeOriginalResetRefusal} accepts it. Computed once per response,
+ * never per file, and fed to {@link describeThemeFile} so `resettable`/`modified` agree with what the
+ * reset route will actually do.
+ *
+ * @complexity O(s) in the two `theme.json` sizes.
+ */
+function originalComparableForReset(theme: DiscoveredTheme, catalogDir: string): boolean {
+  return existsSync(catalogDir) && themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir }) === null;
+}
+
+/**
  * {@link describeThemeFile}'s `modified` field: whether the live file's bytes differ from its catalog
- * original, or `null` when the theme has no stored original or the catalog has no regular file at
- * this path. A real byte comparison (`themeFileDiffersFromOriginal`, `theme-files.ts`), so a
- * CRLF-vs-LF difference counts as modified.
+ * original, or `null` when there is no comparable original (see {@link originalComparableForReset}) or
+ * the catalog has no regular file at this path. A real byte comparison (`themeFileDiffersFromOriginal`,
+ * `theme-files.ts`), so a CRLF-vs-LF difference counts as modified.
  *
  * Nothing is cached: the live side can change from any writer (this screen, an agent tool running in
  * another process, a hand edit), so every detail request re-reads it.
@@ -340,9 +353,9 @@ const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = ne
  */
 function fileModifiedFromOriginal(
   relativePath: string,
-  options: { catalogDir: string; hasOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
+  options: { catalogDir: string; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
 ): boolean | null {
-  if (!options.hasOriginal) return null;
+  if (!options.comparableOriginal) return null;
   return themeFileDiffersFromOriginal({
     themeDir: options.theme.dir,
     themesRoot: options.themesDir,
@@ -384,13 +397,14 @@ function fileModifiedFromOriginal(
  * with no catalog copy of the file there is nothing to compare against, so "modified" has no answer
  * rather than a `false` that would read as "untouched". `resettable` is derived from the same
  * comparison, so it now also requires the catalog entry to be a regular file, not merely a path that
- * exists.
+ * exists. Both are also `false`/`null` for every file of a theme whose original the reset route would
+ * refuse (`comparableOriginal: false`, e.g. an original saved under another layout version).
  */
 function describeThemeFile(
   relativePath: string,
   options: {
     catalogDir: string;
-    hasOriginal: boolean;
+    comparableOriginal: boolean;
     themesDir: string;
     apiVersion: 2 | undefined;
     theme: DiscoveredTheme;
@@ -471,6 +485,8 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      // Once for the whole listing: whether any file here can be reset from that original.
+      const comparableOriginal = originalComparableForReset(theme, catalogDir);
       // ONE batched lookup for the WHOLE listing below, not one `findBySlug` per file — see
       // `contentRecordsBySlug`'s own doc for why that per-file shape must never come back.
       const contentBySlug = contentRecordsBySlug(await deps.postRepo.list({ workspaceId: deps.workspaceId }));
@@ -484,7 +500,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         .map((path) =>
           describeThemeFile(path, {
             catalogDir,
-            hasOriginal,
+            comparableOriginal,
             themesDir: deps.themesDir,
             apiVersion: theme.manifest.apiVersion,
             theme,
@@ -670,8 +686,10 @@ function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme
  * {@link resetThemeFileToOriginal}. That call resolves `path` through the containment helper against
  * the CATALOG root before it touches the live side: `path` is operator input, and this is the one
  * place in the file that resolves it against a directory outside the theme's own folder. Writes the
- * route's `NOT_IN_ORIGINAL` 409 itself when the catalog has no regular file at `path`, so the caller
- * only has to check `ok`.
+ * route's 409 itself for both of its refusals, so the caller only has to check `ok`:
+ * `ORIGINAL_LAYOUT_MISMATCH` when {@link themeOriginalResetRefusal} refuses the whole original (checked
+ * first, before any file is looked at), and `NOT_IN_ORIGINAL` when the catalog has no regular file at
+ * `path`.
  */
 function resetFileFromOriginal(
   deps: ContentRouteDeps,
@@ -680,6 +698,11 @@ function resetFileFromOriginal(
   path: string,
   res: Response
 ): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
+  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir });
+  if (refusal) {
+    res.status(409).json({ error: refusal.message, code: refusal.code });
+    return { ok: false };
+  }
   const reset = resetThemeFileToOriginal({
     themeDir: theme.dir,
     themesRoot: deps.themesDir,
@@ -723,7 +746,9 @@ function resetFileFromOriginal(
  * the operator: the theme has NO stored original at all (nothing anywhere to restore from — a
  * hand-made theme), or the theme has one but this particular file is not in it (a file the AUTHOR
  * added; restoring it would mean deleting their file, which is a different and more destructive
- * operation than "reset", and is not what a button labelled Reset should silently do).
+ * operation than "reset", and is not what a button labelled Reset should silently do). A third
+ * refusal, `ORIGINAL_LAYOUT_MISMATCH`, covers every file of a theme whose original was saved under a
+ * different layout version or has an unreadable `theme.json` (see {@link themeOriginalResetRefusal}).
  *
  * DESTRUCTIVE and deliberately not undoable here: it overwrites the working copy with no backup.
  * The confirmation belongs in the UI, where the operator can be told what they are about to lose in
@@ -851,11 +876,10 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       reloadTheme(deps, theme.manifest.id);
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
-      const hasOriginal = existsSync(catalogDir);
       res.json({
         ...describeThemeFile(destPath, {
           catalogDir,
-          hasOriginal,
+          comparableOriginal: originalComparableForReset(theme, catalogDir),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
@@ -1021,11 +1045,10 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       if (!renameThemeFileIfChanged(deps, theme, { sourcePath, destPath, name }, existingPaths, res)) return;
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
-      const hasOriginal = existsSync(catalogDir);
       res.json({
         ...describeThemeFile(destPath, {
           catalogDir,
-          hasOriginal,
+          comparableOriginal: originalComparableForReset(theme, catalogDir),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,

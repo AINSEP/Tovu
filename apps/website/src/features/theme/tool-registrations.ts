@@ -68,6 +68,7 @@ import {
   renameThemeFile,
   resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
+  themeOriginalResetRefusal,
   ThemePathError,
   writeThemeFile,
 } from "./theme-files.js";
@@ -152,6 +153,18 @@ class ThemeFileNoOriginalError extends Error {
   }
 }
 
+/** Raised when `theme_reset_file`'s theme HAS a stored original but {@link themeOriginalResetRefusal}
+ * refuses it: saved under a different layout version than the live theme, or with an unreadable
+ * `theme.json`. Its own class rather than {@link ThemeFileNoOriginalError}, so which check fired stays
+ * clear. Retrying with the same input cannot succeed, so it is a shape rejection like that class; the
+ * other bucket reaches the agent as a redacted internal failure, and the agent needs this message. */
+class ThemeOriginalLayoutMismatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeOriginalLayoutMismatchError";
+  }
+}
+
 /** Raised when `theme_rename_file`/`theme_trash_file` targets a path
  * {@link validateFileIdentityChange} refuses to let change identity — a theme's own required file,
  * a `script`/`other`-group file, or (message-only overlap with {@link ThemeFileReadOnlyError}'s own
@@ -177,7 +190,8 @@ function isShapeRejection(error: unknown): boolean {
     error instanceof ThemeFileReadOnlyError ||
     error instanceof ThemeFileEditMatchError ||
     error instanceof ThemeFileIdentityLockedError ||
-    error instanceof ThemeFileNoOriginalError
+    error instanceof ThemeFileNoOriginalError ||
+    error instanceof ThemeOriginalLayoutMismatchError
   );
 }
 
@@ -275,6 +289,9 @@ function catalogDirFor(routeDeps: ThemeToolDeps, theme: DiscoveredTheme): string
  * @returns The original's size in `bytes`, and whether the live file differed and was rewritten.
  * @throws {ThemeFileNoOriginalError} If this theme has no catalog directory at all, or the catalog
  * has no regular file at this path (including a path that escapes the catalog folder).
+ * @throws {ThemeOriginalLayoutMismatchError} If {@link themeOriginalResetRefusal} refuses the theme's
+ * original, checked before any file is looked at: the same guard, and the same message, as the HTTP
+ * route's `ORIGINAL_LAYOUT_MISMATCH`.
  */
 function resetFromOriginalForTool(
   routeDeps: ThemeToolDeps,
@@ -285,6 +302,8 @@ function resetFromOriginalForTool(
   if (!existsSync(catalogDir)) {
     throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
   }
+  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: catalogDir });
+  if (refusal) throw new ThemeOriginalLayoutMismatchError(refusal.message);
   const reset = resetThemeFileToOriginal({
     themeDir: theme.dir,
     themesRoot: routeDeps.themesDir,
