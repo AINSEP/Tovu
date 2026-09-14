@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { Translate } from "@/lib/dictionary-translator";
 import { useFetchQuery } from "@/lib/fetch-query";
 
 import {
@@ -102,6 +103,9 @@ function toolSurfaceSignature(
  *   not run while this is false — see this module's header.
  * @param deps.allowedToolNames - The roster card's own field value, verbatim.
  * @param deps.writeAllowedToolNames - The roster card's own field value, verbatim.
+ * @param deps.t - The picker's own drift-copy translator (`useExternalMcpDriftCopy`), threaded
+ *   through so the `unreachable` message this hook derives is translated at the source rather than
+ *   left to the component to re-wrap — see `describeProbeUnreachable`'s own doc.
  * @complexity O(t) per render in the server's advertised tool count.
  */
 export function useExternalMcpToolPicker(deps: {
@@ -110,8 +114,9 @@ export function useExternalMcpToolPicker(deps: {
   active: boolean;
   allowedToolNames: string | undefined;
   writeAllowedToolNames: string | undefined;
+  t: Translate;
 }): ExternalMcpToolPickerController {
-  const { port, serverId, active, allowedToolNames, writeAllowedToolNames } = deps;
+  const { port, serverId, active, allowedToolNames, writeAllowedToolNames, t } = deps;
 
   const probe = useFetchQuery({
     key: ["external-mcp", "probe", serverId],
@@ -153,9 +158,7 @@ export function useExternalMcpToolPicker(deps: {
   return {
     loading: active && probe.status === "loading",
     refreshing: probe.isFetching,
-    unreachable: probe.error
-      ? describeProbeUnreachable(probe.error, "Could not reach this server. You can still type tool names by hand.")
-      : null,
+    unreachable: probe.error ? describeProbeUnreachable(probe.error, t) : null,
     rows,
     advertisedCount: tools.length,
     enabledCount: countEnabledToolRows(rows),
@@ -174,6 +177,7 @@ export function useWiredExternalMcpToolPicker(deps: {
   active: boolean;
   allowedToolNames: string | undefined;
   writeAllowedToolNames: string | undefined;
+  t: Translate;
 }): ExternalMcpToolPickerController {
   return useExternalMcpToolPicker({ port: defaultExternalMcpToolPickerPort, ...deps });
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { Translate } from "@/lib/dictionary-translator";
 
+import { t as tExternalMcp } from "../external-mcp-i18n";
 import {
   countEnabledToolRows,
   describeProbeUnreachable,
@@ -15,6 +17,13 @@ import {
   toolPickerFieldValues,
   type ToolPickerRow,
 } from "../external-mcp-tool-picker-rules";
+
+/** Binds `external-mcp-i18n.ts`'s real dictionary to one locale, the same shape
+ *  `useExternalMcpDriftCopy` hands the component at runtime — used below so the translation
+ *  assertions exercise the actual shipped dictionary rather than a stand-in fake. */
+function driftCopyFor(locale: string): Translate {
+  return (key: string) => tExternalMcp(locale, key);
+}
 
 /**
  * @file Direct unit coverage for `external-mcp-tool-picker-rules.ts` — the picker's own decisions,
@@ -324,17 +333,36 @@ describe("displayToolDescription — DISPLAY ONLY stripping of trust.ts's model-
 describe("describeProbeUnreachable — the local-command refusal points at where the fields actually are", () => {
   it("rewrites PROBE_UNSUPPORTED_TRANSPORT to name the Allowed tools field instead of 'directly'", () => {
     const error = new ApiError("probe is not available for local-command servers yet — type tool names directly instead", 400, "PROBE_UNSUPPORTED_TRANSPORT");
-    const message = describeProbeUnreachable(error, "fallback");
+    const message = describeProbeUnreachable(error, driftCopyFor("en"));
     expect(message).toContain("Allowed tools");
     expect(message).not.toContain("directly instead");
   });
 
   it("leaves every OTHER probe failure exactly as describeApiError already renders it", () => {
     const error = new ApiError("this server is disabled — enable it before probing", 400, "MCP_SERVER_DISABLED");
-    expect(describeProbeUnreachable(error, "fallback")).toBe("this server is disabled — enable it before probing");
+    expect(describeProbeUnreachable(error, driftCopyFor("en"))).toBe("this server is disabled — enable it before probing");
   });
 
-  it("falls back for a thrown non-Error value, same as describeApiError alone", () => {
-    expect(describeProbeUnreachable("not an Error instance", "fallback")).toBe("fallback");
+  it("falls back to the translated generic message for a thrown non-Error value, same as describeApiError alone", () => {
+    expect(describeProbeUnreachable("not an Error instance", driftCopyFor("en"))).toBe(
+      "Could not reach this server. You can still type tool names by hand.",
+    );
+  });
+
+  // Bug: both probe-unreachable messages have full entries in every locale's dictionary in
+  // `external-mcp-i18n.ts`, but the call site never routed them through `t()` — a non-English
+  // operator always saw the English literal. These pin the fix by asserting the ACTUAL Spanish
+  // dictionary text comes back, not just "not English".
+  it("translates the local-command refusal for a non-English locale", () => {
+    const error = new ApiError("probe is not available for local-command servers yet — type tool names directly instead", 400, "PROBE_UNSUPPORTED_TRANSPORT");
+    const message = describeProbeUnreachable(error, driftCopyFor("es"));
+    expect(message).toBe(
+      "Este servidor se ejecuta como un comando local y todavía no se puede sondear — escribe los nombres de las herramientas en 'Allowed tools', en la tarjeta del propio servidor.",
+    );
+  });
+
+  it("translates the generic unreachable fallback for a non-English locale", () => {
+    const message = describeProbeUnreachable("not an Error instance", driftCopyFor("es"));
+    expect(message).toBe("No se pudo contactar con este servidor. Aún puedes escribir los nombres de las herramientas a mano.");
   });
 });

@@ -26,6 +26,7 @@ import {
   type AdminExternalMcpServer,
   type AdminExternalMcpServerInput,
 } from "@/lib/api";
+import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExternalMcpOAuthIdentity } from "../rules";
 
 /**
@@ -276,6 +277,11 @@ export function useExternalMcp(): ExternalMcpController {
   const lastKnown = useRef(new Map<string, SourceConfigItem>());
   // Serializes `updateSource` per id — see `chainedSourceWrite`'s own doc for the race this closes.
   const updateChain = useRef(new Map<string, Promise<unknown>>());
+  // Same bound translator `ExternalMcpToolPicker.tsx` uses for this dictionary (Phase 2C) — reused
+  // here rather than re-resolving the locale a second way, so `testSource`'s unreachable-server
+  // fallback below stays word-for-word identical to the picker's own copy in every locale, not just
+  // English.
+  const t = useExternalMcpDriftCopy();
 
   const dependencies = useMemo<SourceConfigDependencies<SourceConfigItem>>(
     () => ({
@@ -369,12 +375,12 @@ export function useExternalMcp(): ExternalMcpController {
               latencyMs: Date.now() - startedAt,
             };
           } catch (e) {
-            return { ok: false, message: describeApiError(e, "Could not reach this server. You can still type tool names by hand.") };
+            return { ok: false, message: describeApiError(e, t("Could not reach this server. You can still type tool names by hand.")) };
           }
         },
       },
     }),
-    []
+    [t]
   );
 
   return { dependencies, restartRequired };

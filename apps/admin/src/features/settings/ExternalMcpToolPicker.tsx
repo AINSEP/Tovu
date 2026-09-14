@@ -269,7 +269,7 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
   const { serverId, active, connectionEnabled, allowedToolNames, writeAllowedToolNames, saving, onSave, cardHandle } = props;
   const t = useExternalMcpDriftCopy();
   const tUi = useT();
-  const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames });
+  const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
   const base = toolPickerHandle(cardHandle);
   const handles = useToolRowHandles(base, picker.rows);
   const countLabel = describeToolCount(picker.enabledCount, picker.advertisedCount || picker.rows.length, t);

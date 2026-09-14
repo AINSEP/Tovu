@@ -1,4 +1,5 @@
 import { ApiError, describeApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { Translate } from "@/lib/dictionary-translator";
 
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 
@@ -83,13 +84,22 @@ const PROBE_UNSUPPORTED_TRANSPORT_CODE = "PROBE_UNSUPPORTED_TRANSPORT";
  * server's wording verbatim (`describeApiError`'s existing contract) — this is the one case where
  * that wording points somewhere the operator reading it cannot see.
  *
+ * Takes `t` rather than a raw fallback string: both this rewritten message and the generic
+ * unreachable fallback have full entries in every locale in `external-mcp-i18n.ts` (Phase 2C), but
+ * were previously hardcoded in English here and never routed through the dictionary — a bug fixed
+ * by translating both at the source instead of leaving it to (or forgetting at) each call site.
+ * `describeApiError`'s OTHER return path, the server's own `error.message`, is left untranslated on
+ * purpose: that text is written by the third-party MCP server, not by this dictionary.
+ *
  * @complexity O(1).
  */
-export function describeProbeUnreachable(error: unknown, fallback: string): string {
+export function describeProbeUnreachable(error: unknown, t: Translate): string {
   if (error instanceof ApiError && error.code === PROBE_UNSUPPORTED_TRANSPORT_CODE) {
-    return "This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead.";
+    return t(
+      "This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead.",
+    );
   }
-  return describeApiError(error, fallback);
+  return describeApiError(error, t("Could not reach this server. You can still type tool names by hand."));
 }
 
 /** Where a row came from — an advertised tool the probe returned, or a name only the saved lists

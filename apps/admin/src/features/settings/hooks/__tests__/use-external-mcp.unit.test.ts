@@ -25,6 +25,17 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   };
 });
 
+// Controls the locale `useExternalMcpDriftCopy` resolves inside the hook under test, the same seam
+// `Placeholder.unit.test.tsx`/`AssistantDock.hooks.unit.test.tsx` use for their own locale hook —
+// here it is the DEFAULT-port `useAdminLocale` rather than `useWiredAdminLocale`, since that is the
+// one `ExternalMcpSettingsPanel.hooks.tsx`'s `useExternalMcpDriftCopy` actually calls.
+const { useAdminLocale } = vi.hoisted(() => ({ useAdminLocale: vi.fn(() => "en") }));
+
+vi.mock("../../../../hooks/use-admin-locale.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../hooks/use-admin-locale.hooks")>();
+  return { ...actual, useAdminLocale };
+});
+
 const { useExternalMcp } = await import("../use-external-mcp.hooks");
 
 beforeEach(() => {
@@ -32,6 +43,7 @@ beforeEach(() => {
   saveExternalMcpServer.mockReset();
   deleteExternalMcpServer.mockReset();
   probeExternalMcpServer.mockReset();
+  useAdminLocale.mockReturnValue("en");
 });
 
 function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalMcpServer {
@@ -575,5 +587,22 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
     const outcome = await result.current.dependencies.port.testSource!("local-fs");
 
     expect(outcome).toEqual({ ok: false, message: "Could not reach this server. You can still type tool names by hand." });
+  });
+
+  // Bug: this fallback is the exact same copy `external-mcp-i18n.ts` ships full translations for
+  // (the comment on the test above says as much), but this call site built it with the raw English
+  // literal instead of `t()` — a non-English operator saw English here even though the picker's own
+  // "Could not reach this server" copy is fully translated.
+  it("translates the unreachable-server fallback for a non-English locale, matching the picker's own copy", async () => {
+    useAdminLocale.mockReturnValue("es");
+    probeExternalMcpServer.mockRejectedValue({});
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(outcome).toEqual({
+      ok: false,
+      message: "No se pudo contactar con este servidor. Aún puedes escribir los nombres de las herramientas a mano.",
+    });
   });
 });
