@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ByokConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS, type ByokConfig } from "@jini-ai/ui";
 
 import {
   api,
@@ -8,6 +8,7 @@ import {
   type SiteAssistantCredential,
   type SiteAssistantCredentialPatch,
 } from "@/lib/api";
+import { storedKeyIsForOtherEndpoint } from "../rules";
 import {
   saveVisitorKey,
   saveVisitorSettings,
@@ -461,6 +462,162 @@ describe("useVisitorCredentialForm — selectPreset", () => {
 
     expect(result.current.discovery).toEqual({ status: "idle" });
     expect(result.current.connectionTest).toEqual({ status: "idle" });
+  });
+});
+
+/**
+ * Owner repro 2026-09-12: a Google key is stored, the owner picks Anthropic, and both the live model
+ * list and "Test Key" showed the server's raw endpoint-pin text. The server pin is correct — a key it
+ * holds may only go to the endpoint it was saved for — so the form must not ask for that, and must
+ * say what to do in plain language when it would.
+ */
+describe("useVisitorCredentialForm — switching provider while a key is stored for another endpoint", () => {
+  const GOOGLE = "https://generativelanguage.googleapis.com";
+  const ANTHROPIC = "https://api.anthropic.com";
+  const OTHER_PROVIDER_COPY = "Your saved key is for a different provider. Paste a key for this one.";
+  const NO_ENDPOINT_COPY = "Your saved key has no provider saved with it. Paste the key again to test it.";
+  const anthropic = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === "anthropic")!;
+
+  type ProbeInput = { apiKey: string; baseUrl: string };
+
+  /** Answers the two probe routes the way `stored-credential-probe.ts` does: a typed key goes
+   *  anywhere, an empty key (stored opt-in) only to the stored endpoint. */
+  function emulateServerPin(storedBaseUrl: string | null) {
+    const rejectUnpinned = ({ apiKey, baseUrl }: ProbeInput) => {
+      if (apiKey.trim()) return;
+      if (!storedBaseUrl) {
+        throw new ApiError(
+          "the stored site assistant credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+          400,
+          "STORED_CREDENTIAL_ENDPOINT_UNSET",
+        );
+      }
+      if (baseUrl !== storedBaseUrl) {
+        throw new ApiError(
+          `the stored site assistant credential is saved for '${storedBaseUrl}' and cannot be probed against '${baseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
+          400,
+          "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
+        );
+      }
+    };
+    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockImplementation(async (input) => {
+      rejectUnpinned(input);
+      return { ok: true, models: ["model-a"] };
+    });
+    const testExecutionConnection = vi.spyOn(api, "testExecutionConnection").mockImplementation(async (input) => {
+      rejectUnpinned(input);
+      return { ok: true, message: "Connected" };
+    });
+    return { listExecutionModels, testExecutionConnection };
+  }
+
+  async function mountWithStoredKey(clientBaseUrl: string | null, serverBaseUrl: string | null = clientBaseUrl) {
+    vi.useFakeTimers();
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+      data: credential({ isSet: true, masked: "••••mw4w", provider: "google", baseUrl: clientBaseUrl }),
+    });
+    const spies = emulateServerPin(serverBaseUrl);
+    const hook = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    return { ...hook, ...spies };
+  }
+
+  function storedKeyProbesTo(spy: { mock: { calls: unknown[][] } }, baseUrl: string) {
+    return spy.mock.calls.filter(([input]) => {
+      const probe = input as ProbeInput;
+      return !probe.apiKey.trim() && probe.baseUrl === baseUrl;
+    });
+  }
+
+  it("picking Anthropic with no key typed sends the stored key nowhere and shows no error", async () => {
+    const { result, listExecutionModels, unmount } = await mountWithStoredKey(GOOGLE);
+
+    act(() => result.current.selectPreset(anthropic));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(result.current.config.baseUrl).toBe(ANTHROPIC);
+    expect(result.current.discovery).toEqual({ status: "idle" });
+    expect(storedKeyProbesTo(listExecutionModels, ANTHROPIC)).toEqual([]);
+    expect(result.current.hasUsableKey).toBe(false);
+    expect(result.current.storedKeyIsForOtherEndpoint).toBe(true);
+    unmount();
+  });
+
+  it("Test Key and Test connection with no key typed do not probe Anthropic with the Google key", async () => {
+    const { result, listExecutionModels, testExecutionConnection, unmount } = await mountWithStoredKey(GOOGLE);
+    act(() => result.current.selectPreset(anthropic));
+
+    await act(async () => {
+      await result.current.runKeyTest();
+    });
+    await act(async () => {
+      await result.current.runTestConnection();
+    });
+
+    expect(result.current.discovery).toEqual({ status: "idle" });
+    expect(result.current.connectionTest).toEqual({ status: "idle" });
+    expect(storedKeyProbesTo(listExecutionModels, ANTHROPIC)).toEqual([]);
+    expect(storedKeyProbesTo(testExecutionConnection, ANTHROPIC)).toEqual([]);
+    unmount();
+  });
+
+  it("after picking Anthropic, a typed key is what both probes send, to the Anthropic endpoint", async () => {
+    const { result, listExecutionModels, testExecutionConnection, unmount } = await mountWithStoredKey(GOOGLE);
+    act(() => result.current.selectPreset(anthropic));
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-ant-typed" }));
+
+    await act(async () => {
+      await result.current.runKeyTest();
+    });
+    await act(async () => {
+      await result.current.runTestConnection();
+    });
+
+    expect(listExecutionModels).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "sk-ant-typed", baseUrl: ANTHROPIC }));
+    expect(testExecutionConnection).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "sk-ant-typed", baseUrl: ANTHROPIC }));
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["model-a"] });
+    expect(result.current.connectionTest).toEqual({ status: "ok", message: "Connected" });
+    expect(result.current.hasUsableKey).toBe(true);
+    unmount();
+  });
+
+  it("when the server still answers with its endpoint pin, the operator sees plain language, never the pin text", async () => {
+    // The screen's copy of the stored row says Google; the server's row was re-pointed since.
+    const { result, unmount } = await mountWithStoredKey(GOOGLE, "https://api.openai.com/v1");
+
+    expect(result.current.discovery).toEqual({ status: "error", message: OTHER_PROVIDER_COPY });
+
+    await act(async () => {
+      await result.current.runTestConnection();
+    });
+    expect(result.current.connectionTest).toEqual({ status: "error", message: OTHER_PROVIDER_COPY });
+    unmount();
+  });
+
+  it("a stored key with no saved endpoint gets plain language too, not the server's text", async () => {
+    const { result, unmount } = await mountWithStoredKey(null);
+
+    expect(result.current.discovery).toEqual({ status: "error", message: NO_ENDPOINT_COPY });
+    unmount();
+  });
+
+  it("storedKeyIsForOtherEndpoint matches the server's endpoint comparison", () => {
+    const storedAt = (baseUrl: string | null) => credential({ isSet: true, baseUrl });
+    expect(storedKeyIsForOtherEndpoint(storedAt(GOOGLE), ANTHROPIC)).toBe(true);
+    expect(storedKeyIsForOtherEndpoint(storedAt(GOOGLE), GOOGLE)).toBe(false);
+    // Same normalization as the server: trim, then strip trailing slashes.
+    expect(storedKeyIsForOtherEndpoint(storedAt(`${GOOGLE}//`), ` ${GOOGLE} `)).toBe(false);
+    // Path case is significant on the server, so it is here.
+    expect(storedKeyIsForOtherEndpoint(storedAt("https://x.example.com/V1"), "https://x.example.com/v1")).toBe(true);
+    // Unknown stored endpoint: not provably another one, so the server answers.
+    expect(storedKeyIsForOtherEndpoint(storedAt(null), ANTHROPIC)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint(storedAt("   "), ANTHROPIC)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint(credential({ isSet: false, baseUrl: GOOGLE }), ANTHROPIC)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint(null, ANTHROPIC)).toBe(false);
   });
 });
 

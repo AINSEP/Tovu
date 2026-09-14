@@ -13,7 +13,16 @@ import {
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { createExecutionPort } from "@/lib/execution-settings";
-import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, hasUsableKey, isPresetSuppliedEndpoint } from "../rules";
+import {
+  STORED_KEY_OTHER_PROVIDER_COPY,
+  configuredPresetIds as configuredPresetIdsRule,
+  describeApiError,
+  describeProbeError,
+  hasStoredCredential,
+  hasUsableKey,
+  isPresetSuppliedEndpoint,
+  storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
+} from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
@@ -85,10 +94,14 @@ export interface VisitorCredentialFormController {
    * perfectly good stored credential.
    */
   dirty: boolean;
-  /** A key exists — either just typed here, or already stored on the server. Both make the two probe
-   *  controls meaningful, which is the only thing they need to decide. */
+  /** A key a probe can use here — just typed, or stored on the server FOR THIS ENDPOINT. That is what
+   *  makes the two probe controls meaningful, which is the only thing they need to decide. */
   hasUsableKey: boolean;
   hasStoredKey: boolean;
+  /** A key is stored, but the server saved it for another endpoint than the form's (a provider
+   *  switch). With nothing typed, no probe sends it and the key line asks for this provider's key.
+   *  See `rules.ts`'s `storedKeyIsForOtherEndpoint`. */
+  storedKeyIsForOtherEndpoint: boolean;
   /** Which provider presets the current credentials already satisfy — feeds each `ProviderChipGroup`'s
    *  filled/unfilled dot. */
   configuredPresetIds: Set<string>;
@@ -208,15 +221,19 @@ export async function saveVisitorSettings(deps: {
  *
  * @param t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
  *   locale-unaware calls, which keep asserting the exact English strings they always have.
+ * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name. When set, the idle line
+ *   asks for this provider's key instead of reporting a stored key this provider cannot use.
  */
 export function visitorCredentialSaveStatusMessage(
   saveState: VisitorCredentialFormController["saveState"],
   stored: VisitorCredentialFormController["stored"],
   t: Translate = (key) => key,
+  storedKeyIsForOtherEndpoint = false,
 ): string | null {
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
   if (saveState.status !== "idle") return null;
+  if (storedKeyIsForOtherEndpoint) return t(STORED_KEY_OTHER_PROVIDER_COPY);
   if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
   return t("Paste your key, check it with Show, then press Save key.");
 }
@@ -263,7 +280,7 @@ async function runVisitorKeyTest(deps: {
         : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
     );
   } catch (e) {
-    setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Could not reach the provider with that key" });
+    setDiscovery({ status: "error", message: describeProbeError(e, "Could not reach the provider with that key") });
   }
 }
 
@@ -316,7 +333,7 @@ async function runVisitorTestConnection(deps: {
     setConnectionTest(connectionTestStateFromResult(result));
     if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
   } catch (e) {
-    setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
+    setConnectionTest({ status: "error", message: describeProbeError(e, "Connection test failed") });
   }
 }
 
@@ -438,6 +455,8 @@ export function useVisitorCredentialForm({
   }, []);
 
   const { apiKey, baseUrl, protocol } = config;
+  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule(stored, baseUrl);
+  const usableKey = hasUsableKey(apiKey, stored, baseUrl);
 
   /**
    * Discovery on load, for a key this browser does not have.
@@ -449,10 +468,15 @@ export function useVisitorCredentialForm({
    *
    * Runs off `stored?.isSet` rather than the mount, so it fires once hydration has confirmed a key
    * exists — and only when the field is empty, so it can never race or duplicate the typed path.
+   *
+   * Skipped when the stored key belongs to another endpoint (a provider switch): the server refuses
+   * that probe, and the key line asks for this provider's key instead. Deliberately NOT keyed on that
+   * flag: it also flips when "Save settings" re-points the stored row at the form's endpoint, and an
+   * automatic probe at that moment would send the previous provider's key to the new one unasked.
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on stored flag + endpoint only — see doc comment above; `config` as a whole would re-run on every model/max-tokens edit.
   useEffect(() => {
-    if (!stored?.isSet || apiKey.trim()) return;
+    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint) return;
     let cancelled = false;
     setDiscovery({ status: "loading" });
     port.current
@@ -468,7 +492,7 @@ export function useVisitorCredentialForm({
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Model discovery failed" });
+        setDiscovery({ status: "error", message: describeProbeError(e, "Model discovery failed") });
       });
     return () => {
       cancelled = true;
@@ -551,11 +575,17 @@ export function useVisitorCredentialForm({
   // `runVisitorTestConnection`'s own doc comments above for why these run against WHATEVER endpoint
   // is in the field (unlike the debounced automatic effect above) and how the post-test discovery
   // refresh works.
+  //
+  // With nothing typed and the stored key saved for another endpoint, neither press sends anything:
+  // the server would refuse, and the key line already asks for this provider's key. The buttons are
+  // disabled in that state too; this keeps the hook honest for any other caller.
   function runKeyTest() {
+    if (!usableKey && storedKeyIsForOtherEndpoint) return Promise.resolve();
     return runVisitorKeyTest({ port: port.current, config, setDiscovery, setConfig });
   }
 
   function runTestConnection() {
+    if (!usableKey && storedKeyIsForOtherEndpoint) return Promise.resolve();
     return runVisitorTestConnection({ port: port.current, config, setConnectionTest, setDiscovery });
   }
 
@@ -596,8 +626,9 @@ export function useVisitorCredentialForm({
     saveState,
     settingsSaveState,
     dirty,
-    hasUsableKey: hasUsableKey(apiKey, stored),
+    hasUsableKey: usableKey,
     hasStoredKey,
+    storedKeyIsForOtherEndpoint,
     configuredPresetIds: configuredPresetIdsRule(config),
     selectPreset,
     saveKey,

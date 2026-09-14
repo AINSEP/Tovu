@@ -501,7 +501,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *  this same file — is what actually moved the parent's score, not just its ESLint per-closure one. */
 type VisitorCredentialKeyFooterProps = Pick<
   VisitorCredentialFormController,
-  "config" | "saveState" | "stored" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest"
+  "config" | "saveState" | "stored" | "storedKeyIsForOtherEndpoint" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest"
 > & {
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
@@ -546,6 +546,7 @@ export function VisitorCredentialKeyFooter({
   config,
   saveState,
   stored,
+  storedKeyIsForOtherEndpoint,
   hasUsableKey,
   discovery,
   saveKey,
@@ -602,7 +603,9 @@ export function VisitorCredentialKeyFooter({
         <span className="assistant-key-status" role="status">{visitorCredentialKeyStatusMessage(discovery, t)}</span>
       </div>
 
-      {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
+      {/* `t` passes a provider's own error text through unchanged; it translates only this screen's
+          own plain-language probe copy (`rules.ts`'s `describeProbeError`). */}
+      {discovery.status === "error" ? <div className="save-error">{t(discovery.message)}</div> : null}
 
       {/*
         No model picker here any more, deliberately.
@@ -621,7 +624,7 @@ export function VisitorCredentialKeyFooter({
 
       {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above
           for the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
-      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t)}</p>
+      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p>
       {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
     </div>
   );
@@ -676,8 +679,15 @@ export function VisitorCredentialSettingsFooter({
  *  sends nothing at all and the stored key is left alone. A pre-filled value here would be a
  *  real value the save path would persist AS the key. Pulled to a top-level pure function per the
  *  complexity-pass extraction rule — one of the few remaining branch points in
- *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out. */
-export function visitorCredentialApiKeyPlaceholder(stored: VisitorCredentialFormController["stored"]): string | undefined {
+ *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out.
+ *
+ *  Also `undefined` when the stored key belongs to another endpoint: after a provider switch the mask
+ *  would read as a key saved for the provider now selected. */
+export function visitorCredentialApiKeyPlaceholder(
+  stored: VisitorCredentialFormController["stored"],
+  storedKeyIsForOtherEndpoint = false,
+): string | undefined {
+  if (storedKeyIsForOtherEndpoint) return undefined;
   return stored?.isSet ? (stored.masked ?? undefined) : undefined;
 }
 
@@ -704,6 +714,7 @@ export function VisitorCredentialForm({
     settingsSaveState,
     dirty,
     hasUsableKey,
+    storedKeyIsForOtherEndpoint,
     configuredPresetIds,
     selectPreset,
     saveKey,
@@ -824,13 +835,16 @@ export function VisitorCredentialForm({
         // Tells the shared form that the empty key field is not a missing required field, so
         // "Test connection" stops being permanently disabled on a screen whose key lives on the
         // server. Only affects the emptiness check for `apiKey`; base URL and model still validate.
-        apiKeyStoredExternally={stored?.isSet === true}
-        apiKeyPlaceholder={visitorCredentialApiKeyPlaceholder(stored)}
+        // `hasUsableKey` rather than "a key is stored": a key stored for another endpoint cannot be
+        // probed here, so after a provider switch the field is genuinely required again.
+        apiKeyStoredExternally={hasUsableKey}
+        apiKeyPlaceholder={visitorCredentialApiKeyPlaceholder(stored, storedKeyIsForOtherEndpoint)}
         apiKeyFooter={
           <VisitorCredentialKeyFooter
             config={config}
             saveState={saveState}
             stored={stored}
+            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
             hasUsableKey={hasUsableKey}
             discovery={discovery}
             saveKey={saveKey}

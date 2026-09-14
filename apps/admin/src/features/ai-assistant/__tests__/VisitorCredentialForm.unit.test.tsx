@@ -46,6 +46,7 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     dirty: false,
     hasUsableKey: false,
     hasStoredKey: false,
+    storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
@@ -88,9 +89,29 @@ describe("visitorCredentialApiKeyPlaceholder", () => {
       visitorCredentialApiKeyPlaceholder({ isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null }),
     ).toBe("••••ab12");
   });
+
+  it("returns undefined when the stored key belongs to another endpoint, so the new provider's field reads empty", () => {
+    expect(
+      visitorCredentialApiKeyPlaceholder(
+        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
+        true,
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe("visitorCredentialSaveStatusMessage", () => {
+  it("asks for this provider's key in plain language when the stored key belongs to another endpoint", () => {
+    expect(
+      visitorCredentialSaveStatusMessage(
+        { status: "idle" },
+        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
+        undefined,
+        true,
+      ),
+    ).toBe("Your saved key is for a different provider. Paste a key for this one.");
+  });
+
   it("reports Saving… while saving, regardless of stored", () => {
     expect(visitorCredentialSaveStatusMessage({ status: "saving" }, null)).toBe("Saving…");
   });

@@ -78,6 +78,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Configuración guardada.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Almacenada en el servidor, cifrada. Pega una clave nueva para reemplazarla.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Tu clave guardada es de otro proveedor. Pega una clave para este.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Tu clave guardada no tiene un proveedor guardado. Pega la clave de nuevo para probarla.",
     "Paste your key, check it with Show, then press Save key.":
       "Pega tu clave, compruébala con Mostrar y luego presiona Guardar clave.",
 
@@ -163,6 +167,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Pengaturan disimpan.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Disimpan di server, terenkripsi. Tempel kunci baru untuk menggantinya.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Kunci tersimpan Anda untuk penyedia lain. Tempel kunci untuk penyedia ini.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Kunci tersimpan Anda tidak memiliki penyedia yang tersimpan. Tempel kunci lagi untuk mengujinya.",
     "Paste your key, check it with Show, then press Save key.":
       "Tempel kunci Anda, periksa dengan Tampilkan, lalu tekan Simpan kunci.",
     "Show the AI assistant on the admin site": "Tampilkan asisten AI di situs admin",
@@ -228,6 +236,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Einstellungen gespeichert.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Verschlüsselt auf dem Server gespeichert. Fügen Sie einen neuen Schlüssel ein, um ihn zu ersetzen.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Ihr gespeicherter Schlüssel gehört zu einem anderen Anbieter. Fügen Sie einen Schlüssel für diesen ein.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Für Ihren gespeicherten Schlüssel ist kein Anbieter gespeichert. Fügen Sie den Schlüssel erneut ein, um ihn zu testen.",
     "Paste your key, check it with Show, then press Save key.":
       "Fügen Sie Ihren Schlüssel ein, prüfen Sie ihn mit Anzeigen und klicken Sie dann auf Schlüssel speichern.",
     "Show the AI assistant on the admin site": "KI-Assistenten im Admin-Bereich anzeigen",
@@ -289,6 +301,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Saved to the server, encrypted.": "已加密保存到服务器。",
     "Settings saved.": "设置已保存。",
     "Stored on the server, encrypted. Paste a new key to replace it.": "已加密存储在服务器上。粘贴新密钥即可替换。",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "已保存的密钥属于其他提供商。请粘贴此提供商的密钥。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "已保存的密钥未关联提供商。请重新粘贴密钥以进行测试。",
     "Paste your key, check it with Show, then press Save key.":
       "粘贴您的密钥，使用显示进行检查，然后点击保存密钥。",
     "Show the AI assistant on the admin site": "在管理后台显示 AI 助手",
@@ -350,6 +366,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Saved to the server, encrypted.": "已加密儲存至伺服器。",
     "Settings saved.": "設定已儲存。",
     "Stored on the server, encrypted. Paste a new key to replace it.": "已加密儲存在伺服器上。貼上新金鑰即可取代。",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "已儲存的金鑰屬於其他供應商。請貼上此供應商的金鑰。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "已儲存的金鑰未關聯供應商。請重新貼上金鑰以進行測試。",
     "Paste your key, check it with Show, then press Save key.":
       "貼上您的金鑰，使用顯示進行檢查，然後按下儲存金鑰。",
     "Show the AI assistant on the admin site": "在管理後台顯示 AI 助理",
@@ -415,6 +435,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Configurações salvas.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Armazenada no servidor, criptografada. Cole uma nova chave para substituí-la.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Sua chave salva é de outro provedor. Cole uma chave para este.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Sua chave salva não tem um provedor salvo. Cole a chave novamente para testá-la.",
     "Paste your key, check it with Show, then press Save key.":
       "Cole sua chave, verifique-a com Mostrar e depois clique em Salvar chave.",
     "Show the AI assistant on the admin site": "Mostrar o assistente de IA no site de administração",
@@ -480,6 +504,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Настройки сохранены.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Хранится на сервере в зашифрованном виде. Вставьте новый ключ, чтобы заменить его.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Сохранённый ключ относится к другому провайдеру. Вставьте ключ для этого.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Для сохранённого ключа не сохранён провайдер. Вставьте ключ снова, чтобы проверить его.",
     "Paste your key, check it with Show, then press Save key.":
       "Вставьте свой ключ, проверьте его с помощью «Показать», затем нажмите «Сохранить ключ».",
     "Show the AI assistant on the admin site": "Показывать ИИ-ассистента в админ-панели",
@@ -544,6 +572,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "تنظیمات ذخیره شد.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "به‌صورت رمزنگاری‌شده روی سرور ذخیره شده است. برای جایگزینی، کلید جدید را جای‌گذاری کنید.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "کلید ذخیره‌شده شما برای ارائه‌دهنده دیگری است. کلیدی برای این ارائه‌دهنده جای‌گذاری کنید.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "برای کلید ذخیره‌شده شما ارائه‌دهنده‌ای ذخیره نشده است. برای آزمایش، کلید را دوباره جای‌گذاری کنید.",
     "Paste your key, check it with Show, then press Save key.":
       "کلید خود را جای‌گذاری کنید، با نمایش آن را بررسی کنید، سپس روی ذخیره کلید بزنید.",
     "Show the AI assistant on the admin site": "نمایش دستیار هوش مصنوعی در سایت مدیریت",
@@ -608,6 +640,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "حُفظت الإعدادات.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "مخزَّن على الخادم، مشفَّرًا. الصق مفتاحًا جديدًا لاستبداله.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "مفتاحك المحفوظ يخص مزوّدًا آخر. الصق مفتاحًا لهذا المزوّد.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "لا يوجد مزوّد محفوظ مع مفتاحك المحفوظ. الصق المفتاح مرة أخرى لاختباره.",
     "Paste your key, check it with Show, then press Save key.":
       "الصق مفتاحك، تحقّق منه باستخدام إظهار، ثم اضغط حفظ المفتاح.",
     "Show the AI assistant on the admin site": "إظهار مساعد الذكاء الاصطناعي في موقع الإدارة",
@@ -671,6 +707,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "設定を保存しました。",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "暗号化されてサーバーに保存されています。置き換えるには新しいキーを貼り付けてください。",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "保存されているキーは別のプロバイダー用です。このプロバイダーのキーを貼り付けてください。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "保存されているキーにはプロバイダーが保存されていません。テストするにはキーをもう一度貼り付けてください。",
     "Paste your key, check it with Show, then press Save key.":
       "キーを貼り付け、表示で確認してから「キーを保存」を押してください。",
     "Show the AI assistant on the admin site": "管理サイトにAIアシスタントを表示する",
@@ -734,6 +774,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "설정이 저장되었습니다.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "암호화되어 서버에 저장되어 있습니다. 교체하려면 새 키를 붙여넣으세요.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "저장된 키는 다른 공급자용입니다. 이 공급자의 키를 붙여넣으세요.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "저장된 키에 공급자가 저장되어 있지 않습니다. 테스트하려면 키를 다시 붙여넣으세요.",
     "Paste your key, check it with Show, then press Save key.":
       "키를 붙여넣고 표시로 확인한 다음 ‘키 저장’을 누르세요.",
     "Show the AI assistant on the admin site": "관리자 사이트에 AI 어시스턴트 표시",
@@ -797,6 +841,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Ustawienia zapisane.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Przechowywany na serwerze, zaszyfrowany. Wklej nowy klucz, aby go zastąpić.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Zapisany klucz należy do innego dostawcy. Wklej klucz dla tego dostawcy.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Zapisany klucz nie ma zapisanego dostawcy. Wklej klucz ponownie, aby go przetestować.",
     "Paste your key, check it with Show, then press Save key.":
       "Wklej swój klucz, sprawdź go za pomocą Pokaż, a następnie kliknij Zapisz klucz.",
     "Show the AI assistant on the admin site": "Pokaż asystenta AI w panelu administracyjnym",
@@ -860,6 +908,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Beállítások mentve.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Titkosítva tárolva a szerveren. A cseréhez illesszen be egy új kulcsot.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "A mentett kulcs egy másik szolgáltatóhoz tartozik. Illesszen be egy kulcsot ehhez.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "A mentett kulcshoz nincs szolgáltató mentve. A teszteléshez illessze be újra a kulcsot.",
     "Paste your key, check it with Show, then press Save key.":
       "Illessze be a kulcsát, ellenőrizze a Megjelenítéssel, majd nyomja meg a Kulcs mentése gombot.",
     "Show the AI assistant on the admin site": "Az AI asszisztens megjelenítése az adminisztrációs webhelyen",
@@ -923,6 +975,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Paramètres enregistrés.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Stockée sur le serveur, chiffrée. Collez une nouvelle clé pour la remplacer.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Votre clé enregistrée est celle d'un autre fournisseur. Collez une clé pour celui-ci.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Aucun fournisseur n'est enregistré avec votre clé. Collez à nouveau la clé pour la tester.",
     "Paste your key, check it with Show, then press Save key.":
       "Collez votre clé, vérifiez-la avec Afficher, puis cliquez sur Enregistrer la clé.",
     "Show the AI assistant on the admin site": "Afficher l'assistant IA sur le site d'administration",
@@ -986,6 +1042,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Налаштування збережено.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Зберігається на сервері в зашифрованому вигляді. Вставте новий ключ, щоб замінити його.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Збережений ключ належить іншому постачальнику. Вставте ключ для цього.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Для збереженого ключа не збережено постачальника. Вставте ключ ще раз, щоб перевірити його.",
     "Paste your key, check it with Show, then press Save key.":
       "Вставте свій ключ, перевірте його за допомогою «Показати», потім натисніть «Зберегти ключ».",
     "Show the AI assistant on the admin site": "Показувати ШІ-асистента на сайті адміністрування",
@@ -1049,6 +1109,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Ayarlar kaydedildi.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Sunucuda şifrelenerek saklanıyor. Değiştirmek için yeni bir anahtar yapıştırın.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "Kayıtlı anahtarınız başka bir sağlayıcıya ait. Bu sağlayıcı için bir anahtar yapıştırın.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Kayıtlı anahtarınızla birlikte kaydedilmiş bir sağlayıcı yok. Test etmek için anahtarı yeniden yapıştırın.",
     "Paste your key, check it with Show, then press Save key.":
       "Anahtarınızı yapıştırın, Göster ile kontrol edin, ardından Anahtarı kaydet'e basın.",
     "Show the AI assistant on the admin site": "Yapay zeka asistanını yönetim sitesinde göster",
@@ -1112,6 +1176,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "บันทึกการตั้งค่าแล้ว",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "จัดเก็บบนเซิร์ฟเวอร์แบบเข้ารหัส วางคีย์ใหม่เพื่อแทนที่",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "คีย์ที่บันทึกไว้เป็นของผู้ให้บริการรายอื่น วางคีย์สำหรับผู้ให้บริการนี้",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "คีย์ที่บันทึกไว้ไม่มีผู้ให้บริการที่บันทึกไว้ วางคีย์อีกครั้งเพื่อทดสอบ",
     "Paste your key, check it with Show, then press Save key.":
       "วางคีย์ของคุณ ตรวจสอบด้วยแสดง แล้วกดบันทึกคีย์",
     "Show the AI assistant on the admin site": "แสดงผู้ช่วย AI บนเว็บไซต์ผู้ดูแลระบบ",
@@ -1175,6 +1243,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "Impostazioni salvate.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Archiviata sul server, crittografata. Incolla una nuova chiave per sostituirla.",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "La chiave salvata è di un altro provider. Incolla una chiave per questo.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "Alla chiave salvata non è associato alcun provider. Incolla di nuovo la chiave per testarla.",
     "Paste your key, check it with Show, then press Save key.":
       "Incolla la tua chiave, verificala con Mostra, quindi premi Salva chiave.",
     "Show the AI assistant on the admin site": "Mostra l'assistente IA sul sito di amministrazione",
@@ -1240,6 +1312,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "सेटिंग्स सहेजी गईं।",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत। इसे बदलने के लिए एक नई कुंजी पेस्ट करें।",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "आपकी सहेजी गई कुंजी किसी दूसरे प्रदाता की है। इस प्रदाता के लिए कुंजी पेस्ट करें।",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "आपकी सहेजी गई कुंजी के साथ कोई प्रदाता सहेजा नहीं गया है। जाँचने के लिए कुंजी फिर से पेस्ट करें।",
     "Paste your key, check it with Show, then press Save key.":
       "अपनी कुंजी पेस्ट करें, दिखाएं से इसकी जांच करें, फिर कुंजी सहेजें दबाएं।",
     "Show the AI assistant on the admin site": "एडमिन साइट पर एआई सहायक दिखाएं",
@@ -1305,6 +1381,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "ترتیبات محفوظ ہو گئیں۔",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "سرور پر خفیہ کاری کے ساتھ محفوظ ہے۔ اسے بدلنے کے لیے نئی کلید پیسٹ کریں۔",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "آپ کی محفوظ کلید کسی دوسرے فراہم کنندہ کی ہے۔ اس فراہم کنندہ کے لیے کلید پیسٹ کریں۔",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "آپ کی محفوظ کلید کے ساتھ کوئی فراہم کنندہ محفوظ نہیں ہے۔ جانچنے کے لیے کلید دوبارہ پیسٹ کریں۔",
     "Paste your key, check it with Show, then press Save key.":
       "اپنی کلید پیسٹ کریں، دکھائیں کے ذریعے اسے چیک کریں، پھر کلید محفوظ کریں دبائیں۔",
     "Show the AI assistant on the admin site": "ایڈمن سائٹ پر AI اسسٹنٹ دکھائیں",
@@ -1370,6 +1450,10 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Settings saved.": "সেটিংস সংরক্ষিত হয়েছে।",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত আছে। প্রতিস্থাপন করতে নতুন কী পেস্ট করুন।",
+    "Your saved key is for a different provider. Paste a key for this one.":
+      "আপনার সংরক্ষিত কী অন্য একটি প্রদানকারীর। এই প্রদানকারীর জন্য একটি কী পেস্ট করুন।",
+    "Your saved key has no provider saved with it. Paste the key again to test it.":
+      "আপনার সংরক্ষিত কী-এর সঙ্গে কোনো প্রদানকারী সংরক্ষিত নেই। পরীক্ষা করতে কী আবার পেস্ট করুন।",
     "Paste your key, check it with Show, then press Save key.":
       "আপনার কী পেস্ট করুন, দেখান দিয়ে এটি যাচাই করুন, তারপর কী সংরক্ষণ করুন চাপুন।",
     "Show the AI assistant on the admin site": "অ্যাডমিন সাইটে এআই সহকারী দেখান",
