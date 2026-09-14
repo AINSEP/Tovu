@@ -3,7 +3,7 @@ import {
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
 } from "#src/assistant/index";
-import { contributeAgentPluginSearchTools } from "#src/features/agent-plugins/tool-registrations";
+import { contributeAgentPluginSearchTools, contributeAgentPluginUninstallTools } from "#src/features/agent-plugins/tool-registrations";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
@@ -241,6 +241,9 @@ export function installFirstPartyToolContributors(): void {
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section
   // header for why the two halves use different wiring seams.
   registerToolContributor(contributeAgentPluginSearchTools());
+  // `agent_plugins_uninstall` — static, same seam as `search_agent_plugin_local` above. See
+  // `features/agent-plugins/tool-registrations.ts`'s own "agent_plugins_uninstall" section header.
+  registerToolContributor(contributeAgentPluginUninstallTools());
   registerToolContributor(contributeCommentsTools());
   // `listDuplicateResourceHandlers` is injected rather than imported by
   // `features/content-duplication/tool-registrations.ts` itself: `.dependency-cruiser.mjs`'s

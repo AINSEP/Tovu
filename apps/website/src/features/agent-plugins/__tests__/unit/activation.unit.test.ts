@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   ACTIVATIONS_FILENAME,
+  deleteAgentPluginActivation,
   filterActiveAgentPlugins,
   isAgentPluginActive,
   normalizeActivations,
@@ -113,6 +114,43 @@ test("setAgentPluginActivation round-trips and leaves no temp file behind", asyn
     assert.equal(activations.plugins["site-compliance"]?.updatedBy, "cli:alice");
 
     assert.deepEqual(await readdir(root), [ACTIVATIONS_FILENAME]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("deleteAgentPluginActivation removes the record entirely — a subsequent read has no key for it, not a disabled tombstone", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin", enabled: false, actor: "op-1" });
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: "other-plugin", enabled: true, actor: "op-1" });
+
+    await deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "my-plugin" });
+
+    const activations = await readAgentPluginActivations(root);
+    assert.equal("my-plugin" in activations.plugins, false, "the deleted plugin's key must be absent, not present with enabled:false");
+    assert.equal(activations.plugins["other-plugin"]?.enabled, true, "a sibling plugin's record must be untouched");
+    // Absent now means active again — proves this really is a delete, not a disabled tombstone.
+    assert.equal(isAgentPluginActive(activations, "my-plugin"), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("deleteAgentPluginActivation is a no-op, not an error, when no record exists", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "never-recorded" });
+    assert.deepEqual(await readAgentPluginActivations(root), { schemaVersion: 1, plugins: {} });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("deleteAgentPluginActivation rejects an invalid plugin id", async () => {
+  const root = await freshWorkspaceRoot();
+  try {
+    await assert.rejects(() => deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "Not Valid!" }));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

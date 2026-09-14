@@ -5,8 +5,10 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
-import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
+import { agentPluginSearchAgentToolCatalog, agentPluginUninstallAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
+import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
+import { supabaseConnectAgentToolCatalog } from "../../features/supabase-connect/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
 import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
@@ -222,6 +224,11 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // dynamic `agent_plugin_<pluginId>` tools that same file also registers (those are NOT wired
   // through the tool-contribution registry at all, so they never appear in this map either).
   "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-09: `agent-plugin-uninstall` — `agent_plugins_uninstall`, wired via
+  // `contributeAgentPluginUninstallTools()`. See `features/agent-plugins/tool-registrations.ts`'s
+  // own "agent_plugins_uninstall" section header — added at the same time the contributor was,
+  // rather than after this file's completeness test caught it (the `media-generation` drift above).
+  "agent-plugin-uninstall": agentPluginUninstallAgentToolCatalog as unknown as AgentToolDefinition[],
   // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
   // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
   // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,
@@ -232,6 +239,13 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // catalog entry here — distinct from the already-present `external-mcp-reauth` above, a different
   // domain that only wires the single re-auth notice tool.
   "external-mcp": externalMcpAgentToolCatalog as unknown as AgentToolDefinition[],
+  // Same class again: `fs-files` (`fs_list_files`/`fs_read_file`, 2026-09-10) was wired via
+  // `contributeFsFilesTools()` with no entry here, so the completeness test above and every per-tool
+  // lookup that reached `fs_list_files` went red.
+  "fs-files": getFsFilesAgentToolCatalog() as unknown as AgentToolDefinition[],
+  // And again: `supabase-connect` (SPEC-052 M2, d0666279) wired via `contributeSupabaseConnectTools()`
+  // with no entry here — surfaced the moment the `fs-files` entry above let the loop get past it.
+  "supabase-connect": supabaseConnectAgentToolCatalog as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog
@@ -631,4 +645,44 @@ test("assistant_admin_screen_link is wired into the real assistant tool registry
   assert.equal(registration.descriptor.readOnly, true, "a fallback that only points at a screen must be read-only");
   assert.equal(registration.descriptor.requiresConfirmation, undefined);
   assert.deepEqual(registration.descriptor.inputSchema, adminScreenLinkAgentToolCatalog[0]!.inputSchema);
+});
+
+// ---------------------------------------------------------------------------
+// 8. agent_plugins_uninstall wiring (2026-09-09) — present in the REAL ToolRegistry, not merely
+//    compiling. See `features/agent-plugins/tool-registrations.ts`'s own "agent_plugins_uninstall"
+//    section header and `uninstall.ts`'s file header for the domain function this wires.
+// ---------------------------------------------------------------------------
+
+test("agent_plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array", async () => {
+  const { registry } = await buildRealAssembledSurface();
+
+  // `registry.has()` reflects `.register()` having actually been called for this id —
+  // unreachable if `contributeAgentPluginUninstallTools()` were not installed by
+  // `installFirstPartyToolContributors()`, or if `buildAgentPluginUninstallRegistrations` left the
+  // id out of its returned `ToolRegistration[]` (both real ways this could regress).
+  assert.equal(registry.has("agent_plugins_uninstall"), true);
+
+  const registration = wiredRegistration("agent_plugins_uninstall");
+  assert.equal(registration.descriptor.readOnly, false, "a delete must never be reported read-only");
+});
+
+test("agent_plugins_uninstall is discoverable through the real search_tools/describe_tool catalog", async () => {
+  const { catalog } = await buildRealAssembledSurface();
+
+  const described = catalog.describe("agent_plugins_uninstall");
+  assert.ok(described, "agent_plugins_uninstall must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
+  assert.match(described!.description, /PERMANENTLY removes an installed Agent Plugin/);
+
+  const hits = catalog.search("uninstall an agent plugin", 25);
+  assert.ok(hits.some((hit) => hit.id === "agent_plugins_uninstall"), `expected agent_plugins_uninstall among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
+});
+
+test("agent_plugins_uninstall actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash", async () => {
+  const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
+  const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
+
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "agent_plugins_uninstall", { pluginId: "definitely-not-installed" });
+
+  assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
+  assert.match(result.error ?? "", /not installed/);
 });

@@ -295,6 +295,44 @@ export async function recordBundledAgentPluginIfAbsent(
   return { recorded: true };
 }
 
+export interface DeleteAgentPluginActivationRequired {
+  readonly workspaceRoot: string;
+  readonly pluginId: string;
+}
+
+/**
+ * Removes a plugin's activation record entirely, rather than leaving a disabled tombstone.
+ *
+ * The ONLY caller (2026-09-09) is `uninstall.ts`'s `uninstallAgentPlugin()`, on a successful
+ * uninstall of an operator-installed plugin — see that file's own header for the full decision.
+ * Short version: a tombstone (`enabled: false` left behind after the bytes are gone) would invert
+ * this file's own "absent means active, because an operator's own install IS the consent" rule
+ * (this file's header, above) the moment the SAME plugin id is ever reinstalled — the fresh install
+ * would silently inherit a stale disabled flag about bytes that no longer exist. Deleting the record
+ * makes a future reinstall of this id start exactly where any first-ever install starts.
+ *
+ * A no-op, not an error, when no record exists — matches `recordBundledAgentPluginIfAbsent`'s own
+ * idempotent style; a caller uninstalling a plugin that was never explicitly toggled should not have
+ * to special-case "there was nothing to clear".
+ *
+ * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar.
+ * @complexity O(p) in the recorded plugin count — the whole (small) file is rewritten, same as every
+ * other write in this file.
+ */
+export async function deleteAgentPluginActivation(required: DeleteAgentPluginActivationRequired): Promise<void> {
+  const { workspaceRoot, pluginId } = required;
+  assertPluginId(pluginId);
+
+  const current = await readAgentPluginActivations(workspaceRoot);
+  if (current.plugins[pluginId] === undefined) return;
+
+  const remaining = { ...current.plugins };
+  delete remaining[pluginId];
+  const next: AgentPluginActivations = { schemaVersion: 1, plugins: remaining };
+
+  await writeActivationsAtomically(workspaceRoot, next);
+}
+
 function assertPluginId(pluginId: string): void {
   if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || pluginId.length > 64) {
     throw new Error(`agent-plugin activation: '${pluginId}' is not a valid Agent Plugin id`);

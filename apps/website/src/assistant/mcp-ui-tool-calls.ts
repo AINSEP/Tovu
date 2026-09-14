@@ -79,6 +79,12 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // schema DDL — so it belongs here for the identical reason, not a lesser one. The DISABLE direction
   // raises no dialog and never reaches this endpoint.
   "plugins_set_enabled",
+  // 2026-09-14 — `agent_plugins_uninstall` (`features/agent-plugins/tool-registrations.ts`) holds up
+  // the SAME shape `media_trash_asset` does: it opens a `SurfaceExchangeStore` exchange and parks on
+  // the human's Uninstall/Cancel click (`features/agent-plugins/uninstall-confirmation-ui.ts`) before
+  // deleting a package from disk. Proven at the route in
+  // `mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts`.
+  "agent_plugins_uninstall",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.

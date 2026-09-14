@@ -6,18 +6,38 @@ import {
   optionalString,
   requireInputRecord,
   requireString,
+  requireToolPermission,
   type AgentToolSideEffect,
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
   type WirableToolDefinition,
 } from "@jini-ai/cms/core";
+// `ToolInputError` specifically — see `agent_plugins_uninstall`'s own section below for why its two
+// domain error classes (`AgentPluginNotFoundError`/`AgentPluginNotUninstallableError`) are
+// re-classified into this at the tool boundary rather than left as bare `Error`s, mirroring
+// `features/post/tool-registrations.ts`'s identical `toModelFacingUpdateError` precedent.
+import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import {
+  resolveConfirmationDecision,
+  type AssistantSurfaceDeps,
+  type ConfirmationOutcome,
+} from "../../contracts/core/tool-surface-exchanges.js";
 
 import { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./search.js";
+import {
+  AgentPluginNotFoundError,
+  AgentPluginNotUninstallableError,
+  previewAgentPluginUninstall,
+  uninstallAgentPlugin,
+  type AgentPluginUninstallPreview,
+} from "./uninstall.js";
+import { AGENT_PLUGINS_UNINSTALL_TOOL_ID, buildUninstallConfirmationResource } from "./uninstall-confirmation-ui.js";
 import type { ToolContributor } from "#src/assistant/index";
 
 /**
@@ -660,9 +680,10 @@ export interface AgentPluginSearchToolDeps {
 const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
   "Searches the Agent Plugins installed in THIS workspace — agent-plugins.org packages (plugin.json plus " +
   "skills and an optional mcp.json) under this site's own agent-plugins directory. This is a DIFFERENT " +
-  "system from plugins_list/plugins_set_enabled, which manage the separate .tovu-plugin site/runtime " +
-  "plugin family — use this one to find an Agent Plugin, not a site plugin. Returns ranked matches: id, " +
-  "version, description, keywords, whether it is currently enabled for this workspace, and what it " +
+  "system from plugins_list, which lists the separate .tovu-plugin site/runtime plugin family — use this " +
+  "one to find an Agent Plugin, not a site plugin. Returns ranked matches: id, version, description, " +
+  "keywords, whether it is currently enabled for this workspace (plugins_set_enabled with family " +
+  "'agent-plugin' changes that), and what it " +
   "contributes (its skills, and any MCP server ids it declares — ids only, never connection details). " +
   "Local installed packages only — never a marketplace or the web. Once you have the right id, call its " +
   "own agent_plugin_<id> tool (e.g. agent_plugin_site_compliance) for that plugin's full guidance.";
@@ -822,4 +843,251 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
  */
 export function contributeAgentPluginSearchTools(): ToolContributor {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
+}
+
+/**
+ * ===========================================================================================
+ * `agent_plugins_uninstall` — the uninstall tool for THIS package family, not `.tovu-plugin`'s
+ * ===========================================================================================
+ * `features/plugin-runtime/tool-registrations.ts` already has `plugins_uninstall` for the OTHER
+ * plugin system (`.tovu-plugin` site/runtime plugins). This is the same feature, one family over —
+ * see `uninstall.ts`'s own header for the full design, including the two deliberate divergences from
+ * that file's shape (no cross-workspace "enabled somewhere else" precondition; bundled is refused for
+ * permanence, not mere absence).
+ *
+ * Static, like `search_agent_plugin_local` above, not dynamic like `agent_plugin_<pluginId>`: this
+ * tool's id/schema/description are fixed at module load, so it is wired through the ordinary
+ * `ToolContributor` seam (`contributeAgentPluginUninstallTools`, registered once at composition-root
+ * boot) rather than the async-discovery path `registerInstalledAgentPluginTools` uses.
+ *
+ * Tool id is `agent_plugins_uninstall` — PLURAL `agent_plugins_`, not singular `agent_plugin_` —
+ * deliberately outside the dynamic per-plugin tool's own reserved `agent_plugin_<pluginId>` namespace
+ * (`toAgentPluginToolId` above). A plugin literally named `uninstall` would otherwise mint a dynamic
+ * tool id (`agent_plugin_uninstall`) that collides with a hypothetical static `agent_plugin_uninstall`
+ * — the plural prefix used here can never collide with that singular-prefixed scheme (verified: no
+ * `pluginId` substitution into `agent_plugin_<id>` can ever reproduce the substring `plugins_`
+ * immediately after `agent_`, since the generator always inserts exactly one `_` there, never `s_`).
+ *
+ * Permission: `admin.plugins.enable` — the SAME permission `AGENT_PLUGIN_SET_ENABLED`
+ * (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`) already checks, no new grant
+ * introduced. Matches plugin-runtime's own `plugins_uninstall` precedent of reusing its sibling
+ * mutation's permission rather than minting a new one for a strictly stronger operation on the same
+ * resource. Checked explicitly here via `requireToolPermission` (unlike `search_agent_plugin_local`,
+ * which has no mutation to gate beyond the blanket `admin.assistant.use` every wired tool already
+ * carries) — a delete deserves its own explicit evaluation, not only the ambient one.
+ *
+ * Confirmation (2026-09-14): the call PARKS on a human's Uninstall/Cancel click, the held-open
+ * exchange `content_post_delete`/`media_trash_asset` use (`uninstall-confirmation-ui.ts`). Deleting a
+ * package is irreversible and removes guidance the assistant itself runs on, so it is not the model's
+ * to decide; the first cut only asked the MODEL to confirm in prose. Order inside the handler:
+ * permission, then `previewAgentPluginUninstall` (so an unknown or bundled id is refused before a
+ * human is asked anything), then the dialog, then `uninstallAgentPlugin`, which re-runs both refusals
+ * against the disk as it is after the answer. Fails closed with no `emitSurface`, like its siblings.
+ *
+ * Risk classification: `deletes-durable-state`, not `mutates-durable-state`. This domain imports
+ * `AgentToolSideEffect` from the current kit (`@jini-ai/cms/core`) rather than declaring its own
+ * narrower per-domain copy the way `plugin-runtime/agent-tools.ts` does (that file's own union
+ * predates this member and still uses `mutates-durable-state` for its `plugins_uninstall` — not
+ * something this dispatch touches), so the more precise classification is available and used here:
+ * this tool genuinely removes content from every read path (`search_agent_plugin_local`,
+ * `agent_plugin_<pluginId>`, `resolveAgentPluginRefs`), which is exactly the distinction
+ * `deletes-durable-state` exists to make loud rather than folding into the milder classification a
+ * title edit would also carry.
+ */
+
+/** The narrow slice of the route-deps bag this tool's handler reads. `authorize`/`workspaceId`
+ *  mirror `PluginsToolDeps`'s identical two fields for the sibling family's own `plugins_uninstall` —
+ *  everything else this tool needs (`resolveAgentPluginLayout`, `uninstallAgentPlugin`) is resolved
+ *  from `workspaceId` alone, the same shape `AgentPluginSearchToolDeps` above already uses. */
+export interface AgentPluginUninstallToolDeps {
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+}
+
+const AGENT_PLUGINS_UNINSTALL_DESCRIPTION =
+  "PERMANENTLY removes an installed Agent Plugin from THIS workspace: deletes its on-disk package " +
+  "and its activation record. This is NOT reversible from inside Tovu — there is no revision history " +
+  "or trash to restore it from; reinstalling means re-running the install with the plugin's archive. " +
+  "ALWAYS ASKS THE HUMAN FIRST: this tool opens a confirmation dialog and waits for their answer; nothing " +
+  "is removed unless they confirm, and a cancel or no answer comes back as a result, not an error. " +
+  "Refused with a clear reason, before any dialog, if the plugin id is not installed in this workspace or " +
+  "is BUNDLED with Tovu (bundled plugins are re-seeded on every boot, so uninstalling one would silently " +
+  "reappear on the next restart) — to stop a bundled plugin being used, call plugins_set_enabled with " +
+  "family 'agent-plugin' and enabled false instead. After a confirmed uninstall the plugin's own " +
+  "agent_plugin_<id> tool stays listed until Tovu restarts.";
+
+/** What a confirmed uninstall must still tell the user. The package is gone and new runs no longer
+ *  pin it, but a plugin's `agent_plugin_<id>` tool is registered once at agent-daemon boot with its
+ *  guidance held in memory (`buildAgentPluginToolRegistrations` above), so it keeps answering until a
+ *  restart — "uninstalled" alone would mislead, the same confusion `plugins_set_enabled`'s
+ *  `restartRequired` exists to prevent. */
+const UNINSTALL_RESTART_NOTE =
+  "Uninstalled. Its files and activation record are gone and new runs no longer load it, but if it was enabled when " +
+  "the agent daemon started, its own agent_plugin_<id> tool keeps answering from memory until Tovu restarts — tell " +
+  "the user a restart finishes the removal.";
+
+const AGENT_PLUGINS_UNINSTALL_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["pluginId"],
+  properties: {
+    pluginId: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The Agent Plugin's id (its plugin.json 'name'), as returned by search_agent_plugin_local. Must be " +
+        "installed in this workspace and not bundled with Tovu — both are refused with a clear reason.",
+    },
+  },
+} as const;
+
+/** This tool's one-entry catalog, exported for the same cross-check reason
+ *  `agentPluginSearchAgentToolCatalog` above already is. */
+export const agentPluginUninstallAgentToolCatalog: WirableToolDefinition[] = [
+  {
+    name: AGENT_PLUGINS_UNINSTALL_TOOL_ID,
+    description: AGENT_PLUGINS_UNINSTALL_DESCRIPTION,
+    sideEffects: "deletes-durable-state",
+    authorization: { permission: "admin.plugins.enable" },
+    inputSchema: AGENT_PLUGINS_UNINSTALL_SCHEMA,
+  },
+];
+
+/**
+ * Re-classifies `uninstallAgentPlugin`'s own domain errors into `ToolInputError` on their way to the
+ * model, and passes every other rejection through untouched.
+ *
+ * Same reasoning as `features/post/tool-registrations.ts`'s `toModelFacingUpdateError`: an unknown
+ * `pluginId` and a bundled-plugin refusal are both exactly "the CALLER's input was the problem, and a
+ * different input (a real installed id; a different tool call to disable instead) resolves it" — the
+ * honest classification, not a trick to defeat `@jini-ai/daemon`'s redaction. Neither message carries
+ * anything beyond the plugin id the caller already sent and, for the bundled case, the name of the
+ * tool to call instead — nothing internal leaks.
+ */
+function toModelFacingUninstallError(error: unknown): unknown {
+  if (error instanceof AgentPluginNotFoundError || error instanceof AgentPluginNotUninstallableError) {
+    return new ToolInputError(error.message);
+  }
+  return error;
+}
+
+/** Runs one `uninstall.ts` call with its refusals re-classified for the model.
+ *  @complexity O(1) beyond `fn`. */
+async function withModelFacingUninstallErrors<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    throw toModelFacingUninstallError(error);
+  }
+}
+
+/**
+ * Raises the uninstall-confirmation dialog and parks on the human's answer.
+ *
+ * Fails CLOSED when the execution context cannot hold a call open, exactly like
+ * `content_post_delete`/`plugins_set_enabled`: degrading to "remove it and mention we could not ask"
+ * would make the confirmation decorative in precisely the contexts that most need it.
+ *
+ * @throws {Error} When there is no `emitSurface` to raise a dialog through.
+ * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
+ */
+async function confirmUninstall(
+  surfaces: AssistantSurfaceDeps,
+  ctx: Pick<ToolExecutionContext, "principal" | "signal"> & Partial<Pick<ToolExecutionContext, "emitSurface">>,
+  preview: AgentPluginUninstallPreview,
+): Promise<ConfirmationOutcome> {
+  const emitSurface = ctx.emitSurface;
+  if (!emitSurface) {
+    throw new Error(
+      "agent_plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
+        "permanent uninstall cannot be gated here. Nothing was removed.",
+    );
+  }
+
+  const exchange = surfaces.surfaceExchanges.open({ toolId: AGENT_PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
+  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id });
+
+  // A cancelled run must not leave a dialog holding a call nobody is listening to.
+  const closeOnAbort = () => exchange.close();
+  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  } finally {
+    ctx.signal.removeEventListener("abort", closeOnAbort);
+  }
+}
+
+/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception — nothing was removed either way,
+ *  and the model is still alive to say so. @complexity O(1). */
+function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { confirmed: true }>, pluginId: string): unknown {
+  const base = { uninstalled: false, pluginId, restartRequired: false };
+  if (outcome.reason === "declined") {
+    return { ...base, cancelled: true, note: `The user declined. '${pluginId}' was NOT uninstalled and nothing changed.` };
+  }
+  return {
+    ...base,
+    cancelled: false,
+    reason: outcome.reason,
+    note:
+      outcome.reason === "expired"
+        ? `The user did not answer the confirmation before it expired. '${pluginId}' was NOT uninstalled.`
+        : `The confirmation was closed because the run ended. '${pluginId}' was NOT uninstalled.`,
+  };
+}
+
+/** This tool's own risk classification. */
+export const agentPluginUninstallDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  [AGENT_PLUGINS_UNINSTALL_TOOL_ID, "deletes-durable-state"],
+]);
+
+/**
+ * Builds the `agent_plugins_uninstall` registration — mirrors `buildAgentPluginSearchRegistrations`'s
+ * shape immediately above (same `buildDomainRegistrations` gate), plus the explicit
+ * `requireToolPermission` call and the human confirmation this tool's delete warrants (see this
+ * section's header for the order and why).
+ */
+export function buildAgentPluginUninstallRegistrations(routeDeps: AgentPluginUninstallToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    [AGENT_PLUGINS_UNINSTALL_TOOL_ID]: async (ctx) => {
+      const pluginId = requireString(requireInputRecord(ctx.input), "pluginId");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "admin.plugins.enable",
+        entityType: "agent-plugin",
+        entityId: pluginId,
+      });
+
+      const request = { layout: resolveAgentPluginLayout(), workspaceId: routeDeps.workspaceId, pluginId };
+      const preview = await withModelFacingUninstallErrors(() => previewAgentPluginUninstall(request));
+
+      const outcome = await confirmUninstall(surfaces, ctx, preview);
+      if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
+
+      const result = await withModelFacingUninstallErrors(() => uninstallAgentPlugin(request));
+      return {
+        uninstalled: true,
+        cancelled: false,
+        pluginId: result.pluginId,
+        removedDigests: result.removedDigests,
+        restartRequired: true,
+        note: UNINSTALL_RESTART_NOTE,
+      };
+    },
+  };
+
+  return buildDomainRegistrations({
+    domain: "agent-plugin-uninstall",
+    catalogModule: "features/agent-plugins/tool-registrations.ts",
+    catalog: indexCatalogById(agentPluginUninstallAgentToolCatalog),
+    handlers,
+    derivedRisk: agentPluginUninstallDerivedRisk,
+  });
+}
+
+/**
+ * Contributes `agent_plugins_uninstall` to the assistant's static tool catalog — the same
+ * `installFirstPartyToolContributors()` seam `contributeAgentPluginSearchTools` above uses.
+ */
+export function contributeAgentPluginUninstallTools(): ToolContributor {
+  return { domain: "agent-plugin-uninstall", build: buildAgentPluginUninstallRegistrations, risk: agentPluginUninstallDerivedRisk };
 }

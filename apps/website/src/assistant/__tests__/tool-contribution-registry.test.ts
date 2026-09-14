@@ -166,6 +166,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // section header for what `agent-plugin-search` itself contributes.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "agent-plugin-search",
+    "agent-plugin-uninstall",
     "comments",
     "content-duplication",
     "content-types",
@@ -174,6 +175,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "deployments",
     "entries",
     "external-mcp",
+    "fs-files",
     "forms",
     "identity",
     "integrations",
@@ -195,6 +197,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "sites",
     "source-control",
     "static-publish",
+    "supabase-connect",
     "taxonomy",
     "themes",
     "widgets",

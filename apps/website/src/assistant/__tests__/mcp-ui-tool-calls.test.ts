@@ -56,6 +56,11 @@ test("assistant_ask_choice is on the allowlist — it holds up the same held-ope
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_ask_choice"));
 });
 
+test("agent_plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does (2026-09-14)", () => {
+  assert.equal(isMcpUiToolCallAllowed("agent_plugins_uninstall"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("agent_plugins_uninstall"));
+});
+
 test("custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)", () => {
   assert.equal(isMcpUiToolCallAllowed("custom_credential_make_request"), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
@@ -108,6 +113,7 @@ test("external_mcp_save is on the allowlist — it holds up the same held-open-e
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
+  "agent_plugins_uninstall",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",

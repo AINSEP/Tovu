@@ -142,6 +142,16 @@ test("the catalog carries exactly one tool, search_agent_plugin_local, with a re
   assert.ok(schema.properties.limit);
 });
 
+test("the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins", () => {
+  // Tool descriptions ship verbatim to the model. Since a1abe2bb plugins_set_enabled toggles BOTH
+  // plugin families, so the old wording steered the model away from the one tool that can turn a
+  // plugin found here on or off.
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A });
+  const description = registration?.descriptor.description ?? "";
+  assert.doesNotMatch(description, /plugins_list\/plugins_set_enabled, which manage the separate \.tovu-plugin/);
+  assert.match(description, /plugins_set_enabled with family 'agent-plugin'/);
+});
+
 test("finds a real installed plugin by keyword, with description/version/keywords/skills carried through", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(
