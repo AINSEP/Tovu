@@ -41,13 +41,13 @@
  * of the same already-required `"electron"` module `contextBridge`/`ipcRenderer` come from below, so
  * adding it costs no new `require()` call (`preload-speech.test.ts` asserts exactly one).
  *
- * Deliberately NOT unit-tested beyond that guard: this file's `contextBridge.exposeInMainWorld` call
- * only runs inside Electron's real preload context (`contextBridge`/`ipcRenderer` do not exist under
- * plain Node — `require("electron")` there resolves to a path string, not the API), so a
- * `node --test` run cannot exercise the bridging itself. Verified by code review only — its whole
- * body beyond the two constants is two `ipcRenderer.invoke` calls with no branching of its own,
- * forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end, plus the one
- * synchronous `webUtils.getPathForFile` passthrough `tovuFiles` adds.
+ * The bridged calls themselves are NOT unit-tested: they only work inside Electron's real preload
+ * context (`contextBridge`/`ipcRenderer` do not exist under plain Node — `require("electron")` there
+ * resolves to a path string, not the API). Verified by code review only — two `ipcRenderer.invoke`
+ * calls forwarding straight to the channels `speech-ipc.cjs` already tests end-to-end, plus the one
+ * synchronous `webUtils.getPathForFile` passthrough `tovuFiles` adds. The file's one branch — which
+ * pages get `tovuFiles` — IS tested, by running this source in a `vm` with a stubbed `electron`
+ * (`preload-speech.test.ts`).
  */
 
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
@@ -78,7 +78,23 @@ contextBridge.exposeInMainWorld("tovuVoice", {
  * byte for `apps/desktop/src/renderer/folder-drop.ts`'s admin-side counterpart,
  * `apps/admin/src/features/fs-files/folder-drop.ts`, to call).
  */
-contextBridge.exposeInMainWorld("tovuFiles", {
-  /** @param {File} file @returns {string} the file's absolute OS path, or `''` if unresolvable. */
-  getPathForFile: (file) => webUtils.getPathForFile(file),
-});
+/**
+ * The admin surface only: `/admin` and everything under `/admin/`. This preload also runs on the
+ * site's same-origin PUBLIC pages — `createWindow`'s popup handler allows any same-origin URL,
+ * in-window navigation stays in the app, and a `<webview>` guest is confined only to its origin — so
+ * without this check a theme's own scripts on `/` would receive absolute OS paths too. Read once, at
+ * preload time: moving between the admin SPA and the public site is a full navigation, which re-runs
+ * this file.
+ *
+ * Defense in depth, not an origin boundary. Script on the public site shares the admin's origin and
+ * its session cookie, so it can already call admin APIs, or `window.open("/admin/")` and reach into
+ * that window. What this removes is handing the path lookup to every page script that receives a File.
+ */
+const ADMIN_PATH_PREFIX = "/admin";
+const pathname = window.location.pathname;
+if (pathname === ADMIN_PATH_PREFIX || pathname.startsWith(`${ADMIN_PATH_PREFIX}/`)) {
+  contextBridge.exposeInMainWorld("tovuFiles", {
+    /** @param {File} file @returns {string} the file's absolute OS path, or `''` if unresolvable. */
+    getPathForFile: (file) => webUtils.getPathForFile(file),
+  });
+}

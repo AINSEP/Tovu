@@ -8,11 +8,15 @@
  * only `"electron"`/`"events"`/`"timers"`/`"url"` — a relative specifier throws), and its two inlined
  * channel-name literals never drifting from `speech-ipc.ts`'s own exports, which stay the source of
  * truth for both files.
+ *
+ * The one decision the file makes — which page gets `window.tovuFiles` — IS exercised, by running the
+ * real source in a `vm` context with a stubbed `require("electron")` (`exposedGlobalsAt` below).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "./speech-ipc.ts";
 import { fileURLToPath } from "node:url";
@@ -45,4 +49,37 @@ test("preload-speech.cjs's inlined IPC_CHANNEL_TRANSCRIBE literal matches speech
   const match = source.match(/IPC_CHANNEL_TRANSCRIBE\s*=\s*["']([^"']+)["']/);
   assert.ok(match, "expected an inlined IPC_CHANNEL_TRANSCRIBE string literal in preload-speech.cjs");
   assert.equal(match[1], IPC_CHANNEL_TRANSCRIBE);
+});
+
+/** Runs the preload's real source in a `vm` context whose `require("electron")` is a recording stub
+ *  and whose `window.location.pathname` is `pathname`, returning every global it exposes to the page,
+ *  in order. This exercises the one decision the file makes (which bridges a given page gets) without
+ *  Electron; the bridged calls themselves stay untested here, as the header above says. */
+function exposedGlobalsAt(pathname: string): string[] {
+  const exposed: string[] = [];
+  const electron = {
+    contextBridge: { exposeInMainWorld: (key: string) => void exposed.push(key) },
+    ipcRenderer: { invoke: async () => undefined },
+    webUtils: { getPathForFile: () => "" },
+  };
+  const requireStub = (specifier: string) => {
+    assert.equal(specifier, "electron");
+    return electron;
+  };
+  vm.runInNewContext(source, { require: requireStub, window: { location: { pathname } } }, { filename: SOURCE_PATH });
+  return exposed;
+}
+
+test("window.tovuFiles is exposed on the admin surface — /admin and every path under /admin/", () => {
+  for (const pathname of ["/admin", "/admin/", "/admin/posts/42"]) {
+    assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice", "tovuFiles"], `at ${pathname}`);
+  }
+});
+
+test("window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths", () => {
+  // Every one of these loads with this same preload: `createWindow`'s same-origin `allow` popups and
+  // in-window navigation, and a `<webview>` guest confined only to its origin, all reach them.
+  for (const pathname of ["/", "/about", "/blog/hello-world", "/theme-assets/site.css", "/administrator", "/admin-old/"]) {
+    assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice"], `at ${pathname}`);
+  }
 });
