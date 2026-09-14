@@ -84,32 +84,40 @@ function resolveTransformSpec(
   return { transformName, version };
 }
 
-/** Local copy of `pages.ts`'s own (file-private) `isPlainObject`/`collectImageAssetIds` walk —
+/** Local copy of `pages.ts`'s own (file-private) `isPlainObject`/`collectMediaRefAssetIds` walk —
  *  duplicated rather than imported, same "each side owns its own copy of a small pure helper"
  *  precedent `9bf661e9`'s content-API gating fix already followed for `readRawCookie`/
  *  `createMemberAccessResolver` below. Walks a TipTap-shaped `bodyJson` tree collecting every
- *  ref-based `image` node's `assetId` (ADR-027 §4's `{assetId, transformName}` shape); a legacy
- *  `src`-only node contributes nothing, matching `render.ts`'s own `image` case, which never reads
- *  `src` at all once a ref shape exists. */
+ *  ref-based media node's `assetId` (ADR-027 §4's `{assetId, transformName}` shape) — both the
+ *  legacy image-only ref shape and the generic `media` node (2026-09-11, `render.ts`'s
+ *  `renderDocMedia`'s own doc) share this collection, since both key off the same `assetId` attr.
+ *  Widened 2026-09-11 (this route's own gating-bypass fix, renamed from `collectImageAssetIds`
+ *  accordingly) to match `pages.ts`'s and `resolver-service.ts`'s own collectors, which were
+ *  widened the same day — before this fix, a members-only entry embedding an asset through the new
+ *  `media` node (the admin composer's Media button/drag-drop/paste all insert it now) produced an
+ *  EMPTY gating set here, and {@link resolveMediaAccessDecision}'s fail-open default served it to
+ *  anonymous visitors with a year-long immutable CDN header. A legacy `src`-only node still
+ *  contributes nothing, matching `render.ts`'s own `image` case, which never reads `src` at all once
+ *  a ref shape exists. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function collectImageAssetIds(node: unknown, out: Set<string>): void {
+function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
-    for (const child of node) collectImageAssetIds(child, out);
+    for (const child of node) collectMediaRefAssetIds(child, out);
     return;
   }
   if (!isPlainObject(node)) return;
-  if (node.type === "image" && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
     out.add(node.attrs.assetId);
   }
-  if (Array.isArray(node.content)) collectImageAssetIds(node.content, out);
+  if (Array.isArray(node.content)) collectMediaRefAssetIds(node.content, out);
 }
 
 /**
  * The body formats this route's own reference scan knows how to read end to end:
- * `"doc"` through {@link collectImageAssetIds}'s `bodyJson` walk, `"html"` through
+ * `"doc"` through {@link collectMediaRefAssetIds}'s `bodyJson` walk, `"html"` through
  * {@link addHtmlEmbedAssetIds}'s marker scan. Deliberately a runtime set rather than a reliance on
  * `PostBodyFormat` being a closed union at compile time — a `bodyFormat` value arrives from a
  * database column (`repo.sqlite.ts`'s `toRecord`), so a THIRD format added later reaches this
@@ -131,7 +139,7 @@ function isGatedEntry(entry: PostRecord): boolean {
  * `body_html` to `out`.
  *
  * This is the second half of "which entries reference this asset", and it was missing until
- * 2026-09-05. `collectImageAssetIds` walks `bodyJson` only, so it can see a `"doc"`-format entry's
+ * 2026-09-05. `collectMediaRefAssetIds` walks `bodyJson` only, so it can see a `"doc"`-format entry's
  * ref-based TipTap `image` nodes and nothing else — but an `"html"`-format Page's real content
  * lives in `bodyHtml` (`post.ts`'s own doc: `bodyJson` stays an empty non-null object for those
  * rows), and video has NO TipTap node type in this codebase at all: `render.ts`'s `renderVideoTag`
@@ -177,7 +185,7 @@ interface EntryAssetScan {
 
 function scanEntryAssets(entry: PostRecord): EntryAssetScan {
   const ids = new Set<string>();
-  collectImageAssetIds(entry.bodyJson, ids);
+  collectMediaRefAssetIds(entry.bodyJson, ids);
   if (entry.bodyHtml !== null) addHtmlEmbedAssetIds(entry.bodyHtml, ids);
   return { ids, readable: READABLE_BODY_FORMATS.has(entry.bodyFormat) };
 }

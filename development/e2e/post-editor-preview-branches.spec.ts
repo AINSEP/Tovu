@@ -2,19 +2,19 @@ import { expect, test, type Frame, type Page } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
- * @file The Posts editor's Preview tab (`PostEditor.tsx`'s `PostPreview`) — which of its FOUR
- * branches renders, and whether the explanatory notice that is supposed to accompany the degraded
+ * @file The Posts editor's Preview tab (`PostEditor.tsx`'s `PostPreview`) — which of its THREE
+ * branches renders, and whether the explanatory notice that is supposed to accompany the non-live
  * ones is actually visible.
  *
  * ## Why this suite exists — there are three renderers, not two
  *
  * `tiptap-render-contract.test.ts` and `post-editor-toolbar.spec.ts` (same session) both target the
- * seam from the Tiptap editor to the PUBLIC site (`renderDocNode`/`renderMarks`). There is a THIRD
- * renderer this project has: Tiptap's own `editor.getHTML()`, fed into `SrcDocSandbox` as the
- * Preview tab's raw fallback branch when nothing else can show a real, themed render. Neither of the
- * other two suites can see this seam at all — it never reaches the public site or `render.ts`.
+ * seam from the Tiptap editor to the PUBLIC site (`renderDocNode`/`renderMarks`). This suite used to
+ * cover a THIRD renderer — Tiptap's own `editor.getHTML()`, fed into `SrcDocSandbox` as the Preview
+ * tab's raw fallback branch — but that branch was deleted 2026-09-11 (see below): every post now
+ * renders through one of the first two renderers, never that third one.
  *
- * ## The bug this suite used to lock in, now fixed (2026-08-12)
+ * ## The bug this suite used to lock in, first fixed 2026-08-12
  *
  * Reported by the owner directly: formatting text with the inline-code button "broke the preview…
  * it didn't update the styling." The published page was fine — a curl test (or anything hitting the
@@ -30,7 +30,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * watched a styled preview go blank/plain after one click, that read as "the preview broke," not
  * "this is expected because you have an unsaved edit."
  *
- * The fix (`PostEditor.tsx`'s `PostPreview`, commit 47782cb) adds a fourth branch,
+ * The fix (`PostEditor.tsx`'s `PostPreview`, commit 47782cb) added a third branch,
  * `canShowPendingContentPreview = status === "published" && contentDirty`: a hidden `<form
  * method="post" target="{iframe name}">` submits the live, unsaved `editor.getJSON()` as `bodyJson`
  * to the same `template-preview` endpoint branch 2 already `GET`s, landing a real navigated document
@@ -45,10 +45,22 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * `pendingContentOverride`) is checked BEFORE `findPublishedPostById`'s visibility guard, so it
  * already bypassed that guard for a DRAFT's own id too — the `status === "published"` check on branch
  * 3 was never load-bearing for correctness, only inherited from branch 2's (which genuinely needs it,
- * for the un-overridden `GET` case branch 2 alone uses). `canShowPendingContentPreview` is now simply
- * `contentDirty`. Branch 4 (the raw editor-buffer fallback) is consequently reachable ONLY for a
- * CLEAN draft now — a draft that has never been touched at all — not "any draft" as the tests below
- * used to assume.
+ * for the un-overridden `GET` case branch 2 alone uses). `canShowPendingContentPreview` became simply
+ * `contentDirty`, which left the raw editor-buffer fallback reachable ONLY for a CLEAN draft — a
+ * draft that had never been touched at all.
+ *
+ * ## Widened again 2026-09-11 — the raw fallback is DELETED, not just narrowed further
+ *
+ * Owner-reported: "the preview should always show the css and template and all that properly." A
+ * brand-new, untouched draft is `contentDirty: false` by definition, so it was STILL hitting the raw
+ * fallback under the 2026-09-09 rule — the single most common state a post is ever in (autosave
+ * clears `contentDirty` within moments of any edit, so a post spends nearly all its draft life here).
+ * `canShowPendingContentPreview` is now simply `!canShowLiveSite && !canShowTemplatePreview` — the
+ * plain negation of the two branches above, with no `contentDirty` check left at all — which makes it
+ * exhaustive and deletes the raw `SrcDocSandbox` fallback as dead code (see `PostPreview`'s own doc
+ * in `PostEditor.tsx`). The first test below, "a brand-new, UNTOUCHED draft," used to assert exactly
+ * the raw-fallback behavior as `INTENDED`; it now asserts the fixed behavior instead — same scenario,
+ * opposite expectation, so this suite still proves the regression can't come back.
  *
  * `PostPreview`'s own JSX pairs every non-live-site branch with an `.editor-preview-notice`
  * explaining what's being shown. This suite verifies, DOM-first (`toBeVisible()`, not a screenshot —
@@ -58,7 +70,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  *
  * ## Scope discipline
  *
- * This suite locks in `PostPreview`'s full four-branch behavior (bug-fixed and always-intended
+ * This suite locks in `PostPreview`'s full three-branch behavior (bug-fixed and always-intended
  * alike) as tests. Each test below states which branch it targets.
  */
 
@@ -86,12 +98,14 @@ async function publishAndWaitForConfirmation(page: Page): Promise<void> {
   await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
 }
 
-/** The `.editor-preview-iframe` carries `src` (branches 1/2, a real navigable iframe pointed at a URL
- *  up front) XOR `srcdoc` (branch 4, `SrcDocSandbox` — see that component's own source: it never sets
- *  `src` at all). Branch 3 (pending-content) sets NEITHER attribute — it only ever gets a `name`, and
- *  its navigation happens via a targeted form submit rather than an attribute the DOM exposes, so this
- *  structural signal only distinguishes branches 1/2/4 from each other; branch 3 is asserted with
- *  {@link waitForPendingContentFrame} instead. */
+/** The `.editor-preview-iframe` carries `src` for branches 1/2 (a real navigable iframe pointed at a
+ *  URL up front). Branch 3 (pending-content) sets NEITHER `src` NOR `srcdoc` — it only ever gets a
+ *  `name`, and its navigation happens via a targeted form submit rather than an attribute the DOM
+ *  exposes, so this structural signal only distinguishes branches 1/2 from branch 3; branch 3 is
+ *  asserted with {@link waitForPendingContentFrame} instead. `srcdoc` is still checked below (never
+ *  present, on any branch) as a standing regression guard for the raw `SrcDocSandbox` fallback this
+ *  file's header records as deleted 2026-09-11 — that component never sets `src`, only `srcdoc`, so a
+ *  reappearing `srcdoc` attribute would be the tell if it ever came back. */
 async function previewIframeState(page: Page): Promise<{ src: string | null; srcdoc: string | null }> {
   const iframe = page.locator(".editor-preview-iframe");
   await expect(iframe).toBeVisible();
@@ -151,24 +165,36 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     await loginAsAdmin(page);
   });
 
-  test("INTENDED: a brand-new, UNTOUCHED draft's Preview tab falls back to the raw editor-buffer render, with a VISIBLE notice explaining why", async ({
+  test("FIXED (2026-09-11, owner-reported): a brand-new, UNTOUCHED draft's Preview tab shows the real themed template render, not the raw editor-buffer fallback", async ({
     page,
   }) => {
     await openFreshPost(page);
-    // Deliberately nothing typed — `contentDirty` stays `false`, so this is genuinely branch 4, not
-    // branch 3 (see the widening note above: a draft with an actual edit no longer falls this far).
+    // Deliberately nothing typed — `contentDirty` stays `false`. Before this fix that was exactly
+    // the one state that fell through every branch to the raw `SrcDocSandbox` fallback (see this
+    // file's header); now it's simply "not live, not template-choice-only," so it takes branch 3.
 
     await page.getByRole("tab", { name: "Preview" }).click();
     const { src, srcdoc } = await previewIframeState(page);
 
     expect(src, "a clean draft must never resolve to the live-site or template-preview iframe").toBeNull();
-    expect(srcdoc, "a clean draft's Preview must be the SrcDocSandbox fallback").not.toBeNull();
+    expect(srcdoc, "REGRESSION GUARD: must never fall back to the deleted SrcDocSandbox render again").toBeNull();
+
+    const pendingFrame = await waitForPendingContentFrame(page);
+    expect(
+      pendingFrame.url(),
+      "must reuse the SAME id-based template-preview endpoint every other branch-3 case uses"
+    ).toContain("/template-preview");
+    // Real, themed chrome — a `<body>` attached inside a real navigated document, not an inline
+    // `srcDoc` string with no template/theme CSS at all.
+    await expect(pendingFrame.locator("body")).toBeVisible();
 
     // The notice this suite exists to verify — measured, not a screenshot.
     await expectNoticeGenuinelyVisible(page);
     await expect(page.locator(".editor-preview-notice")).toContainText(
-      "publish this post to preview it with the theme's real template and CSS"
+      "Previewing your unsaved edits through the live template"
     );
+    // The old "rough render... publish this post" notice must never appear again.
+    await expect(page.locator(".editor-preview-notice")).not.toContainText("preview it with the theme's real template");
   });
 
   test("WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback", async ({

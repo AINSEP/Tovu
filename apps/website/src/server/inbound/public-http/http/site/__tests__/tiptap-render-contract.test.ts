@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { renderDocNode, renderWidgetIr } from "../render.js";
+import { renderDocNode, renderWidgetIr, type MediaAssetRenderMeta } from "../render.js";
 
 /**
  * @file Table-driven TipTap-JSON→HTML round-trip contract for the public renderer
@@ -123,6 +123,9 @@ const REGISTERED_NODE_TYPES = [
   "hardBreak", // @tiptap/starter-kit -> @tiptap/extension-hard-break
   "image", // apps/admin/src/lib/media-image-extension.tsx — MediaImage (extends @tiptap/extension-image,
   // keeps the node NAME "image" deliberately — see that file's own header)
+  "media", // apps/admin/src/lib/media-embed-extension.tsx — Media (2026-09-11, generic media node:
+  // dispatches to <img>/<video> server-side by the referenced asset's real content type — see
+  // render.ts's renderDocMedia for the full "one node, not one per kind" reasoning)
   "widgetEmbed", // apps/admin/src/lib/widget-embed-extension.tsx — WidgetEmbed
   // --- backfilled 2026-08-12 (this file's own worklist note above, closed) ---
   "taskList", // @tiptap/extension-list — TaskList
@@ -206,10 +209,17 @@ interface ContractRow {
   types: readonly string[];
   /** The exact TipTap JSON `renderDocNode` receives, shaped as a full `doc`. */
   doc: JsonObject;
-  /** The exact HTML `renderDocNode(doc, inlineResolved, mediaTransformVersions)` must produce. */
+  /** The exact HTML `renderDocNode(doc, inlineResolved, mediaTransformVersions, mediaAssetMetadata)`
+   *  must produce. */
   html: string;
   inlineResolved?: ReadonlyMap<string, WidgetRenderIR>;
   mediaTransformVersions?: ReadonlyMap<string, number>;
+  /** `media` node dispatch fixture (2026-09-11) — per-asset `contentType`/sizing overrides, same map
+   *  `resolveMediaAssetMetadataForRender` (`routes/site/pages.ts`) resolves for a real request. Only
+   *  the `media`-node rows below set this; every pre-existing row leaves it `undefined`, which
+   *  `renderDocNode` already defaults to `EMPTY_MEDIA_ASSET_METADATA` — unchanged behavior for every
+   *  row that doesn't need it. */
+  mediaAssetMetadata?: ReadonlyMap<string, MediaAssetRenderMeta>;
 }
 
 const CONTRACT_TABLE: readonly ContractRow[] = [
@@ -668,6 +678,114 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     mediaTransformVersions: new Map([["public", 3]]),
     html: '<img src="/m/asset-1/public.v3/image.jpg" alt="A cat" loading="lazy">',
   },
+
+  // --- media (generic node, 2026-09-11): dispatches <img>/<video> by the referenced asset's real
+  // content type (render.ts's renderDocMedia) — see that function's own doc for the full contract.
+  {
+    label: "media, resolved asset's contentType is video/* — renders a real <video> against the /m/{id}/original byte-passthrough route, NOT an <img>",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid", transformName: "public", alt: "A clip" } }] },
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4" }],
+    ]),
+    html: '<video src="/m/asset-vid/original" controls>A clip</video>',
+  },
+  {
+    label: "media, resolved asset's contentType is image/* — falls through to the EXACT same tryRenderRefImage path the image node itself uses, byte-identical output",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-img", transformName: "public", alt: "A cat" } }] },
+    mediaTransformVersions: new Map([["public", 3]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-img", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-img/public.v3/image.jpg" alt="A cat" loading="lazy">',
+  },
+  {
+    label: "media, mediaAssetMetadata entry present but contentType is null (asset resolved, blob not yet sniffed) — reads as \"not video\", not as unresolved, and still renders the real image",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-unsniffed", transformName: "public" } }] },
+    mediaTransformVersions: new Map([["public", 2]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-unsniffed", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: null }],
+    ]),
+    html: '<img src="/m/asset-unsniffed/public.v2/image.jpg" alt="" loading="lazy">',
+  },
+
+  // --- media per-node style overrides (2026-09-11, owner-directed per-post styling): `cssClass`/
+  // `htmlAttributes` on the NODE ITSELF, layered over the asset's own same-named fields. Precedence
+  // (renderDocMedia's own doc comment states this too): PER FIELD, not all-or-nothing — the node's
+  // value wins whenever it is set (non-null, non-empty), the asset's value otherwise; width/height
+  // are never node-level (this task only threads cssClass/htmlAttributes onto the node), so they
+  // always come from the asset regardless of what the node itself carries.
+  {
+    label: "media node style override: a node cssClass applies even with NO matching mediaAssetMetadata entry at all — a per-post override needs no Media Library sizing UI involvement",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-node-style", transformName: "public", cssClass: "float-right" } }] },
+    mediaTransformVersions: new Map([["public", 1]]),
+    html: '<img src="/m/asset-node-style/public.v1/image.jpg" alt="" class="float-right" loading="lazy">',
+  },
+  {
+    label: "media node style override: node cssClass WINS over the asset's own cssClass, but width/height still come from the asset — proves the precedence is per-field, not all-or-nothing",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-both", transformName: "public", cssClass: "post-specific", alt: "x" } }] },
+    mediaTransformVersions: new Map([["public", 2]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-both", { width: 100, height: 50, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-both/public.v2/image.jpg" alt="x" width="100" height="50" class="post-specific" loading="lazy">',
+  },
+  {
+    label: "media node style override: node leaves cssClass unset (null) — the asset's own cssClass still applies, same as before this task existed",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-fallback", transformName: "public", alt: "x" } }] },
+    mediaTransformVersions: new Map([["public", 1]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-fallback", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-fallback/public.v1/image.jpg" alt="x" class="asset-class" loading="lazy">',
+  },
+  {
+    label: "media node style override: a node htmlAttributes value merges alongside the asset's own cssClass — each field resolved independently, never all-or-nothing",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-merge", transformName: "public", htmlAttributes: 'data-kui="hero"' } }] },
+    mediaTransformVersions: new Map([["public", 5]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-merge", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-merge/public.v5/image.jpg" alt="" class="asset-class" data-kui="hero" loading="lazy">',
+  },
+  {
+    label: "media node style override security guard: a disallowed node-level htmlAttributes name (onerror) is rejected by the SAME allowlist the asset-level field uses — fails closed, omitted from the tag, no new parser needed",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-xss", transformName: "public", htmlAttributes: 'onerror="alert(1)"' } }] },
+    mediaTransformVersions: new Map([["public", 1]]),
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-xss", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+    ]),
+    html: '<img src="/m/asset-xss/public.v1/image.jpg" alt="" loading="lazy">',
+  },
+  {
+    label: "media node style override applies on the VIDEO dispatch branch too — node cssClass wins over the asset's own cssClass on the <video> tag, same precedence rule as the image branch",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid-style", transformName: "public", cssClass: "wide-video", alt: "clip" } }] },
+    mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
+      ["asset-vid-style", { width: null, height: null, cssClass: "asset-video-class", htmlAttributes: null, contentType: "video/mp4" }],
+    ]),
+    html: '<video src="/m/asset-vid-style/original" controls class="wide-video">clip</video>',
+  },
+
+  {
+    label: "media security/safety guard: an asset absent from mediaAssetMetadata entirely (deleted, wrong workspace, no render/test threaded the map through) degrades to the SAME placeholder the image node's own unresolved ref gets — never silence, never a crash",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-ghost", transformName: "public", alt: "Ghost" } }] },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Ghost</span></figure>',
+  },
+  {
+    label: "media with no assetId at all (malformed/empty attrs) degrades to the placeholder immediately, with its own \"Media\" default label (not image's \"Image\" default)",
+    types: ["media"],
+    doc: { type: "doc", content: [{ type: "media", attrs: {} }] },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Media</span></figure>',
+  },
   {
     label: "youtube, a recognized watch-URL shape re-derives the video id into a nocookie embed with start time — backfilled 2026-08-12",
     types: ["youtube"],
@@ -724,7 +842,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
 
 for (const row of CONTRACT_TABLE) {
   test(`renderDocNode contract: ${row.label}`, () => {
-    const html = renderDocNode(row.doc, row.inlineResolved, row.mediaTransformVersions);
+    const html = renderDocNode(row.doc, row.inlineResolved, row.mediaTransformVersions, row.mediaAssetMetadata);
     assert.equal(html, row.html);
   });
 }

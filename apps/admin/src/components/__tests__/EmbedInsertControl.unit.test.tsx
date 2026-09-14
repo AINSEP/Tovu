@@ -30,7 +30,7 @@ const EMBED_TRIGGER_NAME = "Embed";
 function fakeEditor() {
   return {
     commands: {
-      insertMediaRef: vi.fn().mockReturnValue(true),
+      insertMediaEmbed: vi.fn().mockReturnValue(true),
       insertWidgetEmbed: vi.fn().mockReturnValue(true),
     },
   };
@@ -129,7 +129,7 @@ describe("EmbedInsertControl — Media", () => {
 
     await user.click(await screen.findByTitle("Sunset"));
 
-    expect(editor.commands.insertMediaRef).toHaveBeenCalledWith({
+    expect(editor.commands.insertMediaEmbed).toHaveBeenCalledWith({
       assetId: "m1",
       transformName: "public",
       alt: "A sunset over water",
@@ -152,7 +152,7 @@ describe("EmbedInsertControl — Media", () => {
     await user.click(screen.getByRole("menuitem", { name: "Media" }));
     await user.click(await screen.findByTitle("Untitled photo"));
 
-    expect(editor.commands.insertMediaRef).toHaveBeenCalledWith({
+    expect(editor.commands.insertMediaEmbed).toHaveBeenCalledWith({
       assetId: "m2",
       transformName: "public",
       alt: "Untitled photo",
@@ -177,7 +177,7 @@ describe("EmbedInsertControl — Media", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(editor.commands.insertMediaRef).not.toHaveBeenCalled();
+    expect(editor.commands.insertMediaEmbed).not.toHaveBeenCalled();
   });
 });
 

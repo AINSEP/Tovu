@@ -262,6 +262,31 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
 
     expect(form.submit).not.toHaveBeenCalled();
   });
+
+  // Owner-reported bug (2026-09-11): confirmed live in a real browser that switching to the Preview
+  // tab on a brand-new, never-edited draft rendered `PostPreview`'s pending-content form/iframe pair
+  // (that component's own `canShowPendingContentPreview` was fixed to cover exactly this case) but
+  // the iframe stayed at `about:blank` forever — this hook had its OWN, separate copy of
+  // `canShowPendingContentPreview` gating the debounce effect's `active` flag, and that copy was
+  // never widened past the pre-2026-09-11 `contentDirty` shortcut. `PostPreview` rendering the right
+  // markup means nothing if this effect never calls `form.submit()` at all. This test does NOT touch
+  // `setTitle`/`setTemplateChoice` or anything else that would flip `contentDirty` — a truly untouched
+  // draft is the exact scenario the bug needed and the fix now covers.
+  it("schedules and fires the debounced submit for a CLEAN, never-edited DRAFT post — not just a dirty one (2026-09-11 widening)", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    expect(result.current.dirty, "must genuinely be the untouched-draft case, not accidentally already dirty").toBe(false);
+    expect(result.current.contentDirty, "must genuinely be the untouched-draft case, not accidentally already dirty").toBe(false);
+
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    act(() => result.current.setView("preview"));
+    vi.advanceTimersByTime(500);
+
+    expect(form.submit, "a clean draft's Preview tab must still POST its bodyJson through the real template — not silently do nothing").toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("usePostEditor — title/slug/status setters", () => {
@@ -577,7 +602,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     expect(result).toBeNull();
   });
 
-  it("handleFileDrop inserts a ref-based {assetId, transformName, alt} image node at the drop position — the SAME node shape insertMediaRef (the Media picker's own command) produces, never a data: URL", async () => {
+  it("handleFileDrop inserts a ref-based {assetId, transformName, alt} media node at the drop position (2026-09-11: the generic media node, not the legacy image-only ref) — the SAME node shape insertMediaEmbed (the Media picker's own command) produces, never a data: URL", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
@@ -589,13 +614,13 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
     await waitFor(() => {
       const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
-      const inserted = json.content?.find((node) => node.type === "image");
+      const inserted = json.content?.find((node) => node.type === "media");
       expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
     });
     expect(JSON.stringify(editor.getJSON())).not.toContain("data:"); // never base64-inlined
   });
 
-  it("handleFilePaste inserts through insertMediaRef at the current selection — same node shape as drop, positioned differently since onPaste carries no pos argument", async () => {
+  it("handleFilePaste inserts through insertMediaEmbed at the current selection (2026-09-11: the generic media node) — same node shape as drop, positioned differently since onPaste carries no pos argument", async () => {
     const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
@@ -606,7 +631,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
     await waitFor(() => {
       const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
-      const inserted = json.content?.find((node) => node.type === "image");
+      const inserted = json.content?.find((node) => node.type === "media");
       expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
     });
   });
@@ -632,7 +657,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
 
     await waitFor(() => {
       const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
-      const inserted = json.content?.filter((node) => node.type === "image") ?? [];
+      const inserted = json.content?.filter((node) => node.type === "media") ?? [];
       expect(inserted).toHaveLength(1); // only the successful upload landed
       expect(inserted[0]?.attrs).toMatchObject({ alt: "good.png" });
     });

@@ -12,6 +12,14 @@ import { MAX_HTML_EMBEDS_PER_PAGE } from "../../html-embeds.js";
 import { WIDGET_PAYLOAD_FIELD } from "../../entry-payload.js";
 import { resolveHtmlPageEmbeds } from "../../resolver-service.js";
 import { registerCoreResolver, createContactFormResolver } from "../../resolvers/index.js";
+// Deliberately reaches across the widgets/ -> server/ layering line this file's other imports never
+// cross: `resolver-service.ts`'s own production code must never import `render.ts` (see that file's
+// header), but a __tests__/ file proving the FULL round trip — real resolver output piped into the
+// real renderer — is exempt (`.dependency-cruiser.mjs`'s "feature/domain code" rule already carves
+// out `__tests__/` for exactly this shape of cross-layer integration test). Used below to prove a
+// `media` node's resolved `contentType` actually reaches a `<video>` tag, not just that the resolved
+// JSON prop looks right.
+import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "../../types.js";
 
 /**
@@ -851,8 +859,11 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
   const ir = resolved.get("content")?.get("entity-1");
   assert.ok(ir);
   assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 3 });
+  // contentType: null — no mediaContentTypeStore supplied by this test, so it degrades to "not
+  // known" the same way every other absent optional dep on this path does (2026-09-11 widening,
+  // see resolvePostContentMediaContext's own doc).
   assert.deepEqual(ir?.props.mediaAssetMetadata, {
-    "asset-1": { width: 900, height: 600, cssClass: "hero", htmlAttributes: null },
+    "asset-1": { width: 900, height: 600, cssClass: "hero", htmlAttributes: null, contentType: null },
   });
 });
 
@@ -906,6 +917,150 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const ir = resolved.get("content")?.get("entity-1");
   assert.ok(ir);
   assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 2 });
+});
+
+// ---------------------------------------------------------------------------
+// Owner-reported bug (2026-09-11, discovered verifying "the preview should always show the css and
+// template" — see `PostEditor.tsx`'s `PostPreview` doc for the admin-side half of this fix): the
+// generic `media` doc node (`lib/media-embed-extension.tsx`'s own file header — the node the admin
+// editor now inserts for every dropped/pasted/picked asset, alongside the pre-existing `image` node)
+// was never taught to this file's OWN asset-id collector. `isRefBasedImageNode`/`collectImageAssetIds`
+// (above `resolvePostContentMediaContext`) still check `obj.type === "image"` only, so a `media` node
+// embedded in a post/page body resolves NEITHER `mediaTransformVersions` NOR `mediaAssetMetadata` on
+// this "post-content" IR path — the exact path both the admin template-preview route AND any live
+// post rendered through a static-tier theme's own template go through. `render.ts`'s `renderDocMedia`
+// then has an empty `mediaTransformVersions` map, so `tryRenderRefImage` inside it always returns
+// `null` and the node degrades to the placeholder — regardless of whether the asset/transform is
+// perfectly fine. `routes/site/pages.ts`'s OWN, separate collector (`collectMediaRefAssetIds`) was
+// already widened to recognize `"media"` the same day; this file's copy was the missed call site.
+// ---------------------------------------------------------------------------
+
+function postRecordWithMediaNode(overrides: Partial<PostRecord> = {}): PostRecord {
+  return postRecord({
+    bodyJson: {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "before" }] },
+        { type: "media", attrs: { assetId: "asset-1", transformName: CORE_PUBLIC_TRANSFORM_NAME, alt: "media probe" } },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (the admin Preview tab\'s own path) resolves mediaTransformVersions/mediaAssetMetadata for a GENERIC "media" node too, not just the legacy "image" node — otherwise a real image/video referenced through `media` renders as a placeholder in Preview even though the asset is fine', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 800, height: 500 })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 5 })]);
+  const pending = postRecordWithMediaNode({ id: "entity-1" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      mediaRepo,
+      transformRepo,
+      pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual(
+    ir?.props.mediaTransformVersions,
+    { [CORE_PUBLIC_TRANSFORM_NAME]: 5 },
+    "a 'media' node's own assetId must be collected the same way an 'image' node's is"
+  );
+  // contentType: null — no mediaContentTypeStore supplied by this test (2026-09-11 widening, see
+  // resolvePostContentMediaContext's own doc).
+  assert.deepEqual(ir?.props.mediaAssetMetadata, {
+    "asset-1": { width: 800, height: 500, cssClass: null, htmlAttributes: null, contentType: null },
+  });
+});
+
+test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("post")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 1 });
+});
+
+// ---------------------------------------------------------------------------
+// Owner-reported bug, widened 2026-09-11 past "preview only": `resolvePostContentMediaContext`
+// (the function backing both `"post-content"` IR builders above) resolves `mediaAssetMetadata`
+// WITHOUT `contentType` — unlike its sibling `pages.ts`'s `resolveMediaAssetMetadataForRender`,
+// which DOES resolve it (see that function's own 2026-09-11 doc addendum). `render.ts`'s
+// `renderDocMedia` dispatches a `media` node to `<video>` only when
+// `mediaAssetMetadata.get(assetId)?.contentType` starts with `"video/"` — with the field always
+// missing on this path, a video asset embedded in a post's OWN body renders through the `<img>`
+// fallback instead, pointed at a video byte stream. This is NOT scoped to "a page embeds this
+// post" — `renderViaTemplate` (`routes/site/pages.ts`) resolves a post's OWN public-URL render
+// through `injectCurrentEntityContentId` -> `resolveContentTypeEmbeds`'s DB branch (line ~995),
+// the exact branch under test below, so the live static-tier template render path for ANY post's
+// own page is affected too.
+//
+// These two tests pipe the REAL resolver output into the REAL `render.ts` renderer (not a
+// hand-built IR) so the assertion can't pass vacuously on a prop shape alone: it proves the actual
+// emitted tag changes.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType for a "media" node\'s asset, so a VIDEO asset renders a real <video> through render.ts\'s renderWidgetIr — the exact path a live post rendered through a static-tier theme\'s own template takes for its OWN body, not only a page that embeds the post', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const sha256 = "c".repeat(64);
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "video/mp4" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo, mediaRepo, transformRepo, mediaContentTypeStore },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual((ir?.props.mediaAssetMetadata as Record<string, unknown>)["asset-1"], {
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
+    contentType: "video/mp4",
+  });
+
+  const html = renderWidgetIr(ir!);
+  assert.match(html, /<video[\s>]/, "a video/* asset referenced by a 'media' node must render a real <video> tag through this path");
+  assert.doesNotMatch(html, /<img[\s>]/, "a video asset must not fall through to the <img> placeholder/image path");
+});
+
+test('resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const sha256 = "d".repeat(64);
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID_POST, sha256, contentType: "image/png" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo, mediaRepo, transformRepo, mediaContentTypeStore },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  const html = renderWidgetIr(ir!);
+  assert.match(html, /<img[\s>]/, "an image/* asset must still render <img> through this path");
+  assert.doesNotMatch(html, /<video[\s>]/);
 });
 
 test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch resolves props.header from the SAME marker\'s header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts\'s own doc names this exact divergence class)', async () => {

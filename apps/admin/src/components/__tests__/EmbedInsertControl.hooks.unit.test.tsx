@@ -16,7 +16,7 @@ import { useEmbedInsertControl, type EmbedEditor } from "../EmbedInsertControl/E
 function fakeEditor(): EmbedEditor {
   return {
     commands: {
-      insertMediaRef: vi.fn().mockReturnValue(true),
+      insertMediaEmbed: vi.fn().mockReturnValue(true),
       insertWidgetEmbed: vi.fn().mockReturnValue(true),
     },
   };

@@ -937,35 +937,48 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Walks a TipTap-shaped `bodyJson` tree collecting every ref-based `image` node's `assetId`
- * (ADR-027 §4's `{assetId, transformName}` shape) — same walk shape as `resolver-service.ts`'s
+/** Walks a TipTap-shaped `bodyJson` tree collecting every ref-based media node's `assetId` — both
+ * the legacy image-only ref shape (ADR-027 §4's `{assetId, transformName}`) and the generic `media`
+ * node (2026-09-11, `render.ts`'s `renderDocMedia`'s own doc) share this collection, since both key
+ * their sizing/content-type override off the SAME `mediaAssetMetadata` map by `assetId` alone —
+ * renamed from `collectImageAssetIds` accordingly. Same walk shape as `resolver-service.ts`'s
  * `collectWidgetEmbeds`, kept as a separate local copy since this module has no dependency on
  * that one. A legacy `image` node (only `attrs.src`/`attrs.title`, no `assetId`) is simply never
  * added — `render.ts`'s `image` case never reads `src`/`title` at all (see that case's own
  * comment), so there is nothing for a sizing override to key off for that shape anyway. */
-function collectImageAssetIds(node: unknown, out: Set<string>): void {
+function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
-    for (const child of node) collectImageAssetIds(child, out);
+    for (const child of node) collectMediaRefAssetIds(child, out);
     return;
   }
   if (!isPlainObject(node)) return;
-  if (node.type === "image" && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
     out.add(node.attrs.assetId);
   }
-  if (Array.isArray(node.content)) collectImageAssetIds(node.content, out);
+  if (Array.isArray(node.content)) collectMediaRefAssetIds(node.content, out);
 }
+
+/** One resolved media ref's fetched row, ahead of the batched content-type lookup below — carries
+ *  `sha256` alongside the sizing fields {@link resolveMediaAssetMetadataForRender} already fetched,
+ *  since content type is keyed by the BYTES' identity (sha256), not by assetId — same reasoning
+ *  `MediaContentTypeStorePort`'s own file header gives for why it's a separate port at all. Pulled
+ *  out to a named type purely so the two-step assembly below reads as two typed passes rather than
+ *  one long inline generic. */
+type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { readonly sha256: string };
 
 /**
  * Quick-and-dirty public-render sizing fix (owner-directed skip-the-ADR fix, 2026-08-05) —
- * resolves each ref-based image node's `MediaRecord.width`/`height`/`cssClass` override ahead of
+ * resolves each ref-based media node's `MediaRecord.width`/`height`/`cssClass` override ahead of
  * `renderSite`, mirroring `resolveWidgetsForRender`/`resolveMediaTransformVersionsForRender`'s own
  * "route resolves, `render.ts` stays I/O-free" split (this is the one call site for this
- * resolution, same shape as those functions' own doc).
+ * resolution, same shape as those functions' own doc). Widened 2026-09-11 to also resolve
+ * `contentType` (`render.ts`'s `MediaAssetRenderMeta.contentType`'s own doc) for the new generic
+ * `media` doc node's dispatch — same map, same call site, one more field.
  *
  * Unlike `resolveMediaTransformVersionsForRender`, there is no single-name shortcut available here
  * — width/height/class are genuinely PER-ASSET values, not a property of `(workspaceId,
  * transformName)` alone — so this scans `post.bodyJson` for every distinct `assetId` a ref-based
- * `image` node references (mirroring `resolveHtmlPageEmbeds`'s own per-id scan for a Page's
+ * `image`/`media` node references (mirroring `resolveHtmlPageEmbeds`'s own per-id scan for a Page's
  * `body_html`), then batch-fetches each one. `MediaRepoPort` (`@jini-ai/cms/media`) has no
  * `findByIds`/batch-by-id primitive — only `findById` — the same frozen-contract situation
  * `resolvePageWidgets`'s own file header discloses for `EntryRepoPort`; one `findById` per
@@ -974,11 +987,16 @@ function collectImageAssetIds(node: unknown, out: Set<string>): void {
  * widget/html-embed resolvers already disclose for their own multi-id case).
  *
  * Never throws — a lookup that resolves to `null` (deleted, wrong workspace, or an id that was
- * never a real asset) is skipped, not thrown; the caller's `image` case already treats an
- * `assetId` absent from the returned map as "no override" (omit the attribute), never a crash.
+ * never a real asset) is skipped, not thrown; the caller's `image`/`media` case already treats an
+ * `assetId` absent from the returned map as "no override"/"not resolvable" (omit the attribute, or
+ * degrade to the placeholder), never a crash.
  *
- * @complexity O(a) over the distinct `assetId`s referenced, each behind one `findById` call
- * (run concurrently via `Promise.all`, not serially).
+ * @complexity O(a) over the distinct `assetId`s referenced, each behind one `findById` call (run
+ * concurrently via `Promise.all`, not serially), PLUS one further batched
+ * `MediaContentTypeStorePort.getMany` call across every resolved asset's sha256 at once — a single
+ * extra round-trip regardless of `a`, not one per asset (mirrors `resolver-service.ts`'s
+ * `resolveOneMediaEmbed`, which calls the same port but per-ref since it resolves refs one at a
+ * time; this function already gathers every ref up front, so one batched call covers them all).
  */
 export async function resolveMediaAssetMetadataForRender(
   deps: RenderContextResolutionDeps,
@@ -986,20 +1004,45 @@ export async function resolveMediaAssetMetadataForRender(
 ): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
   if (!post) return new Map();
   const assetIds = new Set<string>();
-  collectImageAssetIds(post.bodyJson, assetIds);
+  collectMediaRefAssetIds(post.bodyJson, assetIds);
   if (assetIds.size === 0) return new Map();
 
   const entries = await Promise.all(
-    Array.from(assetIds).map(async (assetId): Promise<readonly [string, MediaAssetRenderMeta] | undefined> => {
+    Array.from(assetIds).map(async (assetId): Promise<readonly [string, PendingMediaAssetMeta] | undefined> => {
       const record = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: assetId });
       if (!record) return undefined;
       return [
         assetId,
-        { width: record.width, height: record.height, cssClass: record.cssClass, htmlAttributes: record.htmlAttributes },
+        {
+          width: record.width,
+          height: record.height,
+          cssClass: record.cssClass,
+          htmlAttributes: record.htmlAttributes,
+          sha256: record.source.sha256,
+        },
       ] as const;
     })
   );
-  return new Map(entries.filter((entry): entry is readonly [string, MediaAssetRenderMeta] => entry !== undefined));
+  const pending = entries.filter((entry): entry is readonly [string, PendingMediaAssetMeta] => entry !== undefined);
+  if (pending.length === 0) return new Map();
+
+  const contentTypes = await deps.mediaContentTypeStore.getMany({
+    workspaceId: deps.workspaceId,
+    sha256s: pending.map(([, meta]) => meta.sha256),
+  });
+
+  return new Map(
+    pending.map(([assetId, meta]): [string, MediaAssetRenderMeta] => [
+      assetId,
+      {
+        width: meta.width,
+        height: meta.height,
+        cssClass: meta.cssClass,
+        htmlAttributes: meta.htmlAttributes,
+        contentType: contentTypes.get(meta.sha256) ?? null,
+      },
+    ])
+  );
 }
 
 /** Local alias for the per-menu-id resolved link map {@link resolveStaticMenusForRender} returns —

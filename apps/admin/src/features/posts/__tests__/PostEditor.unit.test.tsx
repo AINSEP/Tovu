@@ -913,18 +913,27 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
   });
 
-  // Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
-  // 2026-08-11-template-preview-render-bug.md`) — deliberately UNCHANGED for a draft, even a clean one
-  // (`contentDirty` false): a draft's own `{"type":"content"}` slot does not survive the shared render
-  // pipeline's visibility-filtered "content" resolver (confirmed live in `admin-post-template-preview
-  // .test.ts`'s own draft case — the body degrades to an empty placeholder, which would read as "my
-  // content disappeared"), so `canShowTemplatePreview` requires `status === "published"` and a draft
-  // keeps the pre-existing editor-buffer fallback.
-  it("preview still falls back to the editor-buffer sandbox for a clean draft post (drafts are out of this fix's scope)", () => {
+  // Owner-reported bug (2026-09-11): "the preview should always show the css and template and all
+  // that properly." `canShowTemplatePreview` still requires `status === "published"` (a draft's own
+  // `{"type":"content"}` slot does not survive the shared render pipeline's visibility-filtered
+  // "content" resolver on a plain `GET` — confirmed live in `admin-post-template-preview.test.ts`'s
+  // own draft case), so a clean draft still can't take branch 2. But it MUST take branch 3 now
+  // (POSTed `bodyJson` bypasses that same visibility guard for this one id) rather than fall through
+  // to the raw editor-buffer sandbox that branch used to be gated behind `contentDirty` for — this is
+  // the exact regression this test used to lock in as "intended" before the fix (see
+  // `post-editor-preview-branches.spec.ts`'s own e2e equivalent for the real-browser proof, including
+  // that the real media in the body renders too, not just the chrome).
+  it("preview shows the themed live-template render, via the POSTed pending-content branch, for a CLEAN draft post — not the raw editor-buffer fallback", () => {
     renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Post preview");
-    expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
+    expect(preview, "a clean draft must not resolve to a real src (branches 1/2 both require different things this scenario lacks)").not.toHaveAttribute("src");
+    expect(preview, "and must not fall back to SrcDocSandbox's srcdoc-based raw render either").not.toHaveAttribute("srcdoc");
+
+    const form = document.querySelector("form[method='post']");
+    expect(form, "a clean draft must reach the same hidden-form POST branch a dirty draft/post does").not.toBeNull();
+    expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
+    expect(screen.queryByText(/publish this post to preview it with the theme/i), "the old rough-render notice must never show again").not.toBeInTheDocument();
+    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
   });
 
   // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
@@ -989,26 +998,18 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
   });
 
-  it("preview falls back to a rendering of the editor buffer, with a notice, for a CLEAN draft post (nothing edited yet)", () => {
-    renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
-    const preview = screen.getByTitle("Post preview");
-    expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
-  });
-
   // Visibility-gap fix — mirrors `PageEditor.tsx`'s own equivalent test in
   // `pages/__tests__/PageEditor.unit.test.tsx` ("places the raw-body-fallback notice BEFORE the preview
   // frame"), which fixed this exact gap for Pages on 2026-08-11 but was never ported to Posts. A
-  // brand-new post is always a draft, so this is the very first thing an operator sees in Preview: the
-  // raw editor-buffer sandbox renders inside `.post-editor-pane` up to full pane height, and the notice
-  // explaining why it's unstyled was placed AFTER that pane — reachable only by scrolling an internal
-  // `main.admin-content` scroll container most operators never notice needs scrolling (confirmed live,
-  // QA dispatch 2026-09-06: the notice sat a few px past the visible viewport). Asserts DOM order, not
-  // mere presence — presence alone already passed before this fix; the bug was the notice being
-  // unreachable, not missing.
-  it("places the raw-body-fallback notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
+  // brand-new post is always a draft, so this is the very first thing an operator sees in Preview —
+  // now the pending-content notice, not the retired raw-fallback one (2026-09-11) — and it must render
+  // BEFORE `.post-editor-pane`, not after: `main.admin-content`'s internal scroll container hid a
+  // notice placed after the (previously full-pane-height) fallback (confirmed live, QA dispatch
+  // 2026-09-06). Asserts DOM order, not mere presence — presence alone already passed before that fix;
+  // the bug was the notice being unreachable, not missing.
+  it("places the pending-content-preview notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
     renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
-    const notice = screen.getByText(/publish this post to preview it with the theme/i);
+    const notice = screen.getByText(/previewing your unsaved edits through the live template/i);
     const preview = screen.getByTitle("Post preview");
     expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

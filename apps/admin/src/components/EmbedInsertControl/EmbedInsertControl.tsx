@@ -14,7 +14,9 @@ import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.ho
  * (`WidgetConfigFields.tsx`'s `WIDGET_TYPE_OPTIONS`). Before this control, reaching either one
  * meant opening "Insert widget" and then changing a type `<select>` — two clicks buried behind an
  * unrelated label. This control surfaces four top-level choices instead:
- *   - Media   — unchanged: `MediaPickerDialog` + `editor.commands.insertMediaRef`.
+ *   - Media   — `MediaPickerDialog` + `editor.commands.insertMediaEmbed` (2026-09-11: switched from
+ *               the legacy `image`-only `insertMediaRef` to the generic `media` node — see
+ *               `lib/media-embed-extension.tsx`'s own file header for why).
  *   - Form    — shortcut straight to `WidgetPickerDialog` pinned to `widgetType: "contact-form"`.
  *   - Menu    — same shortcut pattern, pinned to `widgetType: "menu"`.
  *   - Widget… — the original full flow (type `<select>` then the same dialog) for the other three
@@ -236,7 +238,10 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
       {mediaPicking ? (
         <MediaPickerDialog
           onSelect={(item) => {
-            editor.commands.insertMediaRef({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
+            // 2026-09-11: inserts the generic `media` node (`insertMediaEmbed`), not the legacy
+            // `image`-only ref (`insertMediaRef`) — see `lib/media-embed-extension.tsx`'s own file
+            // header. A picked video asset now actually plays once saved.
+            editor.commands.insertMediaEmbed({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
             setMediaPicking(false);
           }}
           onCancel={() => setMediaPicking(false)}

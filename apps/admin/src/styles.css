@@ -2224,6 +2224,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    initial "2-3px" ask); he looked at it live and asked to double it, so 6px is the value he actually
    signed off on — do not "restore" it to the originally-stated range. */
 .media-image-node__actions { display: inline-flex; gap: 6px; }
+/* Owner-reported (2026-09-11): the generic `media` node's own "Replace"/"Remove" actions
+   (`lib/media-embed-extension.tsx`'s `.media-embed-node__actions` wrapper) never got the fix
+   immediately above when `media` was added — same 0px-gap bug, new node type. Mirrors that rule's
+   `inline-flex`-with-`gap` approach; owner asked for 5px first, then 10px after seeing it live —
+   10px is the value he actually signed off on, not the 6px `image` settled on, so don't unify the
+   two values without asking again. */
+.media-embed-node__actions { display: inline-flex; gap: 10px; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
    with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the

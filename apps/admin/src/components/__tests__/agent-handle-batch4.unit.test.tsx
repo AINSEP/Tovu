@@ -17,7 +17,7 @@ import { ChatFab } from "../ChatFab/ChatFab";
 const AGENT_ELEMENT = "data-agent-element";
 
 function fakeEditor() {
-  return { commands: { insertMediaRef: vi.fn().mockReturnValue(true), insertWidgetEmbed: vi.fn().mockReturnValue(true) } };
+  return { commands: { insertMediaEmbed: vi.fn().mockReturnValue(true), insertWidgetEmbed: vi.fn().mockReturnValue(true) } };
 }
 
 async function openMenu(user: ReturnType<typeof userEvent.setup>) {

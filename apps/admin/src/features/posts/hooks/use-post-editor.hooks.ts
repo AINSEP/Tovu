@@ -21,6 +21,7 @@ import type { AdminPost, ThemeTier } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { MediaImage } from "@/lib/media-image-extension";
+import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
@@ -39,6 +40,7 @@ import {
   titleNodeText,
   withTitleNode,
   type PostSaveConflict,
+  resolvePostPreviewBranches,
 } from "../rules";
 import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
@@ -404,16 +406,22 @@ function formatSaveErrorMessage(error: unknown, statusOverride: "draft" | "publi
 }
 
 /**
- * `FileHandler`'s `onDrop` callback body (2026-08-12, B1) — uploads each dropped file via
- * {@link uploadDroppedFile} and inserts it at the drop position with `insertContentAt`, producing
- * the IDENTICAL `{assetId, transformName: "public", alt}` node shape `insertMediaRef`
- * (`lib/media-image-extension.tsx`, the Media picker's own insert command) builds. `insertMediaRef`
- * itself isn't called here because it always inserts at the CURRENT SELECTION, never an arbitrary
- * position, and `pos` (the drop point) is very often not the selection — `insertContentAt(pos, ...)`
- * is TipTap's own documented pattern for a file-handler drop for exactly this reason. Never
- * base64-inlines into `bodyJson` — see `handleImageDrop` (`../rules.ts`) for the legacy local-file
- * behavior this supersedes, and why that function now deliberately leaves local files unhandled so
- * this one is reachable at all.
+ * `FileHandler`'s `onDrop` callback body (2026-08-12, B1; switched from the `image` node to the
+ * generic `media` node 2026-09-11 — see `lib/media-embed-extension.tsx`'s own file header) —
+ * uploads each dropped file via {@link uploadDroppedFile} and inserts it at the drop position with
+ * `insertContentAt`, producing the IDENTICAL `{assetId, transformName: "public", alt}` node shape
+ * `insertMediaEmbed` (`lib/media-embed-extension.tsx`, the Media picker's own insert command)
+ * builds. `insertMediaEmbed` itself isn't called here because it always inserts at the CURRENT
+ * SELECTION, never an arbitrary position, and `pos` (the drop point) is very often not the
+ * selection — `insertContentAt(pos, ...)` is TipTap's own documented pattern for a file-handler drop
+ * for exactly this reason. Never base64-inlines into `bodyJson` — see `handleImageDrop`
+ * (`../rules.ts`) for the legacy local-file behavior this supersedes, and why that function now
+ * deliberately leaves local files unhandled so this one is reachable at all.
+ *
+ * `FILE_HANDLER_ALLOWED_MIME_TYPES` (above) already includes `video/mp4`/`video/webm`, so a dropped
+ * video file reaches this same path — inserting it as a `media` node (not `image`) is what makes
+ * that video actually play once saved, instead of rendering `image`'s broken `<img>` for a video
+ * asset (see `render.ts`'s `renderDocMedia` for the render-side half).
  *
  * Each file is uploaded and inserted independently, as its own upload resolves — not
  * `Promise.all`-batched, and this function itself does not await any of them (`onDrop` is a
@@ -426,7 +434,7 @@ export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File
       if (!result) return;
       editor
         .chain()
-        .insertContentAt(pos, { type: "image", attrs: { assetId: result.assetId, transformName: "public", alt: result.alt } })
+        .insertContentAt(pos, { type: "media", attrs: { assetId: result.assetId, transformName: "public", alt: result.alt } })
         .focus()
         .run();
     });
@@ -434,18 +442,19 @@ export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File
 }
 
 /**
- * `FileHandler`'s `onPaste` callback body (2026-08-12, B1) — same upload step as
- * {@link handleFileDrop}, but inserts through the real `insertMediaRef` command
- * (`lib/media-image-extension.tsx`) rather than `insertContentAt`: `@tiptap/extension-file-handler`'s
+ * `FileHandler`'s `onPaste` callback body (2026-08-12, B1; switched from `insertMediaRef` to
+ * `insertMediaEmbed` 2026-09-11, same reasoning as {@link handleFileDrop} immediately above) — same
+ * upload step as {@link handleFileDrop}, but inserts through the real `insertMediaEmbed` command
+ * (`lib/media-embed-extension.tsx`) rather than `insertContentAt`: `@tiptap/extension-file-handler`'s
  * own `onPaste` signature carries no position argument (unlike `onDrop`'s `pos`), and inserting at
- * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaRef`'s
+ * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaEmbed`'s
  * own `commands.insertContent(...)` already does with no position argument.
  */
 export function handleFilePaste(port: PostEditorPort, editor: Editor, files: File[]): void {
   for (const file of files) {
     uploadDroppedFile(port, file).then((result) => {
       if (!result) return;
-      editor.commands.insertMediaRef({ assetId: result.assetId, transformName: "public", alt: result.alt });
+      editor.commands.insertMediaEmbed({ assetId: result.assetId, transformName: "public", alt: result.alt });
     });
   }
 }
@@ -654,6 +663,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         onPaste: (currentEditor, files) => handleFilePaste(port, currentEditor, files),
       }),
       MediaImage,
+      // Media (2026-09-11, generic media node) — see `lib/media-embed-extension.tsx`'s own file
+      // header for the full "one node, dispatch by content type" reasoning. Registered alongside
+      // `MediaImage`, not in place of it: `image` stays exactly as it is for backward compatibility
+      // (pre-existing `bodyJson`) and for `PostEditor.tsx`'s "Img by URL" toolbar button (its
+      // legacy `src`-only `setImage`), which is explicitly out of this feature's scope. `handleFileDrop`/`handleFilePaste` and
+      // `EmbedInsertControl`'s "Media" picker (below/`components/EmbedInsertControl`) now insert
+      // THIS node type going forward, so a dropped/pasted/picked video asset actually plays instead
+      // of rendering the broken `<img>` an `image`-typed ref would produce for the same asset.
+      Media,
       WidgetEmbed,
     ],
     content: "",
@@ -790,17 +808,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const templatePreviewUrl = post ? port.templatePreviewUrl(post.id, templateChoice) : "";
   const previewFormTarget = post ? `post-preview-pending-${post.id}` : "";
 
-  // Pending-content preview (2026-08-12, moved from `PostPreview`; widened 2026-09-09 to cover a
-  // DIRTY draft too — see `PostPreview`'s own doc, branch 3, for the full "why status is no longer
-  // required" reasoning: `template-preview.ts`'s `pendingBodyJson` override already bypasses
-  // `findPublishedPostById`'s visibility guard for exactly the one authorized id being previewed,
-  // regardless of that row's `status`, so the old `status === "published"` gate here was never load-
-  // bearing for correctness — only for BUILDING that override, which existed the whole time.
-  // `contentDirty` already implies `dirty` (`computeContentDirty` compares a strict subset of what
-  // `useDirtyGuard` does), so this is naturally mutually exclusive with the live-site/template-preview
-  // branches without an explicit guard against them. A CLEAN draft (`contentDirty` false) still falls
-  // to branch 4's rough editor-buffer render below — unchanged, and out of this widening's scope.
-  const canShowPendingContentPreview = contentDirty;
+  // Pending-content preview (2026-08-12, moved from `PostPreview`; widened 2026-09-09 to a DIRTY
+  // draft and 2026-09-11 to a CLEAN draft — see `PostPreview`'s own doc in `PostEditor.tsx`,
+  // branch 3). Gates whether the debounced effect below submits the hidden form at all, so it must
+  // agree with what `PostPreview` draws. Both read `resolvePostPreviewBranches` (`../rules.ts`):
+  // their old hand-copied conditions drifted once and left a clean draft's iframe at `about:blank`.
+  const { canShowPendingContentPreview } = resolvePostPreviewBranches({ status, dirty: isDirty, contentDirty });
   useEffect(
     () =>
       schedulePendingContentPreviewSubmit({

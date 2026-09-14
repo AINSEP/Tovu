@@ -96,6 +96,16 @@ function imageBody(assetId: string): PostRecord["bodyJson"] {
   return { type: "doc", content: [{ type: "image", attrs: { assetId, transformName: "public" } }] };
 }
 
+/** A ref-based TipTap `media` node — same `{assetId, transformName}` ref shape as `imageBody`'s
+ *  `image` node, added 2026-09-11 alongside the admin composer's migration off `image` for every
+ *  NEW embed (Media button, drag-drop, paste — see `use-post-editor.hooks.ts`'s
+ *  `insertContentAt(pos, { type: "media", ... })`). `pages.ts`'s and `resolver-service.ts`'s own
+ *  collectors were widened the same day to recognize this node; this file's target,
+ *  `media-rendition.ts`'s collector, was not — that gap is this suite's subject below. */
+function mediaBody(assetId: string): PostRecord["bodyJson"] {
+  return { type: "doc", content: [{ type: "media", attrs: { assetId, transformName: "public" } }] };
+}
+
 /** An `"html"`-format Page body embedding `assetId` through the `data-embed-config` marker
  *  vocabulary `core/embeds/marker.ts` parses and `widgets/resolver-service.ts`'s
  *  `resolveMediaTypeEmbeds` resolves — the ONLY way an `"html"` Page can reference an asset, and
@@ -218,6 +228,75 @@ test("media gate: `kind: \"page\"` was never the gap — a doc-format Page's ref
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/dp.webp`);
     assert.equal(res.status, 404, "a members-only doc-format Page gates its media exactly as a members-only post does");
     assert.equal(res.headers.get("cache-control"), "private, no-store");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-11 — the `image` -> `media` TipTap node migration bypass. The admin composer's Media
+// button, drag-drop and paste now insert a generic `media` node for every embed, not `image`, so
+// a members-only entry embedding an asset through it must gate exactly like the legacy `image`-node
+// case above. Each test below pairs the (already-passing) `image`-node case with the (new) media-node
+// case so a regression that broke gating generally, rather than this collector specifically, would
+// fail the control too — the suite must not go green just because everything 404s.
+// ---------------------------------------------------------------------------
+
+test("media gate: a MEDIA-node ref (not image) in a members-only post's doc body is gated on the transform route exactly like the sibling IMAGE-node ref", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media: imageControl } = await uploadOne(deps, bytesFrom("image-node-control"), "control.png", "image/png");
+    const { media: mediaAsset } = await uploadOne(deps, bytesFrom("media-node-bypass"), "bypass.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-image-node-control", slug: "image-node-control", bodyJson: imageBody(imageControl.id), memberAccessJson: MEMBERS_ONLY },
+        deps.workspaceId
+      )
+    );
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-media-node-bypass", slug: "media-node-bypass", bodyJson: mediaBody(mediaAsset.id), memberAccessJson: MEMBERS_ONLY },
+        deps.workspaceId
+      )
+    );
+
+    const controlUrl = `${baseUrl}/m/${imageControl.id}/${definition.name}.v${definition.version}/c.webp`;
+    const bypassUrl = `${baseUrl}/m/${mediaAsset.id}/${definition.name}.v${definition.version}/b.webp`;
+
+    const controlAnon = await fetch(controlUrl);
+    assert.equal(controlAnon.status, 404, "control: the legacy image-node ref already gates — if this fails, the test setup itself is broken");
+
+    const bypassAnon = await fetch(bypassUrl);
+    assert.equal(bypassAnon.status, 404, "the media-node ref must gate identically to the image-node ref — this is the bug this fix closes");
+    assert.equal(bypassAnon.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await bypassAnon.json(), { error: "rendition not found" });
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const controlMember = await fetch(controlUrl, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+    assert.equal(controlMember.status, 200, "control: an entitled member still reads the image-node embed");
+    const bypassMember = await fetch(bypassUrl, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+    assert.equal(bypassMember.status, 200, "an entitled member must still be able to read a media-node embed");
+  });
+});
+
+test("media gate: a MEDIA-node ref to a VIDEO in a members-only post's doc body is gated on the /original route", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, mp4Bytes("media-node-video-bypass"), "bypass.mp4", "video/mp4");
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-media-node-video-bypass", slug: "media-node-video-bypass", bodyJson: mediaBody(media.id), memberAccessJson: MEMBERS_ONLY },
+        deps.workspaceId
+      )
+    );
+
+    const url = `${baseUrl}/m/${media.id}/original`;
+    const anon = await fetch(url);
+    assert.equal(anon.status, 404, "a members-only post's media-node video ref must gate on the /original route too");
+    assert.equal(anon.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await anon.json(), { error: "video rendition not found" });
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+    assert.equal(member.status, 200, "an entitled member must still get the video");
+    assert.equal(member.headers.get("content-type"), "video/mp4");
   });
 });
 

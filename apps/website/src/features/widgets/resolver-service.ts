@@ -679,38 +679,47 @@ async function resolveMediaTypeEmbeds(
   return resolved;
 }
 
-/** Scans a TipTap-shaped `bodyJson` tree for every ref-based `image` node's `assetId` (ADR-027 §4's
- *  `{assetId, transformName}` shape). Same walk shape as `routes/site/pages.ts`'s own
- *  `collectImageAssetIds`, duplicated rather than imported: that module sits above this one in the
- *  codebase's layering (this file's `resolveMediaTypeEmbeds`'s own doc discloses the same
- *  constraint for `render.ts`), and `pages.ts`'s copy is itself already a disclosed duplicate of
- *  `resolver-service.ts`'s per-id scan pattern for the same reason. A legacy `image` node (only
- *  `attrs.src`, no `assetId`) is never added — nothing here needs a sizing/version override for
- *  that shape. */
-/** A TipTap `image` node carrying the `{assetId, transformName}` ref shape (vs. a legacy `attrs.src`-only node). */
-function isRefBasedImageNode(obj: Record<string, unknown>): obj is Record<string, unknown> & { attrs: Record<string, unknown> } {
-  return obj.type === "image" && typeof obj.attrs === "object" && obj.attrs !== null;
+/** Scans a TipTap-shaped `bodyJson` tree for every ref-based `image`/`media` node's `assetId`
+ *  (ADR-027 §4's `{assetId, transformName}` shape) — both the legacy image-only ref shape and the
+ *  generic `media` node (2026-09-11, `render.ts`'s `renderDocMedia`'s own doc) share this collection,
+ *  since both key their sizing/content-type override off the SAME `mediaAssetMetadata` map by
+ *  `assetId` alone. Widened 2026-09-11 (owner-reported, verifying the admin Preview-tab fix: a
+ *  `media` node embedded in a post's body rendered as a placeholder through this exact
+ *  "post-content" IR path, even with the asset/transform fine, because this collector only ever
+ *  recognized `"image"`) to match `routes/site/pages.ts`'s own `collectMediaRefAssetIds`, which was
+ *  widened the same day — renamed from `isRefBasedImageNode`/`collectImageAssetIds` accordingly. Same
+ *  walk shape as that module's copy, still duplicated rather than imported: that module sits above
+ *  this one in the codebase's layering (this file's `resolveMediaTypeEmbeds`'s own doc discloses the
+ *  same constraint for `render.ts`). A legacy `image` node (only `attrs.src`, no `assetId`) is never
+ *  added — nothing here needs a sizing/version override for that shape. */
+/** A TipTap `image` or `media` node carrying the `{assetId, transformName}` ref shape (vs. a legacy
+ *  `image` node's `attrs.src`-only shape, which `media` has no equivalent of at all — see this file's
+ *  header on `Media`/`renderDocMedia` for why). */
+function isRefBasedMediaNode(obj: Record<string, unknown>): obj is Record<string, unknown> & { attrs: Record<string, unknown> } {
+  return (obj.type === "image" || obj.type === "media") && typeof obj.attrs === "object" && obj.attrs !== null;
 }
 
-function collectImageAssetIds(node: unknown, out: Set<string>): void {
+function collectMediaRefAssetIds(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
-    for (const child of node) collectImageAssetIds(child, out);
+    for (const child of node) collectMediaRefAssetIds(child, out);
     return;
   }
   if (typeof node !== "object" || node === null) return;
 
   const obj = node as Record<string, unknown>;
-  if (isRefBasedImageNode(obj)) {
+  if (isRefBasedMediaNode(obj)) {
     const assetId = obj.attrs.assetId;
     if (typeof assetId === "string") out.add(assetId);
   }
-  if (Array.isArray(obj.content)) collectImageAssetIds(obj.content, out);
+  if (Array.isArray(obj.content)) collectMediaRefAssetIds(obj.content, out);
 }
 
 /**
- * Owner-reported bug (2026-08-12) — resolves the `mediaTransformVersions`/`mediaAssetMetadata`
- * context a "post-content" IR's embedded TipTap doc needs to render its OWN ref-based `image` nodes
- * as real pictures instead of the filename-labelled placeholder. Before this function existed,
+ * Owner-reported bug (2026-08-12, widened 2026-09-11 to also collect the generic `media` node — see
+ * {@link collectMediaRefAssetIds}'s own doc) — resolves the `mediaTransformVersions`/
+ * `mediaAssetMetadata` context a "post-content" IR's embedded TipTap doc needs to render its OWN
+ * ref-based `image`/`media` nodes as real pictures instead of the filename-labelled placeholder.
+ * Before this function existed,
  * NEITHER value was ever resolved for this render path at all: `render.ts`'s `renderWidgetPostContent`
  * called `renderDocNode(bodyJson)` with no media context, which silently defaults both to empty maps
  * — every ref-based image's transform lookup was unconditionally a miss, regardless of whether the
@@ -741,43 +750,74 @@ function collectImageAssetIds(node: unknown, out: Set<string>): void {
  * {@link CORE_PUBLIC_TRANSFORM_NAME} — see that function's own doc for the full disclosure and what
  * widening this would take.
  *
+ * Widened 2026-09-11 to also resolve `contentType` (`render.ts`'s `MediaAssetRenderMeta.contentType`'s
+ * own doc), closing the gap that doc's own history section used to describe: this function's caller
+ * is NOT limited to "a page embeds this post" — `routes/site/pages.ts`'s `renderViaTemplate` reaches
+ * this same function (via `resolveContentTypeEmbeds`'s DB branch) for a post rendered at its OWN
+ * public URL through a static-tier theme template, so a video asset in a post's own body was
+ * silently rendering as `<img>` there too, not only when embedded into a page. Resolved via
+ * `deps.mediaContentTypeStore`, keyed by the resolved record's `source.sha256` (the bytes' identity,
+ * not the asset id) — the identical mechanism `resolveOneMediaEmbed` (this file's own sibling `media`
+ * embed-type resolver) and `resolveMediaAssetMetadataForRender` (`routes/site/pages.ts`) both already
+ * use, batched into ONE `getMany` call across every resolved asset rather than one call per asset
+ * (that function's own shape, not `resolveOneMediaEmbed`'s per-ref shape, since this function already
+ * gathers every ref up front). `mediaContentTypeStore` absent, or a sha256 with no recorded type,
+ * both degrade `contentType` to `null` — read by `render.ts`'s `renderDocMedia` as "not video", never
+ * a crash or a guess.
+ *
  * @complexity O(a) over the distinct ref-based `assetId`s the body references, each behind one
  * `mediaRepo.findById` call, run concurrently via `Promise.all` alongside the single transform-
  * definition lookup — same shape `resolveMediaAssetMetadataForRender` and `resolveMediaTypeEmbeds`
- * both already use for their own per-asset fan-out.
+ * both already use for their own per-asset fan-out — PLUS one further batched
+ * `MediaContentTypeStorePort.getMany` call across every resolved asset's sha256 at once, run after
+ * that fan-out resolves (its input is those results), mirroring `resolveMediaAssetMetadataForRender`'s
+ * identical two-step shape.
  */
 async function resolvePostContentMediaContext(
   deps: ResolveHtmlPageEmbedsDeps,
   bodyJson: JsonObject,
   context: WidgetResolveContext
 ): Promise<{ mediaTransformVersions: JsonObject; mediaAssetMetadata: JsonObject }> {
-  const { mediaRepo, transformRepo } = deps;
+  const { mediaRepo, transformRepo, mediaContentTypeStore } = deps;
   const assetIds = new Set<string>();
-  collectImageAssetIds(bodyJson, assetIds);
+  collectMediaRefAssetIds(bodyJson, assetIds);
   if (assetIds.size === 0 || !mediaRepo || !transformRepo) {
     return { mediaTransformVersions: {}, mediaAssetMetadata: {} };
   }
 
-  const [definition, metaEntries] = await Promise.all([
+  const [definition, resolvedRecords] = await Promise.all([
     getLatestTransformDefinition({
       deps: { transformRepo },
       input: { workspaceId: context.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
     }),
     Promise.all(
-      Array.from(assetIds).map(async (assetId): Promise<readonly [string, JsonObject] | undefined> => {
+      Array.from(assetIds).map(async (assetId): Promise<readonly [string, ResolvedMediaRecord] | undefined> => {
         const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
-        if (!record) return undefined;
-        return [
-          assetId,
-          { width: record.width, height: record.height, cssClass: record.cssClass, htmlAttributes: record.htmlAttributes },
-        ] as const;
+        return record ? ([assetId, record] as const) : undefined;
       })
     ),
   ]);
+  const found = resolvedRecords.filter((entry): entry is readonly [string, ResolvedMediaRecord] => entry !== undefined);
+
+  const contentTypes =
+    found.length > 0 && mediaContentTypeStore
+      ? await mediaContentTypeStore.getMany({ workspaceId: context.workspaceId, sha256s: found.map(([, record]) => record.source.sha256) })
+      : undefined;
 
   return {
     mediaTransformVersions: definition ? { [CORE_PUBLIC_TRANSFORM_NAME]: definition.version } : {},
-    mediaAssetMetadata: Object.fromEntries(metaEntries.filter((entry): entry is readonly [string, JsonObject] => entry !== undefined)),
+    mediaAssetMetadata: Object.fromEntries(
+      found.map(([assetId, record]) => [
+        assetId,
+        {
+          width: record.width,
+          height: record.height,
+          cssClass: record.cssClass,
+          htmlAttributes: record.htmlAttributes,
+          contentType: contentTypes?.get(record.source.sha256) ?? null,
+        },
+      ])
+    ),
   };
 }
 

@@ -192,6 +192,31 @@ export interface MediaAssetRenderMeta {
   /** Same "not set, not empty" contract as `cssClass` — see `MediaRecord.htmlAttributes`'s own doc
    *  (`@jini-ai/cms/media`) for the full identity/security model. */
   htmlAttributes: string | null;
+  /**
+   * The asset's sniffed content type (`image/png`, `video/mp4`, …), or `null` when not (yet) known
+   * — added 2026-09-11 for the generic `media` doc node's dispatch ({@link renderDocMedia}'s own
+   * doc). `MediaRecord` (`@jini-ai/cms/media`) has no such field of its own; this is populated from
+   * the Tovu-owned `MediaContentTypeStorePort` side channel (`features/media/content-type-store.ts`
+   * — see that port's own file header for why), keyed by the asset's blob sha256, the SAME source
+   * `resolver-service.ts`'s `resolveOneMediaEmbed` already reads for the sibling widget-embed media
+   * path. Populated by `resolveMediaAssetMetadataForRender` (`routes/site/pages.ts`) for the direct
+   * render path this file's own `renderDocNode`/`renderSite` reach, AND (also 2026-09-11, closing
+   * what was briefly a disclosed gap) by `resolver-service.ts`'s `resolvePostContentMediaContext` —
+   * shared by both `"post-content"` IR builders, `resolvePostTypeEmbeds` and
+   * `resolveContentTypeEmbeds` — reconstructed on this side by {@link parseMediaAssetMeta}. That
+   * shared path is NOT limited to "a post rendered because a PAGE embeds it": `routes/site/pages.ts`'s
+   * `renderViaTemplate` reaches it via `resolveContentTypeEmbeds`'s DB branch for a post rendered at
+   * its OWN public URL through a static-tier theme template too (see
+   * `resolve-html-page-embeds.integration.test.ts`'s own doc on this — "the exact path both the
+   * admin template-preview route AND any live post rendered through a static-tier theme's own
+   * template go through"). A missing entry (mediaContentTypeStore not supplied, or a sha256 never
+   * sniffed) degrades to `null` here, read as "not video" the same way every other unresolved ref on
+   * this render path degrades, never a crash or a wrong guess at the asset's kind. Every
+   * PRE-EXISTING reader of `MediaAssetRenderMeta` ({@link tryRenderRefImage}/
+   * {@link resolveMediaAssetOverrides}, the `image` node's own path) never reads this field, so
+   * adding it changes nothing about how `image` nodes render.
+   */
+  contentType: string | null;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -532,7 +557,13 @@ function renderLinkMark(html: string, attrs: JsonObject): string {
  *  driving this function's complexity (see `renderMarks`'s own doc). Each entry receives the
  *  already-escaped/nested `html` so far and the mark's own `attrs` (defaulted to `{}` by the caller),
  *  same contract every branch of the old chain relied on. */
-const MARK_RENDERERS: Record<string, (html: string, attrs: JsonObject) => string> = {
+/**
+ * Exported (2026-09-11) purely so `features/post/agent-tools.ts`'s own test suite can gate its
+ * published mark-type schema against this map's real keys instead of a hand-maintained copy going
+ * stale again — no other behavior change; this map is still read only by {@link renderMarks} inside
+ * this module.
+ */
+export const MARK_RENDERERS: Record<string, (html: string, attrs: JsonObject) => string> = {
   bold: (html) => `<strong>${html}</strong>`,
   italic: (html) => `<em>${html}</em>`,
   code: (html) => `<code>${html}</code>`,
@@ -1046,19 +1077,56 @@ function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pic
 }
 
 /**
+ * The `media` node's per-instance style precedence (2026-09-11, owner-directed: "you may have one
+ * image being used across multiple things, and you wanna control the CSS in a post … just in that
+ * post" — per-POST override on top of the asset-level default {@link resolveMediaAssetOverrides}
+ * already resolves). One field at a time: the NODE's own value wins whenever it is set (non-null,
+ * non-empty), the ASSET's value otherwise. Decided per field, not all-or-nothing, so a node that
+ * overrides only `cssClass` still inherits the asset's own `htmlAttributes` (and always its
+ * width/height — this task threads only `cssClass`/`htmlAttributes` onto the node, never size).
+ *
+ * "Empty means unset" here mirrors every other optional string field in this file rather than
+ * inventing a new convention: {@link renderImageTag}'s own `props.cssClass ? … : ""` check and
+ * {@link resolveMediaHtmlAttributes}'s `!raw` guard both already treat `""` the same as `null`.
+ *
+ * @complexity O(1).
+ */
+function mediaNodeStyleOverride(nodeValue: string | null, assetValue: string | null): string | null {
+  return nodeValue ? nodeValue : assetValue;
+}
+
+/**
  * Attempts the REF-node image path — `attrs.assetId`/`attrs.transformName` resolved against
  * `mediaTransformVersions`/`mediaAssetMetadata` (ADR-027 §4's frozen URL contract). Returns `null`
  * when the ref shape isn't present/plausible, or the transform name isn't yet resolvable, in which
  * case {@link renderDocImage} falls through to the LEGACY `src` path exactly as before this helper
  * was split out — see that function's own doc for the full two-shape contract this implements one
  * half of, and for why an unresolved ref degrades to a placeholder rather than a malformed URL.
+ *
+ * `nodeStyleOverride` (2026-09-11): optional per-node `cssClass`/`htmlAttributes`, layered over the
+ * resolved asset's own same-named fields via {@link mediaNodeStyleOverride} — see that function's
+ * doc for the full precedence rule. Only {@link renderDocMedia} (the `media` node) ever passes this;
+ * {@link renderDocImage} (the legacy `image` node, out of scope for per-node styling) always omits
+ * it, so `image` renders byte-identical to before this parameter existed.
  */
-function tryRenderRefImage(attrs: JsonObject, alt: string, deps: DocNodeRenderDeps): string | null {
+function tryRenderRefImage(
+  attrs: JsonObject,
+  alt: string,
+  deps: DocNodeRenderDeps,
+  nodeStyleOverride?: { cssClass: string | null; htmlAttributes: string | null }
+): string | null {
   const ids = resolveRefImageIds(attrs);
   if (!ids) return null;
   const version = deps.mediaTransformVersions.get(ids.transformName);
   if (version === undefined) return null;
-  const overrides = resolveMediaAssetOverrides(deps.mediaAssetMetadata.get(ids.assetId));
+  const assetOverrides = resolveMediaAssetOverrides(deps.mediaAssetMetadata.get(ids.assetId));
+  const overrides = nodeStyleOverride
+    ? {
+        ...assetOverrides,
+        cssClass: mediaNodeStyleOverride(nodeStyleOverride.cssClass, assetOverrides.cssClass),
+        htmlAttributes: mediaNodeStyleOverride(nodeStyleOverride.htmlAttributes, assetOverrides.htmlAttributes),
+      }
+    : assetOverrides;
   return renderImageTag({ assetId: ids.assetId, transformName: ids.transformName, version, alt, ...overrides });
 }
 
@@ -1102,6 +1170,79 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
   const legacySrc = safeImageSrc(attrs.src);
   if (legacySrc) return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
   return mediaPlaceholder({ label: alt || "Image" });
+}
+
+/**
+ * The generic `media` doc node (2026-09-11 — owner-directed: don't add a `video` node beside
+ * `image`, add ONE node and dispatch on the asset's real content type, so the next kind (audio, …)
+ * costs one more branch instead of one more node type/schema entry/renderer everywhere again).
+ *
+ * Same ref-only contract `image`'s REF shape already established (ADR-027 §4): `attrs.assetId` plus
+ * `attrs.transformName` locked to `CORE_PUBLIC_TRANSFORM_NAME` by both the published agent schema
+ * (`TIPTAP_DOC_SCHEMA`, `features/post/agent-tools.ts`) and the admin editor's own insert command —
+ * there is no `attrs.src` shape here at all, unlike `image`'s LEGACY fallback: `media` is new as of
+ * this task, so there is no pre-existing content authored with a raw URL that back-compat has to
+ * keep rendering.
+ *
+ * Dispatches on `deps.mediaAssetMetadata.get(assetId)?.contentType` (see that field's own doc for
+ * exactly where it comes from and its one disclosed gap): a `video/*` type renders a real `<video>`
+ * via {@link renderVideoTag}. Anything else — a real image type, an unrecognized type, an asset
+ * absent from `mediaAssetMetadata` entirely (`meta` is `undefined`, which reads as "not video" the
+ * same as a `null`/non-video `contentType` would), or (today) an audio type with no player to
+ * dispatch to — falls through to {@link tryRenderRefImage}, the EXACT resolution `image` itself
+ * uses, so a real image asset referenced through this node renders byte-identical to referencing it
+ * through `image`. {@link tryRenderRefImage} already returns `null` for anything it can't resolve
+ * (unregistered transform, implausible id shape, …), so an unresolvable `media` node degrades to the
+ * same placeholder `image` degrades to — never a crash, never silence.
+ *
+ * AUDIO (deliberately not wired): no `renderAudioTag` exists and there is no `audio/*` branch here
+ * — the server upload MIME allowlist (`@jini-ai/cms/media`'s `media-service.ts`,
+ * `DEFAULT_ALLOWED_MIME_TYPES`) has no audio type at all today, so no real audio asset can exist to
+ * dispatch to; adding a fake branch for a type nothing can ever upload would be exactly the
+ * pretend-support this task was told not to build. Adding real audio support later needs, in order:
+ * an allowlisted upload MIME type, a `renderAudioTag` sibling to {@link renderImageTag}/
+ * {@link renderVideoTag} (an `<audio controls src=…>` tag is the obvious shape — `<audio>` has no
+ * width/height/alt of its own the way `<img>`/`<video>` do), and one more
+ * `startsWith("audio/")` branch below — no new node type and no schema change beyond this one
+ * `media` entry, which is the entire point of dispatching on content type instead of adding a third
+ * node.
+ *
+ * PER-NODE STYLE OVERRIDES (2026-09-11): `attrs.cssClass`/`attrs.htmlAttributes` — same two field
+ * names and same raw-text storage format as `MediaRecord`'s asset-level fields, added to the node
+ * itself so one asset used across several posts can be styled differently per post. Precedence is
+ * PER FIELD via {@link mediaNodeStyleOverride}: the node's own value wins whenever it is set
+ * (non-null, non-empty), the resolved asset's value otherwise — applied identically on both dispatch
+ * branches below (video and image), so an operator does not have to learn two different override
+ * rules depending on what the asset turns out to be. `htmlAttributes` re-validation is NOT
+ * duplicated here: both {@link renderVideoTag} and {@link tryRenderRefImage} (via
+ * {@link renderImageTag}) already re-parse whatever string reaches them through
+ * `resolveMediaHtmlAttributes`'s `@jini-ai/cms/media` allowlist and fail closed on anything
+ * disallowed, so a node-authored value gets the exact same security boundary an asset-authored value
+ * already had, with no new parser and no second copy of the allowlist.
+ */
+function renderDocMedia(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const alt = typeof attrs.alt === "string" ? attrs.alt : "";
+  const assetId = typeof attrs.assetId === "string" && isPlausibleMediaRefId(attrs.assetId) ? attrs.assetId : undefined;
+  if (!assetId) return mediaPlaceholder({ label: alt || "Media" });
+
+  const nodeCssClass = typeof attrs.cssClass === "string" ? attrs.cssClass : null;
+  const nodeHtmlAttributes = typeof attrs.htmlAttributes === "string" ? attrs.htmlAttributes : null;
+
+  const meta = deps.mediaAssetMetadata.get(assetId);
+  if (meta?.contentType?.startsWith("video/")) {
+    return renderVideoTag({
+      assetId,
+      alt,
+      width: meta.width,
+      height: meta.height,
+      cssClass: mediaNodeStyleOverride(nodeCssClass, meta.cssClass),
+      htmlAttributes: mediaNodeStyleOverride(nodeHtmlAttributes, meta.htmlAttributes),
+    });
+  }
+
+  const refImage = tryRenderRefImage(attrs, alt, deps, { cssClass: nodeCssClass, htmlAttributes: nodeHtmlAttributes });
+  return refImage ?? mediaPlaceholder({ label: alt || "Media" });
 }
 
 function renderDocYoutube(node: JsonObject): string {
@@ -1183,7 +1324,13 @@ function resolveDocNodeHandler(node: JsonObject): DocNodeHandler | undefined {
  *  since it's data, not control flow). A `type` with no entry (any node kind this renderer doesn't
  *  recognize) falls through to `renderDocNode`'s own default: render children, exactly the old
  *  `switch`'s `default` case. */
-const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
+/**
+ * Exported (2026-09-11) for the identical reason {@link MARK_RENDERERS} now is — a drift guard in
+ * `features/post/agent-tools.ts`'s own test suite reads these keys directly so a node type added
+ * here again cannot silently go undocumented in the schema published to the model. Still read only
+ * by {@link renderDocNode} inside this module; no dispatch behavior changes.
+ */
+export const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
   doc: renderDocDocNode,
   paragraph: renderDocParagraph,
   heading: renderDocHeading,
@@ -1203,6 +1350,7 @@ const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
   horizontalRule: renderDocHorizontalRule,
   hardBreak: renderDocHardBreak,
   image: renderDocImage,
+  media: renderDocMedia,
   youtube: renderDocYoutube,
   mention: renderDocMention,
   widgetEmbed: renderDocWidgetEmbed,
@@ -2027,6 +2175,12 @@ function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
     height: typeof raw.height === "number" ? raw.height : null,
     cssClass: typeof raw.cssClass === "string" ? raw.cssClass : null,
     htmlAttributes: typeof raw.htmlAttributes === "string" ? raw.htmlAttributes : null,
+    // Reconstructed from `raw` (2026-09-11) the same way as every other field above — this file's
+    // own `resolver-service.ts` (`resolvePostContentMediaContext`) now stashes a real sniffed type
+    // into this JSON shape too, closing the gap `MediaAssetRenderMeta.contentType`'s own doc used to
+    // disclose. A missing/non-string value (an older-shaped payload, or a genuinely unsniffed asset)
+    // degrades to `null`, same "not set" convention every other field here already follows.
+    contentType: typeof raw.contentType === "string" ? raw.contentType : null,
   };
 }
 

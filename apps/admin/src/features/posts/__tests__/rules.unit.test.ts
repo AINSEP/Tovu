@@ -9,11 +9,11 @@ import {
   postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
   readPostVersionConflict,
+  resolvePostPreviewBranches,
   comparePostsByStatus,
   comparePostsBySlug,
   comparePostsByTitle,
   comparePostsByUpdated,
-  degradeUnplayableEmbedsForRawPreview,
   droppedUri,
   handleImageDrop,
   postColumnSortLabel,
@@ -653,55 +653,33 @@ describe("titleNodeText", () => {
   });
 });
 
-describe("degradeUnplayableEmbedsForRawPreview", () => {
-  // Owner-reported bug (2026-08-12): a YouTube embed rendered a solid black box in the Preview
-  // tab's raw draft fallback (`PostPreview`'s branch 4, `PostEditor.tsx`) — `SrcDocSandbox`'s
-  // deliberate `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` (no
-  // `allow-same-origin`) breaks the embed player's own same-origin storage access. This function
-  // swaps the embed markup for a labelled placeholder before that HTML ever reaches the sandbox.
-
-  it("replaces a YouTube embed div (the exact tag/attribute shape @tiptap/extension-youtube's own renderHTML produces) with a labelled placeholder", () => {
-    const html = '<p>hello</p><div data-youtube-video=""><iframe width="640" height="480" src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=1"></iframe></div>';
-
-    const result = degradeUnplayableEmbedsForRawPreview(html);
-
-    expect(result).not.toContain("<iframe");
-    expect(result).not.toContain("data-youtube-video");
-    expect(result).toContain('class="embed-preview-unavailable"');
-    expect(result).toContain("YouTube video");
-    expect(result).toContain("<p>hello</p>");
+describe("resolvePostPreviewBranches", () => {
+  it.each([
+    { status: "published", dirty: false, contentDirty: false, expected: "canShowLiveSite" },
+    { status: "published", dirty: true, contentDirty: false, expected: "canShowTemplatePreview" },
+    { status: "published", dirty: true, contentDirty: true, expected: "canShowPendingContentPreview" },
+    // The clean brand-new draft: before the shared helper, the hook's copy of this condition said
+    // `false` here while `PostPreview`'s said `true`, and the preview iframe sat at about:blank.
+    { status: "draft", dirty: false, contentDirty: false, expected: "canShowPendingContentPreview" },
+    { status: "draft", dirty: true, contentDirty: true, expected: "canShowPendingContentPreview" },
+  ] as const)("$status dirty=$dirty contentDirty=$contentDirty -> $expected", ({ status, dirty, contentDirty, expected }) => {
+    const branches = resolvePostPreviewBranches({ status, dirty, contentDirty });
+    expect(branches).toEqual({
+      canShowLiveSite: expected === "canShowLiveSite",
+      canShowTemplatePreview: expected === "canShowTemplatePreview",
+      canShowPendingContentPreview: expected === "canShowPendingContentPreview",
+    });
   });
 
-  it("replaces every YouTube embed when a doc has more than one, leaving unrelated content between them untouched", () => {
-    const html =
-      '<div data-youtube-video=""><iframe src="https://www.youtube.com/embed/aaaaaaaaaaa"></iframe></div>' +
-      "<p>middle</p>" +
-      '<div data-youtube-video=""><iframe src="https://www.youtube.com/embed/bbbbbbbbbbb"></iframe></div>';
-
-    const result = degradeUnplayableEmbedsForRawPreview(html);
-
-    expect(result).not.toContain("<iframe");
-    expect(result.match(/embed-preview-unavailable/g)?.length).toBe(2);
-    expect(result).toContain("<p>middle</p>");
-  });
-
-  it("is a no-op (byte-identical body content) when the doc has no YouTube embed at all", () => {
-    const html = "<h1>Untitled</h1><p>just text, no embeds</p>";
-
-    expect(degradeUnplayableEmbedsForRawPreview(html)).toBe(html);
-  });
-
-  it("does not touch an unrelated iframe that is not a YouTube embed wrapper (no data-youtube-video attribute)", () => {
-    const html = '<div class="widget-embed"><iframe src="https://example.com/widget"></iframe></div>';
-
-    const result = degradeUnplayableEmbedsForRawPreview(html);
-
-    expect(result).toContain("<iframe");
-    expect(result).not.toContain("embed-preview-unavailable");
-  });
-
-  it("returns '' for an empty string rather than throwing", () => {
-    expect(degradeUnplayableEmbedsForRawPreview("")).toBe("");
+  it("selects exactly one branch for every status x dirty x contentDirty combination, including the impossible ones", () => {
+    for (const status of ["draft", "published"] as const) {
+      for (const dirty of [false, true]) {
+        for (const contentDirty of [false, true]) {
+          const branches = resolvePostPreviewBranches({ status, dirty, contentDirty });
+          expect(Object.values(branches).filter(Boolean), JSON.stringify({ status, dirty, contentDirty })).toHaveLength(1);
+        }
+      }
+    }
   });
 });
 

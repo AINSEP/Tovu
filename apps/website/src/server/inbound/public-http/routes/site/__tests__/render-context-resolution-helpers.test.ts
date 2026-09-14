@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
+import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "../pages.js";
 
@@ -15,11 +16,19 @@ import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "
  *   so the `!post` arm is unreachable through any real request and only reachable by calling the
  *   exported function directly, the same reason `resolveHtmlFormatContentMarkers` gets its own
  *   direct-import test file rather than relying on HTTP round trips alone.
- * - `resolveMediaAssetMetadataForRender`'s local `collectImageAssetIds`/`isPlainObject` walk over
+ * - `resolveMediaAssetMetadataForRender`'s local `collectMediaRefAssetIds`/`isPlainObject` walk over
  *   an arbitrary TipTap-shaped `bodyJson` tree — every existing HTTP-level fixture authors a
  *   well-formed doc tree (real objects throughout), so the walk's own defensive handling of a
  *   malformed node (a bare primitive or a literal `null` sitting where an object was expected) has
  *   never actually run.
+ *
+ * 2026-09-11 addition — the generic `media` doc node's content-type plumbing: the tests above (and
+ * `tiptap-render-contract.test.ts`'s own `media` rows) prove `render.ts`'s `renderDocMedia` dispatch
+ * given a HAND-BUILT `mediaAssetMetadata` map. Neither proves the map itself gets built correctly
+ * from a real `MediaRepoPort`/`MediaContentTypeStorePort` pair — that this function actually reads
+ * `MediaContentTypeStorePort.getMany`, keyed by the resolved record's `source.sha256` (NOT by
+ * `assetId`), and writes the result onto `contentType`. The test below is that missing link, using
+ * `createRouteDeps()`'s real (in-memory) adapters end to end rather than a fake.
  */
 
 function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
@@ -64,7 +73,7 @@ test("resolveMediaAssetMetadataForRender: a malformed bodyJson tree (a bare prim
     bodyJson: {
       type: "doc",
       // "just a string", a literal null, and a nested array all sit where a real TipTap node
-      // object would be — none is a plain object, so `collectImageAssetIds`'s own `isPlainObject`
+      // object would be — none is a plain object, so `collectMediaRefAssetIds`'s own `isPlainObject`
       // guard must reject each one instead of crashing on `node.type`/`node.attrs` lookups.
       content: ["just a string", null, [{ type: "paragraph", content: null }]],
     },
@@ -80,7 +89,7 @@ test("resolveMediaAssetMetadataForRender: an image node whose attrs is itself an
       type: "doc",
       // isPlainObject's own `!Array.isArray(value)` arm is only exercised when something that IS
       // an array is handed to it as a value that isn't the top-level walked `node` itself (that
-      // case is already handled by collectImageAssetIds's own `Array.isArray(node)` branch one
+      // case is already handled by collectMediaRefAssetIds's own `Array.isArray(node)` branch one
       // level up) -- `attrs` being an array is the other call site (`isPlainObject(node.attrs)`).
       content: [{ type: "image", attrs: ["not", "a", "real", "attrs", "object"] }],
     },
@@ -88,3 +97,75 @@ test("resolveMediaAssetMetadataForRender: an image node whose attrs is itself an
   const result = await resolveMediaAssetMetadataForRender(deps, post);
   assert.equal(result.size, 0, "an array-shaped attrs must be rejected by isPlainObject, not read as a real attrs object");
 });
+
+/** A minimal, fully-specified `MediaRecord` — every field explicit (no partial/defaulting helper)
+ *  since this is the one place this file constructs one directly against the real repo, not through
+ *  `uploadMedia`'s own defaulting. */
+function mediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
+  return {
+    id: "asset-1",
+    workspaceId: "workspace-local",
+    title: "Asset",
+    slug: "asset",
+    alt: "",
+    caption: "",
+    credit: "",
+    source: { sha256: "sha-1" },
+    status: "active",
+    createdAt: "2026-09-11T00:00:00.000Z",
+    updatedAt: "2026-09-11T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
+    ...overrides,
+  };
+}
+
+test(
+  "resolveMediaAssetMetadataForRender: a media node's assetId resolves contentType through the REAL mediaRepo/mediaContentTypeStore pair, keyed by the resolved record's source.sha256 (not by assetId) — the end-to-end plumbing render.ts's renderDocMedia dispatch depends on, not just its own hand-built-map contract tests",
+  async () => {
+    const deps = createRouteDeps();
+    await deps.mediaRepo.save(mediaRecord({ id: "asset-vid-1", source: { sha256: "sha-video-1" } }));
+    // Deliberately a DIFFERENT sha256 than the one just saved — proves the lookup is keyed by the
+    // BYTES' identity, not by assetId: if this function mistakenly kept the id as the key, this red
+    // herring would be read instead and the assertion below would see the wrong (or no) type.
+    await deps.mediaContentTypeStore.set({ workspaceId: "workspace-local", sha256: "sha-unrelated", contentType: "image/png" });
+    await deps.mediaContentTypeStore.set({ workspaceId: "workspace-local", sha256: "sha-video-1", contentType: "video/mp4" });
+    const post = postRecord({
+      bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid-1", transformName: "public" } }] },
+    });
+
+    const result = await resolveMediaAssetMetadataForRender(deps, post);
+
+    assert.deepEqual(result.get("asset-vid-1"), {
+      width: null,
+      height: null,
+      cssClass: null,
+      htmlAttributes: null,
+      contentType: "video/mp4",
+    });
+  }
+);
+
+test(
+  "resolveMediaAssetMetadataForRender: an asset whose blob has never been sniffed (no mediaContentTypeStore entry for its sha256) resolves contentType: null, not a crash or a fabricated guess",
+  async () => {
+    const deps = createRouteDeps();
+    await deps.mediaRepo.save(mediaRecord({ id: "asset-unsniffed-1", source: { sha256: "sha-unsniffed-1" } }));
+    const post = postRecord({
+      bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-unsniffed-1", transformName: "public" } }] },
+    });
+
+    const result = await resolveMediaAssetMetadataForRender(deps, post);
+
+    assert.deepEqual(result.get("asset-unsniffed-1"), {
+      width: null,
+      height: null,
+      cssClass: null,
+      htmlAttributes: null,
+      contentType: null,
+    });
+  }
+);

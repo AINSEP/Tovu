@@ -86,16 +86,43 @@ import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
  *
  * `bodyJson`'s published schema (see `TIPTAP_DOC_SCHEMA` below) describes the TipTap/ProseMirror
  * document vocabulary this codebase's own renderer (`server/http/site/render.ts`'s `renderDocNode`)
- * actually interprets: `doc`/`paragraph`/`heading`/`text` (with `bold`/`italic`/`code`/`link` marks)/
- * `bulletList`/`orderedList`/`listItem`/`blockquote`/`codeBlock`/`horizontalRule`/`widgetEmbed`. This
- * is documentation for the model, not a runtime validator: `post.ts`'s own `isJsonObject` check is
- * the only real gate `createPost`/`updatePost` apply to `bodyJson` (disclosed directly in that file's
- * `createPost` doc comment — "this codebase has no deeper TipTap schema validation anywhere else...
- * so none is invented here"), and this catalog does not invent one either. What it DOES add is a
- * structural map of the vocabulary a model needs to author a real, renderable document through this
- * tool instead of guessing an opaque blob shape — every node/mark type named here is one
- * `renderDocNode` actually switches on, so a model that follows this schema produces content the
- * renderer will not silently drop into its `default:` (children-only, formatting-losing) fallback.
+ * actually interprets: `doc`/`paragraph` (attrs.textAlign)/`heading` (attrs.level/textAlign)/`text`
+ * (with `bold`/`italic`/`code`/`strike`/`underline`/`subscript`/`superscript`/`textStyle`/`highlight`/
+ * `link` marks)/`bulletList`/`orderedList`/`listItem`/`taskList`/`taskItem`/`blockquote`/`codeBlock`
+ * (attrs.language)/`horizontalRule`/`table`/`tableRow`/`tableCell`/`tableHeader`/`media`/`youtube`/
+ * `mention`/`hardBreak`/`widgetEmbed`. This is documentation for the model, not a runtime validator: `post.ts`'s
+ * own `isJsonObject` check is the only real gate `createPost`/`updatePost` apply to `bodyJson`
+ * (disclosed directly in that file's `createPost` doc comment — "this codebase has no deeper TipTap
+ * schema validation anywhere else... so none is invented here"), and this catalog does not invent one
+ * either. What it DOES add is a structural map of the vocabulary a model needs to author a real,
+ * renderable document through this tool instead of guessing an opaque blob shape — every node/mark
+ * type named here is one `renderDocNode` actually switches on, so a model that follows this schema
+ * produces content the renderer will not silently drop into its `default:` (children-only,
+ * formatting-losing) fallback.
+ *
+ * 2026-09-11: `image`/`youtube`/`mention`/`table`+`tableRow`+`tableCell`+`tableHeader`/`taskList`+
+ * `taskItem`/`hardBreak` added — `renderDocNode` always had a correct case for each, but this schema
+ * named none of them, so a model reading only this description had no way to learn it could author an
+ * image inside a post at all (the incident that surfaced the gap: asked to embed an already-uploaded
+ * image, the assistant told the owner it "cannot" go in a post body). Same-session follow-up, later
+ * the same day: `image` was retired from THIS SCHEMA (not from the renderer — `render.ts` keeps
+ * `DOC_NODE_HANDLERS.image`/`renderDocImage` live for undo/import back-compat with pre-existing
+ * content) — superseded by the generic `media` node (byte-identical REF shape, plus real video
+ * dispatch `image` never had) — so a model authoring NEW content no longer sees `image` as an
+ * option at all. See `TIPTAP_DOC_SCHEMA`'s own doc comment for the full per-node detail, the
+ * `image`->`media` schema retirement, and the two node types (`title`, `video`) deliberately still
+ * absent.
+ *
+ * Same-day follow-up pass, once the node gap suggested the drift might not be limited to node types:
+ * `TIPTAP_MARK_SCHEMA` had the identical defect on marks (documented 4 of `MARK_RENDERERS`'s 10 keys
+ * — see that const's own 2026-09-11 doc comment for the investigation, which also confirms there is
+ * no reverse case, an editor-producible mark the renderer silently drops), and two already-included
+ * node types were missing attrs the renderer reads (`paragraph`/`heading`'s `attrs.textAlign`,
+ * `codeBlock`'s `attrs.language`) because their `additionalProperties: false` objects never listed
+ * those keys at all. A drift guard now lives in `agent-tools.tiptap-node-vocabulary.test.ts`: it reads
+ * `render.ts`'s own `DOC_NODE_HANDLERS`/`MARK_RENDERERS` keys directly (both exported 2026-09-11 for
+ * exactly this) and fails when one has no corresponding schema entry and no explicitly named opt-out,
+ * so the next node or mark type added to the renderer cannot silently go undocumented here again.
  *
  * How it relates to the project:
  * `features/post/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s.
@@ -148,25 +175,71 @@ const POST_ID_SCHEMA = {
 // ---------------------------------------------------------------------------
 // TipTap/ProseMirror `bodyJson` vocabulary — see this file's header for why this schema exists and
 // what it does (and does not) validate. Mirrors exactly the node/mark types
-// `server/http/site/render.ts`'s `renderDocNode`/`renderMarks` switch on; nothing here describes a
-// node type the renderer would not recognize.
+// `server/http/site/render.ts`'s `renderDocNode`/`renderMarks` switch on (including
+// `DOC_NODE_HANDLERS`'s full entry list); nothing here describes a node type the renderer would not
+// recognize.
 // ---------------------------------------------------------------------------
 
-/** A `text` node's formatting mark. `link` is the only mark carrying `attrs` (`href`); the other
- * three are boolean-style (present or absent). */
+/**
+ * A `text` node's formatting mark.
+ *
+ * 2026-09-11: expanded from 4 mark types to the 10 `renderMarks`/`MARK_RENDERERS` (`render.ts`)
+ * actually dispatches on — this schema previously named only `bold`/`italic`/`code`/`link`, the SAME
+ * documentation-drift defect this file's `TIPTAP_DOC_SCHEMA` doc comment describes for node types,
+ * just on marks instead. Investigated rather than assumed: the admin editor's own extension list
+ * (`apps/admin/src/.../use-post-editor.hooks.ts`) was cross-checked against `MARK_RENDERERS`'s keys —
+ * every mark the editor can produce (`StarterKit`'s bundled `Bold`/`Code`/`Italic`/`Link`/`Strike`/
+ * `Underline`, plus the explicitly-loaded `Subscript`/`Superscript`/`Highlight`/`TextStyle` with
+ * `Color`/`BackgroundColor`/`FontFamily`/`FontSize`/`LineHeight`) has a matching `MARK_RENDERERS`
+ * entry — there is no "editor produces it, renderer silently drops it" case to report here.
+ *
+ * `link`/`textStyle`/`highlight` are the only marks carrying `attrs`; the other seven
+ * (`bold`/`italic`/`code`/`strike`/`underline`/`subscript`/`superscript`) are boolean-style (present
+ * or absent, no attrs). `textStyle` and `highlight` both read an attr named `color` for DIFFERENT
+ * purposes (text color vs. highlight background color) — see that field's own description below.
+ */
 const TIPTAP_MARK_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["type"],
   properties: {
-    type: { type: "string", enum: ["bold", "italic", "code", "link"], description: "The mark type." },
+    type: {
+      type: "string",
+      enum: ["bold", "italic", "code", "strike", "underline", "subscript", "superscript", "textStyle", "highlight", "link"],
+      description: "The mark type.",
+    },
     attrs: {
       type: "object",
       additionalProperties: false,
       properties: {
-        href: { type: "string", description: "Required for a 'link' mark. Ignored (and should be omitted) for bold/italic/code." },
+        href: { type: "string", description: "Required for a 'link' mark. Ignored for every other mark type." },
+        color: {
+          type: "string",
+          description:
+            "For a 'textStyle' mark: the text color. For a 'highlight' mark: the highlight's background color (highlight has no " +
+            "separate attr for this). Ignored for every other mark type. A CSS color: 3/4/6/8-digit hex ('#f00', '#ff0000'), a bare " +
+            "keyword ('red', 'transparent'), or rgb()/rgba()/hsl()/hsla()/oklch(). Omit for a plain 'highlight' with no chosen color.",
+        },
+        backgroundColor: {
+          type: "string",
+          description: "Background color for a 'textStyle' mark only (NOT 'highlight' — see 'color' above for that one). Same CSS-color shape as 'color'. Ignored for every other mark type.",
+        },
+        fontFamily: {
+          type: "string",
+          description: "Font family for a 'textStyle' mark, e.g. '\"Courier New\", monospace'. Ignored for every other mark type.",
+        },
+        fontSize: {
+          type: "string",
+          description: "Font size for a 'textStyle' mark — a CSS length, e.g. '16px' or '1.2rem'. Ignored for every other mark type.",
+        },
+        lineHeight: {
+          type: "string",
+          description: "Line height for a 'textStyle' mark — a bare unitless number (e.g. '1.5', the idiomatic CSS form) or a length. Ignored for every other mark type.",
+        },
       },
-      description: "Only 'link' marks carry attrs.",
+      description:
+        "Only 'link' (href), 'textStyle' (color/backgroundColor/fontFamily/fontSize/lineHeight — send only the ones you're " +
+        "setting; each is independent), and 'highlight' (color) marks carry attrs. Omit entirely for every other mark type.",
     },
   },
 } as const;
@@ -187,7 +260,8 @@ const TIPTAP_TEXT_NODE_SCHEMA = {
 /**
  * The full TipTap/ProseMirror doc-node vocabulary, as a recursive JSON Schema (`$defs`/`$ref`) — the
  * one part of this catalog that needed real design rather than wiring (see file header). Every
- * `type` named in `$defs.blockNode`'s `oneOf` is a case `renderDocNode` actually switches on; nothing
+ * `type` named in `$defs.blockNode`'s `oneOf` (block-level) or `$defs.inlineContent`'s `oneOf`
+ * (inline, i.e. text-run-level) is a case `renderDocNode`/`renderNodes` actually switches on; nothing
  * here is speculative.
  *
  * `widgetEmbed` is a block-level atom (no `content`) referencing an existing widget instance's
@@ -195,15 +269,115 @@ const TIPTAP_TEXT_NODE_SCHEMA = {
  * `widgets_reorder_embeds` (see `widgets/agent-tools.ts`), not hand-authored here; it is included in
  * this schema only so a model reading an EXISTING document's `bodyJson` back (via content_post_list/
  * content_post_get) can recognize the node rather than being surprised by an unfamiliar `type`.
+ *
+ * 2026-09-11 expansion — owner-reported incident: asked to put an already-uploaded image inside a
+ * post, the assistant said an image "cannot" go in a post body and gave up, because this schema named
+ * none of `image`/`youtube`/`mention`/the table family (`table`/`tableRow`/`tableCell`/`tableHeader`)/
+ * `taskList`+`taskItem`/`hardBreak` — even though `renderDocNode` has always had a correct, tested
+ * case for every one of them (`tiptap-render-contract.test.ts`). Brought into line with the renderer
+ * for exactly those six node families; see each entry's own `description` below for its render target
+ * and the attrs the renderer actually reads.
+ *
+ * `media` gets particular care. Only the REF-based shape — `attrs.assetId` + `attrs.transformName`
+ * (ADR-027 §4's `bodyJson` contract, one generic node that dispatches by the asset's real content
+ * type at render time rather than a `video` node forcing this same "another node type, another
+ * schema entry, another renderer case" conversation for every future media kind) — is published
+ * here; there is deliberately no `attrs.src` field at all. To embed media here, put it in the media
+ * library first (`media_upload_asset`/`media_generate_asset`/`media_import_from_url`) and reference
+ * it by id — exactly the `{assetId, transformName: "public"}` shape the admin editor's own
+ * `insertMediaRef`/`insertMediaEmbed` commands write, never a hand-written URL. See `media`'s own
+ * `description` below for the full guidance published to the model, and `render.ts`'s
+ * `renderDocMedia` for the actual dispatch.
+ *
+ * `attrs.cssClass`/`attrs.htmlAttributes` (2026-09-11, per-post styling): both OPTIONAL, same two
+ * field names and raw-text shape as the asset's own metadata fields, layered over them per field at
+ * render time (`render.ts`'s `mediaNodeStyleOverride` — node value wins when set, asset value
+ * otherwise). `htmlAttributes` is re-validated at render time against the SAME allowlist the admin
+ * asset-level field uses (`@jini-ai/cms/media`'s `parseMediaHtmlAttributes`) — a disallowed name
+ * (an `on*` handler, a `javascript:` value, anything not on the allowlist) is silently omitted from
+ * the rendered tag rather than rejected up front here, so this schema does not re-encode the
+ * allowlist itself; the `description` strings below just tell the model what tends to be accepted.
+ *
+ * `image` — this schema's OWN entry for it, added earlier the same 2026-09-11 session (the incident
+ * this file's header describes) — was removed from THIS SCHEMA later that same session, owner
+ * decision: `media`'s REF shape is byte-identical to `image`'s (both resolve through `render.ts`'s
+ * shared `tryRenderRefImage`), and a live-db check found exactly 14 posts with an `image` node, all
+ * 14 already soft-deleted (0 of 46 live posts) — so there is no reason for an agent to author a NEW
+ * `image` node when `media` covers the identical ground plus real video dispatch `image` never had.
+ * `render.ts` keeps `DOC_NODE_HANDLERS.image`/`renderDocImage` (and its LEGACY `attrs.src`-only
+ * fallback, `safeImageSrc`) very much alive and unchanged — deliberately NOT deleted, because a real
+ * undo/import path (`features/post/reverters.ts`) can resurrect one of those 14 soft-deleted posts,
+ * two of which are `src`-only and cannot be migrated to `media`. Only this schema's advertisement of
+ * `image` as an authorable type is gone; the renderer still recognizes and correctly renders any
+ * pre-existing `image` node, including one an undo brings back. Use `media` for every new
+ * image/video reference.
+ *
+ * One deliberate omission, not an oversight:
+ * - `title` (`DOC_NODE_HANDLERS`'s `title` case) is a real node type but renders EMPTY in this
+ *   generic walk by design — `post.title`/`ctx.post.title` already print the title separately on
+ *   every render path (`render.ts`'s own `renderDocTitle` doc explains why: printing it again here
+ *   would duplicate it). Naming it in this schema would teach a model to author a node that always
+ *   renders as nothing; a post/page's title is set through the `title` field
+ *   `content_post_create`/`content_post_update` already take directly, not through `bodyJson`.
  */
-const TIPTAP_DOC_SCHEMA = {
+export const TIPTAP_DOC_SCHEMA = {
   $defs: {
     mark: TIPTAP_MARK_SCHEMA,
     textNode: TIPTAP_TEXT_NODE_SCHEMA,
+    // 2026-09-11: paragraph/heading's own attrs.textAlign — `alignStyleAttr` (render.ts) reads this
+    // off BOTH node types and was undocumented (neither paragraph nor heading's attrs allowed it at
+    // all, `additionalProperties: false` with no such key listed) — same schema-drift defect as
+    // TIPTAP_MARK_SCHEMA's own 2026-09-11 note. "left" is valid JSON but a no-op: styleForAlign never
+    // emits an explicit style for it (it's the CSS/HTML default), so omitting the attr entirely is
+    // equivalent and preferred.
+    textAlignValue: { type: "string", enum: ["left", "center", "right", "justify"], description: "Text alignment. 'left' is the default — omit the attr entirely rather than sending it explicitly." },
     inlineContent: {
       type: "array",
-      items: { $ref: "#/$defs/textNode" },
-      description: "Inline (text) content — this codebase's renderer supports only 'text' nodes here, no other inline node type.",
+      items: {
+        oneOf: [
+          { $ref: "#/$defs/textNode" },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["type"],
+            properties: { type: { const: "hardBreak" } },
+            description:
+              "A forced line break WITHIN a run of text (like Shift+Enter) — not a way to separate two blocks; use two " +
+              "paragraph/heading nodes for that. Renders as <br/>. Carries no content or attrs.",
+          },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["type", "attrs"],
+            properties: {
+              type: { const: "mention" },
+              attrs: {
+                type: "object",
+                additionalProperties: false,
+                required: ["id", "label"],
+                properties: {
+                  id: {
+                    type: "string",
+                    pattern: SLUG_FORMAT_PATTERN.source,
+                    maxLength: MAX_SLUG_LENGTH,
+                    description:
+                      "The mentioned post/page's SLUG (not its id) — the same 'slug' field content_post_create/" +
+                      "content_post_list/content_post_get return.",
+                  },
+                  label: { type: "string", minLength: 1, description: "Display text shown after '@' — typically the mentioned post/page's title." },
+                },
+              },
+            },
+            description:
+              'An inline "@mention" link to another post/page, by slug. Renders as <a class="post-mention" href="/{id}">@{label}</a>. ' +
+              "Re-validated at render time: an id failing the slug shape above, or an empty label, renders as NOTHING (no broken link, " +
+              "no error) rather than a dead href — confirm the slug belongs to a real, non-trashed post/page before using it.",
+          },
+        ],
+      },
+      description:
+        "Inline content — this codebase's renderer supports 'text' (formatted text runs), 'hardBreak' (forced line break), and " +
+        "'mention' (an inline link to another post/page) here; no other inline node type.",
     },
     blockNode: {
       oneOf: [
@@ -211,7 +385,16 @@ const TIPTAP_DOC_SCHEMA = {
           type: "object",
           additionalProperties: false,
           required: ["type", "content"],
-          properties: { type: { const: "paragraph" }, content: { $ref: "#/$defs/inlineContent" } },
+          properties: {
+            type: { const: "paragraph" },
+            attrs: {
+              type: "object",
+              additionalProperties: false,
+              properties: { textAlign: { $ref: "#/$defs/textAlignValue" } },
+              description: "Omit entirely for the default (left).",
+            },
+            content: { $ref: "#/$defs/inlineContent" },
+          },
           description: "A paragraph. Renders as <p>.",
         },
         {
@@ -224,7 +407,10 @@ const TIPTAP_DOC_SCHEMA = {
               type: "object",
               additionalProperties: false,
               required: ["level"],
-              properties: { level: { type: "integer", minimum: 1, maximum: 6, description: "Heading level 1-6 (h1-h6). Defaults to 2 if attrs/level is omitted entirely." } },
+              properties: {
+                level: { type: "integer", minimum: 1, maximum: 6, description: "Heading level 1-6 (h1-h6). Defaults to 2 if attrs/level is omitted entirely." },
+                textAlign: { $ref: "#/$defs/textAlignValue" },
+              },
             },
             content: { $ref: "#/$defs/inlineContent" },
           },
@@ -248,6 +434,13 @@ const TIPTAP_DOC_SCHEMA = {
           type: "object",
           additionalProperties: false,
           required: ["type", "content"],
+          properties: { type: { const: "taskList" }, content: { type: "array", items: { $ref: "#/$defs/taskItemNode" } } },
+          description: "A checklist. Renders as <ul data-type=\"taskList\">; content must be taskItem nodes only.",
+        },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "content"],
           properties: { type: { const: "blockquote" }, content: { type: "array", items: { $ref: "#/$defs/blockNode" } } },
           description: "A blockquote. Renders as <blockquote>, wrapping ordinary block content (typically paragraphs).",
         },
@@ -255,7 +448,25 @@ const TIPTAP_DOC_SCHEMA = {
           type: "object",
           additionalProperties: false,
           required: ["type", "content"],
-          properties: { type: { const: "codeBlock" }, content: { $ref: "#/$defs/inlineContent" } },
+          properties: {
+            type: { const: "codeBlock" },
+            attrs: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                language: {
+                  type: "string",
+                  pattern: "^[a-zA-Z0-9-]{1,32}$",
+                  description:
+                    "A language name/alias for client-side syntax highlighting, e.g. 'python', 'objective-c' (highlight.js-style " +
+                    "names). Emitted as a 'language-<value>' CSS class only — this renderer does no server-side highlighting itself, " +
+                    "and does not check the name against a real language list, so an unrecognized-but-safe name is harmless (it just " +
+                    "matches no theme's highlighter). Omit for a plain, unhighlighted code block.",
+                },
+              },
+            },
+            content: { $ref: "#/$defs/inlineContent" },
+          },
           description: "A preformatted code block. Renders as <pre><code>. Marks on its text nodes are typically omitted.",
         },
         {
@@ -264,6 +475,98 @@ const TIPTAP_DOC_SCHEMA = {
           required: ["type"],
           properties: { type: { const: "horizontalRule" } },
           description: "A horizontal rule. Renders as <hr/>. Carries no content or attrs.",
+        },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "content"],
+          properties: { type: { const: "table" }, content: { type: "array", items: { $ref: "#/$defs/tableRowNode" } } },
+          description:
+            "A table. Renders as <table>; content must be tableRow nodes only. No column-resize/width state is preserved — " +
+            "every column renders at its natural width (plain table-layout: auto).",
+        },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "attrs"],
+          properties: {
+            type: { const: "media" },
+            attrs: {
+              type: "object",
+              additionalProperties: false,
+              required: ["assetId", "transformName"],
+              properties: {
+                assetId: {
+                  type: "string",
+                  minLength: 1,
+                  description:
+                    "The id of an EXISTING media asset already in the library — the 'id' returned by media_upload_asset/" +
+                    "media_generate_asset/media_import_from_url, or by content_read.media_asset. There is no way to embed an " +
+                    "arbitrary external URL through this tool: put it in the media library first, then reference it here by id.",
+                },
+                transformName: {
+                  const: "public",
+                  description:
+                    "Always the literal string 'public' — required even for a video asset, which ignores it at render time (there is " +
+                    "no transform pipeline for video). The SAME value the admin editor's own media insert command always writes.",
+                },
+                alt: {
+                  type: "string",
+                  description:
+                    "Accessibility alt text for an image asset, or the <video> element's fallback text for a video asset. Also shown " +
+                    "as the placeholder's label if the asset can no longer be resolved. Omit for empty alt text.",
+                },
+                cssClass: {
+                  type: "string",
+                  description:
+                    "Optional CSS class applied to the rendered <img>/<video> tag for THIS post only (e.g. to left/right-align this " +
+                    "one usage, or resize it, without changing the asset's own default styling used elsewhere). Wins over the asset's " +
+                    "own class when both are set. Omit to inherit the asset's own class, if any.",
+                },
+                htmlAttributes: {
+                  type: "string",
+                  description:
+                    "Optional extra HTML attributes applied to the rendered tag for THIS post only, e.g. 'data-kui=\"hero\"' or a " +
+                    "bare boolean attribute like 'muted'. Wins over the asset's own htmlAttributes when both are set. Event handler " +
+                    "attributes (onclick, onerror, …) and javascript: values are never emitted, silently dropped at render time. " +
+                    "Omit to inherit the asset's own attributes, if any.",
+                },
+              },
+            },
+          },
+          description:
+            "A media embed referencing an EXISTING media asset by id — never a raw src URL (see this schema's own top-level doc for " +
+            "why). Use this one node for images AND videos: the public renderer picks the real <img> or <video> tag itself " +
+            "from the asset's actual stored content type, so a video asset's id renders a real, playable <video>. Check " +
+            "content_read.media_asset's own 'publicUrl' first if unsure: a '/original' path means video, a '/public.v….../image.….' " +
+            "path means image — either kind renders correctly through this one node either way.",
+        },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "attrs"],
+          properties: {
+            type: { const: "youtube" },
+            attrs: {
+              type: "object",
+              additionalProperties: false,
+              required: ["src"],
+              properties: {
+                src: {
+                  type: "string",
+                  description:
+                    "A YouTube URL in any common shape, e.g. 'https://www.youtube.com/watch?v=VIDEOID', 'https://youtu.be/VIDEOID', " +
+                    "or an already-'/embed/VIDEOID' URL. Only the video id is extracted server-side and re-embedded via " +
+                    "youtube-nocookie.com (privacy-enhanced mode, always on) — a URL this renderer cannot recognize as YouTube " +
+                    "degrades to a placeholder rather than an error.",
+                },
+                start: { type: "integer", minimum: 1, maximum: 999999, description: "Optional start time in seconds into the video. Omit to start at the beginning." },
+              },
+            },
+          },
+          description:
+            "An embedded YouTube video. Renders as a responsive 16:9 <iframe>. width/height attrs are NOT read by this renderer " +
+            "(the theme always sizes it responsively) — do not set them.",
         },
         {
           type: "object",
@@ -290,6 +593,73 @@ const TIPTAP_DOC_SCHEMA = {
       properties: { type: { const: "listItem" }, content: { type: "array", items: { $ref: "#/$defs/blockNode" } } },
       description: "One list item. content is ordinary block content (typically a single paragraph, optionally followed by a nested bulletList/orderedList).",
     },
+    taskItemNode: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "content"],
+      properties: {
+        type: { const: "taskItem" },
+        attrs: {
+          type: "object",
+          additionalProperties: false,
+          properties: { checked: { type: "boolean", description: "Whether the checkbox renders checked. Defaults to unchecked when omitted." } },
+        },
+        content: {
+          type: "array",
+          items: { $ref: "#/$defs/blockNode" },
+          description: "Ordinary block content — in practice a single paragraph. This renderer does not support a nested sub-checklist inside a taskItem.",
+        },
+      },
+      description:
+        "One checklist item. Renders publicly as an INERT checkbox — disabled, since there is no live toggle handler on the public " +
+        "site; it reflects attrs.checked at render time only, clicking it does nothing.",
+    },
+    tableCellAttrs: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        colspan: { type: "integer", minimum: 1, maximum: 1000, description: "Defaults to 1 (omitted) when unset." },
+        rowspan: { type: "integer", minimum: 1, maximum: 1000, description: "Defaults to 1 (omitted) when unset." },
+        align: {
+          type: "string",
+          enum: ["left", "center", "right"],
+          description: "Text alignment for THIS cell only. 'justify' is not supported for a table cell and is ignored, same as omitting the attr. Omit for the default (left).",
+        },
+      },
+      description: "Shared attrs shape for tableCell and tableHeader.",
+    },
+    tableCellNode: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "content"],
+      properties: {
+        type: { const: "tableCell" },
+        attrs: { $ref: "#/$defs/tableCellAttrs" },
+        content: { type: "array", items: { $ref: "#/$defs/blockNode" }, description: "Ordinary block content — typically a single paragraph." },
+      },
+      description: "A regular data cell. Renders as <td>.",
+    },
+    tableHeaderNode: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "content"],
+      properties: {
+        type: { const: "tableHeader" },
+        attrs: { $ref: "#/$defs/tableCellAttrs" },
+        content: { type: "array", items: { $ref: "#/$defs/blockNode" }, description: "Ordinary block content — typically a single paragraph." },
+      },
+      description: "A header cell. Renders as <th>. Same attrs as tableCell (colspan/rowspan/align).",
+    },
+    tableRowNode: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "content"],
+      properties: {
+        type: { const: "tableRow" },
+        content: { type: "array", items: { oneOf: [{ $ref: "#/$defs/tableCellNode" }, { $ref: "#/$defs/tableHeaderNode" }] } },
+      },
+      description: "One table row. Renders as <tr>; content must be tableCell/tableHeader nodes only.",
+    },
   },
   type: "object",
   additionalProperties: false,
@@ -300,8 +670,9 @@ const TIPTAP_DOC_SCHEMA = {
   },
   description:
     "A TipTap/ProseMirror document: { type: 'doc', content: [...blockNode] }. An empty document is { type: 'doc', content: [] }. " +
-    "Every node type named in this schema's $defs.blockNode is one this codebase's renderer actually recognizes — an unrecognized " +
-    "type is not rejected, but silently renders its children only, losing its own formatting (matching renderDocNode's default case).",
+    "Every node type named anywhere in this schema's $defs (blockNode's oneOf for block-level nodes, inlineContent's oneOf for " +
+    "inline ones) is one this codebase's renderer actually recognizes — an unrecognized type is not rejected, but silently renders " +
+    "its children only, losing its own formatting (matching renderDocNode's default case).",
 } as const;
 
 /**
