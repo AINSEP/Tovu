@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
@@ -9,7 +9,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems, sortMediaByOrder, MEDIA_ORDER_OPTIONS, type MediaOrderBy } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
-import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
+import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
@@ -415,125 +415,45 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             />
           </div>
         </div>
-        {/* Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix — images
-            inserted into post bodies were rendering at full native pixel width with no way to
-            control size). Both optional, pixel-size numeric inputs: leaving either (or both) blank
-            means "render at native/as-is size" — the public renderer omits the attribute entirely
-            rather than defaulting to a computed value. Own row directly under Caption/Credit, per
-            owner's explicit placement instruction. */}
-        <div className="field-row">
-          <div className="field">
-            <label className="field-label" htmlFor={`media-edit-width-${item.id}`}>
-              {t("Width (px)")}
-            </label>
-            <input
-              id={`media-edit-width-${item.id}`}
-              type="number"
-              min={1}
-              placeholder="native"
-              value={draft.width ?? ""}
-              onChange={(e) => setWidth(e.target.value)}
-              {...agentHandle("media-edit-width", {
-                role: "field",
-                label: "Render width in pixels for this asset in post bodies — blank means native size",
-              })}
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor={`media-edit-height-${item.id}`}>
-              {t("Height (px)")}
-            </label>
-            <input
-              id={`media-edit-height-${item.id}`}
-              type="number"
-              min={1}
-              placeholder="native"
-              value={draft.height ?? ""}
-              onChange={(e) => setHeight(e.target.value)}
-              {...agentHandle("media-edit-height", {
-                role: "field",
-                label: "Render height in pixels for this asset in post bodies — blank means native size",
-              })}
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor={`media-edit-css-class-${item.id}`}>
-            {t("CSS class (optional)")}
-          </label>
-          <input
-            id={`media-edit-css-class-${item.id}`}
-            value={draft.cssClass ?? ""}
-            onChange={(e) => setCssClass(e.target.value)}
-            {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
-          />
-        </div>
-        {/* HTML attributes (2026-09-07, owner-directed — animations, custom WebMCP hooks on the
-            emitted tag). `htmlAttributesError` below is a LIVE, as-you-type hint only — it must
-            never disable Save (see `use-edit-media-panel.hooks.ts`'s own header for the regression
-            this rule prevents, `a7cce060`): an invalid value here still lets every other field save,
-            and the server's own 400 (already enforced independently, not just by this hint) surfaces
-            through the `error` banner below exactly like a malformed slug already does. */}
-        <div className="field">
-          <label className="field-label" htmlFor={`media-edit-html-attributes-${item.id}`}>
-            {t("HTML attributes (optional)")}
-          </label>
-          <input
-            id={`media-edit-html-attributes-${item.id}`}
-            value={draft.htmlAttributes ?? ""}
-            onChange={(e) => setHtmlAttributes(e.target.value)}
-            aria-invalid={htmlAttributesError ? true : undefined}
-            {...agentHandle("media-edit-html-attributes", {
-              role: "field",
-              label: "Optional HTML attributes applied to this asset's rendered tag on the public site",
-            })}
-          />
-          {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
-        </div>
+        <MediaEditRenderOverrideFields
+          item={item}
+          draft={draft}
+          setWidth={setWidth}
+          setHeight={setHeight}
+          setCssClass={setCssClass}
+          setHtmlAttributes={setHtmlAttributes}
+          htmlAttributesError={htmlAttributesError}
+          t={t}
+        />
         {/* User report: "where is the location of the asset? I dont see the location data" — there
             was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
             row below (this component's own established idiom for "show it, let it be copied, it
             isn't something you type into"), but a clickable `<a>` instead of `<code>` since this
             value is a real, followable URL, not an opaque identifier. */}
-        <div className="field">
-          <span className="field-label">{t("File URL")}</span>
-          <div className="field-readonly-row">
-            <a
-              className="field-mono field-readonly"
-              href={originalUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {originalUrl}
-            </a>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={copyUrl}
-              {...agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
-            >
-              {urlCopied ? t("Copied") : t("Copy")}
-            </button>
-          </div>
-        </div>
+        <MediaEditCopyRow
+          label={t("File URL")}
+          copied={urlCopied}
+          onCopy={copyUrl}
+          copyButtonHandle={agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
+          t={t}
+        >
+          <a className="field-mono field-readonly" href={originalUrl} target="_blank" rel="noreferrer">
+            {originalUrl}
+          </a>
+        </MediaEditCopyRow>
         {/* Integrity/dedupe metadata, demoted out of the main view — genuinely useful when
             chasing a duplicate upload or verifying a file, noise the rest of the time. Read-only:
             this is a content hash, not something an operator edits. Monospace per the OD idiom
             for values that are code/identifiers, not prose. */}
-        <div className="field">
-          <span className="field-label">{t("sha256")}</span>
-          <div className="field-readonly-row">
-            <code className="field-mono field-readonly">{item.sha256}</code>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={copyHash}
-              {...agentHandle("media-edit-copy-hash", { role: "button", label: "Copy this asset's sha256 hash to the clipboard" })}
-            >
-              {hashCopied ? t("Copied") : t("Copy")}
-            </button>
-          </div>
-        </div>
+        <MediaEditCopyRow
+          label={t("sha256")}
+          copied={hashCopied}
+          onCopy={copyHash}
+          copyButtonHandle={agentHandle("media-edit-copy-hash", { role: "button", label: "Copy this asset's sha256 hash to the clipboard" })}
+          t={t}
+        >
+          <code className="field-mono field-readonly">{item.sha256}</code>
+        </MediaEditCopyRow>
         <span className="editor-actions">
           <button
             type="button"
@@ -559,6 +479,121 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           {error}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+/** {@link EditMediaPanel}'s public-render override fields: width/height, CSS class and HTML
+ *  attributes. A top-level component so the panel's own branch count stays under the complexity
+ *  ceiling — these fields' `??` and ternary reads were half of it. */
+function MediaEditRenderOverrideFields(
+  props: Pick<EditMediaPanelController, "draft" | "setWidth" | "setHeight" | "setCssClass" | "setHtmlAttributes" | "htmlAttributesError"> & {
+    item: AdminMedia;
+    t: (key: string) => string;
+  }
+) {
+  const { item, draft, setWidth, setHeight, setCssClass, setHtmlAttributes, htmlAttributesError, t } = props;
+  return (
+    <>
+      {/* Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix — images
+          inserted into post bodies were rendering at full native pixel width with no way to
+          control size). Both optional, pixel-size numeric inputs: leaving either (or both) blank
+          means "render at native/as-is size" — the public renderer omits the attribute entirely
+          rather than defaulting to a computed value. Own row directly under Caption/Credit, per
+          owner's explicit placement instruction. */}
+      <div className="field-row">
+        <div className="field">
+          <label className="field-label" htmlFor={`media-edit-width-${item.id}`}>
+            {t("Width (px)")}
+          </label>
+          <input
+            id={`media-edit-width-${item.id}`}
+            type="number"
+            min={1}
+            placeholder="native"
+            value={draft.width ?? ""}
+            onChange={(e) => setWidth(e.target.value)}
+            {...agentHandle("media-edit-width", {
+              role: "field",
+              label: "Render width in pixels for this asset in post bodies — blank means native size",
+            })}
+          />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor={`media-edit-height-${item.id}`}>
+            {t("Height (px)")}
+          </label>
+          <input
+            id={`media-edit-height-${item.id}`}
+            type="number"
+            min={1}
+            placeholder="native"
+            value={draft.height ?? ""}
+            onChange={(e) => setHeight(e.target.value)}
+            {...agentHandle("media-edit-height", {
+              role: "field",
+              label: "Render height in pixels for this asset in post bodies — blank means native size",
+            })}
+          />
+        </div>
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor={`media-edit-css-class-${item.id}`}>
+          {t("CSS class (optional)")}
+        </label>
+        <input
+          id={`media-edit-css-class-${item.id}`}
+          value={draft.cssClass ?? ""}
+          onChange={(e) => setCssClass(e.target.value)}
+          {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
+        />
+      </div>
+      {/* HTML attributes (2026-09-07, owner-directed — animations, custom WebMCP hooks on the
+          emitted tag). `htmlAttributesError` below is a LIVE, as-you-type hint only — it must
+          never disable Save (see `use-edit-media-panel.hooks.ts`'s own header for the regression
+          this rule prevents, `a7cce060`): an invalid value here still lets every other field save,
+          and the server's own 400 (already enforced independently, not just by this hint) surfaces
+          through the `error` banner below exactly like a malformed slug already does. */}
+      <div className="field">
+        <label className="field-label" htmlFor={`media-edit-html-attributes-${item.id}`}>
+          {t("HTML attributes (optional)")}
+        </label>
+        <input
+          id={`media-edit-html-attributes-${item.id}`}
+          value={draft.htmlAttributes ?? ""}
+          onChange={(e) => setHtmlAttributes(e.target.value)}
+          aria-invalid={htmlAttributesError ? true : undefined}
+          {...agentHandle("media-edit-html-attributes", {
+            role: "field",
+            label: "Optional HTML attributes applied to this asset's rendered tag on the public site",
+          })}
+        />
+        {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
+      </div>
+    </>
+  );
+}
+
+/** A read-only value plus its Copy button — {@link EditMediaPanel}'s File URL and sha256 rows share
+ *  this shape. `copyButtonHandle` is the button's `agentHandle(...)` spread, built at the call site so
+ *  each handle id stays a literal in `EditMediaPanel`. */
+function MediaEditCopyRow(props: {
+  label: string;
+  copied: boolean;
+  onCopy: () => void;
+  copyButtonHandle: ReturnType<typeof agentHandle>;
+  t: (key: string) => string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="field">
+      <span className="field-label">{props.label}</span>
+      <div className="field-readonly-row">
+        {props.children}
+        <button type="button" className="btn-ghost" onClick={props.onCopy} {...props.copyButtonHandle}>
+          {props.copied ? props.t("Copied") : props.t("Copy")}
+        </button>
+      </div>
     </div>
   );
 }
