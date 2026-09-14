@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 
 import { CHAT_TABLE_NAMES } from "../db/sqlite/chat-orphan-check.js";
 import { openContentDbReadOnly } from "../db/sqlite/content-db.js";
+import { resetLegacySiteTitlePin } from "../db/sqlite/reset-legacy-site-title-pin.js";
 import { InternalError } from "./errors.js";
 
 /**
@@ -86,8 +87,9 @@ import { InternalError } from "./errors.js";
  * nothing else in the module depends on either.
  *
  * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import. Depends on
- * `db/sqlite/content-db.ts` and `db/sqlite/chat-orphan-check.ts` only, both already
- * `site-dir`-reachable (siblings under `platform/db/`, not `server`/`cli`).
+ * `db/sqlite/content-db.ts`, `db/sqlite/chat-orphan-check.ts` and
+ * `db/sqlite/reset-legacy-site-title-pin.ts` only, all already `site-dir`-reachable (siblings under
+ * `platform/db/`, not `server`/`cli`).
  */
 
 /**
@@ -138,16 +140,19 @@ export interface DuplicateContentDbRequired {
 
 /**
  * Produces a physically consistent copy of `sourceDbPath` at `targetDbPath`, with the chat/session
- * tables emptied and everything else — declared content, plugin tables and their rows, the
- * migrator's bookkeeping, the FTS5 index — carried across. See this file's own header for why the
- * purge names what it deletes, and for why this says nothing about the `chat.db` sibling next to
- * `sourceDbPath`.
+ * tables emptied, the source's legacy site-title pin and marker reset (SPEC-050 REQ-12,
+ * `resetLegacySiteTitlePin`), and everything else — declared content, plugin tables and their rows,
+ * the migrator's bookkeeping, the FTS5 index, an owner's own site title — carried across. See this
+ * file's own header for why the purge names what it deletes, and for why this says nothing about the
+ * `chat.db` sibling next to `sourceDbPath`.
  *
  * @throws {InternalError} `VACUUM INTO` failing (e.g. `targetDbPath` already exists, or the parent
  *   directory is not writable), or the purged copy failing `integrity_check` — surfaced with the
  *   real driver message rather than a generic wrapper, so a caller can tell a full disk from a
- *   locked source.
- * @complexity O(1) plus {@link purgeStrandedChatTables}'s own fixed three-statement cost — the
+ *   locked source. A failed purge or pin-reset statement throws the driver's own error, which
+ *   `duplicateSite`'s `cleanupAndRethrow` wraps.
+ * @complexity O(1) plus {@link purgeStrandedChatTables}'s own fixed three-statement cost and the
+ *   pin reset's one pass over the copy's marker and workspace-value rows — the
  *   `VACUUM INTO`/final `VACUUM` calls are each one full pass over the source/copy's own byte size,
  *   fixed by how much content the site being duplicated actually holds, never by any
  *   caller-controlled input.
@@ -171,6 +176,9 @@ export function duplicateContentDb(required: DuplicateContentDbRequired): void {
   try {
     target.pragma("foreign_keys = ON");
     purgeStrandedChatTables(target);
+    // SPEC-050 REQ-12: the source's legacy site-title pin and marker describe the SOURCE's history,
+    // not this copy's, and would render the source's pinned title in place of the duplicate's name.
+    resetLegacySiteTitlePin({ db: target });
     target.exec("VACUUM"); // reclaims the purged rows' pages before this copy is handed back.
 
     // Leaves the copy in the same WAL posture `openContentDb` establishes on every real open, and

@@ -4,11 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
+import Database from "better-sqlite3";
 import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
 
 import { migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
 import { seedContentDb } from "#src/platform/db/sqlite/content-db";
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
+import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { createApp } from "#src/server/runtime/composition/app";
@@ -20,6 +22,7 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
  * @file SPEC-050 v0.2.0, Wiring Order Step 2, end to end: a real site directory, a real SQLite
  * database, the real SQLite composition root composed the way `tovu serve <dir>` composes it, and
  * every assertion over HTTP. Covers T-W1 (AC-10), T-W3 (AC-12), T-W4 (AC-13), AC-06, AC-07 and AC-08.
+ * SPEC-050 v0.3.0 adds the database-copy paths over the same fixtures: `duplicateSite` (AC-20, AC-21).
  *
  * Both fixtures carry the config name "My Site". A pre-existing site that loses its pin therefore
  * flips to a visible, different title instead of passing by coincidence.
@@ -262,4 +265,95 @@ test("AC-08 (REQ-06): after the owner resets the pinned title, two restarts appe
     assert.equal((await systemPinRevisions(latest.deps)).length, 1, `restart ${restart} must not re-pin`);
   }
   assertSingleTitle(await getHtml(latest.baseUrl, "/products"), SITE_NAME, "S3 GET /products after the reset and two restarts");
+});
+
+const DUPLICATE_NAME = "Client B";
+const OWNER_TITLE = "Acme Field Notes";
+
+interface SiteTitleCopyState {
+  /** Every `core.site/title` workspace-layer row for the workspace: who wrote it, and the stored JSON. */
+  titleRows: Array<{ updatedBy: string; valueJson: string | null }>;
+  /** That workspace's `site_title_preexisting_workspaces` rows, pending or resolved. */
+  markerRows: number;
+}
+
+/** The two tables a database copy must reset (REQ-12, REQ-14), read straight from the file. */
+function readSiteTitleCopyState(dbPath: string, workspaceId: string): SiteTitleCopyState {
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const titleRows = db
+      .prepare(
+        `SELECT updated_by AS updatedBy, value_json AS valueJson FROM setting_values_workspace
+         WHERE workspace_id = ? AND setting_id IN (SELECT setting_id FROM setting_definitions WHERE namespace = 'core.site' AND key = 'title')`
+      )
+      .all(workspaceId) as SiteTitleCopyState["titleRows"];
+    const { count } = db
+      .prepare("SELECT COUNT(*) AS count FROM site_title_preexisting_workspaces WHERE workspace_id = ?")
+      .get(workspaceId) as { count: number };
+    return { titleRows, markerRows: count };
+  } finally {
+    db.close();
+  }
+}
+
+/** A pre-existing site, booted until its pin has landed and every boot write has settled. */
+async function bootPinnedPreExistingSite(t: TestContext): Promise<{ dir: string; site: BootedSite }> {
+  const dir = createPreExistingSite(t);
+  const site = await bootSite(t, dir);
+  await site.deps.siteTitleReady;
+  await drainBootReadiness(site.deps);
+  return { dir, site };
+}
+
+test("AC-20 (REQ-12, INV-07): a duplicate of a pinned pre-existing site carries neither the pin nor its marker, and renders its own name", async (t) => {
+  const { dir: sourceDir, site: source } = await bootPinnedPreExistingSite(t);
+  const workspaceId = source.deps.workspaceId;
+  const sourceDbPath = path.join(sourceDir, "content.db");
+  const pinnedState: SiteTitleCopyState = {
+    titleRows: [{ updatedBy: SYSTEM_PRINCIPAL_ID, valueJson: JSON.stringify(LEGACY_TITLE) }],
+    markerRows: 1,
+  };
+  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), pinnedState, "precondition: the source is pinned and marked");
+
+  const targetDir = path.join(path.dirname(sourceDir), "client-b");
+  duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
+
+  assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), { titleRows: [], markerRows: 0 });
+  assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), pinnedState, "duplicating must not reset the source itself");
+
+  const duplicate = await bootSite(t, targetDir);
+  await duplicate.deps.siteTitleReady;
+  const products = await getHtml(duplicate.baseUrl, "/products");
+  assertSingleTitle(products, DUPLICATE_NAME, "S3 GET /products on the duplicate");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${DUPLICATE_NAME}</a>`), "B: header wordmark on the duplicate");
+});
+
+test("AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplicate; only the marker is reset", async (t) => {
+  const { dir: sourceDir, site: source } = await bootPinnedPreExistingSite(t);
+  const workspaceId = source.deps.workspaceId;
+  const write = await fetch(`${source.baseUrl}/api/admin/v1/workspaces/${workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: source.cookie },
+    body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace", valueJson: OWNER_TITLE }),
+  });
+  assert.equal(write.status, 200, "the owner write must be accepted");
+  await drainBootReadiness(source.deps);
+
+  const sourceState = readSiteTitleCopyState(path.join(sourceDir, "content.db"), workspaceId);
+  assert.equal(sourceState.titleRows.length, 1, "precondition: one core.site/title row");
+  assert.equal(sourceState.titleRows[0]?.valueJson, JSON.stringify(OWNER_TITLE), "precondition: the owner's title replaced the pin");
+  assert.notEqual(sourceState.titleRows[0]?.updatedBy, SYSTEM_PRINCIPAL_ID, "precondition: attributed to the owner, not the system");
+  assert.equal(sourceState.markerRows, 1, "precondition: the source is still marked");
+
+  const targetDir = path.join(path.dirname(sourceDir), "client-b");
+  duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
+
+  assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), {
+    titleRows: sourceState.titleRows,
+    markerRows: 0,
+  });
+
+  const duplicate = await bootSite(t, targetDir);
+  await duplicate.deps.siteTitleReady;
+  assertSingleTitle(await getHtml(duplicate.baseUrl, "/products"), OWNER_TITLE, "S3 GET /products on the duplicate");
 });
