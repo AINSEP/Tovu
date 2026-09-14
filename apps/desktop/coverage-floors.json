@@ -11,7 +11,7 @@
       "extensions": [".ts", ".cjs"],
       "minFilesOnDisk": 27,
       "floors": { "line": 96, "branch": 90, "funcs": 90 },
-      "_comment_knownUnmeasured": "preload-speech.cjs is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts reads it as source text, the same convention main.js uses. Grandfathered 2026-09-12; this list is printed on every run and a SECOND entry fails the gate.",
+      "_comment_knownUnmeasured": "preload-speech.cjs is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts reads it as source text, the same convention main.ts uses. Grandfathered 2026-09-12; this list is printed on every run and a SECOND entry fails the gate.",
       "knownUnmeasured": ["src/speech/preload-speech.cjs"]
     },
     {
