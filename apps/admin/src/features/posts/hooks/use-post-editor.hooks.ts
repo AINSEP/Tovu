@@ -447,8 +447,9 @@ export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File
  * upload step as {@link handleFileDrop}, but inserts through the real `insertMediaEmbed` command
  * (`lib/media-embed-extension.tsx`) rather than `insertContentAt`: `@tiptap/extension-file-handler`'s
  * own `onPaste` signature carries no position argument (unlike `onDrop`'s `pos`), and inserting at
- * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaEmbed`'s
- * own `commands.insertContent(...)` already does with no position argument.
+ * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaEmbed`
+ * does with no position argument (after the selected node when a node is selected, see
+ * `lib/block-atom-insert.ts`).
  */
 export function handleFilePaste(port: PostEditorPort, editor: Editor, files: File[]): void {
   for (const file of files) {

@@ -402,6 +402,42 @@ describe("WidgetEmbed — real @tiptap/core Editor integration", () => {
       editor.destroy();
     }
   });
+
+  // 2026-09-14: same defect as the media embed (q4 visual QA) — `insertContent` left the new atom
+  // selected, so the next insert replaced it. See `lib/block-atom-insert.ts`.
+  function widgetEntryIds(editor: Editor) {
+    return (editor.getJSON().content ?? []).filter((n) => n.type === "widgetEmbed").map((n) => n.attrs?.widgetEntryId);
+  }
+
+  it("two inserts in a row produce two widgetEmbed nodes in order, with a text cursor in a paragraph after the second", () => {
+    const editor = new Editor({ extensions: [StarterKit, WidgetEmbed], content: "<p></p>" });
+    try {
+      editor.commands.setTextSelection(1);
+      editor.commands.insertWidgetEmbed({ placementId: "p1", widgetEntryId: "w1" });
+      editor.commands.insertWidgetEmbed({ placementId: "p2", widgetEntryId: "w2" });
+
+      expect(widgetEntryIds(editor)).toEqual(["w1", "w2"]);
+      expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+      expect(editor.state.selection.$from.index(0)).toBe(2);
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  it("with an existing widgetEmbed SELECTED, inserting adds the new node after it instead of replacing it", () => {
+    const editor = new Editor({
+      extensions: [StarterKit, WidgetEmbed],
+      content: { type: "doc", content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }, { type: "paragraph" }] },
+    });
+    try {
+      editor.commands.setNodeSelection(0);
+      editor.commands.insertWidgetEmbed({ placementId: "p2", widgetEntryId: "w2" });
+
+      expect(widgetEntryIds(editor)).toEqual(["w1", "w2"]);
+    } finally {
+      editor.destroy();
+    }
+  });
 });
 
 describe("WidgetEmbedInsertControl", () => {

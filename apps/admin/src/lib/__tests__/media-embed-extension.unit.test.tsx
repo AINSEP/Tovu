@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import type { NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../api";
 import { Media, MediaEmbedNodeView } from "../media-embed-extension";
+import { PostTitle, PostTitleDocument } from "../post-title-extension";
 
 /**
  * @file First test file for `media-embed-extension.tsx` (new file, 2026-09-11 — the generic `media`
@@ -317,5 +319,65 @@ describe("Media — real @tiptap/core Editor integration", () => {
     } finally {
       editor.destroy();
     }
+  });
+
+  // 2026-09-14 (q4 visual QA): a second Embed > Media REPLACED the first. `insertContent` leaves a
+  // NodeSelection on the atom it just inserted, and the next `insertContent` replaces whatever is
+  // selected. See `lib/block-atom-insert.ts`.
+  describe("consecutive inserts keep every node", () => {
+    function mediaAssetIds(editor: Editor) {
+      return (editor.getJSON().content ?? []).filter((n) => n.type === "media").map((n) => n.attrs?.assetId);
+    }
+
+    it("two inserts in a row produce two media nodes in order, with a text cursor in a paragraph right after the second", () => {
+      const editor = new Editor({ extensions: [StarterKit, Media], content: "<p></p>" });
+      try {
+        editor.commands.setTextSelection(1);
+        editor.commands.insertMediaEmbed({ assetId: "asset-1", transformName: "public" });
+        editor.commands.insertMediaEmbed({ assetId: "asset-2", transformName: "public" });
+
+        expect(mediaAssetIds(editor)).toEqual(["asset-1", "asset-2"]);
+        const { selection } = editor.state;
+        expect(selection).toBeInstanceOf(TextSelection);
+        expect(selection.$from.parent.type.name).toBe("paragraph");
+        expect(selection.$from.index(0)).toBe(2);
+      } finally {
+        editor.destroy();
+      }
+    });
+
+    it("same in the post editor's own `title block+` document, where StarterKit's TrailingNode adds no paragraph", () => {
+      const editor = new Editor({
+        extensions: [StarterKit.configure({ document: false }), PostTitleDocument, PostTitle, Media],
+        content: { type: "doc", content: [{ type: "title" }, { type: "paragraph" }] },
+      });
+      try {
+        editor.commands.setTextSelection(3);
+        editor.commands.insertMediaEmbed({ assetId: "asset-1", transformName: "public" });
+        editor.commands.insertMediaEmbed({ assetId: "asset-2", transformName: "public" });
+
+        expect(mediaAssetIds(editor)).toEqual(["asset-1", "asset-2"]);
+        expect(editor.state.doc.lastChild?.type.name).toBe("paragraph");
+        expect(editor.state.selection).toBeInstanceOf(TextSelection);
+        expect(editor.state.selection.$from.parent).toBe(editor.state.doc.lastChild);
+      } finally {
+        editor.destroy();
+      }
+    });
+
+    it("with an existing media node SELECTED, inserting adds the new node after it instead of replacing it", () => {
+      const editor = new Editor({
+        extensions: [StarterKit, Media],
+        content: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-1", transformName: "public" } }, { type: "paragraph" }] },
+      });
+      try {
+        editor.commands.setNodeSelection(0);
+        editor.commands.insertMediaEmbed({ assetId: "asset-2", transformName: "public" });
+
+        expect(mediaAssetIds(editor)).toEqual(["asset-1", "asset-2"]);
+      } finally {
+        editor.destroy();
+      }
+    });
   });
 });

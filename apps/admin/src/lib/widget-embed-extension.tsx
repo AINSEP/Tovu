@@ -1,6 +1,7 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import type { AdminWidget } from "./api";
+import { insertBlockAtom } from "./block-atom-insert";
 import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
@@ -128,10 +129,12 @@ export const WidgetEmbed = Node.create({
 
   addCommands() {
     return {
+      // Through `insertBlockAtom`, not a bare `insertContent`: that left this node selected, so the
+      // next widget insert replaced it. See `block-atom-insert.ts`.
       insertWidgetEmbed:
         (attrs) =>
-        ({ commands }) =>
-          commands.insertContent({ type: this.name, attrs }),
+        ({ chain, state }) =>
+          insertBlockAtom({ chain, state, content: { type: this.name, attrs } }),
     };
   },
 });

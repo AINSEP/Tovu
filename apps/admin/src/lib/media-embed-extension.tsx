@@ -2,6 +2,7 @@ import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
+import { insertBlockAtom } from "./block-atom-insert";
 import { useWiredMediaEmbedNodeView } from "./media-embed-extension.hooks";
 
 /**
@@ -161,10 +162,16 @@ export const Media = Node.create({
 
   addCommands() {
     return {
+      // Through `insertBlockAtom`, not a bare `insertContent`: that left this node selected, so the
+      // next Embed > Media replaced it. See `block-atom-insert.ts`.
       insertMediaEmbed:
         (attrs) =>
-        ({ commands }) =>
-          commands.insertContent({ type: this.name, attrs: { assetId: attrs.assetId, transformName: attrs.transformName, alt: attrs.alt ?? null } }),
+        ({ chain, state }) =>
+          insertBlockAtom({
+            chain,
+            state,
+            content: { type: this.name, attrs: { assetId: attrs.assetId, transformName: attrs.transformName, alt: attrs.alt ?? null } },
+          }),
     };
   },
 });
