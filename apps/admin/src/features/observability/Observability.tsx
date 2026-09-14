@@ -127,6 +127,25 @@ export interface ObservabilityProps {
  * API-backed OpenTelemetry status) and Providers (an honest not-yet-built placeholder) — see
  * `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09) for the scope this
  * first pass deliberately stops at.
+ *
+ * Header structure (2026-09-13, owner report: the title "needs to be more to the top left...
+ * should look more like Secrets as far as the spacing" — screenshots `12-observability-header.png`
+ * vs. `13-secrets-header-spacing-reference.png`): renders its own `.page-header` — the exact
+ * kicker/title/description markup `Security.tsx` (Secrets) and `AiAssistant.tsx` already use —
+ * ABOVE the shell, and opts the shell itself into `settings-ui-section--page-flow` (see that
+ * modifier's own comment in `styles.css`). That modifier does two things this page needs together:
+ * it hides the shell's OWN kicker/title/subtitle strip (`.jini-tabbed-dialog-head`), which used to
+ * sit 24px right and ~24px down from where Secrets' title sits — exactly the dialog chrome's own
+ * `padding: 24px 24px 12px` — and it flattens the dialog's modal-styled border/shadow/background,
+ * matching how Secrets' tab content has no card box around it either. A scoped padding override
+ * was considered and rejected: zeroing just the head's padding would still leave the title sitting
+ * inside the card's own rounded top-left corner, clipped against the curve, rather than flush
+ * against the page the way Secrets' borderless header is. `AiAssistant.tsx` proves the combination
+ * in production already — this is a second consumer of an existing pattern, not a new one.
+ *
+ * Per-tab `title`/`subtitle` stay on the `tabs` array below even though the strip that rendered
+ * them is now hidden: `AiAssistant.tsx`'s identical tabs still carry theirs, since the shell
+ * contract still reads them for the tab panel's accessible name.
  */
 export function Observability({ useObservabilityStatusHook = useWiredObservabilityStatus }: ObservabilityProps = {}) {
   const controller = useObservabilityStatusHook();
@@ -152,16 +171,32 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
   ];
 
   return (
-    <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
-      <div className="settings-ui-section observability-section" data-theme="light">
-        <SettingsDialogShell
-          tabs={tabs}
-          presentation="inline"
-          className="jini-tabbed-dialog--inline"
-          fullscreenEnabled={false}
-          labels={{ kicker: t("Operations") }}
-        />
+    <div className="page">
+      <div
+        className="page-header"
+        {...agentHandle("observability-header", {
+          role: "region",
+          label: "Observability panel header — what OpenTelemetry is, and whether it's on right now",
+        })}
+      >
+        <div className="page-header-text">
+          <p className="page-kicker">{t("Operations")}</p>
+          <h1 className="page-title">{t("Observability")}</h1>
+          <p className="page-description">
+            {t("Whether OpenTelemetry is on, and where a monitoring provider connection will live.")}
+          </p>
+        </div>
       </div>
-    </I18nProvider>
+      <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
+        <div className="settings-ui-section settings-ui-section--page-flow observability-section" data-theme="light">
+          <SettingsDialogShell
+            tabs={tabs}
+            presentation="inline"
+            className="jini-tabbed-dialog--inline"
+            fullscreenEnabled={false}
+          />
+        </div>
+      </I18nProvider>
+    </div>
   );
 }

@@ -41,6 +41,24 @@ describe("Observability — Overview tab", () => {
     expect(screen.getByText(/A "provider" is that monitoring tool/)).toBeInTheDocument();
   });
 
+  it("renders its own page-header — same markup as Secrets/AiAssistant — instead of relying only on the shell's own head strip", () => {
+    const { container } = renderObservability();
+
+    const header = container.querySelector(".page-header");
+    expect(header).not.toBeNull();
+    expect(header?.querySelector(".page-kicker")?.textContent).toBe("Operations");
+    const title = header?.querySelector(".page-title");
+    expect(title?.tagName).toBe("H1");
+    expect(title?.textContent).toBe("Observability");
+    expect(header?.querySelector(".page-description")).not.toBeNull();
+    // The shell root still opts into `settings-ui-section--page-flow` (styles.css), whose
+    // `.jini-tabbed-dialog-head { display: none }` is what actually retires the shell's own
+    // duplicate kicker/title/subtitle strip at render time — `vitest.config.ts` runs with
+    // `css: false`, so that CSS-only hiding can't be asserted from jsdom here (its DOM node still
+    // renders, just invisibly); the Playwright pass over this same fix is what proves it visually.
+    expect(container.querySelector(".settings-ui-section--page-flow")).not.toBeNull();
+  });
+
   it("shows a loading state before the status read settles", () => {
     renderObservability({ status: null, error: null });
     expect(screen.getByText("Checking current status…")).toBeInTheDocument();
