@@ -71,6 +71,8 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     purge: vi.fn(async () => {}),
     lightboxIndex: null,
     setLightboxIndex: vi.fn(),
+    orderBy: "created",
+    setOrderBy: vi.fn(),
     t: (key: string) => key,
     locale: "en",
     ...overrides,

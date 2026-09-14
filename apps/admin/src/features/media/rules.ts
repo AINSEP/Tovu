@@ -76,18 +76,26 @@ export function diffMediaMetadata(required: {
   draft: Required<MediaMetadataPatch>;
 }): MediaMetadataPatch {
   const { item, draft } = required;
-  const patch: MediaMetadataPatch = {};
-  if (draft.title !== item.title) patch.title = draft.title;
-  if (draft.slug !== item.slug) patch.slug = draft.slug;
-  if (draft.alt !== item.alt) patch.alt = draft.alt;
-  if (draft.caption !== item.caption) patch.caption = draft.caption;
-  if (draft.credit !== item.credit) patch.credit = draft.credit;
-  if (draft.width !== item.width) patch.width = draft.width;
-  if (draft.height !== item.height) patch.height = draft.height;
-  if (draft.cssClass !== item.cssClass) patch.cssClass = draft.cssClass;
-  if (draft.htmlAttributes !== item.htmlAttributes) patch.htmlAttributes = draft.htmlAttributes;
-  return patch;
+  const patch: Record<string, unknown> = {};
+  for (const field of MEDIA_METADATA_PATCH_FIELDS) {
+    if (draft[field] !== item[field]) patch[field] = draft[field];
+  }
+  return patch as MediaMetadataPatch;
 }
+
+/** Every editable field {@link diffMediaMetadata} compares, in patch order. A list rather than one
+ *  `if` per field so adding a field is one entry, not one more branch in that function. */
+const MEDIA_METADATA_PATCH_FIELDS: readonly (keyof MediaMetadataPatch)[] = [
+  "title",
+  "slug",
+  "alt",
+  "caption",
+  "credit",
+  "width",
+  "height",
+  "cssClass",
+  "htmlAttributes",
+];
 
 /** Parses a `<input type="number">`'s string value into the `number | null` shape
  *  `MediaMetadataPatch.width`/`height` need: blank -> `null` (native size), otherwise `Number(...)`.
@@ -318,6 +326,85 @@ export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): A
   if (tab === "images") return media.filter((item) => item.contentType?.startsWith("image/") ?? false);
   if (tab === "videos") return media.filter((item) => item.contentType?.startsWith("video/") ?? false);
   return media;
+}
+
+/**
+ * The two "Order by" choices the admin Media grid's dropdown (`Media.tsx`'s `MediaOrderControl`)
+ * offers — owner-directed (2026-09-11): "have a sort by to see our most recent images", plus an
+ * Alphabetical option as a visible control she can change, not a fixed default. See
+ * `use-media.hooks.ts`'s `orderBy` state for where the selection lives and {@link sortMediaByOrder}
+ * below for how each one is computed.
+ *
+ * Deliberately just these two, not a general field/direction sort framework: the dispatch that
+ * added this scoped it to "at minimum Created + Alphabetical … do not build a general sorting
+ * framework," and a closed two-entry list (rather than a `{ field, direction }` pair a caller could
+ * combine into four variants) is what that reads as. "Created" always means newest-first and
+ * "Alphabetical" always means A–Z — an oldest-first or Z–A option would need a real direction
+ * axis, which is exactly the framework this was told not to build.
+ */
+export type MediaOrderBy = "created" | "alphabetical";
+
+/** Option list for `Media.tsx`'s `<select>` — `label` is an i18n key straight into `MEDIA_DICT`
+ *  (this codebase's copy-string-is-its-own-key convention), not a value transformed at render
+ *  time. Exported as the single source of the two order ids so the dropdown and
+ *  {@link sortMediaByOrder} can never drift apart on which ones exist. */
+export const MEDIA_ORDER_OPTIONS: readonly { id: MediaOrderBy; label: string }[] = [
+  { id: "created", label: "Created (newest first)" },
+  { id: "alphabetical", label: "Alphabetical (A–Z)" },
+];
+
+/** Plain ascending string compare (`-1`/`0`/`1`) for an `id` tiebreak — a named helper rather than
+ *  a nested ternary inline, so both comparators below read as one ordered statement each. */
+function compareAscending(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+/**
+ * Orders the already-fully-fetched (unpaginated) media array for display — the client-side
+ * counterpart to `SqliteMediaRepo.list()`'s own hardcoded newest-first `orderBy`
+ * (`apps/website/src/platform/db/sqlite/media-repo.sqlite.ts`). See `use-media.hooks.ts`'s header
+ * for why this control lives entirely on the client rather than threaded through the
+ * `GET .../media` request as a query param: the grid has no pagination, so the full workspace
+ * library is already in memory by the time an operator touches this control, and this function
+ * re-derives BOTH orderings itself — rather than trusting `"created"` to already arrive pre-sorted
+ * from the server — so it is the one place that decides display order regardless of what order the
+ * fetch happened to return, the same "client owns how an already-fetched list displays" precedent
+ * {@link filterMediaByTab} above already establishes for the type tabs.
+ *
+ * `"created"`: newest first by `createdAt`, tie-broken by `id` descending for a deterministic
+ * order on an exact-timestamp collision — mirrors the SQL adapter's own `orderBy(desc(createdAt),
+ * desc(id))` compound sort (see that file's doc for why the tiebreak exists), so a page load and a
+ * same-tick batch upload agree on order even though this function never reads the DB's own
+ * tiebreak directly.
+ *
+ * `"alphabetical"`: case-insensitive by `title` (`toLocaleLowerCase()` before `localeCompare`, so
+ * "apple" and "Apple" interleave the way a human alphabetizing a shelf would, not split apart by
+ * byte case), trimmed first so incidental leading/trailing whitespace cannot shift a title's
+ * position. Tie-broken by `id` ascending. An EMPTY title sorts first: `AdminMedia.title` has no
+ * non-empty invariant enforced anywhere in `uploadMedia`/`updateMediaMetadata` (an operator can
+ * clear it to `""` through `EditMediaPanel`), and `"".localeCompare(anything non-empty)` is
+ * already `<= 0`, so no special-case branch is needed for it.
+ *
+ * @complexity Time O(n log n) in `media.length` (one sort), space O(n) for the shallow copy —
+ * never mutates the caller's array, since `Media.tsx` still needs `media` itself unsorted for
+ * `hasUntypedMedia`.
+ */
+export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): AdminMedia[] {
+  const sorted = [...media];
+  if (orderBy === "alphabetical") {
+    sorted.sort((a, b) => {
+      const byTitle = a.title.trim().toLocaleLowerCase().localeCompare(b.title.trim().toLocaleLowerCase());
+      return byTitle !== 0 ? byTitle : compareAscending(a.id, b.id);
+    });
+    return sorted;
+  }
+  sorted.sort((a, b) => {
+    if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+    return compareAscending(b.id, a.id);
+  });
+  return sorted;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
@@ -77,8 +77,49 @@ export class SqliteMediaRepo implements MediaRepoPort {
     return findOneBy(this.db, media, [eq(media.workspaceId, required.workspaceId), eq(media.slug, required.slug)], toMediaRecord);
   }
 
+  /**
+   * Newest-first (owner-directed, 2026-09-11: "have a sort by to see our most recent images" —
+   * she checks this list right after an agent plugin generates one, e.g. Higgsfield's
+   * `media_import_from_url`, so "what did I just make" has to land at the top with no extra
+   * step). `MediaRepoPort.list()`'s own doc (`@jini-ai/cms/media/ports.ts`) never promised any
+   * particular order, and no caller in this codebase sorted the result itself (confirmed: neither
+   * `listMedia()` in `@jini-ai/cms/media/media-service.ts`, nor `media_list_assets`'s handler in
+   * that same package's `tool-registrations.ts`, nor the admin route below, nor
+   * `apps/admin/src/features/media/hooks/use-media.hooks.ts` on the client) — so choosing newest-
+   * first here is additive, not a documented-contract break, and it is the ONE choke point both
+   * consumers share: `media_list_assets` and the admin `GET .../media` route both resolve to
+   * `listMedia()` -> `deps.mediaRepo.list()`, and production wires exactly one `MediaRepoPort`
+   * implementation (`composition/deps.ts`'s `mediaRepo: new SqliteMediaRepo(db)`) — fixing it here
+   * reaches both surfaces without a second change.
+   *
+   * `desc(media.id)` is a tiebreaker only, mirroring `database-journal-repo.ts`'s identical
+   * `createdAt` + `id` compound `orderBy` — `id` is a random UUID (`idGen.newId()`), not
+   * chronological, so it cannot repair a same-instant tie into true creation order; it only makes
+   * repeated queries against an unchanged table return rows in the same order (SQLite gives no such
+   * guarantee on its own once two rows share a sort key). `createdAt` itself is
+   * `clock.nowIso()` = `Date.prototype.toISOString()`, millisecond-precision and never rewritten
+   * after a row's first `save()` (`SqliteMediaRepo.save()` above always persists the caller's
+   * `record.createdAt` verbatim, update or insert alike), so a same-millisecond collision is
+   * possible only for two rows created by the same batch call in the same tick — rare enough that
+   * the tiebreaker's job is determinism, not correctness of "which is newer."
+   *
+   * Deliberately NOT added to `InMemoryMediaRepo.list()` (`@jini-ai/cms/media/repo.memory.ts`):
+   * that adapter lives in the separate Jini package/repo this file's own header says composition
+   * roots bind against, not maintain, and production never constructs it (see this comment's own
+   * "one choke point" note above) — a disclosed, Tovu-scoped fix, not a silent rule-of-two parity
+   * gap. `features/media/__tests__/repo.contract.test.ts`'s shared `runMediaSuite` still runs both
+   * adapters through the SAME order-agnostic assertions it always has; the new ordering assertion
+   * is added as a `[sqlite]`-only test there, following that file's own established pattern for
+   * adapter-specific behavior (see its two existing slug-conflict tests).
+   */
   async list(required: { workspaceId: UUID }): Promise<MediaRecord[]> {
-    return this.db.select().from(media).where(eq(media.workspaceId, required.workspaceId)).all().map(toMediaRecord);
+    return this.db
+      .select()
+      .from(media)
+      .where(eq(media.workspaceId, required.workspaceId))
+      .orderBy(desc(media.createdAt), desc(media.id))
+      .all()
+      .map(toMediaRecord);
   }
 
   async save(record: MediaRecord): Promise<void> {

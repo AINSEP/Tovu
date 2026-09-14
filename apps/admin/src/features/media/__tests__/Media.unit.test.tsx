@@ -39,8 +39,12 @@ const ACTIVE_ITEM = {
   sha256: "abc123",
   contentType: "image/png",
   status: "active",
-  createdAt: "2026-07-01T09:00:00.000Z",
-  updatedAt: "2026-07-01T09:00:00.000Z",
+  // Newer than TRASHED_ITEM below (2026-09-11 media-order-by dispatch: the grid now defaults to
+  // "Created" newest-first client-side too — `sortMediaByOrder`, `rules.ts`), so this item still
+  // lands at grid index 0 the way this file's lightbox nav tests below assume — swapped alongside
+  // TRASHED_ITEM's own timestamp rather than rewriting those tests' index-based assertions.
+  createdAt: "2026-07-02T09:00:00.000Z",
+  updatedAt: "2026-07-02T09:00:00.000Z",
   version: 1,
   width: null,
   height: null,
@@ -58,8 +62,8 @@ const TRASHED_ITEM = {
   sha256: "def456",
   contentType: "video/mp4",
   status: "trashed",
-  createdAt: "2026-07-02T09:00:00.000Z",
-  updatedAt: "2026-07-02T09:00:00.000Z",
+  createdAt: "2026-07-01T09:00:00.000Z",
+  updatedAt: "2026-07-01T09:00:00.000Z",
   version: 1,
   width: null,
   height: null,

@@ -148,6 +148,50 @@ test("[sqlite] save() lets a row keep re-claiming its OWN slug on every update (
   assert.equal(found?.version, 2);
 });
 
+/**
+ * Owner-directed (2026-09-11): "have a sort by to see our most recent images" — `list()` must
+ * return newest-first. SQLite-only, matching this file's own established pattern for
+ * adapter-specific behavior (the two slug-conflict tests above) — `InMemoryMediaRepo` is out of
+ * this fix's disclosed scope (see `SqliteMediaRepo.list()`'s own doc for why).
+ *
+ * Rows are saved in an order that DIFFERS from their `createdAt` order — "m-old" (the earliest
+ * timestamp) is saved LAST — so this assertion cannot pass by accident on natural insertion/rowid
+ * order; it only passes if `list()` actually sorts by `createdAt`.
+ */
+test("[sqlite] list() returns newest-first by createdAt, regardless of insertion order", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  await repo.save(makeMedia({ id: "m-mid", slug: "photo-mid", createdAt: "2026-07-16T12:00:00.000Z", updatedAt: "2026-07-16T12:00:00.000Z" }));
+  await repo.save(makeMedia({ id: "m-newest", slug: "photo-newest", createdAt: "2026-07-17T00:00:00.000Z", updatedAt: "2026-07-17T00:00:00.000Z" }));
+  await repo.save(makeMedia({ id: "m-old", slug: "photo-old", createdAt: "2026-07-16T00:00:00.000Z", updatedAt: "2026-07-16T00:00:00.000Z" }));
+
+  const list = await repo.list({ workspaceId: WORKSPACE_ID });
+  assert.deepEqual(list.map((r) => r.id), ["m-newest", "m-mid", "m-old"]);
+});
+
+/**
+ * Same-millisecond `createdAt` tie: `list()` must still return a deterministic order (the `id`
+ * tiebreaker in `SqliteMediaRepo.list()`'s `orderBy`) rather than depending on SQLite's own
+ * unordered-tie behavior, which is not guaranteed to stay stable across queries.
+ */
+test("[sqlite] list() breaks a createdAt tie deterministically by id", async () => {
+  const repo = new SqliteMediaRepo(openContentDb(":memory:"));
+  const tiedAt = "2026-07-16T12:00:00.000Z";
+  await repo.save(makeMedia({ id: "m-a", slug: "photo-a", createdAt: tiedAt, updatedAt: tiedAt }));
+  await repo.save(makeMedia({ id: "m-b", slug: "photo-b", createdAt: tiedAt, updatedAt: tiedAt }));
+
+  const first = await repo.list({ workspaceId: WORKSPACE_ID });
+  const second = await repo.list({ workspaceId: WORKSPACE_ID });
+  assert.deepEqual(
+    first.map((r) => r.id),
+    second.map((r) => r.id)
+  );
+  // The tiebreaker itself is `desc(media.id)` — "m-b" sorts after "m-a" descending.
+  assert.deepEqual(
+    first.map((r) => r.id),
+    ["m-b", "m-a"]
+  );
+});
+
 function makeAssetBlob(overrides: Partial<AssetBlobRecord> = {}): AssetBlobRecord {
   return {
     id: "blob-1",

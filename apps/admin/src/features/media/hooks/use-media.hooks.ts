@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
-import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError } from "../rules";
+import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
@@ -99,6 +99,13 @@ export interface MediaController {
   // convention for the other dialog already driven from this component.
   lightboxIndex: number | null;
   setLightboxIndex: (index: number | null) => void;
+  // "Order by" control (owner-directed, 2026-09-11) — plain `useState`, not URL-deep-linked like
+  // `activeTab` (`use-media-tabs.hooks.ts`'s `?tab=`): the owner asked for a visible, changeable
+  // control, not a bookmarkable view, and `Media.tsx`'s own `sortMediaByOrder` (`rules.ts`) does
+  // the actual reordering of the already-fetched `media` array — this hook only owns which choice
+  // is currently selected.
+  orderBy: MediaOrderBy;
+  setOrderBy: (value: MediaOrderBy) => void;
   /** Bound translator — see this file's own header for why it arrives via the hook rather than
    *  `Media.tsx` calling `useAdminLocale()`/`MEDIA_DICT` directly. */
   t: (key: string) => string;
@@ -123,6 +130,9 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Newest-first, matching `SqliteMediaRepo.list()`'s own default — an operator who never touches
+  // the new control sees exactly today's order, unchanged.
+  const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useFetchMutation({
@@ -237,6 +247,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     purge,
     lightboxIndex,
     setLightboxIndex,
+    orderBy,
+    setOrderBy,
     t,
     locale,
   };

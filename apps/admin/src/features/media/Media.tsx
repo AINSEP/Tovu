@@ -6,7 +6,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems } from "./rules";
+import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems, sortMediaByOrder, MEDIA_ORDER_OPTIONS, type MediaOrderBy } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
@@ -795,6 +795,41 @@ function MediaToolbar({
   );
 }
 
+/**
+ * The "Order by" dropdown (owner-directed, 2026-09-11) — a plain `<select>`, matching this
+ * screen's existing "no new form-control primitive for one field" bar (`MediaToolbar`'s own inputs
+ * are plain too). Options come from `MEDIA_ORDER_OPTIONS` (`rules.ts`) so this component and
+ * `sortMediaByOrder` can never disagree about which order ids exist. A real `<label htmlFor>`
+ * rather than only an `agentHandle`, for the same reason `MediaToolbar`'s own fields get one
+ * (see that component's header comment): a bare `<select>` needs an accessible name for a screen
+ * reader or a generic browser agent, and `data-agent-label` is invisible to both.
+ */
+function MediaOrderControl({
+  orderBy,
+  setOrderBy,
+  t,
+}: {
+  orderBy: MediaOrderBy;
+  setOrderBy: (value: MediaOrderBy) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div
+      className="media-order-control"
+      {...agentHandle("media-order-by", { role: "field", label: "Order the media grid by Created or Alphabetical" })}
+    >
+      <label htmlFor="media-order-by-select">{t("Order by")}</label>
+      <select id="media-order-by-select" value={orderBy} onChange={(e) => setOrderBy(e.target.value as MediaOrderBy)}>
+        {MEDIA_ORDER_OPTIONS.map((option) => (
+          <option key={option.id} value={option.id}>
+            {t(option.label)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /** The purge-confirmation dialog — extracted out of `Media` for the same reason as
  *  `MediaToolbar`: its `pendingPurge`-derived `body`/`pending` expressions were two more of that
  *  component's independent branches. */
@@ -980,6 +1015,8 @@ function MediaLibraryPanel(
     purge,
     lightboxIndex,
     setLightboxIndex,
+    orderBy,
+    setOrderBy,
     t,
     locale,
   } = props;
@@ -995,6 +1032,8 @@ function MediaLibraryPanel(
         uploading={uploading}
         t={t}
       />
+
+      <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
 
       {/* `key` on `EditMediaPanel` INSIDE `EditMediaModal` (2026-08-12 audit round 2, blocker F1 —
           domain 4, writing to the wrong record; the modal wrapper added 2026-09-07 does not change
@@ -1206,7 +1245,7 @@ export function Media(props: MediaProps) {
   // `MediaContentTabId`. Not memoized: a single filter over a media library is cheap next to the
   // render it feeds, and a `useMemo` here cannot be hoisted above the early returns without
   // changing hook order.
-  const visibleMedia = filterMediaByTab(media, activeTab);
+  const visibleMedia = sortMediaByOrder(filterMediaByTab(media, activeTab), controller.orderBy);
   // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
   // same reasoning as every other list on this workstream.
   const mediaExpandHandles = buildAgentListHandles(

@@ -373,6 +373,10 @@
 .media-lightbox-nav-prev { left: var(--space-4); }
 .media-lightbox-nav-next { right: var(--space-4); }
 
+/* "Order by" label + dropdown (`Media.tsx`'s `MediaOrderControl`). Had no rule at all, so the label
+   sat flush against the select (owner screenshot 2026-09-12, #14). Same row spacing as `.toolbar`. */
+.media-order-control { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+
 /* The Media page tab bar used to live here as its own pill row (`.media-tabs`/`.media-tab`,
    OD-parity pass 2026-08-08). Retired 2026-09-06: the strip is drawn by the shared
    `components/TabBar` now (`Media.tsx`, `Media.hooks.tsx`'s `resolveMediaTabs`), the same
