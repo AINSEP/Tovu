@@ -3,9 +3,10 @@
  * bound to the wrong lifetime and so observed the one path that needed it least.
  *
  * Source text, for the reason `rescan-wiring.test.ts` states at length: `apps/desktop`'s test
- * script is `node --test "src/**\/*.test.cjs"`, so the renderer's `.ts`/`.tsx` has no runner in
- * this package at all, and `npm run typecheck` cannot see a lifetime bug either — every shape here
- * type-checks perfectly, which is exactly why the defect survived.
+ * script runs this file itself under `node --import tsx --test`, which transpiles but supplies no
+ * DOM, so a `.tsx` component still cannot be rendered here, and `npm run typecheck` cannot see a
+ * lifetime bug either — every shape here type-checks perfectly, which is exactly why the defect
+ * survived.
  *
  * What went wrong, so a future reader can tell whether a change to this file is a fix or a
  * regression: the effect's deps were `[webviewRef, resetKey]`, and it returned early when

@@ -6,9 +6,10 @@
  * per site dir; nothing before this file proved the renderer actually threads that value onto
  * the guest element rather than dropping it or hardcoding one partition for every tab.
  *
- * Source text, for the reason every other `*-wiring.test.js` in this directory states at length:
- * `apps/desktop`'s test script runs `.test.js` under plain `node --test`, with no JSX/DOM runner
- * for `.tsx` in this package at all — see `webview-failure-wiring.test.ts`'s header.
+ * Source text, for the reason every other `*-wiring.test.ts` in this directory states at length:
+ * `apps/desktop`'s test script runs this file itself under `node --import tsx --test`, which
+ * transpiles but supplies no DOM/JSX rendering for `.tsx` in this package at all — see
+ * `webview-failure-wiring.test.ts`'s header.
  */
 import test from "node:test";
 import assert from "node:assert/strict";

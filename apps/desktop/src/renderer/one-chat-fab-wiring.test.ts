@@ -9,9 +9,10 @@
  * `z-index` as the guest's, so it composited above the guest and swallowed every click meant for
  * the working assistant. An unbuilt placeholder was blocking the built feature.
  *
- * Source text, because `apps/desktop` has no DOM test environment: its test script is
- * `node --test "src/**\/*.test.js"` plus `--import tsx` for `.test.ts`, and there is no jsdom or
- * testing-library in `devDependencies`, so a `.tsx` component cannot be rendered and queried here.
+ * Source text, because `apps/desktop` has no DOM test environment: its test script runs this file
+ * itself under `node --import tsx --test`, which transpiles TypeScript/JSX but supplies no DOM, and
+ * there is no jsdom or testing-library in `devDependencies`, so a `.tsx` component cannot be
+ * rendered and queried here.
  * The behavioural counterpart is a live `_electron` run against the packaged app; this file is what
  * keeps the decision from being undone silently by an edit.
  */
