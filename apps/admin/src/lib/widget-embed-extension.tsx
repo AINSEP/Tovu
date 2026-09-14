@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import { api, ApiError, describeApiError, type AdminWidget } from "./api";
+import type { AdminWidget } from "./api";
+import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
 
@@ -72,69 +72,30 @@ export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: Adm
  *  drive its loading/broken/success/change/remove states directly, the same reasoning
  *  `assistant-transport.ts`'s `translateRunAgentPayload` export documents for itself. */
 export function WidgetEmbedNodeView(props: NodeViewProps) {
-  const widgetEntryId = String(props.node.attrs.widgetEntryId ?? "");
-  const placementId = String(props.node.attrs.placementId ?? "");
-  const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);
-  const [isBroken, setIsBroken] = useState(false);
-  const [changing, setChanging] = useState(false);
-
-  useEffect(() => {
-    if (!widgetEntryId) {
-      setIsBroken(true);
-      setWidget(null);
-      return;
-    }
-    api
-      .getWidget(widgetEntryId)
-      .then((r) => {
-        setWidget(r.widget);
-        setIsBroken(r.widget.status !== "active");
-      })
-      .catch(() => {
-        setWidget(null);
-        setIsBroken(true);
-      });
-  }, [widgetEntryId]);
-
-  function remove() {
-    props.deleteNode();
-  }
-
-  function changeInstance(newWidgetEntryId: string) {
-    props.updateAttributes({ widgetEntryId: newWidgetEntryId });
-    setChanging(false);
-  }
-
-  const nodeClassName = `widget-embed-node${isBroken ? " widget-embed-node--broken" : ""}`;
+  // State, the (stale-guarded) widget fetch and every handler live in the hook — see
+  // `widget-embed-extension.hooks.ts`.
+  const view = useWidgetEmbedNodeView(props);
 
   return (
-    <NodeViewWrapper as="div" className={nodeClassName} data-drag-handle contentEditable={false}>
-      <WidgetEmbedStatus widget={widget} isBroken={isBroken} typeLabel={widgetTypeLabel(widget)} />
+    <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
+      <WidgetEmbedStatus widget={view.widget} isBroken={view.isBroken} typeLabel={widgetTypeLabel(view.widget)} />
       <span className="widget-embed-node__actions">
-        <button type="button" onClick={() => setChanging(true)}>
+        <button type="button" onClick={view.openChange}>
           Change
         </button>
-        <button type="button" onClick={remove}>
+        <button type="button" onClick={view.remove}>
           Remove
         </button>
       </span>
-      {changing && widget ? (
+      {view.changeDialog ? (
         <WidgetPickerDialog
-          widgetType={widget.widgetType}
-          onUseExisting={(id) => changeInstance(id)}
-          onCreateNew={async (title, config) => {
-            try {
-              const { widget: created } = await api.createWidget({ widgetType: widget.widgetType, title, config });
-              changeInstance(created.id);
-            } catch (e) {
-              // eslint-disable-next-line no-alert
-              window.alert(describeApiError(e, "failed to create widget"));
-            }
-          }}
-          onCancel={() => setChanging(false)}
+          widgetType={view.changeDialog.widgetType}
+          onUseExisting={view.changeDialog.onUseExisting}
+          onCreateNew={view.changeDialog.onCreateNew}
+          onCancel={view.changeDialog.onCancel}
         />
       ) : null}
-      <input type="hidden" value={placementId} readOnly />
+      <input type="hidden" value={view.placementId} readOnly />
     </NodeViewWrapper>
   );
 }

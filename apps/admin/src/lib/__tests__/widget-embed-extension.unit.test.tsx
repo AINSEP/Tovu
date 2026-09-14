@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -104,6 +104,71 @@ describe("WidgetEmbedNodeView", () => {
     render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
 
     expect(await screen.findByText("(not-a-real-type)")).toBeInTheDocument();
+  });
+
+  // Stale-response race (e6-o4, 2026-09-14): the fetch effect had no guard, so when the node's
+  // widgetEntryId changed (Change -> updateAttributes) while the previous id's getWidget was still in
+  // flight, whichever response settled LAST won — the node could show a widget it no longer points at.
+  type GetWidgetResult = Awaited<ReturnType<typeof api.getWidget>>;
+
+  it("a late response for a widget the node no longer points at does not overwrite the current widget", async () => {
+    const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
+    vi.spyOn(api, "getWidget").mockImplementation(
+      (id: string) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
+    );
+    const { rerender } = render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
+    rerender(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w2", placementId: "p1" })} />);
+
+    await act(async () => {
+      pending.get("w2")!.resolve({ widget: { ...ACTIVE_WIDGET, id: "w2", title: "Second widget" }, whereUsed: NO_WHERE_USED });
+    });
+    expect(screen.getByText("Second widget")).toBeInTheDocument();
+
+    await act(async () => {
+      pending.get("w1")!.resolve({ widget: { ...ACTIVE_WIDGET, title: "First widget" }, whereUsed: NO_WHERE_USED });
+    });
+
+    expect(screen.getByText("Second widget")).toBeInTheDocument();
+    expect(screen.queryByText("First widget")).not.toBeInTheDocument();
+  });
+
+  it("a late failure for a widget the node no longer points at does not mark the current, resolved widget broken", async () => {
+    const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
+    vi.spyOn(api, "getWidget").mockImplementation(
+      (id: string) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
+    );
+    const { rerender } = render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
+    rerender(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w2", placementId: "p1" })} />);
+
+    await act(async () => {
+      pending.get("w2")!.resolve({ widget: { ...ACTIVE_WIDGET, id: "w2", title: "Second widget" }, whereUsed: NO_WHERE_USED });
+    });
+    await act(async () => {
+      pending.get("w1")!.reject(new Error("404"));
+    });
+
+    expect(screen.getByText("Second widget")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Broken widget reference")).not.toBeInTheDocument();
+  });
+
+  it("a late response for the previous widget does not un-break a node whose widgetEntryId was cleared", async () => {
+    let resolveW1!: (value: GetWidgetResult) => void;
+    vi.spyOn(api, "getWidget").mockImplementation(
+      () =>
+        new Promise<GetWidgetResult>((resolve) => {
+          resolveW1 = resolve;
+        }),
+    );
+    const { rerender } = render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" })} />);
+    rerender(<WidgetEmbedNodeView {...fakeNodeViewProps({ placementId: "p1" })} />);
+    expect(screen.getByLabelText("Broken widget reference")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveW1({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    });
+
+    expect(screen.getByLabelText("Broken widget reference")).toBeInTheDocument();
+    expect(screen.queryByText("Hero text")).not.toBeInTheDocument();
   });
 
   it("Remove calls deleteNode", async () => {
