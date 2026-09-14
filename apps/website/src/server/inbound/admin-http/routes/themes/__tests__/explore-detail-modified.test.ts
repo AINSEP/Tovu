@@ -71,8 +71,7 @@ function makeThemesRoot(): string {
   return root;
 }
 
-async function startApp(t: test.TestContext): Promise<string> {
-  const themesDir = makeThemesRoot();
+async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot()): Promise<string> {
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -146,6 +145,32 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
   fs.writeFileSync(path.join(themesDir, "static", "moddy", "pages", "index.html"), "<html><body>y</body></html>", "utf8");
   const files = await listing(baseUrl, "moddy");
   assert.deepEqual(files.get("pages/index.html"), { resettable: true, modified: true });
+});
+
+test("detail listing: a same-size file that cannot be read is resettable: false, modified: null, and the listing still returns 200", async (t) => {
+  if (process.getuid?.() === 0) {
+    t.skip("running as root: chmod 000 does not deny root a read, so EACCES cannot be forced here");
+    return;
+  }
+  const themesDir = makeThemesRoot();
+  // Discovery reads the live stylesheet, so permissions change only after the app has started.
+  const baseUrl = await startApp(t, themesDir);
+  // Same length as its original, so the comparison has to open the unreadable LIVE file.
+  const unreadableLive = path.join(themesDir, "static", "moddy", "css", "styles.css");
+  // Byte-identical to its live copy, so the comparison has to open the unreadable ORIGINAL.
+  const unreadableOriginal = path.join(themesDir, THEME_CATALOG_DIR, "static", "moddy", "pages", "index.html");
+  fs.chmodSync(unreadableLive, 0o000);
+  fs.chmodSync(unreadableOriginal, 0o000);
+  t.after(() => {
+    fs.chmodSync(unreadableLive, 0o644);
+    fs.chmodSync(unreadableOriginal, 0o644);
+  });
+
+  const files = await listing(baseUrl, "moddy");
+
+  assert.deepEqual(files.get("css/styles.css"), { resettable: false, modified: null });
+  assert.deepEqual(files.get("pages/index.html"), { resettable: false, modified: null });
+  assert.deepEqual(files.get("tokens.json"), { resettable: true, modified: false }, "a readable file is unaffected");
 });
 
 test("copy response: the new copy has no catalog counterpart, so resettable: false, modified: null", async (t) => {

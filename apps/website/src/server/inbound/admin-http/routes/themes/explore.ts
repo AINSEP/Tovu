@@ -348,6 +348,10 @@ function originalComparableForReset(theme: DiscoveredTheme, catalogDir: string):
  * Nothing is cached: the live side can change from any writer (this screen, an agent tool running in
  * another process, a hand edit), so every detail request re-reads it.
  *
+ * Also `null` when the comparison throws for this one file: either side cannot be read (e.g. `EACCES`
+ * on a same-size file) or the live path fails its stat. That file then lists as `resettable: false`,
+ * and the rest of the listing still returns; before, one unreadable file made the whole list a 500.
+ *
  * @complexity O(1) when there is no original or the sizes differ; O(s) in the file size when the sizes
  * match. Across a detail listing that is O(total bytes) of same-size files with an original.
  */
@@ -356,13 +360,17 @@ function fileModifiedFromOriginal(
   options: { catalogDir: string; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
 ): boolean | null {
   if (!options.comparableOriginal) return null;
-  return themeFileDiffersFromOriginal({
-    themeDir: options.theme.dir,
-    themesRoot: options.themesDir,
-    originalDir: options.catalogDir,
-    originalsRoot: join(options.themesDir, THEME_CATALOG_DIR),
-    relativePath,
-  });
+  try {
+    return themeFileDiffersFromOriginal({
+      themeDir: options.theme.dir,
+      themesRoot: options.themesDir,
+      originalDir: options.catalogDir,
+      originalsRoot: join(options.themesDir, THEME_CATALOG_DIR),
+      relativePath,
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**
