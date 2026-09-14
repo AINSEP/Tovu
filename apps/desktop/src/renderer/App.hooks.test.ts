@@ -145,10 +145,10 @@ test("the Appearance link closes the dropdown FIRST, then opens the page", () =>
 
 test("Start waits for start to settle before notifying the caller", async () => {
   const calls: string[] = [];
-  const pending: { finish?: () => void } = {};
+  const pending: { finish?: (started: boolean) => void } = {};
   const handleStart = startThenNotify(
     () =>
-      new Promise<void>((resolve) => {
+      new Promise<boolean>((resolve) => {
         calls.push("start");
         pending.finish = resolve;
       }),
@@ -156,7 +156,7 @@ test("Start waits for start to settle before notifying the caller", async () => 
   );
   const done = handleStart();
   assert.deepEqual(calls, ["start"], "onStarted must not run while start is still in flight");
-  pending.finish?.();
+  pending.finish?.(true);
   await done;
   assert.deepEqual(calls, ["start", "onStarted"]);
 });
@@ -165,6 +165,7 @@ test("Start with no onStarted just runs start", async () => {
   const calls: string[] = [];
   await startThenNotify(async () => {
     calls.push("start");
+    return true;
   }, undefined)();
   assert.deepEqual(calls, ["start"]);
 });
@@ -179,4 +180,21 @@ test("a start that rejects skips onStarted, and the SAME rejection reaches the c
     (error) => error === failure,
   );
   assert.equal(calls.length, 0);
+});
+
+test("a start that RESOLVES but reports failure (useSiteStart's bridge-missing/caught-error path) skips onStarted", () => {
+  // useSiteStart's `start` never rejects — a missing bridge or a caught `startSite` error both set
+  // `error` state and resolve normally, so `startThenNotify` cannot tell success from failure by
+  // whether the promise rejected. It must read the resolved value instead.
+  const calls: string[] = [];
+  const handleStart = startThenNotify(
+    async () => {
+      calls.push("start");
+      return false;
+    },
+    () => calls.push("onStarted"),
+  );
+  return handleStart().then(() => {
+    assert.deepEqual(calls, ["start"], "onStarted must not fire after a failed start");
+  });
 });

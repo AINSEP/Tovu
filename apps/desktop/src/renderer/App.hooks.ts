@@ -653,11 +653,17 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
  * generic "set pending, run this, catch" wrapper can't reproduce the early return without either
  * special-casing it (which defeats sharing) or setting `starting` true for one tick it was never
  * true for before. That is a real, if small, behaviour change, so the two stay separate.
+ *
+ * `start` resolves to whether it actually started the site — `false` on a missing bridge or a
+ * caught `startSite` error, `true` otherwise — rather than throwing. It never rejects: both failure
+ * paths are already reported through `error` state, so a caller does not also need a try/catch.
+ * That boolean is what lets {@link startThenNotify} tell a real start apart from a failed attempt
+ * that merely finished.
  */
 export function useSiteStart(project: SiteRecord): {
   starting: boolean;
   error: string | null;
-  start: () => Promise<void>;
+  start: () => Promise<boolean>;
 } {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -666,14 +672,16 @@ export function useSiteStart(project: SiteRecord): {
     const bridge = runnerInventoryBridge();
     if (bridge === undefined) {
       setError('Tovu desktop connection required to start a website.');
-      return;
+      return false;
     }
     setStarting(true);
     setError(null);
     try {
       await bridge.startSite(project.id);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      return false;
     } finally {
       setStarting(false);
     }
@@ -683,21 +691,28 @@ export function useSiteStart(project: SiteRecord): {
 }
 
 /**
- * `SiteStartPanel`'s Start handler: awaits `start`, then calls `onStarted` if the caller passed one.
+ * `SiteStartPanel`'s Start handler: awaits `start`, then calls `onStarted` only if `start` reports
+ * it actually started the site.
  *
- * `onStarted` runs whenever `start` resolves. `useSiteStart`'s `start` also resolves on failure,
- * since it records the error instead of throwing, so `onStarted` firing does not mean the site came
- * up. If `start` does reject, `onStarted` is skipped and the rejection reaches the caller.
+ * Both of `SiteStartPanel`'s `onStarted` call sites (`App.tsx`'s stalled/failed workspace overlays)
+ * pass `workspace.recover`, which remounts the `<webview>` for a fresh attempt at loading the
+ * guest. Remounting is only worth doing when the start it is reacting to actually happened — on a
+ * failed attempt (missing bridge, or `startSite` itself failing) nothing changed for the guest to
+ * find, so recovering would just remount into the same failure or stall. `useSiteStart`'s `start`
+ * never rejects (a missing bridge or a caught error both resolve, having recorded `error` state
+ * instead), so telling the two apart means reading the resolved boolean rather than whether the
+ * promise settled at all. If `start` does reject for some other reason, `onStarted` is skipped and
+ * the rejection reaches the caller, same as before.
  *
  * @complexity O(1) plus `start`'s own cost.
  */
 export function startThenNotify(
-  start: () => Promise<void>,
+  start: () => Promise<boolean>,
   onStarted: (() => void) | undefined,
 ): () => Promise<void> {
   return async () => {
-    await start();
-    onStarted?.();
+    const started = await start();
+    if (started) onStarted?.();
   };
 }
 
