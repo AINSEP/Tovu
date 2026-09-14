@@ -222,6 +222,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
+  // "fs_list_files"/"fs_read_file" added 2026-09-14 (SPEC-053): the owner dropped a folder and asked
+  // "whats in this folder?", and the model said it had no filesystem tool — neither had an entry here.
+  fs_list_files: "folder directory local computer machine desktop dropped path browse inside contents list files explore",
+  fs_read_file: "folder directory local computer machine desktop dropped path open view read show file contents text",
   // "theme_reset_file"/"theme_copy_file" added 2026-09-12, closing the last two gaps
   // ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md found against the human Explore
   // screen's file operations. `theme_write_file`'s own "copy duplicate clone" keywords above predate

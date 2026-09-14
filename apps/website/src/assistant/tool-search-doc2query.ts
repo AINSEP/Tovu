@@ -802,6 +802,20 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "What's the validation status of each theme?",
     "List every theme available on the site.",
   ],
+  fs_list_files: [
+    "What's in this folder on my computer?",
+    "Can you look inside the folder I just dropped into the chat?",
+    "What files are in a directory on my machine?",
+    "Browse a local folder that isn't part of the site.",
+    "Show me what a website folder on my desktop contains.",
+  ],
+  fs_read_file: [
+    "Can you open a file from the folder I dropped?",
+    "Read this file on my computer and tell me what it says.",
+    "Show me the contents of a local HTML file.",
+    "What does the index.html in that folder contain?",
+    "Read a text file from a directory on my machine.",
+  ],
   theme_list_files: [
     "What files does this theme actually have?",
     "Can you show me the folder structure of a theme?",
