@@ -454,3 +454,42 @@ export function packageFilesStatus(
 export function packageFilesListNotice(listing: Pick<AdminPluginFiles, "truncated"> | null, translate: Translate): string | null {
   return listing?.truncated ? translate("Some files are not listed: this package is larger than the viewer's limits.") : null;
 }
+
+/** One settled `PLUGIN_FILES` read: the listing, or the failure text in its place. */
+export interface PackageFilesRead {
+  readonly listing: AdminPluginFiles | null;
+  readonly error: string | null;
+}
+
+/** What the package-files viewer renders from one read — see {@link packageFilesViewState}. */
+export interface PackageFilesViewState {
+  readonly files: readonly PackageFileView[];
+  readonly selectedFile: PackageFileView | null;
+  readonly status: PackageFilesStatus | null;
+  readonly listNotice: string | null;
+}
+
+/**
+ * The file whose `relativePath` is `selectedPath`, else the first listed one; `null` only for an
+ * empty list. An unknown path falls back to the first file rather than clearing the selection.
+ * @complexity O(files).
+ */
+export function selectPackageFile(files: readonly PackageFileView[], selectedPath: string): PackageFileView | null {
+  return files.find((file) => file.relativePath === selectedPath) ?? files[0] ?? null;
+}
+
+/**
+ * Maps one read onto the viewer's rows, selection, status, and caps notice. `read` is `null` while
+ * the listing is still loading.
+ * @complexity O(files) — capped server-side at 200.
+ */
+export function packageFilesViewState(read: PackageFilesRead | null, selectedPath: string, translate: Translate): PackageFilesViewState {
+  const listing = read?.listing ?? null;
+  const files = (listing?.files ?? []).map((file) => toPackageFileView(file, translate));
+  return {
+    files,
+    selectedFile: selectPackageFile(files, selectedPath),
+    status: packageFilesStatus({ loading: read === null, error: read?.error ?? null, fileCount: files.length }, translate),
+    listNotice: packageFilesListNotice(listing, translate),
+  };
+}

@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 
-import type { AdminPluginFiles } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
-  packageFilesListNotice,
-  packageFilesStatus,
-  toPackageFileView,
+  packageFilesViewState,
+  type PackageFilesRead,
   type PackageFilesStatus,
   type PackageFileView,
 } from "../rules";
@@ -47,10 +45,8 @@ export interface PluginPackageFilesController {
 }
 
 /** The last settled read, tagged with the plugin it was for. */
-interface SettledRead {
+interface SettledRead extends PackageFilesRead {
   readonly pluginId: string;
-  readonly listing: AdminPluginFiles | null;
-  readonly error: string | null;
 }
 
 /**
@@ -58,7 +54,8 @@ interface SettledRead {
  *
  * A read that settles after `pluginId` changed (or after unmount) is dropped by the effect's cleanup
  * flag, and a stored read for a different id is never rendered — so a slow response for the
- * previously inspected plugin can never show under the current one's title.
+ * previously inspected plugin can never show under the current one's title. Mapping the read onto
+ * rows, selection, and status is `rules.ts`'s {@link packageFilesViewState}.
  *
  * @complexity One GET per `pluginId`; O(files) per render to map rows (capped server-side at 200).
  */
@@ -82,17 +79,7 @@ export function usePluginPackageFiles({ pluginId, port, t }: PluginPackageFilesD
   }, [pluginId]);
 
   const read = settled?.pluginId === pluginId ? settled : null;
-  const files = (read?.listing?.files ?? []).map((file) => toPackageFileView(file, t));
-  const selectedFile = files.find((file) => file.relativePath === selectedPath) ?? files[0] ?? null;
-
-  return {
-    files,
-    selectedFile,
-    selectFile: setSelectedPath,
-    status: packageFilesStatus({ loading: read === null, error: read?.error ?? null, fileCount: files.length }, t),
-    listNotice: packageFilesListNotice(read?.listing ?? null, t),
-    t,
-  };
+  return { ...packageFilesViewState(read, selectedPath, t), selectFile: setSelectedPath, t };
 }
 
 /** Binds the real `/api/.../plugins/:id/files` client and a `plugins-i18n.ts` translator for the

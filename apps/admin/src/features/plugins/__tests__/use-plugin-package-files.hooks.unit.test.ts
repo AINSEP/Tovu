@@ -94,6 +94,32 @@ describe("usePluginPackageFiles", () => {
     expect(result.current.files).toEqual([]);
     expect(result.current.status?.text).toBe("No files to show for this plugin.");
   });
+
+  it("a listing already settled for the previous plugin reads as loading under the next one", async () => {
+    const port = createFakePluginsPort({ packageFiles: { first: listing("first", { truncated: true }) } });
+    const realGet = port.getPluginFiles.bind(port);
+    port.getPluginFiles = (id) => (id === "second" ? new Promise(() => {}) : realGet(id));
+
+    const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
+      initialProps: { pluginId: "first" },
+    });
+    await waitFor(() => expect(result.current.files).toHaveLength(2));
+    rerender({ pluginId: "second" });
+
+    expect(result.current.status).toEqual({ text: "Loading package files…", role: "status" });
+    expect(result.current.files).toEqual([]);
+    expect(result.current.selectedFile).toBeNull();
+    expect(result.current.listNotice).toBeNull();
+  });
+
+  it("a failed load sets no caps notice", async () => {
+    const port = createFakePluginsPort();
+    port.getPluginFiles = () => Promise.reject(new Error("network down"));
+    const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "p", port, t: identity }));
+
+    await waitFor(() => expect(result.current.status).toEqual({ text: "network down", role: "alert" }));
+    expect(result.current.listNotice).toBeNull();
+  });
 });
 
 describe("toPackageFileView", () => {
