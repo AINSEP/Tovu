@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render";
+
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
@@ -205,13 +207,54 @@ test("requiresConfirmation is unset on every wired Posts/Pages tool", () => {
   }
 });
 
+/**
+ * Was a FAKE GATE until 2026-09-11. Its name has always claimed it checks the published schema
+ * against "every renderDocNode node type", but its assertion was a hand-copied list of eight
+ * literals that never read `DOC_NODE_HANDLERS` at all. `renderDocNode` handled `image`, `youtube`,
+ * `mention`, the table family, `taskList`/`taskItem` and `hardBreak` the whole time; this test sat
+ * green beside that gap and is part of why it survived long enough for the assistant to tell an
+ * owner an image "cannot" go in a post body.
+ *
+ * It now derives the expectation instead of restating it, so the only way to break it is to add a
+ * renderer node without publishing it — which is the thing it was always supposed to catch.
+ * `title` is `renderDocNode`'s one deliberate omission (it always renders empty in the generic
+ * walk, so naming it would teach the model a no-op); that exclusion is restated here rather than
+ * imported because this suite asserts the CATALOG's published copy, which is a different object
+ * from the one `agent-tools.tiptap-node-vocabulary.test.ts`'s own richer drift guard walks. The two
+ * are deliberately independent: this one proves the schema the catalog actually ships is not a
+ * stale second copy.
+ */
 test("content_post_create's and content_post_update's published bodyJson schema names every renderDocNode node type", () => {
   const schema = catalogEntry("content_post_update").inputSchema as { properties: { bodyJson: { $defs: { blockNode: { oneOf: Array<{ properties: { type: { const: string } } }> } } } } };
-  const names = schema.properties.bodyJson.$defs.blockNode.oneOf.map((entry) => entry.properties.type.const);
+  const published = new Set(schema.properties.bodyJson.$defs.blockNode.oneOf.map((entry) => entry.properties.type.const));
+
+  // Block-level only: `DOC_NODE_HANDLERS` also carries the doc root, inline nodes and container
+  // children, none of which appear in `blockNode.oneOf`.
+  const notBlockLevel = new Set([
+    "doc", "text", "title", "listItem", "taskItem", "tableRow", "tableCell", "tableHeader", "hardBreak", "mention",
+  ]);
+  // Block-level nodes the renderer keeps but the schema deliberately stops advertising. `image`
+  // (2026-09-11, owner decision): `renderDocImage` stays live so undo/import can still render an old
+  // body, but new authoring goes through `media`. Same opt-out, same reason, as
+  // `features/post/__tests__/agent-tools.tiptap-node-vocabulary.test.ts`'s NAMED_NODE_TYPE_OPT_OUTS.
+  const retiredFromAuthoring = new Set(["image"]);
+  const handlerKeys = Object.keys(DOC_NODE_HANDLERS);
+  const expected = handlerKeys.filter((type) => !notBlockLevel.has(type) && !retiredFromAuthoring.has(type));
+
+  const missing = expected.filter((type) => !published.has(type));
   assert.deepEqual(
-    names.sort(),
-    ["blockquote", "bulletList", "codeBlock", "heading", "horizontalRule", "orderedList", "paragraph", "widgetEmbed"].sort(),
+    missing,
+    [],
+    `renderDocNode handles ${missing.join(", ")} but content_post_update's published bodyJson schema names no such block type. `
+      + "Add it to TIPTAP_DOC_SCHEMA's blockNode.oneOf in apps/website/src/features/post/agent-tools.ts, "
+      + "or add it to this test's notBlockLevel set if it is genuinely not a block-level node.",
   );
+
+  // Both directions, so the opt-out list cannot go stale silently.
+  for (const retired of retiredFromAuthoring) {
+    assert.ok(handlerKeys.includes(retired), `'${retired}' is no longer a DOC_NODE_HANDLERS key — remove it from retiredFromAuthoring.`);
+    assert.equal(published.has(retired), false, `'${retired}' is published again — remove it from retiredFromAuthoring.`);
+  }
 });
 
 // ---------------------------------------------------------------------------
