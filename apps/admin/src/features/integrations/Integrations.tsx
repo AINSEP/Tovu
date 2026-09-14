@@ -30,10 +30,19 @@ export interface IntegrationsProps {
 }
 
 /** The "Add webhook" form — only rendered while `formOpen`. Top-level rather than an inline
- *  ternary block in `Integrations`'s own body. */
+ *  ternary block in `Integrations`'s own body.
+ *
+ *  Cancel lives here now (2026-09-13, owner: it "floats above the create form" as the header
+ *  toggle's other label) — next to Create, at the bottom, the pairing every other admin form on
+ *  this build uses (`Collections.tsx`'s `NewContentTypeDialog`, `FormEditor.tsx`'s field-attrs
+ *  form). The header toggle above still opens the form and still closes it on click — `onCancel`
+ *  calls the exact same setter, just from a second, better-placed control — but while the form is
+ *  open the header button is a redundant "Cancel" with no form context floating over an empty
+ *  intro line, so `Integrations` below stops rendering it for that state. */
 function IntegrationCreateForm(props: {
   locale: string;
   onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
   formError: string | null;
   label: string;
   onLabelChange: (label: string) => void;
@@ -75,13 +84,23 @@ function IntegrationCreateForm(props: {
           {...agentHandle("integrations-create-topics", { role: "field", label: "New webhook's comma-separated event topics" })}
         />
       </label>
-      <button
-        type="submit"
-        disabled={props.saving}
-        {...agentHandle("integrations-create-submit", { role: "button", label: "Create this webhook" })}
-      >
-        {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
-      </button>
+      <span className="editor-actions">
+        <button
+          type="submit"
+          disabled={props.saving}
+          {...agentHandle("integrations-create-submit", { role: "button", label: "Create this webhook" })}
+        >
+          {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={props.onCancel}
+          {...agentHandle("integrations-create-cancel", { role: "button", label: "Close this form without creating a webhook" })}
+        >
+          {t(locale, "Cancel")}
+        </button>
+      </span>
     </form>
   );
 }
@@ -158,26 +177,33 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           below, where it still explains the tab without competing with the page title.
 
           The "Add webhook" control moved with it, from `page-actions` into this row. Same button,
-          same handle, same behaviour — only its position changed. */}
+          same handle, same behaviour — only its position changed.
+
+          Withheld while `formOpen` (2026-09-13): with Cancel now living next to Create at the
+          form's own bottom (see `IntegrationCreateForm`'s doc comment), a second "Cancel" up here
+          would be a duplicate control floating over an intro line that no longer has a form of its
+          own to open. */}
       <div className="integrations-tab-intro">
         <p className="page-description">
           {t("Send webhook notifications to external services when content on this site changes.")}
         </p>
-        <div className="page-actions">
-          <button
-            className={formOpen ? "btn-secondary" : undefined}
-            onClick={() => setFormOpen((v) => !v)}
-            {...agentHandle("integrations-toggle-create-form", { role: "button", label: "Open or close the add-webhook form" })}
-          >
-            {formOpen ? t("Cancel") : t("Add webhook")}
-          </button>
-        </div>
+        {formOpen ? null : (
+          <div className="page-actions">
+            <button
+              onClick={() => setFormOpen(true)}
+              {...agentHandle("integrations-toggle-create-form", { role: "button", label: "Open the add-webhook form" })}
+            >
+              {t("Add webhook")}
+            </button>
+          </div>
+        )}
       </div>
 
       {formOpen ? (
         <IntegrationCreateForm
           locale={locale}
           onSubmit={onCreate}
+          onCancel={() => setFormOpen(false)}
           formError={formError}
           label={label}
           onLabelChange={setLabel}
@@ -193,7 +219,12 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
         rows={subscriptions}
         rowKey={(subscription) => subscription.id}
         empty={
-          <div className="card">
+          // `form-measure` (2026-09-13, owner: this text read off-center and clipped): the card had
+          // no width of its own, so on a wide viewport it stretched edge to edge and centered its
+          // two sentences around the middle of that whole span instead of around a column a reader
+          // could actually see at once. Same cap the create form right above it already uses, so
+          // the empty state now reads as that form's own column, just without any webhooks in it.
+          <div className="card form-measure">
             <div className="empty-state">
               <p>{t("No webhooks yet.")}</p>
               <p className="page-description">{t("Add one above to start sending event notifications.")}</p>
