@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
+import { useFolderPathDropCapture } from "@jini-ai/ui";
 
 import { api, ApiError } from "../../../lib/api";
-import { folderPathsFromDataTransfer } from "../folder-drop";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
 
 /**
@@ -15,15 +15,16 @@ import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
  *
  * **Text insertion always happens; the custom-root set is best-effort on top of it** (`ui.spec.md`
  * §4: "a failed custom-root set must never roll back or block the path text already inserted").
- * `handleDropCapture` inserts the path synchronously before the (async) custom-root call even starts,
- * so REQ-01's already-shipped behavior (folder drop -> path, not attachments) can never regress
- * because of anything this hook's network call does.
+ * `handleDropCapture` is `@jini-ai/ui`'s `useFolderPathDropCapture`, which inserts the path
+ * synchronously and only then calls back into the (async) custom-root call, so REQ-01's
+ * already-shipped behavior (folder drop -> path, not attachments) can never regress because of
+ * anything this hook's network call does.
  *
  * **Multiple folders in one drop event.** `feature.spec.md`/`behavior.spec.md` only ever describe
  * SEQUENTIAL drops for the "last write wins" custom-root rule (§1.2) — dropping two folders at once
- * in a single `DragEvent` is not named. Composer text mirrors the desktop original
- * (`apps/desktop/src/renderer/folder-drop.ts`'s `onDropCapture`): every recovered folder path, space-
- * joined, in drop order. For the SINGLE `custom` root value (INV-02: at most one at a time), this
+ * in a single `DragEvent` is not named. Composer text is `@jini-ai/ui`'s `formatDroppedFolderPaths`,
+ * the same format the desktop chat inserts: every recovered folder path, space-joined, in drop
+ * order. For the SINGLE `custom` root value (INV-02: at most one at a time), this
  * applies the same "most recent wins" rule one level down and uses the LAST folder in that same drop
  * — a judgment call, not a spec requirement, made because no other rule in the approved spec package
  * covers this case and "last" is the only choice consistent with §1.2's own tie-break for the
@@ -57,7 +58,9 @@ export interface UseFolderDrop {
    *  in `App.tsx` (capture phase, same reasoning as the desktop original: this must see the raw
    *  event before `@jini-ai/chat`'s own bubble-phase drop handling expands a folder into per-leaf
    *  files). A no-op (falls through to the ordinary attachment-upload path) when running in a plain
-   *  browser tab (no `window.tovuFiles`) or when nothing dropped was a folder. */
+   *  browser tab (no `window.tovuFiles`) or when nothing dropped was a folder. Its identity never
+   *  changes for the hook's lifetime (`useFolderPathDropCapture`), so `useFolderDropBridge`
+   *  publishes it once per mount. */
   readonly handleDropCapture: (event: DragEvent<HTMLElement>) => void;
 }
 
@@ -68,7 +71,8 @@ export interface UseFolderDropInput {
 }
 
 export interface UseFolderDropDeps {
-  /** Test seam — defaults to the real `getFolderDropPort(undefined)` (`window.tovuFiles`). */
+  /** Test seam — defaults to the real `getFolderDropPort(undefined)` (`window.tovuFiles`). Called
+   *  at render, not at drop; a drop uses the latest committed render's port. */
   readonly getPort?: () => FolderDropPort | null;
   /** Test seam — defaults to the real `api.setFsFilesCustomRoot`. */
   readonly setCustomRoot?: (path: string) => Promise<{ path: string }>;
@@ -81,10 +85,16 @@ export interface UseFolderDropDeps {
 const DEFAULT_AUTO_DISMISS_MS = 4000;
 
 /**
- * The real port lookup, used when no `getPort` seam is passed. Module-level on purpose, not an inline
- * default inside the hook: `handleDropCapture` lists `getPort` as a dependency, so an inline arrow
- * gave it a new identity on every render, and `useFolderDropBridge` (`AssistantDock.hooks.tsx`)
- * re-publishes on every identity change. Reads `window.tovuFiles` at call time, same as before.
+ * The real port lookup, used when no `getPort` seam is passed. Reads `window.tovuFiles`.
+ *
+ * **Evaluated at render, not at drop.** `useFolderPathDropCapture` takes the port as a value and its
+ * handler uses whatever the latest committed render passed. Before the switch to `@jini-ai/ui` this
+ * was read inside the drop handler. Both reads see the same value, because `window.tovuFiles` does
+ * not change during a page's life: `apps/desktop/src/speech/preload-speech.cts` calls
+ * `contextBridge.exposeInMainWorld` synchronously at preload time, and Electron runs a window's
+ * preload before any of the page's own scripts. So the bridge already exists (or is permanently
+ * absent) when this bundle first renders. Going between `/admin` and the public site is a full
+ * navigation, which reloads both the preload and this bundle.
  *
  * @complexity Time/space: O(1).
  */
@@ -97,9 +107,9 @@ function defaultGetPort(): FolderDropPort | null {
  * reason. The server (`routes/fs-files/custom-root.ts`) answers every `CustomFsRootError` with the
  * SAME `code: "INVALID_PATH"` regardless of which of its three messages fired, so the two validation
  * reasons this feature can realistically hit (a path recovered from a live directory entry is always
- * absolute — see `folder-drop.ts` — so "not absolute" is not a reachable case here) are told apart by
- * the message text itself; anything else (network failure, 500, a non-`ApiError` throw) is reported
- * as the endpoint being unreachable rather than guessed at.
+ * absolute — see `@jini-ai/ui`'s `folderPathsFromDataTransfer` — so "not absolute" is not a
+ * reachable case here) are told apart by the message text itself; anything else (network failure,
+ * 500, a non-`ApiError` throw) is reported as the endpoint being unreachable rather than guessed at.
  *
  * @complexity Time/space: O(1).
  */
@@ -112,8 +122,8 @@ function reasonForCustomRootError(err: unknown): FolderDropErrorReason {
 /**
  * Owns the folder-drop notice state and the composer/custom-root side effects a drop triggers.
  *
- * @complexity Time: O(n) in the number of dragged items per drop (via `folderPathsFromDataTransfer`);
- *   space: O(1) beyond that same per-drop array.
+ * @complexity Time: O(n) in the number of dragged items per drop (via `@jini-ai/ui`'s
+ *   `captureFolderPathDrop`); space: O(1) beyond that same per-drop array.
  */
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
   const getPort = deps.getPort ?? defaultGetPort;
@@ -168,22 +178,16 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     [getCustomRoot, setCustomRoot, scheduleAutoDismiss],
   );
 
-  const handleDropCapture = useCallback(
-    (event: DragEvent<HTMLElement>) => {
-      const port = getPort();
-      if (port === null) return;
-      const folders = folderPathsFromDataTransfer(event.dataTransfer, port.getPathForFile);
-      if (folders.length === 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      input.composerHandle.current?.insertText(folders.join(" "));
-      // See this module's own doc ("Multiple folders in one drop event") for why the LAST path,
-      // specifically, becomes the custom root.
-      const target = folders[folders.length - 1] as string;
-      void applyCustomRoot(target);
+  const handleDropCapture = useFolderPathDropCapture({
+    // See `defaultGetPort`'s doc for why reading the port at render is safe.
+    port: getPort(),
+    composer: input.composerHandle,
+    onFolderPaths: (paths) => {
+      // Called only for a swallowed drop, so `paths` is never empty. See this module's own doc
+      // ("Multiple folders in one drop event") for why the LAST path becomes the custom root.
+      void applyCustomRoot(paths[paths.length - 1] as string);
     },
-    [getPort, input.composerHandle, applyCustomRoot],
-  );
+  });
 
   const dismiss = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);

@@ -1,3 +1,5 @@
+import type { FolderPathDropPort } from "@jini-ai/ui/core";
+
 /**
  * @file The renderer-side half of the desktop folder-drop bridge (SPEC-053). `window.tovuFiles` is
  * injected by `apps/desktop/src/speech/preload-speech.cts` via `contextBridge` — it exists ONLY when
@@ -11,13 +13,15 @@
  * cannot, fix browser-only admin).
  */
 
-/** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuFiles", ...)`. */
-export interface FolderDropPort {
-  /** Electron's synchronous `webUtils.getPathForFile`, passed straight through. Returns `''` for a
-   *  `File` it cannot resolve an OS path for (e.g. one synthesized from a `FileSystemEntry` rather
-   *  than handed directly off `dataTransfer.files` — see `folder-drop.ts`'s header). */
-  getPathForFile(file: File): string;
-}
+/**
+ * The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuFiles", ...)`:
+ * Electron's synchronous `webUtils.getPathForFile`, passed straight through. It returns `''` for a
+ * `File` it cannot resolve an OS path for (e.g. one synthesized from a `FileSystemEntry` rather than
+ * handed directly off `dataTransfer.files` — see `@jini-ai/ui`'s `features/folder-path-drop/rules.ts`
+ * header). An alias of that package's `FolderPathDropPort`, so the contract the drop rules call lives
+ * in one place; only the `window.tovuFiles` name is Tovu's.
+ */
+export type FolderDropPort = FolderPathDropPort;
 
 declare global {
   interface Window {
