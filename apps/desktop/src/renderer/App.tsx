@@ -1008,7 +1008,7 @@ function MainContent({
       {lastCreated && (
         <p className="creation-notice" role="status">
           <span className="creation-notice__dot" aria-hidden="true" />
-          {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.js`) only
+          {/* A freshly created project has no port yet — `handleCreate` (`project-ipc.ts`) only
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Port 0 is otherwise
