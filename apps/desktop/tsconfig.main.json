@@ -4,6 +4,14 @@
   // Electron and Node strip the types at load time, which is why `erasableSyntaxOnly` is on (no
   // `enum`, `namespace`, parameter properties or `import x = require()`).
   //
+  // `src/preload/**/*.ts` (note: `.ts`, not `.mts`) is the one narrow exception to "outside the
+  // preload tree" above: it picks up only test files colocated with the preload (currently just
+  // `preload.test.ts`), which are plain Node tests importing main-process modules by relative path
+  // — the same shape as every other test this config already covers — while `preload.mts` itself
+  // stays exclusively under `tsconfig.preload.json`'s own strict, compiled pass. Without this,
+  // `preload.test.ts` sat in no tsconfig's `include` at all and `npm run typecheck` silently never
+  // checked it.
+  //
   // Phase 5 close-out: the file-by-file ratchet (`tsconfig.main-pending.json`, deleted) is done —
   // every main-process module is strict-typed, so `include` below covers the whole target surface
   // by glob instead of listing files one at a time. See
@@ -22,5 +30,5 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["main.ts", "bin/**/*.ts", "scripts/**/*.ts", "src/*.ts", "src/speech/**/*.ts"]
+  "include": ["main.ts", "bin/**/*.ts", "scripts/**/*.ts", "src/*.ts", "src/speech/**/*.ts", "src/preload/**/*.ts"]
 }
