@@ -374,12 +374,12 @@ describe("Theme Pages tab", () => {
     expect(screen.getByRole("button", { name: 'Actions for "pricing"' })).toBeInTheDocument();
   });
 
-  /** Every row renders the SAME five columns regardless of its own locked/candidate shape — the
+  /** Every row renders the SAME four columns regardless of its own locked/candidate shape — the
    *  table's own structure must never depend on which row it is (owner-reported bug, the old inline
-   *  "see more" disclosure changed row height/column contents row to row). Two URL columns
-   *  (PART 1, 2026-08-31 owed-work pass) replace the old single mislabeled "URL" column that
-   *  actually linked to the theme studio — see `ThemePagesTab.tsx`'s own file header. */
-  it("gives every row the same column set — a locked row and a candidate row both get page/URL/Theme Studio/publish/More", async () => {
+   *  "see more" disclosure changed row height/column contents row to row). The standalone "Theme
+   *  Studio" column (PART 1, 2026-08-31) was folded back into `Page` (PART 5, 2026-09-13 owner
+   *  screenshot review) — see `ThemePagesTab.tsx`'s own file header. */
+  it("gives every row the same column set — a locked row and a candidate row both get page/URL/publish/More", async () => {
     const user = userEvent.setup();
     renderWith(
       { pages: [PAGE] },
@@ -387,7 +387,7 @@ describe("Theme Pages tab", () => {
     );
     await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
     const columnHeaders = screen.getAllByRole("columnheader").map((h) => h.textContent);
-    expect(columnHeaders).toEqual(["Page", "URL", "Theme Studio", "Publish", "More"]);
+    expect(columnHeaders).toEqual(["Page", "URL", "Publish", "More"]);
     expect(screen.getByRole("button", { name: 'Actions for "index"' })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: 'Actions for "about"' })).toBeInTheDocument();
   });
@@ -563,17 +563,17 @@ describe("Theme Pages tab", () => {
   });
 
   /**
-   * PART 1's second column — unchanged destination (`themeStudioHref`) and unchanged no-target/no-
-   * rel in-app treatment, just its own column now instead of sharing the (wrongly labeled) "URL"
-   * one. Cell text is `t("Edit")`, not the page's path — showing a site path as THIS link's text was
-   * half of the original mislabel.
+   * PART 5 (2026-09-13, owner screenshot review): the standalone "Theme Studio" column is gone —
+   * its destination (`themeStudioHref`) and its unchanged no-target/no-rel in-app treatment now live
+   * on the `Page` cell itself, whose accessible name is the page id rather than a separate `t("Edit")`
+   * cell.
    */
-  describe("Theme Studio column", () => {
-    it("links every row to the theme studio with both params, labeled Edit, regardless of publish state", async () => {
+  describe("Page column links to Theme Studio", () => {
+    it("links every row to the theme studio with both params, named after the page id, regardless of publish state", async () => {
       const user = userEvent.setup();
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })], activeThemeId: "basic" });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-      const link = screen.getByRole("link", { name: "Edit" });
+      const link = screen.getByRole("link", { name: "404" });
       expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=404");
     });
 
@@ -587,7 +587,7 @@ describe("Theme Pages tab", () => {
       const user = userEvent.setup();
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })], activeThemeId: "basic" });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-      const link = screen.getByRole("link", { name: "Edit" });
+      const link = screen.getByRole("link", { name: "404" });
       expect(link).not.toHaveAttribute("target");
       expect(link).not.toHaveAttribute("rel");
     });
@@ -599,7 +599,7 @@ describe("Theme Pages tab", () => {
         { pages: [candidateRow({ pageId: "my page&x=1", published: false })], activeThemeId: "b a&sic" }
       );
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-      const link = screen.getByRole("link", { name: "Edit" });
+      const link = screen.getByRole("link", { name: "my page&x=1" });
       expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=b%20a%26sic&page=my%20page%26x%3D1");
     });
 
@@ -607,7 +607,7 @@ describe("Theme Pages tab", () => {
       const user = userEvent.setup();
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })], activeThemeId: "basic" });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-      const link = screen.getByRole("link", { name: "Edit" });
+      const link = screen.getByRole("link", { name: "index" });
       expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=index");
     });
 
@@ -814,17 +814,18 @@ describe("Theme Pages tab", () => {
    * PART 4 (2026-08-31, same-day follow-up to PART 2 above): the owner asked for Edit to live in the
    * row's `RowMenu`, directly under Details, not as a button inside the modal — moved out of
    * `ThemePageDetailsModal.tsx`'s own footer entirely. Same Theme Studio destination as before
-   * (`themeStudioHref`, reused rather than re-derived) and as the table's own Theme Studio column;
-   * `navigate` is mocked at the top of this file, same pattern `"row menu — Disable visibility..."`'s
-   * own "Edit navigates to the Pages editor" test above uses for My Pages' row menu.
+   * (`themeStudioHref`, reused rather than re-derived) and as the table's own `Page` column link
+   * (PART 5, 2026-09-13); `navigate` is mocked at the top of this file, same pattern `"row menu —
+   * Disable visibility..."`'s own "Edit navigates to the Pages editor" test above uses for My Pages'
+   * row menu.
    */
   describe("row menu — Edit (Theme Pages)", () => {
-    it("navigates to the same Theme Studio destination as the table's own column", async () => {
+    it("navigates to the same Theme Studio destination as the table's own Page column link", async () => {
       const user = userEvent.setup();
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })], activeThemeId: "basic" });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-      // The row's OWN Theme Studio column also renders an "Edit" link (role "link"), distinct from
-      // this row-menu item (role "menuitem") — no scoping needed to disambiguate.
+      // The row's OWN `Page` cell also renders a link to the same destination, named after the page
+      // id rather than "Edit" — no naming collision with this row-menu item (role "menuitem").
       await user.click(screen.getByRole("button", { name: 'Actions for "about"' }));
       await user.click(screen.getByRole("menuitem", { name: "Edit" }));
       expect(navigate).toHaveBeenCalledWith("/admin/themes/explore?theme=basic&page=about");

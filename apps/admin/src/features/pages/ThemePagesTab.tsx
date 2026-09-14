@@ -28,8 +28,9 @@ import {
  *    same shared `RowMenu` (`@jini-ai/admin/react`, also used by Users/Roles/Members/
  *    `AccessTokensTab`) in a `More` column — this tab used to be visually its own thing (a bare
  *    Publish cell with no row menu at all); it now reads as My Pages' sibling, not a different
- *    screen. Every row renders the SAME five columns (page id, public URL, Theme Studio, publish
- *    switch, `More`) — the table's shape never depends on which row it is.
+ *    screen. Every row renders the SAME four columns (page id — itself the Theme Studio link, see
+ *    PART 5 below — public URL, publish switch, `More`) — the table's shape never depends on which
+ *    row it is.
  * 2. **Per-row detail lives in a MODAL, never an inline expander.** The old "see more" button used
  *    to reflow the row in place, dropping loose text into the Publish cell — the owner's own words:
  *    *"this reorganization when you click see more... looks awful."* That disclosure is gone
@@ -41,14 +42,15 @@ import {
  *    that file's header, PART 3) navigates straight to Theme Studio — `handlers.onEdit` here is the
  *    one place that calls `navigate(themeStudioHref(...))` for it, matching `rules.ts`'s own
  *    `ThemePageRowMenuHandlers` doc on why that module stays free of navigation itself.
- * 3. **PART 1 — the single "URL" column was a real mislabel, now split in two.** It carried the
- *    header `"URL"` but its `<a href>` was always `themeStudioHref` — the theme studio, not the
- *    page's own public address. There are genuinely two different destinations a row can offer, so
- *    there are now two columns: `"URL"` ({@link ThemePagePublicUrlCell}, the actual public-site
- *    address, `siteUrl(...)`-based, external — same `target="_blank" rel="noreferrer"` treatment
- *    `Posts.tsx`'s Slug column uses) and `"Theme Studio"` (unchanged destination/treatment, just its
- *    own column now, cell text `t("Edit")` rather than the path — showing a path as the STUDIO
- *    link's own text was half of the original mislabel). See {@link ThemePagePublicUrlCell}'s own
+ * 3. **PART 1 — the single "URL" column was a real mislabel, originally split in two, since
+ *    collapsed back into one (PART 5 below).** It carried the header `"URL"` but its `<a href>` was
+ *    always `themeStudioHref` — the theme studio, not the page's own public address. There are
+ *    genuinely two different destinations a row can offer, so there were briefly two columns:
+ *    `"URL"` ({@link ThemePagePublicUrlCell}, the actual public-site address, `siteUrl(...)`-based,
+ *    external — same `target="_blank" rel="noreferrer"` treatment `Posts.tsx`'s Slug column uses)
+ *    and a separate `"Theme Studio"` column (same destination/treatment, cell text `t("Edit")`
+ *    rather than the path). The `"URL"` column is unchanged; the Theme Studio destination now lives
+ *    on the `Page` cell itself instead of its own column — see PART 5. See {@link ThemePagePublicUrlCell}'s own
  *    doc for the three cases that column has to get right: `index` is genuinely live at `/`; `404`
  *    and a declared template shell have no public address at all (not "a URL that 404s" — no
  *    address); every other row's address exists but 404s until its Publish switch is on, since theme
@@ -59,13 +61,14 @@ import {
  * can actually change it", not edit/disable/delete in the `My Pages` sense — see `Pages.tsx`'s own
  * header for why this tab is deliberately kept separate from My Pages' actual database rows.
  *
- * `Edit` now appears TWICE per row — once in this menu, once in the `Theme Studio` column (same
- * `themeStudioHref` destination both places, not two different links). Left as-is rather than
- * collapsed: the `Theme Studio` column is recent, deliberate work (splitting the old mislabeled
- * single "URL" column into a real public-site link and a real Theme Studio link, PART 1 above), the
- * owner asked for `Edit` specifically IN the row menu on top of that, and nothing here says the
- * column is meant to go away — flagged for the owner to decide, not removed on this pass's own
- * judgment.
+ * **PART 5 (2026-09-13, owner screenshot review) — the `Theme Studio` column is gone; its link
+ * moved onto the `Page` cell itself.** The previous paragraph here flagged `Edit` appearing twice
+ * per row (once in the row menu, once as its own column) for the owner to decide; the decision is
+ * the row's OWN name is the Theme Studio link now — same `themeStudioHref(themeId, row.pageId)`
+ * destination, same in-app no-`target`/no-`rel` treatment, same `${handle}-edit` agent handle and
+ * label the old column's link carried, just anchored to the page id's own text instead of a
+ * separate `t("Edit")` cell. The table is four columns now (page/URL/publish/More), and the row
+ * menu's own `Edit` item (PART 4 below) is the only place left carrying that exact word.
  */
 
 /** The publish switch for one row — mirrors `ThemeExplore.tsx`'s `ThemeExplorePublishToggle` markup
@@ -325,16 +328,12 @@ export function ThemePagesTab({
           </div>
         }
         columns={[
-          { key: "page", header: t("Page"), cell: (row) => row.pageId },
           {
-            key: "url",
-            header: t("URL"),
-            cell: (row, index) => <ThemePagePublicUrlCell row={row} handle={rowHandles[index]} t={t} />,
-          },
-          {
-            key: "themeStudio",
-            header: t("Theme Studio"),
-            // No `target`/`rel`: this is an in-app admin destination, and
+            key: "page",
+            header: t("Page"),
+            // The page id IS the Theme Studio link (PART 5, this file's own header) — same
+            // destination/handle/label the old standalone "Theme Studio" column carried. No
+            // `target`/`rel`: this is an in-app admin destination, and
             // `installInternalLinkInterceptor` (`@jini-ai/admin/browser`) deliberately declines to
             // intercept any anchor carrying a `target`, so `_blank` would cost a full SPA reload in
             // a second tab.
@@ -343,9 +342,14 @@ export function ThemePagesTab({
                 href={themeStudioHref(themeId, row.pageId)}
                 {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this theme page in Theme Studio" })}
               >
-                {t("Edit")}
+                {row.pageId}
               </a>
             ),
+          },
+          {
+            key: "url",
+            header: t("URL"),
+            cell: (row, index) => <ThemePagePublicUrlCell row={row} handle={rowHandles[index]} t={t} />,
           },
           {
             key: "publish",
