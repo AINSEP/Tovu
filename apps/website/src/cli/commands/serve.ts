@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { createApp } from "../../server/runtime/composition/app.js";
+import { createServingApp } from "../../server/runtime/composition/serving-app.js";
 import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
@@ -320,7 +320,9 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it has something to
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
   await ensureAgentDaemonPortResolved();
-  const app = createApp(deps);
+  // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
+  // `createApp` has attached every subscriber. Stopped in `shutdown` below.
+  const { app, outboxDrainer } = createServingApp(deps);
 
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(port);
@@ -398,6 +400,8 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
       const shutdown = (): void => {
+        // First, so no new outbox drain starts while the grace window below runs toward the db close.
+        void outboxDrainer.stop();
         let exited = false;
         const finish = (): void => {
           if (exited) return;

@@ -112,10 +112,9 @@ import {
 } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
-import { createRouteDeps } from "../../runtime/composition/app.js";
+import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
-import { createSqliteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -330,8 +329,13 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // independently re-resolve `resolveWorkspace`'s default. Irrelevant in memory mode: each process
 // gets its own disconnected in-memory store regardless (see module doc above), so there is no
 // second process to agree with.
-const routeDeps =
-  process.env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDepsForWorkspace(process.env.TOVU_WORKSPACE);
+//
+// Outbox (2026-09-14): that branch now lives in `agent-daemon-deps.ts`, which also makes this
+// process's outbox enqueue-only. This process shares `content.db` with the serving process but not
+// its bus or subscribers, so a drain here (the post tools drain after every write) marked rows
+// delivered that the serving process never saw. The serving process's background drainer
+// (`serving-app.ts`) delivers them instead.
+const routeDeps = createAgentDaemonRouteDeps({ env: process.env });
 
 const eventLog = createInMemoryEventLog();
 const lifecycle = createRunLifecycle({ eventLog });

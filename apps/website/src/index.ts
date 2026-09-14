@@ -1,6 +1,7 @@
 import { createServer as createHttpsServer } from "node:https";
 import path from "node:path";
-import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
+import { createRouteDeps } from "./server/runtime/composition/app.js";
+import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
@@ -273,7 +274,10 @@ async function main(): Promise<void> {
   // has something to return. See `agent-daemon-port.ts`'s own header for the full contract.
   await ensureAgentDaemonPortResolved();
 
-  const app = createApp(deps);
+  // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
+  // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
+  // process open.
+  const { app } = createServingApp(deps);
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
