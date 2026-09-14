@@ -1537,6 +1537,7 @@ export function createSqliteRouteDeps(
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.

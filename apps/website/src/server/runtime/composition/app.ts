@@ -754,6 +754,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     onPluginUninstalled: pluginRuntime.onPluginUninstalled,
+    readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
     // by default; a test that needs seeded rows constructs its own `InMemoryDeploymentsReadRepo`

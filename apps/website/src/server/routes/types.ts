@@ -116,6 +116,7 @@ import type { WidgetRegionBindingRepoPort } from "../../features/widgets/ports.j
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
 
 /**
@@ -1300,6 +1301,10 @@ export interface PluginRuntimeDeps {
    * gating (not-found / built-in / still-enabled-somewhere) lives in
    * `features/plugin-runtime/uninstall.ts`'s `uninstallPlugin()`, the route's actual entry point. */
   onPluginUninstalled: (pluginId: string) => Promise<void>;
+  /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
+   * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
+   * `features/plugin-runtime/package-files.ts`; the route only authorizes and resolves the record. */
+  readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
 }

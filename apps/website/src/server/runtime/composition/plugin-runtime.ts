@@ -11,6 +11,11 @@ import { createHookRegistry, type AttachmentSource, type HookRegistry } from "#s
 import type { PluginManifest } from "#src/features/plugin-runtime/manifest";
 import { quarantinePlugin } from "#src/features/plugin-runtime/quarantine";
 import {
+  PluginPackagePathError,
+  readPluginPackageFiles as readPluginPackageDirectory,
+  type PluginPackageFiles,
+} from "#src/features/plugin-runtime/package-files";
+import {
   attachLoadedPlugin,
   loadPlugin,
   PluginLoadError,
@@ -28,6 +33,9 @@ export interface PluginRuntimeSource extends BuiltInPluginSource {
   readonly source: "built-in";
   readonly entryPath: string;
   readonly importModule: (entryPath: string) => Promise<unknown>;
+  /** The built-in's own source folder, shown read-only by the admin Plugins screen's
+   * package-files viewer (`routes/plugins/files.ts`). Omitted ⇒ that viewer lists no files. */
+  readonly sourceDir?: string;
 }
 
 interface InvocationState {
@@ -118,6 +126,41 @@ export class PluginUninstallPathError extends Error {
   }
 }
 
+/** A site plugin's version folder name as discovery read it from disk: one segment, no
+ * separator, no leading dot. Checked together with {@link SAFE_PLUGIN_ID_SEGMENT} before either is
+ * joined into a path. */
+const SAFE_VERSION_SEGMENT = /^[0-9A-Za-z][0-9A-Za-z.+-]*$/;
+
+/**
+ * Where one discovered plugin's files live, for the package-files viewer: a built-in's own
+ * `sourceDir`, or a site plugin's `<installDir>/<id>/<version>/` (REQ-02's layout, the same one
+ * `siteEntryPath()` joins). The directory is its own container for a built-in; `installDir` is the
+ * container for a site plugin, so `readPluginPackageFiles()`'s realpath check keeps a symlinked id
+ * or version folder from reaching outside it.
+ *
+ * @returns `null` when there is no directory to show: a built-in without `sourceDir`, or a site
+ *   record while `installDir` is unset.
+ * @throws {PluginPackagePathError} a site record's id or version is not one safe path segment — a
+ *   site record's id comes from its own manifest, so it is untrusted text until checked here.
+ * @complexity O(sources.length).
+ */
+function resolvePackageLocation(params: {
+  record: PluginDiscoveryRecord;
+  sources: readonly PluginRuntimeSource[];
+  installDir: string | undefined;
+}): { rootDir: string; containerDir: string } | null {
+  const { record, sources, installDir } = params;
+  if (record.source === "built-in") {
+    const sourceDir = sources.find((candidate) => candidate.manifest.id === record.id)?.sourceDir;
+    return sourceDir === undefined ? null : { rootDir: sourceDir, containerDir: sourceDir };
+  }
+  if (installDir === undefined) return null;
+  if (!SAFE_PLUGIN_ID_SEGMENT.test(record.id) || !SAFE_VERSION_SEGMENT.test(record.version)) {
+    throw new PluginPackagePathError(`plugin '${record.id}' version '${record.version}' is not a safe path segment`);
+  }
+  return { rootDir: path.join(installDir, record.id, record.version), containerDir: installDir };
+}
+
 export interface ComposePluginRuntimeRequired {
   readonly workspaceId: string;
   readonly clock: ClockPort;
@@ -143,6 +186,11 @@ export interface PluginRuntimeBindings {
    * caller. Rejects (never silently no-ops) when `installDir` was never configured for this
    * composition root, or when `pluginId` fails the path-traversal safety check. */
   readonly onPluginUninstalled: (pluginId: string) => Promise<void>;
+  /** Lists one discovered plugin's own files, read-only and bounded, for the admin Plugins
+   * screen's package-files viewer — see {@link resolvePackageLocation} and
+   * `features/plugin-runtime/package-files.ts`. Rejects with `PluginPackagePathError` for an
+   * unsafe id/version or a directory that resolves outside its container. */
+  readonly readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   readonly beforeSaveHook: HookRegistry["runBeforeSave"];
 }
 
@@ -278,12 +326,19 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     await rm(targetDir, { recursive: true, force: true });
   }
 
+  async function readPluginPackageFiles(record: PluginDiscoveryRecord): Promise<PluginPackageFiles> {
+    const location = resolvePackageLocation({ record, sources, installDir });
+    if (location === null) return { files: [], truncated: false };
+    return readPluginPackageDirectory({ input: location });
+  }
+
   return {
     hookRegistry,
     discoverPlugins,
     onPluginEnabled,
     onPluginDisabled,
     onPluginUninstalled,
+    readPluginPackageFiles,
     beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
   };
 }

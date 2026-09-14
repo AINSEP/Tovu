@@ -17,6 +17,9 @@
  * Implemented (tasks.md T019) against the certified suite in
  * `__tests__/unit/word-count.unit.test.ts`, which pins the tokenization algorithm exactly.
  */
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import type { BuiltInPluginSource } from "../../discovery.js";
 import type { PluginManifest } from "../../manifest.js";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
@@ -102,4 +105,7 @@ export const WORD_COUNT_RUNTIME_SOURCE = {
   source: "built-in" as const,
   entryPath: "built-in:word-count",
   importModule: async () => ({ default: WORD_COUNT_PLUGIN }),
+  // Shown read-only by the admin Plugins screen's package-files viewer: this folder under `tsx`,
+  // its compiled `dist/` twin in a production build.
+  sourceDir: path.dirname(fileURLToPath(import.meta.url)),
 };
