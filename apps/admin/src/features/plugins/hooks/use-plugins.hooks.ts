@@ -31,9 +31,9 @@ import type { Translate } from "@/lib/dictionary-translator";
  *
  * `expandedIds`/`onToggleExpanded` moved here (2026-09-10) from a bare `useState` directly in
  * `Plugins.tsx` — this admin's own rule that component logic belongs in `hooks/`, not `.tsx`, same
- * split the sibling `use-agent-plugins.hooks.ts` already draws for `AgentPlugins.tsx`.
- * `Plugins.tsx`'s OTHER `useState` (`pendingRemoveId`) deliberately did NOT move alongside it — see
- * that file's own comment on why a pending-confirm id is presentation flow, not hook state.
+ * split the sibling `use-agent-plugins.hooks.ts` already draws for `AgentPlugins.tsx`. The Remove
+ * confirm dialog's target (`pendingRemovePlugin`) followed on 2026-09-13, the same way
+ * `inspectedPlugin` had already arrived: it was the last `useState` left in `Plugins.tsx`.
  */
 
 export interface PluginsDependencies {
@@ -54,15 +54,13 @@ export interface PluginsController {
   onToggleEnabled: (plugin: AdminPlugin) => Promise<void>;
   /** Deletes a `"site"` plugin's on-disk artifact via `PLUGIN_UNINSTALL` and re-fetches the list —
    *  the Downloaded tab's Remove control, gated behind `PluginRemoveConfirmDialog` before this is
-   *  ever called (see `Plugins.tsx`'s own `pendingRemoveId`). Refused by the server for a
+   *  ever called (see {@link PluginsController.onConfirmRemove}). Refused by the server for a
    *  `"built-in"` plugin or one still enabled somewhere; either refusal lands in `rowError` via the
    *  same `describeApiError` path `onToggleEnabled` already uses. */
   onRemovePlugin: (plugin: AdminPlugin) => Promise<void>;
   /** Plugin ids whose row detail panel (quarantine/errors) is open. Same shape and home as the
    *  sibling `use-agent-plugins.hooks.ts`'s `AgentPluginsController.expandedIds` — moved here
-   *  (2026-09-10) from a bare `useState` in `Plugins.tsx`, which this admin's own rule reserves for
-   *  presentation-only interstitial state (see `Plugins.tsx`'s `pendingRemoveId` for the kind of
-   *  state that legitimately stays there instead). */
+   *  (2026-09-10) from a bare `useState` in `Plugins.tsx`. */
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
   onToggleExpanded: (id: string) => void;
@@ -72,6 +70,15 @@ export interface PluginsController {
   /** Opens the package-files viewer for one plugin (a row's eye button, on either list tab). */
   onInspectPlugin: (id: string) => void;
   onCloseInspector: () => void;
+  /** The plugin waiting on `PluginRemoveConfirmDialog`, looked up fresh from `plugins` by id (same as
+   *  `inspectedPlugin`), so the confirmed row is always the current one; `null` while it's closed. */
+  pendingRemovePlugin: AdminPlugin | null;
+  /** Opens the confirm dialog for one row (Downloaded's Remove button). Nothing is deleted yet. */
+  onRequestRemove: (plugin: AdminPlugin) => void;
+  /** Closes the dialog, then runs {@link PluginsController.onRemovePlugin} for `plugin`. */
+  onConfirmRemove: (plugin: AdminPlugin) => void;
+  /** Closes the dialog without removing anything. */
+  onCancelRemove: () => void;
   /** Bound translator — `Plugins.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
   /** The raw resolved locale — exposed only because `rules.ts`'s `pluginToggleControl` genuinely
@@ -107,6 +114,7 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
   function reload(): Promise<void> {
     return port
@@ -163,6 +171,13 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     inspectedPlugin: plugins?.find((plugin) => plugin.id === inspectedPluginId) ?? null,
     onInspectPlugin: setInspectedPluginId,
     onCloseInspector: () => setInspectedPluginId(null),
+    pendingRemovePlugin: plugins?.find((plugin) => plugin.id === pendingRemoveId) ?? null,
+    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
+    onConfirmRemove: (plugin: AdminPlugin) => {
+      setPendingRemoveId(null);
+      void onRemovePlugin(plugin);
+    },
+    onCancelRemove: () => setPendingRemoveId(null),
     t,
     locale,
   };

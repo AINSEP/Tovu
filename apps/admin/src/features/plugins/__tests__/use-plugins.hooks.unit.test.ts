@@ -85,6 +85,39 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   });
 });
 
+describe("usePlugins — the Remove confirm dialog's target", () => {
+  it("onRequestRemove opens it for that row; onCancelRemove closes it without removing anything", async () => {
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: true, quarantine: null, errors: [] }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    expect(result.current.pendingRemovePlugin).toBeNull();
+
+    act(() => result.current.onRequestRemove(result.current.plugins![0]!));
+    expect(result.current.pendingRemovePlugin?.id).toBe("p1");
+
+    act(() => result.current.onCancelRemove());
+    expect(result.current.pendingRemovePlugin).toBeNull();
+    expect(result.current.plugins).toHaveLength(1);
+  });
+
+  it("onConfirmRemove closes it, then removes the plugin and re-fetches", async () => {
+    // `enabled: false`: the fake port enforces the real route's PLUGIN_ENABLED refusal.
+    const port = createFakePluginsPort({
+      plugins: [{ id: "p1", name: "Valid Site Plugin", version: "1.0.0", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] }],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    act(() => result.current.onRequestRemove(result.current.plugins![0]!));
+
+    act(() => result.current.onConfirmRemove(result.current.pendingRemovePlugin!));
+    expect(result.current.pendingRemovePlugin).toBeNull();
+    await waitFor(() => expect(result.current.plugins).toHaveLength(0));
+    expect(result.current.rowError).toBeNull();
+  });
+});
+
 describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
   it("removes the plugin via the injected port and re-fetches the list", async () => {
     const port = createFakePluginsPort({

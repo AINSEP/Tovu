@@ -1,4 +1,4 @@
-import { useState } from "react";
+import type { ComponentType } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -182,27 +182,117 @@ function DownloadedPluginRows({
   );
 }
 
+/** Every tab panel's inputs — one shape, so {@link PLUGINS_TAB_PANELS} can pick a panel by tab id. */
+interface PluginsTabPanelProps {
+  plugins: AdminPlugin[];
+  controller: PluginsController;
+  rowHandleById: Map<string, string>;
+}
+
+/** The Downloaded tab's built-in note — a built-in row's disabled Remove points at it. */
+const PLUGINS_REMOVE_NOTE_ID = "plugins-remove-unavailable-note";
+
+/** Installed: the enabled rows, or an honest empty note when none are. */
+function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
+  const { t } = controller;
+  const installedPlugins = filterInstalledPlugins(plugins) ?? [];
+  if (installedPlugins.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>{t("No plugins are enabled for this site.")}</p>
+          <p className="page-description">{t("Enabled plugins extend what this site can do.")}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <InstalledPluginRows
+      plugins={installedPlugins}
+      controller={controller}
+      expandedIds={controller.expandedIds}
+      onToggleExpanded={controller.onToggleExpanded}
+      rowHandleById={rowHandleById}
+    />
+  );
+}
+
+/** Downloaded: every plugin, followed by the built-in note — or its own empty state. */
+function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
+  const { t } = controller;
+  if (plugins.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>{t("No plugins installed.")}</p>
+          <p className="page-description">
+            {t(
+              "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.",
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <>
+      <DownloadedPluginRows
+        plugins={plugins}
+        controller={controller}
+        expandedIds={controller.expandedIds}
+        onToggleExpanded={controller.onToggleExpanded}
+        rowHandleById={rowHandleById}
+        removeNoteId={PLUGINS_REMOVE_NOTE_ID}
+        onRequestRemove={controller.onRequestRemove}
+      />
+      <p id={PLUGINS_REMOVE_NOTE_ID} className="page-description">
+        {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
+      </p>
+    </>
+  );
+}
+
+/** Marketplace: a designed empty state — see this file's header for why nothing is listed. */
+function MarketplacePanel({ controller: { t } }: PluginsTabPanelProps) {
+  return (
+    <div className="card">
+      <div className="empty-state" role="note">
+        <p>{t("Nothing to browse yet")}</p>
+        <p className="page-description">
+          {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
+        </p>
+        <p className="page-description">
+          {t("Install a plugin by placing its files in this site's plugin install directory.")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProps>> = {
+  installed: InstalledPanel,
+  downloaded: DownloadedPanel,
+  marketplace: MarketplacePanel,
+};
+
+/** `TabBar`'s `onChange`: the active tab lives in the URL (`?tab=`), so switching is a navigation. */
+function navigateToPluginsTab(nextTabId: string) {
+  navigate(`/plugins?tab=${nextTabId}`, { replace: true });
+}
+
 export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
   const controller = usePluginsHook();
-  const { plugins, error, rowError, t, expandedIds, onToggleExpanded } = controller;
-  const activeTabId = resolvePluginsTabId(tabId);
-
-  // Which plugin (by id) is waiting on the Remove confirm dialog, or `null` when it's closed. Stays
-  // here rather than moving into `use-plugins.hooks.ts` alongside `expandedIds` — this is
-  // presentation flow ("has the operator confirmed yet"), not a network mutation, the same
-  // reasoning `AgentPlugins.tsx`'s own `pendingDisable` and `ExternalMcpSettingsPanel.tsx`'s
-  // `confirmRemoveId` give for the identical shape of interstitial. An id rather than a plugin
-  // object so the confirmed row is always looked up fresh against the current `plugins`.
-  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
-  const pendingRemovePlugin = plugins?.find((plugin) => plugin.id === pendingRemoveId) ?? null;
-  const removeNoteId = "plugins-remove-unavailable-note";
-
-  function handleTabChange(nextTabId: string) {
-    navigate(`/plugins?tab=${nextTabId}`, { replace: true });
-  }
+  const { plugins, error, t } = controller;
 
   if (error) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
+  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId)} />;
+}
+
+/** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
+ *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
+function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId }) {
+  const { rowError, t, inspectedPlugin, pendingRemovePlugin } = controller;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
@@ -213,9 +303,7 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
     plugins.map((plugin) => plugin.id),
   );
   const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
-
-  const installedPlugins = filterInstalledPlugins(plugins) ?? [];
-  const downloadedPlugins = plugins;
+  const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
 
   const tabs: TabBarTab[] = [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — plugins this site has turned on" },
@@ -240,84 +328,18 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
         </div>
       ) : null}
 
-      <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} containerHandle="plugins-tab-bar" />
+      <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={navigateToPluginsTab} containerHandle="plugins-tab-bar" />
 
-      {activeTabId === "installed" ? (
-        installedPlugins.length === 0 ? (
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("No plugins are enabled for this site.")}</p>
-              <p className="page-description">{t("Enabled plugins extend what this site can do.")}</p>
-            </div>
-          </div>
-        ) : (
-          <InstalledPluginRows
-            plugins={installedPlugins}
-            controller={controller}
-            expandedIds={expandedIds}
-            onToggleExpanded={onToggleExpanded}
-            rowHandleById={rowHandleById}
-          />
-        )
-      ) : null}
+      <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} />
 
-      {activeTabId === "downloaded" ? (
-        downloadedPlugins.length === 0 ? (
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("No plugins installed.")}</p>
-              <p className="page-description">
-                {t(
-                  "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.",
-                )}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <DownloadedPluginRows
-              plugins={downloadedPlugins}
-              controller={controller}
-              expandedIds={expandedIds}
-              onToggleExpanded={onToggleExpanded}
-              rowHandleById={rowHandleById}
-              removeNoteId={removeNoteId}
-              onRequestRemove={(plugin) => setPendingRemoveId(plugin.id)}
-            />
-            <p id={removeNoteId} className="page-description">
-              {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
-            </p>
-          </>
-        )
-      ) : null}
-
-      {activeTabId === "marketplace" ? (
-        <div className="card">
-          <div className="empty-state" role="note">
-            <p>{t("Nothing to browse yet")}</p>
-            <p className="page-description">
-              {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
-            </p>
-            <p className="page-description">
-              {t("Install a plugin by placing its files in this site's plugin install directory.")}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {controller.inspectedPlugin ? (
-        <PluginPackageFilesModal plugin={controller.inspectedPlugin} onClose={controller.onCloseInspector} />
-      ) : null}
+      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 
       {pendingRemovePlugin ? (
         <PluginRemoveConfirmDialog
           name={pendingRemovePlugin.name}
           agentHandleBase={rowHandleById.get(pendingRemovePlugin.id)!}
-          onConfirm={() => {
-            setPendingRemoveId(null);
-            void controller.onRemovePlugin(pendingRemovePlugin);
-          }}
-          onCancel={() => setPendingRemoveId(null)}
+          onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
+          onCancel={controller.onCancelRemove}
           t={t}
         />
       ) : null}

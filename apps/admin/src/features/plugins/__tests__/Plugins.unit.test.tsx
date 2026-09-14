@@ -476,6 +476,69 @@ describe("?tab= deep-linking (ADR-063's shared idiom, same as Security.tsx/Datab
   });
 });
 
+describe("each tab renders only its own panel (characterization)", () => {
+  it("Marketplace shows its designed empty state, with no plugin rows and no other tab's copy", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="marketplace" />);
+
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("Nothing to browse yet");
+    expect(note).toHaveTextContent("Install a plugin by placing its files in this site's plugin install directory.");
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Built-in plugins ship with Tovu itself/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no plugins are enabled for this site/i)).not.toBeInTheDocument();
+  });
+
+  it("Installed shows neither Downloaded's built-in note nor Marketplace's empty state", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins />);
+
+    await screen.findByRole("listitem", { name: "Word Count" });
+    expect(screen.queryByText(/Built-in plugins ship with Tovu itself/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing to browse yet")).not.toBeInTheDocument();
+  });
+
+  it("Downloaded's built-in note accompanies only a non-empty list", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ plugins: [] }));
+    render(<Plugins tabId="downloaded" />);
+
+    expect(await screen.findByText(/no plugins installed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Built-in plugins ship with Tovu itself/)).not.toBeInTheDocument();
+  });
+});
+
+describe("package-files viewer: a row's eye button opens it (characterization)", () => {
+  it("opens the viewer named for the plugin, selects another file, and closes", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE)).mockResolvedValueOnce(
+      jsonResponse({
+        pluginId: "word-count",
+        source: "built-in",
+        files: [
+          { relativePath: "tovu.plugin.json", sizeBytes: 2, content: "{}", omitted: null },
+          { relativePath: "index.mjs", sizeBytes: 18, content: "export default {};", omitted: null },
+        ],
+        truncated: false,
+        limits: { maxFiles: 200, maxEntries: 2000, maxFileBytes: 524288, maxTotalBytes: 4194304 },
+      }),
+    );
+    render(<Plugins />);
+
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(within(row).getByRole("button", { name: "Inspect package files — Word Count" }));
+
+    const dialog = await screen.findByRole("dialog", { name: /Word Count package files/ });
+    expect(String(fetchMock.mock.calls[1]![0])).toContain("/plugins/word-count/files");
+    const nav = await within(dialog).findByRole("navigation", { name: "Package files" });
+    await user.click(within(nav).getByRole("button", { name: "index.mjs" }));
+    expect(within(dialog).getByRole("heading", { name: "index.mjs" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: /close/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
 describe("Accessibility (React Component Testing Policy)", () => {
   it("the plugin list renders as a semantic list with an accessible toggle button per row", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
