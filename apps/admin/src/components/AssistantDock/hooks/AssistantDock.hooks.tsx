@@ -281,6 +281,7 @@ export function useExecutionConfig(): UseExecutionConfig {
       void saveExecutionConfig(next, previous)
         .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
         .catch((error: unknown) => {
+          if (isAbortError(error)) return;
           console.error("[AssistantDock] failed to save execution mode", error);
         });
       return next;
@@ -418,6 +419,7 @@ export function useByokRuntime(
         void saveExecutionConfig(next, previous)
           .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
           .catch((error: unknown) => {
+            if (isAbortError(error)) return;
             console.error("[AssistantDock] failed to save BYOK model", error);
           });
         return next;
@@ -557,6 +559,7 @@ export function useLocalCliSelection(
       void saveExecutionConfig(next, previous)
         .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
         .catch((error: unknown) => {
+          if (isAbortError(error)) return;
           console.error("[AssistantDock] failed to save Local CLI selection", error);
         });
       return next;

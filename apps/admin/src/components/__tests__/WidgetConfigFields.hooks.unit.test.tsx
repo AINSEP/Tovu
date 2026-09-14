@@ -42,6 +42,29 @@ describe("useFetchedOptions", () => {
     await waitFor(() => expect(result.current.error).toBe("failed to load menus"));
   });
 
+  it("swallows an AbortError from a page-unload cancellation instead of surfacing it as a load error", async () => {
+    // `lib/api.ts` rejects an in-flight request with an AbortError when the document is unloading
+    // (`lib/page-lifecycle.ts`). Left unguarded, this hook would set `error` to that cancellation's
+    // own message — invisible during the unload itself, but restorable, stale, if the page comes
+    // back from the back/forward cache with this dialog still mounted.
+    //
+    // The same rejected promise instance is returned to both the hook and this test, so awaiting
+    // it here (after the hook's own `.catch` was already attached during mount) proves the hook's
+    // handler has also run — there is no state transition to `waitFor` when the outcome is "stays
+    // null", so settling on the shared promise is what makes this deterministic rather than racy.
+    const rejection = new DOMException("request cancelled: the page is unloading", "AbortError");
+    const pending = Promise.reject(rejection);
+    const fetchList = vi.fn().mockReturnValue(pending);
+    const { result } = renderHook(() => useFetchedOptions(fetchList, "fallback"));
+
+    await act(async () => {
+      await pending.catch(() => {});
+    });
+
+    expect(result.current.items).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
   it("fetches exactly once per mount, not once per render", async () => {
     const fetchList = vi.fn().mockResolvedValue([]);
     const { result, rerender } = renderHook(() => useFetchedOptions(fetchList, "fallback"));

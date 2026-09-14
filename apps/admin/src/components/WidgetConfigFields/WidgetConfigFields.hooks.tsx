@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { isAbortError } from "../../lib/retry-unreachable";
+
 /**
  * @file `WidgetConfigFields.tsx`'s data-fetching state, split out per the `@jini-ai/admin`
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`ConfirmDialog.tsx`/`ConfirmDialog.hooks.tsx`
@@ -87,7 +89,13 @@ export function useFetchedOptions<T>(fetchList: () => Promise<T[]>, errorFallbac
   useEffect(() => {
     fetchList()
       .then((result) => setItems(result))
-      .catch((e) => setError(e instanceof Error ? e.message : errorFallback));
+      .catch((e) => {
+        // A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
+        // not a real load failure — surfacing it would leave a stale error in this field if the
+        // page is later restored from the back/forward cache with the dialog still mounted.
+        if (isAbortError(e)) return;
+        setError(e instanceof Error ? e.message : errorFallback);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -137,6 +137,25 @@ describe("useAsyncAction — setError", () => {
   });
 });
 
+describe("useAsyncAction — run, page-unload cancellation", () => {
+  it("swallows an AbortError from the request itself — a page-unload cancellation, not a real mutation failure — leaving no error and no stuck busy state", async () => {
+    const { result } = renderHook(() => useAsyncAction());
+
+    await act(async () => {
+      await result.current.run(
+        () => Promise.reject(new DOMException("request cancelled: the page is unloading", "AbortError")),
+        () => "should never be shown",
+      );
+    });
+
+    // If this surfaced, it would be a mutation error banner set while the document was unloading —
+    // invisible then, but restorable (with the rest of the frozen page) via the back/forward cache,
+    // which is exactly what makes it worth swallowing here rather than trusting it to stay unseen.
+    expect(result.current.error).toBeNull();
+    expect(result.current.saving).toBe(false);
+  });
+});
+
 describe("useAsyncAction — concurrent calls are independent per hook instance", () => {
   it("two separate useAsyncAction() instances never share saving/error state", async () => {
     const a = renderHook(() => useAsyncAction());

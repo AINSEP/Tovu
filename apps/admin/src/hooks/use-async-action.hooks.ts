@@ -1,5 +1,7 @@
 import { type Dispatch, type SetStateAction, useState } from "react";
 
+import { isAbortError } from "../lib/retry-unreachable";
+
 /**
  * @file `useAsyncAction` — collapses the `[saving, setSaving]` / `[error, setError]` pair that
  * shows up around nearly every mutation handler in this app's higher-state screens: `setXSaving
@@ -91,6 +93,11 @@ export function useAsyncAction(): AsyncActionState {
     try {
       await action();
     } catch (e) {
+      // A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
+      // not a real mutation failure — showing it would set an error banner during unload that is
+      // invisible then but reappears, stale, if the page is restored from the back/forward cache.
+      // `finally` below still flips `saving` back off, so a restored page shows idle, not stuck.
+      if (isAbortError(e)) return;
       setError(describeError(e));
     } finally {
       setSaving(false);
