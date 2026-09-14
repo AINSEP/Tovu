@@ -122,6 +122,7 @@ const EXPECTED_ALLOWLIST = [
   "external_mcp_reauth_prompt",
   "external_mcp_save",
   "media_trash_asset",
+  "plugins_set_enabled",
   "redirects_tombstone",
   "source_control_execute_commit",
   "supabase_set_access_token",
