@@ -37,7 +37,8 @@ import type { ClockPort, EventBusPort, ISODateTime, OutboxPort, OutboxRecord } f
  * policy-split WARNING. `processOutbox` below computes `nextStatus` from `row.attempts` (the exact
  * same signal the adapters used to read for themselves) and activates the `"failed"` status
  * already declared on `OutboxRecord` (previously dead code — `markFailed` always wrote `"pending"`)
- * as the terminal, poison-marked state: `claimPending` only ever selects `status = "pending"` rows,
+ * as the terminal, poison-marked state: `claimPending` only ever selects `"pending"` rows and
+ * `"processing"` rows whose claim lease has expired (2026-09-14, see `DEFAULT_OUTBOX_CLAIM_LEASE_MS`),
  * so a `"failed"` row is permanently excluded from retry regardless of `nextAttemptAt`.
  * `MAX_OUTBOX_ATTEMPTS` is exported from this module (and re-exported via `./index.js`) so this is
  * the one place the cap is defined.
@@ -45,6 +46,17 @@ import type { ClockPort, EventBusPort, ISODateTime, OutboxPort, OutboxRecord } f
 
 /** Capped delivery attempts before an outbox row is permanently excluded from retry (`"failed"`). */
 export const MAX_OUTBOX_ATTEMPTS = 6;
+
+/**
+ * How long a claim holds a row before another drain may claim it again (2026-09-14).
+ *
+ * A claimer that dies between `claimPending` and `markDelivered`/`markFailed` (a crash, a tsx-watch
+ * reload) used to leave its rows `"processing"` forever. Adapters now store the lease expiry in the
+ * row's `nextAttemptAt` and treat an expired `"processing"` row as claimable, so delivery is
+ * at-least-once. The lease must outlast the slowest full batch a live claimer can take; otherwise a
+ * second drain takes over a row that is still being delivered, and it is delivered twice.
+ */
+export const DEFAULT_OUTBOX_CLAIM_LEASE_MS = 30 * 60 * 1000; // 30 minutes
 
 /** Backoff base: the first retry after a failure waits (before jitter) around this long. */
 const BASE_BACKOFF_MS = 30 * 1000; // 30 seconds
@@ -83,7 +95,8 @@ function addMsToIso(iso: ISODateTime, ms: number): ISODateTime {
 /**
  * Claims due outbox rows and attempts to publish each to the event bus, marking delivered on
  * success or scheduling a backed-off retry (or permanent exclusion past `MAX_OUTBOX_ATTEMPTS`,
- * see this file's header doc) on failure.
+ * see this file's header doc) on failure. See {@link deliverClaimedRow} for a row claimed more
+ * than `MAX_OUTBOX_ATTEMPTS` times.
  *
  * @complexity O(batchSize) publish attempts, each O(subscribed handlers for the event's name).
  */
@@ -91,31 +104,54 @@ export async function processOutbox(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
   optional: { batchSize?: number; random?: () => number } = {}
 ): Promise<number> {
-  const { outbox, bus, clock } = required;
   const { batchSize = 20, random } = optional;
-  const now = clock.nowIso();
-  const rows = await outbox.claimPending(batchSize, now);
+  const rows = await required.outbox.claimPending(batchSize, required.clock.nowIso());
 
   for (const row of rows) {
-    try {
-      await bus.publish(row.event);
-      await outbox.markDelivered(row.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown outbox error";
-      const nextStatus: Extract<OutboxRecord["status"], "pending" | "failed"> =
-        row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
-      // Anchored to the clock read HERE, not to the batch's own `now` above (2026-09-07 audit,
-      // claim #6). `now` is the instant `claimPending` was called; every row after the first is
-      // marked some time later, so a batch that takes longer to reach this row than the backoff it
-      // computes would schedule a retry already in the past — the row is then re-claimed on the
-      // very next tick with no backoff at all, precisely when a slow, failing handler is the reason
-      // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
-      // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
-      // because the correct anchor costs one clock read, not because it was observed in the wild.
-      const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random }));
-      await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
-    }
+    await deliverClaimedRow({ ...required, row }, { random });
   }
 
   return rows.length;
+}
+
+/**
+ * Publishes one claimed row and records its outcome.
+ *
+ * A row whose `attempts` already exceeds `MAX_OUTBOX_ATTEMPTS` is sealed as `"failed"` without being
+ * published (2026-09-14). A failed attempt at the cap seals the row, so the only way past the cap is
+ * a claim that expired with no recorded outcome: its claimer died mid-delivery, possibly because a
+ * handler crashed the process. Publishing it again could repeat that crash on every lease expiry.
+ *
+ * @complexity O(subscribed handlers for the event's name).
+ */
+async function deliverClaimedRow(
+  required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort; row: OutboxRecord },
+  optional: { random?: () => number }
+): Promise<void> {
+  const { outbox, bus, clock, row } = required;
+  const { random } = optional;
+  if (row.attempts > MAX_OUTBOX_ATTEMPTS) {
+    const reason = `claimed ${row.attempts} times; the last claim expired with no recorded outcome (its claimer likely died mid-delivery)`;
+    await outbox.markFailed(row.id, reason, clock.nowIso(), "failed");
+    return;
+  }
+
+  try {
+    await bus.publish(row.event);
+    await outbox.markDelivered(row.id);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown outbox error";
+    const nextStatus: Extract<OutboxRecord["status"], "pending" | "failed"> =
+      row.attempts >= MAX_OUTBOX_ATTEMPTS ? "failed" : "pending";
+    // Anchored to the clock read HERE, not to the batch's claim instant in `processOutbox` (2026-09-07
+    // audit, claim #6). The claim instant is when `claimPending` was called; every row after the first
+    // is marked some time later, so a batch that takes longer to reach this row than the backoff it
+    // computes would schedule a retry already in the past — the row is then re-claimed on the
+    // very next tick with no backoff at all, precisely when a slow, failing handler is the reason
+    // backoff exists. The floor is 15s (`computeOutboxBackoffMs` at `attempts = 1`, `random = 0`)
+    // and the bus is in-process, so this needs a pathologically slow handler to bite; it is fixed
+    // because the correct anchor costs one clock read, not because it was observed in the wild.
+    const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random }));
+    await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
+  }
 }

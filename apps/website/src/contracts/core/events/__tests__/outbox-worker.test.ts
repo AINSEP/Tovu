@@ -246,3 +246,50 @@ test("processOutbox schedules the retry from the failure instant — a slow batc
   const dueAfterBackoff = await outbox.claimPending(10, "2026-02-21T13:01:00.000Z");
   assert.equal(dueAfterBackoff.length, 1, "and it must become due once the backoff measured from the failure elapses");
 });
+
+// ---------------------------------------------------------------------------
+// 2026-09-14 — an expired claim lease makes a `processing` row claimable again. A row whose
+// claimer keeps dying (a handler that crashes the process, say) must not be reclaimed forever: past
+// MAX_OUTBOX_ATTEMPTS claims it is sealed as "failed" without running its handlers again.
+// ---------------------------------------------------------------------------
+
+test("processOutbox seals a row claimed past MAX_OUTBOX_ATTEMPTS with no recorded outcome, without publishing it", async () => {
+  const leaseMs = 60_000;
+  const outbox = new InMemoryOutbox({ claimLeaseMs: leaseMs });
+  const startIso = "2026-02-21T00:00:00.000Z";
+  await outbox.enqueue({ id: "evt-crasher", name: "crash.event", occurredAt: startIso, workspaceId: "workspace-1", payload: {} });
+
+  // MAX_OUTBOX_ATTEMPTS claimers each die mid-delivery: every claim expires without an outcome.
+  let nowMs = Date.parse(startIso);
+  for (let claim = 1; claim <= MAX_OUTBOX_ATTEMPTS; claim++) {
+    const [row] = await outbox.claimPending(10, new Date(nowMs).toISOString());
+    assert.equal(row?.attempts, claim, `claim #${claim} must reclaim the stranded row`);
+    nowMs += leaseMs;
+  }
+
+  let published = 0;
+  const bus = new InMemoryEventBus();
+  await bus.subscribe("crash.event", async () => {
+    published += 1;
+  });
+  const failures: Array<[string, string, string, string]> = [];
+  const recordingOutbox = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: outbox.markDelivered.bind(outbox),
+    markFailed: async (id: string, error: string, nextAttemptAt: string, nextStatus: "pending" | "failed") => {
+      failures.push([id, error, nextAttemptAt, nextStatus]);
+      return outbox.markFailed(id, error, nextAttemptAt, nextStatus);
+    },
+  };
+  const sealIso = new Date(nowMs).toISOString();
+
+  const processed = await processOutbox({ outbox: recordingOutbox, bus, clock: { nowIso: () => sealIso } });
+
+  assert.equal(processed, 1);
+  assert.equal(published, 0, "a row that already had its full attempt budget must not run its handlers again");
+  assert.deepEqual(failures, [
+    ["evt-crasher", `claimed ${MAX_OUTBOX_ATTEMPTS + 1} times; the last claim expired with no recorded outcome (its claimer likely died mid-delivery)`, sealIso, "failed"],
+  ]);
+  assert.equal((await outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).length, 0);
+});

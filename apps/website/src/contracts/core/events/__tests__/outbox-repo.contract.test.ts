@@ -25,7 +25,9 @@ function makeEvent(overrides: Partial<DomainEvent> = {}): DomainEvent {
   };
 }
 
-function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
+type OutboxOptions = { claimLeaseMs?: number };
+
+function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) => OutboxPort) {
   test(`[${label}] enqueue() then claimPending() returns the event as pending->processing`, async () => {
     const outbox = makeOutbox();
     await outbox.enqueue(makeEvent());
@@ -132,8 +134,54 @@ function runContractSuite(label: string, makeOutbox: () => OutboxPort) {
     const final = await outbox.claimPending(10, "2099-01-01T00:00:00.000Z");
     assert.equal(final.length, 0, "adapter must honor an early terminal decision from the caller, not recompute it");
   });
+
+  // 2026-09-14: a claimer that dies between claimPending and markDelivered/markFailed used to leave
+  // the row `processing` forever. A claim is now a lease; once it expires the row is claimable again.
+  test(`[${label}] a row left in processing is claimed again once its claim lease has expired`, async () => {
+    const outbox = makeOutbox({ claimLeaseMs: 60_000 });
+    await outbox.enqueue(makeEvent());
+    const [first] = await outbox.claimPending(10, "2026-07-16T00:00:01.000Z");
+    assert.equal(first.attempts, 1);
+    // The claimer dies here: neither markDelivered nor markFailed ever runs.
+
+    const insideLease = await outbox.claimPending(10, "2026-07-16T00:01:00.999Z");
+    assert.equal(insideLease.length, 0, "a live claim must not be taken over before its lease ends");
+
+    const afterLease = await outbox.claimPending(10, "2026-07-16T00:01:01.000Z");
+    assert.deepEqual(
+      afterLease.map((row) => [row.id, row.status, row.attempts]),
+      [["evt-1", "processing", 2]]
+    );
+  });
+
+  test(`[${label}] a reclaimed row holds a fresh lease, so no third claimer takes it back straight away`, async () => {
+    const outbox = makeOutbox({ claimLeaseMs: 60_000 });
+    await outbox.enqueue(makeEvent());
+    await outbox.claimPending(10, "2026-07-16T00:00:01.000Z");
+
+    const reclaimed = await outbox.claimPending(10, "2026-07-16T00:01:01.000Z");
+    assert.equal(reclaimed.length, 1);
+
+    const insideNewLease = await outbox.claimPending(10, "2026-07-16T00:02:00.999Z");
+    assert.equal(insideNewLease.length, 0, "the reclaim must start a new lease, not reuse the expired one");
+
+    const afterNewLease = await outbox.claimPending(10, "2026-07-16T00:02:01.000Z");
+    assert.deepEqual(afterNewLease.map((row) => row.attempts), [3]);
+  });
+
+  test(`[${label}] a delivered or terminally failed row is never reclaimed, however old its claim`, async () => {
+    const outbox = makeOutbox({ claimLeaseMs: 60_000 });
+    await outbox.enqueue(makeEvent({ id: "evt-delivered" }));
+    await outbox.enqueue(makeEvent({ id: "evt-dead" }));
+    await outbox.claimPending(10, "2026-07-16T00:00:01.000Z");
+    await outbox.markDelivered("evt-delivered");
+    await outbox.markFailed("evt-dead", "poison", "2026-07-16T00:00:02.000Z", "failed");
+
+    const later = await outbox.claimPending(10, "2099-01-01T00:00:00.000Z");
+    assert.equal(later.length, 0);
+  });
 }
 
-runContractSuite("memory", () => new InMemoryOutbox());
+runContractSuite("memory", (options) => new InMemoryOutbox(options));
 
-runContractSuite("sqlite", () => new SqliteOutboxAdapter(openContentDb(":memory:")));
+runContractSuite("sqlite", (options) => new SqliteOutboxAdapter(openContentDb(":memory:"), options));

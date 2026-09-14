@@ -23,7 +23,8 @@ import { processOutbox } from "./outbox-worker.js";
  *   reschedules only its own row, so the rows behind it keep flowing. A drain that throws (e.g. a
  *   locked database) goes to `onError` and the loop carries on.
  * - Inline route drains stay safe beside it: `claimPending` is atomic, so whichever drain claims a
- *   row delivers it, once.
+ *   row delivers it. A claim is a lease (`DEFAULT_OUTBOX_CLAIM_LEASE_MS`): if its claimer dies or
+ *   outlives the lease, another drain claims the row again, so delivery is at-least-once.
  * - The timer is `unref`'d, so the drainer never keeps a process alive by itself.
  */
 

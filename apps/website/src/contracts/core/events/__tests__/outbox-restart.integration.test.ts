@@ -7,6 +7,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
+import { InMemoryEventBus, processOutbox } from "../index.js";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Outbox row: "Crash/restart tests
@@ -97,6 +98,40 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
     assert.equal(claimed.length, 1);
     assert.equal(claimed[0].id, "evt-cochangeset-1");
     assert.equal(claimed[0].event.name, "change-set.applied");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("SqliteOutboxAdapter: a row stranded in processing by a process that died mid-drain is delivered by the next process once the claim lease expires (2026-09-14)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-outbox-stranded-restart-test-"));
+  const dbPath = join(dir, "content.db");
+  try {
+    // "First process": claims the row, then dies before its handler finishes, so neither
+    // markDelivered nor markFailed ever runs (a tsx-watch reload or a crash does exactly this).
+    const outbox1 = new SqliteOutboxAdapter(openContentDb(dbPath), { claimLeaseMs: 60_000 });
+    await outbox1.enqueue({
+      id: "evt-stranded-1",
+      name: "entry.updated",
+      occurredAt: "2026-07-16T00:00:00.000Z",
+      workspaceId: "workspace-restart-test",
+      payload: { entryId: "post-1" },
+    });
+    assert.equal((await outbox1.claimPending(20, "2026-07-16T00:00:01.000Z")).length, 1);
+
+    // "Next process": fresh handles on the same file, a bus carrying the real subscriber, and a
+    // drain that runs after the dead process's claim lease has run out.
+    const outbox2 = new SqliteOutboxAdapter(openContentDb(dbPath), { claimLeaseMs: 60_000 });
+    const bus = new InMemoryEventBus();
+    const received: string[] = [];
+    await bus.subscribe("entry.updated", async (event) => {
+      received.push(event.id);
+    });
+
+    const processed = await processOutbox({ outbox: outbox2, bus, clock: { nowIso: () => "2026-07-16T00:01:01.000Z" } });
+
+    assert.deepEqual({ processed, received }, { processed: 1, received: ["evt-stranded-1"] });
+    assert.equal((await outbox2.claimPending(20, "2099-01-01T00:00:00.000Z")).length, 0, "once delivered it must stay delivered");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

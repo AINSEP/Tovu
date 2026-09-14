@@ -1,5 +1,7 @@
 import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "./outbox-worker.js";
+
 /**
  * @file In-memory implementations of the event bus and outbox contracts.
  *
@@ -69,6 +71,11 @@ export class InMemoryEventBus implements EventBusPort {
   }
 }
 
+/** A row is claimable when it is due and was either never claimed or is held by an expired claim lease. */
+function isClaimable(row: OutboxRecord, nowIso: string): boolean {
+  return (row.status === "pending" || row.status === "processing") && row.nextAttemptAt <= nowIso;
+}
+
 /**
  * In-memory outbox implementation.
  *
@@ -77,6 +84,13 @@ export class InMemoryEventBus implements EventBusPort {
 export class InMemoryOutbox implements OutboxPort {
   /** Internal mutable storage for outbox rows. */
   private records: OutboxRecord[] = [];
+  /** How long a claim holds a row before it may be claimed again. */
+  private readonly claimLeaseMs: number;
+
+  /** @param optional.claimLeaseMs claim lease length (default {@link DEFAULT_OUTBOX_CLAIM_LEASE_MS}). */
+  constructor(optional: { claimLeaseMs?: number } = {}) {
+    this.claimLeaseMs = optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS;
+  }
 
   /** Enqueue a domain event as a pending outbox row, preserving the full envelope. */
   async enqueue(event: DomainEvent): Promise<void> {
@@ -91,20 +105,25 @@ export class InMemoryOutbox implements OutboxPort {
   }
 
   /**
-   * Claim up to `batchSize` pending rows eligible at `nowIso`.
-   * Claimed rows are immediately marked as `processing`.
+   * Claim up to `batchSize` rows due at `nowIso`: `"pending"` rows, and `"processing"` rows whose
+   * claim lease has expired (2026-09-14: their claimer died before recording an outcome). Each claimed
+   * row is marked `processing`, its `attempts` incremented and its stored `nextAttemptAt` set to the
+   * new lease expiry. The returned records are copies that keep the due time they were claimed at,
+   * the same shape `SqliteOutboxAdapter.claimPending` returns.
+   *
+   * @complexity O(stored rows) per claim.
    */
   async claimPending(batchSize: number, nowIso: string): Promise<OutboxRecord[]> {
-    const pending = this.records
-      .filter((r) => r.status === "pending" && r.nextAttemptAt <= nowIso)
-      .slice(0, batchSize);
+    const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
+    const due = this.records.filter((row) => isClaimable(row, nowIso)).slice(0, batchSize);
 
-    for (const row of pending) {
+    return due.map((row) => {
+      const claimed: OutboxRecord = { ...row, status: "processing", attempts: row.attempts + 1 };
       row.status = "processing";
-      row.attempts += 1;
-    }
-
-    return pending;
+      row.attempts = claimed.attempts;
+      row.nextAttemptAt = leaseExpiresAt;
+      return claimed;
+    });
   }
 
   /** Mark a claimed row as delivered. */

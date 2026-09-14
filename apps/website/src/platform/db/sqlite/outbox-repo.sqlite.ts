@@ -1,7 +1,8 @@
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, lte } from "drizzle-orm";
 
 import { outboxEvents } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
 
 /**
@@ -22,6 +23,11 @@ import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@
  * "claim rows atomically" requirement) — two concurrent claims can never both walk away with the
  * same row.
  *
+ * A claim is a lease (2026-09-14). The claim stores its expiry in `next_attempt_at`, and a
+ * `processing` row past that expiry is claimable again, so a process that dies mid-drain no longer
+ * strands its rows forever; delivery is at-least-once. No schema change: the column already exists
+ * and `idx_outbox_events_claim` (status, next_attempt_at) still covers the query.
+ *
  * Architectural role:
  * Infrastructure adapter. `core/events` never imports this file — it depends only on
  * `OutboxPort`; composition roots (`server/deps.ts`) bind the concrete class.
@@ -39,8 +45,22 @@ function toRecord(row: typeof outboxEvents.$inferSelect): OutboxRecord {
   };
 }
 
+/** Statuses `claimPending` may take: never claimed, or claimed under a lease that may have expired. */
+const CLAIMABLE_STATUSES = ["pending", "processing"];
+
 export class SqliteOutboxAdapter implements OutboxPort {
-  constructor(private readonly db: ContentDb) {}
+  private readonly claimLeaseMs: number;
+
+  /**
+   * @param db the content database holding `outbox_events`.
+   * @param optional.claimLeaseMs claim lease length (default {@link DEFAULT_OUTBOX_CLAIM_LEASE_MS}).
+   */
+  constructor(
+    private readonly db: ContentDb,
+    optional: { claimLeaseMs?: number } = {}
+  ) {
+    this.claimLeaseMs = optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS;
+  }
 
   async enqueue(event: DomainEvent): Promise<void> {
     this.db
@@ -57,21 +77,24 @@ export class SqliteOutboxAdapter implements OutboxPort {
       .run();
   }
 
-  /** Selects eligible rows and marks them `processing` in one synchronous transaction — the
-   * select-then-update is never observable as two separate steps to a concurrent claimer. */
+  /** Selects due rows (pending, or processing under an expired claim lease) and marks them
+   * `processing` under a fresh lease in one synchronous transaction — the select-then-update is never
+   * observable as two separate steps to a concurrent claimer. Returned records keep the due time
+   * they were claimed at. */
   async claimPending(batchSize: number, nowIso: ISODateTime): Promise<OutboxRecord[]> {
+    const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
     return this.db.transaction((tx) => {
       const eligible = tx
         .select()
         .from(outboxEvents)
-        .where(and(eq(outboxEvents.status, "pending"), lte(outboxEvents.nextAttemptAt, nowIso)))
+        .where(and(inArray(outboxEvents.status, CLAIMABLE_STATUSES), lte(outboxEvents.nextAttemptAt, nowIso)))
         .orderBy(asc(outboxEvents.nextAttemptAt))
         .limit(batchSize)
         .all();
 
       for (const row of eligible) {
         tx.update(outboxEvents)
-          .set({ status: "processing", attempts: row.attempts + 1 })
+          .set({ status: "processing", attempts: row.attempts + 1, nextAttemptAt: leaseExpiresAt })
           .where(eq(outboxEvents.id, row.id))
           .run();
       }
