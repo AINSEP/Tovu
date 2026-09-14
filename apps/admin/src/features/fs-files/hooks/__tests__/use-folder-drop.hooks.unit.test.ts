@@ -62,6 +62,21 @@ describe("useFolderDrop", () => {
     vi.useRealTimers();
   });
 
+  it("keeps handleDropCapture's identity across re-renders with the default port lookup (no getPort seam)", () => {
+    // `useFolderDropBridge` (AssistantDock.hooks.tsx) re-publishes on every identity change of
+    // `handleDropCapture` and documents that as "effectively once per mount". An inline default
+    // `getPort` broke that: a new `handleDropCapture` on every render.
+    const composerHandle = fakeComposerHandle();
+    const setCustomRoot = vi.fn();
+    const getCustomRoot = vi.fn();
+    const { result, rerender } = renderHook(() => useFolderDrop({ composerHandle }, { setCustomRoot, getCustomRoot }));
+    const first = result.current.handleDropCapture;
+
+    rerender();
+
+    expect(result.current.handleDropCapture).toBe(first);
+  });
+
   it("does nothing when no folder-drop port is available (plain browser tab, EC-05)", () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer } = folderDataTransfer(["/Users/x/site"]);

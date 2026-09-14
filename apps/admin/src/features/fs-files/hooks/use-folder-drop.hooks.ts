@@ -81,6 +81,18 @@ export interface UseFolderDropDeps {
 const DEFAULT_AUTO_DISMISS_MS = 4000;
 
 /**
+ * The real port lookup, used when no `getPort` seam is passed. Module-level on purpose, not an inline
+ * default inside the hook: `handleDropCapture` lists `getPort` as a dependency, so an inline arrow
+ * gave it a new identity on every render, and `useFolderDropBridge` (`AssistantDock.hooks.tsx`)
+ * re-publishes on every identity change. Reads `window.tovuFiles` at call time, same as before.
+ *
+ * @complexity Time/space: O(1).
+ */
+function defaultGetPort(): FolderDropPort | null {
+  return getFolderDropPort(undefined);
+}
+
+/**
  * Classifies a failed `setCustomRoot` call into `errors.spec.md`'s three-way `FolderDropError`
  * reason. The server (`routes/fs-files/custom-root.ts`) answers every `CustomFsRootError` with the
  * SAME `code: "INVALID_PATH"` regardless of which of its three messages fired, so the two validation
@@ -104,7 +116,7 @@ function reasonForCustomRootError(err: unknown): FolderDropErrorReason {
  *   space: O(1) beyond that same per-drop array.
  */
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
-  const getPort = deps.getPort ?? (() => getFolderDropPort(undefined));
+  const getPort = deps.getPort ?? defaultGetPort;
   const setCustomRoot = deps.setCustomRoot ?? api.setFsFilesCustomRoot;
   const getCustomRoot = deps.getCustomRoot ?? api.getFsFilesCustomRoot;
   const autoDismissMs = deps.autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS;

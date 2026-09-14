@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
@@ -537,15 +537,21 @@ export interface UseChatDockLayout {
   /** Ref for `App.tsx`'s `<ChatFab>` button — the programmatic focus target when the dock closes. */
   chatFabRef: React.RefObject<HTMLButtonElement | null>;
   /**
-   * SPEC-053: holds `AssistantDock`'s `useFolderDrop().handleDropCapture` once it mounts, so
-   * `App.tsx`'s `<aside onDropCapture={...}>` (the SAME dock wrapper `chatDockRef` measures) can
-   * forward a raw drop event into it. A plain data ref, not a DOM ref like the two above — nothing
-   * ever attaches it to an element; `AssistantChrome` reads `.current` inside its own
-   * `onDropCapture` handler and `AssistantDock`'s `onFolderDropCaptureReady` prop writes it. Lives
-   * here (not a second, standalone hook) because it is conceptually the same thing `chatDockRef`
-   * already is: a handle onto this one dock's wrapper, owned by the hook that owns the wrapper.
+   * SPEC-053: `App.tsx`'s `<aside onDropCapture={...}>` handler (the SAME dock wrapper `chatDockRef`
+   * measures). Forwards the raw drop event to whatever {@link publishDropCapture} last recorded —
+   * `AssistantDock`'s `useFolderDrop().handleDropCapture` — and does nothing until something has been
+   * published, so a drop before `AssistantDock` mounts falls through to `ChatPane`'s own bubble-phase
+   * attachment handling. Stable identity for the life of the hook.
    */
-  dropCaptureRef: React.RefObject<((event: DragEvent<HTMLElement>) => void) | null>;
+  handleDockDropCapture: (event: DragEvent<HTMLElement>) => void;
+  /**
+   * SPEC-053: `AssistantDock`'s `onFolderDropCaptureReady` — records its folder-drop handler for
+   * {@link handleDockDropCapture} to forward to. Held in a plain data ref inside this hook, not state:
+   * publishing a handler must not re-render anything. Lives here (not a second, standalone hook)
+   * because it is a handle onto this one dock's wrapper, owned by the hook that owns the wrapper —
+   * the same reasoning as `chatDockRef`. Stable identity for the life of the hook.
+   */
+  publishDropCapture: (handler: (event: DragEvent<HTMLElement>) => void) => void;
 }
 
 /**
@@ -566,6 +572,10 @@ export function useChatDockLayout(): UseChatDockLayout {
   const chatDockRef = useRef<HTMLElement | null>(null);
   const chatFabRef = useRef<HTMLButtonElement | null>(null);
   const dropCaptureRef = useRef<((event: DragEvent<HTMLElement>) => void) | null>(null);
+  const handleDockDropCapture = useCallback((event: DragEvent<HTMLElement>) => dropCaptureRef.current?.(event), []);
+  const publishDropCapture = useCallback((handler: (event: DragEvent<HTMLElement>) => void) => {
+    dropCaptureRef.current = handler;
+  }, []);
 
   const [isSheetMode, setIsSheetMode] = useState(() => window.matchMedia("(max-width: 640px)").matches);
   useEffect(() => {
@@ -665,7 +675,8 @@ export function useChatDockLayout(): UseChatDockLayout {
     dockWidthPx,
     chatDockRef,
     chatFabRef,
-    dropCaptureRef,
+    handleDockDropCapture,
+    publishDropCapture,
   };
 }
 

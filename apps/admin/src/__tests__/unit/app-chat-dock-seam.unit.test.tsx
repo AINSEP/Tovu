@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
+import type { DragEvent } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -44,14 +45,17 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-it("renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved", () => {
-  const fakeSession: UseAdminSession = {
+function fakeSession(): UseAdminSession {
+  return {
     user: { id: "u1", username: "admin" },
     checking: false,
     handleLogin: vi.fn(),
     logout: vi.fn(),
   };
-  const fakeChatDock: UseChatDockLayout = {
+}
+
+function fakeChatDock(overrides: Partial<UseChatDockLayout> = {}): UseChatDockLayout {
+  return {
     chatOpen: true,
     setChatOpen: vi.fn(),
     sheetExpanded: false,
@@ -67,10 +71,16 @@ it("renders the assistant dock's open state through a fake useChatDock, with no 
     dockWidthPx: 0,
     chatDockRef: { current: null },
     chatFabRef: { current: null },
-    dropCaptureRef: { current: null },
+    handleDockDropCapture: vi.fn(),
+    publishDropCapture: vi.fn(),
+    ...overrides,
   };
+}
 
-  const { container } = render(<App useSession={() => fakeSession} useChatDock={() => fakeChatDock} />);
+it("renders the assistant dock's open state through a fake useChatDock, with no real ResizeObserver involved", () => {
+  const chatDock = fakeChatDock();
+
+  const { container } = render(<App useSession={fakeSession} useChatDock={() => chatDock} />);
 
   const aside = container.querySelector("aside.admin-chat-dock");
   expect(aside).not.toBeNull();
@@ -81,4 +91,28 @@ it("renders the assistant dock's open state through a fake useChatDock, with no 
   // wiring this test can now see end to end, not just the dock's own open/closed class.
   const fab = container.querySelector(".chat-fab");
   expect(fab).toHaveStyle({ bottom: "444px" }); // sheetHeightPx (424) + FAB_EDGE_MARGIN (20)
+});
+
+// SPEC-053 AC-01 wiring gap (e6-o4, 2026-09-14): nothing proved that a drop on App's dock `<aside>`
+// actually reaches the folder-drop handler. The chain is: `<aside onDropCapture>` ->
+// `useChatDockLayout().handleDockDropCapture` -> whatever `AssistantDock` published through
+// `publishDropCapture` (`useFolderDropBridge`). This test covers App's two hops; the hook's own
+// forwarding is covered in `app-chat-dock-drop-capture.unit.test.tsx`.
+it("a drop on the dock <aside> reaches useChatDock's handleDockDropCapture (capture phase), and AssistantDock publishes its folder-drop handler", async () => {
+  const handleDockDropCapture = vi.fn((event: DragEvent<HTMLElement>) => event.preventDefault());
+  const publishDropCapture = vi.fn();
+  const chatDock = fakeChatDock({ handleDockDropCapture, publishDropCapture });
+
+  const { container } = render(<App useSession={fakeSession} useChatDock={() => chatDock} />);
+  const aside = container.querySelector("aside.admin-chat-dock");
+  expect(aside).not.toBeNull();
+
+  // `fireEvent` returns `dispatchEvent`'s result: `false` once any listener called `preventDefault`
+  // — asserted on the native event rather than via `stopPropagation`, which React's root delegation
+  // makes unobservable from a DOM listener.
+  const notPrevented = fireEvent.drop(aside!);
+
+  expect(handleDockDropCapture).toHaveBeenCalledTimes(1);
+  expect(notPrevented).toBe(false);
+  await waitFor(() => expect(publishDropCapture).toHaveBeenCalledWith(expect.any(Function)));
 });
