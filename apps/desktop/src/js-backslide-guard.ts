@@ -9,13 +9,15 @@
  *
  * ## Why an allowlist of exact paths, not a directory or filename-pattern exemption
  *
- * `src/speech/preload-speech.cjs` is the one file this migration could not convert: Electron's
- * sandboxed preload loader never strips types and rejects ESM (migration plan Phase 0, probe P2),
- * so a `.ts`/`.cts` preload fails to load — the only alternative is a compiled preload in `dist`,
- * which the migration's rule 1 forbids. Naming that file exactly — never "anything under
- * src/speech" or "anything named preload-*" — means a second `.cjs` landing anywhere, including a
- * sibling in the very same directory, still fails the gate instead of riding in on the one
- * exemption this repo has evidence for.
+ * The migration left one JavaScript-family file, `src/speech/preload-speech.cjs`: Electron's
+ * sandboxed preload loader never strips types and rejects ESM (migration plan Phase 0, probe P2), so
+ * a `.ts`/`.cts` preload cannot be loaded directly. That file is now `src/speech/preload-speech.cts`,
+ * compiled by `tsconfig.preload.json` to the gitignored `dist/speech/preload-speech.cjs` the same way
+ * `src/preload/preload.mts` already was (the migration's rule 1 bars a compile step for the MAIN
+ * process, not for a preload). Its allowlist entry is transitional — see `scripts/check-js-backslide.ts`'s
+ * `ALLOWLIST`. Naming a file exactly — never "anything under src/speech" or "anything named
+ * preload-*" — means a second `.cjs` landing anywhere, including a sibling in the very same
+ * directory, still fails the gate instead of riding in on an existing exemption.
  */
 
 /** Extensions this guard treats as JavaScript-family. Deliberately excludes `.jsx`/`.tsx` — the

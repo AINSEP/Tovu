@@ -8,8 +8,13 @@
   //
   // `preload.mts` -> `dist/preload/preload.mjs`: Electron 43 supports a native-ESM preload only in
   // an unsandboxed, context-isolated renderer, which is exactly how `main.ts` creates the sites home
-  // window (and only that window — site-admin windows keep `sandbox: true` and the `.cjs` speech
-  // preload).
+  // window (and only that window — site-admin windows keep `sandbox: true` and the speech preload).
+  //
+  // `speech/preload-speech.cts` -> `dist/speech/preload-speech.cjs`: the site-admin windows'
+  // sandboxed preload. Electron's sandboxed loader runs neither TypeScript nor ESM, so it must be
+  // one self-contained CommonJS file; `.cts` is what makes NodeNext emit that inside this
+  // `"type": "module"` package. Listed by exact path, not a glob, so no other `src/speech` module
+  // (all main-process code) can be pulled into a preload build.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
@@ -24,5 +29,5 @@
     "declaration": false,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/preload/**/*.mts", "src/contracts/**/*.ts"]
+  "include": ["src/preload/**/*.mts", "src/contracts/**/*.ts", "src/speech/preload-speech.cts"]
 }

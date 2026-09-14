@@ -59,9 +59,12 @@ test("main.ts routes will-attach-webview through this policy, with the speech pr
   assert.doesNotMatch(source, /delete webPreferences\.preload/, "deleting the preload is the defect");
 });
 
-test("the preload main.ts hands the guest is the same file the standalone window gets, and it exists", () => {
-  // Same grant, same origin, one file — not a second bridge that could drift from the first.
-  const preloadPath = path.join(__dirname, "speech", "preload-speech.cjs");
-  assert.equal(fs.existsSync(preloadPath), true, `expected the speech preload at ${preloadPath}`);
-  assert.match(fs.readFileSync(preloadPath, "utf8"), /exposeInMainWorld\("tovuVoice"/);
+test("the preload main.ts hands the guest is the same file the standalone window gets, and its source exists", () => {
+  // Same grant, same origin, one file — not a second bridge that could drift from the first. The
+  // `.cts` SOURCE is checked, not the compiled `dist/speech/preload-speech.cjs`: tests run before
+  // any build (`npm run package` runs its gates first), and `preload-speech.test.ts` checks what
+  // this source compiles to.
+  const preloadSourcePath = path.join(__dirname, "speech", "preload-speech.cts");
+  assert.equal(fs.existsSync(preloadSourcePath), true, `expected the speech preload source at ${preloadSourcePath}`);
+  assert.match(fs.readFileSync(preloadSourcePath, "utf8"), /exposeInMainWorld\("tovuVoice"/);
 });

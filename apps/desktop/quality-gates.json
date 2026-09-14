@@ -33,7 +33,7 @@
       "id": "js-backslide",
       "run": "node scripts/check-js-backslide.ts",
       "enabled": true,
-      "_comment": "The TypeScript-only backslide guard (2026-09-12): fails on any .js/.mjs/.cjs file anywhere under apps/desktop, tracked or untracked, outside the one named exception (src/speech/preload-speech.cjs — a sandboxed Electron preload that cannot load TypeScript). See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 5 item 2, and src/js-backslide-guard.ts's header for why the exception is an exact path, not a directory or pattern."
+      "_comment": "The TypeScript-only backslide guard (2026-09-12): fails on any .js/.mjs/.cjs file anywhere under apps/desktop, tracked or untracked, outside the one named exception (src/speech/preload-speech.cjs — transitional: superseded by src/speech/preload-speech.cts, compiled to dist/speech/preload-speech.cjs, and kept only until a desktop app started before that change restarts; see scripts/check-js-backslide.ts's ALLOWLIST). See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 5 item 2, and src/js-backslide-guard.ts's header for why the exception is an exact path, not a directory or pattern."
     }
   ]
 }

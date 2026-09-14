@@ -1,6 +1,6 @@
 /**
  * @file The renderer-side half of the desktop speech feature's seam. `window.tovuVoice` is
- * injected by `apps/desktop/src/speech/preload-speech.cjs` via `contextBridge` — it exists ONLY
+ * injected by `apps/desktop/src/speech/preload-speech.cts` via `contextBridge` — it exists ONLY
  * when this admin app is running inside the Electron desktop shell, never in a plain browser tab.
  * That presence check IS the capability gate: `getVoiceInputPort()` returns `null` outside
  * Electron. A `null` port is reported as `available: false` carrying the
@@ -25,7 +25,7 @@ export interface VoiceInputTranscriptionResult {
   elapsedMs: number;
 }
 
-/** The bridge `preload-speech.cjs` exposes via `contextBridge.exposeInMainWorld("tovuVoice", ...)`. */
+/** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuVoice", ...)`. */
 export interface VoiceInputPort {
   isAvailable(): Promise<VoiceInputAvailability>;
   transcribe(samples: Float32Array | number[], sampleRate: number): Promise<VoiceInputTranscriptionResult>;

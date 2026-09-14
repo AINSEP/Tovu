@@ -1,11 +1,12 @@
 /**
  * @file Wires the {@link TranscriptionPort} (`transcription-port.ts`) to the two IPC channels
- * `preload-speech.cjs`'s renderer-side bridge calls. This is the one module that knows both "there
+ * `preload-speech.cts`'s renderer-side bridge calls. This is the one module that knows both "there
  * is an Electron IPC channel" and "there is a transcription port" — neither
  * `transcription-port.ts` nor `mac-on-device-transcriber.ts` knows Electron exists, and this
  * file has no recognition logic of its own.
  *
- * Wired into `main.ts`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cjs`,
+ * Wired into `main.ts`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cts`'s
+ * compiled output (`dist/speech/preload-speech.cjs`),
  * and `app.whenReady()` calls {@link registerSpeechIpc} once, before either boot-mode branch opens
  * a window — see `main.ts`'s own `SPEECH_PRELOAD_PATH` doc.
  */
@@ -17,9 +18,9 @@ import type { TranscriptionPort } from "./transcription-port.ts";
 import { createMacOnDeviceTranscriptionPort } from "./mac-on-device-transcriber.ts";
 import { encodeMonoWav } from "./pcm-wav-encoder.ts";
 
-/** Renderer asks "can I show the mic button at all" — see `preload-speech.cjs`. */
+/** Renderer asks "can I show the mic button at all" — see `preload-speech.cts`. */
 const IPC_CHANNEL_IS_AVAILABLE = "tovu:speech:isAvailable";
-/** Renderer hands over one completed recording's raw samples — see `preload-speech.cjs`. */
+/** Renderer hands over one completed recording's raw samples — see `preload-speech.cts`. */
 const IPC_CHANNEL_TRANSCRIBE = "tovu:speech:transcribe";
 
 /**

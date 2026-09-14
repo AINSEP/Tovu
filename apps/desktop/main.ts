@@ -185,10 +185,15 @@ if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
 }
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
- *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
+ *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cts`'s and
  *  `speech-ipc.ts`'s own headers for the wiring gap this closes (both were built and tested with
- *  neither this path nor {@link registerSpeechIpc} ever called from here). */
-const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
+ *  neither this path nor {@link registerSpeechIpc} ever called from here).
+ *
+ *  The COMPILED file, not `src/speech/preload-speech.cts` itself: Electron's sandboxed preload loader
+ *  runs neither TypeScript nor ESM, so `npm run build:preload` (`tsconfig.preload.json`) emits it
+ *  here, the same way {@link SITES_PRELOAD_PATH} is built. `npm run desktop` and `npm run package`
+ *  both run that build first. */
+const SPEECH_PRELOAD_PATH = path.join(__dirname, "dist", "speech", "preload-speech.cjs");
 
 /** The built sites home renderer. `npm run build:renderer` produces it; `openSitesHomeWindow` reports its
  *  absence rather than opening a blank window on a source-only checkout. */

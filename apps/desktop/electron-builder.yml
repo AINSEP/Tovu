@@ -4,10 +4,11 @@ directories:
   output: release
   buildResources: build
 
-# Only what the main process actually reads at runtime. `src/**` is NOT optional despite `dist/**`
-# existing: `main.ts` imports its siblings from `./src/*.ts` directly (they are plain ESM, never
-# bundled), `SPEECH_PRELOAD_PATH` points at `src/speech/preload-speech.cjs`, and `APP_ICON_PATH`
-# points at `src/renderer/public/brand/tovu-app-icon.png` — a Vite `publicDir` SOURCE whose copy
+# Only what the main process actually reads at runtime. Both preloads ship from `dist/**`, which
+# `npm run build` produces first: `SITES_PRELOAD_PATH` (`dist/preload/preload.mjs`) and
+# `SPEECH_PRELOAD_PATH` (`dist/speech/preload-speech.cjs`, compiled from `src/speech/preload-speech.cts`).
+# `src/**` is NOT optional despite `dist/**` existing: `main.ts` imports its siblings from
+# `./src/*.ts` directly (they are plain ESM, never bundled), and `APP_ICON_PATH` points at `src/renderer/public/brand/tovu-app-icon.png` — a Vite `publicDir` SOURCE whose copy
 # under `dist/renderer/brand/` is a different file. Shipping `dist/**` alone would leave
 # `applyDockIcon()` silently falling back (`main.ts` swallows that error).
 files:

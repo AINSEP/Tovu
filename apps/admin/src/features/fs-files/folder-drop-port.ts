@@ -1,6 +1,6 @@
 /**
  * @file The renderer-side half of the desktop folder-drop bridge (SPEC-053). `window.tovuFiles` is
- * injected by `apps/desktop/src/speech/preload-speech.cjs` via `contextBridge` — it exists ONLY when
+ * injected by `apps/desktop/src/speech/preload-speech.cts` via `contextBridge` — it exists ONLY when
  * this admin app is running inside the Electron desktop shell (standalone window or the sites-home
  * `<webview>` guest AssistantDock actually renders in), never in a plain browser tab. Mirrors
  * `voice-input-port.ts`'s own shape byte-for-byte: presence of the global IS the capability gate.
@@ -11,7 +11,7 @@
  * cannot, fix browser-only admin).
  */
 
-/** The bridge `preload-speech.cjs` exposes via `contextBridge.exposeInMainWorld("tovuFiles", ...)`. */
+/** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuFiles", ...)`. */
 export interface FolderDropPort {
   /** Electron's synchronous `webUtils.getPathForFile`, passed straight through. Returns `''` for a
    *  `File` it cannot resolve an OS path for (e.g. one synthesized from a `FileSystemEntry` rather

@@ -7,7 +7,7 @@
  * names a `preload` script, and whether `registerSpeechIpc` is required and invoked early enough
  * that the renderer's `isAvailable()` call never races an unregistered channel.
  *
- * Both `speech-ipc.ts` and `preload-speech.cjs` document this exact gap in their own file headers
+ * Both `speech-ipc.ts` and `preload-speech.cts` document this exact gap in their own file headers
  * ("Not wired into main.ts yet") — this is the mic's actual failure mode inside the desktop shell:
  * every primitive (preload bridge, IPC handlers, on-device transcriber) is built and independently
  * tested, but nothing in `main.ts` ever connects them, so `window.tovuVoice` never exists even
@@ -49,18 +49,24 @@ test("createWindow's webPreferences names a preload script", () => {
   assert.match(webPreferencesMatch[0], /preload:\s*\S/, "webPreferences must set a preload path");
 });
 
-test("the preload path (inline or via a named constant) resolves to the speech feature's preload-speech.cjs", () => {
+test("the preload path (inline or via a named constant) resolves to the compiled speech preload, dist/speech/preload-speech.cjs", () => {
   const webPreferencesMatch = source.match(/webPreferences:\s*\{[^}]*preload:\s*([A-Za-z0-9_]+|"[^"]*"|'[^']*')/);
   assert.ok(webPreferencesMatch, "expected a preload value in webPreferences");
   const preloadValue = webPreferencesMatch[1]!; // `!`: the pattern's one capture group is not optional, so a match always sets it.
   // A bare identifier means the path is built from a constant elsewhere in the file (e.g.
-  // `path.join(__dirname, "src", "speech", "preload-speech.cjs")`) — resolve it there instead of
+  // `path.join(__dirname, "dist", "speech", "preload-speech.cjs")`) — resolve it there instead of
   // requiring the literal to be inlined in webPreferences itself.
   const isIdentifier = /^[A-Za-z0-9_]+$/.test(preloadValue) && !preloadValue.startsWith('"') && !preloadValue.startsWith("'");
   // `[1]!` above: a match always sets the non-optional `([^;]+)` group, and the fallback's index 1 is "".
   const target = isIdentifier
     ? (source.match(new RegExp(`const\\s+${preloadValue}\\s*=([^;]+);`)) ?? [, ""])[1]!
     : preloadValue;
-  assert.match(target, /["']speech["']/, "preload path must live under the speech/ directory");
-  assert.match(target, /["']preload-speech\.cjs["']/, "preload path must point at preload-speech.cjs");
+  // `dist/speech/preload-speech.cjs` is what `tsconfig.preload.json` emits for
+  // `src/speech/preload-speech.cts` (`preload-speech.test.ts` asserts that half); pointing at the
+  // `.cts` source, or at the old hand-written `src/speech/preload-speech.cjs`, fails here.
+  assert.match(
+    target,
+    /["']dist["']\s*,\s*["']speech["']\s*,\s*["']preload-speech\.cjs["']/,
+    "preload path must be the compiled dist/speech/preload-speech.cjs",
+  );
 });

@@ -1,10 +1,10 @@
 /**
  * @file Drift guard for the two speech channel literals inlined in `preload.mts`.
  *
- * Mirrors `src/speech/preload-speech.test.ts` exactly — same regex-over-source approach, same
- * source of truth (`speech-ipc.ts`'s own exports), for the same reason: two preloads now expose
- * `window.tovuVoice` (the sandboxed `.cjs` one on site-admin windows, this ESM one on the sites home
- * window), and a channel rename that updated only one of them would leave the mic silently dead on
+ * Mirrors `src/speech/preload-speech.test.ts`'s literal checks — same regex approach, same source
+ * of truth (`speech-ipc.ts`'s own exports), for the same reason: two preloads now expose
+ * `window.tovuVoice` (the sandboxed CommonJS one, `src/speech/preload-speech.cts`, on site-admin
+ * windows, this ESM one on the sites home window), and a channel rename that updated only one of them would leave the mic silently dead on
  * whichever window was missed.
  *
  * Reads the `.mts` SOURCE rather than the compiled `dist/preload/preload.mjs`, so the guard works

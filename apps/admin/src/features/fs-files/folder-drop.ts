@@ -10,7 +10,7 @@
  * already treats as intentionally standalone (see the desktop original's own header: pulled out
  * specifically so it has "zero repo-internal imports"). The desktop preload already sets the
  * precedent for this exact tradeoff — `apps/desktop/src/preload/preload.mts` re-exposes `tovuVoice`
- * itself (byte-for-byte the same surface `preload-speech.cjs` exposes) rather than sharing one preload
+ * itself (byte-for-byte the same surface `preload-speech.cts` exposes) rather than sharing one preload
  * across the two window kinds it serves, for the same "one Electron preload per window, duplicate the
  * small bridge" reason. `folder-drop.test.ts` in `apps/desktop` is the source of truth for this
  * function's behavior; this file and its own test are kept in lockstep with it by hand — there is no
