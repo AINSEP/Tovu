@@ -182,8 +182,14 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           Withheld while `formOpen` (2026-09-13): with Cancel now living next to Create at the
           form's own bottom (see `IntegrationCreateForm`'s doc comment), a second "Cancel" up here
           would be a duplicate control floating over an intro line that no longer has a form of its
-          own to open. */}
-      <div className="integrations-tab-intro">
+          own to open.
+
+          Capped at `form-measure` (2026-09-13, owner: "the intro sentence, the button, and the
+          card all have different widths" — the intro paragraph ran the tab body's full width while
+          the create form and the empty-state card both stop at 42rem, so the three read as three
+          unrelated objects rather than one column). Same measure, same reason `IntegrationCreateForm`
+          and the empty-state `card` below already use it. */}
+      <div className="integrations-tab-intro form-measure">
         <p className="page-description">
           {t("Send webhook notifications to external services when content on this site changes.")}
         </p>
@@ -224,10 +230,17 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           // two sentences around the middle of that whole span instead of around a column a reader
           // could actually see at once. Same cap the create form right above it already uses, so
           // the empty state now reads as that form's own column, just without any webhooks in it.
+          //
+          // Reopened same day (owner: "sure as hell doesn't look fixed"): `page-description` on the
+          // second line was carrying the raw UA `<p>` margin (1em, unscoped — that class only gets
+          // rules under `.page-header`, so a bare use here got nothing) on top of `.empty-state`'s
+          // own flex gap, which is what put visible daylight between the two lines. `empty-state-
+          // title`/`empty-state-hint` below zero that out and give the two lines the hierarchy every
+          // other `.empty-state` on this admin gets for free by only ever having ONE line.
           <div className="card form-measure">
             <div className="empty-state">
-              <p>{t("No webhooks yet.")}</p>
-              <p className="page-description">{t("Add one above to start sending event notifications.")}</p>
+              <p className="empty-state-title">{t("No webhooks yet.")}</p>
+              <p className="empty-state-hint">{t("Add one above to start sending event notifications.")}</p>
             </div>
           </div>
         }

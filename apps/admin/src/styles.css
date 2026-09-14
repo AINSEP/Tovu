@@ -1172,6 +1172,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   gap: var(--space-2); padding: var(--space-8) var(--space-4); color: var(--muted);
   font-size: var(--text-sm); text-align: center;
 }
+/* A second, explanatory line under the state sentence (Webhooks: "No webhooks yet." / "Add one
+   above…") — every OTHER `.empty-state` on this admin (Posts, Media, Collections, Forms) is a
+   single line, so it gets this hierarchy for free from `.empty-state`'s own muted color and never
+   needed these two classes. The two-line case needs them for real, not cosmetic, reasons: without
+   an explicit `margin: 0`, a bare `<p>` keeps the UA default block margin (1em) ON TOP of
+   `.empty-state`'s own flex `gap`, which is what put visible daylight between the two lines here
+   (owner, 2026-09-13, screenshot `30-webhooks-empty-state-still-poor.png`, "float far apart"). Font
+   size matches `.empty-state`'s own `--text-sm` on both — this is emphasis by WEIGHT AND COLOR, not
+   by scale, so a two-line empty state still reads at the same size every single-line one already
+   ships at. */
+.empty-state-title { margin: 0; color: var(--fg); font-weight: 600; }
+.empty-state-hint { margin: 0; color: var(--muted); }
 
 /* Styled native file input — `<input type="file">` cannot be restyled into a fully custom
    control without JS, but the cross-browser `::file-selector-button` pseudo-element lets the
@@ -1702,6 +1714,23 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .media-edit-row .collections-field-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.78rem; color: var(--fg-2); }
 
 /* Integrations (webhook subscriptions + delivery log) */
+/* `.integrations-tab-body` carried no layout rules of its own (a bare `<div>`), so its children —
+   the intro line, the create form, the table/empty-state — stacked with whatever margin each one
+   happened to bring, which for the intro's "Add webhook" button and the empty-state card under it
+   was none: the button sat glued to the card's top edge (owner, 2026-09-13, screenshot
+   `30-webhooks-empty-state-still-poor.png`). `gap: var(--space-6)` is `.page`'s own between-section
+   rhythm (styles.css's `.page` rule, above) — reused rather than invented, so this tab reads at the
+   same rhythm as the page shell it sits under. Flex column, not a stack of individual margins, so a
+   future section added here inherits the same gap for free instead of needing its own margin-top. */
+.integrations-tab-body { display: flex; flex-direction: column; gap: var(--space-6); }
+/* Same owner report, second half ("the intro sentence, the button, and the card all have different
+   widths"): the intro paragraph ran the tab body's full width while the create form and the
+   empty-state card both stop at `form-measure` (42rem) — three different widths reading as three
+   unrelated objects instead of one column. Capping the intro at the same measure (`form-measure`
+   class, applied at the JSX call site) is the fix; this rule only adds the vertical gap between the
+   sentence and the button row, matching `.page`'s tighter `--space-3` used between a heading and
+   its immediate description elsewhere in this file. */
+.integrations-tab-intro { display: flex; flex-direction: column; gap: var(--space-3); }
 .status-sub-active { background: var(--ok-bg); color: var(--ok); }
 .status-sub-paused { background: var(--surface-3); color: var(--muted); }
 .status-sub-disabled { background: var(--danger-bg); color: var(--danger); }
