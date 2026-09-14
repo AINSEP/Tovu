@@ -11,12 +11,12 @@
  * this file. The sites home window cannot use that preload (it needs `tovuRunner` too), so rather than
  * dropping one bridge it re-exposes both, and the mic keeps working inside the ported UI.
  *
- * **The two speech channel names below are INLINED, not imported from `speech-ipc.js`.** That
- * module is main-process code: it pulls in `mac-on-device-transcriber.js` and therefore
+ * **The two speech channel names below are INLINED, not imported from `speech-ipc.ts`.** That
+ * module is main-process code: it pulls in `mac-on-device-transcriber.ts` and therefore
  * `child_process`, which has no business being resolved from a preload even an unsandboxed one.
  * The same rule `preload-speech.cts` already follows, for a different reason (see its header on
- * the sandboxed `require` polyfill). `preload.test.js` guards these two literals against drifting
- * from `speech-ipc.js`'s own exports, which stay the source of truth.
+ * the sandboxed `require` polyfill). `preload.test.ts` guards these two literals against drifting
+ * from `speech-ipc.ts`'s own exports, which stay the source of truth.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
  * preload is unsandboxed, so a relative import resolves, and the contracts are pure constant/type

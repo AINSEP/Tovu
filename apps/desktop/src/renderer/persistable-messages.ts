@@ -8,9 +8,9 @@
  * A standalone module — no local `.js`-relative imports, only the `@jini-ai/chat/core` package —
  * deliberately, so it can be exercised directly under `node --test` with no build step. `App.hooks.ts`
  * itself pulls in enough of the renderer's own module graph (via its usual `./foo.js` imports) that
- * Node's type stripping cannot resolve it standalone; see `test/renderer/persistable-messages.test.ts`
- * for the test this split makes possible, and `test/renderer/folder-drop.test.ts`'s own header for
- * why a pure renderer function generally gets pulled out this way for testing.
+ * Node's type stripping cannot resolve it standalone; `App.hooks.test.ts` (colocated in this same
+ * directory) imports this module directly and exercises it that way, and `folder-drop.test.ts`'s own
+ * header describes why a pure renderer function generally gets pulled out this way for testing.
  */
 import { isTerminalRunStatus, type ChatMessage } from '@jini-ai/chat/core';
 

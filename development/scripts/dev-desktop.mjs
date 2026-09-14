@@ -19,7 +19,7 @@
  * side by side (closes #2 — a renderer edit then needs only a window reload, Cmd+R, not a rebuild
  * command) and are torn down together on exit.
  *
- * Preload and main-process edits (`main.js`, `src/tovu-server.js`) are hand-written JS with no watch
+ * Preload and main-process edits (`main.ts`, `src/tovu-server.ts`) are hand-written TS with no watch
  * step — those still need this script restarted, same as before. Only the Vite/React renderer gets
  * a live-rebuild loop.
  *
@@ -40,7 +40,7 @@
  * `npm -> electron` chain dies as a whole instead of reparenting an orphan to PID 1. That covers
  * only what stays in the group. Each `tovu serve` the app opens is spawned `detached` into a group of
  * its own, so the group kill never reaches it. Electron's `before-quit` drain stops it, which is why
- * `main.js` routes the signal into that drain (`apps/desktop/src/quit-signals.js`) and why the
+ * `main.ts` routes the signal into that drain (`apps/desktop/src/quit-signals.ts`) and why the
  * SIGKILL escalation waits {@link HARD_KILL_GRACE_MS}. Not a process
  * manager: no restart-on-crash. If a child dies unexpectedly, the other is torn down too and this
  * script exits non-zero so the failure is visible.
@@ -91,7 +91,7 @@ function runToCompletion(label, npmScript) {
  * written at or after `sinceMs` — i.e. produced by THIS run's build — can.
  *
  * Resolves rather than rejects on timeout, same reasoning as `waitForPort`: a broken build should
- * still let Electron start, so the owner sees the same "fleet UI is not built" failure `main.js`
+ * still let Electron start, so the owner sees the same "fleet UI is not built" failure `main.ts`
  * already reports, rather than this script hanging forever.
  *
  * @param {string} filePath - absolute path to the file the build is expected to (re)produce.
@@ -143,7 +143,7 @@ function killGroup(child) {
 
 /**
  * How long `shutdown` waits after SIGTERM before SIGKILLing every child group. Must exceed
- * `apps/desktop/src/tovu-server.js`'s `DEFAULT_STOP_GRACE_MS` (5 s): Electron's `before-quit` drain
+ * `apps/desktop/src/tovu-server.ts`'s `DEFAULT_STOP_GRACE_MS` (5 s): Electron's `before-quit` drain
  * is the only thing that stops a `tovu serve`, spawned `detached` and so outside the group kill, and
  * it escalates to SIGKILL only after that grace. At the old 1.5 s, a server slower than that to drain
  * lost Electron mid-stop and was stranded with PPID 1. The timer is `unref`'d, so a normal quit that

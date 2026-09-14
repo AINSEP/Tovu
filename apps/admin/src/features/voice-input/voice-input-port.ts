@@ -13,13 +13,13 @@
  * for the hook that drives this port.
  */
 
-/** Mirrors `apps/desktop/src/speech/transcription-port.cjs`'s `TranscriptionAvailability`. */
+/** Mirrors `apps/desktop/src/speech/transcription-port.ts`'s `TranscriptionAvailability`. */
 export interface VoiceInputAvailability {
   available: boolean;
   reason?: string;
 }
 
-/** Mirrors `apps/desktop/src/speech/transcription-port.cjs`'s `TranscriptionResult`. */
+/** Mirrors `apps/desktop/src/speech/transcription-port.ts`'s `TranscriptionResult`. */
 export interface VoiceInputTranscriptionResult {
   text: string;
   elapsedMs: number;

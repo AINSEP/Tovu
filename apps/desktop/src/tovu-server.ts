@@ -492,7 +492,7 @@ function stopChild(child: SpawnedChild, graceMs: number): Promise<void> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       try {
-        process.kill(-child.pid!, "SIGKILL");
+        process.kill(-child.pid!, "SIGKILL"); // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
       } catch {
         // Already reaped between the timer firing and this call — nothing to kill.
       }
