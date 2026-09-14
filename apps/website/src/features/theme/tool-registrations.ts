@@ -368,9 +368,13 @@ function invalidRenameTargetNameReason(name: string): string | null {
  * destination-write-scope shape) but throwing instead of writing an HTTP response — see that
  * function's own doc for the full reasoning behind each check.
  *
+ * Exported (only) so the defense-in-depth `destWriteScope` check below can be direct-invoke tested
+ * the same way `renameThemeFileIfChanged`'s identical branch is — see that function's test in
+ * `explore-pure-helpers.unit.test.ts`.
+ *
  * @returns The path the file ends up at (`sourcePath` unchanged, for the deliberate no-op case).
  */
-function performThemeFileRename(
+export function performThemeFileRename(
   routeDeps: ThemeToolDeps,
   theme: DiscoveredTheme,
   paths: { sourcePath: string; destPath: string; name: string },

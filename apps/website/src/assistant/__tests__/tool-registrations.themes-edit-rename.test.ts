@@ -7,10 +7,15 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
+import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+import {
+  contributeThemesTools,
+  performThemeFileRename,
+  type ThemeToolDeps,
+} from "../../features/theme/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 resetToolContributorsForTests();
@@ -243,4 +248,28 @@ test("theme_rename_file refreshes the live routeDeps.themes entry, matching them
   await wired(deps, "theme_rename_file").handler(executionContext({ themeId: "plain", path: "styles.css", name: "main.css" }));
   const live = deps.themes.find((t) => t.manifest.id === "plain");
   assert.equal(live?.status, "valid");
+});
+
+test("performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct", () => {
+  // Mirrors explore.ts's renameThemeFileIfChanged defense-in-depth test
+  // (explore-pure-helpers.unit.test.ts) -- the HTTP rename route's identical branch, both built on
+  // the same shared `resolveThemeFileWriteScope`, exercised the same bypass-the-route way here.
+  const theme = {
+    manifest: {
+      id: "compiled-theme",
+      build: { source: "compiled", sourceDir: "src" },
+    },
+  } as unknown as DiscoveredTheme;
+  const routeDeps = {} as unknown as ThemeToolDeps;
+
+  assert.throws(
+    () =>
+      performThemeFileRename(
+        routeDeps,
+        theme,
+        { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
+        new Set(["src/config.json"])
+      ),
+    /'generated-output\.json' is read-only: this file is generated output of a built theme/
+  );
 });
