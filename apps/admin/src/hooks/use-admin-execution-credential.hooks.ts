@@ -8,7 +8,14 @@ import {
   hasTypedAdminKey,
   readLegacyLocalCredential,
 } from "../lib/execution-settings";
+import type { Translate } from "../lib/dictionary-translator";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import {
+  STORED_KEY_OTHER_PROVIDER_COPY,
+  hasUsableKey,
+  storedKeyBlocksProbe,
+  storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
+} from "../lib/stored-credential-endpoint";
 import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
 import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
 
@@ -75,12 +82,43 @@ export type AdminByokSaveState =
  * function per the complexity-ceiling brief. `isStored` takes the already-narrowed boolean rather
  * than the full `stored` record, so this function has no dependency on
  * `AdminExecutionCredentialController`'s shape beyond the one field it reads.
+ *
+ * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name. While idle, the line
+ *   then asks for this provider's key instead of reporting a stored key this provider cannot use —
+ *   the same ask, and the same dictionary key, as the visitor screen's key line.
+ * @param t - The host screen's translator. Defaults to English passthrough.
+ * @complexity O(1).
  */
-export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"], isStored: boolean): string | null {
-  if (status === "saving") return "Saving…";
-  if (status === "saved") return "Saved to the server, encrypted.";
-  if (status === "idle") return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
-  return null;
+export function resolveByokFooterStatusLine(
+  status: AdminByokSaveState["status"],
+  isStored: boolean,
+  storedKeyIsForOtherEndpoint = false,
+  t: Translate = (key) => key,
+): string | null {
+  if (status === "saving") return t("Saving…");
+  if (status === "saved") return t("Saved to the server, encrypted.");
+  if (status !== "idle") return null;
+  if (storedKeyIsForOtherEndpoint) return t(STORED_KEY_OTHER_PROVIDER_COPY);
+  return t(isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.");
+}
+
+/**
+ * The key field's placeholder: the server's mask for a key stored for the form's endpoint, otherwise
+ * `undefined`. Under another provider the mask would read as a key saved for that provider — the owner's
+ * report showed the Google key's `••••mw4w` in OpenAI's field. Same rule as the visitor screen's
+ * `visitorCredentialApiKeyPlaceholder`.
+ *
+ * @param stored - The server's view, or `null` before it loads.
+ * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name.
+ * @returns The mask, or `undefined` for an empty placeholder.
+ * @complexity O(1).
+ */
+export function resolveByokApiKeyPlaceholder(
+  stored: AdminExecutionCredential | null,
+  storedKeyIsForOtherEndpoint: boolean,
+): string | undefined {
+  if (storedKeyIsForOtherEndpoint || !stored?.isSet) return undefined;
+  return stored.masked ?? undefined;
 }
 
 /** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`), mirroring
@@ -118,12 +156,26 @@ export interface AdminExecutionCredentialController {
    *  settles. Never contains key material. */
   stored: AdminExecutionCredential | null;
   /** Tells `ExecutionTab`'s `apiKeyStoredExternally` prop that an empty key field is not a missing
-   *  required field, because a credential already exists server-side. */
+   *  required field, because a credential already exists server-side FOR THE FORM'S ENDPOINT. A key
+   *  stored for another endpoint does not count (the server will not send it here), so after a
+   *  provider switch the field is required again and Test connection waits for a typed key. Same rule
+   *  as the visitor screen: `lib/stored-credential-endpoint.ts`'s `hasUsableKey`. */
   apiKeyStoredExternally: boolean;
-  /** The server's `••••<last 4>`, or `undefined` when nothing is stored — feeds `ExecutionTab`'s
-   *  `apiKeyPlaceholder`. Always a placeholder, never a value: `byok.apiKey` is untouched by this
-   *  controller until an explicit save succeeds. */
+  /** The server's `••••<last 4>`, or `undefined` when nothing is stored or the stored key belongs to
+   *  another endpoint (under a different provider it would read as that provider's key) — feeds
+   *  `ExecutionTab`'s `apiKeyPlaceholder`. Always a placeholder, never a value: `byok.apiKey` is
+   *  untouched by this controller until an explicit save succeeds. */
   apiKeyPlaceholder: string | undefined;
+  /** A key is stored, but the server saved it for another endpoint than the form's (a provider
+   *  switch). Drives the key footer's "paste a key for this one" line. See
+   *  `lib/stored-credential-endpoint.ts`'s `storedKeyIsForOtherEndpoint`; `false` until the stored
+   *  view loads. */
+  storedKeyIsForOtherEndpoint: boolean;
+  /** Feeds `ExecutionTab`'s `canDiscoverModels`: `false` only when nothing is typed and the stored key
+   *  belongs to another endpoint, the one discovery the server can only refuse. `ExecutionTab` reads
+   *  it but never probes merely because it turned `true` — "Save settings" re-pointing the stored row
+   *  flips it, and that must not send the old provider's key to the new endpoint unasked. */
+  canDiscoverModels: boolean;
   /** The "Save key" button's own save state — and the migration prompt's, which writes the same
    *  key. Never advanced by {@link saveSettings}; see {@link settingsSaveState}. */
   saveState: AdminByokSaveState;
@@ -335,10 +387,14 @@ export function useAdminExecutionCredential(
     setLegacyDismissed(true);
   }
 
+  // All three read the form's CURRENT endpoint, so they follow a provider switch on the same render.
+  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule(stored, byok.baseUrl);
   return {
     stored,
-    apiKeyStoredExternally: stored?.isSet === true,
-    apiKeyPlaceholder: stored?.isSet ? (stored.masked ?? undefined) : undefined,
+    apiKeyStoredExternally: hasUsableKey(byok.apiKey, stored, byok.baseUrl),
+    apiKeyPlaceholder: resolveByokApiKeyPlaceholder(stored, storedKeyIsForOtherEndpoint),
+    storedKeyIsForOtherEndpoint,
+    canDiscoverModels: !storedKeyBlocksProbe(byok.apiKey, stored, byok.baseUrl),
     saveState,
     settingsSaveState,
     canSaveKey: hasTypedAdminKey(byok.apiKey),

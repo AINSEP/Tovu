@@ -96,6 +96,8 @@ export interface AdminByokKeyFooterProps {
   /** Publishes the "Save key" button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
    *  Omit to leave it untagged. */
   agentHandle?: string;
+  /** The host screen's `t`, for the status line. Omit for English passthrough. */
+  t?: (key: string) => string;
 }
 
 /**
@@ -104,13 +106,15 @@ export interface AdminByokKeyFooterProps {
  * API-key field. Its sibling {@link AdminByokSettingsFooter} writes the non-secret fields and
  * nothing else.
  *
+ * While idle with a key stored for another endpoint (a provider switch), the line asks for this
+ * provider's key rather than reporting a stored key this provider cannot use.
+ *
  * @complexity Time/space: O(1).
- * @overallScore 100
  */
-export function AdminByokKeyFooter({ controller, agentHandle: handle }: AdminByokKeyFooterProps) {
-  const { saveState, canSaveKey, stored } = controller;
+export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: AdminByokKeyFooterProps) {
+  const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false);
+  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false, storedKeyIsForOtherEndpoint, t);
 
   return (
     <div className="assistant-key-footer">

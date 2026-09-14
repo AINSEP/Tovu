@@ -22,6 +22,8 @@ function controller(overrides: Partial<AdminExecutionCredentialController> = {})
     stored: null,
     apiKeyStoredExternally: false,
     apiKeyPlaceholder: undefined,
+    storedKeyIsForOtherEndpoint: false,
+    canDiscoverModels: true,
     saveState: { status: "idle" },
     settingsSaveState: { status: "idle" },
     canSaveKey: false,
@@ -120,6 +122,25 @@ describe("AdminByokKeyFooter", () => {
   it("shows 'Saving…' and disables the button while the save is in flight", () => {
     render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saving" }, canSaveKey: true })} />);
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  /** Owner repro 2026-09-13, screenshot 29: a Google key is stored and the form is on OpenAI. */
+  it("asks for this provider's key, instead of reporting the stored one, when that key belongs to another endpoint", () => {
+    render(
+      <AdminByokKeyFooter
+        controller={controller({
+          stored: { isSet: true, masked: "••••mw4w", protocol: "google", providerId: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, maxTokens: null, updatedAt: "2026-09-13T00:00:00.000Z" },
+          storedKeyIsForOtherEndpoint: true,
+        })}
+      />,
+    );
+    expect(screen.getByText("Your saved key is for a different provider. Paste a key for this one.")).toBeInTheDocument();
+    expect(screen.queryByText(/stored on the server, encrypted/i)).not.toBeInTheDocument();
+  });
+
+  it("translates its status line through the host screen's t", () => {
+    render(<AdminByokKeyFooter controller={controller({ storedKeyIsForOtherEndpoint: true })} t={(key) => `[es] ${key}`} />);
+    expect(screen.getByText("[es] Your saved key is for a different provider. Paste a key for this one.")).toBeInTheDocument();
   });
 });
 

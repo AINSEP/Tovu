@@ -8,7 +8,7 @@ import {
   type SiteAssistantCredential,
   type SiteAssistantCredentialPatch,
 } from "@/lib/api";
-import { storedKeyIsForOtherEndpoint } from "../rules";
+import { storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
 import {
   saveVisitorKey,
   saveVisitorSettings,

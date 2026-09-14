@@ -36,59 +36,9 @@ export function describeApiError(e: unknown, fallback: string): string {
   return describeApiErrorDefault(e, fallback);
 }
 
-/** The ask shown when the stored key belongs to another endpoint: the key line's status and, through
- *  {@link describeProbeError}, a probe the server refused for that reason. One constant so the two
- *  cannot drift. Also a dictionary key in `ai-assistant-i18n.ts`. */
-export const STORED_KEY_OTHER_PROVIDER_COPY = "Your saved key is for a different provider. Paste a key for this one.";
-
-/** {@link describeProbeError}'s copy for a stored key with no saved endpoint. Also a dictionary key. */
-export const STORED_KEY_NO_ENDPOINT_COPY = "Your saved key has no provider saved with it. Paste the key again to test it.";
-
-/** Mirrors `normalizeEndpoint` in the server's `stored-credential-probe.ts` (trim, strip trailing
- *  slashes, no case folding). The two must agree, or this screen and the server disagree about which
- *  endpoint a stored key belongs to. */
-function normalizeEndpoint(baseUrl: string): string {
-  return baseUrl.trim().replace(/\/+$/, "");
-}
-
-/**
- * True when a key is stored and the server recorded a DIFFERENT endpoint for it than the form's —
- * the provider-switch case. The server only lets a key it holds go to the endpoint it was saved for,
- * so a stored-key probe against the form's endpoint can only be refused.
- *
- * An unknown stored endpoint (`null` or blank) is `false`: it is not provably another endpoint, so the
- * server's own answer stands, translated by {@link describeProbeError}.
- *
- * @complexity Time/space: O(n) in the two URL lengths.
- */
-export function storedKeyIsForOtherEndpoint(stored: SiteAssistantCredential | null, baseUrl: string): boolean {
-  const storedBaseUrl = stored?.isSet ? stored.baseUrl?.trim() : "";
-  if (!storedBaseUrl) return false;
-  return normalizeEndpoint(storedBaseUrl) !== normalizeEndpoint(baseUrl);
-}
-
-/** A key a probe can use HERE — typed into the field, or stored on the server for this endpoint. A
- *  key stored for another endpoint does not count; see {@link storedKeyIsForOtherEndpoint}.
- *
- * @complexity Time/space: O(n) in the two URL lengths.
- */
-export function hasUsableKey(apiKey: string, stored: SiteAssistantCredential | null, baseUrl: string): boolean {
-  if (apiKey.trim()) return true;
-  return stored?.isSet === true && !storedKeyIsForOtherEndpoint(stored, baseUrl);
-}
-
-/**
- * The message a failed probe (model list, Test Key, Test connection) shows. The server's two
- * endpoint-pin refusals are written for API callers ("supply an apiKey in this request"), so they are
- * replaced with plain language. Anything else keeps the thrown message, usually the provider's own.
- *
- * @complexity Time/space: O(1).
- */
-export function describeProbeError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_MISMATCH") return STORED_KEY_OTHER_PROVIDER_COPY;
-  if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_UNSET") return STORED_KEY_NO_ENDPOINT_COPY;
-  return e instanceof Error ? e.message : fallback;
-}
+// The stored-key endpoint rules (`storedKeyIsForOtherEndpoint`, `hasUsableKey`, `storedKeyBlocksProbe`,
+// `describeProbeError` and their two copy constants) live in `lib/stored-credential-endpoint.ts`, shared
+// with the admin's own key screen.
 
 /** Whether the server currently has a credential stored for this site — the "leave the stored key
  *  alone" case `saveVisitorSettings` relies on when it writes a patch with no `apiKey`.

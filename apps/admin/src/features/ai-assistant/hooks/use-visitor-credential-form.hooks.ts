@@ -15,14 +15,12 @@ import type { Translate } from "@/lib/dictionary-translator";
 import { createExecutionPort } from "@/lib/execution-settings";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,
-  configuredPresetIds as configuredPresetIdsRule,
-  describeApiError,
   describeProbeError,
-  hasStoredCredential,
   hasUsableKey,
-  isPresetSuppliedEndpoint,
+  storedKeyBlocksProbe,
   storedKeyIsForOtherEndpoint as storedKeyIsForOtherEndpointRule,
-} from "../rules";
+} from "@/lib/stored-credential-endpoint";
+import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, isPresetSuppliedEndpoint } from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
@@ -580,12 +578,12 @@ export function useVisitorCredentialForm({
   // the server would refuse, and the key line already asks for this provider's key. The buttons are
   // disabled in that state too; this keeps the hook honest for any other caller.
   function runKeyTest() {
-    if (!usableKey && storedKeyIsForOtherEndpoint) return Promise.resolve();
+    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
     return runVisitorKeyTest({ port: port.current, config, setDiscovery, setConfig });
   }
 
   function runTestConnection() {
-    if (!usableKey && storedKeyIsForOtherEndpoint) return Promise.resolve();
+    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
     return runVisitorTestConnection({ port: port.current, config, setConnectionTest, setDiscovery });
   }
 

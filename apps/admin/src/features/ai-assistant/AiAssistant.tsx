@@ -325,7 +325,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         // `hooks/use-admin-execution-credential.hooks.ts`.
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
-        apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" />}
+        apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
         formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" />}
       />
       {/*

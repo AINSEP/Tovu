@@ -560,4 +560,109 @@ describe("resolveByokFooterStatusLine", () => {
   it("returns null on error — the footer renders the error via a separate element", () => {
     expect(resolveByokFooterStatusLine("error", false)).toBeNull();
   });
+
+  it("asks for this provider's key while idle when the stored key belongs to another endpoint", () => {
+    expect(resolveByokFooterStatusLine("idle", true, true)).toBe(
+      "Your saved key is for a different provider. Paste a key for this one.",
+    );
+    // Progress and confirmation still win: they describe the press, not the stored row.
+    expect(resolveByokFooterStatusLine("saving", true, true)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine("saved", true, true)).toBe("Saved to the server, encrypted.");
+  });
+
+  it("translates the line it returns through t", () => {
+    const t = (key: string) => `[es] ${key}`;
+    expect(resolveByokFooterStatusLine("idle", true, true, t)).toBe(
+      "[es] Your saved key is for a different provider. Paste a key for this one.",
+    );
+    expect(resolveByokFooterStatusLine("idle", false, false, t)).toBe("[es] Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine("error", false, false, t)).toBeNull();
+  });
+});
+
+/**
+ * Owner repro 2026-09-13 (`owner-screenshots-2026-09-13/29-*.png`): the Admin AI Assistant tab holds a
+ * Google key and the owner picks OpenAI. The OpenAI key field showed the Google key's mask, Test
+ * connection stayed enabled, and the tab probed OpenAI with the Google key, which the server refused
+ * with its raw endpoint-pin text. Same rules as the visitor tab's fix (852b83c1), now shared through
+ * `lib/stored-credential-endpoint.ts`.
+ */
+describe("useAdminExecutionCredential — provider switch while the key is stored for another endpoint", () => {
+  const GOOGLE = "https://generativelanguage.googleapis.com";
+  const OPENAI = "https://api.openai.com/v1";
+  const ANTHROPIC = "https://api.anthropic.com";
+  const googleKey = () =>
+    setView({ masked: "••••mw4w", protocol: "google", providerId: "google", baseUrl: GOOGLE, model: "gemini-flash-latest" });
+
+  it.each([
+    ["OpenAI", "openai", OPENAI],
+    ["Anthropic", "anthropic", ANTHROPIC],
+  ] as const)(
+    "picking %s with nothing typed: no probe may use the Google key, its mask is hidden, the key line asks for this provider's key",
+    async (_label, protocol, baseUrl) => {
+      const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
+      const { result } = renderHook(() =>
+        useAdminExecutionCredential({ byok: byok({ protocol, providerId: protocol, baseUrl }), onByokChange: vi.fn() }, port),
+      );
+      await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+      expect(result.current.storedKeyIsForOtherEndpoint).toBe(true);
+      // Feeds `ExecutionTab`'s discovery gate; `apiKeyStoredExternally` is what keeps Test connection
+      // disabled until a key for this provider is typed.
+      expect(result.current.canDiscoverModels).toBe(false);
+      expect(result.current.apiKeyStoredExternally).toBe(false);
+      expect(result.current.apiKeyPlaceholder).toBeUndefined();
+      expect(resolveByokFooterStatusLine("idle", true, result.current.storedKeyIsForOtherEndpoint)).toBe(
+        "Your saved key is for a different provider. Paste a key for this one.",
+      );
+    },
+  );
+
+  it("on Google itself the stored key still counts: mask shown, discovery and Test connection allowed", async () => {
+    const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ protocol: "google", providerId: "google", baseUrl: GOOGLE }), onByokChange: vi.fn() }, port),
+    );
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+    expect(result.current.storedKeyIsForOtherEndpoint).toBe(false);
+    expect(result.current.canDiscoverModels).toBe(true);
+    expect(result.current.apiKeyStoredExternally).toBe(true);
+    expect(result.current.apiKeyPlaceholder).toBe("••••mw4w");
+  });
+
+  it("follows the form: Google -> OpenAI hides the mask and blocks discovery; a typed OpenAI key allows both probes again", async () => {
+    const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
+    const { result, rerender } = renderHook(
+      ({ config }: { config: ByokConfig }) => useAdminExecutionCredential({ byok: config, onByokChange: vi.fn() }, port),
+      { initialProps: { config: byok({ protocol: "google", providerId: "google", baseUrl: GOOGLE }) } },
+    );
+    await waitFor(() => expect(result.current.apiKeyPlaceholder).toBe("••••mw4w"));
+
+    rerender({ config: byok({ protocol: "openai", providerId: "openai", baseUrl: OPENAI }) });
+    expect(result.current.apiKeyPlaceholder).toBeUndefined();
+    expect(result.current.canDiscoverModels).toBe(false);
+    expect(result.current.apiKeyStoredExternally).toBe(false);
+
+    rerender({ config: byok({ protocol: "openai", providerId: "openai", baseUrl: OPENAI, apiKey: "sk-typed-openai" }) });
+    expect(result.current.canDiscoverModels).toBe(true);
+    expect(result.current.apiKeyStoredExternally).toBe(true);
+    // The server still holds a Google key, so the mask stays hidden and the flag stays set.
+    expect(result.current.storedKeyIsForOtherEndpoint).toBe(true);
+    expect(result.current.apiKeyPlaceholder).toBeUndefined();
+  });
+
+  it("claims nothing before the stored view loads, so the server still answers for that first probe", async () => {
+    const port = createFakeAdminExecutionCredentialPort({ stored: googleKey() });
+    const { result } = renderHook(() =>
+      useAdminExecutionCredential({ byok: byok({ protocol: "openai", providerId: "openai", baseUrl: OPENAI }), onByokChange: vi.fn() }, port),
+    );
+
+    expect(result.current.stored).toBeNull();
+    expect(result.current.storedKeyIsForOtherEndpoint).toBe(false);
+    expect(result.current.canDiscoverModels).toBe(true);
+
+    // Once it loads, the verdict arrives, and `ExecutionTab` drops whatever that first probe returns.
+    await waitFor(() => expect(result.current.canDiscoverModels).toBe(false));
+  });
 });

@@ -104,6 +104,8 @@ function fakeAdminExecutionCredentialController(
     stored: null,
     apiKeyStoredExternally: false,
     apiKeyPlaceholder: undefined,
+    storedKeyIsForOtherEndpoint: false,
+    canDiscoverModels: true,
     saveState: { status: "idle" },
     settingsSaveState: { status: "idle" },
     canSaveKey: false,

@@ -1,11 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
 
 import { AdminExecutionMode } from "../AiAssistant";
 import type { AdminExecutionModeController } from "../hooks/use-admin-execution-mode.hooks";
-import type { AdminExecutionCredentialController } from "@/hooks/use-admin-execution-credential.hooks";
+import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";
+import {
+  useAdminExecutionCredential,
+  type AdminExecutionCredentialController,
+} from "@/hooks/use-admin-execution-credential.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
+import type { AdminExecutionCredential } from "@/lib/api";
 import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 
 /**
@@ -46,6 +51,8 @@ function fakeAdminExecutionCredentialController(
     stored: null,
     apiKeyStoredExternally: false,
     apiKeyPlaceholder: undefined,
+    storedKeyIsForOtherEndpoint: false,
+    canDiscoverModels: true,
     saveState: { status: "idle" },
     settingsSaveState: { status: "idle" },
     canSaveKey: false,
@@ -126,5 +133,82 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     // The generic ledger line's own text must not also be on screen — that second element is the
     // duplicate the owner saw stacked under "Save settings".
     expect(screen.queryByText("Saved.")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Owner repro 2026-09-13 (`owner-screenshots-2026-09-13/29-*.png`), through the REAL `ExecutionTab` and
+ * the REAL credential hook over its in-memory port: the saved key is Google's and the form is on OpenAI.
+ *
+ * The other half, no model discovery on the endpoint change, is `@jini-ai/ui`'s `ExecutionTab`
+ * `canDiscoverModels` gate. This suite loads Jini's built `dist`, so that half is asserted in Jini's own
+ * `ExecutionTab.test.tsx` until the package is rebuilt and the prop is wired here.
+ */
+describe("AdminExecutionMode — OpenAI selected while the saved key is Google's", () => {
+  const GOOGLE = "https://generativelanguage.googleapis.com";
+  const OPENAI = "https://api.openai.com/v1";
+  const OTHER_PROVIDER_COPY = "Your saved key is for a different provider. Paste a key for this one.";
+  const googleKey: AdminExecutionCredential = {
+    isSet: true,
+    masked: "••••mw4w",
+    protocol: "google",
+    providerId: "google",
+    baseUrl: GOOGLE,
+    model: "gemini-flash-latest",
+    maxTokens: null,
+    updatedAt: "2026-09-13T00:00:00.000Z",
+  };
+
+  /** The form on whichever built-in preset owns `baseUrl`, with nothing typed. */
+  function formOn(baseUrl: string, model: string): ByokConfig {
+    const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.baseUrl === baseUrl);
+    if (!preset) throw new Error(`no built-in preset for ${baseUrl}`);
+    return { protocol: preset.protocol, providerId: preset.id, apiKey: "", baseUrl, model };
+  }
+
+  function renderWithGoogleKeySaved(byok: ByokConfig, t?: (key: string) => string) {
+    const credentialPort = createFakeAdminExecutionCredentialPort({ stored: googleKey });
+    const probes: ExecutionPort = {
+      detectLocalAgents: vi.fn(async () => []),
+      testConnection: vi.fn(async () => ({ ok: true, message: "Connected" })),
+      listModels: vi.fn(async () => ["model-a"]),
+    };
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() =>
+          fakeExecutionModeController({
+            port: { current: probes },
+            execution: makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok", byok }),
+          })
+        }
+        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential(input, credentialPort)}
+        {...(t ? { t } : {})}
+      />,
+    );
+    return probes;
+  }
+
+  it("asks for OpenAI's key, hides the Google key's mask, and keeps Test connection disabled", async () => {
+    renderWithGoogleKeySaved(formOn(OPENAI, "gpt-4o"));
+
+    expect(await screen.findByText(OTHER_PROVIDER_COPY)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("••••mw4w")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeDisabled();
+  });
+
+  it("words that ask through the screen's t", async () => {
+    renderWithGoogleKeySaved(formOn(OPENAI, "gpt-4o"), (key) =>
+      key === OTHER_PROVIDER_COPY ? "Tu clave guardada es de otro proveedor." : key,
+    );
+
+    expect(await screen.findByText("Tu clave guardada es de otro proveedor.")).toBeInTheDocument();
+  });
+
+  it("on Google itself the saved key still counts: its mask shows and Test connection is enabled", async () => {
+    renderWithGoogleKeySaved(formOn(GOOGLE, "gemini-flash-latest"));
+
+    expect(await screen.findByPlaceholderText("••••mw4w")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeEnabled();
+    expect(screen.getByText("Stored on the server, encrypted. Paste a new key to replace it.")).toBeInTheDocument();
   });
 });
