@@ -30,12 +30,6 @@ import { guardExternalMcpRequest } from "./guard.js";
  * idempotent JSON read, and reusing it would mean either accepting its 502 (wrong contract for this
  * route) or fighting its own response-writing to override it. A short, dedicated fetch keeps this
  * route in full control of the one status code C-008 actually specifies.
- *
- * `configFailures` (2026-09-13) rides through this proxy the same way `connections` always has —
- * read off the upstream body as `unknown` and relayed untouched. This route does not know or care
- * what either field contains; see `federation-admissions-route.ts`'s own doc for what
- * `configFailures` reports and why a SAVED row can appear there with no matching entry in
- * `connections` at all.
  */
 
 /** Bounds one admin click, not a boot race — unlike `assistant-daemon-client.ts`'s connect-retry
@@ -59,9 +53,7 @@ interface AdmissionsUnavailable {
  *  token here is reported the same way a wrong one would be answered, rather than this route trying
  *  to pre-empt that check.
  *  @complexity O(1) plus one bounded round trip. */
-async function fetchDaemonAdmissions(): Promise<
-  { readonly ok: true; readonly connections: unknown; readonly configFailures?: unknown } | AdmissionsUnavailable
-> {
+async function fetchDaemonAdmissions(): Promise<{ readonly ok: true; readonly connections: unknown } | AdmissionsUnavailable> {
   const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
   if (!token) {
     return { ok: false, body: { error: "the agent daemon token is not configured", code: "AGENT_DAEMON_UNAVAILABLE" } };
@@ -75,14 +67,8 @@ async function fetchDaemonAdmissions(): Promise<
     if (!upstream.ok) {
       return { ok: false, body: { error: "the agent daemon could not report what it admitted", code: "AGENT_DAEMON_UNAVAILABLE" } };
     }
-    const parsed = (await upstream.json()) as { connections: unknown; configFailures?: unknown };
-    // `configFailures` is carried through only when the upstream actually sent it — true verbatim
-    // relay, matching this route's own "treats the body as unknown and relays it VERBATIM" doc, and
-    // what keeps an older daemon build (or a stand-in test double) that predates this field producing
-    // the exact same wire shape it always has, rather than gaining a `configFailures: []` it never sent.
-    return parsed.configFailures !== undefined
-      ? { ok: true, connections: parsed.connections, configFailures: parsed.configFailures }
-      : { ok: true, connections: parsed.connections };
+    const parsed = (await upstream.json()) as { connections: unknown };
+    return { ok: true, connections: parsed.connections };
   } catch {
     // Connection refused, timed out, or an unparsable body — every one of these means the same
     // thing to an operator: the assistant is not currently reporting, full stop. Distinguishing
@@ -106,9 +92,7 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
         res.status(503).json(result.body);
         return;
       }
-      res
-        .status(200)
-        .json(result.configFailures !== undefined ? { connections: result.connections, configFailures: result.configFailures } : { connections: result.connections });
+      res.status(200).json({ connections: result.connections });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

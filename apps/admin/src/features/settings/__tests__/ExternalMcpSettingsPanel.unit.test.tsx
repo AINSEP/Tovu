@@ -78,7 +78,10 @@ describe("ExternalMcpSettingsPanel — add-form field visibility reacts live to 
 
     await user.selectOptions(screen.getByLabelText(/Credentials/), "static_env");
     expect(screen.queryByLabelText(/^Client ID/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Access token environment variable/)).not.toBeInTheDocument();
+    // The OAuth token-variable field is gone; static_env's own (same label, different key) takes its
+    // place, so this checks the handle rather than the label.
+    expect(document.querySelector('[data-agent-element="mcp-add-field-oauth-token-env-name"]')).toBeNull();
+    expect(document.querySelector('[data-agent-element="mcp-add-field-access-token-env-name"]')).not.toBeNull();
   });
 
   it("oauth + a hosted transport does not ask for the (stdio-only) access-token env var", async () => {
@@ -91,6 +94,63 @@ describe("ExternalMcpSettingsPanel — add-form field visibility reacts live to 
 
     expect(screen.getByLabelText(/^Client ID/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Access token environment variable/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * @file (continued) The owner's 2026-09-13 review of this form (screenshots 23–25): Credentials sat
+ * below every connection field, "API key / token" had nowhere to type the token, Chrome filled the
+ * saved admin password into Client secret, and there was no way to back out of the form.
+ */
+function addFormLabels(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll(".source-config-add-form .source-config-field-label")).map((label) =>
+    (label.textContent ?? "").replace("*", "").trim(),
+  );
+}
+
+describe("ExternalMcpSettingsPanel — add form order, access token, autofill and Cancel", () => {
+  it("puts Credentials third, right under Connection type, and Access token fourth, right under Credentials", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel();
+    await openAddForm(user);
+
+    expect(addFormLabels(container).slice(0, 4)).toEqual(["ID", "Connection type", "Credentials", "Access token"]);
+  });
+
+  it("a hosted server with an API key / access token shows the Access token field but no env-var name for it", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel();
+    await openAddForm(user);
+
+    await user.selectOptions(screen.getByLabelText(/Connection type/), "streamable_http");
+
+    expect(addFormLabels(container).slice(0, 4)).toEqual(["ID", "Connection type", "Credentials", "Access token"]);
+    expect(screen.queryByLabelText(/Access token environment variable/)).not.toBeInTheDocument();
+  });
+
+  it("marks Client secret autoComplete=new-password, so Chrome cannot fill the saved admin password into it", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await openAddForm(user);
+
+    await user.selectOptions(screen.getByLabelText(/Credentials/), "oauth");
+
+    expect(screen.getByLabelText(/^Client secret/)).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("Cancel closes the form without adding a server, and reopening starts from a blank draft", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await openAddForm(user);
+    await user.type(screen.getByLabelText(/^ID/), "draft-server");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByLabelText(/Connection type/)).not.toBeInTheDocument();
+    expect(screen.getByText("No MCP servers configured.")).toBeInTheDocument();
+
+    await openAddForm(user);
+    expect(screen.getByLabelText(/^ID/)).toHaveValue("");
   });
 });
 

@@ -36,16 +36,6 @@ import type { FederatedAdmissionReport } from "#src/assistant/mcp-federation/tru
  * `withFederatedRefusalDiagnosis`'s `() => federationAdmissionReports` already applies one call site
  * over, in that same file, for the identical reason.
  *
- * `configFailures` (2026-09-13): a SAVED, enabled row can fail before it ever reaches
- * `attachFederatedMcpTools` at all — most commonly a sealed env block that cannot be decrypted
- * because the site token is not available (`external-mcp-store.ts`'s `openExternalMcpEnv`). Such a
- * row has no admission report and is therefore invisible to `reports` above, which is exactly why an
- * operator whose saved server hit this case was told the generic "the assistant isn't running this
- * server at all" instead of the real reason — the real reason existed only in this process's own
- * stderr (`agent-daemon-server.ts`'s `resolveStoredExternalMcpConnections`). Same live-getter
- * treatment as `reports`, for the same reason: a reload can make a previously-failing row resolve
- * cleanly, and this must stop naming it the moment that happens, not keep reporting a stale failure.
- *
  * The intended caller is `src/server/routes/admin/external-mcp` (a separate phase, C-008), which
  * proxies this over the same authenticated `AGENT_DAEMON_URL` + `AGENT_DAEMON_TOKEN_ENV_VAR` channel
  * `assistant-daemon-client.ts` already uses. This route itself does not know or care who calls it —
@@ -64,21 +54,6 @@ export interface FederationAdmissionsRouteDeps {
    * never a reshape point, so a field this file does not itself read still reaches every caller.
    */
   readonly reports: () => readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[];
-  /**
-   * Reads the CURRENT boot/reload-time config-resolution failures live — see this file's own doc on
-   * `configFailures` above. One entry per SAVED, enabled row that could not even be turned into a
-   * connection attempt (never reached `attachFederatedMcpTools`, so it has no entry in `reports`
-   * either). `reason` is `external-mcp-store.ts`'s own operator-facing failure string — already
-   * guaranteed secret-free by that module's own contract (see `admin-http/routes/external-mcp/
-   * probe.ts`'s INV-006 doc, which relays the identical string to an operator today) — never a raw
-   * stack trace or provider error dumped verbatim.
-   *
-   * Optional, defaulting to none — the same back-compat shape `AdminFederatedAdmissionEntry.isPreset`
-   * uses one hop downstream, and for the identical reason: every pre-existing caller that builds
-   * this deps object (this file's own tests, `admin-external-mcp-admissions-routes.test.ts`'s
-   * stand-in daemon) predates this field and has nothing to report, not "declined to answer".
-   */
-  readonly configFailures?: () => readonly { readonly connectionId: string; readonly reason: string }[];
 }
 
 /**
@@ -87,17 +62,11 @@ export interface FederationAdmissionsRouteDeps {
  * @param app - The daemon's Express app, already gated by `requireAgentDaemonToken`.
  * @param deps.reports - Live accessor for the current admission accounting; see
  * {@link FederationAdmissionsRouteDeps}.
- * @param deps.configFailures - Live accessor for the current boot/reload-time config-resolution
- * failures; see {@link FederationAdmissionsRouteDeps}.
- * @complexity O(1) route dispatch; `reports()`/`configFailures()` are each O(1) (a `let` read).
+ * @complexity O(1) route dispatch; `reports()` itself is O(1) (a `let` read).
  * @overallScore 100
  */
 export function registerFederationAdmissionsRoute(app: Express, deps: FederationAdmissionsRouteDeps): void {
   app.get(FEDERATION_ADMISSIONS_PATH, (_req: Request, res: Response) => {
-    const connections = deps.reports();
-    // `configFailures` is omitted entirely, not sent as `[]`, when the caller never wired it — the
-    // wire shape a pre-existing caller (this file's own older tests, before 2026-09-13) built its
-    // exact-equality assertions against must not gain a field it never declared.
-    res.status(200).json(deps.configFailures ? { connections, configFailures: deps.configFailures() } : { connections });
+    res.status(200).json({ connections: deps.reports() });
   });
 }

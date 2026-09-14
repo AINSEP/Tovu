@@ -309,6 +309,11 @@ export interface ExternalMcpServerView {
   writeGrantsUpdatedAt: ISODateTime | null;
   /** Variable names only. The tab masks values it never receives. */
   envNames: string[];
+  /** Whether a `static_env` access token is stored. Presence only, decided from plaintext columns —
+   *  see {@link externalMcpRecordHasStaticAccessToken}. */
+  hasAccessToken: boolean;
+  /** For `stdio` + `static_env`: the child env variable that receives that token. A NAME, so plaintext. */
+  accessTokenEnvName: string | null;
   oauth: ExternalMcpOAuthView;
 }
 
@@ -600,6 +605,20 @@ export function externalMcpRecordHasStoredToken(
   return resolveExternalMcpOAuthStatus(record) === "connected" || record.oauthExpiresAt !== null;
 }
 
+/**
+ * Whether a row holds a `static_env` access token — answered from plaintext columns, never by unsealing.
+ *
+ * Truthful because a `static_env` row's sealed OAuth blob only ever holds that token: leaving `oauth`
+ * clears the client secret and token set ({@link resolveSealedOAuthBlob}), and entering `oauth` never
+ * carries this token forward ({@link openExternalMcpOAuthPayload}'s callers rebuild the payload from
+ * `clientSecret`/`tokens` alone).
+ *
+ * @complexity O(1).
+ */
+export function externalMcpRecordHasStaticAccessToken(record: Pick<ExternalMcpServerRecord, "authMode" | "sealedOAuth">): boolean {
+  return resolveExternalMcpAuthMode(record) === "static_env" && Boolean(record.sealedOAuth);
+}
+
 function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
   return {
     serverId: record.serverId,
@@ -616,6 +635,8 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
     writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId,
     writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
     envNames: parseJsonArray(record.envNames),
+    hasAccessToken: externalMcpRecordHasStaticAccessToken(record),
+    accessTokenEnvName: resolveExternalMcpAuthMode(record) === "static_env" ? record.oauthTokenEnvName : null,
     oauth: {
       providerId: record.oauthProviderId,
       grant: record.oauthGrant,
@@ -757,10 +778,15 @@ async function resolveStdioTarget(
   env: Record<string, string>,
   authMode: ExternalMcpAuthMode,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
+  staticAccessToken: string | null,
 ): Promise<{ readonly ok: true; readonly target: ExternalMcpServerTarget } | { readonly ok: false; readonly failure: { serverId: string; reason: string } }> {
   if (!record.command) return externalMcpFailure(record, "no command is configured to launch it");
 
-  let resolvedEnv = env;
+  const withStaticToken = withStaticAccessToken(record, env, authMode, staticAccessToken);
+  if (withStaticToken === null) {
+    return externalMcpFailure(record, "no environment variable name is configured to receive its access token");
+  }
+  let resolvedEnv = withStaticToken;
   if (authMode === "oauth") {
     if (!record.oauthTokenEnvName) {
       return externalMcpFailure(record, "no environment variable name is configured to receive its OAuth access token");
@@ -779,18 +805,20 @@ async function resolveStdioTarget(
  *
  * A hosted row's pasted `env` block is deliberately NOT turned into headers. An operator typing
  * `FOO=bar` means an environment variable, and silently promoting it to a request header would send
- * a value they scoped to a local process to a third party over the network. A hosted server that
- * needs a non-OAuth header is a capability this does not yet have, and failing to have it is much
- * better than guessing at it.
+ * a value they scoped to a local process to a third party over the network. A hosted server's static
+ * credential is the dedicated `static_env` access token instead: typed for THIS endpoint, and sent as
+ * `Authorization: Bearer`.
  */
 async function resolveHttpTarget(
   record: ExternalMcpServerRecord,
   authMode: ExternalMcpAuthMode,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
+  staticAccessToken: string | null,
 ): Promise<{ readonly ok: true; readonly target: ExternalMcpServerTarget } | { readonly ok: false; readonly failure: { serverId: string; reason: string } }> {
   if (!record.url) return externalMcpFailure(record, "no URL is configured to reach it");
 
   const headers: Record<string, string> = {};
+  if (authMode === "static_env" && staticAccessToken !== null) headers.authorization = `Bearer ${staticAccessToken}`;
   if (authMode === "oauth") {
     const token = await resolveExternalMcpAccessToken(record, oauth);
     if (!token.ok) return externalMcpFailure(record, token.reason);
@@ -798,6 +826,45 @@ async function resolveHttpTarget(
   }
 
   return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
+}
+
+/**
+ * `env` with a `static_env` row's access token applied under its variable name — LAST, as the OAuth
+ * token is in {@link resolveStdioTarget}, so a stale pasted copy of the same variable cannot shadow it.
+ *
+ * @returns `env` unchanged when the row holds no static token; `null` when it holds one but names no
+ *   variable to put it in (the save path refuses that, so reaching it means another writer).
+ * @complexity O(n) in the env variable count.
+ */
+function withStaticAccessToken(
+  record: Pick<ExternalMcpServerRecord, "oauthTokenEnvName">,
+  env: Record<string, string>,
+  authMode: ExternalMcpAuthMode,
+  staticAccessToken: string | null,
+): Record<string, string> | null {
+  if (authMode !== "static_env" || staticAccessToken === null) return env;
+  if (!record.oauthTokenEnvName) return null;
+  return { ...env, [record.oauthTokenEnvName]: staticAccessToken };
+}
+
+/**
+ * Opens a `static_env` row's sealed access token, or resolves `null` when it holds none — without
+ * touching the sealer for any other row. A blob that will not open is a per-row failure, the same
+ * posture {@link openExternalMcpEnv} takes for the env block.
+ *
+ * @complexity O(1) — at most one unseal.
+ */
+async function openExternalMcpStaticAccessToken(
+  record: ExternalMcpServerRecord,
+  sealer: Pick<SecretSealerPort, "open">,
+): Promise<{ readonly ok: true; readonly token: string | null } | { readonly ok: false; readonly reason: string }> {
+  if (!externalMcpRecordHasStaticAccessToken(record)) return { ok: true, token: null };
+  try {
+    const payload = await openExternalMcpOAuthPayload(sealer, record);
+    return { ok: true, token: payload.staticAccessToken ?? null };
+  } catch (err) {
+    return { ok: false, reason: `its stored access token could not be decrypted: ${err instanceof Error ? err.message : String(err)}` };
+  }
 }
 
 /** Resolves one ENABLED record into either a usable config or a failure entry, for
@@ -819,10 +886,12 @@ async function resolveExternalMcpConfig(
   if (!opened.ok) return externalMcpFailure(record, opened.reason);
 
   const authMode = resolveExternalMcpAuthMode(record);
+  const staticToken = await openExternalMcpStaticAccessToken(record, sealer);
+  if (!staticToken.ok) return externalMcpFailure(record, staticToken.reason);
   const resolved =
     transport === "stdio"
-      ? await resolveStdioTarget(record, opened.env, authMode, oauth)
-      : await resolveHttpTarget(record, authMode, oauth);
+      ? await resolveStdioTarget(record, opened.env, authMode, oauth, staticToken.token)
+      : await resolveHttpTarget(record, authMode, oauth, staticToken.token);
   if (!resolved.ok) return resolved;
 
   return {
@@ -954,6 +1023,13 @@ export interface SaveExternalMcpServerInput {
   writeAllowedToolNames: string;
   /** Raw operator input, `KEY=VALUE` per line. `undefined` leaves an existing block untouched. */
   env?: string;
+  /** SECRET, `static_env` only. Sealed, never returned by any read model. Three-state like {@link env}:
+   *  `undefined` keeps the stored token, a string replaces it, `""` clears it. Delivered as
+   *  {@link accessTokenEnvName} to a stdio child, or as `Authorization: Bearer` to a hosted server. */
+  accessToken?: string;
+  /** For `stdio` + `static_env`: which child env variable receives {@link accessToken}. `undefined`
+   *  keeps the stored name. */
+  accessTokenEnvName?: string;
   oauth?: SaveExternalMcpOAuthInput;
   /**
    * Set ONLY by `features/agent-plugins/federate-mcp.ts`, on the ONE save that creates a brand-new
@@ -1525,6 +1601,12 @@ export function hydrateExternalMcpOAuthPayload(parsed: unknown): ExternalMcpSeal
 }
 
 export interface ExternalMcpSealedOAuthPayload {
+  /**
+   * A `static_env` row's operator-pasted access token — the only member such a row's blob ever holds
+   * (see {@link externalMcpRecordHasStaticAccessToken}). Additive to payload v1: the OAuth flow never
+   * reads a `static_env` row (`requireOAuthRecord` refuses it), so no older reader can mishandle it.
+   */
+  readonly staticAccessToken?: string;
   readonly clientSecret?: string;
   readonly tokens?: {
     readonly accessToken: string;
@@ -1600,7 +1682,8 @@ export async function sealExternalMcpOAuthPayload(
   identity: ExternalMcpAadIdentity,
   payload: ExternalMcpSealedOAuthPayload,
 ): Promise<SealedExternalMcpOAuth> {
-  const hasSecret = (payload.clientSecret !== undefined && payload.clientSecret !== "") || payload.tokens !== undefined;
+  const hasSecret =
+    (payload.clientSecret !== undefined && payload.clientSecret !== "") || payload.tokens !== undefined || Boolean(payload.staticAccessToken);
   if (!hasSecret) return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
   try {
     const sealedOAuth = await deps.sealer.seal({
@@ -1682,6 +1765,117 @@ function resolveWriteGrantAttribution(
   return { writeGrantsUpdatedByPrincipalId: input.principalId, writeGrantsUpdatedAt: nowIso };
 }
 
+/** Generous: a JWT-shaped key can run to a few kilobytes. The cap exists so a pasted file cannot become a row. */
+const MAX_STATIC_ACCESS_TOKEN_LENGTH = 8192;
+/** C0 controls and DEL. A token carrying CR/LF would split the `Authorization` header it is sent in. */
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/;
+
+/**
+ * Validates an operator-pasted access token.
+ *
+ * @throws {ExternalMcpValidationError} On an oversized token, or one carrying a control character —
+ *   which for a hosted row would be header injection, not a typo.
+ * @complexity O(n) in the token length.
+ */
+function assertValidStaticAccessToken(token: string): string {
+  if (token.length > MAX_STATIC_ACCESS_TOKEN_LENGTH) {
+    throw new ExternalMcpValidationError(`the access token may be at most ${MAX_STATIC_ACCESS_TOKEN_LENGTH} characters`, "accessToken");
+  }
+  if (CONTROL_CHARACTER_PATTERN.test(token)) {
+    throw new ExternalMcpValidationError("the access token must not contain line breaks or other control characters", "accessToken");
+  }
+  return token;
+}
+
+/**
+ * The sealed blob for a `static_env` row's access token, under the `env` field's three-state rule.
+ *
+ * Stored in the row's existing sealed OAuth columns (and AAD lineage) rather than a new column: it is
+ * the same kind of thing — a sealed connection credential beside the env block — and while a row is
+ * `static_env` that blob holds nothing else. A carried token keeps its ciphertext AND its
+ * `oauthAadVersion` together, for the reason {@link SealedExternalMcpOAuth} gives.
+ *
+ * @throws {ExternalMcpValidationError} Via {@link assertValidStaticAccessToken}.
+ * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under.
+ * @complexity O(n) in the token length; at most one seal.
+ */
+async function resolveSealedStaticAccessToken(
+  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
+  identity: ExternalMcpAadIdentity,
+  rawToken: string | undefined,
+  existing: ExternalMcpServerRecord | null,
+): Promise<SealedExternalMcpOAuth> {
+  const none: SealedExternalMcpOAuth = { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+  if (rawToken === undefined) {
+    return existing !== null && externalMcpRecordHasStaticAccessToken(existing)
+      ? { sealedOAuth: existing.sealedOAuth, oauthAadVersion: existing.oauthAadVersion }
+      : none;
+  }
+  const token = rawToken.trim();
+  if (token === "") return none;
+  return sealExternalMcpOAuthPayload(deps, identity, { staticAccessToken: assertValidStaticAccessToken(token) });
+}
+
+/**
+ * Which child env variable receives a `stdio` + `static_env` row's access token. `null` for a hosted
+ * row (its token travels in a header) and for a stdio row that neither holds a token nor names one.
+ *
+ * @throws {ExternalMcpValidationError} When a stdio row holds a token but names no variable, or an
+ *   invalid one.
+ * @complexity O(n) in the name length.
+ */
+function resolveStaticAccessTokenEnvName(
+  transport: ExternalMcpTransport,
+  input: Pick<SaveExternalMcpServerInput, "accessTokenEnvName">,
+  existing: ExternalMcpServerRecord | null,
+  holdsToken: boolean,
+): string | null {
+  if (transport !== "stdio") return null;
+  const name = firstTrimmed(input.accessTokenEnvName, existing?.oauthTokenEnvName);
+  if (name === "") {
+    if (!holdsToken) return null;
+    throw new ExternalMcpValidationError(
+      "a local command given an access token needs the name of the environment variable that receives it",
+      "accessTokenEnvName",
+    );
+  }
+  if (!ENV_NAME_PATTERN.test(name)) {
+    throw new ExternalMcpValidationError(
+      `'${name}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
+      "accessTokenEnvName",
+    );
+  }
+  return name;
+}
+
+/**
+ * The sealed-credential columns for one save, by auth mode: a `static_env` row's access token and its
+ * variable name, or an `oauth`/`none` row's client secret and carried token set (nothing, for `none`).
+ * Split out to keep {@link saveExternalMcpServer} under the shop's complexity ceiling.
+ *
+ * @complexity O(1) beyond at most one unseal and one seal.
+ */
+async function resolveSavedCredentialColumns(
+  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
+  identity: ExternalMcpAadIdentity,
+  context: {
+    readonly authMode: ExternalMcpAuthMode;
+    readonly transport: ExternalMcpTransport;
+    readonly input: SaveExternalMcpServerInput;
+    readonly oauthFields: ResolvedOAuthFields;
+    readonly keepToken: boolean;
+    readonly existing: ExternalMcpServerRecord | null;
+  },
+): Promise<SealedExternalMcpOAuth & { readonly oauthTokenEnvName: string | null }> {
+  const { authMode, transport, input, oauthFields, keepToken, existing } = context;
+  if (authMode !== "static_env") {
+    const sealed = await resolveSealedOAuthBlob(deps, identity, oauthFields.clientSecret, keepToken ? existing : null);
+    return { ...sealed, oauthTokenEnvName: oauthFields.oauthTokenEnvName };
+  }
+  const sealed = await resolveSealedStaticAccessToken(deps, identity, input.accessToken, existing);
+  return { ...sealed, oauthTokenEnvName: resolveStaticAccessTokenEnvName(transport, input, existing, sealed.sealedOAuth !== null) };
+}
+
 export async function saveExternalMcpServer(
   deps: ExternalMcpStoreDeps,
   input: SaveExternalMcpServerInput,
@@ -1707,12 +1901,14 @@ export async function saveExternalMcpServer(
   const runtime = carryOAuthRuntimeState(authMode, oauthFields, existing);
   const aadIdentity: ExternalMcpAadIdentity = { workspaceId: input.workspaceId, serverId };
   const { sealedEnv, envNames, aadVersion } = await resolveExternalMcpSealedEnv(deps, aadIdentity, input.env, existing);
-  const { sealedOAuth, oauthAadVersion } = await resolveSealedOAuthBlob(
-    deps,
-    aadIdentity,
-    oauthFields.clientSecret,
-    runtime.keepToken ? existing : null,
-  );
+  const { sealedOAuth, oauthAadVersion, oauthTokenEnvName } = await resolveSavedCredentialColumns(deps, aadIdentity, {
+    authMode,
+    transport,
+    input,
+    oauthFields,
+    keepToken: runtime.keepToken,
+    existing,
+  });
 
   const now = deps.clock.nowIso();
   const writeGrantAttribution = resolveWriteGrantAttribution(input, writeAllowedToolNames, existing, now);
@@ -1740,7 +1936,7 @@ export async function saveExternalMcpServer(
     oauthScopesJson: oauthFields.oauthScopesJson,
     oauthStatus: runtime.oauthStatus,
     oauthExpiresAt: runtime.oauthExpiresAt,
-    oauthTokenEnvName: oauthFields.oauthTokenEnvName,
+    oauthTokenEnvName,
     oauthRefreshLeaseUntil: runtime.oauthRefreshLeaseUntil,
     sealedOAuth,
     aadVersion,

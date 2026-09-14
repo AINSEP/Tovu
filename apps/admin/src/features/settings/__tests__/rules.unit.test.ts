@@ -183,6 +183,28 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
     expect(keysOf({ transport: "streamable_http", authMode: "oauth" })).not.toContain("oauthTokenEnvName");
   });
 
+  it("orders Credentials third, right under Connection type, for every transport/authMode combination", () => {
+    const combinations: Record<string, string>[] = [{}, { transport: "streamable_http" }, { authMode: "oauth" }, { authMode: "none" }];
+    for (const values of combinations) {
+      expect(keysOf(values).slice(0, 3)).toEqual(["id", "transport", "authMode"]);
+    }
+  });
+
+  it("static_env puts a write-only Access token field fourth; stdio adds its env-var name fifth, a hosted server does not", () => {
+    expect(keysOf({ authMode: "static_env" }).slice(3, 5)).toEqual(["accessToken", "accessTokenEnvName"]);
+    expect(buildExternalMcpFieldSpecs({}).find((spec) => spec.key === "accessToken")?.kind).toBe("password");
+    const hosted = keysOf({ transport: "streamable_http", authMode: "static_env" });
+    expect(hosted[3]).toBe("accessToken");
+    expect(hosted).not.toContain("accessTokenEnvName");
+  });
+
+  it("none and oauth show no Access token field", () => {
+    for (const authMode of ["none", "oauth"]) {
+      expect(keysOf({ authMode })).not.toContain("accessToken");
+      expect(keysOf({ authMode })).not.toContain("accessTokenEnvName");
+    }
+  });
+
   it("authMode static_env or none never shows any oauth-prefixed field", () => {
     for (const authMode of ["static_env", "none"]) {
       const keys = keysOf({ authMode });
@@ -252,6 +274,8 @@ describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's 
     writeAllowedToolNames: true,
     env: true,
     authMode: true,
+    accessToken: true,
+    accessTokenEnvName: true,
     oauth: true,
   };
 

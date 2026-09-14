@@ -155,9 +155,10 @@ function ExternalMcpAddFormSection(props: {
   testing: boolean;
   testResult: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>["testResults"][string];
   onTest: () => void;
+  onCancel: () => void;
 }) {
   if (!props.open) return null;
-  const { fieldSpecs, addForm, canTest, testing, testResult, onTest } = props;
+  const { fieldSpecs, addForm, canTest, testing, testResult, onTest, onCancel } = props;
   return (
     <SourceConfigAddForm
       fieldSpecs={fieldSpecs}
@@ -175,6 +176,7 @@ function ExternalMcpAddFormSection(props: {
       onTest={onTest}
       addLabel="Add server"
       agentHandle={EXTERNAL_MCP_ADD_FORM_HANDLE}
+      onCancel={onCancel}
     />
   );
 }
@@ -468,6 +470,12 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
         testResult={list.testResults[DRAFT_TEST_SCOPE]}
         onTest={() => void list.test(undefined, addForm.values)}
+        // Cancel discards the draft, not just hides it — reopening must not resurrect a half-typed
+        // server (or a typed secret) the operator chose to abandon.
+        onCancel={() => {
+          addForm.reset();
+          setFormOpen(false);
+        }}
       />
 
       <ExternalMcpAdmissionsBanner

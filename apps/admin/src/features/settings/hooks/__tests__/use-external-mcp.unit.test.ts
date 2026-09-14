@@ -59,6 +59,8 @@ function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalM
       tokenEnvName: null,
       hasStoredToken: false,
     },
+    hasAccessToken: false,
+    accessTokenEnvName: null,
     ...overrides,
   };
 }
@@ -99,6 +101,8 @@ describe("useExternalMcp — fetchSources / toItem", () => {
           writeAllowedToolNames: "",
           authMode: "static_env",
           env: "",
+          accessToken: "",
+          accessTokenEnvName: "",
           ...BLANK_OAUTH_FIELDS,
         },
         statusMessage: "Credentials set: GITHUB_TOKEN",
@@ -125,6 +129,46 @@ describe("useExternalMcp — fetchSources / toItem", () => {
     const items = await result.current.dependencies.port.fetchSources();
 
     expect(items[0]).not.toHaveProperty("statusMessage");
+  });
+
+  it("never echoes a stored access token: the field arrives blank, its variable name round-trips, and the status says one is set", async () => {
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ envNames: ["BASE_URL"], hasAccessToken: true, accessTokenEnvName: "API_KEY" })],
+    });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const items = await result.current.dependencies.port.fetchSources();
+
+    expect(items[0]!.fields.accessToken).toBe("");
+    expect(items[0]!.fields.accessTokenEnvName).toBe("API_KEY");
+    expect(items[0]!.statusMessage).toBe("Credentials set: BASE_URL · Access token set");
+  });
+});
+
+describe("useExternalMcp — the static_env access token in a save", () => {
+  async function addWith(fields: Record<string, string>) {
+    saveExternalMcpServer.mockResolvedValue({ server: server(), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+    await act(async () => {
+      await result.current.dependencies.port.addSource({ fields: { id: "local-fs", command: "npx", ...fields } });
+    });
+    return saveExternalMcpServer.mock.calls[0]![1] as Record<string, unknown>;
+  }
+
+  it("sends a typed token and its variable name for static_env", async () => {
+    const body = await addWith({ authMode: "static_env", accessToken: "tok-1", accessTokenEnvName: "API_KEY" });
+    expect(body).toMatchObject({ accessToken: "tok-1", accessTokenEnvName: "API_KEY" });
+  });
+
+  it("omits a blank token, so saving without retyping it keeps the sealed one", async () => {
+    const body = await addWith({ authMode: "static_env", accessToken: "", accessTokenEnvName: "API_KEY" });
+    expect(body).not.toHaveProperty("accessToken");
+  });
+
+  it("sends neither token field for any other auth mode", async () => {
+    const body = await addWith({ authMode: "none", accessToken: "tok-1", accessTokenEnvName: "API_KEY" });
+    expect(body).not.toHaveProperty("accessToken");
+    expect(body).not.toHaveProperty("accessTokenEnvName");
   });
 });
 

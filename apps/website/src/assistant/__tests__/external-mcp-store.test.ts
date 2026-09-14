@@ -1072,3 +1072,78 @@ test("a genuine identity edit re-derives the operator's endpoints from scratch, 
   assert.equal(endpoints.authorizationEndpoint, undefined, "an endpoint the operator didn't retype is not carried over — the documented re-derivation rule this fix must not disturb");
   assert.equal(endpoints.clientAuth, "client_secret_post", "clientAuth alone survives even a genuine identity edit — no operator input could ever retype it");
 });
+
+// ---------------------------------------------------------------------------
+// static_env access token (owner request 2026-09-13): a dedicated, sealed, write-only token field,
+// delivered as an env variable to a local command and as a Bearer header to a hosted server.
+// ---------------------------------------------------------------------------
+
+test("static_env access token: sealed, absent from the read model and the row, delivered to a stdio child under its variable name", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  const view = await saveExternalMcpServer(
+    deps,
+    validInput({ env: "BASE_URL=https://api.example", authMode: "static_env", accessToken: "tok-secret-1", accessTokenEnvName: "GITHUB_TOKEN" }),
+  );
+
+  assert.equal(view.hasAccessToken, true);
+  assert.equal(view.accessTokenEnvName, "GITHUB_TOKEN");
+  assert.equal(JSON.stringify(view).includes("tok-secret-1"), false);
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(JSON.stringify(row).includes("tok-secret-1"), false);
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(stdioTarget(configs[0]).env, { BASE_URL: "https://api.example", GITHUB_TOKEN: "tok-secret-1" });
+});
+
+test("static_env access token on a hosted server is sent as Authorization: Bearer, with no env variable name", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  const view = await saveExternalMcpServer(
+    deps,
+    validInput({ transport: "streamable_http", url: "https://mcp.example.com/mcp", command: "", args: "", env: "", authMode: "static_env", accessToken: "tok-hosted" }),
+  );
+  assert.equal(view.accessTokenEnvName, null);
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(httpTarget(configs[0]).headers, { authorization: "Bearer tok-hosted" });
+});
+
+test("static_env access token: an omitted token keeps the stored one, an empty string clears it", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  const base = { env: "", authMode: "static_env", accessTokenEnvName: "API_KEY" };
+  await saveExternalMcpServer(deps, validInput({ ...base, accessToken: "tok-keep" }));
+
+  const kept = await saveExternalMcpServer(deps, validInput({ ...base, label: "Renamed" }));
+  assert.equal(kept.hasAccessToken, true);
+  let { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.equal(stdioTarget(configs[0]).env.API_KEY, "tok-keep");
+
+  const cleared = await saveExternalMcpServer(deps, validInput({ ...base, accessToken: "" }));
+  assert.equal(cleared.hasAccessToken, false);
+  ({ configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE));
+  assert.equal(stdioTarget(configs[0]).env.API_KEY, undefined);
+});
+
+test("static_env access token: refuses control characters (header injection) and a stdio token with no variable name", async () => {
+  const { deps } = makeDeps();
+  await assert.rejects(
+    saveExternalMcpServer(deps, validInput({ authMode: "static_env", accessToken: "tok\r\nX-Evil: 1", accessTokenEnvName: "API_KEY" })),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "accessToken",
+  );
+  await assert.rejects(
+    saveExternalMcpServer(deps, validInput({ authMode: "static_env", accessToken: "tok-1" })),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "accessTokenEnvName",
+  );
+});
+
+test("static_env access token: leaving static_env drops it, and coming back without a new one does not resurrect it", async () => {
+  const { deps } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ authMode: "static_env", accessToken: "tok-1", accessTokenEnvName: "API_KEY" }));
+
+  const none = await saveExternalMcpServer(deps, validInput({ authMode: "none" }));
+  assert.equal(none.hasAccessToken, false);
+
+  const back = await saveExternalMcpServer(deps, validInput({ authMode: "static_env", accessTokenEnvName: "API_KEY" }));
+  assert.equal(back.hasAccessToken, false);
+});

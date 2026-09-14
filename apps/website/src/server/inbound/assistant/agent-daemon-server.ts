@@ -1177,23 +1177,6 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
 });
 
-/**
- * Boot-time (and every reload pass's) accounting of which SAVED external-MCP rows could not even be
- * resolved into a connection attempt — e.g. a sealed env block that failed to decrypt because the
- * site token is not available. `resolveStoredExternalMcpConnections` reassigns this on every call
- * (boot, plus every `reloadFederatedConnections` pass), REPLACING rather than accumulating: unlike
- * `federationAdmissionReports` (a connection, once admitted, stays admitted forever per `trust.ts`
- * R5), a config-resolution failure is not permanent — fixing the site token and triggering a reload
- * can make the SAME serverId resolve cleanly on a later call, and the stale failure must disappear
- * from this list rather than linger next to a since-succeeded connection.
- *
- * Read through a closure (`registerFederationAdmissionsRoute` below), matching
- * `federationAdmissionReports`'s own module-level-`let` reasoning: this binding is declared before
- * `start()` ever runs, so the route must close over the BINDING, not a value snapshot that would
- * forever see the empty pre-boot array.
- */
-let externalMcpConfigFailures: readonly { readonly connectionId: string; readonly reason: string }[] = [];
-
 async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedConnection[]> {
   try {
     const { configs, failures } = await readEnabledExternalMcpConfigs(
@@ -1210,17 +1193,11 @@ async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedC
     for (const failure of failures) {
       console.warn(`[agent-daemon] mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
     }
-    // Replaces, not appends — see `externalMcpConfigFailures`'s own doc on why this list tracks the
-    // most recent resolution attempt rather than every attempt this process has ever made.
-    externalMcpConfigFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
     return toResolvedFederatedConnections(configs);
   } catch (error) {
     console.warn(
       `[agent-daemon] mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${error instanceof Error ? error.message : String(error)}`,
     );
-    // The whole read failed before any per-row failure could be attributed — a stale per-row failure
-    // from an earlier, partially-successful read must not survive next to a total read outage.
-    externalMcpConfigFailures = [];
     return [];
   }
 }
@@ -1266,13 +1243,7 @@ async function start(): Promise<void> {
   // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
   // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
   // other route in this process.
-  registerFederationAdmissionsRoute(app, {
-    reports: () => federationAdmissionReports,
-    // See `externalMcpConfigFailures`'s own doc: a boot-time (or reload-time) decrypt/config failure
-    // for a saved row that never even reached `attachFederatedMcpTools`, so it has no admission
-    // report at all and would otherwise be invisible to this route.
-    configFailures: () => externalMcpConfigFailures,
-  });
+  registerFederationAdmissionsRoute(app, { reports: () => federationAdmissionReports });
 
   // The same accounting, for the OTHER party that never heard the refusal. Rebuilt (not merely
   // reassigned) after every reload pass that admits something new — see `reloadFederatedConnections`

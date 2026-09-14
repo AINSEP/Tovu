@@ -99,10 +99,37 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       oauthAuthorizationEndpoint: "",
       oauthTokenEndpoint: "",
       oauthDeviceAuthorizationEndpoint: "",
+      // Write-only, exactly like `oauthClientSecret`: the store seals it and no read model returns it,
+      // so it always arrives blank and {@link toAccessTokenWriteBody} treats blank as "keep".
+      accessToken: "",
+      // A NAME, not a secret — round-trips the real stored value like `oauthTokenEnvName` does.
+      accessTokenEnvName: server.accessTokenEnvName ?? "",
     },
-    ...(server.envNames.length > 0
-      ? { statusMessage: `Credentials set: ${server.envNames.join(", ")}` }
-      : {}),
+    ...includeIfDefined("statusMessage", describeStoredCredentials(server)),
+  };
+}
+
+/** The card's "what is stored" line: env variable NAMES and whether an access token is held — never
+ *  a value. `undefined` when neither is stored, so the card shows no status line at all.
+ *  @complexity O(n) in the env variable count. */
+function describeStoredCredentials(server: AdminExternalMcpServer): string | undefined {
+  const parts = [
+    ...(server.envNames.length > 0 ? [`Credentials set: ${server.envNames.join(", ")}`] : []),
+    ...(server.hasAccessToken ? ["Access token set"] : []),
+  ];
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+/** The `static_env` access-token half of a save, or nothing for any other auth mode — the store only
+ *  reads these for a `static_env` row. Both are omit-when-blank: a blank token means "keep the sealed
+ *  one" (the `env` rule), and a blank variable name resolves to the stored name server-side either way,
+ *  so omitting it keeps every other mode's write body byte-identical to before this field existed.
+ *  @complexity O(1). */
+function toAccessTokenWriteBody(fields: Record<string, string>): Pick<AdminExternalMcpServerInput, "accessToken" | "accessTokenEnvName"> {
+  if (resolveExternalMcpEffectiveAuthMode(fields) !== "static_env") return {};
+  return {
+    ...omitIfBlank("accessToken", fieldOrEmpty(fields, "accessToken")),
+    ...omitIfBlank("accessTokenEnvName", fieldOrEmpty(fields, "accessTokenEnvName")),
   };
 }
 
@@ -184,6 +211,7 @@ function toWriteBody(fields: Record<string, string>, enabled: boolean, label?: s
     authMode: resolveExternalMcpEffectiveAuthMode(fields),
     // Blank means "untouched", never "clear" — see this file's header.
     ...omitIfBlank("env", fieldOrEmpty(fields, "env")),
+    ...toAccessTokenWriteBody(fields),
     ...includeIfDefined("oauth", oauth),
   };
 }

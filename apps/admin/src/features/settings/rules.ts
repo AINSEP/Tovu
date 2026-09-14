@@ -131,7 +131,22 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
         { value: "streamable_http", label: "Hosted server (URL)" },
       ],
     },
+    // Third, right under Connection type (owner call, 2026-09-13): how the connection authenticates
+    // decides which of the fields below apply at all, so it is chosen before them, not after.
+    {
+      key: "authMode",
+      label: "Credentials",
+      kind: "select",
+      required: true,
+      options: [
+        { value: "none", label: "None needed" },
+        { value: "static_env", label: "API key / access token" },
+        { value: "oauth", label: "Connect via OAuth" },
+      ],
+    },
   ];
+
+  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs(isStdio));
 
   if (isStdio) {
     specs.push(
@@ -171,20 +186,35 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
     });
   }
 
-  specs.push({
-    key: "authMode",
-    label: "Credentials",
-    kind: "select",
-    required: true,
-    options: [
-      { value: "none", label: "None needed" },
-      { value: "static_env", label: "API key / token (above)" },
-      { value: "oauth", label: "Connect via OAuth" },
-    ],
-  });
-
   if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio));
 
+  return specs;
+}
+
+/**
+ * The `static_env` ("API key / access token") field specs, right under Credentials.
+ *
+ * `accessToken` is a `password` field and write-only, like `oauthClientSecret`: the server seals it
+ * and never returns it, so it always arrives blank and blank means "keep the stored token". A local
+ * command receives it as an environment variable, so stdio also asks WHICH variable; a hosted server
+ * receives it as `Authorization: Bearer`, so it needs no name. Neither is `required` here: a
+ * connection may keep a token it already stores, and the server rejects a stdio token with no
+ * variable name itself.
+ *
+ * @complexity O(1).
+ */
+function buildAccessTokenFieldSpecs(isStdio: boolean): SourceFieldSpec[] {
+  const specs: SourceFieldSpec[] = [
+    { key: "accessToken", label: "Access token", kind: "password", placeholder: "leave blank to keep the stored token" },
+  ];
+  if (isStdio) {
+    specs.push({
+      key: "accessTokenEnvName",
+      label: "Access token environment variable",
+      kind: "text",
+      placeholder: "the variable the command reads its token from, e.g. GITHUB_TOKEN",
+    });
+  }
   return specs;
 }
 

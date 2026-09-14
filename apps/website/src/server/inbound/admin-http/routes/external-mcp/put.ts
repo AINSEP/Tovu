@@ -87,6 +87,9 @@ function parseExternalMcpPutBody(rawBody: unknown) {
     writeAllowedToolNames: asStringField(body.writeAllowedToolNames),
     // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
     ...optionalStringField(body.env, "env"),
+    // Same three-way meaning as `env`, and write-only: no read model returns the token.
+    ...optionalStringField(body.accessToken, "accessToken"),
+    ...optionalStringField(body.accessTokenEnvName, "accessTokenEnvName"),
     ...parseExternalMcpOAuthBody(body.oauth),
   };
 }
