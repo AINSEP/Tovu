@@ -1,3 +1,4 @@
+import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
 
 export const WORKSPACE_ID = "workspace-local";
@@ -2054,6 +2055,9 @@ function throwTranslatedFetchFailure(cause: unknown): never {
     throw new ApiError(timeoutApiMessage(), 0, REQUEST_TIMEOUT_CODE, { cause: message });
   }
   if (!(cause instanceof TypeError)) throw cause;
+  // A navigation cancels in-flight fetches with this SAME `TypeError`, after `pagehide` (see
+  // `page-lifecycle.ts`). That is a cancellation, not evidence the server is down.
+  if (isPageUnloading()) throw new DOMException("request cancelled: the page is unloading", "AbortError");
   throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
     cause: cause.message,
   });

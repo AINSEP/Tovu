@@ -20,6 +20,7 @@ import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
 import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
+import { isAbortError, retryWhileUnreachable } from "@/lib/retry-unreachable";
 import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
@@ -188,20 +189,25 @@ export function useExecutionConfig(): UseExecutionConfig {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void loadExecutionConfig()
+    const controller = new AbortController();
+    // Retried while the API is unreachable (`retryWhileUnreachable`): this dock mounts once per
+    // session, so a load that lands inside a dev-API restart would otherwise leave the picker on
+    // defaults until a full reload even though the API is back seconds later.
+    void retryWhileUnreachable({ load: loadExecutionConfig, signal: controller.signal })
       .then((config) => {
         // Goes through the raw setter, not the wrapped `setExecutionConfig` above: applying a
         // load must never itself count as a "local write" (see `localWriteRef`'s doc) — only an
         // operator action should. Skipped once a local write has landed — see that doc for why.
-        if (!cancelled && !localWriteRef.current) setExecutionConfigState(config);
+        if (!controller.signal.aborted && !localWriteRef.current) setExecutionConfigState(config);
       })
       // The dock is mounted on EVERY admin route, so an unhandled rejection here is not a
       // localized failure — it fires on any page load where the settings read fails (server
       // down, a 5xx, a body without `data`). `DEFAULT_EXECUTION_CONFIG` is already this
       // state's initial value, so swallowing to a log leaves the picker on Local CLI rather
       // than blanking the dock. Same shape as `handleExecutionModeChange`'s save catch below.
+      // A cancellation (unmount, or the page navigating away mid-request) is not a failure.
       .catch((error: unknown) => {
+        if (isAbortError(error)) return;
         console.error("[AssistantDock] failed to load execution config", error);
       })
       // Runs regardless of resolve/reject — `configLoaded` means "the GET settled", not "it
@@ -209,11 +215,9 @@ export function useExecutionConfig(): UseExecutionConfig {
       // whatever `executionConfig` ends up holding (the `DEFAULT_EXECUTION_CONFIG` this state
       // already initialized to) rather than waiting forever for a load that already gave up.
       .finally(() => {
-        if (!cancelled) setConfigLoaded(true);
+        if (!controller.signal.aborted) setConfigLoaded(true);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   /**
@@ -232,15 +236,18 @@ export function useExecutionConfig(): UseExecutionConfig {
    */
   const [hasStoredAdminKey, setHasStoredAdminKey] = useState<boolean | null>(null);
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    // Same restart-survival and cancellation handling as the ledger load above; `hasStoredAdminKey`
+    // stays `null` (unknown) while retrying rather than claiming "not configured".
     const refresh = () => {
-      void loadAdminExecutionCredential()
+      void retryWhileUnreachable({ load: loadAdminExecutionCredential, signal: controller.signal })
         .then((view) => {
-          if (!cancelled) setHasStoredAdminKey(view.isSet);
+          if (!controller.signal.aborted) setHasStoredAdminKey(view.isSet);
         })
         .catch((error: unknown) => {
+          if (isAbortError(error)) return;
           console.error("[AssistantDock] failed to load stored BYOK credential state", error);
-          if (!cancelled) setHasStoredAdminKey(false);
+          if (!controller.signal.aborted) setHasStoredAdminKey(false);
         });
     };
     refresh();
@@ -249,7 +256,7 @@ export function useExecutionConfig(): UseExecutionConfig {
       refresh();
     });
     return () => {
-      cancelled = true;
+      controller.abort();
       unsubscribe();
     };
   }, []);
