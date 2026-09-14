@@ -12,7 +12,8 @@
  *
  * Read directly off `dataTransfer.items`/`.files` — BEFORE `@jini-ai/chat`'s own drop handling
  * (which runs afterward, on the very same event, once the capture-phase listener that calls this,
- * `App.tsx`'s `onDropCapture`, returns without calling `preventDefault`/`stopPropagation`) expands
+ * `captureFolderDrop` in `use-workspace-chat-pane.hooks.ts` — `WorkspaceChatPane`'s `onDropCapture`
+ * — returns without calling `preventDefault`/`stopPropagation`) expands
  * each dropped folder into synthesized per-leaf `File` objects via the `FileSystemEntry` API.
  *
  * That expansion matters because those synthesized files are NOT the ones `dataTransfer.files`

@@ -1,7 +1,5 @@
-import { useCallback, useRef, useState, type DragEvent } from 'react';
 import { ConversationList } from '@jini-ai/chat/react';
 import { ChatPane } from '@jini-ai/chat/react/chat-pane';
-import type { ChatPaneComposerHandle, ChatPaneRunContext } from '@jini-ai/chat/react/chat-pane';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
 import { GearIcon, NavIcon, SectionIcon } from './icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
@@ -11,7 +9,6 @@ import {
   navLinkClick,
   settingsControlHandlers,
   startThenNotify,
-  useConversationDeleteConfirmation,
   useDismissibleDropdown,
   useExpandedMode,
   useProjectMutations,
@@ -19,12 +16,10 @@ import {
   useProjectTabs,
   useSiteRescan,
   useSitesPolling,
-  useWorkspaceChatTransport,
-  useRunnerConversations,
   useRunnerNavigation,
   useSectionNav,
 } from './App.hooks.js';
-import { folderPathsFromDataTransfer } from './folder-drop.js';
+import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-chat-pane.hooks.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
@@ -1057,54 +1052,23 @@ function ThemeControl({
   );
 }
 
-/**
- * The picker's model/reasoning choice reaches the transport through `runContext`, not through
- * `startRun`'s own arguments: `ChatTransport.StartRunInput` carries `agentId` but nothing about how
- * that agent should be configured, and `context` is the port's designated opaque per-host payload.
- */
-const WORKSPACE_RUN_CONTEXT: ChatPaneRunContext = ({ selection }) => ({
-  ...(selection.model === undefined ? {} : { model: selection.model }),
-  ...(selection.reasoning === undefined ? {} : { reasoning: selection.reasoning }),
-});
-
 function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
-  const { transport, runtimeAccess, workingDirectoryAccess, getPathForFile, uploadAttachments } =
-    useWorkspaceChatTransport();
-  const conversations = useRunnerConversations();
-  const deleteConfirmation = useConversationDeleteConfirmation();
-  // The working-directory picker (native folder dialog + MRU list) — unrelated to, and untouched
-  // by, the drop handler below. A folder drop no longer feeds this: see `onDropCapture`'s doc.
-  const [workingDirectory, setWorkingDirectory] = useState<string | null>(null);
-  // Populated by `ChatPane` itself once mounted (`ChatPaneComposerHandle`, `@jini-ai/chat`). The
-  // seam `onDropCapture` uses to write a dropped folder's path into the draft as text.
-  const composerHandle = useRef<ChatPaneComposerHandle | null>(null);
-
-  // Capture phase, deliberately not a bubble-phase `onDrop`: this has to see the raw event BEFORE
-  // `ChatPane`'s own drop handler (buried in its tree, attached in the bubble phase) would expand a
-  // dropped folder into synthesized leaf files via the `FileSystemEntry` API — see
-  // `folderPathsFromDataTransfer`'s doc for why that expansion loses the folder's own path.
-  //
-  // Unlike an earlier version of this handler, a recovered folder path now `preventDefault`s AND
-  // `stopPropagation`s instead of passing the event through: letting `ChatPane` see it is exactly
-  // the bug this exists to fix (TODO.md, "Chat composer: folder drop should yield a path, not an
-  // upload") — the owner dropped a folder wanting a path and got "You can attach at most 10 files
-  // to one message." The path goes into the composer as TEXT via `composerHandle.insertText`
-  // instead; the fleet agent already has filesystem/Bash access on this machine and can act on it
-  // directly. A drop that resolves to no folder at all (a loose file, a plain text drag) is left
-  // alone on purpose: `ChatPane` now has `uploadAttachments` wired (`chat-attachments.ts`'s
-  // `createLocalAttachmentUploader`), so that case is a real staged attachment, not an unhandled
-  // drop — exactly the folder/file distinction this handler exists to preserve.
-  const onDropCapture = useCallback(
-    (event: DragEvent<HTMLElement>) => {
-      if (getPathForFile === undefined) return;
-      const folders = folderPathsFromDataTransfer(event.dataTransfer, getPathForFile);
-      if (folders.length === 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      composerHandle.current?.insertText(folders.join(' '));
-    },
-    [getPathForFile],
-  );
+  // Everything this pane holds and every handler it wires, including the capture-phase folder drop
+  // (`captureFolderDrop`) and `WORKSPACE_RUN_CONTEXT`. See `use-workspace-chat-pane.hooks.ts`.
+  const {
+    transport,
+    runtimeAccess,
+    workingDirectoryAccess,
+    uploadAttachments,
+    conversations,
+    deleteConfirmation,
+    listItems,
+    conversationIdProp,
+    workingDirectory,
+    setWorkingDirectory,
+    composerHandle,
+    onDropCapture,
+  } = useWorkspaceChatPane();
 
   return (
     <aside className="runner-chat-pane" aria-label="Runner chat" onDropCapture={onDropCapture}>
@@ -1120,11 +1084,8 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
               silently discarding whatever is on screen. */}
           {transport !== undefined && (
             <ConversationList
-              // `ConversationListItem[]` (mutable) is the package's own prop type; this hook's
-              // return stays `readonly` for consistency with every other list in `App.hooks.ts`
-              // (`useSitesPolling`'s `projects`, etc.), so the boundary is a shallow copy here
-              // rather than widening the hook's own contract for one caller.
-              conversations={[...conversations.conversations]}
+              // A mutable copy of the hook's readonly list — see `workspaceConversationView`.
+              conversations={listItems}
               activeConversationId={conversations.activeId}
               onSelect={conversations.select}
               onCreate={conversations.create}
@@ -1171,7 +1132,7 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
           runtimeAccess={runtimeAccess}
           runContext={WORKSPACE_RUN_CONTEXT}
           initialMessages={conversations.initialMessages}
-          {...(conversations.activeId === null ? {} : { conversationId: conversations.activeId })}
+          {...conversationIdProp}
           onMessagesChange={conversations.onMessagesChange}
           // Replaces `ChatPane`'s own default header (title + a "New thread" button wired to its
           // own `onReset`, which only clears the local transcript and writes nothing durable) with
