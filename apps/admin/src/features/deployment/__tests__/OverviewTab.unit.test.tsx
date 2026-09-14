@@ -170,9 +170,10 @@ describe("real fields, honestly labeled", () => {
       />,
     );
     // Every absent var here is "neutral" — only an absent OWNER PASSWORD is a warning
-    // (`isEnvVarRowUnsafe`, `rules.ts`). This asserts the 503-later nuance the brief calls out is
-    // rendered as a note, not upgraded to a false alarm the code doesn't support.
-    expect(screen.getByText(/enables the AI Assistant\. Missing shows there as a 503, not here\./)).toBeInTheDocument();
+    // (`isEnvVarRowUnsafe`, `rules.ts`). This asserts the boot-blocking-in-production / local-503
+    // nuance the brief calls out is rendered as a note, not upgraded to a false alarm the code
+    // doesn't support.
+    expect(screen.getByText(/required to boot in production\. Missing locally shows as a 503/i)).toBeInTheDocument();
     const notSetPills = screen.getAllByText("Not set");
     expect(notSetPills.every((el) => el.className.includes("status-neutral"))).toBe(true);
   });

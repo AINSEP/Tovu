@@ -45,8 +45,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Sin configurar",
     "Falls back to a public default.": "Usa un valor predeterminado público si falta.",
     'Falls back to "admin".': 'Usa "admin" si falta.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "No es necesaria para iniciar — habilita el Asistente de IA. Si falta, se ve como un 503 allí, no aquí.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Necesaria para iniciar en producción. Si falta en local, aparece como un 503 en la pantalla del Asistente de IA.",
     "Falls back to port 4319.": "Usa el puerto 4319 si falta.",
     "What Static Site produces": "Qué produce el sitio estático",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -132,8 +132,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Belum diatur",
     "Falls back to a public default.": "Kembali ke default publik jika kosong.",
     'Falls back to "admin".': 'Kembali ke "admin" jika kosong.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Tidak wajib untuk boot — mengaktifkan Asisten AI. Jika hilang, muncul sebagai 503 di sana, bukan di sini.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Wajib untuk boot di produksi. Jika hilang secara lokal, muncul sebagai 503 di layar Asisten AI.",
     "Falls back to port 4319.": "Kembali ke port 4319 jika kosong.",
     "What Static Site produces": "Apa yang dihasilkan Situs Statis",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -219,8 +219,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Nicht gesetzt",
     "Falls back to a public default.": "Fällt auf einen öffentlichen Standard zurück.",
     'Falls back to "admin".': 'Fällt auf „admin“ zurück.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Für den Start nicht erforderlich — aktiviert den KI-Assistenten. Fehlt sie, zeigt sich das dort als 503, nicht hier.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Für den Start in Produktion erforderlich. Fehlt sie lokal, erscheint stattdessen ein 503 auf dem Bildschirm des KI-Assistenten.",
     "Falls back to port 4319.": "Fällt auf Port 4319 zurück.",
     "What Static Site produces": "Was Statische Seite erzeugt",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -306,8 +306,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "未设置",
     "Falls back to a public default.": "未设置时使用公开的默认值。",
     'Falls back to "admin".': '未设置时使用 "admin"。',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "启动时非必需 — 用于启用 AI 助手。缺失时会在那里显示为 503,而不是在此处。",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "生产环境下启动必需。本地缺失时,会改为在 AI 助手页面显示为 503。",
     "Falls back to port 4319.": "未设置时使用端口 4319。",
     "What Static Site produces": "静态站点会生成什么",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -386,8 +386,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "未設定",
     "Falls back to a public default.": "未設定時會使用公開的預設值。",
     'Falls back to "admin".': '未設定時會使用「admin」。',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "啟動時非必要 — 用於啟用 AI 助理。若缺少,會在該處顯示為 503,而非此處。",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "正式環境啟動時為必要項目。本機缺少時,會改為在 AI 助理畫面顯示為 503。",
     "Falls back to port 4319.": "未設定時會使用連接埠 4319。",
     "What Static Site produces": "靜態網站會產生什麼",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -466,8 +466,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Não definida",
     "Falls back to a public default.": "Usa um padrão público quando ausente.",
     'Falls back to "admin".': 'Usa "admin" quando ausente.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Não é necessária para iniciar — habilita o Assistente de IA. Se ausente, aparece lá como 503, não aqui.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Necessária para iniciar em produção. Se ausente localmente, aparece como 503 na tela do Assistente de IA.",
     "Falls back to port 4319.": "Usa a porta 4319 quando ausente.",
     "What Static Site produces": "O que o Site estático produz",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -553,8 +553,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Не задана",
     "Falls back to a public default.": "При отсутствии используется публичное значение по умолчанию.",
     'Falls back to "admin".': 'При отсутствии используется «admin».',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Не требуется для запуска — включает ИИ-ассистента. При отсутствии там будет показана ошибка 503, а не здесь.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Обязательна для запуска в продакшене. Если отсутствует локально, вместо этого на экране ИИ-ассистента появится ошибка 503.",
     "Falls back to port 4319.": "При отсутствии используется порт 4319.",
     "What Static Site produces": "Что даёт Статичный сайт",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -633,8 +633,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "تنظیم‌نشده",
     "Falls back to a public default.": "در صورت نبود، از مقدار پیش‌فرض عمومی استفاده می‌شود.",
     'Falls back to "admin".': 'در صورت نبود، از «admin» استفاده می‌شود.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "برای راه‌اندازی لازم نیست — دستیار هوش مصنوعی را فعال می‌کند. در صورت نبود، آنجا به‌صورت خطای 503 نمایش داده می‌شود، نه اینجا.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "برای راه‌اندازی در محیط تولید لازم است. در صورت نبود در محیط محلی، به‌جای آن روی صفحه دستیار هوش مصنوعی خطای 503 نمایش داده می‌شود.",
     "Falls back to port 4319.": "در صورت نبود، از پورت 4319 استفاده می‌شود.",
     "What Static Site produces": "سایت ایستا چه چیزی تولید می‌کند",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -713,8 +713,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "غير مضبوطة",
     "Falls back to a public default.": "تستخدم قيمة افتراضية عامة عند غيابها.",
     'Falls back to "admin".': 'تستخدم "admin" عند غيابها.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "غير مطلوبة للإقلاع — تُفعّل مساعد الذكاء الاصطناعي. عند غيابها يظهر هناك كخطأ 503، وليس هنا.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "مطلوبة للإقلاع في بيئة الإنتاج. إذا كانت غائبة محليًا، يظهر بدلاً من ذلك خطأ 503 في شاشة مساعد الذكاء الاصطناعي.",
     "Falls back to port 4319.": "تستخدم المنفذ 4319 عند غيابها.",
     "What Static Site produces": "ما الذي ينتجه الموقع الثابت",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -793,8 +793,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "未設定",
     "Falls back to a public default.": "未設定の場合、公開されているデフォルト値が使われます。",
     'Falls back to "admin".': '未設定の場合、"admin" が使われます。',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "起動には不要です — AIアシスタントを有効にします。未設定の場合、ここではなくそちらで503として表示されます。",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "本番環境での起動に必要です。ローカルで未設定の場合、代わりにAIアシスタント画面で503として表示されます。",
     "Falls back to port 4319.": "未設定の場合、ポート4319が使われます。",
     "What Static Site produces": "静的サイトが生成するもの",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -873,8 +873,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "설정되지 않음",
     "Falls back to a public default.": "설정하지 않으면 공개 기본값을 사용합니다.",
     'Falls back to "admin".': '설정하지 않으면 "admin"을 사용합니다.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "부팅에는 필요하지 않습니다 — AI 어시스턴트를 활성화합니다. 없으면 이곳이 아니라 그곳에서 503으로 표시됩니다.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "프로덕션에서 부팅하려면 필요합니다. 로컬에서 없으면 대신 AI 어시스턴트 화면에 503으로 표시됩니다.",
     "Falls back to port 4319.": "설정하지 않으면 포트 4319를 사용합니다.",
     "What Static Site produces": "정적 사이트가 생성하는 것",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -953,8 +953,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Nieustawiona",
     "Falls back to a public default.": "Bez ustawienia używana jest publiczna wartość domyślna.",
     'Falls back to "admin".': 'Bez ustawienia używane jest „admin”.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Niewymagana do uruchomienia — włącza Asystenta AI. Brak pokazuje się tam jako błąd 503, nie tutaj.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Wymagana do uruchomienia w środowisku produkcyjnym. Jeśli brakuje jej lokalnie, zamiast tego na ekranie Asystenta AI pojawia się błąd 503.",
     "Falls back to port 4319.": "Bez ustawienia używany jest port 4319.",
     "What Static Site produces": "Co tworzy Witryna statyczna",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1033,8 +1033,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Nincs beállítva",
     "Falls back to a public default.": "Hiányában nyilvános alapértelmezett értéket használ.",
     'Falls back to "admin".': 'Hiányában az "admin" értéket használja.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Az induláshoz nem szükséges — az AI asszisztenst engedélyezi. Hiánya ott 503-as hibaként jelenik meg, nem itt.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Az éles indításhoz szükséges. Ha helyileg hiányzik, helyette az AI asszisztens képernyőjén 503-as hiba jelenik meg.",
     "Falls back to port 4319.": "Hiányában a 4319-es portot használja.",
     "What Static Site produces": "Mit hoz létre a Statikus oldal",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1113,8 +1113,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Non définie",
     "Falls back to a public default.": "Utilise une valeur par défaut publique si absente.",
     'Falls back to "admin".': 'Utilise « admin » si absente.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Non requise au démarrage — active l'assistant IA. Si absente, cela apparaît là-bas comme une erreur 503, pas ici.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Requise pour démarrer en production. Si elle est absente en local, une erreur 503 apparaît à la place sur l'écran de l'assistant IA.",
     "Falls back to port 4319.": "Utilise le port 4319 si absente.",
     "What Static Site produces": "Ce que produit le Site statique",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1200,8 +1200,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Не задано",
     "Falls back to a public default.": "За відсутності використовується публічне значення за замовчуванням.",
     'Falls back to "admin".': 'За відсутності використовується «admin».',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Не потрібна для запуску — вмикає ШІ-асистента. За відсутності там буде показано помилку 503, а не тут.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Обов'язкова для запуску в продакшні. Якщо відсутня локально, натомість на екрані ШІ-асистента з'явиться помилка 503.",
     "Falls back to port 4319.": "За відсутності використовується порт 4319.",
     "What Static Site produces": "Що дає Статичний сайт",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1280,8 +1280,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Ayarlanmadı",
     "Falls back to a public default.": "Ayarlanmazsa herkese açık bir varsayılan kullanılır.",
     'Falls back to "admin".': 'Ayarlanmazsa "admin" kullanılır.',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Başlatmak için gerekli değildir — Yapay Zeka Asistanını etkinleştirir. Eksikse burada değil orada 503 olarak görünür.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Üretimde başlatmak için gereklidir. Yerelde eksikse, bunun yerine Yapay Zeka Asistanı ekranında 503 olarak görünür.",
     "Falls back to port 4319.": "Ayarlanmazsa 4319 numaralı port kullanılır.",
     "What Static Site produces": "Statik Site ne üretir",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1360,8 +1360,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "ยังไม่ได้ตั้งค่า",
     "Falls back to a public default.": "ใช้ค่าเริ่มต้นสาธารณะเมื่อไม่ได้ตั้งค่า",
     'Falls back to "admin".': 'ใช้ "admin" เมื่อไม่ได้ตั้งค่า',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "ไม่จำเป็นสำหรับการบูต — ใช้เปิดใช้งานผู้ช่วย AI หากไม่มีจะแสดงเป็นข้อผิดพลาด 503 ที่หน้านั้น ไม่ใช่ที่นี่",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "จำเป็นสำหรับการบูตในโปรดักชัน หากไม่มีในโลคัล จะแสดงเป็น 503 ที่หน้าจอผู้ช่วย AI แทน",
     "Falls back to port 4319.": "ใช้พอร์ต 4319 เมื่อไม่ได้ตั้งค่า",
     "What Static Site produces": "เว็บไซต์แบบสแตติกสร้างอะไร",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1440,8 +1440,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "Non impostata",
     "Falls back to a public default.": "Se assente, usa un valore predefinito pubblico.",
     'Falls back to "admin".': 'Se assente, usa "admin".',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "Non necessaria per l'avvio — abilita l'Assistente IA. Se assente, lì apparirà come errore 503, non qui.",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "Necessaria per l'avvio in produzione. Se assente in locale, appare invece come errore 503 nella schermata dell'Assistente IA.",
     "Falls back to port 4319.": "Se assente, usa la porta 4319.",
     "What Static Site produces": "Cosa produce il Sito statico",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1527,8 +1527,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "सेट नहीं है",
     "Falls back to a public default.": "सेट न होने पर सार्वजनिक डिफ़ॉल्ट का उपयोग करता है।",
     'Falls back to "admin".': 'सेट न होने पर "admin" का उपयोग करता है।',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "बूट के लिए आवश्यक नहीं — AI असिस्टेंट को सक्षम करता है। न होने पर वहां 503 के रूप में दिखता है, यहां नहीं।",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "प्रोडक्शन में बूट के लिए आवश्यक है। लोकल में न होने पर, इसके बजाय AI असिस्टेंट स्क्रीन पर 503 के रूप में दिखता है।",
     "Falls back to port 4319.": "सेट न होने पर पोर्ट 4319 का उपयोग करता है।",
     "What Static Site produces": "स्थिर साइट क्या उत्पन्न करती है",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1607,8 +1607,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "سیٹ نہیں",
     "Falls back to a public default.": "سیٹ نہ ہونے پر عوامی ڈیفالٹ استعمال ہوتا ہے۔",
     'Falls back to "admin".': 'سیٹ نہ ہونے پر "admin" استعمال ہوتا ہے۔',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "بوٹ کے لیے ضروری نہیں — AI اسسٹنٹ کو فعال کرتا ہے۔ نہ ہونے پر وہاں 503 کے طور پر ظاہر ہوتا ہے، یہاں نہیں۔",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "پروڈکشن میں بوٹ کے لیے ضروری ہے۔ لوکل میں نہ ہونے کی صورت میں، اس کے بجائے AI اسسٹنٹ اسکرین پر 503 کے طور پر ظاہر ہوتا ہے۔",
     "Falls back to port 4319.": "سیٹ نہ ہونے پر پورٹ 4319 استعمال ہوتا ہے۔",
     "What Static Site produces": "جامد سائٹ کیا پیدا کرتی ہے",
     "A fast, read-only copy of this site's published pages — no server behind it.":
@@ -1687,8 +1687,8 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Not set": "সেট করা নেই",
     "Falls back to a public default.": "সেট না থাকলে একটি পাবলিক ডিফল্ট ব্যবহার করে।",
     'Falls back to "admin".': '"admin" ব্যবহার করে সেট না থাকলে।',
-    "Not required to boot — enables the AI Assistant. Missing shows there as a 503, not here.":
-      "বুট করার জন্য প্রয়োজন নেই — এটি AI সহায়ককে সক্ষম করে। না থাকলে সেখানে 503 হিসেবে দেখা যাবে, এখানে নয়।",
+    "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.":
+      "প্রোডাকশনে বুট করার জন্য প্রয়োজনীয়। লোকালে না থাকলে, পরিবর্তে AI সহায়ক স্ক্রিনে 503 হিসেবে দেখা যাবে।",
     "Falls back to port 4319.": "সেট না থাকলে পোর্ট 4319 ব্যবহার করে।",
     "What Static Site produces": "স্ট্যাটিক সাইট কী তৈরি করে",
     "A fast, read-only copy of this site's published pages — no server behind it.":
