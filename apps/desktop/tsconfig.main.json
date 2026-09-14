@@ -4,12 +4,10 @@
   // Electron and Node strip the types at load time, which is why `erasableSyntaxOnly` is on (no
   // `enum`, `namespace`, parameter properties or `import x = require()`).
   //
-  // THE RATCHET (TypeScript migration Phase 4). `files` lists only the modules whose types are done,
-  // and each annotation batch moves its files here from `tsconfig.main-pending.json`. Batches go
-  // leaf-first by import graph, so a file listed here never imports one that is not: tsc follows
-  // imports, so an unannotated import would put its strict errors into this program and fail
-  // `npm run typecheck`. The last batch deletes the pending config and replaces this list with the
-  // globs above. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phase 4.
+  // Phase 5 close-out: the file-by-file ratchet (`tsconfig.main-pending.json`, deleted) is done —
+  // every main-process module is strict-typed, so `include` below covers the whole target surface
+  // by glob instead of listing files one at a time. See
+  // ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phases 4-5.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
@@ -24,60 +22,5 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
-  "files": [
-    // Batch 1: pure policy leaves, no imports from other desktop modules.
-    "src/complexity-debt.ts",
-    "src/complexity-debt.test.ts",
-    "src/coverage-floors.ts",
-    "src/coverage-floors.test.ts",
-    "src/coverage-runner-split.test.ts",
-    "src/keyed-serializer.ts",
-    "src/keyed-serializer.test.ts",
-    "src/quality-gates.ts",
-    "src/quality-gates.test.ts",
-    "src/quit-drain-gate.ts",
-    "src/quit-drain-gate.test.ts",
-    "src/quit-signals.ts",
-    "src/quit-signals.test.ts",
-    "src/selftest-tracker.ts",
-    "src/selftest-tracker.test.ts",
-    "src/shell-staleness.ts",
-    "src/shell-staleness.test.ts",
-    "src/shutdown-tracker.ts",
-    "src/shutdown-tracker.test.ts",
-    "src/site-supervisor.ts",
-    "src/site-supervisor.test.ts",
-    "src/tree-quiet.ts",
-    "src/tree-quiet.test.ts",
-    "src/webview-guest-policy.ts",
-    "src/webview-guest-policy.test.ts",
-    // Batch 2: modules whose desktop imports are all in this list. admin-dev-proxy.test.ts stays
-    // pending: it imports tovu-server.ts, so it moves with that module.
-    "src/admin-dev-proxy.ts",
-    "src/asar-verify.ts",
-    "src/asar-verify.test.ts",
-    "src/desktop-auth.ts",
-    "src/desktop-auth.test.ts",
-    "src/desktop-user-data-dir.ts",
-    "src/desktop-user-data-dir.test.ts",
-    "src/packaged-paths.ts",
-    "src/packaged-paths.test.ts",
-    "src/runner-ipc-stubs.ts",
-    "src/runner-ipc-stubs.test.ts",
-    "src/site-config.ts",
-    "src/site-config.test.ts",
-    "src/site-history-menu.ts",
-    "src/site-history-menu.test.ts",
-    "src/site-preview-store.ts",
-    "src/site-preview-store.test.ts",
-    "src/speech/mac-on-device-transcriber.ts",
-    "src/speech/mac-on-device-transcriber.test.ts",
-    "src/speech/pcm-wav-encoder.ts",
-    "src/speech/pcm-wav-encoder.test.ts",
-    "src/speech/preload-speech.test.ts",
-    "src/speech/speech-ipc.ts",
-    "src/speech/speech-ipc.test.ts",
-    "src/speech/transcription-port.ts",
-    "src/speech/transcription-port.test.ts"
-  ]
+  "include": ["main.ts", "bin/**/*.ts", "scripts/**/*.ts", "src/*.ts", "src/speech/**/*.ts"]
 }
