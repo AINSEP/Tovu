@@ -130,7 +130,6 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string)
     "--test",
     "--experimental-test-coverage",
     ...includes.flatMap((glob) => [`--test-coverage-include=${glob}`]),
-    "--test-coverage-exclude=src/**/*.test.js",
     "--test-coverage-exclude=src/**/*.test.ts",
     "--test-reporter=lcov",
     `--test-reporter-destination=${lcovPath}`,
