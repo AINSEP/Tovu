@@ -13,26 +13,33 @@ import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
  * inside a `DataTable` cell closure, reachable only by rendering the table.
  */
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). Covers both this
+ *  screen's routes: `PLUGIN_SET_ENABLED`'s three codes (unchanged) plus `PLUGIN_UNINSTALL`'s four
+ *  (`PLUGIN_NOT_FOUND` is shared verbatim between both routes' error envelopes, so it needed no
+ *  second entry) — see `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own
+ *  `sendPluginUninstallError` for the source of truth these four messages translate.
+ *
+ *  A `Map`, not an object literal: a server code that happens to name an `Object.prototype` member
+ *  (`"toString"`) must fall through to the default, not resolve to a function. */
+const PLUGIN_ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
+  ["PLUGIN_NOT_FOUND", "No plugin with that id is installed."],
+  ["PLUGIN_INVALID", "This plugin failed validation and cannot be enabled."],
+  ["PLUGIN_INCOMPATIBLE", "This plugin requires a different SDK version."],
+  ["PLUGIN_NOT_UNINSTALLABLE", "This plugin ships with Tovu and cannot be removed."],
+  ["PLUGIN_ENABLED", "This plugin is enabled and must be disabled everywhere before it can be removed."],
+  ["PLUGIN_ID_INVALID", "This plugin's id is invalid."],
+]);
+
 /** Maps this screen's two calls' error codes to `errors.spec.md`'s operator-facing guidance text
  * (ui.spec.md §8), falling back to the server's own message.
  *
  * @complexity O(1).
  * @overallScore 100
  */
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). Covers both this
- *  screen's routes: `PLUGIN_SET_ENABLED`'s three codes (unchanged) plus `PLUGIN_UNINSTALL`'s four
- *  (`PLUGIN_NOT_FOUND` is shared verbatim between both routes' error envelopes, so it needed no
- *  second branch) — see `server/inbound/admin-http/routes/plugins/uninstall.ts`'s own
- *  `sendPluginUninstallError` for the source of truth these four messages translate. */
 export function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    if (e.code === "PLUGIN_NOT_FOUND") return "No plugin with that id is installed.";
-    if (e.code === "PLUGIN_INVALID") return "This plugin failed validation and cannot be enabled.";
-    if (e.code === "PLUGIN_INCOMPATIBLE") return "This plugin requires a different SDK version.";
-    if (e.code === "PLUGIN_NOT_UNINSTALLABLE") return "This plugin ships with Tovu and cannot be removed.";
-    if (e.code === "PLUGIN_ENABLED")
-      return "This plugin is enabled and must be disabled everywhere before it can be removed.";
-    if (e.code === "PLUGIN_ID_INVALID") return "This plugin's id is invalid.";
+  if (e instanceof ApiError && e.code !== undefined) {
+    const override = PLUGIN_ERROR_MESSAGES.get(e.code);
+    if (override !== undefined) return override;
   }
   return describeApiErrorDefault(e, fallback);
 }

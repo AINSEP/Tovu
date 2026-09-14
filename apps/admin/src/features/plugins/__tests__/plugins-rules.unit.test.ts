@@ -129,3 +129,24 @@ describe("describeApiError — PLUGIN_UNINSTALL's four codes", () => {
     expect(describeApiError(new Error("network down"), "fallback text")).toBe("network down");
   });
 });
+
+describe("describeApiError — characterization of every remaining branch", () => {
+  it("maps PLUGIN_SET_ENABLED's PLUGIN_INVALID and PLUGIN_INCOMPATIBLE", () => {
+    expect(describeApiError(new ApiError("x", 422, "PLUGIN_INVALID"), "fallback")).toBe("This plugin failed validation and cannot be enabled.");
+    expect(describeApiError(new ApiError("x", 422, "PLUGIN_INCOMPATIBLE"), "fallback")).toBe("This plugin requires a different SDK version.");
+  });
+
+  it("an ApiError with an unmapped code, or no code, surfaces the server's own message", () => {
+    expect(describeApiError(new ApiError("server says no", 500, "INTERNAL"), "fallback")).toBe("server says no");
+    expect(describeApiError(new ApiError("server says no", 500), "fallback")).toBe("server says no");
+  });
+
+  it("an ApiError with an unmapped code and an empty message uses the fallback", () => {
+    expect(describeApiError(new ApiError("", 500, "INTERNAL"), "fallback")).toBe("fallback");
+  });
+
+  it("a code that names an Object.prototype member is not treated as a mapped code", () => {
+    expect(describeApiError(new ApiError("server says no", 500, "toString"), "fallback")).toBe("server says no");
+    expect(describeApiError(new ApiError("server says no", 500, "constructor"), "fallback")).toBe("server says no");
+  });
+});
