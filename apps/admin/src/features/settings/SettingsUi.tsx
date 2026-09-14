@@ -134,6 +134,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
+import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
@@ -367,9 +368,14 @@ export function SettingsUi(props: SettingsUiProps) {
             // controls that can persist anything. They write DISJOINT patches — the key
             // footer writes the key, the form footer writes protocol/base URL/model/max
             // tokens — so neither can claim the other's work. See
-            // `hooks/use-admin-execution-credential.hooks.ts`.
+            // `hooks/use-admin-execution-credential.hooks.ts`. The next two match
+            // `AiAssistant.tsx`'s `AdminExecutionMode` mount: `canDiscoverModels` keeps a provider
+            // switch from probing with a key saved for another endpoint, and `describeProbeError`
+            // words the server's endpoint-pin refusals in plain language.
             apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+            canDiscoverModels={adminCredential.canDiscoverModels}
+            describeProbeError={createProbeErrorDescriber(t)}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
             formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
             agentHandle="settings-execution"

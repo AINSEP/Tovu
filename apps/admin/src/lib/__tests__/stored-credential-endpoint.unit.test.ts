@@ -4,6 +4,7 @@ import { ApiError, type AdminExecutionCredential } from "../api";
 import {
   STORED_KEY_NO_ENDPOINT_COPY,
   STORED_KEY_OTHER_PROVIDER_COPY,
+  createProbeErrorDescriber,
   describeProbeError,
   hasUsableKey,
   storedKeyBlocksProbe,
@@ -91,5 +92,20 @@ describe("describeProbeError — the admin branch's endpoint-pin text", () => {
   it("keeps any other error's own message, and the fallback for a non-Error", () => {
     expect(describeProbeError(new Error("API key not valid"), "fallback")).toBe("API key not valid");
     expect(describeProbeError("boom", "fallback")).toBe("fallback");
+  });
+});
+
+describe("createProbeErrorDescriber — ExecutionTab's describeProbeError, in a screen's language", () => {
+  const spanish = (key: string) =>
+    key === STORED_KEY_OTHER_PROVIDER_COPY ? "Tu clave guardada es de otro proveedor. Pega una clave para este." : key;
+
+  it("translates the plain-language copy that replaces an endpoint-pin refusal", () => {
+    const refusal = new ApiError("saved for another endpoint", 400, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
+    expect(createProbeErrorDescriber(spanish)(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
+  });
+
+  it("keeps a provider's own message, and words a non-Error throw by its string form", () => {
+    expect(createProbeErrorDescriber(spanish)(new Error("API key not valid"))).toBe("API key not valid");
+    expect(createProbeErrorDescriber(spanish)("boom")).toBe("boom");
   });
 });

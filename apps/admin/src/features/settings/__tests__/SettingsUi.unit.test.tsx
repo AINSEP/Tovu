@@ -1,18 +1,36 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createFakeMediaProvidersPort,
   createFakeSkillsPort,
   createFakeSourceConfigDependencies,
+  type ByokConfig,
+  type ExecutionConfig,
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
 import { SettingsUi } from "../SettingsUi";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
-import type { AdminExecutionCredentialController } from "@/hooks/use-admin-execution-credential.hooks";
+import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";
+import {
+  useAdminExecutionCredential,
+  type AdminExecutionCredentialController,
+} from "@/hooks/use-admin-execution-credential.hooks";
+import type { AdminExecutionCredential } from "@/lib/api";
 import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
+import {
+  GOOGLE,
+  GOOGLE_ADMIN_KEY,
+  OPENAI,
+  apiKeyField,
+  createServerPinnedProbes,
+  formOn,
+  presetFor,
+  settle,
+} from "@/lib/__tests__/stored-credential-endpoint.test-helpers";
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
@@ -279,6 +297,84 @@ describe("useAdminExecutionCredentialHook injection", () => {
     // hook can't settle a network GET synchronously within `render()`, so this text appearing at
     // all proves the fake controller is what fed the Execution tab, not the real wired hook.
     expect(screen.getByText(/We found a saved key in this browser/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The Settings mount of the owner's 2026-09-13 repro (`owner-screenshots-2026-09-13/29-*.png`): the cases
+ * `AdminExecutionMode.unit.test.tsx` runs through AI Assistant's mount, here through the REAL
+ * `ExecutionTab`, the REAL credential hook over its in-memory port, and a probe port that refuses the way
+ * the server's endpoint pin does.
+ */
+describe("Execution tab — a Google key saved, the form moved to another provider", () => {
+  const OTHER_PROVIDER_COPY = "Your saved key is for a different provider. Paste a key for this one.";
+
+  /** Renders over a LIVE execution slice, so a chip click or a pasted key re-renders the form. Returns the
+   *  probe port. */
+  function renderSettingsWithKeySaved(
+    byok: ByokConfig,
+    { stored = GOOGLE_ADMIN_KEY, locale = DEFAULT_LOCALE }: { stored?: AdminExecutionCredential; locale?: string } = {},
+  ) {
+    const credentialPort = createFakeAdminExecutionCredentialPort({ stored });
+    const probes = createServerPinnedProbes(stored);
+    function useLiveSettingsUi(): SettingsUiController {
+      const [execution, setExecution] = useState<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok", byok });
+      return baseController({
+        port: probes,
+        execution: { ...makeSlice(execution), onChange: setExecution },
+        language: makeSlice(locale),
+      });
+    }
+    render(
+      <SettingsUi
+        useSettingsUiHook={useLiveSettingsUi}
+        useAdminExecutionCredentialHook={(input) => useAdminExecutionCredential(input, credentialPort)}
+      />,
+    );
+    return probes;
+  }
+
+  /** Mounts on Google, lets Google's own (legitimate) discovery settle, then forgets it. */
+  async function mountOnGoogleThenForgetItsDiscovery(options?: { locale?: string }) {
+    const probes = renderSettingsWithKeySaved(formOn(GOOGLE, "gemini-flash-latest"), options);
+    expect(await screen.findByPlaceholderText("••••mw4w")).toBeInTheDocument();
+    await settle();
+    probes.listModels.mockClear();
+    return probes;
+  }
+
+  it("switching from Google to OpenAI with nothing typed sends no model discovery and shows no refusal", async () => {
+    const user = userEvent.setup();
+    const probes = await mountOnGoogleThenForgetItsDiscovery();
+
+    await user.click(screen.getByRole("tab", { name: presetFor(OPENAI).title }));
+    await settle();
+
+    expect(screen.getByText(OTHER_PROVIDER_COPY)).toBeInTheDocument();
+    expect(probes.listModels).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Could not load live models/)).not.toBeInTheDocument();
+  });
+
+  it("then pasting a key sends exactly one model discovery, carrying that key to OpenAI", async () => {
+    const user = userEvent.setup();
+    const probes = await mountOnGoogleThenForgetItsDiscovery();
+
+    await user.click(screen.getByRole("tab", { name: presetFor(OPENAI).title }));
+    await user.click(apiKeyField());
+    await user.paste("sk-openai-typed");
+    await settle();
+
+    expect(probes.listModels).toHaveBeenCalledTimes(1);
+    expect(probes.listModels).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "sk-openai-typed", baseUrl: OPENAI }));
+  });
+
+  it("words a refused discovery with the plain-language copy, not the server's API-caller text", async () => {
+    renderSettingsWithKeySaved(formOn(GOOGLE, "gemini-flash-latest"), { stored: { ...GOOGLE_ADMIN_KEY, baseUrl: null } });
+
+    expect(
+      await screen.findByText(/Could not load live models: Your saved key has no provider saved with it\. Paste the key again to test it\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/save a base URL for the credential first/)).not.toBeInTheDocument();
   });
 });
 

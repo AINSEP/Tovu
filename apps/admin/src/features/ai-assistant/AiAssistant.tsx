@@ -18,6 +18,7 @@ import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import {
   navigateToAiAssistantTab,
   resolveAiAssistantRequestedTabId,
@@ -319,12 +320,16 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         // changes, both must.
         localCliScopeLabel={t("Detected on the Tovu server, not on your own computer.")}
         // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
-        // same four pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
+        // same six pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
         // disagree" reason this file's own header already documents for `useStoredCredential`. The
         // two footers write DISJOINT patches (key vs. settings); see
-        // `hooks/use-admin-execution-credential.hooks.ts`.
+        // `hooks/use-admin-execution-credential.hooks.ts`. `canDiscoverModels` keeps a provider switch
+        // from probing with a key saved for another endpoint; `describeProbeError` words the server's
+        // endpoint-pin refusals in plain language (`lib/stored-credential-endpoint.ts`).
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+        canDiscoverModels={adminCredential.canDiscoverModels}
+        describeProbeError={createProbeErrorDescriber(t)}
         apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
         formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" />}
       />
@@ -604,7 +609,7 @@ export function VisitorCredentialKeyFooter({
       </div>
 
       {/* `t` passes a provider's own error text through unchanged; it translates only this screen's
-          own plain-language probe copy (`rules.ts`'s `describeProbeError`). */}
+          own plain-language probe copy (`lib/stored-credential-endpoint.ts`'s `describeProbeError`). */}
       {discovery.status === "error" ? <div className="save-error">{t(discovery.message)}</div> : null}
 
       {/*

@@ -1,4 +1,5 @@
 import { ApiError } from "./api";
+import type { Translate } from "./dictionary-translator";
 
 /**
  * @file Rules for a BYOK key the server holds write-only and will only send to the endpoint it was saved
@@ -81,4 +82,17 @@ export function describeProbeError(e: unknown, fallback: string): string {
   if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_MISMATCH") return STORED_KEY_OTHER_PROVIDER_COPY;
   if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_UNSET") return STORED_KEY_NO_ENDPOINT_COPY;
   return e instanceof Error ? e.message : fallback;
+}
+
+/**
+ * `@jini-ai/ui` `ExecutionTab`'s `describeProbeError` prop for a screen whose translator is `t`:
+ * {@link describeProbeError}'s wording, translated. A provider's own message misses the dictionary and
+ * stays as sent; a non-`Error` throw is worded by its string form. Both admin mounts of `ExecutionTab`
+ * (Settings -> Execution mode, AI Assistant -> Admin AI Assistant) pass this, so the two cannot word a
+ * refused model discovery or Test connection differently.
+ *
+ * @complexity Time/space: O(1) per call.
+ */
+export function createProbeErrorDescriber(t: Translate): (error: unknown) => string {
+  return (error) => t(describeProbeError(error, String(error)));
 }
