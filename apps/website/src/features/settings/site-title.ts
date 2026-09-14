@@ -208,16 +208,28 @@ function logPinFailure(workspaceId: UUID, reason: string): "failed" {
   return "failed";
 }
 
+/**
+ * REQ-13: the served site's display name, read when a render needs it rather than captured once at
+ * boot, so a `config.json` rename shows on the next render with no restart.
+ */
+export interface SiteDisplayNameSource {
+  /**
+   * The display name as it stands now, or `undefined` when there is none. The resolver normalizes it.
+   * Should not throw; a throw renders {@link LEGACY_SITE_TITLE} (REQ-09).
+   */
+  read(): string | undefined;
+}
+
 export interface ResolveSiteTitleDeps {
   settingsRepo: SettingsRepoPort;
   preservationStore: Pick<SiteTitlePreservationStorePort, "isPending">;
   workspaceRepo: { findById(id: UUID): Promise<WorkspaceRecord | null> };
   /**
-   * `config.json` `name` of the site directory this process serves, read once at boot, or
-   * `undefined` when there is no site directory (NC-2 = B). A config rename shows after a restart;
-   * a `workspaces.name` rename shows at once (OQ-01).
+   * `config.json` `name` of the site directory this process serves (NC-2 = B), read at each
+   * resolution that reaches it (REQ-13). A config rename and a `workspaces.name` rename both show on
+   * the next render (OQ-01, EC-01). Reads `undefined` when there is no site directory.
    */
-  siteDisplayName: string | undefined;
+  siteDisplayName: SiteDisplayNameSource;
 }
 
 /**
@@ -232,7 +244,8 @@ export interface ResolveSiteTitleDeps {
  * Never throws. Any failed read renders {@link LEGACY_SITE_TITLE} rather than guess the tier, because
  * a pinned site that loses its settings read must not flip (REQ-09, INV-01).
  *
- * @complexity O(1) repo reads per call, at most one of them a workspace lookup.
+ * @complexity O(1) repo reads per call, at most one of them a workspace lookup, plus one bounded
+ * display-name read on step 3 only (REQ-13).
  */
 export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { workspaceId: UUID }): Promise<string> {
   try {
@@ -257,9 +270,9 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
   }
 }
 
-/** NC-2 = B: the configured display name, else the workspace row's name, each only if renderable. */
+/** NC-2 = B: the configured display name as it stands now (REQ-13), else the workspace row's name, each only if renderable. */
 async function resolveSiteDisplayName(deps: ResolveSiteTitleDeps, workspaceId: UUID): Promise<string | undefined> {
-  const configured = normalizeSiteTitle(deps.siteDisplayName);
+  const configured = normalizeSiteTitle(deps.siteDisplayName.read());
   if (configured !== undefined) return configured;
   const workspace = await deps.workspaceRepo.findById(workspaceId);
   return normalizeSiteTitle(workspace?.name);

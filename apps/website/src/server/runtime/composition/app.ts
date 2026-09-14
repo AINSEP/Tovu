@@ -600,7 +600,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteTitleReady,
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
-    siteDisplayName: undefined,
+    siteDisplayName: { read: () => undefined },
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),

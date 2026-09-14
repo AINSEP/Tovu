@@ -27,7 +27,7 @@ import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
-import type { SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
+import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../../features/settings/site-title.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
@@ -1081,10 +1081,11 @@ export interface AnalyticsDeps {
   /** SPEC-050 (NC-3 = A): which workspaces existed before `core.site.title` and still wait for their pin. */
   siteTitlePreservationStore: SiteTitlePreservationStorePort;
   /**
-   * SPEC-050 (NC-2 = B): `config.json` `name` of the served site directory, read once at boot, or
-   * `undefined` when there is no site directory (the title then falls back to `workspaces.name`).
+   * SPEC-050 (NC-2 = B, REQ-13): `config.json` `name` of the served site directory, read at each
+   * render that needs it, so a rename shows with no restart. Reads `undefined` when there is no site
+   * directory (the title then falls back to `workspaces.name`).
    */
-  siteDisplayName: string | undefined;
+  siteDisplayName: SiteDisplayNameSource;
 }
 
 /**

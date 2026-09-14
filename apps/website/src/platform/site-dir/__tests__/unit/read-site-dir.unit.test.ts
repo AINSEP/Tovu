@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readSiteDir } from "../../read-site-dir.js";
+import { createLiveSiteDisplayName, readSiteConfig, readSiteDir } from "../../read-site-dir.js";
 
 /**
  * @file SPEC-003 C-004 (`readSiteDir`) — TDD certification, unit tier.
@@ -217,6 +217,110 @@ test("both files present, valid, within size -> readSiteDir returns { config, me
     const result = readSiteDir({ dir });
     assert.deepEqual(result.config, config);
     assert.deepEqual(result.meta, meta);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-050 REQ-13: the site display name read live, while the site is running
+// (`readSiteConfig`, `createLiveSiteDisplayName`)
+// ---------------------------------------------------------------------------
+
+function writeConfigName(dir: string, name: unknown): void {
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name, domain: null, port: null }));
+}
+
+test("SPEC-050 REQ-13: readSiteConfig applies config.json's own rules without reading .site-meta.json", () => {
+  const dir = mkTempDir();
+  try {
+    writeConfigName(dir, "  Demo Site  ");
+    assert.deepEqual(readSiteConfig({ dir }), { name: "Demo Site", domain: null, port: null });
+
+    writeConfigName(dir, "   ");
+    assertSiteDirInvalid(() => readSiteConfig({ dir }), /config\.json|name/, "blank name through readSiteConfig");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("SPEC-050 REQ-13: createLiveSiteDisplayName re-reads config.json on every call, so an atomic rename and a same-size edit that keeps the old mtime both show at once", () => {
+  const dir = mkTempDir();
+  try {
+    const configPath = path.join(dir, "config.json");
+    writeConfigName(dir, "Site A");
+    const liveName = createLiveSiteDisplayName({ dir });
+    assert.equal(liveName.read(), "Site A");
+
+    // Temp file + rename: how the desktop rename (`apps/desktop/src/site-config.ts`) and
+    // `atomic-write.ts` both write it.
+    fs.writeFileSync(`${configPath}.tmp`, JSON.stringify({ name: "Renamed Atomically", domain: null, port: null }));
+    fs.renameSync(`${configPath}.tmp`, configPath);
+    assert.equal(liveName.read(), "Renamed Atomically");
+
+    // Two same-size in-place edits inside one mtime tick, as a 1 s (HFS+) or 2 s (FAT) filesystem
+    // records them: same inode, same size, same mtime. A cache keyed on stat would keep "Site A".
+    writeConfigName(dir, "Site A");
+    const { atime, mtime } = fs.statSync(configPath);
+    assert.equal(liveName.read(), "Site A");
+    writeConfigName(dir, "Site B");
+    fs.utimesSync(configPath, atime, mtime);
+    assert.equal(liveName.read(), "Site B");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("SPEC-050 REQ-13: a config.json that is torn mid-write, empty, blank-named, oversized, deleted, or a directory keeps the last valid name, and the next valid one replaces it", () => {
+  const dir = mkTempDir();
+  try {
+    const configPath = path.join(dir, "config.json");
+    writeConfigName(dir, "Last Good");
+    const liveName = createLiveSiteDisplayName({ dir });
+    assert.equal(liveName.read(), "Last Good");
+
+    const unusable: Array<[string, () => void]> = [
+      ["torn mid-write", () => fs.writeFileSync(configPath, '{"name": "Half Wri')],
+      ["empty", () => fs.writeFileSync(configPath, "")],
+      ["blank name", () => writeConfigName(dir, "   ")],
+      ["oversized", () => writeConfigName(dir, "x".repeat(70 * 1024))],
+      ["deleted", () => undefined],
+      ["a directory", () => fs.mkdirSync(configPath)],
+    ];
+    for (const [label, breakConfig] of unusable) {
+      fs.rmSync(configPath, { recursive: true, force: true });
+      breakConfig();
+      assert.equal(liveName.read(), "Last Good", `${label}: keeps the last valid name`);
+    }
+
+    fs.rmSync(configPath, { recursive: true, force: true });
+    writeConfigName(dir, "Recovered");
+    assert.equal(liveName.read(), "Recovered", "the next valid config.json is read at once");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("SPEC-050 REQ-13: a directory that has never held a valid config.json reads undefined, so the site title falls back to workspaces.name", () => {
+  const dir = mkTempDir();
+  try {
+    const liveName = createLiveSiteDisplayName({ dir });
+    assert.equal(liveName.read(), undefined, "no config.json");
+
+    fs.writeFileSync(path.join(dir, "config.json"), "{ not json");
+    assert.equal(liveName.read(), undefined, "a config.json that was never valid");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("SPEC-050 REQ-13: createLiveSiteDisplayName reads config.json once when it is created, so a config.json torn before the first render still reads the name the site booted with", () => {
+  const dir = mkTempDir();
+  try {
+    writeConfigName(dir, "Boot Name");
+    const liveName = createLiveSiteDisplayName({ dir });
+    fs.writeFileSync(path.join(dir, "config.json"), '{"name": "Torn');
+    assert.equal(liveName.read(), "Boot Name");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

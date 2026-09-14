@@ -113,7 +113,7 @@ function resolveDeps(
     settingsRepo: ledger.settingsRepo,
     preservationStore: ledger.preservationStore,
     workspaceRepo,
-    siteDisplayName: options.siteDisplayName,
+    siteDisplayName: { read: () => options.siteDisplayName },
   };
 }
 
@@ -351,4 +351,48 @@ test("REQ-07: the pending marker is read before the value, so a pin that lands m
     "Tovu Demo Site"
   );
   assert.equal(armed, false, "the pin must have landed during the render");
+});
+
+// ---------------------------------------------------------------------------
+// The live display name (REQ-13)
+// ---------------------------------------------------------------------------
+
+test("REQ-13 (AC-22): the display name is read at every resolution, so a rename renders with the same deps, and a pending pin or an owner title still wins", async () => {
+  const ledger = await makeLedger(["ws-pre"]);
+  let configuredName = SITE_DISPLAY_NAME;
+  let reads = 0;
+  const deps = {
+    ...resolveDeps(ledger),
+    siteDisplayName: {
+      read: () => {
+        reads += 1;
+        return configuredName;
+      },
+    },
+  };
+
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-new" }), "My Site");
+  configuredName = "Renamed Site";
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-new" }), "Renamed Site", "the rename renders without rebuilding deps");
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-pre" }), "Tovu Demo Site", "a pending pin still wins over the renamed display name");
+
+  await ownerSet(ledger, "ws-new", OWNER_TITLE);
+  configuredName = "Renamed Again";
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-new" }), OWNER_TITLE, "an owner title still wins over a later rename");
+  assert.equal(reads, 2, "only a render that reaches the display-name tier reads the name");
+});
+
+test("REQ-09 (REQ-13): a display-name read that throws resolves Tovu Demo Site", async (t) => {
+  silenceConsoleError(t);
+  const ledger = await makeLedger();
+  const deps = {
+    ...resolveDeps(ledger),
+    siteDisplayName: {
+      read: (): string | undefined => {
+        throw new Error("injected display-name read failure");
+      },
+    },
+  };
+
+  assert.equal(await resolveSiteTitle(deps, { workspaceId: "ws-new" }), "Tovu Demo Site");
 });

@@ -69,6 +69,18 @@ function validateConfig(parsed: unknown): ConfigJson {
 }
 
 /**
+ * Parse + validate `config.json` alone — {@link readSiteDir}'s first half, for a caller that needs
+ * the site's identity but not its schema stamp (SPEC-050 REQ-13's live display name).
+ *
+ * @throws {SiteDirInvalidError} naming `config.json` — missing, not a file, oversized, unparseable
+ *   JSON, or an invalid `name`.
+ * @complexity O(1) — one small, bounded-size file read.
+ */
+export function readSiteConfig(required: ReadSiteDirRequired): ConfigJson {
+  return validateConfig(readJsonFile(required.dir, "config.json"));
+}
+
+/**
  * Parse + validate an install dir's `config.json` and `.site-meta.json` for `serve`.
  *
  * @param required.dir - the install dir path (already resolved by the caller).
@@ -80,7 +92,49 @@ function validateConfig(parsed: unknown): ConfigJson {
  */
 export function readSiteDir(required: ReadSiteDirRequired): ReadSiteDirResult {
   const { dir } = required;
-  const config = validateConfig(readJsonFile(dir, "config.json"));
+  const config = readSiteConfig({ dir });
   const meta = readJsonFile(dir, ".site-meta.json") as SiteMetaJson;
   return { config, meta };
+}
+
+/** A site directory's display name, read live. See {@link createLiveSiteDisplayName}. */
+export interface LiveSiteDisplayName {
+  read(): string | undefined;
+}
+
+/**
+ * SPEC-050 REQ-13: `dir`'s `config.json` `name`, re-read on every `read()`, so renaming a running
+ * site shows on its next render with no restart.
+ *
+ * - Also reads once when created, so the floor is the name the site booted with.
+ * - A read that fails returns the last valid name and never throws. Failures include a file that is
+ *   missing, torn mid-write by a non-atomic editor, oversized, or carries an invalid name, and a
+ *   rename racing the read on Windows. One bad read must not flip the title to a fallback that a
+ *   CDN then caches for minutes.
+ * - `undefined` until `dir` has held a valid `config.json`.
+ *
+ * Deliberately no stat/mtime cache: two same-size edits inside one mtime tick (1 s on HFS+, 2 s on
+ * FAT) look identical to `stat`, which would hide the second rename until some later edit. Measured
+ * 2026-09-14, a full read of this bounded file costs ~49 us against ~7 us for a stat, and only a
+ * workspace whose title is its display name pays it.
+ *
+ * @complexity O(1) per read — one small, bounded-size file read.
+ */
+export function createLiveSiteDisplayName(required: ReadSiteDirRequired): LiveSiteDisplayName {
+  let lastValidName = readValidName(required, undefined);
+  return {
+    read() {
+      lastValidName = readValidName(required, lastValidName);
+      return lastValidName;
+    },
+  };
+}
+
+/** `config.json`'s current valid name, else `fallback`. Never throws. */
+function readValidName(required: ReadSiteDirRequired, fallback: string | undefined): string | undefined {
+  try {
+    return readSiteConfig(required).name;
+  } catch {
+    return fallback;
+  }
 }

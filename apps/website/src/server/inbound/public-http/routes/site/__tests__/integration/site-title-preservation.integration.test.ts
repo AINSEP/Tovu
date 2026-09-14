@@ -13,9 +13,11 @@ import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-conten
 import { bootSiteDir } from "#src/platform/site-dir/boot-site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
+import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { createApp } from "#src/server/runtime/composition/app";
-import { createSqliteRouteDeps } from "#src/server/runtime/composition/deps";
+import { createSqliteRouteDeps, createSqliteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { seedSite } from "../../../../../../../../../../development/scripts/seed-site.mjs";
@@ -136,8 +138,9 @@ function assertSingleTitle(html: string, expected: string, surface: string): voi
 
 async function getHtml(baseUrl: string, pathname: string): Promise<string> {
   const res = await fetch(`${baseUrl}${pathname}`);
-  assert.equal(res.status, 200, `GET ${pathname} must render, got ${res.status}`);
-  return res.text();
+  const html = await res.text();
+  assert.equal(res.status, 200, `GET ${pathname} must render, got ${res.status}: ${html.slice(0, 500)}`);
+  return html;
 }
 
 /** S1 needs a home with no published Page claiming `/`; the starter seed ships one ("Home"). */
@@ -400,4 +403,67 @@ test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships n
   const products = await getHtml(deploy.baseUrl, "/products");
   assertSingleTitle(products, DEPLOY_NAME, "S3 GET /products on the hydrated deploy");
   assert.ok(products.includes(`<a class="wordmark" href="/">${DEPLOY_NAME}</a>`), "B: header wordmark on the hydrated deploy");
+});
+
+const RENAMED_SITE_NAME = "Renamed Site";
+
+/** Renames a running site the way the desktop rename does: `config.json` rewritten with temp file + rename. */
+function renameSiteConfig(dir: string, name: string): void {
+  const configPath = path.join(dir, "config.json");
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
+  writeJsonFileAtomic(configPath, { ...config, name });
+}
+
+test("AC-22 (REQ-13, EC-01): a config.json rename on a running new site renders on the next request with no restart, and an owner title still wins over a later one", async (t) => {
+  const dir = createNewSite(t);
+  const site = await bootSite(t, dir);
+  await site.deps.siteTitleReady;
+  assertSingleTitle(await getHtml(site.baseUrl, "/products"), SITE_NAME, "S3 GET /products before the rename");
+
+  renameSiteConfig(dir, RENAMED_SITE_NAME);
+  const products = await getHtml(site.baseUrl, "/products");
+  assertSingleTitle(products, RENAMED_SITE_NAME, "S3 GET /products after the rename, same process, same deps");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${RENAMED_SITE_NAME}</a>`), "B: header wordmark after the rename");
+
+  const write = await fetch(`${site.baseUrl}/api/admin/v1/workspaces/${site.deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: site.cookie },
+    body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace", valueJson: OWNER_TITLE }),
+  });
+  assert.equal(write.status, 200, "the owner write must be accepted");
+  renameSiteConfig(dir, "Renamed Again");
+  assertSingleTitle(await getHtml(site.baseUrl, "/products"), OWNER_TITLE, "S3 GET /products: the owner title wins over a later rename");
+});
+
+test("AC-22 (REQ-13, INV-01): a config.json rename never moves a pinned pre-existing site off Tovu Demo Site", async (t) => {
+  const { dir, site } = await bootPinnedPreExistingSite(t);
+  renameSiteConfig(dir, RENAMED_SITE_NAME);
+
+  // S3 and the chrome only, as AC-20/AC-21/AC-24 assert: in a test after this file's first, `GET /`
+  // and `GET /pricing` answer `<h1>Site error</h1>` whether or not config.json was renamed (2026-09-14
+  // diagnosis, cause not found), so neither can carry this assertion.
+  const products = await getHtml(site.baseUrl, "/products");
+  assertSingleTitle(products, LEGACY_TITLE, "S3 GET /products after the rename");
+  assert.ok(products.includes(`<a class="wordmark" href="/">${LEGACY_TITLE}</a>`), "B: header wordmark after the rename");
+});
+
+test("AC-22 (REQ-13): the root the agent daemon builds (createSqliteRouteDepsForWorkspace) resolves a config.json rename too", async (t) => {
+  const dir = createNewSite(t);
+  // Every `siteDir()`-derived path (themes, uploads, the site binding) then points into the temp
+  // site, as `tovu serve`'s `pinServedSiteDirIntoEnv` arranges for the real daemon.
+  const previousSiteDir = process.env.TOVU_SITE_DIR;
+  process.env.TOVU_SITE_DIR = dir;
+  let deps: RouteDeps | undefined;
+  try {
+    deps = createSqliteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
+    await deps.siteTitleReady;
+    assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");
+
+    renameSiteConfig(dir, RENAMED_SITE_NAME);
+    assert.equal(await resolveSiteTitleForRender(deps), RENAMED_SITE_NAME, "after the rename, same deps");
+  } finally {
+    if (deps) await drainBootReadiness(deps);
+    if (previousSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
+    else process.env.TOVU_SITE_DIR = previousSiteDir;
+  }
 });

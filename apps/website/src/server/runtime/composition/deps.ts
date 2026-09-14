@@ -47,7 +47,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
-import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
+import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
 import { resolveSiteRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -167,7 +167,11 @@ import {
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
-import { ensureSiteTitleSettingDefinition, preserveLegacySiteTitles } from "#src/features/settings/site-title";
+import {
+  ensureSiteTitleSettingDefinition,
+  preserveLegacySiteTitles,
+  type SiteDisplayNameSource,
+} from "#src/features/settings/site-title";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import { installCommentsDataModule } from "#src/features/comments/data-module-install";
@@ -577,20 +581,16 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSqliteRouteDepsOve
 }
 
 /**
- * SPEC-050 (NC-2 = B): the served site's display name, `config.json` `name` in the directory holding
- * `dbPath`. Every boot path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass
- * `<dir>/content.db`, the default boot `siteDir()`'s), so no caller has to thread it. `undefined` when
- * that directory is not a valid site directory (a bare `TOVU_CONTENT_DB`, a temp test database,
- * `:memory:`); the site title then falls back to `workspaces.name`. Read once per boot, so a
- * `config.json` rename shows after a restart (SPEC-050 OQ-01).
+ * SPEC-050 (NC-2 = B, REQ-13): the served site's display name, `config.json` `name` in the directory
+ * holding `dbPath`, read at each render that needs it so a rename shows with no restart. Every boot
+ * path keeps `content.db` in its site directory (`tovu serve`/`tovu export` pass `<dir>/content.db`;
+ * the default boot and the agent daemon use `siteDir()`'s), so no caller has to thread it. Reads
+ * `undefined` while that directory holds no valid `config.json` (a bare `TOVU_CONTENT_DB`, a temp test
+ * database) and always for `:memory:`; the site title then falls back to `workspaces.name`.
  */
-function readSiteDisplayName(dbPath: string): string | undefined {
-  if (dbPath === ":memory:") return undefined;
-  try {
-    return readSiteDir({ dir: dirname(dbPath) }).config.name;
-  } catch {
-    return undefined;
-  }
+function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
+  if (dbPath === ":memory:") return { read: () => undefined };
+  return createLiveSiteDisplayName({ dir: dirname(dbPath) });
 }
 
 /**
@@ -861,7 +861,7 @@ export function createSqliteRouteDeps(
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(db);
-  const siteDisplayName = readSiteDisplayName(dbPath);
+  const siteDisplayName = createSiteDisplayNameSource(dbPath);
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: identity.principalRepo };
   const siteTitleReady = analyticsSettingsReady
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
