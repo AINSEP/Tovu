@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pricing — Basic</title>
+<link rel="icon" href="/theme-assets/basic/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="/theme-assets/basic/icons/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/theme-assets/basic/icons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/theme-assets/basic/icons/apple-touch-icon.png" />
+<link rel="manifest" href="/theme-assets/basic/manifest.webmanifest" />
+<meta name="theme-color" content="#020203" />
+<title>Pricing — Tovu</title>
 <link rel="stylesheet" href="../css/theme.css" />
 <script src="../scripts/theme-toggle.js"></script>
 </head>
@@ -12,14 +18,14 @@
 <div data-embed-config='{"type":"partial","id":"nav","current":"pricing"}'></div>
 
 <main>
-  <section class="hero wrap" data-reveal style="padding-bottom: 56px;">
+  <section class="hero wrap" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15" style="padding-bottom: 56px;">
     <h1 style="font-size: clamp(34px, 5vw, 54px);">Pricing that scales with your sites, not your headcountss</h1>
     <p class="lede">Start free. Upgrade when your team is publishing more than a side project's worth of pages.</p>
   </section>
 
   <section class="wrap" data-od-id="plans" style="padding-bottom: 88px;">
-    <div class="pricing-grid">
-      <div class="plan-card">
+    <div class="pricing-grid" data-kui-stagger="70ms">
+      <div class="plan-card" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <h3>Starter</h3>
         <p class="desc">For solo projects and evaluation.</p>
         <div class="price">$0<span>/month</span></div>
@@ -31,7 +37,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L19 7"/></svg>7-day version history</li>
         </ul>
       </div>
-      <div class="plan-card featured">
+      <div class="plan-card featured" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <span class="status-pill" style="align-self:flex-start; margin-bottom:12px;">Most teams pick this</span>
         <h3>Team</h3>
         <p class="desc">For teams shipping weekly.</p>
@@ -45,7 +51,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5L19 7"/></svg>90-day version history</li>
         </ul>
       </div>
-      <div class="plan-card">
+      <div class="plan-card" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <h3>Enterprise</h3>
         <p class="desc">For orgs with compliance needs.</p>
         <div class="price">Custom</div>
@@ -66,7 +72,11 @@
       <span class="kicker" style="display:block;">FAQ</span>
       <h2>Questions teams usually ask before switching</h2>
     </div>
-    <div class="faq-list" data-reveal>
+    <!-- No `threshold:` token: it is a fraction of THIS element's own area, not of the viewport, and a
+         paused `on:enter` reveal RESTS at `from { opacity: 0 }` — so on a list the template does not
+         bound the length of, a threshold this element can outgrow blanks it forever rather than just
+         skipping its animation. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
+    <div class="faq-list" data-kui="fade-up 600ms expo-out distance:18px on:enter">
       <details class="faq-item" open>
         <summary>What counts as a published site?</summary>
         <p>Any site with a live URL, whether on a Basic subdomain or your own custom domain. Draft-only sites don't count against your plan.</p>
@@ -94,7 +104,6 @@
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>
-<script src="../scripts/vendor/motion.js"></script>
-<script src="../scripts/reveal.js"></script>
+<script src="../scripts/vendor/kuinetic.all.js"></script>
 </body>
 </html>

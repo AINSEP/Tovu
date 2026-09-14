@@ -11,10 +11,6 @@
     "light"
   ],
   "defaultMode": "dark",
-  "fonts": [
-    "Geist:wght@400;500",
-    "Geist+Mono:wght@400;500"
-  ],
   "pages": [
     "index",
     "about",
@@ -29,7 +25,8 @@
   "templates": [
     "blog-post.html",
     "blog-sidebar-template.html",
-    "page-shell.html"
+    "page-shell.html",
+    "index"
   ],
   "slots": {
     "nav": {

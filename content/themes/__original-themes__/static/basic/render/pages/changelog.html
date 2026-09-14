@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Changelog — Basic</title>
+<link rel="icon" href="/theme-assets/basic/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="/theme-assets/basic/icons/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/theme-assets/basic/icons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/theme-assets/basic/icons/apple-touch-icon.png" />
+<link rel="manifest" href="/theme-assets/basic/manifest.webmanifest" />
+<meta name="theme-color" content="#020203" />
+<title>Changelog — Tovu</title>
 <link rel="stylesheet" href="../css/theme.css" />
 <script src="../scripts/theme-toggle.js"></script>
 </head>
@@ -12,14 +18,14 @@
 <div data-embed-config='{"type":"partial","id":"nav","current":"changelog"}'></div>
 
 <main>
-  <section class="hero wrap" data-reveal style="padding-bottom: 40px;">
+  <section class="hero wrap" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15" style="padding-bottom: 40px;">
     <h1 style="font-size: clamp(34px, 5vw, 54px);">Changelog</h1>
     <p class="lede">What shipped, when it shipped, and why it matters.</p>
   </section>
 
   <section class="wrap" style="padding-bottom: 96px;">
-    <div class="changelog-list">
-      <article class="changelog-entry">
+    <div class="changelog-list" data-kui-stagger="70ms">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2026-07-14">Jul 14, 2026</time>
         <div>
           <span class="tag">Feature</span>
@@ -27,7 +33,7 @@
           <p>Preview a page across desktop, tablet, and mobile at once, with results grouped in one panel instead of scattered across separate tabs.</p>
         </div>
       </article>
-      <article class="changelog-entry">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2026-06-02">Jun 2, 2026</time>
         <div>
           <span class="tag">Improvement</span>
@@ -35,7 +41,7 @@
           <p>Reworked our editor's rendering pipeline to cut average load time by 40% during peak hours — most pages now open in under three seconds.</p>
         </div>
       </article>
-      <article class="changelog-entry">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2026-04-28">Apr 28, 2026</time>
         <div>
           <span class="tag">Feature</span>
@@ -43,7 +49,7 @@
           <p>Require a manual sign-off before a page promotes to production. Approvers get a diff summary and a one-click approve or block.</p>
         </div>
       </article>
-      <article class="changelog-entry">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2026-03-11">Mar 11, 2026</time>
         <div>
           <span class="tag">Fix</span>
@@ -51,7 +57,7 @@
           <p>Image caches now correctly bust when an asset is replaced mid-edit, fixing a class of "works in the editor, stale on the live site" reports.</p>
         </div>
       </article>
-      <article class="changelog-entry">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2026-01-22">Jan 22, 2026</time>
         <div>
           <span class="tag">Feature</span>
@@ -59,7 +65,7 @@
           <p>Route publish and preview events straight to a Slack channel, with pass/fail status and a link back to the live page.</p>
         </div>
       </article>
-      <article class="changelog-entry">
+      <article class="changelog-entry" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
         <time datetime="2025-11-30">Nov 30, 2025</time>
         <div>
           <span class="tag">Launch</span>
@@ -74,7 +80,6 @@
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>
-<script src="../scripts/vendor/motion.js"></script>
-<script src="../scripts/reveal.js"></script>
+<script src="../scripts/vendor/kuinetic.all.js"></script>
 </body>
 </html>

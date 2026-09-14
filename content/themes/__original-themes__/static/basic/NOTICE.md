@@ -49,26 +49,29 @@ theme:
   client-side, persists the choice to `localStorage`, and the icon crossfades via CSS
   (`opacity`/`transform` transitions, not `display` toggling, since `display` can't
   animate).
-- **Scroll-reveal animation added**, powered by a vendored copy of
-  [Motion](https://motion.dev) (`js/vendor/motion.js`, v13.0.0, MIT — license text at
-  `js/vendor/LICENSE.md`). Deliberately **vendored, not loaded from a CDN**: a
+- **Scroll-reveal animation added.** Originally powered by a vendored copy of
+  [Motion](https://motion.dev) (`js/vendor/motion.js`, v13.0.0, MIT): `js/reveal.js`
+  called Motion's `animate()`/`inView()`/`stagger()` on `[data-reveal]`-marked sections
+  and, for repeating grids (`.feature-grid`, `.pricing-grid`, `.values-grid`,
+  `.changelog-list`, `.photo-grid`), on every child automatically via `stagger()` — no
+  per-card markup needed. **Motion and `reveal.js` were removed on 2026-09-04**; see
+  "Motion retired — kUInetic is the only animation engine" at the end of this file for
+  the replacement and its exact timing mapping. Deliberately **vendored, not loaded from
+  a CDN** — the reasoning is unchanged and now governs the kUInetic bundle instead: a
   `<script src="https://...">` pointed at a third party would mean the theme's own
   claim of being safe to install and self-hostable ("your content, your themes, your
   data, on your machine" — `tovu-official`'s own copy) stops being true the moment the
-  CDN is blocked, offline, or compromised. The vendored file carries the same trust
+  CDN is blocked, offline, or compromised. A vendored file carries the same trust
   model as the theme's CSS: a static asset shipped with the theme, not a live
-  third-party dependency. `js/reveal.js` calls Motion's `animate()`/`inView()`/
-  `stagger()` on `[data-reveal]`-marked sections and, for repeating grids
-  (`.feature-grid`, `.pricing-grid`, `.values-grid`, `.changelog-list`,
-  `.photo-grid`), on every child automatically via `stagger()` — no per-card markup
-  needed. Deliberately **no default `opacity: 0` in CSS**: the hidden-then-revealed
-  state is applied entirely in JS, so a visitor with JS disabled sees normal, fully
-  visible content rather than a page permanently stuck invisible. First pass here used
-  hand-rolled `IntersectionObserver` + CSS transitions (~40 lines, zero dependencies);
-  replaced with vendored Motion at the owner's explicit request for the larger
-  animation vocabulary it unlocks (spring physics, gesture/layout animation later) —
-  worth knowing this is a **139KB / 46KB-gzipped** dependency traded for that
-  headroom, not a free upgrade.
+  third-party dependency. Deliberately **no default `opacity: 0` in CSS**, so a visitor
+  with JS disabled sees normal, fully visible content rather than a page permanently
+  stuck invisible — that guarantee survived the migration and is re-derived from
+  kUInetic's own source below. The first pass here used hand-rolled
+  `IntersectionObserver` + CSS transitions (~40 lines, zero dependencies); it was
+  replaced with vendored Motion at the owner's explicit request for the larger animation
+  vocabulary it unlocked (spring physics, gesture/layout animation later) — a
+  **139KB / 46KB-gzipped** dependency traded for that headroom, and one this theme no
+  longer carries.
 
 The reference screenshots (`index.png` / `index-light.png` in the original export)
 depict a visibly richer landing page than the shipped `index.html` — a product
@@ -89,10 +92,10 @@ every other page) and a CSS-only infinite-scroll logo carousel (`.logo-carousel`
 `.logo-track`, same 6 fictional company names as the original export — not
 substituted for real companies).
 
-**Hero animation: two iterations, both from direct owner feedback.** First pass used
-`js/typewriter.js` (character-by-character reveal) on every page's H1. Owner feedback:
-choppy specifically on the two-line homepage hero. Replaced that one instance with
-`js/hero-intro.js` — "Beautiful websites," slides in from the left, "shipped in
+**Hero animation: three iterations, the first two from direct owner feedback.** First
+pass used `js/typewriter.js` (character-by-character reveal) on every page's H1. Owner
+feedback: choppy specifically on the two-line homepage hero. Replaced that one instance
+with `js/hero-intro.js` — "Beautiful websites," slides in from the left, "shipped in
 minutes" from the right, via Motion's `animate()` (plain per-element `delay`, not
 `stagger()` — `stagger()`'s returned function is meant to be handed to Motion
 internally across one `animate()` call over an array of targets, not manually invoked
@@ -100,7 +103,10 @@ per element with `(i, total)`; verified against the vendored build's own `stagge
 function(t=.1,{startDelay,from,ease}={})` signature before using it either way).
 Owner then asked for typewriter to be dropped everywhere in favor of the existing
 `[data-reveal]` fade-in. `js/typewriter.js` was deleted entirely (not left as dead
-code) once nothing referenced it.
+code) once nothing referenced it. `js/hero-intro.js` went the same way on 2026-09-04:
+it was the theme's second `window.Motion` consumer, so removing Motion retired it too.
+The same two-line hero motion is now declared inline on the spans themselves — see
+below.
 
 **Two real CSS bugs found via the owner catching a live render as "awful" (not
 caught by any earlier screenshot — see the capture-timing note below) — both fixed
@@ -136,3 +142,251 @@ Mobile nav fix (pre-existing bug, not introduced this pass): `.main-nav` got
 `display: none` below 640px and `main.js`'s `nav-toggle` click handler already
 toggled an `.open` class, but no `.main-nav.open` CSS rule existed anywhere — the
 "Menu" button did nothing. Added a proper dropdown-panel treatment for `.open`.
+
+## Kuinetic vendored (scroll-spy)
+
+Added a vendored copy of [kUInetic](https://kuinetic.com) (`scripts/vendor/kuinetic.all.js`,
+v0.1.4, MIT — copyright AINSEP, license text at `scripts/vendor/kuinetic-LICENSE.md`),
+fetched from `https://cdn.jsdelivr.net/npm/kuinetic/dist/kuinetic.all.js` and loaded on
+every page, same vendored-not-CDN rationale as Motion above. `kuinetic.all.js` is the
+all-in-one IIFE build: it embeds its own CSS (injected via a `<style>` tag it appends to
+`<head>` at load) and self-initializes — the tail of the bundle runs
+`window.__kuinetic = kuinetic.kuinetic({ observe: true }).start()` itself, so no init
+call was added to any template; the `<script>` tag alone is sufficient. `observe: true`
+means a live `MutationObserver` picks up `data-kui` attributes on elements added after
+load, not just what's in the initial HTML.
+
+Pulled in specifically for its `scroll-spy` effect (owner's request, for docs sidebar
+anchor navigation — not yet wired into any page by this change, just vendored and
+loaded). Declared the same way as every other kuinetic effect, via a `data-kui`
+attribute — there is no separate JS API to call. Two forms, both in
+`src/effects/scroll-mechanics/scroll-spy.ts`:
+- **Container form** — `data-kui="scroll-spy sections:<selector> target:<selector>"` on
+  a common ancestor. `sections:` and `target:` (the link(s)) are both resolved via
+  `el.querySelectorAll(...)` scoped to that ancestor, then paired up by matching each
+  section's `id` against each link's `href="#id"` hash — every section needs an `id`,
+  and every anchor link needs a matching `href="#<that id>"`, or it warns to the console
+  and skips that pair rather than failing silently. `offset-top:` (default `0px`) shifts
+  the trigger line down from the viewport top; `distance:` is ignored (warned) in this
+  form since each section measures its own height.
+- **Single form** (no `sections:` given) — one instance per section, `target:` is the
+  link(s) to mark for that one section; `distance:` (default `100vh`) sets its trigger
+  window and `offset-top:` is ignored (warned) here instead.
+
+Active state is a **boolean data attribute, not a CSS class**: it sets
+`data-kui-active="true"`/`"false"` on the section and on its paired link(s) (e.g. style
+the sidebar with `.docs-side a[data-kui-active="true"] { ... }`). The kUInetic docs site
+itself (`kuinetic.com/docs.html?doc=catalog` and `?doc=design`) 404s on the effect
+catalog and architecture pages as of this vendoring — this API was read directly out of
+the (unminified, comment-intact) `dist/kuinetic.all.js` source, not from prose docs.
+
+## Motion retired — kUInetic is the only animation engine (2026-09-04)
+
+`scripts/vendor/motion.js`, `scripts/vendor/LICENSE.md` (Motion's MIT text),
+`scripts/reveal.js`, and `scripts/hero-intro.js` were all deleted from this theme, and
+the `<script src="../scripts/vendor/motion.js">` / `reveal.js` / `hero-intro.js` tags
+removed from every template. The theme now loads exactly two scripts plus the vendored
+bundle: `main.js`, `theme-toggle.js`, and `scripts/vendor/kuinetic.all.js`. Motion is
+still used by the `basic-2` and three `tailark-*` themes, which are untouched by this
+change.
+
+**The progressive-enhancement guarantee is preserved, and is now structural rather than
+a code convention.** Verified by reading `scripts/vendor/kuinetic.all.js` directly:
+
+1. The bundle injects its *entire* stylesheet itself — the tail of the file runs
+   `document.createElement('style')` with `id="kuinetic-styles"` and appends it to
+   `<head>`. There is no kUInetic CSS file to link. If the script is blocked, fails, or
+   404s, **no kUInetic CSS exists at all**, so nothing can be hidden by it. That is a
+   stronger guarantee than `reveal.js`'s old `if (!window.Motion) return;` guard, which
+   depended on a line of code rather than on there being nothing to undo.
+2. `fade-up`'s hidden state is `@keyframes kui-in-up { from { opacity:
+   var(--kui-from-opacity, 0); translate: 0 var(--kui-distance, 24px); } }` — a keyframe
+   `from` block. **Correction (2026-09-04): for an `on:enter` element that block IS a
+   resting style, and the original wording here ("never a resting style") was wrong.**
+   `compileStylePlan` emits `animation-fill-mode: both` for every track and then adds
+   `animation-play-state: paused` whenever the gate is `deferred` — which is exactly what
+   `on:enter` produces. A paused, fill-`both` animation renders its `from` frame, so the
+   element genuinely rests at `opacity: 0` until its `IntersectionObserver` fires. The
+   guarantee in (1) still holds — no script means no CSS means no hiding — but *with* the
+   script, an `on:enter` element whose observer never fires stays invisible forever. See
+   "Why the page wrappers carry no `threshold:`" at the end of this file for the
+   page-blanking regression that followed from it.
+3. The one rule that can hide an element *before* it animates is
+   `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) { opacity: 0
+   !important; }` in `@layer kui.policy`. It is gated on `data-kui-cloak` on `<html>`,
+   which is **author opt-in** — the library only ever *removes* that attribute
+   (`Animator.uncloak()`), never sets it. This theme does not set it anywhere.
+4. Two further fail-open paths exist even if the runtime stalls mid-init: a
+   `CLOAK_WATCHDOG_MS` timer calls `uncloak()`, and a `@media print` block forces
+   `opacity: 1` on `[data-kui-fx], [data-kui-reveal]`.
+
+**Timing mapping from `reveal.js` (exact, not approximate).** The old script used
+`duration: 0.6`, `translateY(18px) -> translateY(0)`, `opacity: [0, 1]`,
+`easing: [0.16, 1, 0.3, 1]`, `inView(..., { amount: 0.15 })`, and `stagger(0.07)` for
+grid children. Every `[data-reveal]` element and every static grid child now carries:
+
+    data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15"
+
+with one exception: elements whose height the template does not bound carry the same
+attribute *without* the `threshold:` token, for the reason set out under "Why the page
+wrappers carry no `threshold:`" at the end of this file.
+
+    data-kui="fade-up 600ms expo-out distance:18px on:enter"
+
+- `fade-up` -> primitive `reveal`, which owns exactly the two channels the old code
+  animated (opacity + translate); `--kui-from-opacity` defaults to `0`.
+- `expo-out` -> `var(--kui-ease-expo-out)`, defined in the bundle's own token layer as
+  `cubic-bezier(0.16, 1, 0.3, 1)` — **byte-for-byte the easing `reveal.js` used**. It has
+  to be stated explicitly: `fade-up`'s own preset default is plain `ease-out`.
+- `distance:18px` overrides kUInetic's 24px default to match the old `translateY(18px)`.
+- `threshold:0.15` is passed straight to `IntersectionObserver`, and that genuinely is
+  the same number Motion used: the vendored build's `inView` ended in `threshold:
+  "number" == typeof amount ? amount : nc[amount]`, so `amount: 0.15` reached the same
+  observer option unchanged. The number was translated faithfully. Its *consequence* was
+  not: Motion applied no styles at all until `inView` fired, so an observer that could
+  never fire meant "no animation, content visible", whereas kUInetic pre-hides (see the
+  correction to (2) above). That is why the token had to be dropped wherever the observed
+  element's height is unbounded. An unset threshold parses to `0`.
+- `600ms` matches `duration: 0.6` (and happens to be the preset default anyway; stated
+  for legibility since this file is hand-edited).
+
+Grid stagger is a *separate* attribute, not a token inside `data-kui`: `stagger:` is not
+part of the `data-kui` grammar (its only hoisted keys are `on:`, `timeline:`, and
+`threshold:`), so writing it there would emit an "unrecognised token" console warning and
+do nothing. The container instead carries `data-kui-stagger="70ms"`, and
+`indexStaggerGroup()` stamps `--kui-i` on each child that has a `data-kui` of its own;
+the compiled delay is `calc(delay + var(--kui-i, 0) * var(--kui-stagger, 0ms))`.
+
+Two behavioural differences, both deliberate and neither silent:
+
+- **Grid children now trigger individually.** `reveal.js` observed the *container* and
+  animated all its children when the container hit 15% visibility. kUInetic's `on:enter`
+  binds an observer per element, so each card starts when that card hits 15% — the
+  stagger ordering is identical, but a tall grid reveals row by row on scroll instead of
+  all at once. On the grids this theme actually ships (2-4 columns, short) the difference
+  is barely visible.
+- **`.blog-grid` lost its stagger entirely.** It is an embed marker
+  (`data-embed-config='{"type":"post-previews"}'`) whose *whole element* is substituted
+  at render time — the template's `<section class="blog-grid" ...>` comes out as a
+  generated `<div class="blog-grid">` with generated `<article class="post-card">`
+  children. No authored attribute on it or inside it survives into the served page, so
+  the per-card reveal is not expressible in markup. Restoring it means teaching the
+  `post-previews` embed generator to emit `data-kui` on each card and `data-kui-stagger`
+  on the grid, which is application code, not theme markup.
+
+**Hero (`index.html`, stock theme only).** `hero-intro.js` animated `[data-slide-in]`
+with `translateX(-+48px)`, `duration: 0.7`, per-element `delay: i * 0.12`, same
+`expo-out` easing, on load. The two hero spans now declare it themselves:
+
+    <span class="hero-line" data-kui="fade-right 700ms expo-out distance:48px on:load">
+    <span class="hero-line" data-kui="fade-left 700ms 120ms expo-out distance:48px on:load">
+
+Note the direction names invert: `data-slide-in="left"` meant "starts 48px to the left
+and travels right", which is kUInetic's `fade-right` (`@keyframes kui-in-right` starts at
+`calc(var(--kui-distance) * -1)`), and vice versa. The second time token is the delay
+(`applyTime` reads duration first, then delay). Explicit per-element delays are used here
+rather than `data-kui-stagger` on the `<h1>` on purpose: `Animator.scan()` calls
+`process()` on every element *before* `applyStagger()` stamps `--kui-i`, which is
+harmless for `on:enter` effects (the observer fires much later) but would race an
+`on:load` one. This mirrors the original `hero-intro.js`, which also used plain
+per-element delays rather than Motion's `stagger()`.
+
+**Reduced motion.** `reveal.js` returned early under `prefers-reduced-motion: reduce`,
+leaving content at its natural visible state. The `reveal` primitive declares
+`reducedMotion: "shorten"` (`cssPrimitive`'s default, not an explicit choice), so
+kUInetic's policy layer instead forces `animation-duration: 1ms; animation-delay: 0ms`.
+**Correction (2026-09-04):** this was recorded here as "different mechanism, same visible
+result". It is not the same. `shorten` changes duration and delay only — it does not
+unpause a deferred effect — so a reduced-motion visitor still waits on the
+`IntersectionObserver` and was blanked by the bug below exactly like everyone else.
+Literal parity with `reveal.js` would mean `data-kui-rm="disable"`
+(`animation: none !important; opacity: 1 !important`) on every reveal. That is deliberately
+not done: with a satisfiable threshold the observer always fires, and a 1ms animation is
+indistinguishable from none.
+
+**Why the page wrappers carry no `threshold:`** (2026-09-04 — regression fix, and the
+rule that prevents its return). `threshold` is a fraction of the OBSERVED ELEMENT's own
+area, never of the viewport. The largest ratio an element of height `H` can reach in a
+viewport of height `V` is `min(1, V / H)`, so an element taller than `V / threshold` can
+never satisfy it — at `threshold:0.15` that ceiling is `6.67 x V`, roughly 4.8k CSS
+pixels on a laptop. Combined with the paused-`from`-frame correction to (2) above, an
+element past that height does not merely skip its reveal: it sits at `opacity: 0` with
+`data-kui-state="ready"` for the life of the page.
+
+The migration put `threshold:0.15` on the full-page content wrappers, whose height is
+whatever the author wrote. Measured on a `/sample-xai` render before the fix: article
+height 4879px, viewport 723px, peak achievable ratio 0.148 against a demanded 0.15 — nav
+and footer painted, everything between them blank white. Every page long enough was
+affected identically.
+
+The rule: **an element whose height the template does not bound gets no `threshold:`
+token.** `0` (unset) is the only value satisfiable at every height, and it costs nothing
+visually — `on:enter` at threshold 0 fires the moment the element's first pixel
+intersects the viewport, which is still a scroll entrance for anything below the fold.
+Applied here to every wrapper holding a `{"type":"content"}` embed, to the static
+`.docs-main` body, and to the `.faq-list` container, whose length the template likewise
+does not fix. Every remaining `threshold:0.15` in this theme sits on a design-bounded box
+— hero, feature card, value, changelog entry, plan card, photo tile, auth form — that
+cannot approach `6.67 x V`, and those were left as they are.
+
+## Self-hosted Geist (2026-09-05)
+
+`tokens.json`/`tokens.light.json` have always named `'Geist'` as the display and body face
+and `'Geist Mono'` as the mono face, and `theme.json` declared
+`"fonts": ["Geist:wght@400;500", "Geist+Mono:wght@400;500"]` — but **nothing ever fetched
+them**, so every page rendered in the fallback stack (`-apple-system`/`BlinkMacSystemFont`
+/`system-ui`). The typography on screen was not the typography specified.
+
+Root cause: that `fonts` array is consumed by exactly one function, `fontLink()`, called
+from exactly one place — `pageShell()`, the declarative document shell in
+`apps/website/src/server/inbound/public-http/http/site/render.ts`. A `static`-tier theme
+supplies its own complete `<head>` and never reaches `pageShell()`, so the declaration was
+inert. Verified by resource timing, not by `document.fonts.check()`, which returns `true`
+for any string including a font that does not exist.
+
+**Fixed by self-hosting, not by adding a Google Fonts link.** The site's published Privacy
+Policy states plainly that no third-party resource loads and no visitor data reaches any
+CDN; a `fonts.googleapis.com` stylesheet would have falsified a live compliance claim. Same
+vendored-not-CDN rationale already recorded above for Motion and kUInetic, now applied to
+type.
+
+- **Files**: `assets/fonts/geist-var.woff2` (69,832 bytes) and
+  `assets/fonts/geist-mono-var.woff2` (71,220 bytes) — 141 KB for the full 100-900 weight
+  range of both families. Served by the ordinary theme-asset mount
+  (`registerThemeStaticAssets`, `express.static` over the whole theme folder) at
+  `/theme-assets/basic/assets/fonts/...`; no server change was needed.
+- **Source**: the official `geist` npm package v1.7.2
+  (`registry.npmjs.org/geist/-/geist-1.7.2.tgz`, shasum
+  `96f6e5d2b3305fd27eacbd5ae4dcfbc5a15e6939`, repository `github.com/vercel/geist-font`).
+- **Licence**: SIL Open Font License 1.1, copyright (c) 2023 Vercel, in collaboration with
+  basement.studio. The verbatim licence text is vendored beside the fonts as
+  `assets/fonts/geist-LICENSE.txt`, which is what OFL §2 requires of a redistributed copy
+  ("each copy contains the above copyright notice and this license"). Bundling unmodified
+  fonts with software is expressly permitted. The copyright statement declares **no**
+  Reserved Font Name, so OFL §3 does not constrain use of the family name "Geist".
+- **Modification disclosed**: the npm package ships TTF only. Both files here are the
+  upstream variable TTFs (`Geist-Variable.ttf`, `GeistMono-Variable.ttf`, `wght` axis
+  100-900) losslessly re-flavoured to WOFF2 with fontTools 4.64.0 — a container format
+  port, explicitly contemplated by OFL's definition of a Modified Version ("by changing
+  formats"), with no subsetting, no glyph edits and no metric changes. 169,056 -> 69,832
+  bytes and 171,200 -> 71,220 bytes.
+- **Variable, not static instances.** `theme.json` declared only weights 400 and 500, but
+  `css/theme.css` also uses 600 (`.post-detail-body th`, `.post-detail-body .post-mention`).
+  Static 400/500 files would have left every 600 rule synthesising a faux bold. One variable
+  file per family covers 100-900 and is smaller than two static instances would have been.
+- **Wiring**: two `@font-face` rules at the top of `css/theme.css`, with **relative**
+  `url('../assets/fonts/...')`. This stylesheet is served at
+  `/theme-assets/basic/css/theme.css`, so the relative path resolves on its own with no
+  rewriting — the same self-resolving arrangement `apps/site-chat/public/remixicon.css`
+  uses for its own woff2. Relative is also the only form that survives a base-path static
+  export: `platform/export/site-exporter.ts` follows one hop into a fetched stylesheet's own
+  `url()` references (so these files are discovered and exported) but deliberately does not
+  rewrite them, so an absolute URL would 404 under any non-root base path.
+- **`theme.json`'s `fonts` array was removed** rather than left in place. Its only consumer
+  emits Google Fonts `<link>` tags; keeping it meant this theme still carried a live trigger
+  for the exact CDN fetch the Privacy Policy forbids, on any route that falls through to
+  `pageShell()`. The declaration that is actually honoured now lives in `css/theme.css`.
+  `development/docs/themes/theme-authoring-guide-v2.md` §5 specifies a future manifest shape
+  — `"fonts": [{ "family": "Geist", "weights": [400,500], "files": ["assets/fonts/geist-var.woff2"] }]`
+  — that is self-hosted and theme-relative; these files were placed at that exact documented
+  path so that seam, when built, consumes them where they already are.

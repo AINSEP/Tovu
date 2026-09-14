@@ -3,6 +3,47 @@
    preview), matching every other Tovu theme's convention. This file is mode-agnostic
    on purpose: it reads var(--x) only, so the same stylesheet serves both modes. */
 
+/* Self-hosted Geist — deliberately vendored, never fetched from a CDN, the same rationale
+   NOTICE.md already records for the kUInetic bundle. This site's published Privacy Policy
+   states plainly that no third-party resource loads and no visitor data reaches any CDN; a
+   `fonts.googleapis.com` stylesheet link here would falsify that document, so the faces are
+   declared against files this theme ships itself (`assets/fonts/`, SIL OFL 1.1, licence text
+   vendored beside them — see NOTICE.md, "Self-hosted Geist").
+
+   Until this block existed, `tokens.json` named 'Geist'/'Geist Mono' as the display, body and
+   mono faces and nothing ever fetched them: the manifest's `fonts` array is read only by
+   `fontLink()` inside `pageShell()`, the declarative document shell, which a static-tier theme
+   never reaches because it ships its own head. Every page silently rendered in the fallback
+   stack.
+
+   These url()s are RELATIVE on purpose. This stylesheet is served at
+   `/theme-assets/basic/css/theme.css`, so `../assets/fonts/` resolves to
+   `/theme-assets/basic/assets/fonts/` with no path rewriting anywhere — the same
+   self-resolving arrangement `apps/site-chat/public/remixicon.css` uses for its own woff2.
+   Relative is also the only form that survives a base-path static export:
+   `platform/export/site-exporter.ts` follows one hop into a fetched stylesheet's own url()
+   references, so these files ARE discovered and exported, but it deliberately does not rewrite
+   them, so an absolute `/theme-assets/...` url would 404 under any non-root base path.
+
+   One VARIABLE file per family (wght 100-900) rather than the static 400/500 instances the
+   manifest used to name: the rules below use 400, 500 and 600, and static 400/500 files would
+   have left every 600 rule synthesising a faux bold. `font-display: swap` keeps first paint on
+   the fallback stack the tokens already declare instead of blocking on the font. */
+@font-face {
+  font-family: 'Geist';
+  src: url('../assets/fonts/geist-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../assets/fonts/geist-mono-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -14,7 +55,17 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-img { max-width: 100%; display: block; }
+/* `video`/`iframe` are constrained on the same terms as `img`, not as an afterthought: all three
+   are REPLACED elements, so they size from their own intrinsic dimensions and ignore the width of
+   whatever box an author put them in. A media embed resolves to a bare `<video>` tag
+   (`widgets/html-embeds.ts`'s SELF_RENDERING_MEDIA_TAGS), so an author writing the documented
+   `<div style="max-width:600px" data-embed-config='{"type":"media",…}'>` wrapper got a correctly
+   capped 600px div containing a video that rendered at full source resolution and overflowed both
+   the wrapper and the page — horizontal scroll on every viewport. `height: auto` is what keeps the
+   aspect ratio while the width is being clamped. */
+img, video, iframe { max-width: 100%; }
+img, video { display: block; }
+img, video, iframe { height: auto; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; margin: 0; letter-spacing: -0.02em; }
 p { margin: 0; color: var(--muted); }
@@ -22,6 +73,32 @@ p { margin: 0; color: var(--muted); }
 .wrap { max-width: var(--container); margin: 0 auto; padding: 0 24px; }
 
 /* ---------- header / nav ---------- */
+/* Single source for the sticky header's rendered height: `.nav-row` below reads `--header-h`
+   directly (its 69px content height; `.site-header`'s own 1px border-bottom brings the real box
+   to 70px). Declared at `:root` rather than scoped to `.site-header` since the header is injected
+   as a partial embed (`blog-sidebar-template.html`'s
+   `data-embed-config='{"type":"partial","id":"nav",...}'`) and ends up a SIBLING of `.docs-layout`
+   under `<body>`, not its ancestor. Header height is the same at every breakpoint (`.nav-row` is
+   never resized in the `@media (max-width: 640px)` block below — the mobile `.main-nav.open` panel
+   is a `position: absolute` overlay under it, not part of its box), so one value covers desktop
+   and mobile alike.
+
+   NOT `--kui-pin-offset`: kUInetic's docs (https://kuinetic.com/docs/catalog.md) say a pinning
+   effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
+   header offset once via that token." That default genuinely exists in the vendored bundle
+   (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
+   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. The
+   scroll-spy effect this theme DOES use (`data-kui="scroll-spy ..."` on `.docs-layout`,
+   `blog-sidebar-template.html`) is a different code path (`prepareScrollSpyContainer`) whose own
+   `offset-top` param defaults to a literal `"0px"` and is parsed by a plain JS regex
+   (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at all — a CSS custom
+   property can never reach it. That effect's `offset-top:70px` is therefore authored directly on
+   the `data-kui` attribute instead (see the comment there). If this theme ever adds a real pin/
+   sticky effect, reintroduce `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick
+   up automatically; until then it would be a var nothing reads. */
+:root {
+  --header-h: 69px;
+}
 .site-header {
   position: sticky;
   top: 0;
@@ -37,7 +114,7 @@ p { margin: 0; color: var(--muted); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 69px;
+  height: var(--header-h);
 }
 .brand {
   display: flex;
@@ -48,14 +125,20 @@ p { margin: 0; color: var(--muted); }
   font-weight: 500;
   letter-spacing: -0.01em;
 }
+/* The mark PNG itself (`assets/logo.png` / `logo@2x.png`) is the owner's gold artwork only,
+   cropped tight with a transparent background -- no tile or backdrop baked in. Previously this
+   painted a `--surface`/`--border` tile behind it so the mark had a mode-aware backing; the owner
+   looked at light mode and asked for the tile removed (2026-08-31) -- the transparent PNG sits
+   directly on the page background instead, which still satisfies "light in light mode, dark in
+   dark mode" because the page background itself is mode-aware. Sizing only now, no
+   background/border, and no border-radius either: with nothing left to paint, there is no longer a
+   square-edged box for a radius to round, and the PNG's own artwork has no square edge to clip. */
 .brand .mark {
-  width: 22px; height: 22px;
-  border-radius: 6px;
-  background: var(--fg);
+  width: 28px; height: 28px;
   display: grid;
   place-items: center;
 }
-.brand .mark svg { width: 12px; height: 12px; }
+.brand .mark img { width: 100%; height: 100%; border-radius: 7px; display: block; }
 .main-nav { display: flex; align-items: center; gap: 28px; }
 .main-nav a {
   font-size: 14px;
@@ -64,7 +147,11 @@ p { margin: 0; color: var(--muted); }
 }
 .main-nav a:hover, .main-nav a[aria-current="page"] { color: var(--fg); }
 .nav-actions { display: flex; align-items: center; gap: 8px; }
-.nav-toggle { display: none; }
+/* `.nav-actions` prefix is load-bearing: this button also carries `.btn`, whose
+   `display: inline-flex` (below) has IDENTICAL specificity and comes LATER, so a bare
+   `.nav-toggle` selector loses on source order and the hamburger shows at every width.
+   Same collision class as `.wrap`/`.post-detail`. Fixed 2026-08-30. */
+.nav-actions .nav-toggle { display: none; }
 
 .theme-toggle {
   display: inline-flex;
@@ -91,11 +178,31 @@ p { margin: 0; color: var(--muted); }
 :root[data-theme="light"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(90deg) scale(0.6); }
 
 /* ---------- scroll reveal ----------
-   Deliberately NO default `opacity: 0` here. js/reveal.js (powered by the
-   vendored js/vendor/motion.js — MIT, see js/vendor/LICENSE.md) sets the
-   hidden-then-revealed state entirely in JS via Motion's animate()/inView()/
-   stagger(), so a visitor with JS disabled or blocked sees normal, fully
-   visible content instead of a page stuck permanently hidden. Progressive
+   Deliberately NO default `opacity: 0` here — and none arrives from anywhere else
+   either. Reveals are declared per element as `data-kui="fade-up ..."` and driven by
+   the vendored `scripts/vendor/kuinetic.all.js` (MIT, see
+   `scripts/vendor/kuinetic-LICENSE.md`), which injects its entire stylesheet itself at
+   load. So if that script is blocked or fails, no kUInetic CSS exists at all and every
+   element renders in its normal, fully visible resting state: the hidden state lives
+   only inside an `@keyframes ... from { opacity: 0 }` block, and with no kUInetic loaded
+   there is no animation to render that frame.
+
+   That guarantee covers the script-ABSENT case only. The earlier wording here went on to
+   claim the `from` block is "never a resting style" at all, which is wrong and is
+   corrected 2026-09-04: an `on:enter` element is compiled with `animation-fill-mode: both`
+   plus `animation-play-state: paused`, and a paused fill-both animation renders its `from`
+   frame — so between load and the observer firing the element really does rest at
+   `opacity: 0`. Harmless when the observer can fire; fatal when it cannot. `threshold` is
+   a fraction of the observed element's OWN area, so anything taller than
+   `viewport / threshold` never satisfies it and stays invisible for the life of the page.
+   Hence the rule the templates in `render/pages/` now follow: no `threshold:` token on any
+   element whose height the template does not bound. See NOTICE.md, "Why the page wrappers
+   carry no threshold:".
+
+   kUInetic's one rule that hides content in CSS alone —
+   `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state])` — is opt-in
+   behind a `data-kui-cloak` attribute on `<html>` that this theme deliberately never
+   sets (the library only ever removes that attribute, never adds it). Progressive
    enhancement, not a CSS/JS handshake that can desync. */
 
 @media (prefers-reduced-motion: reduce) {
@@ -132,7 +239,7 @@ p { margin: 0; color: var(--muted); }
   gap: 6px;
   font: 12px/1 var(--font-mono);
   letter-spacing: 0.02em;
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in oklch, var(--accent) 12%, transparent);
   border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
   padding: 6px 10px;
@@ -164,7 +271,7 @@ p { margin: 0; color: var(--muted); }
 }
 
 /* ---------- hero ---------- */
-.hero { padding: 96px 0 72px; text-align: center; }
+.hero { padding-block: 96px 72px; text-align: center; }
 .hero .eyebrow-row { display: flex; justify-content: center; margin-bottom: 28px; }
 .hero h1 {
   font-size: clamp(40px, 6vw, 72px);
@@ -200,11 +307,11 @@ p { margin: 0; color: var(--muted); }
 }
 
 /* ---------- sections ---------- */
-section.band { padding: 72px 0; border-top: 1px solid var(--border); }
+section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .section-head { max-width: 56ch; margin-bottom: 48px; }
 .section-head .kicker {
   display: block; font: 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 14px;
+  color: var(--accent-text); margin-bottom: 14px;
 }
 .section-head h2 { font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -0.02em; margin-bottom: 12px; }
 .section-head p { font-size: 16px; }
@@ -217,7 +324,10 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 
 /* ---------- footer ---------- */
 .site-footer { border-top: 1px solid var(--border); padding: 56px 0 40px; }
-.footer-grid { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 32px; margin-bottom: 48px; }
+/* repeat(4,1fr) -> repeat(3,1fr): the footer's "Account" column was commented out in footer.html
+   2026-08-31 (owner request, reversible) leaving 4 visible columns (brand + Product + Resources +
+   Legal), not 5. Restore this to repeat(4,1fr) together with uncommenting that column. */
+.footer-grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; margin-bottom: 48px; }
 .footer-col h4 { font-size: 13px; color: var(--fg); margin-bottom: 14px; font-family: var(--font-body); font-weight: 500; }
 .footer-col a { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .footer-col a:hover { color: var(--fg); }
@@ -244,7 +354,14 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .faq-item p { padding-bottom: 22px; font-size: 14px; max-width: 60ch; }
 
 /* ---------- docs ---------- */
-.docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 48px; padding: 48px 0 96px; }
+/* `padding-block`, not shorthand `padding`: same clobber as `.hero`/`section.band` (fixed
+   2026-08-31) — this rule and `.wrap`'s `padding: 0 24px` share specificity, and this one comes
+   later in the cascade, so a shorthand here would zero out `.wrap`'s inline padding on every
+   `.docs-layout.wrap` element (`docs.html`'s `<main class="wrap docs-layout">`, and
+   `blog-sidebar-template.html`'s `<div class="docs-layout wrap">`), running the sidebar and
+   article flush against the viewport edge. `padding-block` only ever touches top/bottom, so it
+   can't touch `.wrap`'s left/right padding at all. */
+.docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 48px; padding-block: 48px 96px; }
 .docs-side { border-right: 1px solid var(--border); padding-right: 24px; }
 .docs-side .group { margin-bottom: 28px; }
 .docs-side .group h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; font-family: var(--font-body); font-weight: 500; }
@@ -274,7 +391,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-card.featured .post-card-media { flex: 0 0 42%; margin-bottom: 0; aspect-ratio: 16/11; }
 .post-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .post-card-media { aspect-ratio: 16/10; margin-bottom: 16px; font-size: 12px; border-radius: 10px; }
-.post-card .tag { display: inline-block; align-self: flex-start; font: 11px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); background: color-mix(in oklch, var(--accent) 10%, transparent); padding: 4px 8px; border-radius: 6px; margin-bottom: 12px; }
+.post-card .tag { display: inline-block; align-self: flex-start; font: 11px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-text); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); background: color-mix(in oklch, var(--accent) 10%, transparent); padding: 4px 8px; border-radius: 6px; margin-bottom: 12px; }
 .post-card h2, .post-card h3 { font-weight: 500; letter-spacing: -0.01em; margin-bottom: 10px; }
 .post-card h2 { font-size: 22px; }
 .post-card h3 { font-size: 17px; }
@@ -282,7 +399,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-meta { font: 12.5px/1 var(--font-mono); color: var(--muted); display: flex; gap: 8px; margin-top: auto; }
 
 /* ---------- blog post (single-post template) ---------- */
-.post-detail { max-width: 720px; margin: 0 auto; padding: 72px 0 96px; }
+.post-detail { max-width: 720px; margin: 0 auto; padding-block: 72px 96px; }
 .post-detail-header { margin-bottom: 40px; }
 .post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
 .post-detail-header .post-meta { font-size: 13px; }
@@ -349,7 +466,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
    whole point of a mention is that it reads as a link. `--accent` matches every other inline-accent
    use in this theme (status pills, tags, focus rings). Underline is deferred to `:hover` rather than
    always-on so the link doesn't visually compete with the "@" it already carries as its own signal. */
-.post-detail-body .post-mention { color: var(--accent); font-weight: 600; }
+.post-detail-body .post-mention { color: var(--accent-text); font-weight: 600; }
 .post-detail-body .post-mention:hover { text-decoration: underline; }
 
 /* ---------- about ---------- */
@@ -383,7 +500,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
   height: 42px; border-radius: 10px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--fg); padding: 0 14px; font-size: 14px; font-family: var(--font-body);
 }
-.field input:focus { outline: none; border-color: var(--accent); }
+.field input:focus { outline: none; border-color: var(--accent-text); }
 .auth-foot { text-align: center; font-size: 13px; color: var(--muted); margin-top: 20px; }
 .auth-foot a { color: var(--fg); border-bottom: 1px solid var(--border-strong); }
 .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; }
@@ -422,7 +539,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
     border-top: 1px solid var(--border);
     font-size: 15px;
   }
-  .nav-toggle { display: inline-flex; }
+  .nav-actions .nav-toggle { display: inline-flex; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -504,13 +621,25 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
    surrounding section visibly open while you read one of its pages. */
 .docs-nav .menu-item.is-current > a,
 .docs-nav .menu-item > a[aria-current="page"] {
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in oklch, var(--accent) 12%, transparent);
   font-weight: 500;
 }
 
 .docs-nav .menu-item.is-active:not(.is-current) > a {
   color: var(--fg);
+}
+
+/* kUInetic scroll-spy (2026-08-31, `blog-sidebar-template.html`'s `data-kui="scroll-spy ..."`) sets
+   this attribute itself on both the in-view section and its paired sidebar link(s) — a boolean data
+   attribute, not a class (see this theme's NOTICE.md "Kuinetic vendored" section), so it needs its
+   own rule rather than reusing `.is-current` above, which the retired `docs-sidebar.js` toggled by a
+   different mechanism entirely. Same visual treatment as `.is-current` on purpose: one page reading
+   as "you are here," regardless of which of the two spies produced it. */
+.docs-nav .menu-item > a[data-kui-active="true"] {
+  color: var(--accent-text);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  font-weight: 500;
 }
 
 /* An unavailable branch renders as inert text so its children survive — dim it so it does not read
@@ -545,9 +674,22 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
    `padding: 72px 0 96px` — correct for a full-width article page, wrong here, because
    `.docs-layout` already supplies the top spacing. The two stacked, so the article started 72px
    below the sidebar's first item instead of level with it. Only the top is zeroed; the 96px
-   bottom is still wanted. */
+   bottom is still wanted.
+
+   `margin: 0` for the same reason: `.post-detail` also carries `margin: 0 auto` to center a
+   full-width article page. On a grid item, auto inline margins opt the item OUT of the grid's
+   default stretch sizing — the browser sizes it to its own content (shrink-to-fit, still capped
+   by `.post-detail`'s `max-width: 720px`) and uses the margins to center whatever's left inside
+   the track, instead of filling it. A wide element inside the article (a `<pre>` code sample,
+   here) has no track width to shrink against once that happens, so `overflow-x: auto` on the
+   `pre` never engages and the article renders at its content's full intrinsic width — well past
+   the sidebar and off the right edge of the viewport on narrow screens. Zeroing the margin here
+   restores plain stretch: the article fills the track (still never wider than 720px), so the
+   reading column lines up flush with the sidebar's edge and a wide `pre` scrolls inside its own
+   box instead of blowing out the page. */
 .docs-layout .docs-content {
   padding-top: 0;
+  margin: 0;
 }
 
 /* A section heading is a label, not a destination, so it takes the accent colour on its own rather
@@ -556,7 +698,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .docs-nav .menu-item.depth-0.has-children.is-current > a,
 .docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .docs-content h2[id],
