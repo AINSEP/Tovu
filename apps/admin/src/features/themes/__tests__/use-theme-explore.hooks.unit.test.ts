@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
 import {
@@ -11,6 +12,7 @@ import {
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
+  shouldAdoptRefreshedText,
   shouldAwaitFileText,
   themeExploreHtmlMode,
   useThemeExplore,
@@ -19,6 +21,7 @@ import {
   type ThemeExploreController,
   type ThemeExploreFile,
 } from "../hooks/use-theme-explore.hooks";
+import { THEME_FILES_RESOURCE } from "../rules";
 
 /**
  * @file `useThemeExplore` driven against the injected `ThemeExplorePort`, no `fetch` stub and no
@@ -2889,5 +2892,206 @@ describe("shouldAwaitFileText", () => {
     ["an open file whose text is not loaded", { sourceLoaded: false }],
   ])("opens at once for %s", (_case, override) => {
     expect(shouldAwaitFileText({ ...base, ...override })).toBe(false);
+  });
+});
+
+/**
+ * F2 (o24 review, S1): an assistant run writes a theme file while Explore is open. The run's
+ * `publishContentRefresh()` is the only signal this screen gets, so without a subscription the
+ * modified dot and Reset stay stale until a reload.
+ */
+describe("useThemeExplore — content refresh bus (agent writes while Explore is open)", () => {
+  const PATH = "css/theme.css";
+  const ORIGINAL = "body{}";
+
+  afterEach(() => resetContentRefreshBus());
+
+  /**
+   * One live file compared against its original the way `describeThemeFile` does. Setting
+   * `state.live` is an agent tool writing the file server-side, with no call through this screen.
+   */
+  function agentWritablePort() {
+    const state = { live: ORIGINAL };
+    const port = createFakeThemeExplorePort({ files: [], contents: {} });
+    port.getThemeDetail = async () => ({
+      id: "basic",
+      name: "Basic",
+      tier: "static",
+      apiVersion: 2,
+      status: "active",
+      errors: [],
+      lineage: null,
+      hasOriginal: true,
+      files: [
+        { path: PATH, group: "style", readable: true, editable: true, resettable: true, modified: state.live !== ORIGINAL },
+      ],
+    });
+    port.getThemeFile = async () => ({ content: state.live });
+    port.putThemeFile = async (_themeId, path, content) => {
+      state.live = content;
+      return { path, bytes: content.length };
+    };
+    return { port, state };
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("marks the file modified and offers Reset once a refresh follows an agent write", async () => {
+    const { port, state } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    expect(canResetThemeFile(result.current.files[0])).toBe(false);
+
+    state.live = "body{color:red}";
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(canResetThemeFile(result.current.files[0])).toBe(true));
+    expect(isThemeFileModified(result.current.files[0]!)).toBe(true);
+  });
+
+  it("refreshes on a notification naming theme files, and ignores one naming only other resources", async () => {
+    const { port, state } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+
+    state.live = "body{color:red}";
+    act(() => publishContentRefresh(["posts"]));
+    await settle();
+    expect(result.current.files[0]?.modified).toBe(false);
+
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(result.current.files[0]?.modified).toBe(true));
+  });
+
+  it("adopts the agent's text for the open file when nothing is unsaved, with no unloaded render in between", async () => {
+    const { port, state } = agentWritablePort();
+    const sourceLoadedPerRender: boolean[] = [];
+    const { result } = renderHook(() => {
+      const controller = useThemeExplore("basic", { port, t: (k) => k });
+      sourceLoadedPerRender.push(controller.sourceLoaded);
+      return controller;
+    });
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    sourceLoadedPerRender.length = 0;
+    const nonceBefore = result.current.previewNonce;
+
+    state.live = "body{color:red}";
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.source).toBe("body{color:red}"));
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.previewNonce).toBe(nonceBefore + 1);
+    // c14a6b63's blank flash is an unloaded render; a background refresh must never produce one.
+    expect(sourceLoadedPerRender.length).toBeGreaterThan(0);
+    expect(sourceLoadedPerRender.every(Boolean)).toBe(true);
+  });
+
+  it("keeps unsaved edits: a dirty buffer is never read over", async () => {
+    const { port, state } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    act(() => result.current.setSource("body{typed}"));
+    const readSpy = vi.spyOn(port, "getThemeFile");
+
+    state.live = "body{agent}";
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.files[0]?.modified).toBe(true));
+    await settle();
+    expect(result.current.source).toBe("body{typed}");
+    expect(result.current.dirty).toBe(true);
+    expect(readSpy).not.toHaveBeenCalled();
+  });
+
+  it("drops a refreshed read that a Save overtook while it was in flight", async () => {
+    const { port, state } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    let releaseRead: (() => void) | undefined;
+    port.getThemeFile = () =>
+      new Promise((resolve) => {
+        releaseRead = () => resolve({ content: "body{agent}" });
+      });
+
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(releaseRead).toBeDefined());
+    act(() => result.current.setSource("body{saved}"));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(state.live).toBe("body{saved}");
+
+    await act(async () => {
+      releaseRead!();
+      await settle();
+    });
+
+    expect(result.current.source).toBe("body{saved}");
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("a refresh for the previous theme settling after a theme switch leaves the new theme's files alone", async () => {
+    const { port, state } = agentWritablePort();
+    const { result, rerender } = renderHook(({ id }) => useThemeExplore(id, { port, t: (k) => k }), {
+      initialProps: { id: "basic" },
+    });
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    const serverDetail = port.getThemeDetail;
+    let releaseOld: (() => void) | undefined;
+    port.getThemeDetail = (themeId) => {
+      if (themeId !== "basic") return serverDetail(themeId);
+      const answer = serverDetail(themeId);
+      return new Promise((resolve) => {
+        releaseOld = () => resolve(answer);
+      });
+    };
+
+    state.live = "body{color:red}";
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(releaseOld).toBeDefined());
+    state.live = ORIGINAL;
+    rerender({ id: "other" });
+    await waitFor(() => expect(result.current.files[0]?.modified).toBe(false));
+
+    await act(async () => {
+      releaseOld!();
+      await settle();
+    });
+
+    expect(result.current.files[0]?.modified).toBe(false);
+  });
+
+  it("stops refreshing once unmounted", async () => {
+    const { port } = agentWritablePort();
+    const detailSpy = vi.spyOn(port, "getThemeDetail");
+    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+
+    const callsWhileMounted = detailSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await settle();
+
+    expect(detailSpy).toHaveBeenCalledTimes(callsWhileMounted);
+  });
+});
+
+describe("shouldAdoptRefreshedText", () => {
+  const loaded = { themeId: "basic", path: "css/theme.css" };
+  const started = { themeId: "basic", selected: "css/theme.css", source: "a", savedSource: "a", loadedFile: loaded };
+
+  it("adopts new text for the same loaded, unedited file", () => {
+    expect(shouldAdoptRefreshedText({ started, current: started, content: "b" })).toBe(true);
+  });
+
+  it.each([
+    ["the text did not change", {}, "a"],
+    ["another theme opened", { themeId: "other" }, "b"],
+    ["another file opened", { selected: "css/other.css" }, "b"],
+    ["the file is no longer loaded", { loadedFile: null }, "b"],
+    ["the buffer has unsaved edits", { source: "typed" }, "b"],
+    ["a save or reset landed since the read started", { source: "saved", savedSource: "saved" }, "b"],
+  ])("drops the read when %s", (_case, override, content) => {
+    expect(shouldAdoptRefreshedText({ started, current: { ...started, ...override }, content })).toBe(false);
   });
 });

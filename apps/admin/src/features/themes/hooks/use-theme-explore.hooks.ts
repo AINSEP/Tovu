@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
 import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { THEME_FILES_RESOURCE } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type {
@@ -33,6 +35,12 @@ import type { Translate } from "@/lib/dictionary-translator";
  * building its own `(key) => translateThemes(locale, key)` closure. This hook's OWN error strings
  * stay hardcoded English (unchanged) — `useAdminLocale()`/`themes-i18n.ts`'s `t` (aliased
  * `translateThemes`) are read only inside {@link useWiredThemeExplore}.
+ *
+ * Content refresh bus (2026-09-14, o24 review F2): an assistant run can write theme files while this
+ * screen is open, and the finished run's `publishContentRefresh()` is the only signal that reaches it.
+ * A {@link THEME_FILES_RESOURCE} notification re-reads every file's `modified`/`resettable`, so the
+ * modified dot and Reset follow the write, and, when nothing is unsaved, the open file's text. The file
+ * list's shape is not refreshed: a file an agent adds or removes still needs a reload to appear or go.
  */
 
 export type ThemeExploreView = "preview" | "html";
@@ -438,6 +446,64 @@ function isOpenFileLoaded(
   return loaded !== null && loaded.themeId === themeId && loaded.path === selected;
 }
 
+/** The editor state a content-refresh read of the open file is checked against (see
+ *  {@link shouldAdoptRefreshedText}). */
+export interface OpenFileSnapshot {
+  themeId: string;
+  selected: string | null;
+  source: string;
+  savedSource: string;
+  loadedFile: { themeId: string; path: string } | null;
+}
+
+/**
+ * Whether `a` and `b` have the same theme and file open.
+ *
+ * @complexity O(1).
+ */
+function isSameOpenFile(a: OpenFileSnapshot, b: OpenFileSnapshot): boolean {
+  return a.themeId === b.themeId && a.selected === b.selected;
+}
+
+/**
+ * The open file's path when a content refresh may re-read its text: the file is loaded and has no
+ * unsaved edits. `null` otherwise, so unsaved edits are never read over, and a file that is not loaded
+ * stays with the file-read effect.
+ *
+ * @complexity O(s) in the text length, for the buffer comparison.
+ */
+function refreshableOpenFilePath(open: OpenFileSnapshot): string | null {
+  if (!isOpenFileLoaded(open.loadedFile, open.themeId, open.selected)) return null;
+  return open.source === open.savedSource ? open.selected : null;
+}
+
+/**
+ * Whether a content-refresh read of the open file, started at `started`, may put `content` in the
+ * editor now that the editor is at `current`. Only when the same file is still open and loaded, it has
+ * no unsaved edits, no Save, Reset or read has changed its saved text since the read started (that text
+ * is newer than the read), and `content` differs from it.
+ *
+ * @complexity O(s) in the text length, for the string comparisons.
+ */
+export function shouldAdoptRefreshedText({
+  started,
+  current,
+  content,
+}: {
+  started: OpenFileSnapshot;
+  current: OpenFileSnapshot;
+  content: string;
+}): boolean {
+  if (!isSameOpenFile(current, started) || !isOpenFileLoaded(current.loadedFile, started.themeId, started.selected)) {
+    return false;
+  }
+  return (
+    current.source === current.savedSource &&
+    current.savedSource === started.savedSource &&
+    content !== current.savedSource
+  );
+}
+
 /**
  * Whether `select` holds a click on `path` until that file's text is read, instead of opening it at
  * once. Only in the HTML view, only for a readable file other than the open one, and only while the
@@ -811,29 +877,76 @@ export function useThemeExplore(
     };
   }, [themeId, readPath, readPathReadable, readPathLoaded, port, fileReadNonce]);
 
+  // The editor state as of the last commit. A refresh read settles after renders its own closure never
+  // saw, so it checks this instead (see `shouldAdoptRefreshedText`). A layout effect writes it during
+  // the commit itself, so no settlement can land between a commit and the snapshot catching up.
+  const openFileRef = useRef<OpenFileSnapshot>({ themeId, selected, source, savedSource, loadedFile });
+  useLayoutEffect(() => {
+    openFileRef.current = { themeId, selected, source, savedSource, loadedFile };
+  });
+
   // Same stale-settlement guard as `renameSettlement` above: two saves, or a save then a reset, can
   // have their detail reads land out of order, and the older read must not overwrite the newer one.
   // Dropping it loses nothing, since the newer read carries every file's state.
   const modifiedRefreshSettlement = useSettlementGeneration();
 
   /**
-   * Re-read every file's `modified`/`resettable` after a Save or Reset changed a file's bytes.
-   * Neither response can answer it: PUT returns only `path`/`bytes`, and reset's `wasModified` is the
-   * state BEFORE the reset. The client never infers it either, because saving a file's original bytes
-   * back makes it unmodified. Merged through {@link withServerModifiedState}. A failed read is its own
-   * error: the save or reset already succeeded and stays reported as done.
+   * Re-read every file's `modified`/`resettable` after a Save or Reset changed a file's bytes, or a
+   * content refresh said an assistant run may have. Neither mutation's response can answer it: PUT
+   * returns only `path`/`bytes`, and reset's `wasModified` is the state BEFORE the reset. The client
+   * never infers it either, because saving a file's original bytes back makes it unmodified. Merged
+   * through {@link withServerModifiedState}. A failed read is its own error: the save or reset already
+   * succeeded and stays reported as done. A read for a theme that is no longer open is dropped, or its
+   * flags would merge into the new theme's files wherever the two share a path (`theme.json`).
    */
   const refreshModifiedState = useCallback(async () => {
     const generation = modifiedRefreshSettlement.next();
+    const stillCurrent = () => modifiedRefreshSettlement.isCurrent(generation) && openFileRef.current.themeId === themeId;
     try {
       const { files: serverFiles } = await fetchThemeExploreState(themeId, port);
-      if (!modifiedRefreshSettlement.isCurrent(generation)) return;
+      if (!stillCurrent()) return;
       setFiles((prev) => withServerModifiedState(prev, serverFiles));
     } catch (e) {
-      if (!modifiedRefreshSettlement.isCurrent(generation)) return;
+      if (!stillCurrent()) return;
       setError(e instanceof Error ? e.message : "failed to refresh file list");
     }
   }, [themeId, port, modifiedRefreshSettlement]);
+
+  // Its own generation rather than `modifiedRefreshSettlement`, so a Save's or Reset's detail read never
+  // cancels a text read. `shouldAdoptRefreshedText` already drops a read one of those overtook.
+  const openFileTextSettlement = useSettlementGeneration();
+
+  /**
+   * After a content refresh, re-read the open file and adopt its text when an assistant run changed it.
+   * Only a loaded file with no unsaved edits is read ({@link refreshableOpenFilePath}), and
+   * {@link shouldAdoptRefreshedText} drops the result unless the editor is still in that state on the
+   * same file. `loadedFile` is left alone, so the editor never renders unloaded (the blank flash
+   * `c14a6b63` fixed). A failed read keeps the text on screen and is reported while that file is open.
+   */
+  const refreshOpenFileText = useCallback(async () => {
+    const started = openFileRef.current;
+    const path = refreshableOpenFilePath(started);
+    if (path === null) return;
+    const generation = openFileTextSettlement.next();
+    try {
+      const { content } = await port.getThemeFile(started.themeId, path);
+      if (!openFileTextSettlement.isCurrent(generation)) return;
+      if (!shouldAdoptRefreshedText({ started, current: openFileRef.current, content })) return;
+      setSource(content);
+      setSavedSource(content);
+      setPreviewNonce((n) => n + 1);
+    } catch (e) {
+      if (!openFileTextSettlement.isCurrent(generation) || !isSameOpenFile(openFileRef.current, started)) return;
+      setError(e instanceof Error ? e.message : "failed to read file");
+    }
+  }, [port, openFileTextSettlement]);
+
+  /** A content-refresh notification: every file's modified state, and the open file's text. */
+  const refreshFromContentBus = useCallback(() => {
+    void refreshModifiedState();
+    void refreshOpenFileText();
+  }, [refreshModifiedState, refreshOpenFileText]);
+  useContentRefreshSubscription(THEME_FILES_RESOURCE, refreshFromContentBus);
 
   const save = useCallback(async () => {
     // Nothing is written unless `source` is the open file's own text. A read that is in flight or

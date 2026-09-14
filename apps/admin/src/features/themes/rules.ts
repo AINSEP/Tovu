@@ -57,6 +57,12 @@ export function isStrandedActiveTheme(settings: PresentationSettings, themes: re
   return settings.activeThemeId !== "" && !themes.includes(settings.activeThemeId);
 }
 
+/** Theme Explore's name on `lib/content-refresh-bus.ts` — a plain colocated constant, matching
+ *  `SITES_RESOURCE`/`TAXONOMY_RESOURCE`. Theme files are filesystem state an assistant run can write
+ *  (`theme_write_file`, `theme_edit_file`, `theme_reset_file`) with Explore open, which is the
+ *  staleness the bus exists for. */
+export const THEME_FILES_RESOURCE = "theme-files";
+
 /**
  * ADR-020's fixed tier order. Mirrors `theme.ts`'s own `THEME_TIERS` (server-side, not imported
  * here — see `ThemeTier`'s own doc comment in `lib/api.ts` for why the client mirrors rather than
