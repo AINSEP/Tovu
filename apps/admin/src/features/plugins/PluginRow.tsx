@@ -4,6 +4,7 @@ import { useId, type ReactNode } from "react";
 import type { AdminPlugin } from "@/lib/api";
 import { pluginSubline } from "./rules";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
+import { EyeIcon } from "./agent-plugins-visuals";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
@@ -13,7 +14,8 @@ import type { Translate } from "@/lib/dictionary-translator";
  * plain-table-to-row redesign from the same night, but is not byte-for-byte identical and imports
  * nothing from that file: `AdminPlugin` has no free-text description (its subline is
  * `source · tier · status` instead, via `pluginSubline`) and a `.tovu-plugin` row exposes exactly
- * ONE right-aligned control at a time — the Enabled toggle on Installed, or Remove on Downloaded —
+ * ONE tab-specific control at a time (after the eye button every row carries, 2026-09-13) — the
+ * Enabled toggle on Installed, or Remove on Downloaded —
  * never both, since that split is what replaced the single unified table `Plugins.tsx` used to
  * render (see that file's own header for the tab-by-tab rationale).
  *
@@ -44,6 +46,8 @@ export interface PluginRowProps {
    *  icon button (Downloaded). Rendered as-is; this component makes no decision about which one it
    *  is. */
   readonly action: ReactNode;
+  /** Opens the read-only package-files viewer for this plugin (`PluginPackageFilesModal`). */
+  readonly onInspect: () => void;
 }
 
 /** Quarantine + per-plugin `errors[]` — genuine operational signal, moved here from the pre-split
@@ -75,7 +79,7 @@ function PluginRowDetail({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
   );
 }
 
-export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action }: PluginRowProps) {
+export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect }: PluginRowProps) {
   const detailId = useId();
   const headingId = useId();
 
@@ -110,7 +114,20 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
             <PluginChevronIcon />
           </span>
         </button>
-        <div className="plugin-row-actions">{action}</div>
+        <div className="plugin-row-actions">
+          <button
+            type="button"
+            className="plugin-icon-btn"
+            onClick={onInspect}
+            // Same accessible name as `AgentPluginRow`'s eye button: the label reads identically on
+            // every row, so the plugin's own name has to be part of it.
+            aria-label={`${t("Inspect package files")} — ${plugin.name}`}
+            {...agentHandle(`${agentHandleBase}-inspect`, { role: "button", label: `Inspect the "${plugin.name}" package files` })}
+          >
+            <EyeIcon />
+          </button>
+          {action}
+        </div>
       </div>
       <div className="plugin-row-detail" id={detailId} hidden={!expanded}>
         <PluginRowDetail plugin={plugin} t={t} />

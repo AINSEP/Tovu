@@ -17,6 +17,7 @@ import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
 // `AgentPluginDetailsModalProps.plugin` only reads `id`/`displayName` (see that component's own
 // narrowed prop type, 2026-09-09) — a plain literal is enough, no catalog import needed.
 const PLUGIN: InspectedAgentPlugin = { id: "ui-ux-design", displayName: "UI/UX Design" };
+const identity = (key: string) => key;
 
 describe("AgentPluginDetailsModal details-hook injection", () => {
   it("renders purely off an injected fake, proving useAgentPluginDetailsModal is not hardcoded", () => {
@@ -30,7 +31,7 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
       };
     }
 
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeDetails} />);
+    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
     expect(screen.getByRole("button", { name: "fake/only.md" })).toBeInTheDocument();
     expect(screen.getByText("fake content body")).toBeInTheDocument();
@@ -41,7 +42,7 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
       return { files: [], selectedFile: null, selectFile: vi.fn() };
     }
 
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeDetails} />);
+    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("No source files are catalogued for this package.");
   });
@@ -74,7 +75,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   it("defaults every file to wrapped, markdown and non-markdown alike", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeMultiFileDetails} />,
+      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
     );
 
     // alpha.md is selected by default and defaults wrapped, via the grid renderer.
@@ -97,7 +98,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
     }
 
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeLongLineDetails} />,
+      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeLongLineDetails} />,
     );
 
     // WrappedFileContent lays out one CSS grid row per source line (`.line-number` paired with its
@@ -112,7 +113,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   it("switches renderers and aria-pressed when the toggle is clicked, in both directions", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeMultiFileDetails} />,
+      <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />,
     );
     const toggle = screen.getByRole("button", { name: WRAP_TOGGLE_NAME });
 
@@ -132,7 +133,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
 
   it("resets a manual override to the new file's own default instead of carrying it across", async () => {
     const user = userEvent.setup();
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeMultiFileDetails} />);
+    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
 
     // alpha.md defaults wrapped; override it off.
     await user.click(screen.getByRole("button", { name: WRAP_TOGGLE_NAME }));
@@ -145,7 +146,7 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
   });
 
   it("keeps the toggle's own label out of the heading's accessible name", () => {
-    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} useDetails={useFakeMultiFileDetails} />);
+    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeMultiFileDetails} />);
 
     // The toggle sits in the same header row but outside the <h3> for exactly this reason — see
     // `AgentPlugins.unit.test.tsx`'s own exact-name heading assertion, which this protects.

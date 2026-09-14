@@ -1,5 +1,6 @@
-import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin } from "../../lib/api";
+import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginFiles, type AdminPluginPackageFile } from "../../lib/api";
 import { t } from "./plugins-i18n";
+import type { Translate } from "@/lib/dictionary-translator";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 
 /**
@@ -384,4 +385,65 @@ export function buildAgentPluginDisableConfirmCopy(params: {
 export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
   const verb = plugin.enabled ? t(locale, "Remove") : t(locale, "Enable");
   return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
+}
+
+/**
+ * One row of the shared package-files viewer (`PackageFilesModal.tsx`), whichever screen fed it:
+ * Agent Plugins' catalog entries fit as they are; `PLUGIN_FILES` entries go through
+ * {@link toPackageFileView}.
+ */
+export interface PackageFileView {
+  readonly relativePath: string;
+  /** `null` when the file is listed but its content is not shown. */
+  readonly content: string | null;
+  /** Why `content` is `null`, shown in its place. */
+  readonly unavailableReason?: string | null;
+}
+
+/** What the viewer's content pane says while no file is selected. */
+export interface PackageFilesStatus {
+  readonly text: string;
+  /** `alert` for a load failure; `status` for loading or an empty package. */
+  readonly role: "status" | "alert";
+}
+
+/** English source strings (the i18n keys) for each `PLUGIN_FILES` omission reason. */
+const PACKAGE_FILE_OMISSION_NOTICES: Record<NonNullable<AdminPluginPackageFile["omitted"]>, string> = {
+  binary: "Binary file — not shown.",
+  "too-large": "Too large to show here.",
+  symlink: "Symbolic link — not followed.",
+  unreadable: "This file could not be read.",
+};
+
+/**
+ * Maps one `PLUGIN_FILES` entry onto a viewer row. An omitted file keeps its place in the list and
+ * says why it has no content; a reason this client does not know yet (or a contract-breaking
+ * `null` content) reads as unreadable instead of rendering blank.
+ * @complexity O(1).
+ */
+export function toPackageFileView(file: AdminPluginPackageFile, translate: Translate): PackageFileView {
+  if (file.omitted === null && file.content !== null) return { relativePath: file.relativePath, content: file.content };
+  const notice = (file.omitted && PACKAGE_FILE_OMISSION_NOTICES[file.omitted]) || PACKAGE_FILE_OMISSION_NOTICES.unreadable;
+  return { relativePath: file.relativePath, content: null, unavailableReason: translate(notice) };
+}
+
+/**
+ * The content pane's message before a file can be selected: a failure wins, then loading, then an
+ * empty package.
+ * @complexity O(1).
+ */
+export function packageFilesStatus(
+  input: { loading: boolean; error: string | null; fileCount: number },
+  translate: Translate,
+): PackageFilesStatus | null {
+  if (input.error !== null) return { text: input.error, role: "alert" };
+  if (input.loading) return { text: translate("Loading package files…"), role: "status" };
+  if (input.fileCount === 0) return { text: translate("No files to show for this plugin."), role: "status" };
+  return null;
+}
+
+/** Set only when `PLUGIN_FILES` reports its caps cut the listing short.
+ *  @complexity O(1). */
+export function packageFilesListNotice(listing: Pick<AdminPluginFiles, "truncated"> | null, translate: Translate): string | null {
+  return listing?.truncated ? translate("Some files are not listed: this package is larger than the viewer's limits.") : null;
 }

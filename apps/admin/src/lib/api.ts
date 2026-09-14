@@ -1892,6 +1892,25 @@ export interface AdminPlugin {
   errors: Array<{ code: string; file: string | null; message: string }>;
 }
 
+/** Mirrors `server/inbound/admin-http/routes/plugins/files.ts`'s `PLUGIN_FILES` entry (2026-09-13) —
+ *  one file in a plugin's own directory. `content` is `null` exactly when `omitted` is set. */
+export interface AdminPluginPackageFile {
+  relativePath: string;
+  sizeBytes: number;
+  content: string | null;
+  omitted: null | "binary" | "too-large" | "symlink" | "unreadable";
+}
+
+/** `PLUGIN_FILES`' whole response: the files, whether the server's caps cut the listing short,
+ *  and those caps. */
+export interface AdminPluginFiles {
+  pluginId: string;
+  source: "built-in" | "site";
+  files: AdminPluginPackageFile[];
+  truncated: boolean;
+  limits: { maxFiles: number; maxEntries: number; maxFileBytes: number; maxTotalBytes: number };
+}
+
 /** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
  *  `AGENT_PLUGINS_LIST` per-plugin wire shape (2026-09-09). A DIFFERENT family from {@link
  *  AdminPlugin} above: Agent Plugins (agent-plugins.org packages) versus the `.tovu-plugin`
@@ -3639,6 +3658,11 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`,
       { method: "DELETE" }
     ),
+  /** PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/plugins/:pluginId/files`: the read-only,
+   *  server-capped listing of one plugin's own files behind the Plugins screen's package-files
+   *  viewer. Refuses `PLUGIN_NOT_FOUND` (404) and `PLUGIN_ID_INVALID` (400). */
+  getPluginFiles: (pluginId: string) =>
+    request<AdminPluginFiles>(`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/files`),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).

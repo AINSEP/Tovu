@@ -1,4 +1,4 @@
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin, AdminPluginFiles } from "@/lib/api";
 
 /**
  * @file What `use-plugins.hooks.ts` needs from the outside world, as an interface rather than a
@@ -28,4 +28,7 @@ export interface PluginsPort {
    *  re-fetch is authoritative" convention `setPluginEnabled` above already uses, rather than
    *  reading `clearedWorkspaceIds` itself. */
   uninstallPlugin(id: string): Promise<{ pluginId: string; clearedWorkspaceIds: string[] }>;
+  /** `PLUGIN_FILES` (`GET /workspaces/:id/plugins/:pluginId/files`) — the read-only package-files
+   *  listing behind `PluginPackageFilesModal`. */
+  getPluginFiles(id: string): Promise<AdminPluginFiles>;
 }

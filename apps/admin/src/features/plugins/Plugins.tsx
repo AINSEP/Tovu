@@ -6,6 +6,7 @@ import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
+import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
@@ -22,7 +23,9 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  * State and API calls live in `hooks/use-plugins.hooks.ts`; the server-error-message override,
  * toggle-cell decision, subline, and remove-confirm copy live in `rules.ts`. Route `/plugins`;
  * consumes `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`/`PLUGIN_UNINSTALL` (`api.listPlugins()`/
- * `api.setPluginEnabled()`/`api.uninstallPlugin()`) as a black box.
+ * `api.setPluginEnabled()`/`api.uninstallPlugin()`) as a black box. Every Installed and Downloaded
+ * row also has an eye button opening `PluginPackageFilesModal` (`PLUGIN_FILES`, 2026-09-13) — the
+ * same read-only package-files viewer Agent Plugins uses.
  *
  * Three tabs, Installed first (owner correction, applied identically to the sibling screen the same
  * night — Installed before Downloaded, not the other way round):
@@ -94,6 +97,7 @@ function InstalledPluginRows({
             expanded={expandedIds.has(plugin.id)}
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
             agentHandleBase={rowHandleById.get(plugin.id)!}
+            onInspect={() => controller.onInspectPlugin(plugin.id)}
             action={
               <button
                 type="button"
@@ -169,6 +173,7 @@ function DownloadedPluginRows({
             expanded={expandedIds.has(plugin.id)}
             onToggleExpanded={() => onToggleExpanded(plugin.id)}
             agentHandleBase={rowHandleById.get(plugin.id)!}
+            onInspect={() => controller.onInspectPlugin(plugin.id)}
             action={action}
           />
         );
@@ -298,6 +303,10 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
             </p>
           </div>
         </div>
+      ) : null}
+
+      {controller.inspectedPlugin ? (
+        <PluginPackageFilesModal plugin={controller.inspectedPlugin} onClose={controller.onCloseInspector} />
       ) : null}
 
       {pendingRemovePlugin ? (

@@ -66,6 +66,12 @@ export interface PluginsController {
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
   onToggleExpanded: (id: string) => void;
+  /** The plugin open in `PluginPackageFilesModal`, looked up fresh from `plugins` by id so a reload
+   *  never shows a stale row; `null` while the viewer is closed. */
+  inspectedPlugin: AdminPlugin | null;
+  /** Opens the package-files viewer for one plugin (a row's eye button, on either list tab). */
+  onInspectPlugin: (id: string) => void;
+  onCloseInspector: () => void;
   /** Bound translator — `Plugins.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
   /** The raw resolved locale — exposed only because `rules.ts`'s `pluginToggleControl` genuinely
@@ -100,6 +106,7 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
   const [rowError, setRowError] = useState<string | null>(null);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
+  const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
 
   function reload(): Promise<void> {
     return port
@@ -153,6 +160,9 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     onRemovePlugin,
     expandedIds,
     onToggleExpanded: (id: string) => setExpandedIds((ids) => withId(ids, id, !ids.has(id))),
+    inspectedPlugin: plugins?.find((plugin) => plugin.id === inspectedPluginId) ?? null,
+    onInspectPlugin: setInspectedPluginId,
+    onCloseInspector: () => setInspectedPluginId(null),
     t,
     locale,
   };

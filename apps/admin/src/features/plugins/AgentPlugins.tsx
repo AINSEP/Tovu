@@ -433,7 +433,7 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
           fullscreenEnabled={false}
           labels={{ kicker: t("Plugins") }}
         />
-        {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} onClose={closeInspector} /> : null}
+        {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
             name={humanizeAgentPluginId(pendingDisablePlugin.pluginId)}

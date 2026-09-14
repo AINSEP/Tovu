@@ -1,15 +1,12 @@
-import { CodeWithLines } from "@jini-ai/ui";
-import { PreviewModalShell } from "@jini-ai/ui/renderers";
-import { agentHandle } from "@jini-ai/agentic";
-import { Fragment, useId, useState } from "react";
-
+import type { Translate } from "@/lib/dictionary-translator";
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
-import type { BundledAgentPluginSourceFile } from "./agent-plugin-source-catalog";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { PackageFilesModal } from "./PackageFilesModal";
 import { useAgentPluginDetailsModal } from "./hooks/use-agent-plugin-details-modal.hooks";
 
 export interface AgentPluginDetailsModalProps {
   readonly plugin: InspectedAgentPlugin;
+  /** `AgentPlugins`' bound translator — the modal's only source of copy. */
+  readonly t: Translate;
   readonly onClose: () => void;
   /** Injectable seam for the file-tree selection state. Defaults to the real
    *  {@link useAgentPluginDetailsModal}; a test can pass a fake here to exercise the modal's
@@ -17,152 +14,30 @@ export interface AgentPluginDetailsModalProps {
   readonly useDetails?: typeof useAgentPluginDetailsModal;
 }
 
-/** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). The file list
- *  is narrow (`.agent-plugin-source-files`, `minmax(14rem, 20rem)`) and these paths run long
- *  (`skills/interface-design/references/commands/critique.md`) — without a preferred break point
- *  `overflow-wrap: anywhere` (styles.css) was free to split mid-filename, e.g. leaving a lone `d`
- *  orphaned on its own line after "critique.m". `<wbr>` only offers the browser a *preferred* spot
- *  to break, so `overflow-wrap: anywhere` still catches the rare segment too long for the pane on
- *  its own — this only makes the common case break at a path boundary instead of a word. */
-function PluginFilePath({ path }: { path: string }) {
-  const segments = path.split("/");
-  return (
-    <>
-      {segments.map((segment, i) => (
-        <span key={i}>
-          {segment}
-          {i < segments.length - 1 ? "/" : null}
-          {i < segments.length - 1 ? <wbr /> : null}
-        </span>
-      ))}
-    </>
-  );
-}
-
-/**
- * Wrap-safe stand-in for Jini's `CodeWithLines`, used only while wrapping is on. `CodeWithLines`
- * renders the gutter and the code as two independent `white-space: pre` text blocks that stay
- * aligned only because neither one wraps — the instant a code line wraps to more than one visual
- * row, every later gutter number drifts out of sync with its line. This lays out one CSS grid row
- * per source line instead (`.code-viewer--wrap` in styles.css): a wrapped line's row simply grows
- * taller, and its own gutter number grows with it, so nothing downstream can ever desync.
- */
-function WrappedFileContent({ text }: { text: string }) {
-  const lines = text.split("\n");
-  return (
-    <div className="code-viewer code-viewer--wrap">
-      {lines.map((line, i) => (
-        <Fragment key={i}>
-          <span className="line-number" aria-hidden>
-            {i + 1}
-          </span>
-          <span className="line-content">{line}</span>
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Keyed by `file.relativePath` in the parent, so switching the selected file remounts this and
- * resets `wrap` to its default rather than carrying a manual toggle across files.
- *
- * Defaults to wrapped for every file. Previously unwrapped for `plugin.json`/`.ts` sources on the
- * theory that structure reads better with no wrap; in practice the most likely first click in this
- * modal (`plugin.json`) ran a long line off the pane indefinitely, and the owner had to scroll
- * horizontally just to read it (owner correction, 2026-09-10). The toggle keeps unwrapped one click
- * away for whoever genuinely wants raw structure.
- */
-function AgentPluginFileContent({
-  file,
-  headingId,
-  agentHandleBase,
-}: {
-  file: BundledAgentPluginSourceFile;
-  headingId: string;
-  agentHandleBase: string;
-}) {
-  const [wrap, setWrap] = useState(true);
-
-  return (
-    <section className="agent-plugin-source-content" aria-labelledby={headingId}>
-      <div className="agent-plugin-source-content-header">
-        <h3 id={headingId}>
-          <PluginFilePath path={file.relativePath} />
-        </h3>
-        <button
-          type="button"
-          aria-pressed={wrap}
-          onClick={() => setWrap((prev) => !prev)}
-          {...agentHandle(`${agentHandleBase}-wrap-toggle`, { role: "button", label: "Toggle line wrapping for this file" })}
-        >
-          {wrap ? "Wrap: on" : "Wrap: off"}
-        </button>
-      </div>
-      {wrap ? <WrappedFileContent text={file.content} /> : <CodeWithLines text={file.content} />}
-    </section>
-  );
-}
-
 /**
  * Read-only inspection of an explicitly bundled plugin package.
+ *
+ * Renders through the shared `PackageFilesModal` (2026-09-13): the file list, path breaking, and
+ * wrap toggle that used to live in this file moved there, so the Plugins screen's viewer is the same
+ * component rather than a copy that could drift.
  *
  * The modal receives no path/loading adapter. Its only content source is the compile-time
  * allowlist `useAgentPluginDetailsModal` reads via `getBundledAgentPluginSourceFiles`, so
  * selecting a row is a pure lookup and can never become an arbitrary file read.
  */
-export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
+export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
   const { files, selectedFile, selectFile } = useDetails(plugin.id);
-  const selectedFileHeadingId = useId();
-  // File paths are stable and unique within one package, same per-row-handle derivation every
-  // other list on this workstream uses (`buildAgentListHandles`).
-  const fileHandles = buildAgentListHandles(
-    "agent-plugin-file",
-    files.map((file) => file.relativePath),
-  );
-  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]!]));
 
   return (
-    <PreviewModalShell
-      className="agent-plugin-source-modal"
-      title={`${plugin.displayName} package files`}
-      subtitle="Read-only source bundled with Tovu; this plugin is not executed from this screen."
-      views={[
-        {
-          id: "package-source",
-          label: "Package source",
-          custom: (
-            <div className="agent-plugin-source-browser">
-              <nav className="agent-plugin-source-files" aria-label="Package files">
-                {files.map((file) => (
-                  <button
-                    key={file.relativePath}
-                    type="button"
-                    aria-pressed={selectedFile?.relativePath === file.relativePath}
-                    onClick={() => selectFile(file.relativePath)}
-                    {...agentHandle(`${fileHandleByPath.get(file.relativePath)}-select`, {
-                      role: "button",
-                      label: `Select the "${file.relativePath}" file`,
-                    })}
-                  >
-                    <PluginFilePath path={file.relativePath} />
-                  </button>
-                ))}
-              </nav>
-              {selectedFile ? (
-                <AgentPluginFileContent
-                  file={selectedFile}
-                  headingId={selectedFileHeadingId}
-                  key={selectedFile.relativePath}
-                  agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
-                />
-              ) : (
-                <p role="status">No source files are catalogued for this package.</p>
-              )}
-            </div>
-          ),
-        },
-      ]}
+    <PackageFilesModal
+      title={`${plugin.displayName} ${t("package files")}`}
+      subtitle={t("Read-only source bundled with Tovu; this plugin is not executed from this screen.")}
+      files={files}
+      selectedFile={selectedFile}
+      onSelectFile={selectFile}
+      status={{ text: t("No source files are catalogued for this package."), role: "status" }}
+      handlePrefix="agent-plugin-file"
+      t={t}
       onClose={onClose}
     />
   );

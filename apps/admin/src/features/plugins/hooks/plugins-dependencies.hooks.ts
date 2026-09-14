@@ -1,4 +1,4 @@
-import { ApiError, api, type AdminPlugin } from "@/lib/api";
+import { ApiError, api, type AdminPlugin, type AdminPluginFiles } from "@/lib/api";
 import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
@@ -13,11 +13,14 @@ export const defaultPluginsPort: PluginsPort = {
   listPlugins: () => api.listPlugins(),
   setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),
   uninstallPlugin: (id) => api.uninstallPlugin(id),
+  getPluginFiles: (id) => api.getPluginFiles(id),
 };
 
 /** Seed state for {@link createFakePluginsPort}. */
 export interface FakePluginsPortOptions {
   plugins?: AdminPlugin[];
+  /** `PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the real route's 404. */
+  packageFiles?: Record<string, AdminPluginFiles>;
 }
 
 /**
@@ -66,6 +69,12 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
       }
       plugins.splice(index, 1);
       return { pluginId: id, clearedWorkspaceIds: [] };
+    },
+
+    async getPluginFiles(id) {
+      const listing = options.packageFiles?.[id];
+      if (!listing) throw new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND");
+      return listing;
     },
   };
 }
