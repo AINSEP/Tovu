@@ -8,7 +8,7 @@ import {
   type IdentityRepos,
 } from "@jini-ai/cms/identity";
 import type { ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
-import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -91,14 +91,10 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
  * @overallScore 100
  */
 export function rejectApiKeyCredential(res: Response): boolean {
-  if (getAuthedCredentialKind(res) !== "api_key") return true;
-
-  res.status(403).json({
-    error: "api-key credentials may not manage api keys; use an admin session",
-    code: "FORBIDDEN",
-    details: { permission: "apikey.manage", reason: "credential_kind_not_permitted" },
+  return rejectUnlessSessionCredential(res, {
+    message: "api-key credentials may not manage api keys; use an admin session",
+    permission: "apikey.manage",
   });
-  return false;
 }
 
 /**

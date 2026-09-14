@@ -9,7 +9,7 @@ import {
 import { SITE_TOKEN_MANAGE_PERMISSION } from "#src/features/identity/site-token-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -70,6 +70,16 @@ import type { RouteDeps } from "#src/server/routes/types";
  * exists. Replacing an existing key would orphan every secret already sealed under the old one
  * with no confirmation dialog at all — a real rotate/replace flow is intentionally NOT built here
  * (reported as out of scope, not silently half-built).
+ *
+ * ## 2026-09-14 hardening — session-only, `no-store`
+ *
+ * Every verb, including `GET` status, now refuses an `api_key` credential
+ * (`rejectUnlessSessionCredential` in `dev-auth.ts`, shared with `routes/api-keys/deps.ts`'s
+ * `rejectApiKeyCredential`) before the workspace/permission checks run. `SITE_TOKEN_MANAGE_PERMISSION`
+ * can be reached by any policy holding `admin.integrations.manage` (see that permission's own file
+ * header) and by any API key whose issuance snapshot carries it; without this gate, a leaked API key
+ * could reveal the value that decrypts every other stored credential. Reveal and generate responses
+ * also now set `Cache-Control: no-store`, since both carry the raw key value.
  */
 export type AdminSiteTokenDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
 
@@ -79,6 +89,20 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
  *  two-step shape `publish-credentials.ts`'s `rejectUnlessAuthorized` uses. Returns `true` (and
  *  has already written the response) iff the caller should stop. */
 async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSiteTokenDeps): Promise<boolean> {
+  // Checked first, before the workspace/permission checks below, so an api_key caller — even one
+  // whose snapshot holds SITE_TOKEN_MANAGE_PERMISSION — learns nothing beyond "this credential type
+  // is not permitted here." Same rule and same shared guard `routes/api-keys/deps.ts`'s
+  // `rejectApiKeyCredential` uses for api-key issuance/revocation: the value this route family
+  // guards (the key that decrypts every other stored credential) must stay reachable only by a real
+  // admin session, never by a machine credential a leaked key could replay.
+  if (
+    !rejectUnlessSessionCredential(res, {
+      message: "api-key credentials may not read or manage the site token; use an admin session",
+      permission: SITE_TOKEN_MANAGE_PERMISSION,
+    })
+  ) {
+    return true;
+  }
   if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return true;
@@ -101,6 +125,8 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
   app.post(`${BASE_PATH}/reveal`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const reveal = revealRootKeyMaterial();
+    // The raw key value goes out in this body — never let a shared/browser cache retain it.
+    res.set("Cache-Control", "no-store");
     res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
   });
 
@@ -123,6 +149,8 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
 
     try {
       const generated = generateFileRootKey();
+      // Same reasoning as reveal: this body carries the raw key value too.
+      res.set("Cache-Control", "no-store");
       res.status(201).json({
         hex: generated.hex,
         fingerprint: generated.fingerprint,

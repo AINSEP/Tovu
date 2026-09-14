@@ -237,6 +237,45 @@ export function getAuthedCredentialKind(res: Response): AuthCredentialKind {
   return kind;
 }
 
+/** What every route family that refuses a machine credential sends — identical shape whether the
+ *  refusal came from `routes/api-keys/*` or `routes/system/site-token.ts`, so a caller can branch
+ *  on `code`/`details.reason` without knowing which family answered. */
+export interface CredentialKindForbiddenBody {
+  error: string;
+  code: "FORBIDDEN";
+  details: { permission: string; reason: "credential_kind_not_permitted" };
+}
+
+/**
+ * The shared "this action must stay out of reach of a machine credential" guard
+ * (`getAuthedCredentialKind`'s own doc names the rule). Two route families call this today:
+ * `routes/api-keys/deps.ts`'s `rejectApiKeyCredential` (an api_key may never mint, issue, or
+ * revoke another key — SPEC-006 REQ-08) and `routes/system/site-token.ts` (an api_key may never
+ * read or mint the site token, since a leaked key would then expose every other stored
+ * credential). Both need the identical 403 shape, so this is the one place that shape is spelled
+ * out; each caller supplies only the wording and the permission name its own 403 body should carry.
+ *
+ * Runs before any body read or existence check that route performs, so an api_key caller learns
+ * nothing beyond "this credential type is not permitted here."
+ *
+ * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
+ * @complexity O(1).
+ */
+export function rejectUnlessSessionCredential(
+  res: Response,
+  context: { message: string; permission: string }
+): boolean {
+  if (getAuthedCredentialKind(res) === "session") return true;
+
+  const body: CredentialKindForbiddenBody = {
+    error: context.message,
+    code: "FORBIDDEN",
+    details: { permission: context.permission, reason: "credential_kind_not_permitted" },
+  };
+  res.status(403).json(body);
+  return false;
+}
+
 /** Express middleware factory: reject unauthenticated /api/admin requests; attach the principal. */
 export function requireAdminSession(deps: SessionAuthDeps) {
   return async function requireAdminSessionMiddleware(
