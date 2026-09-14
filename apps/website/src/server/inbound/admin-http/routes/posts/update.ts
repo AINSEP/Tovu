@@ -212,9 +212,9 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
 
         // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
         // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
-        // `bus.subscribe`d consumers (SEO's sitemap-cache invalidation) instead of sitting pending
-        // indefinitely (this composition root has no background outbox poller — mirrors the
-        // `/workspaces` route's identical inline `processOutbox` call).
+        // `bus.subscribe`d consumers (SEO's sitemap-cache invalidation) before the response, rather
+        // than on the background drainer's next pass (`serving-app.ts`) — mirrors the
+        // `/workspaces` route's identical inline `processOutbox` call.
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
         res.json(toAdminPostResponse(result.post));

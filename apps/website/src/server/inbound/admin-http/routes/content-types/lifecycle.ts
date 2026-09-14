@@ -82,9 +82,9 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
 
       // 2026-09-03 outbox-drain audit fix — drains the outbox so a successful `deprecate`/
       // `tombstone` transition's `content_type.deprecated`/`content_type.tombstoned` event
-      // actually reaches `bus.subscribe`d consumers instead of sitting pending indefinitely
-      // (this composition root has no background outbox poller; mirrors `posts/update.ts`'s
-      // identical inline `processOutbox` call). `reactivate` enqueues nothing, so this call is a
+      // reaches `bus.subscribe`d consumers before the response rather than on the background
+      // drainer's next pass (`serving-app.ts`; mirrors `posts/update.ts`'s identical inline
+      // `processOutbox` call). `reactivate` enqueues nothing, so this call is a
       // harmless no-op drain on that branch — `@jini-ai/cms/content-types`'s `lifecycle.ts` file
       // header explains why `reactivateContentType` never accepted an `outbox` dep at all.
       await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });

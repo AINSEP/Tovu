@@ -15,11 +15,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `routes/admin/content/deps.ts`'s `ContentRouteDeps` and `routes/admin/workspace/deps.ts`'s
  * `WorkspaceRouteDeps` both carry the identical `EventBusDeps` pair (see that group's own doc in
  * `server/routes/types.ts`): `entries/{create,update,lifecycle}.ts` and `content-types/lifecycle.ts`
- * each enqueue an outbox event on a successful write and must drain it with `processOutbox({
- * outbox, bus, clock })` before responding — this composition root has no background outbox
- * poller, so an undrained event sits pending forever and no `bus.subscribe`d consumer (e.g. SEO's
+ * each enqueue an outbox event on a successful write and drain it with `processOutbox({
+ * outbox, bus, clock })` before responding, so `bus.subscribe`d consumers (e.g. SEO's
  * `entry.published`/`entry.updated`/`entry.unpublished` sitemap-cache-invalidation subscribers,
- * wired at `server/runtime/composition/app.ts`) ever sees it. `content-types/register.ts`/
+ * wired at `server/runtime/composition/app.ts`) see it before the response. Without that inline
+ * drain, the serving process's background drainer (`serving-app.ts`, 2026-09-14) delivers it on its
+ * next pass. `content-types/register.ts`/
  * `update-fields.ts` do not need this: `registerContentType`/`updateContentTypeFields` never call
  * `deps.outbox.enqueue` at all (verified against `@jini-ai/cms/content-types`'s `write-service.ts`),
  * so there is nothing there for `bus` to help deliver.

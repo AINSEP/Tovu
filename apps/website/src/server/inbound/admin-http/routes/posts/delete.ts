@@ -114,8 +114,8 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
       });
 
       // Drains deletePost's `entry.unpublished` event (emitted only when a PUBLISHED row is
-      // trashed) to SEO's sitemap-cache invalidation subscriber — identical to the inline drain
-      // `posts/update.ts` performs, since this composition root has no background outbox poller.
+      // trashed) to SEO's sitemap-cache invalidation subscriber at once — identical to the inline
+      // drain `posts/update.ts` performs, ahead of the background drainer (`serving-app.ts`).
       await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
       res.json(toAdminPostResponse(result.post));

@@ -612,7 +612,10 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // Mirrors content_post_update's identical inline processOutbox call below — an agent
         // creating directly as `status: "published"` (the tool's own documented usage) now
         // enqueues `entry.published` (`createPost`'s `deps.outbox` doc); drained here so SEO's
-        // sitemap-cache invalidation subscriber actually sees it (no background outbox poller).
+        // sitemap-cache invalidation subscriber sees it without waiting for the serving process's
+        // background drainer. On the BYOK path (serving process) this delivers at once; in the agent
+        // daemon the outbox is enqueue-only, so this claims nothing and that drainer delivers instead
+        // (`server/runtime/composition/agent-daemon-deps.ts`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
         return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
@@ -686,8 +689,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
           // Mirrors posts/update.ts's/pages/update.ts's identical inline processOutbox call — drains
           // updatePost's entry.published/entry.updated/entry.unpublished event (if any) to SEO's
-          // sitemap-cache invalidation subscriber, since this composition root has no background
-          // outbox poller.
+          // sitemap-cache invalidation subscriber at once. In the agent daemon the outbox is
+          // enqueue-only, so this claims nothing and the serving process's background drainer
+          // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
           await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
           return { post: toPostToolView(result.post) };

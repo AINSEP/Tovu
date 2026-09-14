@@ -114,8 +114,9 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
 
         // A post created directly as `status: "published"` now enqueues `entry.published`
         // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
-        // invalidation subscriber actually sees it, mirroring `posts/update.ts`'s identical
-        // inline `processOutbox` call (this composition root has no background outbox poller).
+        // invalidation subscriber sees it at once, mirroring `posts/update.ts`'s identical
+        // inline `processOutbox` call (otherwise the background drainer in `serving-app.ts`
+        // delivers it on its next pass).
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
         res.status(201).json(toAdminPostResponse(result.post));

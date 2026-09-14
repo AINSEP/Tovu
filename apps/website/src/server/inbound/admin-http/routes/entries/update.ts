@@ -81,9 +81,9 @@ export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRo
       }
 
       // 2026-09-03 outbox-drain audit fix — drains the outbox so `updateEntry`'s `entry.updated`
-      // event actually reaches `bus.subscribe`d consumers instead of sitting pending indefinitely
-      // (this composition root has no background outbox poller; mirrors `posts/update.ts`'s
-      // identical inline `processOutbox` call).
+      // event reaches `bus.subscribe`d consumers before the response rather than on the background
+      // drainer's next pass (`serving-app.ts`; mirrors `posts/update.ts`'s identical inline
+      // `processOutbox` call).
       await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
       res.json(result.value);
