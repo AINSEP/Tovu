@@ -172,12 +172,16 @@ function toFormSubmissionView(record: FormSubmissionRecord): FormSubmissionToolV
   };
 }
 
-/** Reads and range-checks `limit`, mirroring `routes/admin/forms/list-submissions.ts`'s own check. */
+/** Reads and range-checks `limit`, mirroring `routes/admin/forms/list-submissions.ts`'s own check.
+ *  `forms_list_submissions` has no `withSchemaOnRejection` wrap (unlike the three definition tools
+ *  below), so this throws `ToolInputError` directly rather than a domain error class a predicate
+ *  would need to recognize — same shape every other unwrapped ad-hoc validator in this codebase
+ *  uses (e.g. `features/taxonomy/tool-registrations.ts`'s `termIds` check). */
 function requireSubmissionsLimit(input: Record<string, unknown>): number {
   if (input.limit === undefined) return SUBMISSIONS_DEFAULT_LIMIT;
   const limit = input.limit;
   if (typeof limit !== "number" || !Number.isInteger(limit) || limit < SUBMISSIONS_MIN_LIMIT || limit > SUBMISSIONS_MAX_LIMIT) {
-    throw new Error(`'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}`);
+    throw new ToolInputError(`'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}`);
   }
   return limit;
 }
@@ -193,10 +197,21 @@ function formsDeps(routeDeps: FormsToolDeps) {
   };
 }
 
+/**
+ * `forms_set_definition_status` is wrapped in `withSchemaOnRejection`/`isFormsShapeRejection`, and
+ * that predicate only recognizes `FormFieldValidationError` — a bare `Error` thrown here would never
+ * match it and would reach `@jini-ai/daemon`'s `ToolExecutor` as `errorKind: 'internal'`, redacted to
+ * a message-stripped 500 by `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` (SEC-005). Throwing the
+ * SAME domain error class the predicate already recognizes (rather than broadening the predicate to
+ * also accept a generic `ToolInputError`) is the convention every sibling domain's own
+ * `isShapeRejection` follows — `theme`/`sites`/`site-inspection`'s predicates each stay a fixed,
+ * narrow allowlist of domain-specific classes, and a new ad-hoc check adopts one of those (existing
+ * or freshly declared) rather than widening the allowlist to a generic marker.
+ */
 function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatus {
   const value = input.status;
   if (value !== "active" && value !== "disabled") {
-    throw new Error("'status' must be exactly 'active' or 'disabled'");
+    throw new FormFieldValidationError("'status' must be exactly 'active' or 'disabled'");
   }
   return value;
 }
@@ -208,6 +223,10 @@ function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatu
  * re-save the unchanged record, and the tool would report success for a call that changed nothing —
  * which teaches the model its call worked. The human PUT route can tolerate that; a tool must not.
  *
+ * `forms_update_definition` is wrapped in `withSchemaOnRejection`/`isFormsShapeRejection` the same
+ * way `forms_set_definition_status` is — see {@link requireFormsStatus}'s doc for why this throws
+ * `FormFieldValidationError` rather than a bare `Error` or a generic `ToolInputError`.
+ *
  * @complexity O(1).
  * @overallScore 100
  */
@@ -217,7 +236,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
   if (Array.isArray(input.fields)) patch.fields = input.fields as FieldDescriptor[];
   if (input.notify !== undefined) patch.notify = input.notify as NotifyConfig;
   if (Object.keys(patch).length === 0) {
-    throw new Error("at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated");
+    throw new FormFieldValidationError("at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated");
   }
   return patch;
 }

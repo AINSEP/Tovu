@@ -147,3 +147,40 @@ test("forms_list_definitions through the real ToolExecutor refuses a principal w
   assert.equal(result.status, "failed", `an unauthorized principal must not succeed, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /is not authorized for/);
 });
+
+/**
+ * A bad input the model can fix must come back as `errorKind: 'validation'`. `ToolExecutor` tags only
+ * a `ToolInputError` that way; anything else is `'internal'`, which the HTTP layer redacts to a
+ * message-less 500, so the model never learns which field to change. These three ad-hoc validators
+ * in `features/forms/tool-registrations.ts` used to throw a bare `Error`. One row per validator, so
+ * a regression names the tool that broke.
+ */
+const INPUT_REJECTIONS: ReadonlyArray<{ toolId: string; input: (formId: string) => Record<string, unknown>; message: RegExp; schemaAttached: boolean }> = [
+  { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 500 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
+  { toolId: "forms_set_definition_status", input: (formId) => ({ formId, status: "archived" }), message: /'status' must be exactly 'active' or 'disabled'/, schemaAttached: true },
+  { toolId: "forms_update_definition", input: (formId) => ({ formId }), message: /at least one of 'name', 'fields', or 'notify' is required/, schemaAttached: true },
+];
+
+for (const row of INPUT_REJECTIONS) {
+  test(`${row.toolId}: a fixable input rejection reaches the model as errorKind 'validation', not a redacted internal failure`, async () => {
+    const { toolExecutor, ownerPrincipal } = await buildRealExecutor();
+    const run = { id: `run-canary-${row.toolId}-validation` };
+
+    const created = await toolExecutor.execute(ownerPrincipal, run, "forms_create_definition", {
+      name: `Validation Target ${row.toolId}`,
+      slug: `validation-target-${row.toolId.replaceAll("_", "-")}`,
+      fields: [{ id: "email", label: "Email", type: "email", required: true }],
+    });
+    assert.equal(created.status, "completed", `seed create must succeed: ${JSON.stringify(created)}`);
+    const formId = (created.output as { definition: { id: string } }).definition.id;
+
+    const result = await toolExecutor.execute(ownerPrincipal, run, row.toolId, row.input(formId));
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.errorKind, "validation", `got: ${JSON.stringify(result)}`);
+    assert.match(result.error ?? "", row.message);
+    if (row.schemaAttached) {
+      assert.match(result.error ?? "", new RegExp(`Schema for '${row.toolId}'`), "a shape rejection inside withSchemaOnRejection must carry the published schema");
+    }
+  });
+}
