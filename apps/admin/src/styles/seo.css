@@ -49,6 +49,14 @@
  * per-screen sheets. Nothing here can reach a screen outside `/admin/seo`, and `styles.css` is
  * untouched — including the one legacy rule this has to defeat (`.seo-entry-section`'s
  * `margin-top`, neutralized below at higher specificity rather than edited in place).
+ *
+ * UPDATE, 2026-09-13: point 1's two-column rail is no longer how any tab on this screen actually
+ * renders — the owner asked all three tabs (Site defaults, Sitemap, Pages & posts) to read like
+ * Pages & posts, full width (see the `seo-panel--full` section below for the full account). Points
+ * 2 and 3 (the hairline seam, the 32px/16px spacing ratio) still hold exactly as written; only the
+ * left rail column itself was retired. `.seo-section`'s own two-column `grid-template-columns`
+ * stays defined below as the base case a future single-section tab could still opt into, but no
+ * current caller renders it — every `.seo-panel` on this screen now also carries `--full`.
  */
 
 .seo-panel {
@@ -155,18 +163,18 @@
  * Owner, 2026-09-06, on the Pages & posts tab: "you can actually just get rid of 'Entry' and have
  * the page take up the whole width."
  *
- * The rail pays for its 224px + 32px on Site defaults, where THREE titles stack into a column an
- * operator can scan without reading the form. On Pages & posts there is exactly one title, so
- * there is no list to scan — just a lonely heading with a third of the page empty beside it, held
- * open for the entire scroll of an eleven-field form that is being squeezed into what is left.
- * Measured at 1440: the form ran 672px inside a 1300px page.
+ * On Pages & posts there is exactly one title, so there is no list to scan — just a lonely
+ * heading with a third of the page empty beside it, held open for the entire scroll of an
+ * eleven-field form that is being squeezed into what is left. Measured at 1440: the form ran
+ * 672px inside a 1300px page.
  *
- * So the rule is about section COUNT, not about this tab: the rail is a list of group names, and a
- * list of one is dead space. Applied here to Pages & posts only. Sitemap also has a single section
- * and keeps its rail deliberately — nothing there is being squeezed (four short lines), and its
- * prose would run a 1300px measure without the column to sit in. Site defaults keeps it because
- * three titles are the case the rail was built for. Say the word and Sitemap flattens too; it is
- * one class.
+ * Reversed for Site defaults and Sitemap too (owner screenshots, 2026-09-13:
+ * `26-seo-site-defaults-cramped-headers.png`, `27-seo-sitemap-tab-cramped.png` — both read as
+ * cramped next to `28-seo-pages-posts-tab-reference.png`'s full-width layout). The rail's own
+ * "three titles are worth a scannable column" reasoning still holds in the abstract, but the owner's
+ * call is that EVERY tab on this screen should read like Pages & posts: title left-aligned, its
+ * content below it at full width — consistency across the tab strip over the rail's scan benefit.
+ * All three tabs now carry `seo-panel--full`; nothing here still uses the two-column rail.
  */
 .seo-panel--full .seo-section {
   grid-template-columns: minmax(0, 1fr);

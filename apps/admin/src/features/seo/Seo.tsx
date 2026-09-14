@@ -422,7 +422,7 @@ function SeoDefaultsTab({ controller }: { controller: SeoTabController }) {
 
   return (
     <form
-      className="seo-panel"
+      className="seo-panel seo-panel--full"
       {...agentHandle("seo-defaults-form", {
         role: "form",
         label: "Site-wide SEO defaults — title template, meta description, social image, robots",
@@ -571,7 +571,7 @@ function SeoSitemapTab({ controller }: { controller: SeoTabController }) {
 
   return (
     <div
-      className="seo-panel"
+      className="seo-panel seo-panel--full"
       {...agentHandle("seo-sitemap", {
         role: "region",
         label: "Sitemap — force a rebuild of the cached sitemap",
