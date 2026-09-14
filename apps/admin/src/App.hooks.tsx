@@ -736,6 +736,32 @@ export function buildAdminCapabilityExecutors(
   };
 }
 
+/**
+ * Routes a `createFrontendSessionBridge` `onError` call to the right console level.
+ *
+ * The bridge fans every non-tool-call failure through one callback: a malformed frame, a failed
+ * response POST, and — for every stream hiccup, not just fatal ones — the `EventSource`'s own
+ * native `error` `Event`, whose `target` is the source itself. `settings-events.ts`'s identical
+ * `readyState` check is why: the browser retries a dropped connection on its own while
+ * `readyState` is still `CONNECTING`/`OPEN`, so logging every one of those as an error meant
+ * nearly every admin page logged one on load (a dev daemon restart, a sleeping laptop, an ordinary
+ * network blip). Only a stream that has actually given up (`CLOSED`) is worth a warning; a real
+ * `Error` (the other three cases above) still means something broke and stays at error level.
+ *
+ * @param error - Whatever the bridge's `onError` was called with.
+ * @complexity O(1).
+ */
+export function logFrontendSessionError(error: unknown): void {
+  if (error instanceof Event) {
+    const source = error.target as { readyState?: unknown } | null;
+    if (source?.readyState === EventSource.CLOSED) {
+      console.warn("[admin] frontend session stream closed", error);
+    }
+    return;
+  }
+  console.error("[admin] frontend session", error);
+}
+
 export function useAgentPageBridge(): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
@@ -750,7 +776,7 @@ export function useAgentPageBridge(): UseAgentPageBridge {
     const bridge = createFrontendSessionBridge({
       pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
       executors: buildAdminCapabilityExecutors(contentEl),
-      onError: (error) => console.error("[admin] frontend session", error),
+      onError: logFrontendSessionError,
     });
     // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
     // every `page.*` call it makes is refused by name rather than hanging.
