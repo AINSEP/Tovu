@@ -1,12 +1,17 @@
-import { useCallback, useMemo } from "react";
-import type { SourceConfigItem } from "@jini-ai/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
 import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
 import { t as tExternalMcp } from "./external-mcp-i18n";
-import { buildExternalMcpCardHandles } from "./rules";
+import {
+  buildExternalMcpCardHandles,
+  buildExternalMcpFieldSpecs,
+  resolveExternalMcpEffectiveAuthMode,
+  resolveExternalMcpEffectiveTransport,
+} from "./rules";
 
 /**
  * @file `ExternalMcpSettingsPanel.tsx`'s own derived-value logic, split out per the
@@ -73,4 +78,85 @@ export function buildAllowWritePatch(
   const source = sources.find((candidate) => candidate.id === connectionId);
   if (!source) return null;
   return { fields: { writeAllowedToolNames: grantWriteFieldValue(source.fields["writeAllowedToolNames"], remoteName) } };
+}
+
+/** Everything `ExternalMcpSettingsPanel` renders its "Add server" button and form from. */
+export interface ExternalMcpAddFormController {
+  /** Whether the add form is showing (the "Add server" button's `aria-expanded`). */
+  formOpen: boolean;
+  /** "Add server": opens a closed form, closes an open one (without discarding the draft). */
+  toggleForm: () => void;
+  /** Cancel: discards the draft, not just hides it — reopening must not resurrect a half-typed
+   *  server (or a typed secret) the operator chose to abandon — then closes the form. */
+  cancelForm: () => void;
+  /** The field specs for the draft's last-known transport/auth mode — one render behind a change,
+   *  per `ExternalMcpSettingsPanel.tsx`'s "two-pass reactive field-spec sync" header. */
+  fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
+  /** `@jini-ai/ui`'s add-form controller (values, validation, submit, reset), seeded from
+   *  {@link fieldSpecs}. */
+  addForm: ReturnType<typeof useWiredSourceConfigAddForm<SourceConfigItem>>;
+}
+
+/**
+ * Owns `ExternalMcpSettingsPanel`'s "Add server" form: its open state, the draft, and the lagged
+ * transport/auth-mode sync that keeps the form's field specs following the operator's own choices
+ * (see `ExternalMcpSettingsPanel.tsx`'s "two-pass reactive field-spec sync" header for why the sync
+ * is one render behind, by design).
+ *
+ * `fieldSpecs` is deliberately rebuilt every render (not `useMemo`'d), exactly as it was when this
+ * lived in the component body — this move changes where the logic lives, not how often it runs.
+ *
+ * @param input.dependencies - The same source-config port the panel's list uses.
+ * @param input.list - Receives a newly added server (`addSourceToList`), so the roster shows it
+ *   without a reload.
+ * @returns See {@link ExternalMcpAddFormController}.
+ * @complexity O(1) per render beyond `buildExternalMcpFieldSpecs`'s fixed-size spec list.
+ */
+export function useExternalMcpAddForm(input: {
+  dependencies: SourceConfigDependencies<SourceConfigItem>;
+  list: { addSourceToList: (source: SourceConfigItem) => void };
+}): ExternalMcpAddFormController {
+  const { dependencies, list } = input;
+  const [formOpen, setFormOpen] = useState(false);
+  const [transportGuess, setTransportGuess] = useState<string>("stdio");
+  const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
+  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess });
+
+  const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
+    dependencies,
+    fieldSpecs,
+    onAdded: (source) => {
+      list.addSourceToList(source);
+      setFormOpen(false);
+    },
+  });
+
+  // Pre-select sensible defaults the instant the form opens, so the two `select` fields never show
+  // Jini's placeholder "Select…" state for a choice Tovu already has a real default for (matching
+  // the server's own default-to-stdio/static_env behavior — see `rules.ts`'s
+  // `resolveExternalMcpEffective*`). Guarded on "still blank" so it only ever runs on a fresh draft.
+  useEffect(() => {
+    if (!formOpen) return;
+    if (addForm.values.transport === "") addForm.setField("transport", "stdio");
+    if (addForm.values.authMode === "") addForm.setField("authMode", "static_env");
+  }, [formOpen, addForm.values.transport, addForm.values.authMode, addForm.setField]);
+
+  // The lagged sync `ExternalMcpSettingsPanel.tsx`'s header describes.
+  useEffect(() => {
+    const nextTransport = resolveExternalMcpEffectiveTransport(addForm.values);
+    const nextAuthMode = resolveExternalMcpEffectiveAuthMode(addForm.values);
+    if (nextTransport !== transportGuess) setTransportGuess(nextTransport);
+    if (nextAuthMode !== authModeGuess) setAuthModeGuess(nextAuthMode);
+  }, [addForm.values, transportGuess, authModeGuess]);
+
+  return {
+    formOpen,
+    toggleForm: () => setFormOpen((open) => !open),
+    cancelForm: () => {
+      addForm.reset();
+      setFormOpen(false);
+    },
+    fieldSpecs,
+    addForm,
+  };
 }

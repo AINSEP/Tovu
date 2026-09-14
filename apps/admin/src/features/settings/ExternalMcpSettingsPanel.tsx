@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Icon,
   SourceConfigAddForm,
@@ -21,16 +21,12 @@ import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 import {
   buildAllowWritePatch,
   resolveExternalMcpCardHandles,
+  useExternalMcpAddForm,
   useExternalMcpDriftCopy,
   useSavedAllowedToolNamesById,
 } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
-import {
-  buildExternalMcpFieldSpecs,
-  EXTERNAL_MCP_ADD_FORM_HANDLE,
-  resolveExternalMcpEffectiveAuthMode,
-  resolveExternalMcpEffectiveTransport,
-} from "./rules";
+import { buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
@@ -64,8 +60,9 @@ const DRAFT_TEST_SCOPE = "__draft__";
  *
  * `useWiredSourceConfigAddForm` takes `fieldSpecs` as an ordinary parameter — it is what seeds and
  * validates `values`, not something derived FROM `values`. So `fieldSpecs` cannot be a pure function
- * of the hook's own live draft in the same render that draft changed; the effect below is exactly
- * that one render of lag, made explicit rather than left to arise by accident. `transportGuess`/
+ * of the hook's own live draft in the same render that draft changed; the sync effect in
+ * `useExternalMcpAddForm` (`ExternalMcpSettingsPanel.hooks.tsx`, which owns this form's state) is
+ * exactly that one render of lag, made explicit rather than left to arise by accident. `transportGuess`/
  * `authModeGuess` track the LAST-KNOWN effective transport/auth-mode, and every render recomputes
  * `addFormFieldSpecs` from them; the moment the operator picks a different transport or auth mode,
  * the effect notices the mismatch against `addForm.values` and updates the guess, which — on the very
@@ -391,42 +388,16 @@ export interface ExternalMcpSettingsPanelProps {
 
 export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true }: ExternalMcpSettingsPanelProps) {
   const t = useT();
-  const [formOpen, setFormOpen] = useState(false);
   // The id of the source Remove was pressed for, until Confirm or Cancel resolves it — see this
   // file's own "Remove asks first" header note. `null` means no confirmation dialog is open.
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const list = useWiredSourceConfigList<SourceConfigItem>({ dependencies });
-
-  const [transportGuess, setTransportGuess] = useState<string>("stdio");
-  const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
-  const addFormFieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess });
-
-  const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
+  // The "Add server" form: open state, draft, and the lagged field-spec sync this file's header
+  // describes — all owned by the hook.
+  const { formOpen, toggleForm, cancelForm, fieldSpecs: addFormFieldSpecs, addForm } = useExternalMcpAddForm({
     dependencies,
-    fieldSpecs: addFormFieldSpecs,
-    onAdded: (source) => {
-      list.addSourceToList(source);
-      setFormOpen(false);
-    },
+    list,
   });
-
-  // Pre-select sensible defaults the instant the form opens, so the two `select` fields never show
-  // Jini's placeholder "Select…" state for a choice Tovu already has a real default for (matching
-  // the server's own default-to-stdio/static_env behavior — see `rules.ts`'s
-  // `resolveExternalMcpEffective*`). Guarded on "still blank" so it only ever runs on a fresh draft.
-  useEffect(() => {
-    if (!formOpen) return;
-    if (addForm.values.transport === "") addForm.setField("transport", "stdio");
-    if (addForm.values.authMode === "") addForm.setField("authMode", "static_env");
-  }, [formOpen, addForm.values.transport, addForm.values.authMode, addForm.setField]);
-
-  // The lagged sync this file's header describes.
-  useEffect(() => {
-    const nextTransport = resolveExternalMcpEffectiveTransport(addForm.values);
-    const nextAuthMode = resolveExternalMcpEffectiveAuthMode(addForm.values);
-    if (nextTransport !== transportGuess) setTransportGuess(nextTransport);
-    if (nextAuthMode !== authModeGuess) setAuthModeGuess(nextAuthMode);
-  }, [addForm.values, transportGuess, authModeGuess]);
 
   const banner = list.error;
   const cardHandles = resolveExternalMcpCardHandles(list.sources);
@@ -448,7 +419,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         <button
           type="button"
           className="external-mcp-add-button"
-          onClick={() => setFormOpen((open) => !open)}
+          onClick={toggleForm}
           aria-expanded={formOpen}
         >
           <Icon name="plus" size={14} />
@@ -470,12 +441,8 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
         testResult={list.testResults[DRAFT_TEST_SCOPE]}
         onTest={() => void list.test(undefined, addForm.values)}
-        // Cancel discards the draft, not just hides it — reopening must not resurrect a half-typed
-        // server (or a typed secret) the operator chose to abandon.
-        onCancel={() => {
-          addForm.reset();
-          setFormOpen(false);
-        }}
+        // Cancel discards the draft, not just hides it — see `useExternalMcpAddForm`'s `cancelForm`.
+        onCancel={cancelForm}
       />
 
       <ExternalMcpAdmissionsBanner
