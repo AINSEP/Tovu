@@ -216,3 +216,37 @@ test("stop() waits for the running drain, and no drain runs after it", async () 
   assert.deepEqual(received, ["in-flight-1"], "no drain may run after stop()");
   await drainer.stop();
 });
+
+test("a handler that never settles cannot stall the loop: the event behind it is delivered and the stuck row stays retryable, never delivered", async (t) => {
+  const inner = new InMemoryOutbox();
+  const delivered: string[] = [];
+  const outbox = spyOutbox(inner, { markDelivered: (id) => delivered.push(id) });
+  const bus = new InMemoryEventBus();
+  const stuck = deferred();
+  const received: string[] = [];
+  await bus.subscribe("entry.updated", async (event) => {
+    if (event.id === "never-settles") return stuck.promise;
+    received.push(event.id);
+  });
+  await inner.enqueue(makeEvent("never-settles"));
+
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 5, deliveryTimeoutMs: 20 });
+  t.after(async () => {
+    stuck.resolve();
+    await drainer.stop();
+  });
+
+  await sleep(10);
+  await inner.enqueue(makeEvent("after-stuck-1"));
+
+  assert.ok(
+    await waitFor(() => received.length === 1),
+    "a handler that never settles stalled the drainer: the event queued behind it was never delivered"
+  );
+  assert.deepEqual({ received, delivered }, { received: ["after-stuck-1"], delivered: ["after-stuck-1"] });
+  const retry = await inner.claimPending(10, "2099-01-01T00:00:00.000Z");
+  assert.deepEqual(
+    retry.map((row) => [row.id, row.lastError]),
+    [["never-settles", 'delivery of outbox event "entry.updated" (never-settles) timed out after 20ms']]
+  );
+});

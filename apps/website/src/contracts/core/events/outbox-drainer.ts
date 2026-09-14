@@ -18,7 +18,8 @@ import { processOutbox } from "./outbox-worker.js";
  *   bug (see `enqueue-only-outbox.ts`).
  * - One drain at a time. The next drain is scheduled only after the current one settles, so a slow
  *   handler never overlaps itself. A full batch drains again at once; otherwise the loop waits
- *   `intervalMs`.
+ *   `intervalMs`. A handler that never settles costs at most the delivery timeout per row
+ *   (`processOutbox`'s `deliveryTimeoutMs`), so it cannot stall the loop.
  * - Retry, backoff and the terminal `"failed"` state stay in `processOutbox`. A failing handler
  *   reschedules only its own row, so the rows behind it keep flowing. A drain that throws (e.g. a
  *   locked database) goes to `onError` and the loop carries on.
@@ -49,6 +50,7 @@ type DrainDeps = { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort };
  * @param required.clock passed through to `processOutbox`.
  * @param optional.intervalMs idle wait between drains (default {@link DEFAULT_OUTBOX_DRAIN_INTERVAL_MS}).
  * @param optional.batchSize rows claimed per drain (default 20).
+ * @param optional.deliveryTimeoutMs how long one row's delivery may run (default: `processOutbox`'s own).
  * @param optional.onError receives any error a drain throws (default: `console.error`). If it throws
  *   itself, that is swallowed, so a broken reporter can never end the loop.
  * @returns a handle whose `stop()` ends the loop.
@@ -56,9 +58,9 @@ type DrainDeps = { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort };
  */
 export function startOutboxDrainer(
   required: DrainDeps,
-  optional: { intervalMs?: number; batchSize?: number; onError?: (error: unknown) => void } = {}
+  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void } = {}
 ): OutboxDrainer {
-  const { intervalMs = DEFAULT_OUTBOX_DRAIN_INTERVAL_MS, batchSize = DEFAULT_BATCH_SIZE, onError = logDrainError } = optional;
+  const { intervalMs = DEFAULT_OUTBOX_DRAIN_INTERVAL_MS, batchSize = DEFAULT_BATCH_SIZE, deliveryTimeoutMs, onError = logDrainError } = optional;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inFlight: Promise<void> = Promise.resolve();
@@ -72,7 +74,7 @@ export function startOutboxDrainer(
   };
 
   const drain = async (): Promise<void> => {
-    const claimed = await drainOnce(required, { batchSize, onError });
+    const claimed = await drainOnce(required, { batchSize, deliveryTimeoutMs, onError });
     schedule(claimed >= batchSize ? 0 : intervalMs);
   };
 
@@ -90,10 +92,10 @@ export function startOutboxDrainer(
 /** One `processOutbox` call that never rejects: an error is reported and counts as zero rows claimed. */
 async function drainOnce(
   required: DrainDeps,
-  optional: { batchSize: number; onError: (error: unknown) => void }
+  optional: { batchSize: number; deliveryTimeoutMs?: number; onError: (error: unknown) => void }
 ): Promise<number> {
   try {
-    return await processOutbox(required, { batchSize: optional.batchSize });
+    return await processOutbox(required, { batchSize: optional.batchSize, deliveryTimeoutMs: optional.deliveryTimeoutMs });
   } catch (error) {
     try {
       optional.onError(error);

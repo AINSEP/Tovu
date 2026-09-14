@@ -58,6 +58,16 @@ export const MAX_OUTBOX_ATTEMPTS = 6;
  */
 export const DEFAULT_OUTBOX_CLAIM_LEASE_MS = 30 * 60 * 1000; // 30 minutes
 
+/**
+ * How long one row's delivery (its `bus.publish`) may run before `processOutbox` gives up on it
+ * (2026-09-14). A handler that never settled used to stall `processOutbox` forever, and with it the
+ * background drainer and every inline route drain. A timed-out delivery is recorded as a retryable
+ * failure, never as delivered. The handler cannot be cancelled and may still finish later, so its
+ * effects must tolerate the retry (at-least-once). A full default batch of 20 deliveries that each
+ * time out takes 20 minutes, inside `DEFAULT_OUTBOX_CLAIM_LEASE_MS`.
+ */
+export const DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS = 60 * 1000; // 1 minute
+
 /** Backoff base: the first retry after a failure waits (before jitter) around this long. */
 const BASE_BACKOFF_MS = 30 * 1000; // 30 seconds
 
@@ -96,19 +106,20 @@ function addMsToIso(iso: ISODateTime, ms: number): ISODateTime {
  * Claims due outbox rows and attempts to publish each to the event bus, marking delivered on
  * success or scheduling a backed-off retry (or permanent exclusion past `MAX_OUTBOX_ATTEMPTS`,
  * see this file's header doc) on failure. See {@link deliverClaimedRow} for a row claimed more
- * than `MAX_OUTBOX_ATTEMPTS` times.
+ * than `MAX_OUTBOX_ATTEMPTS` times. Each delivery may run at most `deliveryTimeoutMs` (default
+ * {@link DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS}) before it is recorded as a retryable failure.
  *
  * @complexity O(batchSize) publish attempts, each O(subscribed handlers for the event's name).
  */
 export async function processOutbox(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
-  optional: { batchSize?: number; random?: () => number } = {}
+  optional: { batchSize?: number; random?: () => number; deliveryTimeoutMs?: number } = {}
 ): Promise<number> {
-  const { batchSize = 20, random } = optional;
+  const { batchSize = 20, random, deliveryTimeoutMs = DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } = optional;
   const rows = await required.outbox.claimPending(batchSize, required.clock.nowIso());
 
   for (const row of rows) {
-    await deliverClaimedRow({ ...required, row }, { random });
+    await deliverClaimedRow({ ...required, row }, { random, deliveryTimeoutMs });
   }
 
   return rows.length;
@@ -126,10 +137,10 @@ export async function processOutbox(
  */
 async function deliverClaimedRow(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort; row: OutboxRecord },
-  optional: { random?: () => number }
+  optional: { random?: () => number; deliveryTimeoutMs: number }
 ): Promise<void> {
   const { outbox, bus, clock, row } = required;
-  const { random } = optional;
+  const { random, deliveryTimeoutMs } = optional;
   if (row.attempts > MAX_OUTBOX_ATTEMPTS) {
     const reason = `claimed ${row.attempts} times; the last claim expired with no recorded outcome (its claimer likely died mid-delivery)`;
     await outbox.markFailed(row.id, reason, clock.nowIso(), "failed");
@@ -137,7 +148,7 @@ async function deliverClaimedRow(
   }
 
   try {
-    await bus.publish(row.event);
+    await publishWithin({ bus, row, timeoutMs: deliveryTimeoutMs });
     await outbox.markDelivered(row.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown outbox error";
@@ -153,5 +164,37 @@ async function deliverClaimedRow(
     // because the correct anchor costs one clock read, not because it was observed in the wild.
     const nextAttemptAt = addMsToIso(clock.nowIso(), computeOutboxBackoffMs(row.attempts, { random }));
     await outbox.markFailed(row.id, message, nextAttemptAt, nextStatus);
+  }
+}
+
+/**
+ * Publishes `row.event`, rejecting once `timeoutMs` passes if the publish has not settled by then.
+ *
+ * A handler cannot be cancelled: a publish that loses the race keeps running and may still finish
+ * later, which is why the caller retries a timed-out row instead of marking it delivered.
+ * `Promise.race` subscribes to the losing publish too, so its eventual rejection is handled and never
+ * surfaces as an unhandled rejection. The timer is cleared as soon as the race settles and is
+ * `unref`'d, so it never keeps a process alive.
+ *
+ * @param required.bus the bus to publish on.
+ * @param required.row the claimed row whose event is published.
+ * @param required.timeoutMs how long the publish may run.
+ * @throws Error `delivery of outbox event "<name>" (<id>) timed out after <ms>ms` on timeout; otherwise
+ *   whatever the publish rejects with.
+ * @complexity O(1) beyond the publish itself.
+ */
+async function publishWithin(required: { bus: EventBusPort; row: OutboxRecord; timeoutMs: number }): Promise<void> {
+  const { bus, row, timeoutMs } = required;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`delivery of outbox event "${row.event.name}" (${row.id}) timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref();
+  });
+  try {
+    await Promise.race([bus.publish(row.event), timedOut]);
+  } finally {
+    clearTimeout(timer);
   }
 }

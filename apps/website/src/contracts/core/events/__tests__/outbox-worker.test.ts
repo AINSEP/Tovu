@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS, processOutbox } from "../index.js";
+import { DEFAULT_OUTBOX_CLAIM_LEASE_MS, DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } from "../outbox-worker.js";
 
 /** Fails every publish with a distinct, countable message — used by the backoff/cap tests below. */
 function alwaysFailingBus(onPublish?: () => void): InMemoryEventBus {
@@ -167,6 +168,14 @@ test("MAX_OUTBOX_ATTEMPTS is a positive, finite cap (2026-09-06 fix)", () => {
   assert.equal(MAX_OUTBOX_ATTEMPTS, 6);
 });
 
+test("the claim lease outlasts a full default batch whose every delivery runs to the delivery timeout (2026-09-14)", () => {
+  // 20 is processOutbox's default batchSize. With a shorter lease a second drain could reclaim a row
+  // that a live batch simply has not reached yet, and that row would be delivered twice.
+  assert.equal(DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS, 60_000);
+  assert.equal(DEFAULT_OUTBOX_CLAIM_LEASE_MS, 30 * 60_000);
+  assert.ok(DEFAULT_OUTBOX_CLAIM_LEASE_MS > 20 * DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS);
+});
+
 test("computeOutboxBackoffMs stays within [half, full] of the exponential step and respects the cap", () => {
   const lower = computeOutboxBackoffMs(1, { random: () => 0 });
   const upper = computeOutboxBackoffMs(1, { random: () => 1 });
@@ -292,4 +301,86 @@ test("processOutbox seals a row claimed past MAX_OUTBOX_ATTEMPTS with no recorde
     ["evt-crasher", `claimed ${MAX_OUTBOX_ATTEMPTS + 1} times; the last claim expired with no recorded outcome (its claimer likely died mid-delivery)`, sealIso, "failed"],
   ]);
   assert.equal((await outbox.claimPending(10, "2099-01-01T00:00:00.000Z")).length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// 2026-09-14 — a handler that never settles must not stall processOutbox, and with it the
+// background drainer and every inline route drain. Each delivery gets a bounded time; one that runs
+// out is recorded as a retryable failure and is never marked delivered.
+// ---------------------------------------------------------------------------
+
+test("processOutbox gives up on a delivery whose handler never settles, records it retryable, and delivers the row behind it", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  let releaseStuckHandler = () => {};
+  const stuck = new Promise<void>((resolve) => {
+    releaseStuckHandler = resolve;
+  });
+  t.after(() => releaseStuckHandler());
+  const handled: string[] = [];
+  await bus.subscribe("stuck.event", () => stuck);
+  await bus.subscribe("ok.event", async (event) => {
+    handled.push(event.id);
+  });
+  const nowIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-stuck", name: "stuck.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+  await outbox.enqueue({ id: "evt-ok", name: "ok.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+  const delivered: string[] = [];
+  const failures: Array<[string, string, string, string]> = [];
+  const recordingOutbox = {
+    enqueue: outbox.enqueue.bind(outbox),
+    claimPending: outbox.claimPending.bind(outbox),
+    markDelivered: async (id: string) => {
+      delivered.push(id);
+      return outbox.markDelivered(id);
+    },
+    markFailed: async (id: string, error: string, nextAttemptAt: string, nextStatus: "pending" | "failed") => {
+      failures.push([id, error, nextAttemptAt, nextStatus]);
+      return outbox.markFailed(id, error, nextAttemptAt, nextStatus);
+    },
+  };
+  let stallTimer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<"stalled">((resolve) => {
+    stallTimer = setTimeout(() => resolve("stalled"), 2_000);
+  });
+  t.after(() => clearTimeout(stallTimer));
+
+  const outcome = await Promise.race([
+    processOutbox({ outbox: recordingOutbox, bus, clock: { nowIso: () => nowIso } }, { deliveryTimeoutMs: 20, random: () => 0 }),
+    stalled,
+  ]);
+
+  assert.equal(outcome, 2, "processOutbox stalled behind a handler that never settles");
+  assert.deepEqual({ handled, delivered }, { handled: ["evt-ok"], delivered: ["evt-ok"] });
+  const retryAt = new Date(Date.parse(nowIso) + computeOutboxBackoffMs(1, { random: () => 0 })).toISOString();
+  assert.deepEqual(failures, [
+    ["evt-stuck", 'delivery of outbox event "stuck.event" (evt-stuck) timed out after 20ms', retryAt, "pending"],
+  ]);
+});
+
+test("a handler that rejects after its delivery timed out surfaces no unhandled rejection", async (t) => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  t.after(() => {
+    process.off("unhandledRejection", onUnhandled);
+  });
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  await bus.subscribe(
+    "late.event",
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        setTimeout(() => reject(new Error("late handler failure")), 40);
+      })
+  );
+  const nowIso = "2026-02-21T12:00:00.000Z";
+  await outbox.enqueue({ id: "evt-late", name: "late.event", occurredAt: nowIso, workspaceId: "workspace-1", payload: {} });
+
+  await processOutbox({ outbox, bus, clock: { nowIso: () => nowIso } }, { deliveryTimeoutMs: 10 });
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  assert.deepEqual(unhandled, []);
 });
