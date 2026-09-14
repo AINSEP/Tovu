@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 
 /**
@@ -75,15 +76,50 @@ import type { NextFunction, Request, Response } from "express";
 const THEME_ASSET_CSP = "default-src 'none'; sandbox";
 
 /**
- * Express middleware: sets the two response headers above on every response, then calls `next()`
- * unconditionally. Set BEFORE `express.static` runs (not after), so the headers are present on every
- * outcome `express.static` can produce for this request — a 200 with a body, a 304 Not Modified, a 404
- * fallthrough some other handler answers, a Range 206 — rather than only the success path.
+ * Font files get `Access-Control-Allow-Origin: *`; nothing else on these mounts gets any CORS header.
+ *
+ * Why fonts need it (QA 2026-09-13): Theme Studio's preview is `<iframe sandbox="allow-scripts">`
+ * with no `allow-same-origin`, so the previewed page runs in an opaque ("null") origin. The CSS Fonts
+ * spec makes every `@font-face` load a CORS-mode fetch, so from that origin each theme font was
+ * blocked and the preview silently fell back to system fonts. Stylesheets, images, and classic
+ * scripts load in no-cors mode and are unaffected, which is why fonts were the only failure. The
+ * published site is same-origin with these mounts and never needed the header.
+ *
+ * Why `*` and not an echoed `null`: allowing `null` grants exactly "any sandboxed or opaque-origin
+ * document anywhere," which is no narrower than `*` and reads as a deliberate trust grant. `*` is the
+ * standard for public static fonts: these bytes are identical for every requester (no session or
+ * cookie changes them), browsers refuse `*` for credentialed reads, and no
+ * `Access-Control-Allow-Credentials` is ever sent.
+ *
+ * Why fonts only, not the whole mount: CORS makes a response READABLE by script on any site. For a
+ * self-hosted or intranet install, theme CSS/HTML/`.liquid` reachable only by network position would
+ * become readable by any page the visitor opens. Fonts are the only asset type the preview needs.
+ *
+ * Rejected: adding `allow-same-origin` to the preview iframe (together with `allow-scripts`, theme JS
+ * would run same-origin with `/api/admin/*` and can remove its own sandbox); a "same-origin path" for
+ * the fonts (an opaque-origin document is cross-origin to every URL, so no path helps); inlining fonts
+ * as `data:` URIs into the preview only (the preview would stop rendering what the live site renders).
+ *
+ * Matched on the request path's extension, case-insensitively, which is the extension of the file
+ * `express.static` serves for that path.
+ */
+const CORS_LOADABLE_FONT_EXTENSIONS: ReadonlySet<string> = new Set([".woff2", ".woff", ".ttf", ".otf", ".eot"]);
+
+/**
+ * Express middleware: sets the two response headers above on every response, plus
+ * `Access-Control-Allow-Origin: *` when the request path is a font file (see
+ * `CORS_LOADABLE_FONT_EXTENSIONS`), then calls `next()` unconditionally. Set BEFORE `express.static`
+ * runs (not after), so the headers are present on every outcome `express.static` can produce for this
+ * request — a 200 with a body, a 304 Not Modified, a 404 fallthrough some other handler answers, a
+ * Range 206 — rather than only the success path.
  *
  * @complexity O(1).
  */
 export function themeAssetSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Content-Security-Policy", THEME_ASSET_CSP);
+  if (CORS_LOADABLE_FONT_EXTENSIONS.has(path.extname(req.path).toLowerCase())) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
   next();
 }

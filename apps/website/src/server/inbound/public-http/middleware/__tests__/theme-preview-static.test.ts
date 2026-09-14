@@ -65,6 +65,27 @@ test("registerThemePreviewStatic: a real preview build asset serves with the scr
   }, themesStaticDir);
 });
 
+test("registerThemePreviewStatic: a preview build's font carries `Access-Control-Allow-Origin: *` without credentials; its CSS does not", async (t) => {
+  const themesStaticDir = mkdtempSync(path.join(tmpdir(), "theme-preview-static-font-"));
+  t.after(() => rmSync(themesStaticDir, { recursive: true, force: true }));
+
+  const previewDir = path.join(themesStaticDir, "sometheme", "preview");
+  mkdirSync(path.join(previewDir, "fonts"), { recursive: true });
+  writeFileSync(path.join(previewDir, "fonts", "inter.woff2"), "wOF2-fixture", "utf8");
+  writeFileSync(path.join(previewDir, "styles.css"), "body{}", "utf8");
+
+  await withTempApp(async (baseUrl) => {
+    const font = await fetch(`${baseUrl}/theme-preview/sometheme/fonts/inter.woff2`);
+    assert.equal(font.status, 200);
+    assert.equal(font.headers.get("access-control-allow-origin"), "*");
+    assert.equal(font.headers.get("access-control-allow-credentials"), null);
+
+    const css = await fetch(`${baseUrl}/theme-preview/sometheme/styles.css`);
+    assert.equal(css.status, 200);
+    assert.equal(css.headers.get("access-control-allow-origin"), null);
+  }, themesStaticDir);
+});
+
 test("registerThemePreviewStatic: an .svg with an embedded <script> planted in a preview build is served non-executable (same headers, same class this whole fix closes)", async (t) => {
   const themesStaticDir = mkdtempSync(path.join(tmpdir(), "theme-preview-static-svg-"));
   t.after(() => rmSync(themesStaticDir, { recursive: true, force: true }));

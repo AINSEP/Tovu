@@ -218,6 +218,37 @@ test("registerThemeStaticAssets: a .liquid template source file serves, but NOT 
   }, [rootA]);
 });
 
+test("registerThemeStaticAssets: font files carry `Access-Control-Allow-Origin: *` without credentials; non-font files carry no CORS header", async (t) => {
+  // Theme Studio's preview is `<iframe sandbox="allow-scripts">`, an opaque ("null") origin, and
+  // `@font-face` fetches are always CORS-mode, so without this header every theme font is blocked in
+  // the preview (QA 2026-09-13: basic's geist-var.woff2 / geist-mono-var.woff2). The negative half
+  // pins the scope: CSS/HTML/liquid load in no-cors mode and must not become cross-origin readable.
+  const rootA = makeThemeFixture("cors-a", {
+    "my-theme/assets/fonts/geist-var.woff2": "wOF2-fixture",
+    "my-theme/assets/fonts/legacy.WOFF": "wOFF-fixture",
+    "my-theme/assets/fonts/display.ttf": "ttf-fixture",
+    "my-theme/css/theme.css": "body{}",
+    "my-theme/pages/index.html": "<h1>hi</h1>",
+    "my-theme/templates/product.liquid": "<h1>{{ product.title }}</h1>",
+  });
+  t.after(() => rmSync(rootA, { recursive: true, force: true }));
+
+  await withTempApp(async (baseUrl) => {
+    for (const file of ["assets/fonts/geist-var.woff2", "assets/fonts/legacy.WOFF", "assets/fonts/display.ttf"]) {
+      const res = await fetch(`${baseUrl}/theme-assets/my-theme/${file}`);
+      assert.equal(res.status, 200, `${file} should serve`);
+      assert.equal(res.headers.get("access-control-allow-origin"), "*", `${file} must be CORS-loadable`);
+      assert.equal(res.headers.get("access-control-allow-credentials"), null, `${file} must never allow credentials`);
+      assert.equal(res.headers.get("content-security-policy"), "default-src 'none'; sandbox", `${file} keeps the sandbox CSP`);
+    }
+    for (const file of ["css/theme.css", "pages/index.html", "templates/product.liquid"]) {
+      const res = await fetch(`${baseUrl}/theme-assets/my-theme/${file}`);
+      assert.equal(res.status, 200, `${file} should serve`);
+      assert.equal(res.headers.get("access-control-allow-origin"), null, `${file} must not be CORS-readable`);
+    }
+  }, [rootA]);
+});
+
 // ---------------------------------------------------------------------------
 // Real end-to-end check through the actual composition root (createApp()) —
 // proves the static tier is unregressed and the templated tier now works.
@@ -236,6 +267,24 @@ test("createApp(): the real 'basic' static theme's real css/theme.css still serv
   const res = await fetch(`${baseUrl}/theme-assets/basic/css/theme.css`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), onDisk);
+});
+
+test("createApp(): the real 'basic' theme's Geist fonts are CORS-loadable (`*`, no credentials) for the sandboxed Theme Studio preview", async (t) => {
+  const server = createServer(createApp());
+  server.listen(0);
+  t.after(() => server.close());
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("expected a real listening address");
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  for (const file of ["geist-var.woff2", "geist-mono-var.woff2"]) {
+    const res = await fetch(`${baseUrl}/theme-assets/basic/assets/fonts/${file}`);
+    assert.equal(res.status, 200, `${file} should serve`);
+    assert.equal(res.headers.get("content-type"), "font/woff2");
+    assert.equal(res.headers.get("access-control-allow-origin"), "*", `${file} must be CORS-loadable`);
+    assert.equal(res.headers.get("access-control-allow-credentials"), null);
+  }
 });
 
 test("createApp(): the new 'fashion-modern' templated theme's own assets now resolve (the gap this change closes)", async (t) => {
