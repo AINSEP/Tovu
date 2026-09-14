@@ -59,7 +59,11 @@ const PAGE_HTML_CONTRACT =
   "- NO <form action=\"...\">. A form you invent posts nowhere and silently drops whatever a visitor " +
   "types into it. If the page needs to collect anything, say so in your reply instead of writing one.\n" +
   "- NO external resources: no <script src>, no remote stylesheets, no remote fonts, no hotlinked " +
-  "images. Use the site's own uploaded media or inline SVG.";
+  "images. Use the site's own uploaded media or inline SVG.\n" +
+  "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
+  "existing HTML file read via fs_read_file) references an image, font, video, or audio file no tool " +
+  "here can upload, do not invent a placeholder and do not silently drop it — say exactly which files " +
+  "still need to be added as media or copied by hand, by name.";
 
 /**
  * The optimistic-concurrency basis, stated once for both writers.
