@@ -1,0 +1,65 @@
+{
+  "head": "efc6847ed4490d0f57cd94d16b8cf46a6489a88a",
+  "reviewed_paths": [
+    "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts",
+    "apps/website/src/features/identity/wiring.ts",
+    "apps/website/src/features/identity/boot-session-token.ts",
+    "apps/website/src/contracts/core/events/outbox-worker.ts",
+    "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts",
+    "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
+    "apps/website/src/features/post/repo.sqlite.ts",
+    "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
+    "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+    "apps/website/src/platform/site-dir/duplicate-site.ts",
+    "apps/website/src/platform/site-dir/layout.ts",
+    "apps/website/src/platform/site-dir/repair-site.ts",
+    "apps/website/src/platform/site-dir/read-applied-schema-identity.ts",
+    "apps/website/src/cli/commands/adopt.ts",
+    "apps/website/src/cli/commands/export.ts",
+    "apps/website/src/cli/commands/serve.ts",
+    "apps/website/src/server/runtime/boot/content-db-schema-guard.ts",
+    "apps/website/src/features/identity/builtin-role-grants.ts"
+  ],
+  "reviewed_commits": [
+    "8e973578",
+    "11aa4708",
+    "2b039738",
+    "8d041b52",
+    "0ae3429d",
+    "9c7d16bf",
+    "0d63cfd8",
+    "9051e2b5",
+    "d131619d",
+    "8a14b56a",
+    "6998ef9c",
+    "62634037",
+    "d1eea4b2",
+    "f31e6ded",
+    "15548bef",
+    "ea5f3a42"
+  ],
+  "skipped": [],
+  "status": "in_progress",
+  "partial_paths": [
+    "apps/website/src/features/post/post.ts",
+    "apps/website/src/server/inbound/admin-http/dev-auth.ts"
+  ],
+  "retrieval_note": "Graph search returned stale/incomplete symbols; trace_path denied by tool approval policy. Direct source fallback.",
+  "jini": {
+    "head": "50812f524d8b6a6905aa5c10f0ad856a5e74c5ac",
+    "reviewed_commits": [
+      "434d781e"
+    ],
+    "reviewed_paths": [
+      "packages/cms/src/identity/seed.ts",
+      "packages/cms/src/identity/authorize.ts"
+    ],
+    "skipped": [
+      {
+        "commit": "be29a436",
+        "reason": "Tests only, explicitly outside scope; path metadata only."
+      }
+    ],
+    "status": "complete"
+  }
+}

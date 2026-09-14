@@ -1,0 +1,63 @@
+Codex(Review Mode): **Verdict:** do not do a wholesale replacement. Vercel AI SDK plus assistant-ui is a credible foundation for a new direct-API chat path and a more conventional React UI, but it does not replace Tovu’s local coding-agent runtime, CLI-session memory, skill/plugin loading, policy enforcement, or durable-run ownership. The observed failures are chiefly run/message lifecycle faults; neither library fixes those by installation. Recommend a staged hybrid: repair run durability first, trial assistant-ui over a compatibility transport, then introduce AI SDK only for an explicitly separate direct-provider mode.
+
+## 1. Gaps
+
+Tovu currently hosts Jini’s `ChatPane` and custom event renderers, while a separate daemon owns the Jini executor, tool registry, lifecycle, and SSE stream. The daemon launches actual local agent CLIs; this is not a model API wrapper. [Assistant dock](/Users/la/Programming/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:1), [daemon ownership](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:1), [Jini child-process executor](/Users/la/Programming/Jini/packages/daemon/src/agent-executor.ts:1).
+
+| Capability | What AI SDK / assistant-ui provides | What still must exist or be rebuilt |
+|---|---|---|
+| Local `claude`, `codex`, `agy` runs | AI SDK standardizes direct model-provider calls. It can run multi-step tool loops with `streamText`/`stopWhen`. [AI SDK tools](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) | No stock provider turns the installed CLIs into an AI SDK model. Jini supports 24 CLI adapters, including Claude, Codex, and Antigravity/`agy`. [Registry](/Users/la/Programming/Jini/packages/agent-runtime/src/registry.ts:48), [CLI coverage](/Users/la/Programming/Jini/packages/daemon/src/agent-executor.ts:12). A custom AI SDK provider is possible, but it requires implementing `doGenerate`/`doStream` and re-solving CLI event parsing, cancellation, session IDs, and tool bridging. [Custom-provider contract](https://ai-sdk.dev/providers/community-providers/custom-providers) |
+| CLI memory | Current memory is a DB mapping from `(conversation, agent)` to a CLI session ID, passed back as CLI `--resume`/`exec resume`. [Session schema](/Users/la/Programming/Tovu/apps/website/src/platform/db/drizzle/0051_assistant_agent_sessions.sql:3), [Claude resume](/Users/la/Programming/Jini/packages/agent-runtime/src/defs/claude.ts:200), [Codex resume](/Users/la/Programming/Jini/packages/agent-runtime/src/defs/codex.ts:281) | AI SDK has no equivalent CLI transcript/session ownership. A direct-API mode must make Tovu’s persisted message history, summary, and tool state canonical. |
+| Tools, plugins, skills, policy | AI SDK has typed in-process tools and an MCP client that converts MCP tools to AI SDK tools. [MCP support](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools) | Tovu currently registers installed agent plugins and `SKILL.md` directories as daemon tools. [Plugin registration](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:1173), [skill registration](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:1199). A replacement needs a loader/adapter and must retain server-side authorization, tool allowlists, write grants, audit, and approval policy. AI SDK’s MCP client does not make those policy decisions. |
+| Sub-agents | assistant-ui can render nested sub-agent conversations. [Multi-agent UI](https://www.assistant-ui.com/docs/tools/multi-agent) | It does not execute or orchestrate them. The supervisor/sub-agent loop, budgets, cancellation, state, and event protocol remain application work. |
+| MCP-UI forms | assistant-ui now has a native MCP Apps renderer for `ui://` resources, sandboxed iframes, and JSON-RPC tool callbacks. [MCP Apps](https://www.assistant-ui.com/docs/tools/mcp-apps) | This is the one encouraging compatibility point. Tovu’s forms already produce `ui://` resources with `text/html;profile=mcp-app`. [Resource format](/Users/la/Programming/Jini/packages/ui/src/features/mcp-ui/resource.ts:23), [form builder](/Users/la/Programming/Tovu/apps/website/src/features/external-mcp/save-form.ts:293). The HTML and bridge protocol can stay, but not unchanged: current Jini transport emits an inline `mcp-ui` event, while assistant-ui expects MCP metadata on a tool-call part and fetches the resource through a host route. Build a translation/resource route and retain the existing authenticated redemption endpoint. [Current event host](/Users/la/Programming/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:63) |
+| Persistence and reconnect | assistant-ui has custom DB adapters; AI SDK documents optional resumable streams. [assistant-ui threads](https://www.assistant-ui.com/docs/runtimes/concepts/threads), [AI SDK resumable streams](https://v4.ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence) | Neither owns Tovu’s SQLite history or guarantees durable execution. assistant-ui defaults to an in-memory thread. AI SDK’s documented stream resumption requires additional stream storage, Redis, and a chat→stream table—not just `useChat`. |
+
+What the proposed stack covers better:
+
+- Direct API streaming removes the CLI stdout/parser/process boundary, and AI SDK gives a uniform provider/tool-stream envelope. That is likely to improve “bad streaming” for direct providers, but it is not a fix for the local-CLI path.
+- assistant-ui provides richer tool, approval, MCP-App, and nested-agent rendering primitives than the current Jini-specific ext-event registration model. [assistant-ui tools](https://www.assistant-ui.com/docs/tools)
+- AI SDK supports hosted providers and self-hosted API-compatible endpoints such as Ollama/LM Studio. It does not preserve authenticated desktop CLI sessions. [Provider model](https://ai-sdk.dev/docs/foundations/providers-and-models)
+
+## 2. Improvements
+
+I read the live SQLite database read-only. The cited conversation has failed empty assistant rows at positions 3 and 6; the only persisted session is `76ff…`; the opening message appears in `56bfd…`; and the position-5 user text appears in neither CLI transcript.
+
+| Defect | AI SDK direct-model path | assistant-ui | Required fix |
+|---|---|---|---|
+| 1. Opening turn forked into another CLI session | Can avoid this specific CLI-session split only if Tovu makes its DB conversation the canonical context for every request. It does not create that invariant automatically. Retaining local CLIs preserves this risk. | Does not affect it. | Persist a run record and its conversation binding before dispatch; serialize per-conversation starts; make session binding explicit per run. Current code writes the session only when a terminal event reports it. [Daemon session capture](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:760) |
+| 2. Failed run eats a user message | Does not fix it. Provider/network/tool failures can still occur after accepting input. | Does not fix it. | Transactional outbox: durable user message + run intent before execution, idempotency key, and an explicit failed state. Current message persistence is asynchronous client-side `Promise.all`, separately from dispatch. [Client flush](/Users/la/Programming/Tovu/apps/admin/src/hooks/use-assistant-chats.hooks.ts:685), [run dispatch](/Users/la/Programming/Tovu/apps/admin/src/lib/assistant-transport.ts:913) |
+| 3. Empty assistant row plus synthetic continuation | Does not fix it. | Does not fix it. | Persist partial output separately from a completed assistant turn; never replace a failed user input with a synthetic continuation; retry the exact persisted user content. Current source already tries to mark terminal failure before completion, but the database still contains empty `failed` assistant rows. [Failure ordering](/Users/la/Programming/Tovu/apps/admin/src/lib/assistant-transport.ts:463) |
+| 4. Chats die / streaming is poor | Direct API streaming may improve stream quality and eliminate some CLI-specific early exits. It will still die if hosted in the watched API process or if the worker dies. | Improves client presentation and reconnect UX only when a durable backend stream exists. | Move long-lived execution off the `tsx watch` child lifecycle; persist events and run state; reconnect/replay from durable storage. The current supervisor explicitly records that a daemon respawn kills every in-flight run. [Supervisor](/Users/la/Programming/Tovu/apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts:218) |
+
+One point is **unverified**: I could not find the literal `"Continue from where you left off."` in Tovu or Jini source, so I cannot attribute that exact synthetic prompt to a particular function. Its observed outcome—an empty failed assistant turn and a user message absent from both CLI transcripts—is verified.
+
+## 3. Feasibility
+
+The hard, load-bearing part is not the chat component:
+
+- The daemon currently uses an in-memory run event log and is a watched child process. [Lifecycle setup](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:324), [watch-restart caveat](/Users/la/Programming/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-server.ts:1287)
+- CLI sessions deliberately cause the transport to send only the latest turn for resume-capable agents. [Prompt selection](/Users/la/Programming/Tovu/apps/admin/src/lib/assistant-transport.ts:872) That optimization becomes data loss when session ownership is wrong.
+- The MCP form loop is an interactive, authenticated, server-held exchange—not merely HTML. Its “allowed tools” and “may write” grants are distinct and enforced as policy. [Form policy fields](/Users/la/Programming/Tovu/apps/website/src/features/external-mcp/save-form.ts:135)
+- The active `@jini-ai/*` installs resolve to the sibling Jini checkout. Replacing only the UI can remove `@jini-ai/chat`/`ui` from the admin surface, but Jini daemon, agent runtime, agentic bridge, and protocol remain necessary for local CLI support.
+
+A practical migration shape:
+
+1. Repair the existing lifecycle first: server-owned run/outbox state, durable event records, exact-message retry, and explicit session/run correlation. This fixes the four defects regardless of vendor choice.
+
+2. Add a `ConversationRunPort` around start/stream/status/cancel. Tovu already has a transport seam; keep the Jini daemon behind one adapter and create an AI SDK direct-provider adapter behind another.
+
+3. Run an assistant-ui UI experiment behind a feature flag, initially against a translation endpoint for the existing daemon events. Reuse MCP-UI HTML, but add the MCP Apps metadata/resource-host compatibility layer. Do not remove Jini yet.
+
+4. Add AI SDK only for a deliberately scoped direct-API mode—e.g. hosted BYOK models plus a small, typed subset of server tools. Keep local `claude`/`codex`/`agy` as the Jini-backed mode until there is demonstrated parity.
+
+Rough cost, excluding unknown product redesign:
+
+- Lifecycle repair and regression tests: 2–4 engineer-weeks.
+- assistant-ui replacement while retaining Jini execution, attachments, conversation history, MCP forms, and A2UI: 3–6 engineer-weeks.
+- Full direct-AI-SDK agent runtime with durable runs, plugins/skills, MCP policy, approval/write grants, and observability: 12–20 engineer-weeks.
+- Preserving local-CLI parity inside the replacement adds roughly 6–12 more engineer-weeks, or means retaining Jini indefinitely.
+
+Licensing is not a blocker: current AI SDK is Apache-2.0, assistant-ui is MIT, and Jini chat is Apache-2.0. [AI SDK package](https://raw.githubusercontent.com/vercel/ai/main/packages/ai/package.json), [assistant-ui license](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/LICENSE), [Jini package](/Users/la/Programming/Jini/packages/chat/package.json:1). Dependency weight is non-trivial: assistant-ui’s React package brings its runtime/store/tap, Radix, Zustand, Zod, safe iframe support, and related packages; its optional managed persistence is an additional service choice. [assistant-ui dependencies](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/packages/react/package.json) Exact bundle impact is **unverified** without a locked proof-of-concept build.
+
+Recommendation: retain Jini for local CLI execution, fix lifecycle ownership now, and prototype assistant-ui as a UI-only adapter. Treat AI SDK as a new direct-provider backend mode, not a replacement for the current agent daemon.

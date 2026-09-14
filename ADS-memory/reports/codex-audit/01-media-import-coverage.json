@@ -1,0 +1,24 @@
+{
+  "reviewed_paths": [
+    "apps/website/src/features/media-import/fetch-image.ts",
+    "apps/website/src/features/media-import/agent-tools.ts",
+    "apps/website/src/features/media-import/tool-registrations.ts",
+    "apps/website/src/platform/http/client.ts",
+    "apps/website/src/platform/http/transport.fetch.ts",
+    "apps/website/src/platform/http/types.ts",
+    "apps/website/src/platform/http/egress-policies.ts"
+  ],
+  "reviewed_commits": [
+    "b1ce2d0a",
+    "dd187ece"
+  ],
+  "partial_paths": [
+    "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts",
+    "apps/website/src/server/runtime/composition/deps.ts",
+    "apps/website/src/server/runtime/composition/app.ts",
+    "apps/website/src/assistant/tool-registrations.ts"
+  ],
+  "skipped": {
+    "24bdafc1": "Tests only; explicitly excluded"
+  }
+}

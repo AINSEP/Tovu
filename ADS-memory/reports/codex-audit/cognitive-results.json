@@ -1,0 +1,1062 @@
+{
+  "head": "efc6847ed4490d0f57cd94d16b8cf46a6489a88a",
+  "threshold": 9,
+  "note": "Isolated static SonarJS cognitive rule, not repository full ESLint configuration. Tests excluded. Source read from Git HEAD, no application code executed.",
+  "results": [
+    {
+      "file": "apps/admin/src/features/settings/ExternalMcpAdmissionsBanner.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/ExternalMcpSettingsPanel.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/external-mcp-admissions-rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/App.tsx",
+      "messages": [
+        {
+          "line": 487,
+          "column": 10,
+          "rule": "sonarjs/cognitive-complexity",
+          "fatal": false,
+          "message": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
+        }
+      ]
+    },
+    {
+      "file": "apps/desktop/src/contracts/project.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/preload/preload.mts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/project-ipc.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/App.hooks.ts",
+      "messages": [
+        {
+          "line": 1092,
+          "column": 17,
+          "rule": "sonarjs/cognitive-complexity",
+          "fatal": false,
+          "message": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
+        }
+      ]
+    },
+    {
+      "file": "apps/desktop/src/renderer/runner-api.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/main.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/agent-daemon-port.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/mcp-federation/refusal-notice.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+      "messages": [
+        {
+          "line": 1037,
+          "column": 16,
+          "rule": "sonarjs/cognitive-complexity",
+          "fatal": false,
+          "message": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/project-registry.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/tool-search-doc2query.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/tool-search-keywords.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/tool-registrations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media-import/agent-tools.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media-import/fetch-image.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media-import/tool-registrations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/routes/types.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/app.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/deps.ts",
+      "messages": [
+        {
+          "line": 659,
+          "column": 3,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 668,
+          "column": 9,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 679,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 687,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 855,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 876,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 893,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 917,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 941,
+          "column": 5,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 1174,
+          "column": 5,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 1506,
+          "column": 7,
+          "rule": "@typescript-eslint/no-require-imports",
+          "fatal": false,
+          "message": "Definition for rule '@typescript-eslint/no-require-imports' was not found."
+        },
+        {
+          "line": 1574,
+          "column": 3,
+          "rule": "@typescript-eslint/no-require-imports",
+          "fatal": false,
+          "message": "Definition for rule '@typescript-eslint/no-require-imports' was not found."
+        },
+        {
+          "line": 1593,
+          "column": 3,
+          "rule": "@typescript-eslint/no-require-imports",
+          "fatal": false,
+          "message": "Definition for rule '@typescript-eslint/no-require-imports' was not found."
+        }
+      ]
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/http/client.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/http/egress-policies.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/http/transport.fetch.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/http/types.ts",
+      "messages": []
+    },
+    {
+      "file": "development/scripts/backfill-external-mcp-aad.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/menus/MenuEditor.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/menus/MenuEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/electron-webview.d.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/runner-ipc-stubs.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+      "messages": [
+        {
+          "line": 732,
+          "column": 5,
+          "rule": "react-hooks/exhaustive-deps",
+          "fatal": false,
+          "message": "Definition for rule 'react-hooks/exhaustive-deps' was not found."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts",
+      "messages": [
+        {
+          "line": 672,
+          "column": 46,
+          "rule": "sonarjs/cognitive-complexity",
+          "fatal": false,
+          "message": "Refactor this function to reduce its Cognitive Complexity from 12 to the 9 allowed."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/features/themes/hooks/use-themes.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/widgets/hooks/use-widgets-library.hooks.ts",
+      "messages": [
+        {
+          "line": 120,
+          "column": 5,
+          "rule": "react-hooks/exhaustive-deps",
+          "fatal": false,
+          "message": "Definition for rule 'react-hooks/exhaustive-deps' was not found."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/hooks/use-settlement-generation.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/menus/Menus.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/PageEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/PostEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/recovery/Recovery.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/widgets/WidgetInstanceEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/widgets/WidgetRegionEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/widgets/WidgetRegions.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/widgets/WidgetsLibrary.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/cli/commands/export.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/cli/commands/serve.ts",
+      "messages": [
+        {
+          "line": 281,
+          "column": 9,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        },
+        {
+          "line": 285,
+          "column": 7,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        }
+      ]
+    },
+    {
+      "file": "apps/website/src/cli/errors.ts",
+      "messages": [
+        {
+          "line": 184,
+          "column": 17,
+          "rule": "sonarjs/cognitive-complexity",
+          "fatal": false,
+          "message": "Refactor this function to reduce its Cognitive Complexity from 12 to the 9 allowed."
+        }
+      ]
+    },
+    {
+      "file": "apps/website/src/index.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/boot/agent-daemon-wanted.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
+      "messages": [
+        {
+          "line": 89,
+          "column": 13,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        }
+      ]
+    },
+    {
+      "file": "apps/website/src/contracts/core/events/memory-bus.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/contracts/core/events/outbox-worker.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/forms/FormEditor.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/forms/FormsList.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/collections/CollectionEntries.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/theme/static-render.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/export/site-exporter.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/site/form-render.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/site/render.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/voice-input/hooks/push-to-talk-state.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/sites/deps.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/sites/tool-registrations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/site-registry.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/tool-registrations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/create.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/byok-tool-surface.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/tool-executor-stack.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/identity/wiring.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/SettingsUi.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/members/access-resolver.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/contracts/core/events/index.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/identity/boot-session-token.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/database/Database.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/database/database-visuals.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/sites/Sites.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/sites/sites-visuals.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/integrations/Integrations.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/users/Users.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/desktop-auth.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/media/Media.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/media/Media.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/media/hooks/use-media-tabs.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/sites/AllSitesTab.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/redirects/Redirects.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/roles/Roles.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/source-control/ProvidersTab.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/workspace/Workspace.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/duplicate-site.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/layout.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media/provider-credential-store.memory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/assistant/execution-credential-store.memory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/identity/builtin-role-grants.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/security/OtherCredentialsSection.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/database/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/recovery/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/sites/agent-tools.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/taxonomy/Taxonomy.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/plugins/AgentPlugins.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/plugins/Plugins.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/plugins/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/themes/Themes.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/media/media-i18n.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media/read-chat-attachment.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/assistant/chat-attachment-directory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/themes/ThemeExplore.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/agent-tools.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/expected-version.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/index.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/cli/commands/adopt.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/cli/program.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/index.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/repair-site.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/site-registry.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/Seo.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/Seo.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/hooks/seo-dependencies.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/hooks/seo-port.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/hooks/use-seo-entry-panel.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/hooks/use-seo.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/seo/rules.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/lib/api.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+      "messages": [
+        {
+          "line": 241,
+          "column": 9,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/lib/standing-draft-local-backup.ts",
+      "messages": [
+        {
+          "line": 43,
+          "column": 5,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-console')."
+        }
+      ]
+    },
+    {
+      "file": "apps/desktop/src/project-delete-guard.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/ProjectGrid.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/ProjectGrid.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/site-dir-store.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/ThemePageDetailsModal.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/ThemePagesTab.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/Pages.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/posts/Posts.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/deployment/StaticSiteTab.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/lib/widget-embed-extension.tsx",
+      "messages": [
+        {
+          "line": 130,
+          "column": 15,
+          "rule": null,
+          "fatal": false,
+          "message": "Unused eslint-disable directive (no problems were reported from 'no-alert')."
+        }
+      ]
+    },
+    {
+      "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/settings/ComposioKeyField.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media/list-pending-chat-attachments.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/commerce/Payments.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/seo/agent-tools.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/seo/tool-registrations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/seo/types.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/seo/write-service.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/dashboard/Dashboard.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/media/promote-chat-attachment.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/comments/Comments.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/members/Members.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/panels.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/lib/format-timestamp.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/pages/hooks/page-editor-port.hooks.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/main.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/repo.memory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/features/post/repo.sqlite.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/content.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/admin/src/features/roles/Roles.hooks.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/db/schema.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/tovu-server.cjs",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/chat-attachments.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/fleet-chat.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/fleet-conversations.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/runtime-inventory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/sections.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/site-assistant-tools.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/contracts/working-directory.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/chat-attachments.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/fleet-chat-transport.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/folder-drop.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/icons.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/main.tsx",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/persistable-messages.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/project-status.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/src/renderer/theme.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/desktop/vite.config.mts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/platform/site-dir/read-applied-schema-identity.ts",
+      "messages": []
+    },
+    {
+      "file": "apps/website/src/server/runtime/boot/content-db-schema-guard.ts",
+      "messages": []
+    }
+  ]
+}

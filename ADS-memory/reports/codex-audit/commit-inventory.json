@@ -1,0 +1,3753 @@
+{
+  "head": "efc6847ed4490d0f57cd94d16b8cf46a6489a88a",
+  "base": "4b89cd09",
+  "commits": [
+    {
+      "sha": "efc6847ed4490d0f57cd94d16b8cf46a6489a88a",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): handoff for session tovu-14",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-14-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0bfd343080e08eafc4c56197e7754757205fde03",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): record that commit trailers misattribute the model",
+      "files": [
+        "ADS-memory/reports/2026-09-06-commit-trailers-misattribute-the-model.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "b06b4ec7a7d4ea1395c3ac26787b4ac63283138a",
+      "date": "2026-09-06",
+      "subject": "docs(todos): close the two entries tonight's work shipped",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "37ac1943c32cb82099d39006a9169ed0e090b06f",
+      "date": "2026-09-06",
+      "subject": "feat(admin/settings): show the operator which external MCP tools the assistant refused",
+      "files": [
+        "apps/admin/src/features/settings/ExternalMcpAdmissionsBanner.tsx",
+        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.hooks.tsx",
+        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx",
+        "apps/admin/src/features/settings/__tests__/ExternalMcpAdmissionsBanner.unit.test.tsx",
+        "apps/admin/src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx",
+        "apps/admin/src/features/settings/__tests__/external-mcp-admissions-rules.unit.test.ts",
+        "apps/admin/src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx",
+        "apps/admin/src/features/settings/external-mcp-admissions-rules.ts",
+        "apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/settings/ExternalMcpAdmissionsBanner.tsx",
+        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.hooks.tsx",
+        "apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx",
+        "apps/admin/src/features/settings/external-mcp-admissions-rules.ts",
+        "apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f02ac28ec002fd1e0f141284ae9c2fc44ef7a846",
+      "date": "2026-09-06",
+      "subject": "fix(desktop/projects): stop a failed rescan blanking the grid, and unstack the header",
+      "files": [
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/rescan-wiring.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "c201d9482ac69b4df113b9d57880a0ab3c29ae92",
+      "date": "2026-09-06",
+      "subject": "feat(desktop/projects): add a Rescan control so discovery is not only a boot step",
+      "files": [
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-ipc.test.cjs",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/rescan-wiring.test.cjs",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/runner-ipc-stubs.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/runner-api.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "65b8fd74f39fba43f3f048151ca57973e5b500c6",
+      "date": "2026-09-06",
+      "subject": "feat(desktop/projects): scan for sites on disk at boot, so one made outside the shell appears",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/main-project-wiring.test.cjs",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-ipc.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/project-ipc.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "4ede45625c642bc7101b3685dff8c3c5a63e3ef1",
+      "date": "2026-09-06",
+      "subject": "fix(e2e/types): type the desktop-shell application-menu walk instead of leaving it implicitly any",
+      "files": [
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0d9e41d5ccfc723ffdcb59a4f02d2b2493fbbee9",
+      "date": "2026-09-06",
+      "subject": "feat(mcp-federation): tell the MODEL which external tools were refused, and why",
+      "files": [
+        "apps/website/src/assistant/__tests__/mcp-federation.refusal-notice.test.ts",
+        "apps/website/src/assistant/agent-daemon-port.ts",
+        "apps/website/src/assistant/mcp-federation/refusal-notice.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/agent-daemon-port.ts",
+        "apps/website/src/assistant/mcp-federation/refusal-notice.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e56965a6c47f3da90b3a268c97f01ca34fbf9bc3",
+      "date": "2026-09-06",
+      "subject": "fix(admin/types): clear the 31-error tsc baseline in apps/admin",
+      "files": [
+        "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+        "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx",
+        "apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx",
+        "apps/admin/src/components/__tests__/AssistantDock.unit.test.tsx",
+        "apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx",
+        "apps/admin/src/features/pages/hooks/__tests__/page-editor-dependencies.unit.test.ts",
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx",
+        "apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx",
+        "apps/admin/src/features/settings/__tests__/SettingsUi.unit.test.tsx",
+        "apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx",
+        "apps/admin/src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx",
+        "apps/admin/src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts",
+        "apps/admin/src/features/themes/__tests__/use-themes.hooks.unit.test.ts",
+        "apps/admin/src/features/users/__tests__/use-users.unit.test.tsx",
+        "apps/admin/src/features/widgets/__tests__/use-widgets-library.hooks.unit.test.tsx",
+        "apps/admin/src/lib/__tests__/api-endpoint-option-branches.unit.test.ts"
+      ],
+      "code": [
+        "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+        "apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx",
+        "apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "8e9735784bbb9d2ccabdf16aaad6c10656caaa21",
+      "date": "2026-09-06",
+      "subject": "fix(admin/workspace): refuse deleting the server's own bound workspace (INV-05)",
+      "files": [
+        "apps/website/src/server/__tests__/workspace-routes.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "8a4e405d0fe9de78eb99d80f8263c06dad176609",
+      "date": "2026-09-06",
+      "subject": "fix(admin/menus): log the update-tree catch-all 500 instead of discarding it",
+      "files": [
+        "apps/website/src/server/__tests__/admin-menus-routes.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b2a46c7e59912022d2885267ac33d6c54fb08d36",
+      "date": "2026-09-06",
+      "subject": "feat(desktop/projects): record removals, so the seed guard can ask about the directory",
+      "files": [
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/project-registry.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/src/project-registry.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "24bdafc13d0cba1e75d7e84b63b81f448092c6a2",
+      "date": "2026-09-06",
+      "subject": "test(media-import): prove the bytes, not that a row exists",
+      "files": [
+        "apps/website/src/assistant/__tests__/media-import-search-discoverability.test.ts",
+        "apps/website/src/features/media-import/__tests__/fetch-image.test.ts",
+        "apps/website/src/features/media-import/__tests__/tool-registrations.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "a346b3ec214f6592b5ea6cc53847be312593dfbd",
+      "date": "2026-09-06",
+      "subject": "feat(assistant): make media_import_from_url findable, and close the catalog gap",
+      "files": [
+        "apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts",
+        "apps/website/src/assistant/tool-search-doc2query.ts",
+        "apps/website/src/assistant/tool-search-keywords.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/tool-search-doc2query.ts",
+        "apps/website/src/assistant/tool-search-keywords.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "dd187ecee6ddd8c490fcdb1162845af276a1be64",
+      "date": "2026-09-06",
+      "subject": "feat(media-import): add media_import_from_url, the missing import-by-URL tool",
+      "files": [
+        "apps/website/src/assistant/tool-registrations.ts",
+        "apps/website/src/features/media-import/agent-tools.ts",
+        "apps/website/src/features/media-import/fetch-image.ts",
+        "apps/website/src/features/media-import/tool-registrations.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/tool-registrations.ts",
+        "apps/website/src/features/media-import/agent-tools.ts",
+        "apps/website/src/features/media-import/fetch-image.ts",
+        "apps/website/src/features/media-import/tool-registrations.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b1ce2d0a094b8e9e2a46dbafdc677c40362abf41",
+      "date": "2026-09-06",
+      "subject": "feat(platform/http): make the guarded HttpResponse byte-capable",
+      "files": [
+        "apps/website/src/platform/http/__tests__/body-bytes.test.ts",
+        "apps/website/src/platform/http/__tests__/import-boundary.test.ts",
+        "apps/website/src/platform/http/client.ts",
+        "apps/website/src/platform/http/egress-policies.ts",
+        "apps/website/src/platform/http/transport.fetch.ts",
+        "apps/website/src/platform/http/types.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/http/client.ts",
+        "apps/website/src/platform/http/egress-policies.ts",
+        "apps/website/src/platform/http/transport.fetch.ts",
+        "apps/website/src/platform/http/types.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fb5ad74805069ba0b65b94bc44b6c1aadf25188e",
+      "date": "2026-09-06",
+      "subject": "docs(todos): mark the non-basic theme shells out of scope",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0ea4f887ff2f6bea5caa651b9f982026be47b614",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): record three commits carrying another commit's message",
+      "files": [
+        "ADS-memory/reports/2026-09-06-clobbered-commit-subjects.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "fa70c175ee46cca89dde9c42a7101e966fbdc8bd",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): record that the media-seed fix DID deploy, and the regression since",
+      "files": [
+        "ADS-memory/reports/2026-09-06-media-seed-deploy-status.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "68ce4909426f1e4e3a7b04c4dc84f41263fef8d3",
+      "date": "2026-09-06",
+      "subject": "docs(todos): close the HTML-Page fallback-shell entry against a live measurement",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "570e58229ba9ff24492190172f0c9dbe8714f2ec",
+      "date": "2026-09-06",
+      "subject": "fix(scripts): stop backfill-external-mcp-aad defaulting --db to the live site database",
+      "files": [
+        "development/scripts/__tests__/backfill-db-path.test.ts",
+        "development/scripts/aad-backfill-runner.ts",
+        "development/scripts/backfill-external-mcp-aad.ts",
+        "development/scripts/cleanup-stale-owner-sessions.ts"
+      ],
+      "code": [
+        "development/scripts/backfill-external-mcp-aad.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b27cdba400f87aa98862a07a66ea1f4790278405",
+      "date": "2026-09-06",
+      "subject": "refactor(admin/menus): move ItemRow's Remove-confirmation logic into MenuEditor.hooks.tsx",
+      "files": [
+        "apps/admin/src/features/menus/MenuEditor.hooks.tsx",
+        "apps/admin/src/features/menus/MenuEditor.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/menus/MenuEditor.hooks.tsx",
+        "apps/admin/src/features/menus/MenuEditor.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "9e77a7784312e31fe3e5190f4373ed2e4aee2b08",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): restore the tab strip and embedded project workspace",
+      "files": [
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/electron-webview.d.ts"
+      ],
+      "code": [
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/electron-webview.d.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "204e01a7b5d8cac4794702987abff35849622996",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): embed a project as a tab, not a new BrowserWindow",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-ipc.test.cjs",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/runner-ipc-stubs.cjs",
+        "apps/desktop/src/runner-ipc-stubs.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/runner-ipc-stubs.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "c2e206dbc723ae74b1c5918c5ba4bdbe35fb96d0",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): map Tovu Runner and its connection to Tovu",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-runner-architecture-map.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "3bc9a415247946f266f95d9a0814351d7e1e2cb9",
+      "date": "2026-09-06",
+      "subject": "fix(desktop/e2e): stop the e2e suite writing into the real Electron userData dir",
+      "files": [
+        "apps/desktop/main.cjs",
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [
+        "apps/desktop/main.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fc3bff7c1f023d2855f651bc0be7bf9bb437aa28",
+      "date": "2026-09-06",
+      "subject": "docs(todos): file the single-window desktop shell and two gaps found live",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "2b69b3278c7321b1fc6a2dadb12d78e8c53e769d",
+      "date": "2026-09-06",
+      "subject": "fix(admin/settings): restore the tsc baseline in the field-spec test",
+      "files": [
+        "apps/admin/src/features/settings/__tests__/rules.unit.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "f50b84637d6518fa56e390d9a9d328ba96bda3c1",
+      "date": "2026-09-06",
+      "subject": "test(admin/settings): add exhaustive route-vs-field-spec coverage for External MCP",
+      "files": [
+        "apps/admin/src/features/settings/__tests__/rules.unit.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "6df1f9a7c6a6765c54ec43beebec324752526ec8",
+      "date": "2026-09-06",
+      "subject": "refactor(admin/hooks): adopt useSettlementGeneration at 8 call sites",
+      "files": [
+        "apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+        "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+        "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
+        "apps/admin/src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts",
+        "apps/admin/src/features/themes/__tests__/use-themes.hooks.unit.test.ts",
+        "apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts",
+        "apps/admin/src/features/themes/hooks/use-themes.hooks.ts",
+        "apps/admin/src/features/widgets/__tests__/use-widgets-library.hooks.unit.test.tsx",
+        "apps/admin/src/features/widgets/hooks/use-widgets-library.hooks.ts",
+        "apps/admin/src/hooks/__tests__/use-settlement-generation.hooks.test.ts",
+        "apps/admin/src/hooks/use-settlement-generation.hooks.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+        "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+        "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
+        "apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts",
+        "apps/admin/src/features/themes/hooks/use-themes.hooks.ts",
+        "apps/admin/src/features/widgets/hooks/use-widgets-library.hooks.ts",
+        "apps/admin/src/hooks/use-settlement-generation.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "cc01bce7b414f03b75879229d8bc06fb0a5bf213",
+      "date": "2026-09-06",
+      "subject": "docs(todos): settle the footer menu content-ref-vs-raw-URL question",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "6bf0fc8662d274da6ba2ac9c1022639d55bb783b",
+      "date": "2026-09-06",
+      "subject": "docs(todos): re-measure the footer dead-links entry against the running site",
+      "files": [
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ae13e7392dfde64a0b0b65847375a00248fbaa5e",
+      "date": "2026-09-06",
+      "subject": "fix(admin): add the missing writeAllowedToolNames field spec",
+      "files": [
+        "apps/admin/src/features/settings/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/settings/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/settings/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "c171e62b732144ce41876e83690688d3b3c5fb61",
+      "date": "2026-09-06",
+      "subject": "feat(admin/hooks): extract shared useSettlementGeneration guard",
+      "files": [
+        "apps/admin/src/hooks/__tests__/use-settlement-generation.hooks.test.ts",
+        "apps/admin/src/hooks/use-settlement-generation.hooks.ts"
+      ],
+      "code": [
+        "apps/admin/src/hooks/use-settlement-generation.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "13acf9d36120f4303d116750e141bd756d0a6461",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): explain the AAD backfill scripts and the --db asymmetry",
+      "files": [
+        "ADS-memory/reports/2026-09-06-aad-backfill-explainer.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "01146403fa77e0d8d40d18c16c5495a915b7976d",
+      "date": "2026-09-06",
+      "subject": "fix(admin): drop invalid button-in-anchor nesting on 8 more screens",
+      "files": [
+        "apps/admin/src/features/menus/Menus.tsx",
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/recovery/Recovery.tsx",
+        "apps/admin/src/features/widgets/WidgetInstanceEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegionEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegions.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx",
+        "apps/admin/src/features/widgets/__tests__/WidgetRegions.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/menus/Menus.tsx",
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/recovery/Recovery.tsx",
+        "apps/admin/src/features/widgets/WidgetInstanceEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegionEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegions.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ab022bae719de7705ac4e756051dbce679cb65ca",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): record boot-orchestration dedup fix report",
+      "files": [
+        "ADS-memory/reports/2026-09-06-fix-boot-orchestration.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "d1eea4b2f49719088a124b6b31447e6570159a0a",
+      "date": "2026-09-06",
+      "subject": "refactor(boot): dedupe agentDaemonWanted/logCriticalBootFailures; close export's migration-scan gap",
+      "files": [
+        "apps/website/src/cli/__tests__/integration/export-command-migration-recovery.integration.test.ts",
+        "apps/website/src/cli/commands/export.ts",
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/cli/errors.ts",
+        "apps/website/src/index.ts",
+        "apps/website/src/server/runtime/boot/agent-daemon-wanted.ts",
+        "apps/website/src/server/runtime/boot/bootstrap.ts"
+      ],
+      "code": [
+        "apps/website/src/cli/commands/export.ts",
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/cli/errors.ts",
+        "apps/website/src/index.ts",
+        "apps/website/src/server/runtime/boot/agent-daemon-wanted.ts",
+        "apps/website/src/server/runtime/boot/bootstrap.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ed3976272cc34fd5adcdb70fe5bf703ed88c5959",
+      "date": "2026-09-06",
+      "subject": "chore(scripts): add operator-invoked cleanup for stale owner sessions",
+      "files": [
+        "development/scripts/__tests__/cleanup-stale-owner-sessions.test.ts",
+        "development/scripts/cleanup-stale-owner-sessions.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "8d041b52620a4fe4624a980fab10b23cc636a2b8",
+      "date": "2026-09-06",
+      "subject": "refactor(outbox): move the retry-cap terminal-state decision into the worker",
+      "files": [
+        "apps/website/src/contracts/core/events/__tests__/outbox-repo.contract.test.ts",
+        "apps/website/src/contracts/core/events/memory-bus.ts",
+        "apps/website/src/contracts/core/events/outbox-worker.ts",
+        "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts"
+      ],
+      "code": [
+        "apps/website/src/contracts/core/events/memory-bus.ts",
+        "apps/website/src/contracts/core/events/outbox-worker.ts",
+        "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "874ee54d3fbf01fd6093c797a57e3f0f5ecaa8a0",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): correct C1 -- the .btn-* fix was never missing",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-8f-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "530d612281e88904eb532908d04420f5ec72fd39",
+      "date": "2026-09-06",
+      "subject": "fix(admin): drop invalid button-in-anchor nesting on 3 more back/create links",
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+        "apps/admin/src/features/forms/FormEditor.tsx",
+        "apps/admin/src/features/forms/FormsList.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+        "apps/admin/src/features/forms/FormEditor.tsx",
+        "apps/admin/src/features/forms/FormsList.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a44148a1e50fa46467105828fc08a9ba60bae531",
+      "date": "2026-09-06",
+      "subject": "fix(admin/collections): drop invalid button-in-anchor nesting; correct stale CSS comment",
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntries.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/collections/CollectionEntries.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "4c6a07979c708ef30b538564af3d2c6350bf9ae7",
+      "date": "2026-09-06",
+      "subject": "refactor(auth): delegate mintSessionForPrincipal to Jini's shared minter",
+      "files": [
+        "apps/website/src/server/__tests__/admin-boot-session-route.test.ts",
+        "apps/website/src/server/inbound/admin-http/dev-auth.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/dev-auth.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "1044e2d5cf95280a66a89324e263a102f435e9bf",
+      "date": "2026-09-06",
+      "subject": "fix(render): escape apostrophes in every escapeHtml/escapeHtmlAttr copy",
+      "files": [
+        "apps/website/src/features/theme/static-render.ts",
+        "apps/website/src/platform/export/site-exporter.ts",
+        "apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts",
+        "apps/website/src/server/inbound/public-http/http/site/form-render.ts",
+        "apps/website/src/server/inbound/public-http/http/site/render.ts"
+      ],
+      "code": [
+        "apps/website/src/features/theme/static-render.ts",
+        "apps/website/src/platform/export/site-exporter.ts",
+        "apps/website/src/server/inbound/public-http/http/site/form-render.ts",
+        "apps/website/src/server/inbound/public-http/http/site/render.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "4c65e3923242d10d31cec712a1fcc5273f2d4735",
+      "date": "2026-09-06",
+      "subject": "fix(admin-voice-input): release the mic if held released mid-permission-prompt",
+      "files": [
+        "apps/admin/src/features/voice-input/hooks/__tests__/push-to-talk-state.hooks.unit.test.ts",
+        "apps/admin/src/features/voice-input/hooks/__tests__/use-push-to-talk.hooks.unit.test.ts",
+        "apps/admin/src/features/voice-input/hooks/push-to-talk-state.hooks.ts",
+        "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/voice-input/hooks/push-to-talk-state.hooks.ts",
+        "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f31e6dedc5d3feaf21bc27b00b41a7dc5a036c5b",
+      "date": "2026-09-06",
+      "subject": "fix(sites): thread the real boot-resolved site binding through RouteDeps instead of re-deriving it per request",
+      "files": [
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/features/sites/__tests__/tool-registrations.unit.test.ts",
+        "apps/website/src/features/sites/deps.ts",
+        "apps/website/src/features/sites/tool-registrations.ts",
+        "apps/website/src/platform/site-dir/__tests__/unit/site-registry.unit.test.ts",
+        "apps/website/src/platform/site-dir/site-registry.ts",
+        "apps/website/src/server/__tests__/routes/sites-route.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "code": [
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/features/sites/deps.ts",
+        "apps/website/src/features/sites/tool-registrations.ts",
+        "apps/website/src/platform/site-dir/site-registry.ts",
+        "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "00bc4bd6454ada2714743b5c33f693f5c1a0d46e",
+      "date": "2026-09-06",
+      "subject": "fix(admin-security): stop \"Make default\" from also toggling its own row",
+      "files": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx",
+        "apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ee14d33419cba9c26c697306e89dc8a8659f7409",
+      "date": "2026-09-06",
+      "subject": "test(backfill-execution-aad): refresh fixture tripwire for migration 0058",
+      "files": [
+        "development/scripts/__tests__/backfill-execution-credential-aad.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "527077b69a2b5bc959e43ea336a51767fcc16a45",
+      "date": "2026-09-06",
+      "subject": "test(assistant): fix stale audit-detail assertion in byok-tool-surface INCIDENT FIX test",
+      "files": [
+        "apps/website/src/assistant/__tests__/byok-tool-surface.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "80e69410ef02340bd2f57e3081d3cef84e691e94",
+      "date": "2026-09-06",
+      "subject": "docs(reports): mark the AAD backfill dedupe report complete",
+      "files": [
+        "ADS-memory/reports/2026-09-06-fix-aad-backfill.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "a68526ddf1b2f350a92189d918221f64dc2b907b",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-external-mcp-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-external-mcp-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "a19708d3467fdb8573bd996009dd533472ed2c97",
+      "date": "2026-09-06",
+      "subject": "test(scripts): add a characterization test for backfill-external-mcp-aad.ts",
+      "files": [
+        "development/scripts/__tests__/backfill-external-mcp-aad.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "916eb8b0eca5cd7984dc7bec48fcd0bb4bfaaa96",
+      "date": "2026-09-06",
+      "subject": "refactor(deps): wire deps.ts onto the shared single-hop HTTPS egress policy",
+      "files": [
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "code": [
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "7b2a2007dbb37e3512d7ed5badc6a654f1684ea1",
+      "date": "2026-09-06",
+      "subject": "refactor(platform/http): extract the shared single-hop HTTPS egress policy",
+      "files": [
+        "apps/website/src/platform/http/egress-policies.ts",
+        "apps/website/src/server/runtime/composition/app.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/http/egress-policies.ts",
+        "apps/website/src/server/runtime/composition/app.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "384790fa0a643de912570ad2e631cc035aa0cbac",
+      "date": "2026-09-06",
+      "subject": "docs(reports): admin visual polish \u2014 six-combination proof of the Settings light pin",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-visual-polish.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "f1b13b381b7366ebb10c41dac77c6bc8db67d320",
+      "date": "2026-09-06",
+      "subject": "test(admin/settings): pin that the Settings page cannot render dark",
+      "files": [
+        "apps/admin/src/features/settings/__tests__/SettingsUi.unit.test.tsx"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "7caa2b71a7a2671668f3f0b755ebf997502f8801",
+      "date": "2026-09-06",
+      "subject": "fix(post): enqueue entry.published when a post/page is created already published",
+      "files": [
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/features/post/tool-registrations.ts",
+        "apps/website/src/features/seo/__tests__/sitemap-invalidation.integration.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/create.ts"
+      ],
+      "code": [
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/features/post/tool-registrations.ts",
+        "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/create.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "7b138c50560a96ce10eeede8b10e690a0fa3115e",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-site-assistant-credential-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-site-assistant-credential-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0af0748e01a84893c0d666510a85b5c110bf1a00",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-media-provider-credential-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-media-provider-credential-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "3f0c991534ff29c88585f67e68b220e26fc66070",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-execution-credential-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-execution-credential-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "08ace3ea1a3dc2aa8cc509d00b39366b690a0181",
+      "date": "2026-09-06",
+      "subject": "fix(assistant): route BYOK's tool executor through the shared read-only-gated stack",
+      "files": [
+        "apps/website/src/assistant/__tests__/byok-tool-surface.test.ts",
+        "apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts",
+        "apps/website/src/assistant/byok-tool-surface.ts",
+        "apps/website/src/assistant/tool-executor-stack.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/byok-tool-surface.ts",
+        "apps/website/src/assistant/tool-executor-stack.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "11aa4708085bd089bed3458e5011b434a85cc990",
+      "date": "2026-09-06",
+      "subject": "fix(identity): register this repo's pages.edit_html grant in the backfill script, without crashing its dry run",
+      "files": [
+        "apps/website/src/features/identity/__tests__/wiring.test.ts",
+        "apps/website/src/features/identity/wiring.ts",
+        "development/scripts/__tests__/backfill-reset-admin-password.test.ts",
+        "development/scripts/backfill-reset-admin-password.ts"
+      ],
+      "code": [
+        "apps/website/src/features/identity/wiring.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "6be26ddbf70915101b4a6ad3f89e0a7fbcee6e18",
+      "date": "2026-09-06",
+      "subject": "test(site-glue): fix REQ-8 assertion that relied on the pre-fix immediate-reclaim bug",
+      "files": [
+        "apps/website/src/features/site-glue/__tests__/integration/events.integration.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "d3161f2e00b8de0cf8cab917fb16426bbfd05e35",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-connector-credential-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-connector-credential-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "947c0fa1949411631a46c2cd9c8df667e41515c1",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): migrate backfill-composio-config-aad.ts onto the shared runner",
+      "files": [
+        "development/scripts/backfill-composio-config-aad.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "5ae37c8bff144b96c463f01b5b2af37f313de110",
+      "date": "2026-09-06",
+      "subject": "docs(reports): admin visual polish \u2014 add the two Settings-pin commits to the commit list",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-visual-polish.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ea8c660bef649dee89828a4b9ac96e5c80b79d46",
+      "date": "2026-09-06",
+      "subject": "docs(reports): admin visual polish \u2014 Settings pinned to light, inert-control consequence",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-visual-polish.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "89c8c3808ba72dfbf245886e178f7f23efbf13d4",
+      "date": "2026-09-06",
+      "subject": "design(admin/settings): pin the page to light and take it fully out of the card",
+      "files": [
+        "apps/admin/src/features/settings/SettingsUi.tsx",
+        "apps/admin/src/features/settings/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/settings/rules.ts",
+        "apps/admin/src/styles/settings.css"
+      ],
+      "code": [
+        "apps/admin/src/features/settings/SettingsUi.tsx",
+        "apps/admin/src/features/settings/rules.ts",
+        "apps/admin/src/styles/settings.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "5182994abf1146fdb2b94df520d3fb53bd673b8c",
+      "date": "2026-09-06",
+      "subject": "refactor(scripts): add shared AAD backfill scaffold, not yet wired to any script",
+      "files": [
+        "ADS-memory/reports/2026-09-06-fix-aad-backfill.md",
+        "development/scripts/__tests__/aad-backfill-runner.unit.test.ts",
+        "development/scripts/aad-backfill-runner.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "7d7ae1690e19b9f4d1a10f514335470dea59a6fd",
+      "date": "2026-09-06",
+      "subject": "fix(members): correct decideTiersAccess's @complexity from O(t) to O(t\u00b7a)",
+      "files": [
+        "apps/website/src/features/members/access-resolver.ts"
+      ],
+      "code": [
+        "apps/website/src/features/members/access-resolver.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "0ae3429de127dc8cfd5c851ccad5bc2fba58d286",
+      "date": "2026-09-06",
+      "subject": "fix(outbox): stop immediate re-queue, add exponential backoff and an attempt cap",
+      "files": [
+        "apps/website/src/contracts/core/events/__tests__/outbox-repo.contract.test.ts",
+        "apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts",
+        "apps/website/src/contracts/core/events/index.ts",
+        "apps/website/src/contracts/core/events/memory-bus.ts",
+        "apps/website/src/contracts/core/events/outbox-worker.ts",
+        "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts"
+      ],
+      "code": [
+        "apps/website/src/contracts/core/events/index.ts",
+        "apps/website/src/contracts/core/events/memory-bus.ts",
+        "apps/website/src/contracts/core/events/outbox-worker.ts",
+        "apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a9a6e3a9b2158aa22d9467b1d3a94cac5ebc2241",
+      "date": "2026-09-06",
+      "subject": "fix(export): scheme-check the redirect stub's href sinks",
+      "files": [
+        "apps/website/src/platform/export/__tests__/site-exporter.test.ts",
+        "apps/website/src/platform/export/site-exporter.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/export/site-exporter.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "d10f67085b070a554be2058644b52c23e3acd25e",
+      "date": "2026-09-06",
+      "subject": "docs(reports): record theme content-template naming drift investigation",
+      "files": [
+        "ADS-memory/reports/2026-09-06-adr-index-and-theme-drift.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "2b039738e961c53d2a84ea334371448eed49c11e",
+      "date": "2026-09-06",
+      "subject": "test(auth): add the boot-session route's first server-side test; fix a false comment",
+      "files": [
+        "apps/website/src/features/identity/boot-session-token.ts",
+        "apps/website/src/server/__tests__/admin-boot-session-route.test.ts"
+      ],
+      "code": [
+        "apps/website/src/features/identity/boot-session-token.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "563e58af19ec9d21dfcb6619cd738a28d38eb49e",
+      "date": "2026-09-06",
+      "subject": "docs(reports): admin visual polish pass, 2026-09-06",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-visual-polish.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "933c69e9c9af275c470b97c79925cfb2512817ff",
+      "date": "2026-09-06",
+      "subject": "design(admin): give the Database and Sites tab rows the icons every other tab row has",
+      "files": [
+        "apps/admin/src/features/database/Database.tsx",
+        "apps/admin/src/features/database/database-visuals.tsx",
+        "apps/admin/src/features/sites/Sites.hooks.tsx",
+        "apps/admin/src/features/sites/sites-visuals.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/database/Database.tsx",
+        "apps/admin/src/features/database/database-visuals.tsx",
+        "apps/admin/src/features/sites/Sites.hooks.tsx",
+        "apps/admin/src/features/sites/sites-visuals.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "bc22ff1423aec5803caba2f791b6f38fa0a004c4",
+      "date": "2026-09-06",
+      "subject": "design(admin): apply the form measure to the Users and Integrations create forms",
+      "files": [
+        "apps/admin/src/features/integrations/Integrations.tsx",
+        "apps/admin/src/features/users/Users.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/integrations/Integrations.tsx",
+        "apps/admin/src/features/users/Users.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b8c321ef8209c77c10c5080e2d8bf74d5f219a0f",
+      "date": "2026-09-06",
+      "subject": "docs(reports): excess/dead-code review of the 2026-09-01 to 09-03 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-01-to-03-review-excess-code.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ad20fc76c80429b7d9d44ec7a820ea269da397a2",
+      "date": "2026-09-06",
+      "subject": "docs(review): add architecture/DI review for 2026-09-01 to 2026-09-03",
+      "files": [
+        "ADS-memory/reports/2026-09-01-to-03-review-architecture.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "9f13f0e3dda54948ee6cb9588bed0d38435cc8e4",
+      "date": "2026-09-06",
+      "subject": "design(admin/settings): take the Settings surface out of its card when it renders light",
+      "files": [
+        "apps/admin/src/styles/settings.css"
+      ],
+      "code": [
+        "apps/admin/src/styles/settings.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "262a596bf72ee0c1a9e3377293a6f883248be1e1",
+      "date": "2026-09-06",
+      "subject": "docs(reports): bug-hunt review of 2026-09-01 to 09-03 commits (292, unreviewed window)",
+      "files": [
+        "ADS-memory/reports/2026-09-01-to-03-review-bugs.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "e332ec33180e8ef58a8ee1bc780162dda5630669",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): stop minting a fresh 30-day session on every launch",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs",
+        "apps/desktop/src/desktop-auth.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b357e70c9989dd46eca1876e232fb78915830598",
+      "date": "2026-09-06",
+      "subject": "docs(architecture): reconcile ADR-INDEX with three missing ADRs and the ADR-047 audit-gap",
+      "files": [
+        "ADS-memory/reports/architecture/ADR-INDEX.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "26985a2d2fc3a52ba0c0878162b4ea3e722e6be2",
+      "date": "2026-09-06",
+      "subject": "design(admin/media): draw the tab strip with the shared TabBar, with icons",
+      "files": [
+        "apps/admin/src/features/media/Media.hooks.tsx",
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/media/hooks/use-media-tabs.hooks.ts",
+        "apps/admin/src/styles/media.css"
+      ],
+      "code": [
+        "apps/admin/src/features/media/Media.hooks.tsx",
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/media/hooks/use-media-tabs.hooks.ts",
+        "apps/admin/src/styles/media.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fe0046dd78346c701917c580f9545cb98fa7d3c3",
+      "date": "2026-09-06",
+      "subject": "design(admin/sites): make the card's head its status strip; demote the second pill to a footnote",
+      "files": [
+        "apps/admin/src/features/sites/AllSitesTab.tsx",
+        "apps/admin/src/features/sites/sites-visuals.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "code": [
+        "apps/admin/src/features/sites/AllSitesTab.tsx",
+        "apps/admin/src/features/sites/sites-visuals.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ff5513fada631f7593b839004a76559ca6f9f841",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): consolidated handoff from session tovu-8f",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-8f-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "645f32215e957da54995a3cadc1583a70dfc2bf2",
+      "date": "2026-09-06",
+      "subject": "design(admin): give single-column forms one shared measure instead of the full column",
+      "files": [
+        "apps/admin/src/features/redirects/Redirects.tsx",
+        "apps/admin/src/features/roles/Roles.tsx",
+        "apps/admin/src/features/source-control/ProvidersTab.tsx",
+        "apps/admin/src/features/workspace/Workspace.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "code": [
+        "apps/admin/src/features/redirects/Redirects.tsx",
+        "apps/admin/src/features/roles/Roles.tsx",
+        "apps/admin/src/features/source-control/ProvidersTab.tsx",
+        "apps/admin/src/features/workspace/Workspace.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "9051e2b586eb76cf01bd43895bbc8a1442078f14",
+      "date": "2026-09-06",
+      "subject": "fix(site-dir): stop duplicateContentDb wiping every plugin's data from the copy",
+      "files": [
+        "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+        "apps/website/src/platform/site-dir/__tests__/integration/duplicate-content-db.integration.test.ts",
+        "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+        "apps/website/src/platform/site-dir/duplicate-site.ts",
+        "apps/website/src/platform/site-dir/layout.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+        "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+        "apps/website/src/platform/site-dir/duplicate-site.ts",
+        "apps/website/src/platform/site-dir/layout.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "96f656cd0d249fc76451eb95599134cdf56338fd",
+      "date": "2026-09-06",
+      "subject": "docs(todos): pass 8 additions \u2014 record the tovu-8f peer handoff",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "b3553dd970d0b35f1864fd756eb1776cc0fe6ce0",
+      "date": "2026-09-06",
+      "subject": "fix(media): escape the last three literal NUL bytes in tracked source",
+      "files": [
+        "apps/website/src/features/media/provider-credential-store.memory.ts"
+      ],
+      "code": [
+        "apps/website/src/features/media/provider-credential-store.memory.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "5152128ee7289e9068e966e9902cba1a6e697811",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): close out the todos de-stale report",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "e99249e2ba40e9ce1232460a9862ad8792054781",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 7 \u2014 the tail sections",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "c71c5923ba31f796a7e9ecc30fbb48d6106781cb",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 6 \u2014 Master Build Inventory sections 19-25",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "210b375140f4ee443fd6526dbdd6e56c2dc20690",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 5 \u2014 Master Build Inventory sections 1-18",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ea5f3a4260a3bf0d302a81091f9c62e4544dfa71",
+      "date": "2026-09-06",
+      "subject": "fix(repo): escape literal NUL bytes in source so git and grep can read them",
+      "files": [
+        "apps/website/src/assistant/execution-credential-store.memory.ts",
+        "apps/website/src/features/identity/builtin-role-grants.ts",
+        "apps/website/src/features/site-evidence/__tests__/unit/same-origin.unit.test.ts",
+        "development/e2e/surface-abuse.spec.ts",
+        "development/scripts/backfill-vendor-credentials.ts",
+        "development/scripts/split-chat-data-into-chat-db.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/execution-credential-store.memory.ts",
+        "apps/website/src/features/identity/builtin-role-grants.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "27ccb328c71f88576be0878aebad574de869ecbb",
+      "date": "2026-09-06",
+      "subject": "fix(admin-security): name every access-token dialog and give ambiguous per-row buttons distinct names",
+      "files": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx",
+        "apps/admin/src/features/security/OtherCredentialsSection.tsx",
+        "apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx",
+        "apps/admin/src/features/security/__tests__/OtherCredentialsSection.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx",
+        "apps/admin/src/features/security/OtherCredentialsSection.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "00718e894901d1a3bf315709660a7e18f2dcd2f5",
+      "date": "2026-09-06",
+      "subject": "fix(admin-database): give every timeline row's Recovery link a distinct accessible name",
+      "files": [
+        "apps/admin/src/features/database/Database.tsx",
+        "apps/admin/src/features/database/__tests__/Database.unit.test.tsx",
+        "apps/admin/src/features/database/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/database/Database.tsx",
+        "apps/admin/src/features/database/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ec725ad81ab246dce8e2b0ecd93fb403913d5a8c",
+      "date": "2026-09-06",
+      "subject": "fix(admin-recovery): give every row's Restore button a distinct accessible name",
+      "files": [
+        "apps/admin/src/features/recovery/Recovery.tsx",
+        "apps/admin/src/features/recovery/__tests__/Recovery.unit.test.tsx",
+        "apps/admin/src/features/recovery/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/recovery/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/recovery/Recovery.tsx",
+        "apps/admin/src/features/recovery/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "af8d083a83b245af0acd1c52112632dfc9321361",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 4 \u2014 Accomplish, ADR map, research backlogs",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0d63cfd86083bdd90bb6c8a11afaca57aba2b53b",
+      "date": "2026-09-06",
+      "subject": "fix(site-dir): stop duplicateSite shipping the source site's private databases",
+      "files": [
+        "apps/website/src/features/sites/agent-tools.ts",
+        "apps/website/src/platform/site-dir/__tests__/integration/duplicate-site.integration.test.ts",
+        "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+        "apps/website/src/platform/site-dir/duplicate-site.ts",
+        "apps/website/src/platform/site-dir/layout.ts"
+      ],
+      "code": [
+        "apps/website/src/features/sites/agent-tools.ts",
+        "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+        "apps/website/src/platform/site-dir/duplicate-site.ts",
+        "apps/website/src/platform/site-dir/layout.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "6528ed5aaf6d588cf4390272c3aee9f4fd1265ad",
+      "date": "2026-09-06",
+      "subject": "docs(todos): restore four sections pass 3 deleted by mistake",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ef7fa9c84668f8fe6da37e561bf9e2923322c820",
+      "date": "2026-09-06",
+      "subject": "feat(chat-db): detect conversations stranded in content.db by the chat.db split",
+      "files": [
+        "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+        "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/db/sqlite/chat-orphan-check.ts",
+        "apps/website/src/server/runtime/composition/deps.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "abfc98fe2b3db51addd38fc5d0f02e9bbed5558c",
+      "date": "2026-09-06",
+      "subject": "fix(admin-taxonomy): term rows get a real role, valid selected-state, and a clean name",
+      "files": [
+        "apps/admin/src/features/taxonomy/Taxonomy.tsx",
+        "apps/admin/src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/taxonomy/Taxonomy.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e2aafba6076c8501b5463520b60991ca8309f82d",
+      "date": "2026-09-06",
+      "subject": "fix(admin-sites): give every site card's Activate button a per-site accessible name",
+      "files": [
+        "apps/admin/src/features/sites/AllSitesTab.tsx",
+        "apps/admin/src/features/sites/__tests__/Sites.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/sites/AllSitesTab.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "3d7025397ec89886dbddd4ab1da5d9958d709bbf",
+      "date": "2026-09-06",
+      "subject": "fix(admin-plugins): give repeated Enable/Disable/Inspect buttons a per-row accessible name",
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx",
+        "apps/admin/src/features/plugins/Plugins.tsx",
+        "apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx",
+        "apps/admin/src/features/plugins/__tests__/Plugins.unit.test.tsx",
+        "apps/admin/src/features/plugins/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx",
+        "apps/admin/src/features/plugins/Plugins.tsx",
+        "apps/admin/src/features/plugins/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "302883025b90ca1ef7af3da813b96160ad8c6f40",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 3 \u2014 Active Working Items AW-1..AW-7",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "d10486d54c3adc3b0a39cf6e59305913f8d69eee",
+      "date": "2026-09-06",
+      "subject": "fix(admin-themes): give repeated Activate/Explore/Download buttons a per-card accessible name",
+      "files": [
+        "apps/admin/src/features/themes/Themes.tsx",
+        "apps/admin/src/features/themes/__tests__/Themes.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/themes/Themes.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "6442b34f51e5cb4ba58284e6c97af85206d5cfae",
+      "date": "2026-09-06",
+      "subject": "fix(form-render): setInputValueAttr can't span an embedded opposite quote char",
+      "files": [
+        "apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts",
+        "apps/website/src/server/inbound/public-http/http/site/form-render.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/public-http/http/site/form-render.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "5e593ab43b89f86649fa64da27473c3487f310e2",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 2 \u2014 Admin Section Spec Sweep + 2026-08-10 slice",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "cb3789a9d1b8a916dc322292f6af15ddac92d7db",
+      "date": "2026-09-06",
+      "subject": "fix(gitignore): close chat.db + db-snapshot leak opened by the content.db split",
+      "files": [
+        ".gitignore"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "df07b37ce9aafd43086ca63cde41db1a8e67c74c",
+      "date": "2026-09-06",
+      "subject": "docs(todos): de-stale pass 1 \u2014 top-of-file dated entries",
+      "files": [
+        "ADS-memory/reports/2026-09-06-todos-destale.md",
+        "development/todos.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "fe76057d2e52cc24e043d7ce5179e35ebfe157b8",
+      "date": "2026-09-06",
+      "subject": "fix(admin-media): give the upload toolbar's file/alt inputs a real accessible name",
+      "files": [
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/media/__tests__/Media.unit.test.tsx",
+        "apps/admin/src/features/media/media-i18n.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/media/media-i18n.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "552e806d4c94458d5e832f79ced86b07b42232a2",
+      "date": "2026-09-06",
+      "subject": "docs(reports): code-inspection bug hunt for the 2026-09-04/05 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-04-to-05-review-bugs.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "0b298d86940372d47ccb8414ba9e9a350b549bcc",
+      "date": "2026-09-06",
+      "subject": "feat(assistant): serve a staged chat attachment's bytes back to its uploader",
+      "files": [
+        "apps/website/src/features/media/__tests__/read-chat-attachment.test.ts",
+        "apps/website/src/features/media/read-chat-attachment.ts",
+        "apps/website/src/server/__tests__/routes/get-chat-attachment-route.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant.ts"
+      ],
+      "code": [
+        "apps/website/src/features/media/read-chat-attachment.ts",
+        "apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "3b196ffb14faf0939254dcafa8a88bf957f9a377",
+      "date": "2026-09-06",
+      "subject": "refactor(assistant): give the chat-attachment upload directory one definition",
+      "files": [
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/inbound/assistant/chat-attachment-directory.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/inbound/assistant/chat-attachment-directory.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "efeeb67a3b36d99f558514bc3cf739ba7bf10692",
+      "date": "2026-09-06",
+      "subject": "fix(admin-themes): remove invalid button-in-anchor nesting on ThemeExplore's back control",
+      "files": [
+        "apps/admin/src/features/themes/ThemeExplore.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/themes/ThemeExplore.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f239866ee4f9d4bf79a3f3497807c219a45a43bf",
+      "date": "2026-09-06",
+      "subject": "feat(admin-posts): tell the operator when autosave has stopped, instead of nothing",
+      "files": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx",
+        "apps/admin/src/features/posts/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx",
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e5a434c3ff5b35537d04b2c6aa7d1a74d8a0d01f",
+      "date": "2026-09-06",
+      "subject": "feat(admin-pages): tell the operator when autosave has stopped, instead of nothing",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx",
+        "apps/admin/src/features/pages/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts",
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "52caa8cc46220fa2df03c2a0d337e383a324b40e",
+      "date": "2026-09-06",
+      "subject": "docs(reports): scrub a NUL byte the report tool itself introduced; note it as F4 evidence",
+      "files": [
+        "ADS-memory/reports/2026-09-04-to-05-review-architecture.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "a9aac85b9fb130f5b4e625e06835fdb12aca9e12",
+      "date": "2026-09-06",
+      "subject": "docs(reports): un-corrupt the 2026-09-04..05 excess-code review (literal NUL -> escape text)",
+      "files": [
+        "ADS-memory/reports/2026-09-04-to-05-review-excess-code.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ee304d5e80abb4cb24217c1d440a29abced23503",
+      "date": "2026-09-06",
+      "subject": "docs(reports): architecture & DI review of the 2026-09-04/05 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-04-to-05-review-architecture.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ef79b35249145c655c6819c56c51caa9f58327d9",
+      "date": "2026-09-06",
+      "subject": "docs(reports): excess/dead-code review of the 2026-09-04..05 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-04-to-05-review-excess-code.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "6f32d027ea29e36e5df51632cf3b7044668c894b",
+      "date": "2026-09-06",
+      "subject": "refactor(website): inject the tool-attempt audit sink; drop RouteDeps.contentDbPath",
+      "files": [
+        "apps/website/src/server/__tests__/integration/tool-attempt-audit-sink-composition.integration.test.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "0c1a13241fcc4b0ddcb5e81c3b9461db2f83a18e",
+      "date": "2026-09-06",
+      "subject": "chore(architecture): register cli/commands/adopt.ts as a composition root",
+      "files": [
+        ".dependency-cruiser.mjs"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "b37864c3e6259172864a8c2101a35bb78e1ac54e",
+      "date": "2026-09-06",
+      "subject": "feat(post-tools): wire expectedVersion through content_post_update, the guard's last unwired arm",
+      "files": [
+        "apps/website/src/features/post/__tests__/tool-registrations.optimistic-concurrency.test.ts",
+        "apps/website/src/features/post/agent-tools.ts",
+        "apps/website/src/features/post/tool-registrations.ts"
+      ],
+      "code": [
+        "apps/website/src/features/post/agent-tools.ts",
+        "apps/website/src/features/post/tool-registrations.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2756ac26c0af4d1ddbf83bd4a895bb1a6049145b",
+      "date": "2026-09-06",
+      "subject": "refactor(posts): lift expectedVersion's boundary out of the route so a second arm can share it",
+      "files": [
+        "apps/website/src/features/post/expected-version.ts",
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/update.ts"
+      ],
+      "code": [
+        "apps/website/src/features/post/expected-version.ts",
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/update.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2bb817f63a9ae7c43380fb34dad0f99c10fc2655",
+      "date": "2026-09-06",
+      "subject": "test(admin-seo): make the cleared-field test assert what its name claims",
+      "files": [
+        "apps/admin/src/features/seo/__tests__/use-seo-entry-panel.unit.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "626340377f01f2ce3c7abd34d94309f9c749f02a",
+      "date": "2026-09-06",
+      "subject": "feat(cli): add `tovu adopt <dir>` -- the missing route from an existing site dir to serve",
+      "files": [
+        "apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts",
+        "apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts",
+        "apps/website/src/cli/commands/adopt.ts",
+        "apps/website/src/cli/errors.ts",
+        "apps/website/src/cli/program.ts"
+      ],
+      "code": [
+        "apps/website/src/cli/commands/adopt.ts",
+        "apps/website/src/cli/errors.ts",
+        "apps/website/src/cli/program.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "6998ef9c13bb865043dee0a77571d0a4a3ee0287",
+      "date": "2026-09-06",
+      "subject": "refactor(site-dir): expose the marker-pair classification repairSite already computed",
+      "files": [
+        "apps/website/src/platform/site-dir/index.ts",
+        "apps/website/src/platform/site-dir/repair-site.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/site-dir/index.ts",
+        "apps/website/src/platform/site-dir/repair-site.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a50458bf00715c95e563adb7221c3718f8b1a0a0",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): reap orphaned tovu serve on every boot mode, never a live sibling's",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/site-registry.cjs",
+        "apps/desktop/src/site-registry.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/site-registry.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "d033ffb8d40335d2b4c55dfb1abf1842e9921625",
+      "date": "2026-09-06",
+      "subject": "fix(admin-seo): let an operator clear an SEO override, not just blank it",
+      "files": [
+        "apps/admin/src/features/seo/Seo.hooks.tsx",
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/features/seo/__tests__/Seo.unit.test.tsx",
+        "apps/admin/src/features/seo/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/seo/__tests__/use-seo-entry-panel.unit.test.ts",
+        "apps/admin/src/features/seo/__tests__/use-seo.unit.test.ts",
+        "apps/admin/src/features/seo/hooks/seo-dependencies.hooks.ts",
+        "apps/admin/src/features/seo/hooks/seo-port.hooks.ts",
+        "apps/admin/src/features/seo/hooks/use-seo-entry-panel.hooks.ts",
+        "apps/admin/src/features/seo/hooks/use-seo.hooks.ts",
+        "apps/admin/src/features/seo/rules.ts",
+        "apps/admin/src/lib/api.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.hooks.tsx",
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/features/seo/hooks/seo-dependencies.hooks.ts",
+        "apps/admin/src/features/seo/hooks/seo-port.hooks.ts",
+        "apps/admin/src/features/seo/hooks/use-seo-entry-panel.hooks.ts",
+        "apps/admin/src/features/seo/hooks/use-seo.hooks.ts",
+        "apps/admin/src/features/seo/rules.ts",
+        "apps/admin/src/lib/api.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "90e68e8f0ae75a57ed123e4b4fad5ed468d8ead2",
+      "date": "2026-09-06",
+      "subject": "docs(posts-autosave): correct a route comment that described client logic which never existed",
+      "files": [
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a60e07e8f119f742e75b88d0b812da4bde446632",
+      "date": "2026-09-06",
+      "subject": "fix(admin-autosave): act on putAutosave's `applied` instead of discarding it",
+      "files": [
+        "apps/admin/src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts",
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/standing-draft-local-backup.ts"
+      ],
+      "code": [
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/standing-draft-local-backup.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ed5fae170a12b2edca50af99cae928cac5817c74",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): refuse to rm a project directory the app did not create",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/project-delete-guard.cjs",
+        "apps/desktop/src/project-delete-guard.test.cjs",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-ipc.test.cjs",
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/project-registry.test.cjs",
+        "apps/desktop/src/renderer/ProjectGrid.hooks.ts",
+        "apps/desktop/src/renderer/ProjectGrid.tsx"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/project-delete-guard.cjs",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/renderer/ProjectGrid.hooks.ts",
+        "apps/desktop/src/renderer/ProjectGrid.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "72e1e52932edeb6f7ab2a8580f624fa5bd60457c",
+      "date": "2026-09-06",
+      "subject": "fix(assistant): stop every source edit from destroying staged chat attachments",
+      "files": [
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f3bdd3af26c716e4b3ee743a85bc22e63d0e777f",
+      "date": "2026-09-06",
+      "subject": "feat(admin-posts): send the loaded version and surface the 409 without losing the operator's work",
+      "files": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx",
+        "apps/admin/src/features/posts/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx",
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fb4736134b4e947ded74a653f168bb6818401783",
+      "date": "2026-09-06",
+      "subject": "feat(admin-settings): pass agentHandle to the 11 @jini-ai/ui-mounted Settings tabs",
+      "files": [
+        "apps/admin/src/features/settings/SettingsUi.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/settings/SettingsUi.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b359e613a1667965ab2c7b4f4d8294f477a6c18f",
+      "date": "2026-09-06",
+      "subject": "fix(website): add RouteDeps.contentDbPath and make the BYOK tool-audit sink lazy",
+      "files": [
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts"
+      ],
+      "code": [
+        "apps/website/src/server/routes/types.ts",
+        "apps/website/src/server/runtime/composition/app.ts",
+        "apps/website/src/server/runtime/composition/deps.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e595312f7de52919086ff7ccb68faebb3e8dddad",
+      "date": "2026-09-06",
+      "subject": "types(admin-api): let api.updatePost carry an optional expectedVersion",
+      "files": [
+        "apps/admin/src/lib/api.ts"
+      ],
+      "code": [
+        "apps/admin/src/lib/api.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "76d7c739ccf1c5a293f650ae43baf47e35dff776",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): one adoption chokepoint for every site-dir entry point",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/site-dir-store.cjs",
+        "apps/desktop/src/site-dir-store.test.cjs",
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/site-dir-store.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ffc37e59342bbd0d78c0f733671b35842e183317",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): refactor review of the 2026-09-06 commits - excess and dead code",
+      "files": [
+        "ADS-memory/reports/2026-09-06-review-excess-code.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "b81d57b186103b9c9b98f2c1d8bee74993844f2d",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): code-inspection bug hunt over the 2026-09-06 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-06-review-bugs.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "4e64e4673db724b2dba98faaedbf5bdf207b342c",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): architecture and DI review of the 2026-09-06 commits",
+      "files": [
+        "ADS-memory/reports/2026-09-06-review-architecture.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "eb678ed34f86138c0e41c0c22cf2e458a3d91514",
+      "date": "2026-09-06",
+      "subject": "feat(voice-input): add a \"Disabled for now\" tooltip to the mic button",
+      "files": [
+        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx",
+        "apps/admin/src/features/voice-input/__tests__/PushToTalkMicButton.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "9c7d16bfe1ffce748b4e6c09420f240309d5b952",
+      "date": "2026-09-06",
+      "subject": "feat(posts-route): forward expectedVersion and give the version 409 its own code",
+      "files": [
+        "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/update.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/update.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/routes/posts/update.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a9f84cdcf90516bab2dabd4bc88ecf39d63caefa",
+      "date": "2026-09-06",
+      "subject": "refactor(admin-pages): bring PageEditor under the 9/9 complexity ceiling",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "0b7b6de190537f7bbc04c469b97e453cdce267bc",
+      "date": "2026-09-06",
+      "subject": "fix(admin-pages): let a newly created page accept hand-authored HTML",
+      "files": [
+        "apps/admin/src/features/pages/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts",
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "be45461ea38630eb3e3569a45b611b8b51679257",
+      "date": "2026-09-06",
+      "subject": "feat(post): add opt-in optimistic-concurrency check to updatePost",
+      "files": [
+        "apps/website/src/features/post/__tests__/post.optimistic-concurrency.test.ts",
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/features/post/post.ts"
+      ],
+      "code": [
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/features/post/post.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f92e835f911c6005fa24e1b3f193f4baef401878",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): record the f3579456 authorship misattribution",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "bbd297d8be545a1d5c49266904ac10f1a03e1d32",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): make Projects-screen seeding survive an emptied registry",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/project-registry.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/project-registry.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "013ca04ef3246c91b2753dd9dada22ae9ece4a1b",
+      "date": "2026-09-06",
+      "subject": "docs(ads): record the outstanding worklist from session tovu-f6",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-f6-outstanding-worklist.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "7afe17a79898b302ef55e63e4e5e15ec469b0f09",
+      "date": "2026-09-06",
+      "subject": "docs(admin): correct pages/posts as done, not permanently excluded",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "48bf42c8fdaac011ada265164ccdcdcd0cd361ae",
+      "date": "2026-09-06",
+      "subject": "fix(admin-posts): tag PostEditor's delete ConfirmDialog with agentHandle",
+      "files": [
+        "apps/admin/src/features/posts/PostEditor.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/PostEditor.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f357945679d97f6e3465ec4d19abcb6457adeb70",
+      "date": "2026-09-06",
+      "subject": "feat(admin-pages): tag PageEditor's remaining view/device controls",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "3ad87f39b058aec1f31b6d133192c36b360ed905",
+      "date": "2026-09-06",
+      "subject": "feat(admin-pages): tag ThemePagesTab and ThemePageDetailsModal controls",
+      "files": [
+        "apps/admin/src/features/pages/ThemePageDetailsModal.tsx",
+        "apps/admin/src/features/pages/ThemePagesTab.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/ThemePageDetailsModal.tsx",
+        "apps/admin/src/features/pages/ThemePagesTab.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2202253dbce1890f179056804a7fed557526e43e",
+      "date": "2026-09-06",
+      "subject": "feat(admin-pages): tag Pages.tsx's list and tab controls",
+      "files": [
+        "apps/admin/src/features/pages/Pages.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/Pages.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "56f6b46bc95b0d06542bea8298e61fc7577307fe",
+      "date": "2026-09-06",
+      "subject": "feat(admin-posts): tag Posts.tsx's list controls",
+      "files": [
+        "apps/admin/src/features/posts/Posts.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/Posts.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "6462865e76add24039ec6c8fb5cf4a7857a30af3",
+      "date": "2026-09-06",
+      "subject": "docs(admin): correct the Access Tokens live-verification handle names",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "fe5c8974e5ae2b7061096bd811d75240674a969e",
+      "date": "2026-09-06",
+      "subject": "docs(admin): record Phase 4 - ai-assistant, media, and the 8 spot-check screens",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "c84559e805e7cfc040610f95ca842d57c814aaa8",
+      "date": "2026-09-06",
+      "subject": "fix(admin-security): tag credential fields and Cancel/trigger buttons",
+      "files": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx",
+        "apps/admin/src/features/security/OtherCredentialsSection.tsx",
+        "apps/admin/src/features/source-control/ProvidersTab.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/security/AccessTokensTab.tsx",
+        "apps/admin/src/features/security/OtherCredentialsSection.tsx",
+        "apps/admin/src/features/source-control/ProvidersTab.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "34a694017dd74c44c3a90977385c709c1b659689",
+      "date": "2026-09-06",
+      "subject": "fix(admin-deployment): tag the two remaining external links on Static Site",
+      "files": [
+        "apps/admin/src/features/deployment/StaticSiteTab.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/deployment/StaticSiteTab.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "273b43cbe4d154502b332b48822588e749254a3d",
+      "date": "2026-09-06",
+      "subject": "fix(admin): tag remaining agent-driveable gaps in sites and collections",
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntries.tsx",
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+        "apps/admin/src/features/sites/AllSitesTab.tsx",
+        "apps/admin/src/lib/widget-embed-extension.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/collections/CollectionEntries.tsx",
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx",
+        "apps/admin/src/features/sites/AllSitesTab.tsx",
+        "apps/admin/src/lib/widget-embed-extension.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "935762a58c300c2c1ece23d1c0522d250156888a",
+      "date": "2026-09-06",
+      "subject": "fix(admin-media): pass agentHandle to the purge ConfirmDialog",
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/media/Media.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "978a7ca39a706d78722b38d855a565dfe982c5a2",
+      "date": "2026-09-06",
+      "subject": "feat(admin-ai-assistant): tag AiAssistant screen's Tovu-owned controls",
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "125b8dccc1768bd043c8ae7c725bce2f312e6550",
+      "date": "2026-09-06",
+      "subject": "docs(admin): record pages/posts as permanently excluded from the agent-tag sweep",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "8383d7324dec57a9cef621e125c18bac8fb4069b",
+      "date": "2026-09-06",
+      "subject": "docs(admin): record Phase 3 live verification and handoff for the agent-tag sweep",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "ffc6ce5e8cd5c4cf2f338031486f670d5a9d9418",
+      "date": "2026-09-06",
+      "subject": "docs(admin): update agent-tag coverage report through the settings pass",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "7637876daaf75fc16d473c3792b004539bb55bc2",
+      "date": "2026-09-06",
+      "subject": "feat(admin-settings): tag the Tovu-owned controls on /admin/settings",
+      "files": [
+        "apps/admin/src/features/settings/ComposioKeyField.tsx",
+        "apps/admin/src/features/settings/SettingsUi.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/settings/ComposioKeyField.tsx",
+        "apps/admin/src/features/settings/SettingsUi.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "feb8a7777af5fb40b8ab84782545005ee652a1e9",
+      "date": "2026-09-06",
+      "subject": "feat(assistant): add chat_list_pending_attachments so the model can find unclaimed uploads",
+      "files": [
+        "apps/website/src/assistant/agent-daemon-port.ts",
+        "apps/website/src/features/media/__tests__/list-pending-chat-attachments.test.ts",
+        "apps/website/src/features/media/list-pending-chat-attachments.ts",
+        "apps/website/src/server/__tests__/assistant-proxy-routes.test.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/agent-daemon-port.ts",
+        "apps/website/src/features/media/list-pending-chat-attachments.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fb5a1909238429d055631af77b9355a4d5ae3e4f",
+      "date": "2026-09-06",
+      "subject": "feat(admin-themes): tag the remaining controls on the main Themes screen",
+      "files": [
+        "apps/admin/src/features/themes/Themes.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/themes/Themes.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "98e3021c49a835eefab4cb2261f8e317ac8e1580",
+      "date": "2026-09-06",
+      "subject": "feat(admin-payments): tag the three cross-links on /admin/payments",
+      "files": [
+        "apps/admin/src/features/commerce/Payments.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/commerce/Payments.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "d52258af7bebc063bdd88a0df48cadb3d1c5c601",
+      "date": "2026-09-06",
+      "subject": "feat(admin-plugins): tag Plugins, AgentPlugins, and the plugin details modal",
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
+        "apps/admin/src/features/plugins/AgentPlugins.tsx",
+        "apps/admin/src/features/plugins/Plugins.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx",
+        "apps/admin/src/features/plugins/AgentPlugins.tsx",
+        "apps/admin/src/features/plugins/Plugins.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "10efb8991b57ccc96acfb06f4f37a2242d6d9ef1",
+      "date": "2026-09-06",
+      "subject": "fix(autosave): flush the pending standing draft on exit instead of cancelling it",
+      "files": [
+        "apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts",
+        "apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx",
+        "apps/admin/src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts",
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts"
+      ],
+      "code": [
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "eb10f5de10aa8647e8f65301250ca52c1f46f2b8",
+      "date": "2026-09-06",
+      "subject": "fix(seo): allow clearing a per-entry SEO override via null",
+      "files": [
+        "apps/website/src/features/seo/__tests__/seo.test.ts",
+        "apps/website/src/features/seo/__tests__/write-service.test.ts",
+        "apps/website/src/features/seo/agent-tools.ts",
+        "apps/website/src/features/seo/tool-registrations.ts",
+        "apps/website/src/features/seo/types.ts",
+        "apps/website/src/features/seo/write-service.ts"
+      ],
+      "code": [
+        "apps/website/src/features/seo/agent-tools.ts",
+        "apps/website/src/features/seo/tool-registrations.ts",
+        "apps/website/src/features/seo/types.ts",
+        "apps/website/src/features/seo/write-service.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "c08155f2161a6cc840adb161dd44dd80adca83a4",
+      "date": "2026-09-06",
+      "subject": "feat(admin-redirects): tag every control on /admin/redirects",
+      "files": [
+        "apps/admin/src/features/redirects/Redirects.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/redirects/Redirects.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "be0f582a50f1822151be65976d3c031338ff35ec",
+      "date": "2026-09-06",
+      "subject": "feat(admin-integrations): tag the remaining controls on /admin/integrations",
+      "files": [
+        "apps/admin/src/features/integrations/Integrations.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/integrations/Integrations.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "b5439d940076a787470e284d562df6447ecaef29",
+      "date": "2026-09-06",
+      "subject": "feat(admin-workspace): tag the rename form and delete button",
+      "files": [
+        "apps/admin/src/features/workspace/Workspace.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/workspace/Workspace.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a5dd5e097245babc86ef61b26ea3ea96df706883",
+      "date": "2026-09-06",
+      "subject": "feat(admin-recovery): tag every control on /admin/recovery",
+      "files": [
+        "apps/admin/src/features/recovery/Recovery.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/recovery/Recovery.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "c629c0e6145e307684f0d3de899396f1f5c8c2e6",
+      "date": "2026-09-06",
+      "subject": "feat(admin-widgets): tag every control across all four widgets screens",
+      "files": [
+        "apps/admin/src/features/widgets/WidgetInstanceEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegionEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegions.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/widgets/WidgetInstanceEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegionEditor.tsx",
+        "apps/admin/src/features/widgets/WidgetRegions.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "cdb205a54719f421bf06937288e61c3bc769e229",
+      "date": "2026-09-06",
+      "subject": "feat(admin-dashboard): tag every link on the Overview screen",
+      "files": [
+        "apps/admin/src/features/dashboard/Dashboard.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/dashboard/Dashboard.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f7b8af1cc35496679b385ed0a2782cef512937a5",
+      "date": "2026-09-06",
+      "subject": "test(assistant): prove media_promote_chat_attachment is generic, not AVIF-specific",
+      "files": [
+        "apps/website/src/features/media/__tests__/promote-chat-attachment.test.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "6e71742c6629d3eba9c2341a7e35f87dd17322f5",
+      "date": "2026-09-06",
+      "subject": "feat(admin): wire agentHandle onto every remaining untagged ConfirmDialog",
+      "files": [
+        "apps/admin/src/features/integrations/Integrations.tsx",
+        "apps/admin/src/features/redirects/Redirects.tsx",
+        "apps/admin/src/features/taxonomy/Taxonomy.tsx",
+        "apps/admin/src/features/themes/ThemeExplore.tsx",
+        "apps/admin/src/features/users/Users.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/integrations/Integrations.tsx",
+        "apps/admin/src/features/redirects/Redirects.tsx",
+        "apps/admin/src/features/taxonomy/Taxonomy.tsx",
+        "apps/admin/src/features/themes/ThemeExplore.tsx",
+        "apps/admin/src/features/users/Users.tsx",
+        "apps/admin/src/features/widgets/WidgetsLibrary.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "1d5c037606d42c8a64c604d2024225fd70631d70",
+      "date": "2026-09-06",
+      "subject": "docs(desktop-e2e): correct a comment that promised isolation the suite does not have",
+      "files": [
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "f281d3a2ba3b50045c1b270f2753d0515cd3be52",
+      "date": "2026-09-06",
+      "subject": "feat(assistant): add media_promote_chat_attachment, bridging chat uploads into the media library",
+      "files": [
+        "apps/website/src/assistant/tool-search-keywords.ts",
+        "apps/website/src/features/media/__tests__/promote-chat-attachment.test.ts",
+        "apps/website/src/features/media/promote-chat-attachment.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "code": [
+        "apps/website/src/assistant/tool-search-keywords.ts",
+        "apps/website/src/features/media/promote-chat-attachment.ts",
+        "apps/website/src/server/inbound/assistant/agent-daemon-server.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e804d16dc7b114c890467fc44254beaedcb790dd",
+      "date": "2026-09-06",
+      "subject": "feat(admin-comments): tag every control on /admin/comments",
+      "files": [
+        "apps/admin/src/features/comments/Comments.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/comments/Comments.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "cbbda0214ba790a3557cce51970a548466fcb717",
+      "date": "2026-09-06",
+      "subject": "feat(admin): tag Members' remaining controls and wire ConfirmDialog handles",
+      "files": [
+        "apps/admin/src/features/members/Members.tsx",
+        "apps/admin/src/features/roles/Roles.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/members/Members.tsx",
+        "apps/admin/src/features/roles/Roles.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "54051fe34b2f95aa63ea0d18558781d91d532e89",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): rename the fleet window title from Tovu Runner to Tovu",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/renderer/index.html"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/renderer/index.html"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "7198436e7da3f44d8dfe53f832e57ce414c41548",
+      "date": "2026-09-06",
+      "subject": "feat(admin-seo): tag the per-entry override editor and picker for agent driving",
+      "files": [
+        "apps/admin/src/features/seo/Seo.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a53c80df67c1f6cc4508f06e6d4a9ee38ec53fd6",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): make the Projects screen the default front page",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/runner-ipc-stubs.cjs",
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/runner-ipc-stubs.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a4efd9c2566d3700b61e14dc08e95026fcfb5ca8",
+      "date": "2026-09-06",
+      "subject": "feat(admin-roles): tag the remaining untagged controls on /admin/roles",
+      "files": [
+        "apps/admin/src/features/roles/Roles.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/roles/Roles.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "4f2052f658d4f4335b3ae4a730fe2cf51389cb40",
+      "date": "2026-09-06",
+      "subject": "fix(admin-assistant): move the composer mic button next to the \"+\"",
+      "files": [
+        "apps/admin/src/components/AssistantDock/AssistantDock.tsx"
+      ],
+      "code": [
+        "apps/admin/src/components/AssistantDock/AssistantDock.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "79ade955a3a3f03faa1f44f200ec735731e12eee",
+      "date": "2026-09-06",
+      "subject": "feat(admin-database): tag every interactive control on /admin/database",
+      "files": [
+        "apps/admin/src/features/database/Database.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/database/Database.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "ab5f4b0fde80eaf4f794d090955bc2642c6f54ef",
+      "date": "2026-09-06",
+      "subject": "feat(admin): wire agentHandle through every Placeholder-backed nav page",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md",
+        "apps/admin/src/panels.tsx"
+      ],
+      "code": [
+        "apps/admin/src/panels.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "8cfb8eb97d6ad5b96f51cdd7297a2e7087bd33b7",
+      "date": "2026-09-06",
+      "subject": "docs(admin): audit agentHandle coverage across every nav-listed admin page",
+      "files": [
+        "ADS-memory/reports/2026-09-06-admin-agent-tag-coverage.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "27a05955215b43bcd8bcbc90624a7df89d20c13f",
+      "date": "2026-09-06",
+      "subject": "docs: handoff for the rotated-out autosave-drafts agent",
+      "files": [
+        "ADS-memory/reports/2026-09-06-autosave-drafts-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "346943090e4745d1106c6babcfb120f99cf6485f",
+      "date": "2026-09-06",
+      "subject": "wip(posts): autosave recovery banner in PostEditor, state unverified",
+      "files": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx",
+        "apps/admin/src/features/posts/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "a4b99c9075b8713d9490972d4a5920b7cd7a3b2e",
+      "date": "2026-09-06",
+      "subject": "feat(pages): render the standing-draft recovery banner in PageEditor",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx",
+        "apps/admin/src/features/pages/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/pages/rules.ts",
+        "apps/admin/src/lib/__tests__/format-timestamp.unit.test.ts",
+        "apps/admin/src/lib/format-timestamp.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/pages/rules.ts",
+        "apps/admin/src/lib/format-timestamp.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "559655cbff04ee56a44fbbf912429d01316d6399",
+      "date": "2026-09-06",
+      "subject": "feat(posts): wire standing-draft autosave into usePostEditor; fix slug URLs",
+      "files": [
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx",
+        "apps/admin/src/features/posts/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx",
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/admin/src/features/posts/rules.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "0911b45db762212d30fca9ca20650cc80a5cdfb6",
+      "date": "2026-09-06",
+      "subject": "docs: record that both handoff tasks belong to the peer session",
+      "files": [
+        "ADS-memory/reports/2026-09-06-handoff-to-tovu-73.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "3f6097dc91a60bdb0a449d3e97f807a2a29bb3d8",
+      "date": "2026-09-06",
+      "subject": "design(admin/seo): drop the Entry caption and take Pages & posts full width",
+      "files": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/features/seo/__tests__/Seo.unit.test.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2438685054dde6d142b619d84c08ce0ba786ce13",
+      "date": "2026-09-06",
+      "subject": "docs: handoff for a second session - mic button, and the AVIF upload bridge",
+      "files": [
+        "ADS-memory/reports/2026-09-06-handoff-to-tovu-73.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "05782b71eb74ee8f4349f9c47b59f4a988741afa",
+      "date": "2026-09-06",
+      "subject": "feat(pages): wire standing-draft autosave + add the missing unsaved-work guard",
+      "files": [
+        "apps/admin/src/features/pages/__tests__/rules.unit.test.ts",
+        "apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts",
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/page-editor-port.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
+        "apps/admin/src/features/pages/hooks/page-editor-port.hooks.ts",
+        "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+        "apps/admin/src/features/pages/rules.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "3a3dea2bf823b7841cf19cb74eec9b79d409c7e1",
+      "date": "2026-09-06",
+      "subject": "docs(admin/seo): correct the file header the de-carding made stale",
+      "files": [
+        "apps/admin/src/features/seo/Seo.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "613ea7e2483696cc05db30533adc955011c27e95",
+      "date": "2026-09-06",
+      "subject": "design(admin/seo): take the per-entry panels out of their boxes too",
+      "files": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "9ac963e0350b7840b0e0e7a16bfc50570d4c4daf",
+      "date": "2026-09-06",
+      "subject": "fix(posts): standing-draft autosave carries title explicitly",
+      "files": [
+        "apps/admin/src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts",
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/api.ts",
+        "apps/website/src/features/post/__tests__/post.autosave.test.ts",
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "code": [
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/api.ts",
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "f8fc6b8e947a06154c79ea74e80cad3433282239",
+      "date": "2026-09-06",
+      "subject": "design(admin/seo): take the defaults form and sitemap panel out of their cards",
+      "files": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/features/seo/__tests__/Seo.unit.test.tsx",
+        "apps/admin/src/main.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/main.tsx",
+        "apps/admin/src/styles/seo.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "56a0fc09a7c1a296f51d98e33125a3ed4e33147f",
+      "date": "2026-09-06",
+      "subject": "feat(admin): shared standing-draft autosave hook + api client functions",
+      "files": [
+        "apps/admin/src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts",
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/api.ts"
+      ],
+      "code": [
+        "apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts",
+        "apps/admin/src/lib/api.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "eba275f4ae9194b7442d52f96a0b8994fafb8ad0",
+      "date": "2026-09-06",
+      "subject": "feat(posts): standing-draft autosave persistence + HTTP surface (posts+pages)",
+      "files": [
+        "apps/website/src/features/post/__tests__/post.autosave.test.ts",
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/features/post/repo.memory.ts",
+        "apps/website/src/features/post/repo.sqlite.ts",
+        "apps/website/src/platform/export/__tests__/site-exporter.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts",
+        "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts",
+        "apps/website/src/server/runtime/composition/modules/content.ts"
+      ],
+      "code": [
+        "apps/website/src/features/post/index.ts",
+        "apps/website/src/features/post/post.ts",
+        "apps/website/src/features/post/repo.memory.ts",
+        "apps/website/src/features/post/repo.sqlite.ts",
+        "apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts",
+        "apps/website/src/server/runtime/composition/modules/content.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "868cfe7235d3088261b9c3cbfbb2cdb0fa5085c6",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): route project cards to their own window, strip the webview model",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-ipc.test.cjs",
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/project-registry.test.cjs",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/electron-webview.d.ts",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/runner-ipc-stubs.cjs",
+        "apps/desktop/src/runner-ipc-stubs.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/project-ipc.cjs",
+        "apps/desktop/src/project-registry.cjs",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/electron-webview.d.ts",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/runner-ipc-stubs.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "04806e6bac63cf032b7024b1709700c9313fb435",
+      "date": "2026-09-06",
+      "subject": "feat(media): accept AVIF in the admin upload surfaces, with regression tests",
+      "files": [
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+        "apps/website/src/features/media/__tests__/tool-registrations.test.ts",
+        "apps/website/src/server/__tests__/routes/media-content-type.test.ts"
+      ],
+      "code": [
+        "apps/admin/src/features/media/Media.tsx",
+        "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "72a8dcb6844dc039ef3b3d0f3e3fe815b3bbe488",
+      "date": "2026-09-06",
+      "subject": "feat(admin-roles): convert /admin/roles to a two-tab screen",
+      "files": [
+        "apps/admin/src/features/roles/Roles.hooks.tsx",
+        "apps/admin/src/features/roles/Roles.tsx",
+        "apps/admin/src/features/roles/__tests__/Roles.unit.test.tsx",
+        "apps/admin/src/panels.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/roles/Roles.hooks.tsx",
+        "apps/admin/src/features/roles/Roles.tsx",
+        "apps/admin/src/panels.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "e94da8f8d2bceb52e05aa017ab02e7de39b864d8",
+      "date": "2026-09-06",
+      "subject": "feat(posts): add nullable posts.autosave_json column for standing-draft autosave",
+      "files": [
+        "apps/website/src/platform/db/drizzle/0058_keen_mauler.sql",
+        "apps/website/src/platform/db/drizzle/meta/0058_snapshot.json",
+        "apps/website/src/platform/db/drizzle/meta/_journal.json",
+        "apps/website/src/platform/db/schema.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/db/drizzle/0058_keen_mauler.sql",
+        "apps/website/src/platform/db/drizzle/meta/0058_snapshot.json",
+        "apps/website/src/platform/db/drizzle/meta/_journal.json",
+        "apps/website/src/platform/db/schema.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "20be26462e1e0218a33714449a6933ae981e1e0c",
+      "date": "2026-09-06",
+      "subject": "docs(tasks): refresh - 23 commits landed, four agents in flight, five new findings",
+      "files": [
+        "ADS-memory/reports/2026-09-06-session-task-list.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "cbb727db7b84d93d89c56ad3b9daec672f8a6d8f",
+      "date": "2026-09-06",
+      "subject": "fix(desktop): restore own-server boot mode gutted by the boot-token commit",
+      "files": [
+        "apps/desktop/main.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "56e87ae0907aa36189d00d6c04030019132b6104",
+      "date": "2026-09-06",
+      "subject": "feat(admin-seo): convert /admin/seo to a three-tab screen",
+      "files": [
+        "apps/admin/src/features/seo/Seo.hooks.tsx",
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/features/seo/__tests__/Seo.unit.test.tsx",
+        "apps/admin/src/panels.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/seo/Seo.hooks.tsx",
+        "apps/admin/src/features/seo/Seo.tsx",
+        "apps/admin/src/panels.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2c6e0b0754f0f0baa65abc32322fc71440da25dc",
+      "date": "2026-09-06",
+      "subject": "fix(post-editor): move preview-fallback notice above the frame, mirroring Pages",
+      "files": [
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx"
+      ],
+      "code": [
+        "apps/admin/src/features/posts/PostEditor.tsx"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "cf05115ce7c63a95268094fcbba0b105ad696e9a",
+      "date": "2026-09-06",
+      "subject": "docs(desktop): handoff for the rotated-out runner-ui-port agent",
+      "files": [
+        "ADS-memory/reports/2026-09-06-runner-ui-port-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "15548befc48f210ae9c95010151516e1260df811",
+      "date": "2026-09-06",
+      "subject": "feat(auth): loopback boot token \u2014 the desktop admin comes up with no password",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs",
+        "apps/desktop/src/desktop-auth.test.cjs",
+        "apps/desktop/src/tovu-server.cjs",
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/cli/program.ts",
+        "apps/website/src/features/identity/__tests__/boot-session-token.test.ts",
+        "apps/website/src/features/identity/boot-session-token.ts",
+        "apps/website/src/server/inbound/admin-http/dev-auth.ts"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs",
+        "apps/desktop/src/tovu-server.cjs",
+        "apps/website/src/cli/commands/serve.ts",
+        "apps/website/src/cli/program.ts",
+        "apps/website/src/features/identity/boot-session-token.ts",
+        "apps/website/src/server/inbound/admin-http/dev-auth.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "0a1fb89eeebba7cd064e8c5afca7598f3e1d1b45",
+      "date": "2026-09-06",
+      "subject": "fix(admin-settings): remove the peach background from /admin/settings",
+      "files": [
+        "apps/admin/src/main.tsx",
+        "apps/admin/src/styles/settings.css"
+      ],
+      "code": [
+        "apps/admin/src/main.tsx",
+        "apps/admin/src/styles/settings.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "30e68c54565e5046935a1f9f7360469ad8efa62d",
+      "date": "2026-09-06",
+      "subject": "fix(admin-editors): compress the action row's band and give it a left anchor",
+      "files": [
+        "apps/admin/src/styles.css"
+      ],
+      "code": [
+        "apps/admin/src/styles.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "de1e1e2e36e476162a66c0663bc71d5c3b0745c2",
+      "date": "2026-09-06",
+      "subject": "test(desktop-e2e): assert the admin comes up authenticated",
+      "files": [
+        "ADS-memory/reports/2026-09-06-runner-ui-port-manifest-v2.md",
+        "development/e2e/desktop-shell.spec.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "2aa317ab323e001bb9b0797b2be63cfe454bedaf",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): the admin comes up authenticated \u2014 no login screen",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs",
+        "apps/desktop/src/desktop-auth.test.cjs",
+        "apps/desktop/src/tovu-server.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/desktop-auth.cjs",
+        "apps/desktop/src/tovu-server.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "fb996e8f81395ac986038e92475a155bb2c420f8",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): use the Tovu logo as the app and nav mark",
+      "files": [
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/public/brand/gold-runner-1.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-2.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-3.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-4.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-5.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-icon.png",
+        "apps/desktop/src/renderer/public/brand/tovu-app-icon.png",
+        "apps/desktop/src/renderer/public/brand/tovu-mark.png",
+        "apps/desktop/src/renderer/public/brand/tovu-mark@2x.png"
+      ],
+      "code": [
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/public/brand/gold-runner-1.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-2.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-3.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-4.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-5.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-icon.png",
+        "apps/desktop/src/renderer/public/brand/tovu-app-icon.png",
+        "apps/desktop/src/renderer/public/brand/tovu-mark.png",
+        "apps/desktop/src/renderer/public/brand/tovu-mark@2x.png"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "29a7f036d3d2840d5b67f817fd5e155bb8071d4d",
+      "date": "2026-09-06",
+      "subject": "feat(admin-editors): move Published/Save/Delete to their own row under the toolbar",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "8e5a9d748f0b9212a1fee8d238bc926113e82ebf",
+      "date": "2026-09-06",
+      "subject": "feat(admin-editors): centre the editor title, move the back link to the far left",
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "code": [
+        "apps/admin/src/features/pages/PageEditor.tsx",
+        "apps/admin/src/features/posts/PostEditor.tsx",
+        "apps/admin/src/styles.css"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "5178eea5a76974e8b9719987565af46af0d82f9e",
+      "date": "2026-09-06",
+      "subject": "design(landing): gold, black and white \u2014 the filled pill goes gold in dark mode",
+      "files": [
+        "ADS-memory/drafts/landing-xai.html"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "717273e8ba07576ace9219b236160122d9df0043",
+      "date": "2026-09-06",
+      "subject": "docs(tasks): no SITE password at all, and the default-owner-password finding",
+      "files": [
+        "ADS-memory/reports/2026-09-06-session-task-list.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "b3f613a608e33455d80726e60a641e189b2756bc",
+      "date": "2026-09-06",
+      "subject": "design(landing): cycle the hero verb with kUInetic's word-cycler, as x.ai does",
+      "files": [
+        "ADS-memory/drafts/landing-xai.html"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "14167454564cfb5b9acd3c247da84ff659aa22ac",
+      "date": "2026-09-06",
+      "subject": "test(desktop): first E2E that actually launches apps/desktop, and one RED",
+      "files": [
+        "ADS-memory/reports/2026-09-06-session-task-list.md",
+        "development/e2e/desktop-shell.spec.ts",
+        "development/playwright.desktop-shell.config.ts"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "f66ef90755d1bcdfe417a4fb37e492c7dc0a773c",
+      "date": "2026-09-06",
+      "subject": "design(landing): rebuild the xAI-language homepage sample around x.ai's structure",
+      "files": [
+        "ADS-memory/drafts/landing-xai.html"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "af67f51e63b7580e29cacc055533e70fc08301e1",
+      "date": "2026-09-06",
+      "subject": "docs(desktop): manifest v2 \u2014 option-2 scope, N-BrowserWindow model",
+      "files": [
+        "ADS-memory/reports/2026-09-06-runner-ui-port-manifest-v2.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "6a0bd61c8c890bbe60f4932d4d1aded1db2ba2fc",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): port the Runner preload and add TOVU_DESKTOP_UI=runner",
+      "files": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/preload/preload.test.cjs",
+        "apps/desktop/src/runner-ipc-stubs.cjs",
+        "apps/desktop/src/runner-ipc-stubs.test.cjs"
+      ],
+      "code": [
+        "apps/desktop/main.cjs",
+        "apps/desktop/src/preload/preload.mts",
+        "apps/desktop/src/runner-ipc-stubs.cjs"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "4c75f4c0f5fdaa1e23845f587ad0ec777ba0a06c",
+      "date": "2026-09-06",
+      "subject": "feat(desktop): port Tovu-Runner s renderer and shared contracts",
+      "files": [
+        "apps/desktop/src/contracts/chat-attachments.ts",
+        "apps/desktop/src/contracts/fleet-chat.ts",
+        "apps/desktop/src/contracts/fleet-conversations.ts",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/contracts/runtime-inventory.ts",
+        "apps/desktop/src/contracts/sections.ts",
+        "apps/desktop/src/contracts/site-assistant-tools.ts",
+        "apps/desktop/src/contracts/working-directory.ts",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx",
+        "apps/desktop/src/renderer/ProjectGrid.hooks.ts",
+        "apps/desktop/src/renderer/ProjectGrid.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/chat-attachments.ts",
+        "apps/desktop/src/renderer/electron-webview.d.ts",
+        "apps/desktop/src/renderer/fleet-chat-transport.ts",
+        "apps/desktop/src/renderer/folder-drop.ts",
+        "apps/desktop/src/renderer/icons.tsx",
+        "apps/desktop/src/renderer/index.html",
+        "apps/desktop/src/renderer/main.tsx",
+        "apps/desktop/src/renderer/persistable-messages.ts",
+        "apps/desktop/src/renderer/project-status.ts",
+        "apps/desktop/src/renderer/public/brand/gold-runner-1.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-2.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-3.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-4.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-5.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-icon.png",
+        "apps/desktop/src/renderer/public/remixicon.woff2",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/renderer/theme.ts"
+      ],
+      "code": [
+        "apps/desktop/src/contracts/chat-attachments.ts",
+        "apps/desktop/src/contracts/fleet-chat.ts",
+        "apps/desktop/src/contracts/fleet-conversations.ts",
+        "apps/desktop/src/contracts/project.ts",
+        "apps/desktop/src/contracts/runtime-inventory.ts",
+        "apps/desktop/src/contracts/sections.ts",
+        "apps/desktop/src/contracts/site-assistant-tools.ts",
+        "apps/desktop/src/contracts/working-directory.ts",
+        "apps/desktop/src/renderer/App.hooks.ts",
+        "apps/desktop/src/renderer/App.tsx",
+        "apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx",
+        "apps/desktop/src/renderer/ProjectGrid.hooks.ts",
+        "apps/desktop/src/renderer/ProjectGrid.tsx",
+        "apps/desktop/src/renderer/app.css",
+        "apps/desktop/src/renderer/chat-attachments.ts",
+        "apps/desktop/src/renderer/electron-webview.d.ts",
+        "apps/desktop/src/renderer/fleet-chat-transport.ts",
+        "apps/desktop/src/renderer/folder-drop.ts",
+        "apps/desktop/src/renderer/icons.tsx",
+        "apps/desktop/src/renderer/index.html",
+        "apps/desktop/src/renderer/main.tsx",
+        "apps/desktop/src/renderer/persistable-messages.ts",
+        "apps/desktop/src/renderer/project-status.ts",
+        "apps/desktop/src/renderer/public/brand/gold-runner-1.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-2.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-3.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-4.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-5.png",
+        "apps/desktop/src/renderer/public/brand/gold-runner-icon.png",
+        "apps/desktop/src/renderer/public/remixicon.woff2",
+        "apps/desktop/src/renderer/runner-api.ts",
+        "apps/desktop/src/renderer/theme.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "10fb9215bdcd506de0f767f82ce5032b27889b05",
+      "date": "2026-09-06",
+      "subject": "build(desktop): stand up the renderer build inside apps/desktop",
+      "files": [
+        "apps/desktop/package-lock.json",
+        "apps/desktop/package.json",
+        "apps/desktop/tsconfig.preload.json",
+        "apps/desktop/tsconfig.renderer.json",
+        "apps/desktop/vite.config.mts"
+      ],
+      "code": [
+        "apps/desktop/package-lock.json",
+        "apps/desktop/package.json",
+        "apps/desktop/tsconfig.preload.json",
+        "apps/desktop/tsconfig.renderer.json",
+        "apps/desktop/vite.config.mts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "098e3466d9d7b2abf5e41f71209a937d0e6cf125",
+      "date": "2026-09-06",
+      "subject": "docs(desktop): record the Tovu-Runner UI port manifest before any code lands",
+      "files": [
+        "ADS-memory/reports/2026-09-06-runner-ui-port-manifest.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "46513d83ee27d3df9a61ffe569168874ae279d92",
+      "date": "2026-09-06",
+      "subject": "docs(ads-memory): hand off tovu-c0 \u2014 three owner-only commands, and apps/desktop never launched",
+      "files": [
+        "ADS-memory/reports/2026-09-06-tovu-c0-handoff.md"
+      ],
+      "code": [],
+      "status": "skipped",
+      "reason": "No in-scope production code (documentation/tests/generated or outside apps)."
+    },
+    {
+      "sha": "32af580297bc557c3542df4afadddc0b7e8346df",
+      "date": "2026-09-06",
+      "subject": "docs(index): record the reverted HTTP/2 attempt (Node-core crash, reproduced 3x)",
+      "files": [
+        "apps/website/src/index.ts"
+      ],
+      "code": [
+        "apps/website/src/index.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "2cd019cd19a73409d44ecf1bdf9b92e456d61d0a",
+      "date": "2026-09-06",
+      "subject": "fix(assistant,settings): drop the Connection header on HTTP/2 SSE streams",
+      "files": [
+        "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+        "apps/website/src/server/runtime/composition/modules/site-assistant.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+        "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+        "apps/website/src/server/runtime/composition/modules/site-assistant.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "848ddd09573d986b8ec873c439f7c37172745c54",
+      "date": "2026-09-06",
+      "subject": "fix(admin-dev-proxy): strip hop-by-hop headers before relaying Vite's response",
+      "files": [
+        "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+        "apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts"
+      ],
+      "code": [
+        "apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "d131619d3fabf953672eee10cf1961d9d82f2acb",
+      "date": "2026-09-06",
+      "subject": "feat(site-dir): add repairSite \u2014 write marker files into a pre-marker-convention site",
+      "files": [
+        "apps/website/src/platform/site-dir/__tests__/integration/repair-site.integration.test.ts",
+        "apps/website/src/platform/site-dir/repair-site.ts",
+        "development/scripts/__tests__/repair-site.test.ts",
+        "development/scripts/repair-site.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/site-dir/repair-site.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    },
+    {
+      "sha": "8a14b56af33def5cc2814cdb90c23743566a1349",
+      "date": "2026-09-06",
+      "subject": "refactor(site-dir): extract readAppliedSchemaIdentity, shared by the boot guard and repair-site",
+      "files": [
+        "apps/website/src/platform/site-dir/read-applied-schema-identity.ts",
+        "apps/website/src/server/runtime/boot/content-db-schema-guard.ts"
+      ],
+      "code": [
+        "apps/website/src/platform/site-dir/read-applied-schema-identity.ts",
+        "apps/website/src/server/runtime/boot/content-db-schema-guard.ts"
+      ],
+      "status": "pending",
+      "reason": ""
+    }
+  ]
+}
