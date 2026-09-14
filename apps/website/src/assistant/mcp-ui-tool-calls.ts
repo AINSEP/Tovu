@@ -35,6 +35,14 @@
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "content_post_delete",
+  // 2026-09-13 (SPEC-052) — `supabase_set_access_token` and `supabase_set_project_scope`
+  // (`features/supabase-connect/tool-registrations.ts`) hold up the SAME held-open-exchange shape
+  // `custom_credential_set_token` does: each opens a `SurfaceExchangeStore` exchange and parks on the
+  // human's form submission. One seals a Supabase access token, the other scopes the connection to a
+  // project — both durable writes the human must submit themselves. Without these entries every
+  // submission of either form is refused with 403.
+  "supabase_set_access_token",
+  "supabase_set_project_scope",
   // 2026-08-15 — `deployment_execute_static_publish` (`features/deployments/publish-agent-tools.ts`)
   // holds up the SAME shape `content_post_delete` does: its handler opens a `SurfaceExchangeStore`
   // exchange and parks on `ctx.emitSurface` until this endpoint delivers the human's confirm/cancel

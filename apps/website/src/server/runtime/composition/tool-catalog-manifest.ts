@@ -37,6 +37,7 @@ import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-re
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
+import { contributeSupabaseConnectTools } from "#src/features/supabase-connect/tool-registrations";
 import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
 
@@ -276,6 +277,8 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeSitesTools());
   registerToolContributor(contributeSourceControlTools());
   registerToolContributor(contributeStaticPublishTools());
+  // SPEC-052 — the `supabase` agent plugin's two in-chat forms (access-token fallback, project scope).
+  registerToolContributor(contributeSupabaseConnectTools());
   registerToolContributor(contributeTaxonomyTools());
   registerToolContributor(contributeThemesTools());
   registerToolContributor(contributeWidgetsTools());

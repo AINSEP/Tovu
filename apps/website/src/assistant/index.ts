@@ -218,7 +218,18 @@ export {
   toResolvedFederatedConnections,
   resolveExternalMcpAuthMode,
   resolveExternalMcpOAuthStatus,
+  // Added 2026-09-13 (features/supabase-connect, SPEC-052): `supabase_set_project_scope` opens the
+  // `supabase` row's sealed static access token to list the account's projects — the same opener
+  // the store's own boot path uses, rather than a second decrypt path.
+  openExternalMcpOAuthPayload,
 } from "./external-mcp-store.js";
+export {
+  SUPABASE_MCP_URL,
+  buildScopedSupabaseMcpUrl,
+  isSupabaseMcpUrl,
+  readSupabaseMcpScope,
+  supabaseMcpScopeFailure,
+} from "./supabase-mcp-scope.js";
 export type {
   ExternalMcpAuthMode,
   ExternalMcpOAuthStatus,

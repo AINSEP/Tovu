@@ -423,6 +423,11 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   custom_credential_create:
     "credential add new create save connect account api key token provider registrar hosting third-party " +
     "service dns fly.io name.com",
+  // 2026-09-13 (SPEC-052) — the supabase agent plugin's two form tools.
+  supabase_set_access_token:
+    "supabase connect token access personal access token pat login sign in fallback database postgres save secret",
+  supabase_set_project_scope:
+    "supabase project pick choose select scope connect database postgres read-only read only",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by

@@ -124,6 +124,8 @@ const EXPECTED_ALLOWLIST = [
   "media_trash_asset",
   "redirects_tombstone",
   "source_control_execute_commit",
+  "supabase_set_access_token",
+  "supabase_set_project_scope",
   "theme_trash_file",
   "webhooks_delete_subscription",
   "widgets_trash_instance",

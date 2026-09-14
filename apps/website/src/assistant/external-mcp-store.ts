@@ -4,6 +4,7 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/we
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
 import type { McpLaunchSpec } from "./mcp-federation/ports.js";
 import { assertValidConnectionId } from "./mcp-federation/trust.js";
+import { supabaseMcpScopeFailure } from "./supabase-mcp-scope.js";
 
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
@@ -881,6 +882,10 @@ async function resolveExternalMcpConfig(
   if (!SUPPORTED_EXTERNAL_MCP_TRANSPORTS.includes(transport)) {
     return externalMcpFailure(record, `unsupported transport '${record.transport}'`);
   }
+  // SPEC-052 INV-04: a connection to Supabase's hosted server with no project selected would reach
+  // every project in the account, so it is reported rather than offered. Checked before any unseal.
+  const scopeFailure = supabaseMcpScopeFailure(record.url);
+  if (scopeFailure !== null) return externalMcpFailure(record, scopeFailure);
 
   const opened = await openExternalMcpEnv(record, sealer);
   if (!opened.ok) return externalMcpFailure(record, opened.reason);
