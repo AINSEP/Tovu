@@ -23,7 +23,7 @@ must be true, and each one fails differently:
 
 | What | Where it is set | How it fails if missing |
 |---|---|---|
-| The `supabase` plugin is enabled | Agent Plugins admin screen | No `supabase` connection row exists at all |
+| The `supabase` plugin is enabled | `plugins_set_enabled` (family `agent-plugin`, operator confirms) or the Agent Plugins admin screen | No `supabase` connection row exists at all |
 | A credential is stored | `external_mcp_oauth_connect`, or `supabase_set_access_token` as the fallback | The connection reports it has not been authorized yet |
 | Exactly one project is selected | `supabase_set_project_scope` | The connection reports that no Supabase project has been selected yet, and no `mcp__supabase__*` tool exists |
 | The connection is enabled and the tool is allowlisted | Settings → External MCP | Tool is refused `not-in-operator-allowlist`; you never see it |
@@ -35,10 +35,13 @@ Check `external_mcp_list` first and read what actually exists before you start a
 
 ## Connecting from zero
 
-**Step A — the plugin must be enabled, and you cannot do it.** If `supabase` is not installed or
-not enabled, explain what it does and ask the operator to open the **Agent Plugins** admin screen,
-turn `supabase` on, and **restart the assistant**. Do not call any Supabase tool before that — the
-`supabase` connection row does not exist until the plugin is enabled.
+**Step A — the plugin must be enabled, and only the operator can approve it.** If `supabase` is
+not enabled, explain what it does and offer to turn it on. Once the operator agrees, call
+`plugins_set_enabled { family: "agent-plugin", pluginId: "supabase", enabled: true }` — it opens a
+confirmation dialog they must approve — or they can turn `supabase` on from the **Agent Plugins**
+admin screen. If it is not installed at all, that call is refused; ask the operator to install it
+first. Either way, ask them to **restart the assistant** afterwards. Do not call any Supabase tool
+before that — the `supabase` connection row does not exist until the plugin is enabled.
 
 **Step B — OAuth first, always.** Call `external_mcp_oauth_connect { id: "supabase" }`. Tovu
 discovers Supabase's endpoints and registers its own client (RFC 9728 / 8414 discovery, RFC 7591

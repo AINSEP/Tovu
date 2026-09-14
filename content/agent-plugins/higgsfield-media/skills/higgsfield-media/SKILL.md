@@ -77,16 +77,17 @@ This is the path for an operator who has **no Higgsfield connection at all**. Do
 steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —
 check `content_read.external_mcp` (or `external_mcp_list`) first and see what actually exists.
 
-**Step A — the plugin itself must be enabled, and you cannot do it.**
+**Step A — the plugin itself must be enabled, and only the operator can approve it.**
 `higgsfield-media` ships bundled but **disabled** (`seed-bundled.ts` writes
 `{ enabled: false, origin: "bundled" }` on first boot). `search_agent_plugin_local` *will* still
 find it while disabled — that is deliberate, and it is how you got here. But a disabled plugin gets
-no `agent_plugin_higgsfield_media` tool, and **no assistant tool wraps `AGENT_PLUGIN_SET_ENABLED`**
-(`features/agent-plugins/uninstall.ts` says so in as many words). So:
+no `agent_plugin_higgsfield_media` tool. So:
 
-> Ask the operator to open the **Agent Plugins** admin screen and turn `higgsfield-media` on, then
-> **restart the assistant**. Per-plugin tools are registered once, in `agent-daemon-server.ts`'s
-> boot sequence, so the plugin's own tool does not appear until that restart.
+> Offer to turn it on. Once the operator agrees, call `plugins_set_enabled` with
+> `family: "agent-plugin"`, `pluginId: "higgsfield-media"`, `enabled: true` — it opens a
+> confirmation dialog they must approve — or they can turn it on from the **Agent Plugins** admin
+> screen. Then ask them to **restart the assistant**. Per-plugin tools are registered once, in
+> `agent-daemon-server.ts`'s boot sequence, so the plugin's own tool does not appear until that restart.
 
 Enabling is preserved across boots (`recordBundledAgentPluginIfAbsent` never overwrites an existing
 decision), so this is a one-time step.
