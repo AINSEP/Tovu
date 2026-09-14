@@ -36,7 +36,7 @@
   "notMeasured": [
     {
       "what": "main.ts",
-      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The nine main-*-wiring.test.js files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
+      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The six main-*-wiring.test.ts files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
     },
     {
       "what": "src/renderer/*.tsx",
