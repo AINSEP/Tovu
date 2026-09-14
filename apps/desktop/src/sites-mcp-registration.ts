@@ -104,7 +104,7 @@ interface SitesMcpRegistrationBody {
  *  `AuthResponse`, the `data` listener here is actually read for the response body. */
 interface AdminHttpResponse {
   statusCode: number;
-  on(event: "data", listener: (chunk: string) => void): unknown;
+  on(event: "data", listener: (chunk: Buffer) => void): unknown;
   on(event: "end", listener: () => void): unknown;
 }
 

@@ -53,7 +53,7 @@ interface SiteRow {
   siteDir: string;
   createdAt: string;
   origin?: string;
-  siteId?: string;
+  siteId?: string | null;
 }
 
 /** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
@@ -187,7 +187,7 @@ interface AdoptSiteDirInput {
   repoRoot: string;
   statePath: string;
   name?: string;
-  cliMode?: string;
+  cliMode?: "source" | "compiled";
 }
 
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.js`'s real
@@ -322,11 +322,7 @@ async function handleCreate(
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
   // at a path, and a path is not an identity. See `project-delete-guard.js`'s test 3.
-  // TOO-NARROW DEPENDENCY TYPE (reported, not cast — see handoff): `readSiteIdentity` (project-delete-guard.ts)
-  // returns `string | null`, but `trackSite`'s own `TrackSiteOptions.siteId` (tracked-sites.ts) is typed
-  // `string | undefined` and does not admit `null`, even though `buildTrackedRow`'s `typeof siteId === "string"`
-  // check treats null and undefined identically at runtime. Left as a genuine strict-tsc error per the
-  // migration rules rather than cast past.
+  // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
   return buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps);
@@ -667,7 +663,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
  *   operation on the same site takes to settle.
  */
-async function handleStart(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
+async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -701,22 +697,11 @@ async function handleStart(id: string, deps: Pick<ProjectIpcDeps, "serializer" |
  *   generally do not live under any scan root.
  * @returns the same records {@link handleList} would return, after the pass.
  * @complexity O(n) in the scanned child count, times the registry size.
- *
- * **Too-narrow dependency type, reported rather than cast (see handoff):**
- * `discoverSiteDirs`'s own `classifySiteDir` parameter (`tracked-sites.ts`'s unexported
- * `ClassifySiteDirFn`) is typed to return only `SiteClassification`'s four values, but every real
- * caller of `deps.classifySiteDir` in this codebase (`main.js`'s production wiring, and this file's
- * own `add-site-button-wiring.test.ts`) passes `classifySiteDirSafely`, which can also return
- * `"unreadable"` (`site-dir-store.ts:187`). `deps.classifySiteDir` is typed here to match that real,
- * wider value (`ProjectIpcDeps.classifySiteDir`, below), so the call one line down is the one place
- * that friction surfaces as a strict error rather than being silently narrowed by a cast.
  */
 function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion">) {
   const found = discoverSiteDirs({
     scanRoots: deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
-    // TOO-NARROW DEPENDENCY TYPE (reported, not cast — see this function's own doc above): left as a
-    // genuine strict-tsc error rather than cast past it.
     classifySiteDir: deps.classifySiteDir,
   });
   adoptDiscoveredSites(deps.projectsPath, found);
@@ -769,7 +754,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — nine registrations.
  */
-function registerSiteIpcHandlers(deps: ProjectIpcDeps): void {
+function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
@@ -786,7 +771,7 @@ function registerSiteIpcHandlers(deps: ProjectIpcDeps): void {
  * only the `Pick` of this it actually reads, so a caller wiring one handler in isolation (as this
  * file's own tests do) never has to fabricate the fields it does not touch.
  */
-interface ProjectIpcDeps {
+interface ProjectIpcDeps<TCtx = unknown> {
   ipcMain: IpcMainLike;
   dialog: DialogLike;
   shell: ShellLike;
@@ -796,7 +781,7 @@ interface ProjectIpcDeps {
   registryPath: string;
   repoRoot: string;
   statePath: string;
-  cliMode: string;
+  cliMode: "source" | "compiled";
   readSiteName: (siteDir: string) => string;
   writeSiteName: (siteDir: string, rawName: unknown) => string;
   readPreviewVersion: (siteDir: string) => number | null;
@@ -804,19 +789,16 @@ interface ProjectIpcDeps {
   deletePreview: (id: string) => void;
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
-  // Loosened to a plain `string`-returning classifier, matching `add-site-pointer.ts`'s own
-  // `SiteDirClassifierFn` convention: every real value assigned here (`classifySiteDirSafely`, the
-  // throwing `classifySiteDir`, or a test's `() => "empty"`) returns some subtype of `string`, and
-  // this file only ever compares the result with `===` against specific literals. See
-  // `rescanSites`'s own doc for the one place this looseness meets a narrower dependency type.
-  classifySiteDir: (dir: string) => string;
-  openSiteServer: (siteDir: string, ctx: unknown) => Promise<void>;
+  // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
+  // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
+  classifySiteDir: (dir: string) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
+  openSiteServer: (siteDir: string, ctx: TCtx) => Promise<unknown>;
   recordSiteClosed: (registryPath: string, siteDir: string, options?: { pid?: number }) => void;
   readRegistry: (registryPath: string) => { sites: RegistryRow[] };
   isLiveServeRow: (row: RegistryRow) => boolean;
   siteScanRoots: string[];
   recentSiteDirs: () => string[];
-  ctx: unknown;
+  ctx: TCtx;
 }
 
 export {
