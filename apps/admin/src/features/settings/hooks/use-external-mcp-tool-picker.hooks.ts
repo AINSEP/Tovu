@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, describeApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
 import { useFetchQuery } from "@/lib/fetch-query";
 
 import {
   countEnabledToolRows,
+  describeProbeUnreachable,
   isToolPickerDirty,
   seedToolPickerRows,
   setToolRowEnabled,
@@ -153,7 +154,7 @@ export function useExternalMcpToolPicker(deps: {
     loading: active && probe.status === "loading",
     refreshing: probe.isFetching,
     unreachable: probe.error
-      ? describeApiError(probe.error, "Could not reach this server. You can still type tool names by hand.")
+      ? describeProbeUnreachable(probe.error, "Could not reach this server. You can still type tool names by hand.")
       : null,
     rows,
     advertisedCount: tools.length,

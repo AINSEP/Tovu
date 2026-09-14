@@ -3,6 +3,8 @@ import { useT } from "@jini-ai/ui";
 
 import type { Translate } from "@/lib/dictionary-translator";
 
+import { SeeMore } from "../../components/SeeMore/SeeMore";
+
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
 import {
   describeToolCount,
@@ -11,7 +13,7 @@ import {
   toolPickerHandle,
   useToolRowHandles,
 } from "./ExternalMcpToolPicker.hooks";
-import { isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
+import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
 
 /**
@@ -94,7 +96,24 @@ function ToolPickerRowItem(props: {
         </p>
       ) : null}
 
-      {row.description ? <p className="external-mcp-tool-description">{row.description}</p> : null}
+      {/* `displayToolDescription` strips the `[EXTERNAL TOOL — provided by '...']` wrapper for
+          THIS RENDER ONLY — `row.description` itself keeps carrying it, since that same string
+          (via `describeRemoteToolSurface`/`describeFederatedTool`) is what actually reaches the
+          model; see that function's own doc. `SeeMore` clamps a long one to 3 lines rather than
+          running the row out to the description's full R6-capped length — this list can be 101
+          rows deep, and an operator scanning it should not have to scroll past one tool's essay to
+          reach the next tool's checkbox. */}
+      {row.description ? (
+        <SeeMore
+          lines={3}
+          className="external-mcp-tool-description-wrap"
+          textClassName="external-mcp-tool-description"
+          toggleAriaLabel={`See more of ${row.remoteName}'s description`}
+          agentHandle={`${handle}-description-toggle`}
+        >
+          {displayToolDescription(row.description)}
+        </SeeMore>
+      ) : null}
 
       {/* Only for a tool that declares it writes — see this file's header. A locked row renders no
           write control either: its allowlist grant is refused outright, so a write grant on top of

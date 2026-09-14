@@ -20,9 +20,15 @@
  *
  * The live higgsfield connection advertises 101 tools. `.external-mcp-tool-list` is a FIXED-HEIGHT
  * scrolling container so a wide-open server cannot grow the settings panel to match it, and every
- * row inside wraps long names/descriptions (`overflow-wrap: anywhere`) rather than clipping or
- * truncating them — content stays fully visible, just taller. jsdom cannot verify either property
- * (no real layout engine), so both are verified live in the browser, not by a component test.
+ * row's tool NAME wraps (`overflow-wrap: anywhere`) rather than clipping or forcing the row wider.
+ * jsdom cannot verify either property (no real layout engine), so both are verified live in the
+ * browser, not by a component test.
+ *
+ * A row's DESCRIPTION no longer follows that "always fully visible" rule (2026-09-13, owner: the
+ * wrapped third-party text ran long enough per row to dominate a 101-row list) — it clamps to 3
+ * lines via `SeeMore` (`ExternalMcpToolPicker.tsx`), with a "See more" toggle rather than a second
+ * scroll-within-a-scroll. Text still is never SLICED — `SeeMore`'s own header explains why the full
+ * string stays in the DOM, just visually clamped, so in-page search and screen readers still see it.
  */
 
 .external-mcp-source + .external-mcp-source {
@@ -232,11 +238,19 @@
   white-space: nowrap;
 }
 
-.external-mcp-tool-description {
+/* `SeeMore`'s wrapper (2026-09-13) — passed as its `className`, so this carries only the row's own
+   spacing. The clamp mechanics live in `see-more.css`; typography lives on `.external-mcp-tool-
+   description` below, passed as `textClassName` per that component's own contract (`see-more.css`
+   deliberately sets no color/size of its own, so a caller's `textClassName` wins outright). */
+.external-mcp-tool-description-wrap {
   margin: 0.3rem 0 0;
+}
+
+.external-mcp-tool-description {
   color: var(--faint);
   font-size: 0.8rem;
-  /* Descriptions can run long (R6-capped, but still up to that cap) — they wrap, never truncate. */
+  /* R6-capped, but still up to that cap — the text itself still wraps rather than overflowing
+     sideways once `SeeMore`'s 3-line clamp is showing (or lifted via "See more"). */
   overflow-wrap: anywhere;
 }
 
