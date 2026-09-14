@@ -125,18 +125,20 @@ describe("Administration nav section — workspace", () => {
 });
 
 describe("Operations nav section — observability", () => {
-  it("observability is a fully enabled link, not a soon/preview-gated one", () => {
-    // Same "enabled, not soon" guarantee `agent-plugins` asserts for Add-Ons above — the owner's
-    // explicit ask for this entry (`development/todos.md`, 2026-09-09) was that it be clickable
-    // now, not a disabled preview.
+  // Reversed 2026-09-13 (owner screenshot review) from the 2026-09-09 "fully enabled, not soon"
+  // decision this test used to assert: the row now carries the SAME `soon` + `soonPreviewable`
+  // shape as `comments` in the People/Content sections — a "Soon" badge and the greyed `is-soon`
+  // treatment, but still a real, clickable `<a>` (`Sidebar.js`'s `item.soon && item.soonPreviewable`
+  // branch renders an active link, not the disabled `is-soon` div a bare `soon: true` alone would).
+  it("observability carries the soon badge but stays clickable (soon + soonPreviewable)", () => {
     const operations = getNav().find((group) => group.label === "Operations");
     expect(operations).toBeDefined();
 
     const item = operations!.items.find((i) => i.id === "observability");
     expect(item).toBeDefined();
     expect(item?.label).toBe("Observability");
-    expect(item?.soon).toBeFalsy();
-    expect(item?.soonPreviewable).toBeFalsy();
+    expect(item?.soon).toBe(true);
+    expect(item?.soonPreviewable).toBe(true);
   });
 
   it("sits ahead of Activity Log and Import & Export, the two still-unbuilt Operations rows", () => {

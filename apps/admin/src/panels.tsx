@@ -961,20 +961,28 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // tagging plan).
   },
   {
-    // `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09): a real,
-    // enabled Operations row, not `soon`/`Placeholder` — the owner explicitly wants this clickable
-    // now. Renders `Observability.tsx`, a real screen whose Overview tab reads REAL current state
-    // over `GET .../system/observability-status` (own `hooks/use-observability-status.hooks.ts`),
-    // same "a real, non-Placeholder component sets `agentReachable: true` explicitly" convention
-    // this file's `agent-plugins` entry documents. Positioned directly ahead of Activity Log /
-    // Import & Export (both still `soon`, unbuilt) — same "a BUILT screen belongs beside its
-    // nearest neighbours in meaning, not buried under panels nobody can use yet" reasoning
-    // `deployment`'s own comment gives for its position relative to Recovery.
+    // `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09) first shipped
+    // this as a real, fully-enabled Operations row with no `soon` badge. Reversed 2026-09-13 (owner
+    // screenshot review): the row now carries `soon: true` + `soonPreviewable: true` — the exact
+    // shape `comments` above already documents — so it reads as "not finished yet" alongside its
+    // still-`soon` neighbours (Activity Log, Import & Export) while staying a real `<a>` (active
+    // state, aria-current, rail tooltip all intact — `Sidebar.js`'s own `item.soon &&
+    // item.soonPreviewable` branch) rather than the disabled `is-soon` div a bare `soon: true` alone
+    // would render. Renders `Observability.tsx`, a real screen whose Overview tab reads REAL current
+    // state over `GET .../system/observability-status` (own
+    // `hooks/use-observability-status.hooks.ts`), same "a real, non-Placeholder component sets
+    // `agentReachable: true` explicitly" convention this file's `agent-plugins` entry documents.
+    // Positioned directly ahead of Activity Log / Import & Export (both still `soon`, unbuilt) —
+    // same "a BUILT screen belongs beside its nearest neighbours in meaning, not buried under panels
+    // nobody can use yet" reasoning `deployment`'s own comment gives for its position relative to
+    // Recovery.
     id: "observability",
     render: () => <Observability />,
     nav: {
       label: "Observability",
       group: "Operations",
+      soon: true,
+      soonPreviewable: true,
       // A monitor with a pulse line — distinct from every sibling Operations icon (database's
       // ellipse-stack, integrations' zigzag, recovery's circular arrow, deployment's shield-ish
       // arc, source-control's two-nodes, access-tokens' shield).
