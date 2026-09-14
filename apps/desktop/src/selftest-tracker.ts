@@ -1,12 +1,12 @@
 /**
- * @file Tracks window load outcomes for `TOVU_DESKTOP_SELFTEST=1`, split out of `main.js` so the
+ * @file Tracks window load outcomes for `TOVU_DESKTOP_SELFTEST=1`, split out of `main.ts` so the
  * completion/failure semantics are directly testable under plain `node --test` — this module has no
  * `electron` import at all; it only needs a window shaped `{ webContents: { once(event, cb),
  * getURL(), getTitle() } }`, which a fake object can satisfy just as well as a real `BrowserWindow`.
  *
  * Reporting and process control (the `console.log`/`process.exitCode`/`app.quit()` a real self-test
  * run needs) are NOT done here — they are the three injected callbacks below — so this file stays a
- * pure completion tracker and `main.js` keeps the only code that actually touches Electron or the
+ * pure completion tracker and `main.ts` keeps the only code that actually touches Electron or the
  * process.
  *
  * Two, not one, ordering hazards had to be closed together — fixing only the first re-created the
@@ -15,10 +15,10 @@
  * 1. **Registration must happen per-window, at creation time, not after the whole batch is open.**
  *    A single-site launch's own window finishes loading in well under a second; a multi-site
  *    launch's FIRST window can finish loading while its SECOND site's `tovu serve` is still booting
- *    (`loadURL` is fire-and-forget, and `main.js` opens each site in its startup loop sequentially).
+ *    (`loadURL` is fire-and-forget, and `main.ts` opens each site in its startup loop sequentially).
  *    Registering `did-finish-load` listeners only after every window in the batch exists would miss
  *    an earlier window's event entirely — Electron does not replay a past event to a listener
- *    attached after the fact. `main.js`'s `createWindow` therefore calls this tracker's `add()` the
+ *    attached after the fact. `main.ts`'s `createWindow` therefore calls this tracker's `add()` the
  *    INSTANT each window is created, before that window's own `loadURL` call.
  * 2. **The expected window COUNT must be fixed upfront, not incremented as each window is added.**
  *    Fixing (1) alone by incrementing a counter inside `add()` reintroduced a worse failure: if

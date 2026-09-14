@@ -51,7 +51,7 @@ function declaredChannels(): Set<string> {
 
 /**
  * Channels the Projects screen needs for real, given real handlers in `project-ipc.js` (registered
- * in `main.js` before `registerRunnerIpcStubs` runs) — see `SITE_IPC_CHANNELS`'s own doc.
+ * in `main.ts` before `registerRunnerIpcStubs` runs) — see `SITE_IPC_CHANNELS`'s own doc.
  * Declared by the contracts, on purpose absent from `RUNNER_STUB_CHANNELS`: a real handler and a
  * stub for the same channel is a duplicate `ipcMain.handle` registration, which Electron itself
  * refuses. `stop` stays stubbed — no control in the per-project bar calls it yet — so it is NOT in

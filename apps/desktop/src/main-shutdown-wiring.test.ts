@@ -1,12 +1,12 @@
 /**
- * @file Static-analysis tests for `../main.js`'s shutdown wiring (D-09) — that a window's `closed`
+ * @file Static-analysis tests for `../main.ts`'s shutdown wiring (D-09) — that a window's `closed`
  * teardown is TRACKED, that `before-quit` waits for it, that the crash-safety row outlives the
  * child, and that an old window's close cannot drop a replacement entry.
  *
- * Source text, for the reason `main-speech-wiring.test.js` documents at length: `main.js`
+ * Source text, for the reason `main-speech-wiring.test.js` documents at length: `main.ts`
  * requires `"electron"` at module scope, so `require`-ing it under plain `node --test` crashes
  * before proving anything. The drain's own behaviour is covered where it lives
- * (`shutdown-tracker.test.js`); what only this file can check is that `main.js` uses it, and in
+ * (`shutdown-tracker.test.js`); what only this file can check is that `main.ts` uses it, and in
  * the one arrangement where the use is correct.
  */
 import test from "node:test";
@@ -31,7 +31,7 @@ function closedHandler() {
 }
 
 /** Just the `app.on("before-quit", ...)` handler, up to its closing `});`. Anchored at a line start:
- *  a doc comment earlier in main.js mentions `app.on("before-quit")` in prose. */
+ *  a doc comment earlier in main.ts mentions `app.on("before-quit")` in prose. */
 function beforeQuitHandler() {
   const start = source.indexOf('\napp.on("before-quit", ');
   assert.notEqual(start, -1, 'expected an app.on("before-quit", ...) handler in main.ts');

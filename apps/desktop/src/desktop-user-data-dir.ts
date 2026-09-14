@@ -1,7 +1,7 @@
 /**
  * @file Where this app's `userData` directory is, computed WITHOUT Electron.
  *
- * `main.js` never needs this — it has `app.getPath("userData")`. The CLI does: `tovu-desktop
+ * `main.ts` never needs this — it has `app.getPath("userData")`. The CLI does: `tovu-desktop
  * add-site` is a plain Node process that must edit the very same `desktop-projects.json` the running
  * app renders, and the MCP bridge is handed the path on argv precisely so it does not have to guess.
  * So this exists for exactly one caller, and its correctness is the CLI's whole correctness.
@@ -19,7 +19,7 @@
  * 3. The CLI PRINTS the directory it resolved on every run (`bin/tovu-desktop.ts`), so a wrong
  *    answer is visible to the operator immediately instead of being discovered as a missing card.
  *
- * `TOVU_DESKTOP_USER_DATA_DIR` is honoured first, which is the same override `main.js:139-141`
+ * `TOVU_DESKTOP_USER_DATA_DIR` is honoured first, which is the same override `main.ts:183-184`
  * applies via `app.setPath` — reused rather than reinvented so the app and the CLI cannot be pointed
  * at two different directories by the same environment.
  */

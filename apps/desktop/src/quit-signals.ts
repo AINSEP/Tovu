@@ -1,5 +1,5 @@
 /**
- * @file Route SIGINT/SIGTERM/SIGHUP into `main.js`'s graceful quit exactly once, so a termination
+ * @file Route SIGINT/SIGTERM/SIGHUP into `main.ts`'s graceful quit exactly once, so a termination
  * signal stops every open site's `tovu serve` instead of stranding it.
  *
  * **The defect this exists for.** `kill -TERM <dev-desktop.mjs>` left `tovu serve` running with PPID 1,
@@ -17,7 +17,7 @@
  *   `tovu-server.js` spawns `detached`, so the child was outside every group kill.
  *
  * A Node `process.on(signal)` listener is persistent, so it absorbs every copy. It only takes effect
- * once the app is READY: Chromium installs its handler after `main.js` has loaded, which silently
+ * once the app is READY: Chromium installs its handler after `main.ts` has loaded, which silently
  * replaces a listener registered at module load. The probe showed no module-load listener ever firing.
  *
  * **Once, not per copy.** Calling `app.quit()` for each copy re-enters `before-quit` while its drain

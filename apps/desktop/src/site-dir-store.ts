@@ -16,7 +16,7 @@
  * postinstall step and a second DB for nothing. The MRU is a JSON file in `userData` instead — same
  * solution, storage sized to the problem.
  *
- * No `electron` import, so all of it is testable under plain `node --test`; `main.js` supplies the
+ * No `electron` import, so all of it is testable under plain `node --test`; `main.ts` supplies the
  * `userData` path and the native folder dialog.
  */
 import fs from "node:fs";
@@ -169,7 +169,7 @@ function classifySiteDir(dir: string): SiteClassification {
  * their folder cannot be used. It was then reused, unchanged, as the filter predicate of two bulk
  * scans ({@link existingRecentSiteDirs} and `tracked-sites.js`'s `discoverSiteDirs`) — and a
  * predicate that throws turns "one candidate out of forty is unreadable" into "the whole list
- * fails". Both scans run inside `main.js`'s `app.whenReady()` chain, whose only handler is
+ * fails". Both scans run inside `main.ts`'s `app.whenReady()` chain, whose only handler is
  * `reportBootFailure`, and both run BEFORE any window is opened: one plain file where a remembered
  * site dir used to be, or one EACCES directory under `<repo>/sites`, showed the operator a dialog
  * and quit — with no way to fix it from inside the app, since the Rescan button never got a

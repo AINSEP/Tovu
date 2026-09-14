@@ -20,7 +20,7 @@
  * the freshly built `app.asar` and turns the result into an exit code.
  *
  * Usage: node scripts/verify-package.ts [--asar <path-to-app.asar>]
- * Exit codes: 0 = every file under src/, bin/, main.js is byte-identical to source.
+ * Exit codes: 0 = every file under src/, bin/, main.ts is byte-identical to source.
  *             1 = a mismatch was found, or no app.asar could be located.
  */
 import { readdirSync, statSync } from "node:fs";

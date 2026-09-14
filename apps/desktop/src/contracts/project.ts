@@ -122,7 +122,7 @@ export const SITE_IPC_CHANNELS = {
   /**
    * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
    * no stored answer about, and return the refreshed list. Real (`project-ipc.js`'s
-   * `rescanSites`); `main.js` runs the same pass once at boot.
+   * `rescanSites`); `main.ts` runs the same pass once at boot.
    *
    * A project the operator REMOVED is never brought back by this, however many times it is
    * pressed — see `adoptDiscoveredSites` in `tracked-sites.js`. Their way back is the
@@ -152,7 +152,7 @@ export const SITE_IPC_CHANNELS = {
   addSite: 'runner:sites:add-site',
   /**
    * Change a site's display name — `config.json`'s `name`, which is where `readSiteName`
-   * (`main.js`) gets every card's `displayName`. Real (`project-ipc.js`'s `handleRename`).
+   * (`main.ts`) gets every card's `displayName`. Real (`project-ipc.js`'s `handleRename`).
    *
    * **Why this writes a file that `repairSite` refuses to overwrite.** `repairSite`
    * (`apps/website/src/platform/site-dir/repair-site.ts`) writes `config.json` too, and refuses

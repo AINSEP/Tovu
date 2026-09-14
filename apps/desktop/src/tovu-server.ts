@@ -3,7 +3,7 @@
  * supervise it for the life of the window.
  *
  * Deliberately free of any `electron` import. Everything here is plain Node, so every function is
- * directly assertable from `node --test` without an Electron runtime — `main.js` keeps the parts
+ * directly assertable from `node --test` without an Electron runtime — `main.ts` keeps the parts
  * that genuinely need `app`/`BrowserWindow` and nothing else. `spawnFn` is injectable for the same
  * reason: the supervision contract (ready, boot timeout, premature exit, graceful stop) is testable
  * against a fake child, so no test ever has to boot a real site.
@@ -199,7 +199,7 @@ interface CliSpawnPlan {
  * Build the `{ command, args }` to spawn for one Tovu CLI invocation (`serve` or `init`), in either
  * of two modes:
  *
- * - `"source"` (the default own-server mode uses, via `main.js`'s `TOVU_DESKTOP_CLI_MODE`) runs
+ * - `"source"` (the default own-server mode uses, via `main.ts`'s `TOVU_DESKTOP_CLI_MODE`) runs
  *   current TypeScript directly under `--import tsx` — see {@link resolveDevCliEntry} for why this
  *   is the mode that actually needs to exist.
  * - `"compiled"` runs the built `dist/` CLI via {@link resolveCliEntry} — this function's OWN
@@ -537,7 +537,7 @@ interface ExitSignal {
  *
  * The gap this closes (D-06): the only `exit` listener {@link startTovuServer} had fed its
  * single-settle `finish()`, which is a NO-OP once the boot line has already resolved the promise.
- * So nothing in this process observed a child dying AFTER it came up — `main.js`'s `openSites`
+ * So nothing in this process observed a child dying AFTER it came up — `main.ts`'s `openSites`
  * kept the dead handle, `buildSiteRecord` kept reporting `running`, and "Start site" handed the
  * corpse straight back instead of spawning a replacement.
  *

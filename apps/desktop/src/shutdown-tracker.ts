@@ -1,5 +1,5 @@
 /**
- * @file The set of teardowns that have been STARTED but have not finished, so `main.js`'s
+ * @file The set of teardowns that have been STARTED but have not finished, so `main.ts`'s
  * `before-quit` drain can wait for them.
  *
  * **The defect this exists for (D-09).** A site window's `closed` handler removes its entry from

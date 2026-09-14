@@ -1,5 +1,5 @@
 /**
- * @file The one holder of "which site dirs have a LIVE `tovu serve` right now" — `main.js`'s
+ * @file The one holder of "which site dirs have a LIVE `tovu serve` right now" — `main.ts`'s
  * `openSites` map, grown the one property it never had: it observes the child dying.
  *
  * **The defect this exists for (D-06).** `openSites` was a bare `Map`, and the audit's phrasing is
@@ -10,7 +10,7 @@
  * - `buildSiteRecord` (`project-ipc.js`) kept reporting `status: "running"` and the old port;
  * - `useSitesPolling`'s 4 s re-poll — whose own comment claims it is there to catch a crash —
  *   re-read a map that never changed, so the comment was false;
- * - `openSiteServer` (`main.js`) returned `already.server`, so "Start site" handed back the corpse
+ * - `openSiteServer` (`main.ts`) returned `already.server`, so "Start site" handed back the corpse
  *   and spawned nothing. Wedged for the rest of the session.
  *
  * Nothing was wrong with any individual reader. There was simply no component that owned the
@@ -72,7 +72,7 @@ interface SiteSupervisor<E extends SiteEntry> {
  *   right crash-safety row — `site-process-registry.ts` can hold a live sibling instance's row for the
  *   same site dir, and closing by site dir alone would take that one too (D-07).
  *   Injected rather than reaching for `site-process-registry.ts` directly so this module needs no
- *   `registryPath`, no filesystem, and no knowledge of what the caller does about it — `main.js`
+ *   `registryPath`, no filesystem, and no knowledge of what the caller does about it — `main.ts`
  *   drops the crash-safety row and logs; a test just records the call.
  * @returns a `Map`-compatible store with {@link lastExitOf} added.
  * @complexity O(1) to construct.

@@ -366,7 +366,7 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
 // The sink, not the primitive. `buildServeEnv` returning the right value proves nothing on its own:
 // the defect class this repo keeps hitting is a correct helper whose call site never passes its
 // result on. This asserts the variable is in the env the REAL spawn receives, through the one code
-// path `main.js` actually uses.
+// path `main.ts` actually uses.
 test("startTovuServer hands the spawned `tovu serve` a TOVU_AGENT_CWD, so the daemon it starts runs agents in the site dir rather than `/`", async () => {
   const child = fakeChild();
   let recorded: SpawnOptions | undefined;

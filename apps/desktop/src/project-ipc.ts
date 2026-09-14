@@ -1,12 +1,12 @@
 /**
  * @file Real handlers for the nine `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
- * `main.js` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
+ * `main.ts` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
  * that ever regresses (see `runner-ipc-stubs.js`'s own doc).
  *
  * `stop` is deliberately absent — no control in the per-project bar calls it yet; closing the app
- * (`before-quit`, `main.js`) or deleting the project (`handleDelete` below) are the two ways a
+ * (`before-quit`, `main.ts`) or deleting the project (`handleDelete` below) are the two ways a
  * sites-home-opened site stops today. It stays registered as a throwing stub.
  *
  * The channel literals below are INLINED rather than imported from `contracts/project.ts`, same
@@ -70,7 +70,7 @@ interface ServerExitLike {
 
 /** One `openSites` entry. Every field is optional: a caller — this file's own tests included — only
  *  ever fills in what the handler under test actually reads. The real production shape
- *  (`main.js`'s `openSiteServer`) always sets `server.port`/`pid`/`stop` and `window` only for an
+ *  (`main.ts`'s `openSiteServer`) always sets `server.port`/`pid`/`stop` and `window` only for an
  *  own-server-mode entry. */
 interface OpenSiteEntry {
   server: {
@@ -90,7 +90,7 @@ interface OpenSiteEntry {
 /** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
  *  it is `site-supervisor.js`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
  *  handlers only ever call `get`/`delete`, but `set`/`has` are part of the type because the
- *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.js`) build
+ *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.ts`) build
  *  entries with before a handler ever sees them. */
 interface OpenSites {
   get(siteDir: string): OpenSiteEntry | undefined;
@@ -428,7 +428,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  *
  * The server is stopped and the in-memory `openSites`/on-disk crash-safety row are cleared BEFORE
  * the directory is removed, so `content.db` is never unlinked out from under a live handle. The
- * window's own `closed` listener (`main.js`) still fires afterward and repeats the same two
+ * window's own `closed` listener (`main.ts`) still fires afterward and repeats the same two
  * cleanup calls — both are idempotent (`stopChild` checks `exitCode`/`signalCode` first;
  * `openSites.delete` and `recordSiteClosed` are no-ops on an absent entry), so the double call is
  * harmless rather than a race.
@@ -464,7 +464,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
-  // of the app, and nothing prevents one — `main.js` calls no `requestSingleInstanceLock`, and
+  // of the app, and nothing prevents one — `main.ts` calls no `requestSingleInstanceLock`, and
   // `site-process-registry.js` is written throughout on the premise that two instances can run at once.
   // Instance A deleting a site instance B has open recursively erased the directory out from under
   // B's live `tovu serve`, which went on writing into unlinked files.
@@ -488,7 +488,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
     // and a close by site dir alone would drop that one too (D-07).
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
     // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
-    // `main.js` — so this is optional, not a missing null check.
+    // `main.ts` — so this is optional, not a missing null check.
     if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
   }
 
@@ -570,7 +570,7 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
     throw new Error(`This app is not tracking a site at ${id}, so there is nothing to rename.`);
   }
 
-  // The SAFE classifier (`deps.classifySiteDir` is `classifySiteDirSafely` — see `main.js`), so an
+  // The SAFE classifier (`deps.classifySiteDir` is `classifySiteDirSafely` — see `main.ts`), so an
   // unreadable directory becomes a refusal with a reason rather than a throw from inside the guard.
   const kind = deps.classifySiteDir(row.siteDir);
   if (kind !== "site") {
@@ -592,11 +592,11 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
   // The open window's title, when there is one. There usually is NOT: a card opens its site as a
   // `<webview>` tab inside the sites home window (whose own title is pinned to "Tovu"), and
   // `openSiteServer` is spawn-only. Only "Open Site…"/"Open Recent" produce a titled window
-  // (`main.js`'s `openSiteWindow`). Worth the line anyway — `readSiteName`'s own doc says that
+  // (`main.ts`'s `openSiteWindow`). Worth the line anyway — `readSiteName`'s own doc says that
   // title is "what makes Electron's native Window menu double as a site switcher (distinct titles,
   // distinct entries)", so a stale one is a stale CONTROL, not a stale label.
   //
-  // "Open Recent" itself needs no refresh: `main.js` builds those items with the directory path as
+  // "Open Recent" itself needs no refresh: `main.ts` builds those items with the directory path as
   // the label, not the site name, so a rename cannot stale them.
   const openWindow = deps.openSites.get(row.siteDir)?.window;
   if (openWindow && !openWindow.isDestroyed!()) openWindow.setTitle!(name); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc)
@@ -643,9 +643,9 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
 /**
  * A project tab's "not running yet" answer: ensure the site's `tovu serve` is up, spawning it if it
  * is not already running, or reusing it if another tab already has it open — never a `BrowserWindow`.
- * Reuses `openSiteServer` — `main.js`'s spawn-only counterpart to the `openSiteWindow` "Open
+ * Reuses `openSiteServer` — `main.ts`'s spawn-only counterpart to the `openSiteWindow` "Open
  * Site…"/"Open Recent"/startup already use — through `serializer.run`, so opening the same tab twice
- * fast cannot double-spawn its server (see `main.js`'s own doc on `openSiteServer`/
+ * fast cannot double-spawn its server (see `main.ts`'s own doc on `openSiteServer`/
  * `keyed-serializer.js`).
  *
  * Returns the project's fresh record rather than nothing: the renderer's `<webview>` needs the
@@ -681,7 +681,7 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
  * This is the fix for the Projects screen having no discovery at all: {@link handleList} renders
  * `desktop-projects.json` and nothing else — no scan, no rescan, no fallback — so a site created by
  * `tovu init` outside the shell, or restored from a backup, was invisible forever no matter how
- * plainly it sat on disk. Runs once at boot (`main.js`) and again whenever the operator asks.
+ * plainly it sat on disk. Runs once at boot (`main.ts`) and again whenever the operator asks.
  *
  * **A directory the operator removed on purpose is never brought back**, however many times this
  * runs. That is `adoptDiscoveredSites`' rule, not this function's, and the reason it lives down
@@ -712,7 +712,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * Registers the nine real `runner:sites:*` handlers above.
  *
  * @param deps
- * @param deps.openSites live open sites, keyed by site dir — `main.js`'s own module-level
+ * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
  *   `site-supervisor.js`'s supervisor, which additionally drops an entry whose child has died and
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
@@ -724,7 +724,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.repoRoot Tovu repo root.
  * @param deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
  * @param deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
- * @param deps.readSiteName `main.js`'s site-display-name reader.
+ * @param deps.readSiteName `main.ts`'s site-display-name reader.
  * @param deps.writeSiteName `site-config.js`'s validating, atomic `config.json` name
  *   writer, used by {@link handleRename}. Injected rather than imported for the same reason
  *   `adoptSiteDir` is — every handler in this file stays callable from plain `node --test` against
@@ -743,7 +743,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.classifySiteDir `site-dir-store.js`'s classifier, called by `handleCreate`
  *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.js`.
- * @param deps.openSiteServer `main.js`'s spawn-or-reuse-a-site's-backend function
+ * @param deps.openSiteServer `main.ts`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
  * @param deps.recordSiteClosed `site-process-registry.js`'s crash-safety row remover.
  * @param deps.readRegistry `site-process-registry.js`'s crash-safety registry reader, used by

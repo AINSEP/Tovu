@@ -5,9 +5,9 @@
  * `transcription-port.ts` nor `mac-on-device-transcriber.ts` knows Electron exists, and this
  * file has no recognition logic of its own.
  *
- * Wired into `main.js`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cjs`,
+ * Wired into `main.ts`: `createWindow`'s `webPreferences.preload` points at `preload-speech.cjs`,
  * and `app.whenReady()` calls {@link registerSpeechIpc} once, before either boot-mode branch opens
- * a window — see `main.js`'s own `SPEECH_PRELOAD_PATH` doc.
+ * a window — see `main.ts`'s own `SPEECH_PRELOAD_PATH` doc.
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";

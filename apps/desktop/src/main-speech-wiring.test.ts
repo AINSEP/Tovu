@@ -1,5 +1,5 @@
 /**
- * @file Static-analysis tests for `../main.js`'s speech feature wiring. `main.js` requires
+ * @file Static-analysis tests for `../main.ts`'s speech feature wiring. `main.ts` requires
  * `"electron"` at module scope, which resolves to a path string (not the real API) outside a real
  * Electron process — `require`-ing it under plain `node --test` would crash immediately without
  * proving anything (same constraint `preload-speech.test.js` documents for its own file). What IS
@@ -8,9 +8,9 @@
  * that the renderer's `isAvailable()` call never races an unregistered channel.
  *
  * Both `speech-ipc.js` and `preload-speech.cjs` document this exact gap in their own file headers
- * ("Not wired into main.js yet") — this is the mic's actual failure mode inside the desktop shell:
+ * ("Not wired into main.ts yet") — this is the mic's actual failure mode inside the desktop shell:
  * every primitive (preload bridge, IPC handlers, on-device transcriber) is built and independently
- * tested, but nothing in `main.js` ever connects them, so `window.tovuVoice` never exists even
+ * tested, but nothing in `main.ts` ever connects them, so `window.tovuVoice` never exists even
  * inside Electron and the mic reports "needs the desktop app" while already running in it.
  */
 import test from "node:test";

@@ -40,7 +40,7 @@ test("resolveDesktopUserDataDir returns the verified macOS location", () => {
 test("TOVU_DESKTOP_USER_DATA_DIR wins over the platform default", () => {
   const env = { TOVU_DESKTOP_USER_DATA_DIR: "/tmp/elsewhere" };
 
-  // The same override `main.js:139-141` applies through `app.setPath`. Reused rather than
+  // The same override `main.ts:183-184` applies through `app.setPath`. Reused rather than
   // reinvented so one environment cannot point the app and the CLI at two different directories.
   assert.equal(resolveDesktopUserDataDir({ env, platform: "darwin", homedir: "/Users/someone" }), "/tmp/elsewhere");
 });

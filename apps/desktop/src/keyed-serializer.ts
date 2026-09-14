@@ -7,7 +7,7 @@
  * button, a double-click could only ever double-spawn the same single child. With N sites, each
  * exposed through its own menu entry (open, or open-recent), the same double-click risk reappears
  * per site — this closes it generically rather than needing a guard duplicated at every call site
- * (`main.js`'s `openSiteWindow`/`promptAndOpenNewSite`).
+ * (`main.ts`'s `openSiteWindow`/`promptAndOpenNewSite`).
  *
  * Calls for DIFFERENT keys are never serialized against each other — opening site A must not wait on
  * site B's own in-flight open.

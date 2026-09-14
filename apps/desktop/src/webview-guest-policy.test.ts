@@ -47,7 +47,7 @@ test("a missing preload path throws rather than silently producing a guest with 
 });
 
 test("main.ts routes will-attach-webview through this policy, with the speech preload", () => {
-  // Source text: `main.js` requires "electron" at module scope and cannot be required under plain
+  // Source text: `main.ts` requires "electron" at module scope and cannot be required under plain
   // node --test (see `main-speech-wiring.test.js`). Without this, the policy above could be correct
   // and simply not called.
   const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");

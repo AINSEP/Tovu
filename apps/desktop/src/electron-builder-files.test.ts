@@ -4,7 +4,7 @@
  *
  * ## The defect this exists for
  *
- * `main.js`'s `announceDesktopToolsToSite` generates the MCP launcher with
+ * `main.ts`'s `announceDesktopToolsToSite` generates the MCP launcher with
  * `bridgePath: path.join(__dirname, "bin", "mcp-bridge.ts")`. In a packaged app `__dirname` is the
  * `app.asar` root, so that path is only real if `bin/` was packed. It was not: the `files:` list
  * named `main.js`, `package.json`, `dist/**` and `src/**`, and `bin/` matched none of them.

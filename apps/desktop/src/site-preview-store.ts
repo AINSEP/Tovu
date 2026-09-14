@@ -3,7 +3,7 @@
  * Electron: the path convention, the version token the renderer polls, reading one back as a
  * `data:` URL, and the two cleanup paths.
  *
- * The CAPTURE itself is not here — that needs a `BrowserWindow` and lives in `main.js`. Splitting
+ * The CAPTURE itself is not here — that needs a `BrowserWindow` and lives in `main.ts`. Splitting
  * at that line is what makes all of this testable under plain `node --test`, same convention as
  * `tracked-sites.js`, `site-dir-store.ts` and `site-config.ts`.
  *
@@ -56,7 +56,7 @@ function siteDigest(siteDir: string): string {
  * The directory holding every cached preview.
  *
  * `userDataDir` is passed in rather than read from `app.getPath("userData")` here, for the reason
- * `main.js`'s own header gives about `TOVU_DESKTOP_USER_DATA_DIR`: that override must be applied
+ * `main.ts`'s own header gives about `TOVU_DESKTOP_USER_DATA_DIR`: that override must be applied
  * before `whenReady()`, and every consumer has to resolve userData through the same accessor at the
  * same time. A module that read it independently would write E2E previews into the real user's
  * profile — a pollution nobody would notice for weeks.
@@ -100,7 +100,7 @@ function readPreviewVersion(userDataDir: string, siteDir: string): number | null
 /**
  * One site's cached preview as a `data:` URL, or `null` when there is none.
  *
- * A `data:` URL rather than a `file://` path: the renderer is a `file://` page (`main.js` loads it
+ * A `data:` URL rather than a `file://` path: the renderer is a `file://` page (`main.ts` loads it
  * with `loadFile`), and whether Chromium lets such a page load a `file://` image from a DIFFERENT
  * directory is a policy question this app should not depend on the answer to. A `data:` URL has no
  * such question, needs no custom protocol registered, and — because it is fetched on demand and

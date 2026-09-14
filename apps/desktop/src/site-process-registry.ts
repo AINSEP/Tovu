@@ -262,7 +262,7 @@ function readProcessParentPid(pid: number): number | null {
  * Whether `pid`'s own parent is gone — the property that separates a real ORPHAN from a live
  * sibling instance's perfectly healthy child.
  *
- * This distinction became load-bearing when {@link reconcileOrphans} moved above `main.js`'s
+ * This distinction became load-bearing when {@link reconcileOrphans} moved above `main.ts`'s
  * boot-mode split so the sites home UI reaps orphans too. Nothing prevents two Electron instances running
  * at once (there is no `requestSingleInstanceLock`), and the identity proof above cannot help: a
  * live sibling's child matches its own row's argv EXACTLY, by construction. Without this check the

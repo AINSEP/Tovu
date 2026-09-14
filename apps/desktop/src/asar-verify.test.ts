@@ -59,7 +59,7 @@ test("the report names every mismatched file individually and explains the failu
 // --- verifyAsarAgainstSource: real archive, built and torn down per test -------------------------
 
 /** Builds a small real fixture tree + packed .asar mirroring apps/desktop's own layout
- *  (src/, bin/, main.js at the archive root), and returns paths for the test to use. Content is
+ *  (src/, bin/, main.ts at the archive root), and returns paths for the test to use. Content is
  *  made long and distinctive enough that `Buffer#indexOf` cannot find a spurious second match
  *  elsewhere in the packed archive (the asar header JSON, or another file's bytes). */
 async function buildFixture() {

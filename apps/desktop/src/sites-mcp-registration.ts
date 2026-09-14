@@ -400,7 +400,7 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
 /**
  * PUT the row, authenticated as the site session this shell already holds.
  *
- * Reuses the cookie jar `ensureSiteSession` (`main.js`) populated moments earlier rather than
+ * Reuses the cookie jar `ensureSiteSession` (`main.ts`) populated moments earlier rather than
  * minting any new credential: the boot token is single-use and already spent, and the session in
  * that partition is an ordinary revocable admin session belonging to the operator. `useSessionCookies`
  * is what sends it — dropping that flag turns this into an unauthenticated request that 401s while

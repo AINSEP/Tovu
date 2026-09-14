@@ -61,7 +61,7 @@ const SESSION_PROBE_PATH = "/api/admin/v1/auth/me";
 
 /** The session cookie's name. Must match `dev-auth.ts`'s own `SESSION_COOKIE` — duplicated here
  *  rather than imported for the same reason {@link BOOT_SESSION_PATH} is a literal and not an
- *  import: this directory stays self-contained (see `main.js`'s header), so nothing under
+ *  import: this directory stays self-contained (see `main.ts`'s header), so nothing under
  *  `apps/website/` has to change, or even be resolvable, for this shell to build. */
 const SESSION_COOKIE_NAME = "tovu_session";
 
@@ -339,7 +339,7 @@ async function hasValidSession<TSession>(deps: {
  * no token had been minted, and the only thing left was a login form for a password this shell
  * never issued.
  *
- * The fix is to stop deciding before there is anything to ask. `main.js` now always passes
+ * The fix is to stop deciding before there is anything to ask. `main.ts` now always passes
  * `--emit-boot-token`, and this function decides AFTER the server is answering. An emitted token
  * that turns out to be unnecessary is inert: single-use, process-scoped, never written to disk, and
  * simply dies with the child. What must stay conditional is the REDEEM — every redemption creates a
@@ -351,7 +351,7 @@ async function hasValidSession<TSession>(deps: {
  * @param deps.session the Electron `Session` for this site's partition.
  * @param deps.adminUrl the site's own admin URL.
  * @param deps.redeem redeems the boot token and reports whether it worked
- *   — `main.js`'s `authenticateSiteSession`, which owns the token and its own logging. Injected
+ *   — `main.ts`'s `authenticateSiteSession`, which owns the token and its own logging. Injected
  *   rather than called directly so this decision is testable without a real child process.
  * @returns `{authenticated, redeemed}` — `redeemed` says whether a token was actually spent, which
  *   is the fact worth reporting; `authenticated: false` means the caller should expect the ordinary

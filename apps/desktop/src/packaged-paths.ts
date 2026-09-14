@@ -42,7 +42,7 @@ interface DesktopRoots {
  * looks
  *
  * `project-delete-guard.ts`'s containment rule is "nothing under `repoRoot` may be erased", and
- * `main.js` passes this function's `payloadRoot` as that `repoRoot`. In dev that is the checkout,
+ * `main.ts` passes this function's `payloadRoot` as that `repoRoot`. In dev that is the checkout,
  * exactly as before. In a packaged app it becomes the read-only staged payload — which contains no
  * user site and never will, so the rule is vacuous there rather than wrong. What it does NOT do is
  * protect a user's own site folders; that was never this rule's job (it only ever guarded the
@@ -56,7 +56,7 @@ interface DesktopRoots {
  *   derived from the executable path, not from `whenReady`.
  * @param input.resourcesPath `process.resourcesPath` (`…/Tovu.app/Contents/Resources`).
  *   Read only when `isPackaged`.
- * @param input.repoRoot the checkout root, as `main.js` derives it from `__dirname`.
+ * @param input.repoRoot the checkout root, as `main.ts` derives it from `__dirname`.
  * @param input.documentsDir `app.getPath("documents")`. Read only when `isPackaged`.
  * @complexity O(1).
  */

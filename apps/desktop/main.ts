@@ -1341,7 +1341,7 @@ app
         // The preview cache's three operations, bound to THIS launch's userData at the same call
         // site every other consumer resolves it from — an independently-resolved userData here
         // would write E2E previews into the real operator's profile (see `site-preview-store.js`'s
-        // own header, and `main.js`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
+        // own header, and `main.ts`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
         deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),

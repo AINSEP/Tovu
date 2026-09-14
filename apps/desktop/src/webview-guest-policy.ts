@@ -1,6 +1,6 @@
 /**
  * @file The `webPreferences` policy the sites home window applies to every `<webview>` guest it attaches
- * — `main.js`'s `will-attach-webview` handler, moved out so it can be asserted directly.
+ * — `main.ts`'s `will-attach-webview` handler, moved out so it can be asserted directly.
  *
  * **What it is defending.** `webviewTag: true` lets the PAGE choose its guests' `webPreferences`
  * through tag attributes. This handler runs in the main process, after the page has had its say and

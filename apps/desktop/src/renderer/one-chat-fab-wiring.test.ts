@@ -73,7 +73,7 @@ test("WorkspaceChatPane survives the FAB's removal, unreferenced, for the panel 
 });
 
 // A tripwire, not a prohibition. The FAB was removed BECAUSE the fleet chat has no main-process
-// half: nothing in `main.js` answers `workspace:chat:start`, so the pane's transport reaches nothing.
+// half: nothing in `main.ts` answers `workspace:chat:start`, so the pane's transport reaches nothing.
 // If someone wires those handlers, this fails on purpose — that is the moment to decide where the
 // now-real workspace chat is reached from, and the answer should be a panel in this app's own
 // chrome rather than a second floating button over the guest.

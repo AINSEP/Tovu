@@ -72,11 +72,11 @@ interface AsarVerification {
  * Every leaf FILE path (POSIX, no leading slash) under one of `prefixes` in an asar header's `files`
  * metadata tree. Pure and dependency-free — takes the already-parsed header object rather than an
  * archive path — so the tree-walk itself (files vs. directories vs. symlinks, and a prefix that
- * names a file directly, like `"main.js"`, vs. one that names a directory, like `"src"`) is testable
+ * names a file directly, like `"main.ts"`, vs. one that names a directory, like `"src"`) is testable
  * against a plain object literal fixture, with no real `.asar` file anywhere near the test.
  *
  * @param headerFiles the `files` object from `getRawHeader(archivePath).header`.
- * @param prefixes top-level entry names to include, e.g. `["src", "bin", "main.js"]`. A prefix
+ * @param prefixes top-level entry names to include, e.g. `["src", "bin", "main.ts"]`. A prefix
  *   absent from the archive is silently skipped — that is a scope decision for the caller, not
  *   something this function should fail on.
  * @returns POSIX-style relative paths, e.g. `"src/tracked-sites.js"`.
@@ -142,7 +142,7 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
  *
  * @param asarPath path to the built `app.asar`.
  * @param sourceRoot the source tree root the archive should match (`apps/desktop` in production).
- * @param prefixes top-level archive entries to check, e.g. `["src", "bin", "main.js"]`.
+ * @param prefixes top-level archive entries to check, e.g. `["src", "bin", "main.ts"]`.
  * @returns `{ checkedCount, mismatches }` — `mismatches` is `[]` when every file matched.
  * @complexity O(n) in files checked, each a full read of both copies.
  */

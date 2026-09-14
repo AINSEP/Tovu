@@ -5,7 +5,7 @@
  *
  * ## Why it lives here and not in `development/scripts/`
  *
- * `main.js`'s own header states the invariant: "`apps/desktop` is deliberately additive and
+ * `main.ts`'s own header states the invariant: "`apps/desktop` is deliberately additive and
  * self-contained. Nothing outside it imports it, nothing outside it references it… deleting
  * `apps/desktop/` returns the repo to exactly its previous state." A staging script in the repo's
  * shared `development/scripts/` would be the first thing to break that. Everything packaging-related

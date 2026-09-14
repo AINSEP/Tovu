@@ -225,7 +225,7 @@ test("reconcileOrphans silently drops a row whose pid is already gone", async ()
 //
 // `reconcileOrphans` moved above the boot-mode split so the sites home UI (the default since a53c80df)
 // reaps orphans too. Nothing stops two Electron instances running at once — there is no
-// `requestSingleInstanceLock` in `main.js` — so the SECOND instance's boot-time reconciliation
+// `requestSingleInstanceLock` in `main.ts` — so the SECOND instance's boot-time reconciliation
 // reads the FIRST instance's rows, whose pids are alive and whose argv matches their row exactly.
 // Only the child's own parentage distinguishes the two cases.
 

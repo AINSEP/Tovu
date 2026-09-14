@@ -18,7 +18,7 @@
  *
  * ## What this file adds beyond the admin version
  *
- * A **non-vacuity check**. `main.js` reports zero violations at a 9 ceiling, which is true — forcing
+ * A **non-vacuity check**. `main.ts` reports zero violations at a 9 ceiling, which is true — forcing
  * the threshold to 1 produces 34 findings on the same file, so the rule really is reaching it. But
  * "zero violations" and "the glob matched nothing" are indistinguishable from an exit code, and
  * this repo has already shipped four complexity scopes that silently matched nothing after a

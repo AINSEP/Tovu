@@ -1,5 +1,5 @@
 /**
- * @file Behavioural proof for `quit-drain-gate.ts`, the decision `main.js`'s `before-quit` makes for
+ * @file Behavioural proof for `quit-drain-gate.ts`, the decision `main.ts`'s `before-quit` makes for
  * every quit attempt. See that file's header for the defect: a second Cmd+Q during the drain quit
  * Electron before the parallel `server.stop()` calls finished.
  */

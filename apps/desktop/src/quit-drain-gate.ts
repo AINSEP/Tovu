@@ -1,5 +1,5 @@
 /**
- * @file Decide what `main.js`'s `before-quit` does with a quit attempt: let it through, start the
+ * @file Decide what `main.ts`'s `before-quit` does with a quit attempt: let it through, start the
  * graceful drain, or hold it because a drain is already running.
  *
  * **The defect this exists for.** A second Cmd+Q during the drain still orphaned site servers.
@@ -13,14 +13,14 @@
  * **Held, not let through.** An attempt during the drain is prevented and dropped: the drain's own
  * closing `app.quit()` is the one that ends the app. Held whatever the counts say by then:
  * `site-supervisor.ts` removes a site from `openSites` as soon as its child exits, so "nothing to
- * drain" can read true while the drain has not finished. `main.js` arms a force-exit deadline when the
+ * drain" can read true while the drain has not finished. `main.ts` arms a force-exit deadline when the
  * drain starts, so holding can never keep a hung drain alive forever.
  *
  * No `electron` import, so it can be tested under plain `node --test`, the same convention as
  * `shutdown-tracker.ts` and `quit-signals.ts`.
  */
 
-/** Where `main.js`'s quit is. See {@link decideBeforeQuit}. */
+/** Where `main.ts`'s quit is. See {@link decideBeforeQuit}. */
 type QuitPhase = "idle" | "draining" | "drained";
 
 /** What `before-quit` does with one quit attempt. See {@link decideBeforeQuit}. */
@@ -34,7 +34,7 @@ interface BeforeQuitInput {
 
 /**
  * @param input
- * @param input.phase where `main.js`'s quit is: nothing started, the drain running, or the drain
+ * @param input.phase where `main.ts`'s quit is: nothing started, the drain running, or the drain
  *   finished and its own `app.quit()` going through.
  * @param input.nothingToDrain no open site and no window teardown in flight.
  * @returns `"proceed"`: return without `preventDefault()`. `"drain"`: `preventDefault()` and start

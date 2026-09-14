@@ -78,7 +78,7 @@ function movingProblem(movingPaths: readonly string[]): string | null {
  *
  * @param signals
  *   - `viteWatchRunning`: a `vite build --watch` process is currently alive.
- *   - `gitDirtyPaths`: paths under the packaged surface (`src/`, `bin/`, `main.js`) `git status`
+ *   - `gitDirtyPaths`: paths under the packaged surface (`src/`, `bin/`, `main.ts`) `git status`
  *     reports as modified or untracked, relative to the packaged surface roots.
  *   - `movingPaths`: paths whose live directory snapshot changed between two observations taken a
  *     short interval apart.

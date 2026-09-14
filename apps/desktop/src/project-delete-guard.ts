@@ -5,7 +5,7 @@
  * `project-ipc.js`'s `handleDelete` erases a project's whole install directory — `content.db`,
  * `uploads/`, `themes/`, `agent-plugins/` — with no backup and no OS trash, because that is the
  * honest meaning of "delete this project" for a project the app itself provisioned. It is NOT the
- * honest meaning for a directory the app merely ADOPTED. `main.js` seeds the Projects screen with
+ * honest meaning for a directory the app merely ADOPTED. `main.ts` seeds the Projects screen with
  * `<repo>/sites/tovu-com` (`seedDevFallbackSite`), a git-tracked folder holding a real production
  * database that this app did not create a single byte of; the moment that folder classifies as a
  * site, a card for it appears and two clicks would destroy it.
@@ -167,7 +167,7 @@ function isInsideDirectory(target: string, container: string): boolean {
  *   a row written before a field existed, must be refused rather than crash this check.
  * @param options.repoRoot the Tovu checkout root. A missing or non-string value refuses everything:
  *   containment cannot be PROVEN without it, and this module never permits what it cannot prove.
- *   `main.js` always supplies it, so that arm is a guard against a future miswiring, not a
+ *   `main.ts` always supplies it, so that arm is a guard against a future miswiring, not a
  *   reachable operator state.
  * @returns `true` only when the app created the directory, it lives outside the repo, AND the site
  *   at that path is still the one the app created.

@@ -4,10 +4,10 @@
  * wholesale would drag `@jini-ai/sqlite` + `better-sqlite3` into a shell that has twice, in writing,
  * decided not to have them (`site-dir-store.js`'s own header makes the same call for its MRU list).
  *
- * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.js` is ground truth for
+ * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.ts` is ground truth for
  * "running" — a status written to this file would go stale the moment Electron is killed hard,
  * exactly the failure mode `site-process-registry.js`'s crash-safety design exists to avoid for the
- * supervision side of the same problem. `buildSiteRecord` (`main.js`) is what joins one row here
+ * supervision side of the same problem. `buildSiteRecord` (`main.ts`) is what joins one row here
  * with `openSites` to produce the `SiteRecord` the renderer actually gets.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as

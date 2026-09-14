@@ -1,8 +1,8 @@
 /**
  * @file Coverage for `project-ipc.js` — the seven real `runner:sites:*` handlers the Projects
  * screen needs. No real Electron anywhere: `ipcMain`/`dialog`/`shell` are plain fakes, `openSites`
- * is a real `Map` standing in for `main.js`'s module-level one, and `openSiteServer`/`adoptSiteDir`
- * are spies rather than the real functions — those are covered by `main.js`'s own doc and by the
+ * is a real `Map` standing in for `main.ts`'s module-level one, and `openSiteServer`/`adoptSiteDir`
+ * are spies rather than the real functions — those are covered by `main.ts`'s own doc and by the
  * E2E suite; this file's job is the IPC wiring and the pure `buildSiteRecord` join.
  */
 import test from "node:test";
@@ -810,7 +810,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 });
 
 // D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
-// against nothing else. `main.js` calls no `requestSingleInstanceLock`, and `site-process-registry.js` is
+// against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-process-registry.js` is
 // written throughout on the premise that two instances can run at once — its `recordSiteOpened`
 // deliberately RETAINS a sibling's row for the same site. Instance A deleting a site instance B has
 // open recursively erased the directory out from under B's live `tovu serve`.

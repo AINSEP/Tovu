@@ -1,11 +1,11 @@
 /**
- * @file Wiring guard for `../main.js`'s site-session sequence — DS-01.
+ * @file Wiring guard for `../main.ts`'s site-session sequence — DS-01.
  *
- * Source text, for the reason `main-speech-wiring.test.js` documents: `main.js` requires
+ * Source text, for the reason `main-speech-wiring.test.js` documents: `main.ts` requires
  * `"electron"` at module scope, so `require`-ing it under plain `node --test` crashes before proving
  * anything. The DECISION itself is deliberately not tested here — it was extracted into
  * `desktop-auth.js`'s `ensureSiteSession` precisely so it could be covered behaviourally, and it is
- * (four tests in `desktop-auth.test.js`). What only this file can check is that `main.js` reaches
+ * (four tests in `desktop-auth.test.js`). What only this file can check is that `main.ts` reaches
  * for the new decision at all, and in the one order where it is sound.
  *
  * The order is the whole point. `emitBootToken` is a SPAWN ARGUMENT, so it is decided before any

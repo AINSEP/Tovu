@@ -1,5 +1,5 @@
 /**
- * @file Behavioural proof for `shutdown-tracker.ts` — the drain that `main.js`'s `before-quit`
+ * @file Behavioural proof for `shutdown-tracker.ts` — the drain that `main.ts`'s `before-quit`
  * needs so closing the last site window cannot quit the app out from under an unfinished
  * `server.stop()`. See that file's header for the defect (D-09).
  */
