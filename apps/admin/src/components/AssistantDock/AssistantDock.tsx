@@ -16,6 +16,7 @@ import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
+import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
@@ -556,7 +557,12 @@ export function AssistantDock({
           // pushed to the row's far end) or `plusMenuItems` (plain click-to-select buttons, no room
           // for this button's press-and-hold/recording-indicator UI), it renders host content
           // immediately after the attach/discovery button with no change to the button itself.
-          footerLeadingAccessory: <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} />,
+          //
+          // Owner report, 2026-09-13: the button should not show at all in Workspace chat.
+          // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch — `undefined`
+          // here omits the slot entirely rather than rendering a disabled/hidden button, and
+          // flipping that one constant back to `true` restores this exactly as it was.
+          footerLeadingAccessory: VOICE_INPUT_ENABLED ? <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} /> : undefined,
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
         // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
