@@ -32,9 +32,10 @@ import type { Translate } from "@/lib/dictionary-translator";
  * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-themes.hooks.ts`
  * established): injected so `ThemeExplore.tsx` sources its UI copy from this hook instead of
- * building its own `(key) => translateThemes(locale, key)` closure. This hook's OWN error strings
- * stay hardcoded English (unchanged) — `useAdminLocale()`/`themes-i18n.ts`'s `t` (aliased
- * `translateThemes`) are read only inside {@link useWiredThemeExplore}.
+ * building its own `(key) => translateThemes(locale, key)` closure. `useAdminLocale()`/`themes-i18n.ts`'s
+ * `t` (aliased `translateThemes`) are read only inside {@link useWiredThemeExplore}. Every toast this hook
+ * sets, notice or error, goes through `t` as well (2026-09-14, o24 review F4). Only a server's own error
+ * message passes through untranslated, apart from the reset refusals {@link resetErrorMessage} has copy for.
  *
  * Content refresh bus (2026-09-14, o24 review F2): an assistant run can write theme files while this
  * screen is open, and the finished run's `publishContentRefresh()` is the only signal that reaches it.
@@ -155,22 +156,45 @@ function lockedIdentityPaths(apiVersion: 2 | undefined): readonly string[] {
  */
 const IDENTITY_LOCKED_GROUPS: ReadonlySet<ThemeFileGroup> = new Set(["script", "other"]);
 
+/**
+ * `t(key)` with its one `{token}` placeholder filled by `value`. The replacement is a function, so a
+ * `$&` or `$1` in a file name is inserted as written rather than read as a replacement pattern.
+ *
+ * @complexity O(k) in the translated string's length.
+ */
+function translateWith(t: Translate, key: string, token: string, value: string): string {
+  return t(key).replace(`{${token}}`, () => value);
+}
+
+/** The refusal copy per `action`: one whole sentence per case, so each locale can word it freely. */
+const LOCKED_IDENTITY_COPY = {
+  renamed: {
+    page: "{file} can't be renamed — every theme requires this exact page to load at all.",
+    file: "{file} can't be renamed — every theme requires this exact file to load at all.",
+    group:
+      "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.",
+  },
+  deleted: {
+    page: "{file} can't be deleted — every theme requires this exact page to load at all.",
+    file: "{file} can't be deleted — every theme requires this exact file to load at all.",
+    group:
+      "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.",
+  },
+} as const;
+
 /** `action`-qualified refusal reason shared by {@link startRename} and `openDeleteConfirm` — same
  *  three checks {@link lockedIdentityPaths}/{@link IDENTITY_LOCKED_GROUPS} answer server-side via
- *  `explore.ts`'s `validateFileIdentityChange`. */
+ *  `explore.ts`'s `validateFileIdentityChange`. Translated through `t`. */
 function lockedIdentityChangeReason(
   path: string,
-  kind: ThemeFileGroup,
   apiVersion: 2 | undefined,
-  action: "renamed" | "deleted"
+  action: "renamed" | "deleted",
+  t: Translate
 ): string {
-  if (path === resolveThemeLayout(apiVersion).indexPagePath) {
-    return `${path} can't be ${action} — every theme requires this exact page to load at all.`;
-  }
-  if (lockedIdentityPaths(apiVersion).includes(path)) {
-    return `${path} can't be ${action} — every theme requires this exact file to load at all.`;
-  }
-  return `${path} can't be ${action} — this file type is read-only in Explore, and ${action === "renamed" ? "renaming" : "deleting"} it could break a page or script that still refers to it by this name.`;
+  const copy = LOCKED_IDENTITY_COPY[action];
+  if (path === resolveThemeLayout(apiVersion).indexPagePath) return translateWith(t, copy.page, "file", path);
+  if (lockedIdentityPaths(apiVersion).includes(path)) return translateWith(t, copy.file, "file", path);
+  return translateWith(t, copy.group, "file", path);
 }
 
 export interface ThemeExploreController {
@@ -715,9 +739,32 @@ function initialSelectedPath(
  * `Error` its own message, and anything else a generic fallback. Pulled out of `performRename`'s
  * `catch` under the complexity ceiling.
  */
-function renameErrorMessage(e: unknown, name: string): string {
-  if (e instanceof ApiError && e.code === "NAME_TAKEN") return `'${name}' already exists in this theme`;
-  return e instanceof Error ? e.message : "failed to rename file";
+function renameErrorMessage(e: unknown, name: string, t: Translate): string {
+  if (e instanceof ApiError && e.code === "NAME_TAKEN") {
+    return translateWith(t, "'{name}' already exists in this theme", "name", name);
+  }
+  return e instanceof Error ? e.message : t("failed to rename file");
+}
+
+/** Copy for the reset route's 409 codes, keyed by `ApiError.code`. `{file}` is the file being reset. */
+const RESET_REFUSAL_COPY: ReadonlyMap<string, string> = new Map([
+  ["ORIGINAL_LAYOUT_MISMATCH", "This theme's saved original doesn't match its current layout, so its files can't be reset."],
+  ["NOT_IN_ORIGINAL", "{file} isn't in this theme's original, so there's nothing to reset it to."],
+  ["NO_ORIGINAL", "This theme has no stored original, so nothing can be reset."],
+]);
+
+/**
+ * The error a failed reset of `path` reports: the translated copy for a refusal code in
+ * {@link RESET_REFUSAL_COPY}, else any `Error`'s own message (a server refusal with no copy here keeps the
+ * server's English), else a translated generic fallback. Pulled out of `reset`'s `catch` under the
+ * complexity ceiling, like {@link renameErrorMessage}.
+ *
+ * @complexity O(k) in the message length.
+ */
+function resetErrorMessage(e: unknown, path: string, t: Translate): string {
+  const copy = e instanceof ApiError && e.code !== undefined ? RESET_REFUSAL_COPY.get(e.code) : undefined;
+  if (copy !== undefined) return translateWith(t, copy, "file", path);
+  return e instanceof Error ? e.message : t("failed to reset file");
 }
 
 export function useThemeExplore(
@@ -774,6 +821,13 @@ export function useThemeExplore(
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  // `t` as of the last commit, for every toast below. Effects and settlements read it here rather than
+  // listing `t` as a dependency: a caller may pass a new translator each render, and that must neither
+  // re-run the initial load nor change the actions' identities.
+  const tRef = useRef(t);
+  useLayoutEffect(() => {
+    tRef.current = t;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -799,10 +853,10 @@ export function useThemeExplore(
         // theme has — an intentional layered fallback (`fileId` failing over to a valid `pageId`)
         // is not a miss. This is the fix for the owner-reported bug: a stale/mistyped link must
         // never look like it silently opened a different, valid file with nothing amiss.
-        if (missed !== null) setError(`"${missed}" isn't a page or file in this theme.`);
+        if (missed !== null) setError(translateWith(tRef.current, "\"{name}\" isn't a page or file in this theme.", "name", missed));
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "failed to load theme");
+        if (!cancelled) setError(e instanceof Error ? e.message : tRef.current("failed to load theme"));
       });
     return () => {
       cancelled = true;
@@ -870,7 +924,7 @@ export function useThemeExplore(
         // A failed read still opens the file, unloaded: the error toast says why, and Save refuses.
         setSelected(readPath);
         setPendingSelection(null);
-        setError(e instanceof Error ? e.message : "failed to read file");
+        setError(e instanceof Error ? e.message : tRef.current("failed to read file"));
       });
     return () => {
       cancelled = true;
@@ -908,7 +962,7 @@ export function useThemeExplore(
       setFiles((prev) => withServerModifiedState(prev, serverFiles));
     } catch (e) {
       if (!stillCurrent()) return;
-      setError(e instanceof Error ? e.message : "failed to refresh file list");
+      setError(e instanceof Error ? e.message : tRef.current("failed to refresh file list"));
     }
   }, [themeId, port, modifiedRefreshSettlement]);
 
@@ -937,7 +991,7 @@ export function useThemeExplore(
       setPreviewNonce((n) => n + 1);
     } catch (e) {
       if (!openFileTextSettlement.isCurrent(generation) || !isSameOpenFile(openFileRef.current, started)) return;
-      setError(e instanceof Error ? e.message : "failed to read file");
+      setError(e instanceof Error ? e.message : tRef.current("failed to read file"));
     }
   }, [port, openFileTextSettlement]);
 
@@ -960,10 +1014,10 @@ export function useThemeExplore(
     try {
       await port.putThemeFile(themeId, selected, source);
       setSavedSource(source);
-      setNotice(`Saved ${selected}`);
+      setNotice(translateWith(tRef.current, "Saved {file}", "file", selected));
       setPreviewNonce((n) => n + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to save file");
+      setError(e instanceof Error ? e.message : tRef.current("failed to save file"));
       return;
     } finally {
       setSaving(false);
@@ -999,11 +1053,11 @@ export function useThemeExplore(
         setSavedSource(r.content);
         setLoadedFile({ themeId, path: selected });
       }
-      setNotice(`Reset ${selected} to the original`);
+      setNotice(translateWith(tRef.current, "Reset {file} to the original", "file", selected));
       setPreviewNonce((n) => n + 1);
       setResetConfirmOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to reset file");
+      setError(resetErrorMessage(e, selected, tRef.current));
       return;
     } finally {
       setResetting(false);
@@ -1039,11 +1093,11 @@ export function useThemeExplore(
         setFiles(nextFiles);
         setSelected(nextSelected);
         setPendingSelection(null);
-        setNotice(`Renamed to ${r.path}`);
+        setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
         setPreviewNonce((n) => n + 1);
       } catch (e) {
         if (!renameSettlement.isCurrent(generation)) return;
-        setError(renameErrorMessage(e, name));
+        setError(renameErrorMessage(e, name, tRef.current));
       } finally {
         if (!renameSettlement.isCurrent(generation)) return;
         setRenaming(false);
@@ -1059,7 +1113,7 @@ export function useThemeExplore(
       const kind = files.find((f) => f.path === path)?.kind;
       const apiVersion = detail?.apiVersion;
       if (lockedIdentityPaths(apiVersion).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
-        setError(lockedIdentityChangeReason(path, kind ?? "config", apiVersion, "renamed"));
+        setError(lockedIdentityChangeReason(path, apiVersion, "renamed", tRef.current));
         return;
       }
       setError(null);
@@ -1087,11 +1141,11 @@ export function useThemeExplore(
     const currentBase = basenameOf(sourcePath);
 
     if (name.length === 0) {
-      setError("Name cannot be empty");
+      setError(tRef.current("Name cannot be empty"));
       return;
     }
     if (name.includes("/") || name.includes("\\")) {
-      setError("Name cannot contain a path separator");
+      setError(tRef.current("Name cannot contain a path separator"));
       return;
     }
     if (name === currentBase) {
@@ -1137,9 +1191,9 @@ export function useThemeExplore(
         setFiles(nextFiles);
         setSelected(r.path);
         setPendingSelection(null);
-        setNotice(`Copied to ${r.path}`);
+        setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to copy file");
+        setError(e instanceof Error ? e.message : tRef.current("failed to copy file"));
       } finally {
         setCopyingPath(null);
         copyingRef.current = false;
@@ -1159,7 +1213,7 @@ export function useThemeExplore(
       const kind = files.find((f) => f.path === path)?.kind;
       const apiVersion = detail?.apiVersion;
       if (lockedIdentityPaths(apiVersion).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
-        setError(lockedIdentityChangeReason(path, kind ?? "config", apiVersion, "deleted"));
+        setError(lockedIdentityChangeReason(path, apiVersion, "deleted", tRef.current));
         return;
       }
       setError(null);
@@ -1193,10 +1247,10 @@ export function useThemeExplore(
       setFiles(nextFiles);
       setSelected((current) => (current === path ? defaultSelectedPath(nextFiles, nextDetail.apiVersion) : current));
       setPendingSelection(null);
-      setNotice(`Deleted ${path}`);
+      setNotice(translateWith(tRef.current, "Deleted {file}", "file", path));
       setDeleteTarget(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete file");
+      setError(e instanceof Error ? e.message : tRef.current("failed to delete file"));
     } finally {
       setDeleting(false);
     }
@@ -1249,9 +1303,9 @@ export function useThemeExplore(
       try {
         const r = await port.setPagePublished(themeId, pageId, published);
         setFiles((prev) => prev.map((f) => (f.path === file.path ? { ...f, published: r.published } : f)));
-        setNotice(r.published ? `Published ${pageId}` : `Unpublished ${pageId}`);
+        setNotice(translateWith(tRef.current, r.published ? "Published {page}" : "Unpublished {page}", "page", pageId));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to update publish state");
+        setError(e instanceof Error ? e.message : tRef.current("failed to update publish state"));
       } finally {
         setPublishing(false);
       }

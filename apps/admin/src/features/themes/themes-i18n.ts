@@ -122,6 +122,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "a",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
+    "Saved {file}": "Se guardó {file}",
+    "Reset {file} to the original": "Se restableció {file} al original",
+    "Renamed to {file}": "Renombrado a {file}",
+    "Copied to {file}": "Copiado en {file}",
+    "Deleted {file}": "Se eliminó {file}",
+    "Published {page}": "Se publicó {page}",
+    "Unpublished {page}": "Se despublicó {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} no se puede renombrar: todos los temas necesitan exactamente esta página para cargarse.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} no se puede eliminar: todos los temas necesitan exactamente esta página para cargarse.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} no se puede renombrar: todos los temas necesitan exactamente este archivo para cargarse.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} no se puede eliminar: todos los temas necesitan exactamente este archivo para cargarse.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} no se puede renombrar: este tipo de archivo es de solo lectura en Explorar, y renombrarlo podría romper una página o un script que todavía lo menciona con este nombre.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} no se puede eliminar: este tipo de archivo es de solo lectura en Explorar, y eliminarlo podría romper una página o un script que todavía lo menciona con este nombre.",
+    "Name cannot be empty": "El nombre no puede estar vacío",
+    "Name cannot contain a path separator": "El nombre no puede contener un separador de ruta",
+    "'{name}' already exists in this theme": "'{name}' ya existe en este tema",
+    "failed to rename file": "No se pudo renombrar el archivo",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" no es una página ni un archivo de este tema.",
+    "failed to load theme": "No se pudo cargar el tema",
+    "failed to read file": "No se pudo leer el archivo",
+    "failed to refresh file list": "No se pudo actualizar la lista de archivos",
+    "failed to save file": "No se pudo guardar el archivo",
+    "failed to reset file": "No se pudo restablecer el archivo",
+    "failed to copy file": "No se pudo copiar el archivo",
+    "failed to delete file": "No se pudo eliminar el archivo",
+    "failed to update publish state": "No se pudo actualizar el estado de publicación",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "El original guardado de este tema no coincide con su estructura actual, así que sus archivos no se pueden restablecer.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} no está en el original de este tema, así que no hay nada a lo que restablecerlo.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
   },
   id: {
     "← All themes": "← Semua tema",
@@ -238,6 +276,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "menjadi",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
+    "Saved {file}": "{file} tersimpan",
+    "Reset {file} to the original": "{file} diatur ulang ke versi asli",
+    "Renamed to {file}": "Nama diganti menjadi {file}",
+    "Copied to {file}": "Disalin ke {file}",
+    "Deleted {file}": "{file} dihapus",
+    "Published {page}": "{page} diterbitkan",
+    "Unpublished {page}": "{page} batal diterbitkan",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} tidak dapat diganti namanya — setiap tema memerlukan halaman ini persis agar dapat dimuat.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} tidak dapat dihapus — setiap tema memerlukan halaman ini persis agar dapat dimuat.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} tidak dapat diganti namanya — setiap tema memerlukan file ini persis agar dapat dimuat.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} tidak dapat dihapus — setiap tema memerlukan file ini persis agar dapat dimuat.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} tidak dapat diganti namanya — jenis file ini hanya-baca di Explore, dan mengganti namanya dapat merusak halaman atau skrip yang masih merujuknya dengan nama ini.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} tidak dapat dihapus — jenis file ini hanya-baca di Explore, dan menghapusnya dapat merusak halaman atau skrip yang masih merujuknya dengan nama ini.",
+    "Name cannot be empty": "Nama tidak boleh kosong",
+    "Name cannot contain a path separator": "Nama tidak boleh berisi pemisah jalur",
+    "'{name}' already exists in this theme": "'{name}' sudah ada di tema ini",
+    "failed to rename file": "Gagal mengganti nama file",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" bukan halaman atau file di tema ini.",
+    "failed to load theme": "Gagal memuat tema",
+    "failed to read file": "Gagal membaca file",
+    "failed to refresh file list": "Gagal menyegarkan daftar file",
+    "failed to save file": "Gagal menyimpan file",
+    "failed to reset file": "Gagal mengatur ulang file",
+    "failed to copy file": "Gagal menyalin file",
+    "failed to delete file": "Gagal menghapus file",
+    "failed to update publish state": "Gagal memperbarui status penerbitan",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Salinan asli yang tersimpan untuk tema ini tidak cocok dengan tata letaknya saat ini, jadi file-filenya tidak dapat diatur ulang.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} tidak ada di versi asli tema ini, jadi tidak ada yang bisa dijadikan acuan untuk mengatur ulang.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
   },
   de: {
     "← All themes": "← Alle Designs",
@@ -354,6 +430,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "in",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
+    "Saved {file}": "{file} gespeichert",
+    "Reset {file} to the original": "{file} auf das Original zurückgesetzt",
+    "Renamed to {file}": "Umbenannt in {file}",
+    "Copied to {file}": "Kopiert nach {file}",
+    "Deleted {file}": "{file} gelöscht",
+    "Published {page}": "{page} veröffentlicht",
+    "Unpublished {page}": "Veröffentlichung von {page} aufgehoben",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} kann nicht umbenannt werden – jedes Design braucht genau diese Seite, um überhaupt zu laden.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} kann nicht gelöscht werden – jedes Design braucht genau diese Seite, um überhaupt zu laden.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} kann nicht umbenannt werden – jedes Design braucht genau diese Datei, um überhaupt zu laden.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} kann nicht gelöscht werden – jedes Design braucht genau diese Datei, um überhaupt zu laden.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} kann nicht umbenannt werden – dieser Dateityp ist in Explore schreibgeschützt, und das Umbenennen könnte eine Seite oder ein Skript beschädigen, das die Datei noch unter diesem Namen verwendet.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} kann nicht gelöscht werden – dieser Dateityp ist in Explore schreibgeschützt, und das Löschen könnte eine Seite oder ein Skript beschädigen, das die Datei noch unter diesem Namen verwendet.",
+    "Name cannot be empty": "Der Name darf nicht leer sein",
+    "Name cannot contain a path separator": "Der Name darf kein Pfadtrennzeichen enthalten",
+    "'{name}' already exists in this theme": "„{name}“ gibt es in diesem Design bereits",
+    "failed to rename file": "Datei konnte nicht umbenannt werden",
+    "\"{name}\" isn't a page or file in this theme.": "„{name}“ ist keine Seite und keine Datei in diesem Design.",
+    "failed to load theme": "Design konnte nicht geladen werden",
+    "failed to read file": "Datei konnte nicht gelesen werden",
+    "failed to refresh file list": "Dateiliste konnte nicht aktualisiert werden",
+    "failed to save file": "Datei konnte nicht gespeichert werden",
+    "failed to reset file": "Datei konnte nicht zurückgesetzt werden",
+    "failed to copy file": "Datei konnte nicht kopiert werden",
+    "failed to delete file": "Datei konnte nicht gelöscht werden",
+    "failed to update publish state": "Veröffentlichungsstatus konnte nicht aktualisiert werden",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Das gespeicherte Original dieses Designs passt nicht zu seinem aktuellen Aufbau, daher können seine Dateien nicht zurückgesetzt werden.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} ist nicht im Original dieses Designs enthalten, daher gibt es nichts, worauf es zurückgesetzt werden könnte.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
   },
   "zh-CN": {
     "← All themes": "← 所有主题",
@@ -469,6 +583,38 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "为",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
+    "Saved {file}": "已保存 {file}",
+    "Reset {file} to the original": "已将 {file} 重置为原始版本",
+    "Renamed to {file}": "已重命名为 {file}",
+    "Copied to {file}": "已复制到 {file}",
+    "Deleted {file}": "已删除 {file}",
+    "Published {page}": "已发布 {page}",
+    "Unpublished {page}": "已取消发布 {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.": "无法重命名 {file}——每个主题都必须有这个页面才能加载。",
+    "{file} can't be deleted — every theme requires this exact page to load at all.": "无法删除 {file}——每个主题都必须有这个页面才能加载。",
+    "{file} can't be renamed — every theme requires this exact file to load at all.": "无法重命名 {file}——每个主题都必须有这个文件才能加载。",
+    "{file} can't be deleted — every theme requires this exact file to load at all.": "无法删除 {file}——每个主题都必须有这个文件才能加载。",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "无法重命名 {file}——此文件类型在浏览模式下为只读，重命名可能会导致仍以此名称引用它的页面或脚本出错。",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "无法删除 {file}——此文件类型在浏览模式下为只读，删除可能会导致仍以此名称引用它的页面或脚本出错。",
+    "Name cannot be empty": "名称不能为空",
+    "Name cannot contain a path separator": "名称不能包含路径分隔符",
+    "'{name}' already exists in this theme": "此主题中已存在“{name}”",
+    "failed to rename file": "重命名文件失败",
+    "\"{name}\" isn't a page or file in this theme.": "“{name}”不是此主题中的页面或文件。",
+    "failed to load theme": "加载主题失败",
+    "failed to read file": "读取文件失败",
+    "failed to refresh file list": "刷新文件列表失败",
+    "failed to save file": "保存文件失败",
+    "failed to reset file": "重置文件失败",
+    "failed to copy file": "复制文件失败",
+    "failed to delete file": "删除文件失败",
+    "failed to update publish state": "更新发布状态失败",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "此主题保存的原始版本与其当前结构不一致，因此无法重置其文件。",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此主题的原始版本中，因此没有可重置到的内容。",
+    "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
   },
   "zh-TW": {
     "← All themes": "← 所有佈景主題",
@@ -584,6 +730,42 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "為",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
+    "Saved {file}": "已儲存 {file}",
+    "Reset {file} to the original": "已將 {file} 重設為原始版本",
+    "Renamed to {file}": "已重新命名為 {file}",
+    "Copied to {file}": "已複製到 {file}",
+    "Deleted {file}": "已刪除 {file}",
+    "Published {page}": "已發布 {page}",
+    "Unpublished {page}": "已取消發布 {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "無法重新命名 {file}——每個佈景主題都必須有這個頁面才能載入。",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "無法刪除 {file}——每個佈景主題都必須有這個頁面才能載入。",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "無法重新命名 {file}——每個佈景主題都必須有這個檔案才能載入。",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "無法刪除 {file}——每個佈景主題都必須有這個檔案才能載入。",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "無法重新命名 {file}——此檔案類型在瀏覽模式下為唯讀，重新命名可能會讓仍以此名稱參照它的頁面或指令碼出錯。",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "無法刪除 {file}——此檔案類型在瀏覽模式下為唯讀，刪除可能會讓仍以此名稱參照它的頁面或指令碼出錯。",
+    "Name cannot be empty": "名稱不可為空白",
+    "Name cannot contain a path separator": "名稱不可包含路徑分隔符號",
+    "'{name}' already exists in this theme": "此佈景主題中已有「{name}」",
+    "failed to rename file": "重新命名檔案失敗",
+    "\"{name}\" isn't a page or file in this theme.": "「{name}」不是此佈景主題中的頁面或檔案。",
+    "failed to load theme": "載入佈景主題失敗",
+    "failed to read file": "讀取檔案失敗",
+    "failed to refresh file list": "重新整理檔案清單失敗",
+    "failed to save file": "儲存檔案失敗",
+    "failed to reset file": "重設檔案失敗",
+    "failed to copy file": "複製檔案失敗",
+    "failed to delete file": "刪除檔案失敗",
+    "failed to update publish state": "更新發布狀態失敗",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "此佈景主題儲存的原始版本與目前的結構不一致，因此無法重設其檔案。",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此佈景主題的原始版本中，因此沒有可重設的內容。",
+    "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
   },
   "pt-BR": {
     "← All themes": "← Todos os temas",
@@ -700,6 +882,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "para",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "com a versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
+    "Saved {file}": "{file} salvo",
+    "Reset {file} to the original": "{file} redefinido para o original",
+    "Renamed to {file}": "Renomeado para {file}",
+    "Copied to {file}": "Copiado para {file}",
+    "Deleted {file}": "{file} excluído",
+    "Published {page}": "{page} publicada",
+    "Unpublished {page}": "{page} despublicada",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Não é possível renomear {file} — todo tema precisa exatamente desta página para carregar.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Não é possível excluir {file} — todo tema precisa exatamente desta página para carregar.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Não é possível renomear {file} — todo tema precisa exatamente deste arquivo para carregar.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Não é possível excluir {file} — todo tema precisa exatamente deste arquivo para carregar.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Não é possível renomear {file} — este tipo de arquivo é somente leitura no Explorar, e renomeá-lo pode quebrar uma página ou script que ainda se refere a ele por este nome.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Não é possível excluir {file} — este tipo de arquivo é somente leitura no Explorar, e excluí-lo pode quebrar uma página ou script que ainda se refere a ele por este nome.",
+    "Name cannot be empty": "O nome não pode ficar vazio",
+    "Name cannot contain a path separator": "O nome não pode conter um separador de caminho",
+    "'{name}' already exists in this theme": "'{name}' já existe neste tema",
+    "failed to rename file": "Não foi possível renomear o arquivo",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" não é uma página nem um arquivo deste tema.",
+    "failed to load theme": "Não foi possível carregar o tema",
+    "failed to read file": "Não foi possível ler o arquivo",
+    "failed to refresh file list": "Não foi possível atualizar a lista de arquivos",
+    "failed to save file": "Não foi possível salvar o arquivo",
+    "failed to reset file": "Não foi possível redefinir o arquivo",
+    "failed to copy file": "Não foi possível copiar o arquivo",
+    "failed to delete file": "Não foi possível excluir o arquivo",
+    "failed to update publish state": "Não foi possível atualizar o status de publicação",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "O original salvo deste tema não corresponde à estrutura atual dele, então os arquivos não podem ser redefinidos.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} não está no original deste tema, então não há nada para o qual redefini-lo.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Este tema não tem um original salvo, então nada pode ser redefinido.",
   },
   ru: {
     "← All themes": "← Все темы",
@@ -816,6 +1036,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "в",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
+    "Saved {file}": "Файл {file} сохранён",
+    "Reset {file} to the original": "Файл {file} сброшен до оригинала",
+    "Renamed to {file}": "Переименовано в {file}",
+    "Copied to {file}": "Скопировано в {file}",
+    "Deleted {file}": "Файл {file} удалён",
+    "Published {page}": "Страница {page} опубликована",
+    "Unpublished {page}": "Страница {page} снята с публикации",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Нельзя переименовать {file}: без именно этой страницы ни одна тема не загрузится.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Нельзя удалить {file}: без именно этой страницы ни одна тема не загрузится.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Нельзя переименовать {file}: без именно этого файла ни одна тема не загрузится.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Нельзя удалить {file}: без именно этого файла ни одна тема не загрузится.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Нельзя переименовать {file}: этот тип файла доступен только для чтения в режиме обзора, а переименование может сломать страницу или скрипт, которые всё ещё ссылаются на него по этому имени.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Нельзя удалить {file}: этот тип файла доступен только для чтения в режиме обзора, а удаление может сломать страницу или скрипт, которые всё ещё ссылаются на него по этому имени.",
+    "Name cannot be empty": "Имя не может быть пустым",
+    "Name cannot contain a path separator": "Имя не может содержать разделитель пути",
+    "'{name}' already exists in this theme": "«{name}» уже есть в этой теме",
+    "failed to rename file": "Не удалось переименовать файл",
+    "\"{name}\" isn't a page or file in this theme.": "«{name}» — не страница и не файл этой темы.",
+    "failed to load theme": "Не удалось загрузить тему",
+    "failed to read file": "Не удалось прочитать файл",
+    "failed to refresh file list": "Не удалось обновить список файлов",
+    "failed to save file": "Не удалось сохранить файл",
+    "failed to reset file": "Не удалось сбросить файл",
+    "failed to copy file": "Не удалось скопировать файл",
+    "failed to delete file": "Не удалось удалить файл",
+    "failed to update publish state": "Не удалось обновить статус публикации",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Сохранённый оригинал этой темы не соответствует её текущей структуре, поэтому её файлы нельзя сбросить.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "Файла {file} нет в оригинале этой темы, поэтому сбрасывать его не к чему.",
+    "This theme has no stored original, so nothing can be reset.":
+      "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
   },
   fa: {
     "← All themes": "← همه پوسته‌ها",
@@ -932,6 +1190,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "به",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "با نسخه پوسته اصلی جایگزین می‌شود. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
+    "Saved {file}": "{file} ذخیره شد",
+    "Reset {file} to the original": "{file} به نسخه اصلی بازنشانی شد",
+    "Renamed to {file}": "نام به {file} تغییر کرد",
+    "Copied to {file}": "در {file} کپی شد",
+    "Deleted {file}": "{file} حذف شد",
+    "Published {page}": "{page} منتشر شد",
+    "Unpublished {page}": "انتشار {page} لغو شد",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "نام {file} را نمی‌توان تغییر داد — هر پوسته برای بارگذاری دقیقاً به همین صفحه نیاز دارد.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} را نمی‌توان حذف کرد — هر پوسته برای بارگذاری دقیقاً به همین صفحه نیاز دارد.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "نام {file} را نمی‌توان تغییر داد — هر پوسته برای بارگذاری دقیقاً به همین فایل نیاز دارد.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} را نمی‌توان حذف کرد — هر پوسته برای بارگذاری دقیقاً به همین فایل نیاز دارد.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "نام {file} را نمی‌توان تغییر داد — این نوع فایل در کاوش فقط‌خواندنی است و تغییر نام آن ممکن است صفحه یا اسکریپتی را که هنوز با این نام به آن اشاره می‌کند خراب کند.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} را نمی‌توان حذف کرد — این نوع فایل در کاوش فقط‌خواندنی است و حذف آن ممکن است صفحه یا اسکریپتی را که هنوز با این نام به آن اشاره می‌کند خراب کند.",
+    "Name cannot be empty": "نام نمی‌تواند خالی باشد",
+    "Name cannot contain a path separator": "نام نمی‌تواند جداکننده مسیر داشته باشد",
+    "'{name}' already exists in this theme": "«{name}» از قبل در این پوسته وجود دارد",
+    "failed to rename file": "تغییر نام فایل ناموفق بود",
+    "\"{name}\" isn't a page or file in this theme.": "«{name}» صفحه یا فایلی در این پوسته نیست.",
+    "failed to load theme": "بارگذاری پوسته ناموفق بود",
+    "failed to read file": "خواندن فایل ناموفق بود",
+    "failed to refresh file list": "به‌روزرسانی فهرست فایل‌ها ناموفق بود",
+    "failed to save file": "ذخیره فایل ناموفق بود",
+    "failed to reset file": "بازنشانی فایل ناموفق بود",
+    "failed to copy file": "کپی فایل ناموفق بود",
+    "failed to delete file": "حذف فایل ناموفق بود",
+    "failed to update publish state": "به‌روزرسانی وضعیت انتشار ناموفق بود",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "نسخه اصلی ذخیره‌شده این پوسته با ساختار فعلی آن مطابقت ندارد، بنابراین فایل‌های آن قابل بازنشانی نیستند.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} در نسخه اصلی این پوسته وجود ندارد، بنابراین چیزی برای بازنشانی آن نیست.",
+    "This theme has no stored original, so nothing can be reset.":
+      "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
   },
   ar: {
     "← All themes": "← جميع القوالب",
@@ -1048,6 +1344,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "إلى",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
+    "Saved {file}": "تم حفظ {file}",
+    "Reset {file} to the original": "تمت إعادة تعيين {file} إلى الأصل",
+    "Renamed to {file}": "تمت إعادة التسمية إلى {file}",
+    "Copied to {file}": "تم النسخ إلى {file}",
+    "Deleted {file}": "تم حذف {file}",
+    "Published {page}": "تم نشر {page}",
+    "Unpublished {page}": "تم إلغاء نشر {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "لا يمكن إعادة تسمية {file} — كل قالب يحتاج إلى هذه الصفحة تحديدًا حتى يُحمَّل.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "لا يمكن حذف {file} — كل قالب يحتاج إلى هذه الصفحة تحديدًا حتى يُحمَّل.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "لا يمكن إعادة تسمية {file} — كل قالب يحتاج إلى هذا الملف تحديدًا حتى يُحمَّل.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "لا يمكن حذف {file} — كل قالب يحتاج إلى هذا الملف تحديدًا حتى يُحمَّل.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "لا يمكن إعادة تسمية {file} — نوع الملف هذا للقراءة فقط في الاستكشاف، وقد تؤدي إعادة تسميته إلى تعطل صفحة أو نص برمجي لا يزال يشير إليه بهذا الاسم.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "لا يمكن حذف {file} — نوع الملف هذا للقراءة فقط في الاستكشاف، وقد يؤدي حذفه إلى تعطل صفحة أو نص برمجي لا يزال يشير إليه بهذا الاسم.",
+    "Name cannot be empty": "لا يمكن أن يكون الاسم فارغًا",
+    "Name cannot contain a path separator": "لا يمكن أن يحتوي الاسم على فاصل مسار",
+    "'{name}' already exists in this theme": "'{name}' موجود بالفعل في هذا القالب",
+    "failed to rename file": "تعذّرت إعادة تسمية الملف",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" ليس صفحة أو ملفًا في هذا القالب.",
+    "failed to load theme": "تعذّر تحميل القالب",
+    "failed to read file": "تعذّرت قراءة الملف",
+    "failed to refresh file list": "تعذّر تحديث قائمة الملفات",
+    "failed to save file": "تعذّر حفظ الملف",
+    "failed to reset file": "تعذّرت إعادة تعيين الملف",
+    "failed to copy file": "تعذّر نسخ الملف",
+    "failed to delete file": "تعذّر حذف الملف",
+    "failed to update publish state": "تعذّر تحديث حالة النشر",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "النسخة الأصلية المحفوظة لهذا القالب لا تطابق بنيته الحالية، لذا لا يمكن إعادة تعيين ملفاته.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} غير موجود في النسخة الأصلية لهذا القالب، لذا لا يوجد ما يمكن إعادة تعيينه إليه.",
+    "This theme has no stored original, so nothing can be reset.":
+      "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
   },
   ja: {
     "← All themes": "← すべてのテーマ",
@@ -1164,6 +1498,43 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "に",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "です。元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
+    "Saved {file}": "{file} を保存しました",
+    "Reset {file} to the original": "{file} をオリジナルにリセットしました",
+    "Renamed to {file}": "{file} に名前を変更しました",
+    "Copied to {file}": "{file} にコピーしました",
+    "Deleted {file}": "{file} を削除しました",
+    "Published {page}": "{page} を公開しました",
+    "Unpublished {page}": "{page} を非公開にしました",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} の名前は変更できません。どのテーマも、読み込むにはこのページが必要です。",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} は削除できません。どのテーマも、読み込むにはこのページが必要です。",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} の名前は変更できません。どのテーマも、読み込むにはこのファイルが必要です。",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} は削除できません。どのテーマも、読み込むにはこのファイルが必要です。",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} の名前は変更できません。このファイル形式はExploreでは読み取り専用で、名前を変更すると、この名前で参照しているページやスクリプトが壊れる可能性があります。",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} は削除できません。このファイル形式はExploreでは読み取り専用で、削除すると、この名前で参照しているページやスクリプトが壊れる可能性があります。",
+    "Name cannot be empty": "名前を空にすることはできません",
+    "Name cannot contain a path separator": "名前にパス区切り文字は使えません",
+    "'{name}' already exists in this theme": "「{name}」はこのテーマにすでに存在します",
+    "failed to rename file": "ファイルの名前を変更できませんでした",
+    "\"{name}\" isn't a page or file in this theme.": "「{name}」はこのテーマのページでもファイルでもありません。",
+    "failed to load theme": "テーマを読み込めませんでした",
+    "failed to read file": "ファイルを読み込めませんでした",
+    "failed to refresh file list": "ファイル一覧を更新できませんでした",
+    "failed to save file": "ファイルを保存できませんでした",
+    "failed to reset file": "ファイルをリセットできませんでした",
+    "failed to copy file": "ファイルをコピーできませんでした",
+    "failed to delete file": "ファイルを削除できませんでした",
+    "failed to update publish state": "公開状態を更新できませんでした",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "このテーマの保存されたオリジナルは現在の構成と一致しないため、ファイルをリセットできません。",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} はこのテーマのオリジナルに含まれていないため、リセットできません。",
+    "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
   },
   ko: {
     "← All themes": "← 모든 테마",
@@ -1280,6 +1651,43 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "(으)로",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "이며, 원본 테마의 버전으로 대체됩니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
+    "Saved {file}": "{file} 저장됨",
+    "Reset {file} to the original": "{file}을(를) 원본으로 초기화했습니다",
+    "Renamed to {file}": "{file}(으)로 이름을 변경했습니다",
+    "Copied to {file}": "{file}(으)로 복사했습니다",
+    "Deleted {file}": "{file}을(를) 삭제했습니다",
+    "Published {page}": "{page}을(를) 게시했습니다",
+    "Unpublished {page}": "{page} 게시를 취소했습니다",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file}의 이름은 변경할 수 없습니다. 모든 테마는 로드하려면 바로 이 페이지가 필요합니다.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file}은(는) 삭제할 수 없습니다. 모든 테마는 로드하려면 바로 이 페이지가 필요합니다.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file}의 이름은 변경할 수 없습니다. 모든 테마는 로드하려면 바로 이 파일이 필요합니다.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file}은(는) 삭제할 수 없습니다. 모든 테마는 로드하려면 바로 이 파일이 필요합니다.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file}의 이름은 변경할 수 없습니다. 이 파일 형식은 Explore에서 읽기 전용이며, 이름을 바꾸면 아직 이 이름으로 참조하는 페이지나 스크립트가 손상될 수 있습니다.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file}은(는) 삭제할 수 없습니다. 이 파일 형식은 Explore에서 읽기 전용이며, 삭제하면 아직 이 이름으로 참조하는 페이지나 스크립트가 손상될 수 있습니다.",
+    "Name cannot be empty": "이름은 비워 둘 수 없습니다",
+    "Name cannot contain a path separator": "이름에 경로 구분 기호를 넣을 수 없습니다",
+    "'{name}' already exists in this theme": "'{name}'이(가) 이 테마에 이미 있습니다",
+    "failed to rename file": "파일 이름을 변경하지 못했습니다",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\"은(는) 이 테마의 페이지나 파일이 아닙니다.",
+    "failed to load theme": "테마를 불러오지 못했습니다",
+    "failed to read file": "파일을 읽지 못했습니다",
+    "failed to refresh file list": "파일 목록을 새로 고치지 못했습니다",
+    "failed to save file": "파일을 저장하지 못했습니다",
+    "failed to reset file": "파일을 초기화하지 못했습니다",
+    "failed to copy file": "파일을 복사하지 못했습니다",
+    "failed to delete file": "파일을 삭제하지 못했습니다",
+    "failed to update publish state": "게시 상태를 업데이트하지 못했습니다",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "이 테마에 저장된 원본이 현재 구조와 맞지 않아 파일을 초기화할 수 없습니다.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file}은(는) 이 테마의 원본에 없어 초기화할 대상이 없습니다.",
+    "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
   },
   pl: {
     "← All themes": "← Wszystkie motywy",
@@ -1396,6 +1804,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "na",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
+    "Saved {file}": "Zapisano {file}",
+    "Reset {file} to the original": "Zresetowano {file} do oryginału",
+    "Renamed to {file}": "Zmieniono nazwę na {file}",
+    "Copied to {file}": "Skopiowano do {file}",
+    "Deleted {file}": "Usunięto {file}",
+    "Published {page}": "Opublikowano {page}",
+    "Unpublished {page}": "Cofnięto publikację {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Nie można zmienić nazwy {file} — każdy motyw potrzebuje dokładnie tej strony, żeby się załadować.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Nie można usunąć {file} — każdy motyw potrzebuje dokładnie tej strony, żeby się załadować.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Nie można zmienić nazwy {file} — każdy motyw potrzebuje dokładnie tego pliku, żeby się załadować.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Nie można usunąć {file} — każdy motyw potrzebuje dokładnie tego pliku, żeby się załadować.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Nie można zmienić nazwy {file} — ten typ pliku jest tylko do odczytu w Eksploracji, a zmiana nazwy może zepsuć stronę lub skrypt, które nadal odwołują się do niego pod tą nazwą.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Nie można usunąć {file} — ten typ pliku jest tylko do odczytu w Eksploracji, a usunięcie może zepsuć stronę lub skrypt, które nadal odwołują się do niego pod tą nazwą.",
+    "Name cannot be empty": "Nazwa nie może być pusta",
+    "Name cannot contain a path separator": "Nazwa nie może zawierać separatora ścieżki",
+    "'{name}' already exists in this theme": "„{name}” już istnieje w tym motywie",
+    "failed to rename file": "Nie udało się zmienić nazwy pliku",
+    "\"{name}\" isn't a page or file in this theme.": "„{name}” nie jest stroną ani plikiem w tym motywie.",
+    "failed to load theme": "Nie udało się wczytać motywu",
+    "failed to read file": "Nie udało się odczytać pliku",
+    "failed to refresh file list": "Nie udało się odświeżyć listy plików",
+    "failed to save file": "Nie udało się zapisać pliku",
+    "failed to reset file": "Nie udało się zresetować pliku",
+    "failed to copy file": "Nie udało się skopiować pliku",
+    "failed to delete file": "Nie udało się usunąć pliku",
+    "failed to update publish state": "Nie udało się zaktualizować stanu publikacji",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Zapisany oryginał tego motywu nie pasuje do jego obecnego układu, więc jego plików nie można zresetować.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} nie ma w oryginale tego motywu, więc nie ma do czego go zresetować.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
   },
   hu: {
     "← All themes": "← Összes téma",
@@ -1512,6 +1958,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "erre:",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
+    "Saved {file}": "{file} mentve",
+    "Reset {file} to the original": "{file} visszaállítva az eredetire",
+    "Renamed to {file}": "Átnevezve erre: {file}",
+    "Copied to {file}": "Másolva ide: {file}",
+    "Deleted {file}": "{file} törölve",
+    "Published {page}": "{page} közzétéve",
+    "Unpublished {page}": "{page} közzététele visszavonva",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} nem nevezhető át – minden sablonnak pontosan erre az oldalra van szüksége a betöltéshez.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} nem törölhető – minden sablonnak pontosan erre az oldalra van szüksége a betöltéshez.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} nem nevezhető át – minden sablonnak pontosan erre a fájlra van szüksége a betöltéshez.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} nem törölhető – minden sablonnak pontosan erre a fájlra van szüksége a betöltéshez.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} nem nevezhető át – ez a fájltípus csak olvasható az Exploreban, és az átnevezése tönkreteheti azt az oldalt vagy szkriptet, amely még ezen a néven hivatkozik rá.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} nem törölhető – ez a fájltípus csak olvasható az Exploreban, és a törlése tönkreteheti azt az oldalt vagy szkriptet, amely még ezen a néven hivatkozik rá.",
+    "Name cannot be empty": "A név nem lehet üres",
+    "Name cannot contain a path separator": "A név nem tartalmazhat útvonal-elválasztót",
+    "'{name}' already exists in this theme": "„{name}” már létezik ebben a sablonban",
+    "failed to rename file": "Nem sikerült átnevezni a fájlt",
+    "\"{name}\" isn't a page or file in this theme.": "„{name}” nem oldal és nem fájl ebben a sablonban.",
+    "failed to load theme": "Nem sikerült betölteni a sablont",
+    "failed to read file": "Nem sikerült beolvasni a fájlt",
+    "failed to refresh file list": "Nem sikerült frissíteni a fájllistát",
+    "failed to save file": "Nem sikerült menteni a fájlt",
+    "failed to reset file": "Nem sikerült visszaállítani a fájlt",
+    "failed to copy file": "Nem sikerült másolni a fájlt",
+    "failed to delete file": "Nem sikerült törölni a fájlt",
+    "failed to update publish state": "Nem sikerült frissíteni a közzétételi állapotot",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "A sablon mentett eredetije nem egyezik a jelenlegi felépítésével, ezért a fájljai nem állíthatók vissza.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} nincs benne a sablon eredetijében, így nincs mire visszaállítani.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
   },
   fr: {
     "← All themes": "← Tous les thèmes",
@@ -1628,6 +2112,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "par",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
+    "Saved {file}": "{file} enregistré",
+    "Reset {file} to the original": "{file} réinitialisé à l'original",
+    "Renamed to {file}": "Renommé en {file}",
+    "Copied to {file}": "Copié vers {file}",
+    "Deleted {file}": "{file} supprimé",
+    "Published {page}": "{page} publiée",
+    "Unpublished {page}": "{page} dépubliée",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Impossible de renommer {file} : chaque thème a besoin de cette page précise pour se charger.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Impossible de supprimer {file} : chaque thème a besoin de cette page précise pour se charger.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Impossible de renommer {file} : chaque thème a besoin de ce fichier précis pour se charger.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Impossible de supprimer {file} : chaque thème a besoin de ce fichier précis pour se charger.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Impossible de renommer {file} : ce type de fichier est en lecture seule dans Explorer, et le renommer pourrait casser une page ou un script qui y fait encore référence sous ce nom.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Impossible de supprimer {file} : ce type de fichier est en lecture seule dans Explorer, et le supprimer pourrait casser une page ou un script qui y fait encore référence sous ce nom.",
+    "Name cannot be empty": "Le nom ne peut pas être vide",
+    "Name cannot contain a path separator": "Le nom ne peut pas contenir de séparateur de chemin",
+    "'{name}' already exists in this theme": "« {name} » existe déjà dans ce thème",
+    "failed to rename file": "Impossible de renommer le fichier",
+    "\"{name}\" isn't a page or file in this theme.": "« {name} » n'est ni une page ni un fichier de ce thème.",
+    "failed to load theme": "Impossible de charger le thème",
+    "failed to read file": "Impossible de lire le fichier",
+    "failed to refresh file list": "Impossible d'actualiser la liste des fichiers",
+    "failed to save file": "Impossible d'enregistrer le fichier",
+    "failed to reset file": "Impossible de réinitialiser le fichier",
+    "failed to copy file": "Impossible de copier le fichier",
+    "failed to delete file": "Impossible de supprimer le fichier",
+    "failed to update publish state": "Impossible de mettre à jour l'état de publication",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "L'original enregistré de ce thème ne correspond pas à sa structure actuelle, ses fichiers ne peuvent donc pas être réinitialisés.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} ne fait pas partie de l'original de ce thème, il n'y a donc rien vers quoi le réinitialiser.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
   },
   uk: {
     "← All themes": "← Усі теми",
@@ -1744,6 +2266,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "на",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
+    "Saved {file}": "Файл {file} збережено",
+    "Reset {file} to the original": "Файл {file} скинуто до оригіналу",
+    "Renamed to {file}": "Перейменовано на {file}",
+    "Copied to {file}": "Скопійовано до {file}",
+    "Deleted {file}": "Файл {file} видалено",
+    "Published {page}": "Сторінку {page} опубліковано",
+    "Unpublished {page}": "Сторінку {page} знято з публікації",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Не можна перейменувати {file}: без саме цієї сторінки жодна тема не завантажиться.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Не можна видалити {file}: без саме цієї сторінки жодна тема не завантажиться.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Не можна перейменувати {file}: без саме цього файлу жодна тема не завантажиться.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Не можна видалити {file}: без саме цього файлу жодна тема не завантажиться.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Не можна перейменувати {file}: цей тип файлу доступний лише для читання в режимі огляду, а перейменування може зламати сторінку чи скрипт, які досі посилаються на нього за цією назвою.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Не можна видалити {file}: цей тип файлу доступний лише для читання в режимі огляду, а видалення може зламати сторінку чи скрипт, які досі посилаються на нього за цією назвою.",
+    "Name cannot be empty": "Назва не може бути порожньою",
+    "Name cannot contain a path separator": "Назва не може містити роздільник шляху",
+    "'{name}' already exists in this theme": "«{name}» вже є в цій темі",
+    "failed to rename file": "Не вдалося перейменувати файл",
+    "\"{name}\" isn't a page or file in this theme.": "«{name}» — не сторінка і не файл цієї теми.",
+    "failed to load theme": "Не вдалося завантажити тему",
+    "failed to read file": "Не вдалося прочитати файл",
+    "failed to refresh file list": "Не вдалося оновити список файлів",
+    "failed to save file": "Не вдалося зберегти файл",
+    "failed to reset file": "Не вдалося скинути файл",
+    "failed to copy file": "Не вдалося скопіювати файл",
+    "failed to delete file": "Не вдалося видалити файл",
+    "failed to update publish state": "Не вдалося оновити стан публікації",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Збережений оригінал цієї теми не відповідає її поточній структурі, тому її файли не можна скинути.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "Файлу {file} немає в оригіналі цієї теми, тому скидати його нема до чого.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
   },
   tr: {
     "← All themes": "← Tüm temalar",
@@ -1860,6 +2420,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "şununla:",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "orijinal temanın sürümüyle değiştirilecek. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
+    "Saved {file}": "{file} kaydedildi",
+    "Reset {file} to the original": "{file} orijinaline sıfırlandı",
+    "Renamed to {file}": "Adı {file} olarak değiştirildi",
+    "Copied to {file}": "{file} konumuna kopyalandı",
+    "Deleted {file}": "{file} silindi",
+    "Published {page}": "{page} yayınlandı",
+    "Unpublished {page}": "{page} yayından kaldırıldı",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} yeniden adlandırılamaz — her temanın yüklenebilmesi için tam olarak bu sayfa gerekir.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} silinemez — her temanın yüklenebilmesi için tam olarak bu sayfa gerekir.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} yeniden adlandırılamaz — her temanın yüklenebilmesi için tam olarak bu dosya gerekir.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} silinemez — her temanın yüklenebilmesi için tam olarak bu dosya gerekir.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} yeniden adlandırılamaz — bu dosya türü Explore'da salt okunurdur ve yeniden adlandırmak, ona hâlâ bu adla başvuran bir sayfayı veya betiği bozabilir.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} silinemez — bu dosya türü Explore'da salt okunurdur ve silmek, ona hâlâ bu adla başvuran bir sayfayı veya betiği bozabilir.",
+    "Name cannot be empty": "Ad boş olamaz",
+    "Name cannot contain a path separator": "Ad yol ayırıcı içeremez",
+    "'{name}' already exists in this theme": "'{name}' bu temada zaten var",
+    "failed to rename file": "Dosya yeniden adlandırılamadı",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" bu temada bir sayfa veya dosya değil.",
+    "failed to load theme": "Tema yüklenemedi",
+    "failed to read file": "Dosya okunamadı",
+    "failed to refresh file list": "Dosya listesi yenilenemedi",
+    "failed to save file": "Dosya kaydedilemedi",
+    "failed to reset file": "Dosya sıfırlanamadı",
+    "failed to copy file": "Dosya kopyalanamadı",
+    "failed to delete file": "Dosya silinemedi",
+    "failed to update publish state": "Yayın durumu güncellenemedi",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "Bu temanın kaydedilmiş orijinali mevcut düzeniyle eşleşmiyor, bu yüzden dosyaları sıfırlanamaz.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} bu temanın orijinalinde yok, bu yüzden sıfırlanacak bir şey yok.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
   },
   th: {
     "← All themes": "← ธีมทั้งหมด",
@@ -1976,6 +2574,43 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "เป็น",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
+    "Saved {file}": "บันทึก {file} แล้ว",
+    "Reset {file} to the original": "รีเซ็ต {file} เป็นต้นฉบับแล้ว",
+    "Renamed to {file}": "เปลี่ยนชื่อเป็น {file} แล้ว",
+    "Copied to {file}": "คัดลอกไปยัง {file} แล้ว",
+    "Deleted {file}": "ลบ {file} แล้ว",
+    "Published {page}": "เผยแพร่ {page} แล้ว",
+    "Unpublished {page}": "ยกเลิกการเผยแพร่ {page} แล้ว",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "เปลี่ยนชื่อ {file} ไม่ได้ — ทุกธีมต้องมีหน้านี้ตามชื่อนี้จึงจะโหลดได้",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "ลบ {file} ไม่ได้ — ทุกธีมต้องมีหน้านี้ตามชื่อนี้จึงจะโหลดได้",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "เปลี่ยนชื่อ {file} ไม่ได้ — ทุกธีมต้องมีไฟล์นี้ตามชื่อนี้จึงจะโหลดได้",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "ลบ {file} ไม่ได้ — ทุกธีมต้องมีไฟล์นี้ตามชื่อนี้จึงจะโหลดได้",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "เปลี่ยนชื่อ {file} ไม่ได้ — ไฟล์ประเภทนี้เป็นแบบอ่านอย่างเดียวใน Explore และการเปลี่ยนชื่ออาจทำให้หน้าหรือสคริปต์ที่ยังอ้างถึงไฟล์ด้วยชื่อนี้เสียหาย",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "ลบ {file} ไม่ได้ — ไฟล์ประเภทนี้เป็นแบบอ่านอย่างเดียวใน Explore และการลบอาจทำให้หน้าหรือสคริปต์ที่ยังอ้างถึงไฟล์ด้วยชื่อนี้เสียหาย",
+    "Name cannot be empty": "ชื่อต้องไม่ว่างเปล่า",
+    "Name cannot contain a path separator": "ชื่อต้องไม่มีตัวคั่นพาธ",
+    "'{name}' already exists in this theme": "มี '{name}' อยู่ในธีมนี้แล้ว",
+    "failed to rename file": "เปลี่ยนชื่อไฟล์ไม่สำเร็จ",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" ไม่ใช่หน้าหรือไฟล์ในธีมนี้",
+    "failed to load theme": "โหลดธีมไม่สำเร็จ",
+    "failed to read file": "อ่านไฟล์ไม่สำเร็จ",
+    "failed to refresh file list": "รีเฟรชรายการไฟล์ไม่สำเร็จ",
+    "failed to save file": "บันทึกไฟล์ไม่สำเร็จ",
+    "failed to reset file": "รีเซ็ตไฟล์ไม่สำเร็จ",
+    "failed to copy file": "คัดลอกไฟล์ไม่สำเร็จ",
+    "failed to delete file": "ลบไฟล์ไม่สำเร็จ",
+    "failed to update publish state": "อัปเดตสถานะการเผยแพร่ไม่สำเร็จ",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "ต้นฉบับที่บันทึกไว้ของธีมนี้ไม่ตรงกับโครงสร้างปัจจุบัน จึงรีเซ็ตไฟล์ของธีมไม่ได้",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} ไม่มีอยู่ในต้นฉบับของธีมนี้ จึงไม่มีอะไรให้รีเซ็ตกลับไป",
+    "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
   },
   it: {
     "← All themes": "← Tutti i temi",
@@ -2092,6 +2727,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "con",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
+    "Saved {file}": "{file} salvato",
+    "Reset {file} to the original": "{file} ripristinato all'originale",
+    "Renamed to {file}": "Rinominato in {file}",
+    "Copied to {file}": "Copiato in {file}",
+    "Deleted {file}": "{file} eliminato",
+    "Published {page}": "{page} pubblicata",
+    "Unpublished {page}": "Pubblicazione di {page} annullata",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "Impossibile rinominare {file}: ogni tema ha bisogno proprio di questa pagina per caricarsi.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "Impossibile eliminare {file}: ogni tema ha bisogno proprio di questa pagina per caricarsi.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "Impossibile rinominare {file}: ogni tema ha bisogno proprio di questo file per caricarsi.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "Impossibile eliminare {file}: ogni tema ha bisogno proprio di questo file per caricarsi.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "Impossibile rinominare {file}: questo tipo di file è di sola lettura in Explore e rinominarlo potrebbe rompere una pagina o uno script che lo richiama ancora con questo nome.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "Impossibile eliminare {file}: questo tipo di file è di sola lettura in Explore ed eliminarlo potrebbe rompere una pagina o uno script che lo richiama ancora con questo nome.",
+    "Name cannot be empty": "Il nome non può essere vuoto",
+    "Name cannot contain a path separator": "Il nome non può contenere un separatore di percorso",
+    "'{name}' already exists in this theme": "'{name}' esiste già in questo tema",
+    "failed to rename file": "Impossibile rinominare il file",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" non è una pagina né un file di questo tema.",
+    "failed to load theme": "Impossibile caricare il tema",
+    "failed to read file": "Impossibile leggere il file",
+    "failed to refresh file list": "Impossibile aggiornare l'elenco dei file",
+    "failed to save file": "Impossibile salvare il file",
+    "failed to reset file": "Impossibile ripristinare il file",
+    "failed to copy file": "Impossibile copiare il file",
+    "failed to delete file": "Impossibile eliminare il file",
+    "failed to update publish state": "Impossibile aggiornare lo stato di pubblicazione",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "L'originale salvato di questo tema non corrisponde alla sua struttura attuale, quindi i suoi file non possono essere ripristinati.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} non è nell'originale di questo tema, quindi non c'è nulla a cui ripristinarlo.",
+    "This theme has no stored original, so nothing can be reset.":
+      "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
   },
   hi: {
     "← All themes": "← सभी थीम",
@@ -2208,6 +2881,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "को",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "मूल थीम के संस्करण से। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
+    "Saved {file}": "{file} सहेजा गया",
+    "Reset {file} to the original": "{file} को मूल पर रीसेट किया गया",
+    "Renamed to {file}": "नाम बदलकर {file} किया गया",
+    "Copied to {file}": "{file} में कॉपी किया गया",
+    "Deleted {file}": "{file} हटाया गया",
+    "Published {page}": "{page} प्रकाशित किया गया",
+    "Unpublished {page}": "{page} का प्रकाशन हटाया गया",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} का नाम नहीं बदला जा सकता — हर थीम को लोड होने के लिए ठीक यही पेज चाहिए।",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} को हटाया नहीं जा सकता — हर थीम को लोड होने के लिए ठीक यही पेज चाहिए।",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} का नाम नहीं बदला जा सकता — हर थीम को लोड होने के लिए ठीक यही फ़ाइल चाहिए।",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} को हटाया नहीं जा सकता — हर थीम को लोड होने के लिए ठीक यही फ़ाइल चाहिए।",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} का नाम नहीं बदला जा सकता — यह फ़ाइल प्रकार Explore में केवल पढ़ने के लिए है, और नाम बदलने से वह पेज या स्क्रिप्ट टूट सकती है जो अब भी इसी नाम से इसका उल्लेख करती है।",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} को हटाया नहीं जा सकता — यह फ़ाइल प्रकार Explore में केवल पढ़ने के लिए है, और इसे हटाने से वह पेज या स्क्रिप्ट टूट सकती है जो अब भी इसी नाम से इसका उल्लेख करती है।",
+    "Name cannot be empty": "नाम खाली नहीं हो सकता",
+    "Name cannot contain a path separator": "नाम में पथ विभाजक नहीं हो सकता",
+    "'{name}' already exists in this theme": "'{name}' इस थीम में पहले से मौजूद है",
+    "failed to rename file": "फ़ाइल का नाम नहीं बदला जा सका",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" इस थीम का कोई पेज या फ़ाइल नहीं है।",
+    "failed to load theme": "थीम लोड नहीं हो सकी",
+    "failed to read file": "फ़ाइल पढ़ी नहीं जा सकी",
+    "failed to refresh file list": "फ़ाइल सूची रीफ़्रेश नहीं हो सकी",
+    "failed to save file": "फ़ाइल सहेजी नहीं जा सकी",
+    "failed to reset file": "फ़ाइल रीसेट नहीं हो सकी",
+    "failed to copy file": "फ़ाइल कॉपी नहीं हो सकी",
+    "failed to delete file": "फ़ाइल हटाई नहीं जा सकी",
+    "failed to update publish state": "प्रकाशन स्थिति अपडेट नहीं हो सकी",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "इस थीम का सहेजा हुआ मूल संस्करण उसकी मौजूदा संरचना से मेल नहीं खाता, इसलिए इसकी फ़ाइलें रीसेट नहीं की जा सकतीं।",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} इस थीम के मूल संस्करण में नहीं है, इसलिए इसे रीसेट करने के लिए कुछ नहीं है।",
+    "This theme has no stored original, so nothing can be reset.":
+      "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
   },
   ur: {
     "← All themes": "← تمام تھیمز",
@@ -2324,6 +3035,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "میں",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "اصل تھیم کے ورژن سے۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
+    "Saved {file}": "{file} محفوظ ہو گیا",
+    "Reset {file} to the original": "{file} کو اصل پر ری سیٹ کر دیا گیا",
+    "Renamed to {file}": "نام بدل کر {file} کر دیا گیا",
+    "Copied to {file}": "{file} میں کاپی کر دیا گیا",
+    "Deleted {file}": "{file} حذف کر دیا گیا",
+    "Published {page}": "{page} شائع کر دیا گیا",
+    "Unpublished {page}": "{page} کی اشاعت ختم کر دی گئی",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file} کا نام تبدیل نہیں کیا جا سکتا — ہر تھیم کو لوڈ ہونے کے لیے بالکل یہی صفحہ درکار ہے۔",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} کو حذف نہیں کیا جا سکتا — ہر تھیم کو لوڈ ہونے کے لیے بالکل یہی صفحہ درکار ہے۔",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file} کا نام تبدیل نہیں کیا جا سکتا — ہر تھیم کو لوڈ ہونے کے لیے بالکل یہی فائل درکار ہے۔",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} کو حذف نہیں کیا جا سکتا — ہر تھیم کو لوڈ ہونے کے لیے بالکل یہی فائل درکار ہے۔",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file} کا نام تبدیل نہیں کیا جا سکتا — یہ فائل کی قسم Explore میں صرف پڑھنے کے لیے ہے، اور نام بدلنے سے وہ صفحہ یا اسکرپٹ خراب ہو سکتا ہے جو اب بھی اسی نام سے اس کا حوالہ دیتا ہے۔",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} کو حذف نہیں کیا جا سکتا — یہ فائل کی قسم Explore میں صرف پڑھنے کے لیے ہے، اور اسے حذف کرنے سے وہ صفحہ یا اسکرپٹ خراب ہو سکتا ہے جو اب بھی اسی نام سے اس کا حوالہ دیتا ہے۔",
+    "Name cannot be empty": "نام خالی نہیں ہو سکتا",
+    "Name cannot contain a path separator": "نام میں پاتھ الگ کرنے والا نشان نہیں ہو سکتا",
+    "'{name}' already exists in this theme": "'{name}' اس تھیم میں پہلے سے موجود ہے",
+    "failed to rename file": "فائل کا نام تبدیل نہیں ہو سکا",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" اس تھیم کا کوئی صفحہ یا فائل نہیں ہے۔",
+    "failed to load theme": "تھیم لوڈ نہیں ہو سکا",
+    "failed to read file": "فائل پڑھی نہیں جا سکی",
+    "failed to refresh file list": "فائلوں کی فہرست ریفریش نہیں ہو سکی",
+    "failed to save file": "فائل محفوظ نہیں ہو سکی",
+    "failed to reset file": "فائل ری سیٹ نہیں ہو سکی",
+    "failed to copy file": "فائل کاپی نہیں ہو سکی",
+    "failed to delete file": "فائل حذف نہیں ہو سکی",
+    "failed to update publish state": "اشاعت کی حالت اپ ڈیٹ نہیں ہو سکی",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "اس تھیم کا محفوظ شدہ اصل نسخہ اس کی موجودہ ساخت سے مطابقت نہیں رکھتا، اس لیے اس کی فائلیں ری سیٹ نہیں کی جا سکتیں۔",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} اس تھیم کے اصل نسخے میں موجود نہیں ہے، اس لیے اسے ری سیٹ کرنے کے لیے کچھ نہیں ہے۔",
+    "This theme has no stored original, so nothing can be reset.":
+      "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
   },
   bn: {
     "← All themes": "← সব থিম",
@@ -2440,6 +3189,44 @@ const THEMES_DICT: Record<string, Record<string, string>> = {
     to: "এ",
     "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "মূল থিমের সংস্করণ দিয়ে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+    "Saved {file}": "{file} সংরক্ষিত হয়েছে",
+    "Reset {file} to the original": "{file} মূল অবস্থায় রিসেট করা হয়েছে",
+    "Renamed to {file}": "নাম পরিবর্তন করে {file} করা হয়েছে",
+    "Copied to {file}": "{file}-এ কপি করা হয়েছে",
+    "Deleted {file}": "{file} মুছে ফেলা হয়েছে",
+    "Published {page}": "{page} প্রকাশিত হয়েছে",
+    "Unpublished {page}": "{page}-এর প্রকাশ বাতিল করা হয়েছে",
+    "{file} can't be renamed — every theme requires this exact page to load at all.":
+      "{file}-এর নাম পরিবর্তন করা যাবে না — প্রতিটি থিম লোড হতে ঠিক এই পৃষ্ঠাটি প্রয়োজন।",
+    "{file} can't be deleted — every theme requires this exact page to load at all.":
+      "{file} মুছে ফেলা যাবে না — প্রতিটি থিম লোড হতে ঠিক এই পৃষ্ঠাটি প্রয়োজন।",
+    "{file} can't be renamed — every theme requires this exact file to load at all.":
+      "{file}-এর নাম পরিবর্তন করা যাবে না — প্রতিটি থিম লোড হতে ঠিক এই ফাইলটি প্রয়োজন।",
+    "{file} can't be deleted — every theme requires this exact file to load at all.":
+      "{file} মুছে ফেলা যাবে না — প্রতিটি থিম লোড হতে ঠিক এই ফাইলটি প্রয়োজন।",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.":
+      "{file}-এর নাম পরিবর্তন করা যাবে না — এই ফাইলের ধরনটি Explore-এ শুধুমাত্র পঠনযোগ্য, এবং নাম পরিবর্তন করলে যে পৃষ্ঠা বা স্ক্রিপ্ট এখনও এই নামে এটিকে উল্লেখ করে তা নষ্ট হয়ে যেতে পারে।",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.":
+      "{file} মুছে ফেলা যাবে না — এই ফাইলের ধরনটি Explore-এ শুধুমাত্র পঠনযোগ্য, এবং মুছে ফেললে যে পৃষ্ঠা বা স্ক্রিপ্ট এখনও এই নামে এটিকে উল্লেখ করে তা নষ্ট হয়ে যেতে পারে।",
+    "Name cannot be empty": "নাম খালি রাখা যাবে না",
+    "Name cannot contain a path separator": "নামে পাথ বিভাজক থাকতে পারবে না",
+    "'{name}' already exists in this theme": "'{name}' এই থিমে আগে থেকেই আছে",
+    "failed to rename file": "ফাইলের নাম পরিবর্তন করা যায়নি",
+    "\"{name}\" isn't a page or file in this theme.": "\"{name}\" এই থিমের কোনো পৃষ্ঠা বা ফাইল নয়।",
+    "failed to load theme": "থিম লোড করা যায়নি",
+    "failed to read file": "ফাইল পড়া যায়নি",
+    "failed to refresh file list": "ফাইলের তালিকা রিফ্রেশ করা যায়নি",
+    "failed to save file": "ফাইল সংরক্ষণ করা যায়নি",
+    "failed to reset file": "ফাইল রিসেট করা যায়নি",
+    "failed to copy file": "ফাইল কপি করা যায়নি",
+    "failed to delete file": "ফাইল মুছে ফেলা যায়নি",
+    "failed to update publish state": "প্রকাশের অবস্থা আপডেট করা যায়নি",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.":
+      "এই থিমের সংরক্ষিত মূল সংস্করণ এর বর্তমান গঠনের সঙ্গে মেলে না, তাই এর ফাইলগুলো রিসেট করা যাবে না।",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.":
+      "{file} এই থিমের মূল সংস্করণে নেই, তাই এটিকে রিসেট করার মতো কিছু নেই।",
+    "This theme has no stored original, so nothing can be reset.":
+      "এই থিমের কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই কিছুই রিসেট করা যাবে না।",
   },
 };
 

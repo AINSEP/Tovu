@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import type { Translate } from "@/lib/dictionary-translator";
+import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
 import {
@@ -3093,5 +3095,294 @@ describe("shouldAdoptRefreshedText", () => {
     ["a save or reset landed since the read started", { source: "saved", savedSource: "saved" }, "b"],
   ])("drops the read when %s", (_case, override, content) => {
     expect(shouldAdoptRefreshedText({ started, current: { ...started, ...override }, content })).toBe(false);
+  });
+});
+
+/**
+ * F4 (o24 review, B3): every toast this hook sets, notice or error, goes through `t()`, and the reset
+ * route's 409 codes get their own translated copy. `marked` wraps each key, so a string that skipped
+ * `t()` shows up unwrapped.
+ */
+describe("useThemeExplore — toasts go through t()", () => {
+  const marked: Translate = (key) => `«${key}»`;
+  const INDEX = "render/pages/index.html";
+  const ABOUT = "render/pages/about.html";
+  const CSS = "css/theme.css";
+  const SCRIPT = "js/theme.js";
+
+  function toastPort() {
+    return createFakeThemeExplorePort({
+      detail: { id: "basic", name: "Basic", tier: "static", apiVersion: 2, status: "active", errors: [], lineage: null, hasOriginal: true },
+      files: [
+        { path: ABOUT, group: "page", readable: true, editable: true, resettable: true, modified: true, published: true },
+        { path: CSS, group: "style", readable: true, editable: true, resettable: true, modified: true },
+        { path: SCRIPT, group: "script", readable: true, editable: true, resettable: true, modified: false },
+      ],
+      contents: { [ABOUT]: "<h1>About</h1>", [CSS]: "body{}", [SCRIPT]: "" },
+    });
+  }
+
+  async function mount(port: ThemeExplorePort = toastPort()) {
+    const hook = renderHook(() => useThemeExplore("basic", { port, t: marked }));
+    await waitFor(() => expect(hook.result.current.sourceLoaded).toBe(true));
+    return hook;
+  }
+
+  it("translates the Save, Reset, Publish, Copy, Rename and Delete notices", async () => {
+    const { result } = await mount();
+
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.notice).toBe("«Saved render/pages/about.html»");
+    await act(async () => {
+      await result.current.reset();
+    });
+    expect(result.current.notice).toBe("«Reset render/pages/about.html to the original»");
+    await act(async () => {
+      await result.current.setPagePublished(false);
+    });
+    expect(result.current.notice).toBe("«Unpublished about»");
+    await act(async () => {
+      await result.current.setPagePublished(true);
+    });
+    expect(result.current.notice).toBe("«Published about»");
+    await act(async () => {
+      await result.current.copyFile(CSS);
+    });
+    expect(result.current.notice).toBe("«Copied to css/theme-1.css»");
+
+    act(() => result.current.startRename(CSS));
+    act(() => result.current.setRenameDraft("site.css"));
+    act(() => result.current.commitRename());
+    await waitFor(() => expect(result.current.notice).toBe("«Renamed to css/site.css»"));
+
+    act(() => result.current.openDeleteConfirm("css/site.css"));
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+    expect(result.current.notice).toBe("«Deleted css/site.css»");
+  });
+
+  it("fills a file name containing a replacement pattern literally", async () => {
+    const port = toastPort();
+    port.putThemeFile = async (_themeId, path, content) => ({ path, bytes: content.length });
+    port.getThemeDetail = async () => ({
+      id: "basic",
+      name: "Basic",
+      tier: "static",
+      apiVersion: 2,
+      status: "active",
+      errors: [],
+      lineage: null,
+      hasOriginal: true,
+      files: [{ path: "css/$&.css", group: "style", readable: true, editable: true, resettable: true, modified: false }],
+    });
+    port.getThemeFile = async () => ({ content: "" });
+    const { result } = await mount(port);
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.notice).toBe("«Saved css/$&.css»");
+  });
+
+  it.each([
+    ["ORIGINAL_LAYOUT_MISMATCH", "«This theme's saved original doesn't match its current layout, so its files can't be reset.»"],
+    ["NOT_IN_ORIGINAL", "«render/pages/about.html isn't in this theme's original, so there's nothing to reset it to.»"],
+    ["NO_ORIGINAL", "«This theme has no stored original, so nothing can be reset.»"],
+  ])("maps the reset route's 409 %s to its own translated copy", async (code, expected) => {
+    const port = toastPort();
+    port.resetThemeFile = () => Promise.reject(new ApiError("server English", 409, code));
+    const { result } = await mount(port);
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe(expected);
+  });
+
+  it("keeps the server's own message for a reset refusal it has no copy for", async () => {
+    const port = toastPort();
+    port.resetThemeFile = () => Promise.reject(new ApiError("'x' is generated output and cannot be reset here", 409, "READ_ONLY_FILE"));
+    const { result } = await mount(port);
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.error).toBe("'x' is generated output and cannot be reset here");
+  });
+
+  it.each([
+    ["an empty name", "   ", "«Name cannot be empty»"],
+    ["a path separator", "a/b.css", "«Name cannot contain a path separator»"],
+  ])("translates the rename refusal for %s", async (_case, draft, expected) => {
+    const { result } = await mount();
+    act(() => result.current.startRename(CSS));
+    act(() => result.current.setRenameDraft(draft));
+    act(() => result.current.commitRename());
+    expect(result.current.error).toBe(expected);
+  });
+
+  it("translates a NAME_TAKEN conflict, naming the taken name", async () => {
+    const port = toastPort();
+    port.renameThemeFile = () => Promise.reject(new ApiError("taken", 409, "NAME_TAKEN"));
+    const { result } = await mount(port);
+    act(() => result.current.startRename(CSS));
+    act(() => result.current.setRenameDraft("site.css"));
+    act(() => result.current.commitRename());
+    await waitFor(() => expect(result.current.error).toBe("«'site.css' already exists in this theme»"));
+  });
+
+  it.each([
+    ["renamed", INDEX, "«render/pages/index.html can't be renamed — every theme requires this exact page to load at all.»"],
+    ["deleted", INDEX, "«render/pages/index.html can't be deleted — every theme requires this exact page to load at all.»"],
+    ["renamed", "theme.json", "«theme.json can't be renamed — every theme requires this exact file to load at all.»"],
+    ["deleted", "theme.json", "«theme.json can't be deleted — every theme requires this exact file to load at all.»"],
+    [
+      "renamed",
+      SCRIPT,
+      "«js/theme.js can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.»",
+    ],
+    [
+      "deleted",
+      SCRIPT,
+      "«js/theme.js can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.»",
+    ],
+  ])("translates the refusal when a locked file can't be %s (%s)", async (action, path, expected) => {
+    const { result } = await mount();
+    act(() => (action === "renamed" ? result.current.startRename(path) : result.current.openDeleteConfirm(path)));
+    expect(result.current.error).toBe(expected);
+  });
+
+  it("translates the not-found toast for a ?page= that names nothing", async () => {
+    const port = toastPort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: marked }, { pageId: "nope" }));
+    await waitFor(() => expect(result.current.error).toBe("«\"nope\" isn't a page or file in this theme.»"));
+  });
+
+  it.each<[string, (port: ThemeExplorePort) => void, (controller: ThemeExploreController) => Promise<void>, string]>([
+    [
+      "save",
+      (p) => {
+        p.putThemeFile = () => Promise.reject("nope");
+      },
+      (c) => c.save(),
+      "«failed to save file»",
+    ],
+    [
+      "reset",
+      (p) => {
+        p.resetThemeFile = () => Promise.reject("nope");
+      },
+      (c) => c.reset(),
+      "«failed to reset file»",
+    ],
+    [
+      "copy",
+      (p) => {
+        p.copyThemeFile = () => Promise.reject("nope");
+      },
+      (c) => c.copyFile(CSS),
+      "«failed to copy file»",
+    ],
+    [
+      "publish",
+      (p) => {
+        p.setPagePublished = () => Promise.reject("nope");
+      },
+      (c) => c.setPagePublished(false),
+      "«failed to update publish state»",
+    ],
+    [
+      "post-save refresh",
+      (p) => {
+        p.getThemeDetail = () => Promise.reject("nope");
+      },
+      (c) => c.save(),
+      "«failed to refresh file list»",
+    ],
+  ])("translates the generic %s failure", async (_name, arrange, run, expected) => {
+    const port = toastPort();
+    const { result } = await mount(port);
+    arrange(port);
+
+    await act(async () => {
+      await run(result.current);
+    });
+
+    await waitFor(() => expect(result.current.error).toBe(expected));
+  });
+
+  it("translates the generic rename and delete failures", async () => {
+    const port = toastPort();
+    port.renameThemeFile = () => Promise.reject("nope");
+    port.deleteThemeFile = () => Promise.reject("nope");
+    const { result } = await mount(port);
+
+    act(() => result.current.startRename(CSS));
+    act(() => result.current.setRenameDraft("site.css"));
+    act(() => result.current.commitRename());
+    await waitFor(() => expect(result.current.error).toBe("«failed to rename file»"));
+
+    act(() => result.current.openDeleteConfirm(CSS));
+    await act(async () => {
+      await result.current.confirmDelete();
+    });
+    expect(result.current.error).toBe("«failed to delete file»");
+  });
+
+  it("translates the generic load and read failures", async () => {
+    const loadPort = toastPort();
+    loadPort.getThemeDetail = () => Promise.reject("nope");
+    const load = renderHook(() => useThemeExplore("basic", { port: loadPort, t: marked }));
+    await waitFor(() => expect(load.result.current.error).toBe("«failed to load theme»"));
+
+    const readPort = toastPort();
+    readPort.getThemeFile = () => Promise.reject("nope");
+    const read = renderHook(() => useThemeExplore("basic", { port: readPort, t: marked }));
+    await waitFor(() => expect(read.result.current.error).toBe("«failed to read file»"));
+  });
+});
+
+describe("themes-i18n — Theme Explore toast keys", () => {
+  const LOCALES = ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"];
+  const KEYS = [
+    "Saved {file}",
+    "Reset {file} to the original",
+    "Renamed to {file}",
+    "Copied to {file}",
+    "Deleted {file}",
+    "Published {page}",
+    "Unpublished {page}",
+    "{file} can't be renamed — every theme requires this exact page to load at all.",
+    "{file} can't be deleted — every theme requires this exact page to load at all.",
+    "{file} can't be renamed — every theme requires this exact file to load at all.",
+    "{file} can't be deleted — every theme requires this exact file to load at all.",
+    "{file} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.",
+    "{file} can't be deleted — this file type is read-only in Explore, and deleting it could break a page or script that still refers to it by this name.",
+    "Name cannot be empty",
+    "Name cannot contain a path separator",
+    "'{name}' already exists in this theme",
+    "failed to rename file",
+    "\"{name}\" isn't a page or file in this theme.",
+    "failed to load theme",
+    "failed to read file",
+    "failed to refresh file list",
+    "failed to save file",
+    "failed to reset file",
+    "failed to copy file",
+    "failed to delete file",
+    "failed to update publish state",
+    "This theme's saved original doesn't match its current layout, so its files can't be reset.",
+    "{file} isn't in this theme's original, so there's nothing to reset it to.",
+    "This theme has no stored original, so nothing can be reset.",
+  ];
+
+  it.each(KEYS)("translates %s in every locale", (key) => {
+    expect(LOCALES.filter((locale) => translateThemes(locale, key) === key)).toEqual([]);
   });
 });
