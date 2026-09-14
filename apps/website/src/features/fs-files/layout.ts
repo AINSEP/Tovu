@@ -105,7 +105,7 @@ export const FS_ROOT_DESCRIPTORS: readonly FsRootDescriptor[] = [
   {
     id: "custom",
     description:
-      "A folder the operator has pointed the assistant at from the chat composer, anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots.",
+      "A folder the operator has pointed the assistant at from the chat composer (including by dropping it onto the composer), anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots. If what you find here looks like an existing website the operator wants turned into a Tovu theme or Page, proactively mention the installed 'tovuize-site' Agent Plugin (search_agent_plugin_local, e.g. query 'convert website to theme') even while it is inactive — do not make the operator ask for it by name. There is no tool call that enables an Agent Plugin; offer to walk the operator through turning it on from the Agent Plugins admin screen, and confirm with them before assuming they want that rather than proceeding as if it were already on. Multiple HTML files sharing navigation/footer markup suggest a whole theme; one page with no site-wide chrome suggests a single Page (Pages agent tools) instead — when the operator hasn't said which and the shape is ambiguous, ask, don't guess.",
   },
 ];
 
