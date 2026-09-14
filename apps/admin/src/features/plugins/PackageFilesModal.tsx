@@ -40,8 +40,8 @@ export interface PackageFilesModalProps {
 }
 
 /** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). The file list
- *  is narrow (`.agent-plugin-source-files`, `minmax(14rem, 20rem)`) and these paths run long
- *  (`skills/interface-design/references/commands/critique.md`) — without a preferred break point
+ *  is narrow (`.agent-plugin-source-browser`'s first grid column, styles.css) and these paths run
+ *  long (`skills/interface-design/references/commands/critique.md`) — without a preferred break point
  *  `overflow-wrap: anywhere` (styles.css) was free to split mid-filename, e.g. leaving a lone `d`
  *  orphaned on its own line after "critique.m". `<wbr>` only offers the browser a *preferred* spot
  *  to break, so `overflow-wrap: anywhere` still catches the rare segment too long for the pane on

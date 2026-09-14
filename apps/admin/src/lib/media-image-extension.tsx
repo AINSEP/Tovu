@@ -31,13 +31,11 @@ import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDi
  *
  * The legacy `setImage({ src, alt })` command (`@tiptap/extension-image`'s own, unchanged) still
  * exists and still works — a node with `src` but no `assetId`/`transformName` renders via this same
- * NodeView's legacy branch, and `render.ts`'s own `image` case (unchanged for this shape) still
- * degrades it to the public-safe placeholder exactly as before this task, per the explicit
- * backward-compat requirement. Its own toolbar button ("Insert image by URL") was REMOVED
- * 2026-08-12 (`PostEditor.tsx`'s own comment on the removal — owner-reported bug: it wrote exactly
- * this `src`-only shape, which never renders on the public site), so this branch is no longer
- * reachable from a fresh insert; it stays purely so a post SAVED before that removal keeps
- * displaying correctly in the admin editor rather than breaking backward compatibility.
+ * NodeView's legacy branch. That branch is still reachable from a fresh insert: `PostEditor.tsx`'s
+ * "Img by URL" toolbar button (removed and restored the same day, 2026-08-12 — see its own comment
+ * there) writes exactly this `src`-only shape. On the public site, `render.ts`'s `renderDocImage`
+ * renders that `src` as a real `<img>` when `safeImageSrc` accepts it (an `http(s):` allowlist) and
+ * degrades anything else to the placeholder.
  */
 
 declare module "@tiptap/core" {

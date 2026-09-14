@@ -470,7 +470,7 @@ function Toolbar({
           Img by URL
         </button>
         {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
-            same shape "Insert image by URL" used before its removal above.
+            same shape as "Insert image by URL" just above.
             `setYoutubeVideo` itself rejects an unrecognized URL
             (returns `false`, no-ops) before insertion — the render.ts side independently
             re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
