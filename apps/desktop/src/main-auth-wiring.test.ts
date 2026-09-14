@@ -1,11 +1,11 @@
 /**
  * @file Wiring guard for `../main.ts`'s site-session sequence — DS-01.
  *
- * Source text, for the reason `main-speech-wiring.test.js` documents: `main.ts` requires
+ * Source text, for the reason `main-speech-wiring.test.ts` documents: `main.ts` requires
  * `"electron"` at module scope, so `require`-ing it under plain `node --test` crashes before proving
  * anything. The DECISION itself is deliberately not tested here — it was extracted into
- * `desktop-auth.js`'s `ensureSiteSession` precisely so it could be covered behaviourally, and it is
- * (four tests in `desktop-auth.test.js`). What only this file can check is that `main.ts` reaches
+ * `desktop-auth.ts`'s `ensureSiteSession` precisely so it could be covered behaviourally, and it is
+ * (four tests in `desktop-auth.test.ts`). What only this file can check is that `main.ts` reaches
  * for the new decision at all, and in the one order where it is sound.
  *
  * The order is the whole point. `emitBootToken` is a SPAWN ARGUMENT, so it is decided before any
@@ -48,7 +48,7 @@ test("the session decision is made AFTER the server is up, through ensureSiteSes
 
 test("the probe is pointed at this site's own admin URL and its own partition", () => {
   // Both are per-site. A probe against the wrong partition reads another site's jar (cookies ignore
-  // port, which is why `sitePartition` exists at all — see `desktop-auth.js` header, property 2).
+  // port, which is why `sitePartition` exists at all — see `desktop-auth.ts` header, property 2).
   const body = startSiteBackendBody();
   assert.match(body, /adminUrl: server\.adminUrl/);
   assert.match(body, /session: session\.fromPartition\(partition\)/);

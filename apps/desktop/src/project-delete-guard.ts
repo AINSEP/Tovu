@@ -2,7 +2,7 @@
  * @file The one rule that stands between a two-click card overlay and `fs.rm(dir, {recursive: true,
  * force: true})`.
  *
- * `project-ipc.js`'s `handleDelete` erases a project's whole install directory — `content.db`,
+ * `project-ipc.ts`'s `handleDelete` erases a project's whole install directory — `content.db`,
  * `uploads/`, `themes/`, `agent-plugins/` — with no backup and no OS trash, because that is the
  * honest meaning of "delete this project" for a project the app itself provisioned. It is NOT the
  * honest meaning for a directory the app merely ADOPTED. `main.ts` seeds the Projects screen with
@@ -38,7 +38,7 @@
  * distrust — and it self-corrects for every project created from here on.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js` and `site-dir-store.ts`.
+ * `tracked-sites.ts` and `site-dir-store.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";

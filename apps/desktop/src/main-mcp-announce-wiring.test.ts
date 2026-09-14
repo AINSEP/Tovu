@@ -3,11 +3,11 @@
  * shell's own MCP tool server with a site the instant it boots, so that site's assistant can reach
  * the desktop's capabilities (list the operator's websites, add one, reveal one's folder).
  *
- * Source text, for the reason `main-project-wiring.test.js` and `main-speech-wiring.test.js` state at
+ * Source text, for the reason `main-project-wiring.test.ts` and `main-speech-wiring.test.ts` state at
  * length: `main.ts` requires `"electron"` at module scope, which resolves to a bare path string
  * outside a real Electron process, so requiring it under plain `node --test` crashes before this file
  * could prove anything behavioural. `writeSitesMcpLauncher` and `registerSitesMcpServer` are covered
- * behaviourally where they live (`sites-mcp-registration.test.js`); what only this file can catch is
+ * behaviourally where they live (`sites-mcp-registration.test.ts`); what only this file can catch is
  * that `main.ts` actually calls them, in order, after the right session exists, with the right site's
  * own `workspaceId` — because `announceDesktopToolsToSite`'s own `catch` logs and swallows any error,
  * so a dropped call, a reordered one, or a hard-coded `workspaceId` produces no failing test, no

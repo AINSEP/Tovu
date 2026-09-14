@@ -10,13 +10,13 @@
  * about `desktop-projects.json` would make `apps/website` depend on `apps/desktop`, inverting the
  * one structural rule this directory has — `apps/desktop` is a consumer of Tovu's published
  * contracts and can be deleted in place without anything else changing. So the command lives here,
- * and it is cheap to have here: `tracked-sites.js` and `site-dir-store.js`'s classifier are
+ * and it is cheap to have here: `tracked-sites.ts` and `site-dir-store.ts`'s classifier are
  * already `electron`-free and run under plain Node.
  *
  * ## One implementation, three entry points
  *
- * This command, the `add_site_pointer` MCP tool (`projects-mcp-tools.js`) and the Projects header
- * button (IPC, `project-ipc.js`) all call `addSitePointer` and nothing else. None of them re-decides
+ * This command, the `add_site_pointer` MCP tool (`sites-mcp-tools.ts`) and the Projects header
+ * button (IPC, `project-ipc.ts`) all call `addSitePointer` and nothing else. None of them re-decides
  * what a site is, what gets written, or what an empty folder means — so the three cannot drift into
  * disagreeing, which is how "the button accepted it but the CLI didn't" bugs are born.
  *

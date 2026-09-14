@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `tracked-sites.js` — the tracked-project JSON store the Projects screen's
+ * @file Coverage for `tracked-sites.ts` — the tracked-project JSON store the Projects screen's
  * list is built from.
  */
 import test from "node:test";
@@ -140,7 +140,7 @@ test("seedDevFallbackSite is not blocked by an unrelated tracked project", () =>
 
 // --- provenance (2026-09-06) ---------------------------------------------------------------
 //
-// A row's `origin` is what `project-delete-guard.js` consults before `handleDelete` is allowed to
+// A row's `origin` is what `project-delete-guard.ts` consults before `handleDelete` is allowed to
 // recursively erase a directory. Every rule below therefore fails toward NOT deleting.
 
 test("normalizeOrigin only ever accepts the literal 'created' — everything else reads as adopted", () => {

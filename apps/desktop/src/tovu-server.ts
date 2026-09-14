@@ -361,7 +361,7 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
   }
 
-  // Seeds the desktop shell's OWN owner account so `desktop-auth.js` can log in and the operator
+  // Seeds the desktop shell's OWN owner account so `desktop-auth.ts` can log in and the operator
   // never meets a login form for a server this app started. Omitted entirely when the caller passes
   // no credential (every existing caller and every existing test), so the child's identity seeding
   // is byte-for-byte unchanged in that case.
@@ -425,7 +425,7 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
     env.TOVU_SITE_CHAT_DIST = siteChatDist;
   }
 
-  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.js` probes; a
+  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a
   // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
   // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
   // static branch is reached — which is exactly the point: the built bundle is what goes stale.
@@ -625,13 +625,13 @@ interface TovuServerHandle {
  * @param input.stopGraceMs SIGTERM-to-SIGKILL window; defaults to 5s.
  * @param input.mirror where the child's output is echoed; defaults to this process's own streams.
  * @param input.desktopCredential `{username, password}` seeding the shell's own owner account, so
- *   the admin comes up authenticated (see `desktop-auth.js`). Omit to leave the child's identity
+ *   the admin comes up authenticated (see `desktop-auth.ts`). Omit to leave the child's identity
  *   seeding exactly as it was.
  * @param input.cliMode `"source"` or `"compiled"` — see {@link buildCliSpawnPlan}; defaults to
  *   `"compiled"` when omitted (unchanged prior behavior for any existing caller).
  * @param input.adminDevProxyUrl a live admin Vite dev-server origin, which makes this site serve
  *   `/admin/*` from current source instead of the built `apps/admin/dist`. Resolve it with
- *   `admin-dev-proxy.js`'s `resolveAdminDevProxyUrl` — which probes, and yields nothing when
+ *   `admin-dev-proxy.ts`'s `resolveAdminDevProxyUrl` — which probes, and yields nothing when
  *   packaged — rather than passing a bare URL, since an unreachable origin turns `/admin/` into a
  *   502 rather than falling back. Omit to serve the built bundle exactly as before.
  * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —

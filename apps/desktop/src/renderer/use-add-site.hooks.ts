@@ -22,7 +22,7 @@ import { runnerInventoryBridge } from './runner-api.js';
 const NO_BRIDGE_MESSAGE = "This build can't open a folder picker — run the desktop app.";
 
 /** The operator dismissing the folder picker. Main rejects with this exact sentence
- *  (`project-ipc.js`'s `handleAddSite`), and it is the one refusal that is not worth showing:
+ *  (`project-ipc.ts`'s `handleAddSite`), and it is the one refusal that is not worth showing:
  *  they know they cancelled. */
 const CANCELLED_MESSAGE = 'No folder was chosen.';
 

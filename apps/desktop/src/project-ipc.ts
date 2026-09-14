@@ -3,16 +3,16 @@
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
  * `main.ts` BEFORE `registerRunnerIpcStubs` runs, so these channels are never also stubbed —
  * Electron's `ipcMain.handle` throws on a duplicate registration, which is the desired failure if
- * that ever regresses (see `runner-ipc-stubs.js`'s own doc).
+ * that ever regresses (see `runner-ipc-stubs.ts`'s own doc).
  *
  * `stop` is deliberately absent — no control in the per-project bar calls it yet; closing the app
  * (`before-quit`, `main.ts`) or deleting the project (`handleDelete` below) are the two ways a
  * sites-home-opened site stops today. It stays registered as a throwing stub.
  *
  * The channel literals below are INLINED rather than imported from `contracts/project.ts`, same
- * reason `runner-ipc-stubs.js` inlines its own: this is CommonJS main-process code and the
+ * reason `runner-ipc-stubs.ts` inlines its own: this is CommonJS main-process code and the
  * contracts are TypeScript with no compiled output guaranteed at runtime from a source checkout.
- * `project-ipc.test.js` parses the contract source and fails if any literal here drifts from it.
+ * `project-ipc.test.ts` parses the contract source and fails if any literal here drifts from it.
  *
  * Every dependency arrives on `deps` rather than through a `require("electron")` or a closed-over
  * module-level variable, so every handler here is callable from plain `node --test` against fakes —
@@ -39,11 +39,11 @@ const SITE_IPC_CHANNELS = Object.freeze({
 
 /**
  * A tracked-project row as {@link buildSiteRecord} and its siblings need it — loosened from
- * `tracked-sites.js`'s own `TrackedSiteRow` (not exported) in exactly the two fields a caller here
+ * `tracked-sites.ts`'s own `TrackedSiteRow` (not exported) in exactly the two fields a caller here
  * can hand in without one: `origin` and `siteId` are optional, because {@link mayEraseSiteDirectory}
  * already treats an absent `origin` as "not created" (refuse) and {@link identityHasChanged} already
  * treats an absent `siteId` as "nothing recorded" — this type describes that existing tolerance
- * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.js`'s own
+ * rather than inventing it. Deliberately no index signature, unlike `project-delete-guard.ts`'s own
  * `RowLike`: a real `TrackedSiteRow` (also no index signature) must flow into this type at every
  * real call site, and TypeScript does not consider a plain interface assignable to one that HAS an
  * index signature. See the `as MayEraseRowLike` casts where a `SiteRow` is handed to
@@ -60,7 +60,7 @@ interface SiteRow {
  *  rather than by name — see {@link SiteRow}'s own doc on why a `SiteRow` needs a cast to reach it. */
 type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0];
 
-/** How a site's server exited. Mirrors `site-supervisor.js`'s own `ServerExit` structurally rather
+/** How a site's server exited. Mirrors `site-supervisor.ts`'s own `ServerExit` structurally rather
  *  than importing it — this file's `openSites` contract is a plain duck type on purpose (see
  *  {@link OpenSites}), never coupled to the concrete supervisor. */
 interface ServerExitLike {
@@ -88,7 +88,7 @@ interface OpenSiteEntry {
 }
 
 /** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
- *  it is `site-supervisor.js`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
+ *  it is `site-supervisor.ts`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
  *  handlers only ever call `get`/`delete`, but `set`/`has` are part of the type because the
  *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.ts`) build
  *  entries with before a handler ever sees them. */
@@ -101,7 +101,7 @@ interface OpenSites {
 }
 
 /** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
- *  `site-process-registry.js`'s own `SiteProcessRow`, duplicated rather than imported for the same
+ *  `site-process-registry.ts`'s own `SiteProcessRow`, duplicated rather than imported for the same
  *  reason `readRegistry`/`isLiveServeRow` arrive on `deps` rather than as a direct import: every
  *  handler here stays callable from plain `node --test` against fakes. */
 interface RegistryRow {
@@ -150,7 +150,7 @@ interface IpcMainLike {
   handle(channel: string, listener: (event: any, ...args: any[]) => any): void; // eslint-disable-line @typescript-eslint/no-explicit-any -- mirrors Electron's own ipcMain.handle signature
 }
 
-/** `deps.serializer` — `keyed-serializer.js`'s per-key promise chain, loosened from that file's own
+/** `deps.serializer` — `keyed-serializer.ts`'s per-key promise chain, loosened from that file's own
  *  exported `KeyedSerializer` type (`run<T>(...): Promise<T>`) to `T | PromiseLike<T>`: this file
  *  only ever `await`s the result, and the plain synchronous fakes several tests use return `fn()`'s
  *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer()` still satisfies
@@ -180,7 +180,7 @@ interface OpenSiteSurfaceInput {
 }
 
 /** {@link handleCreate}/{@link rescanSites}'s own `adoptSiteDir` shape — loosened from
- *  `site-dir-store.js`'s own `AdoptSiteDirInput` (not exported) since this field arrives on `deps`,
+ *  `site-dir-store.ts`'s own `AdoptSiteDirInput` (not exported) since this field arrives on `deps`,
  *  injected rather than imported, for the same testability reason as every other collaborator here. */
 interface AdoptSiteDirInput {
   dir: string;
@@ -190,7 +190,7 @@ interface AdoptSiteDirInput {
   cliMode?: "source" | "compiled";
 }
 
-/** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.js`'s real
+/** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
  *  `addSitePointer`, duplicated rather than imported for the same reason as {@link AdoptSiteDirInput}. */
 interface AddSitePointerLike {
   (input: { siteDir: string; projectsPath: string }): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
@@ -232,7 +232,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     installDir: row.siteDir,
     port: running ? openEntry.server.port : 0,
     // Independent of `running` — a project's partition is a pure function of its own directory
-    // (`desktop-auth.js`'s `sitePartition`), not of whether a server currently answers on it. The
+    // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
     // before the tab knows whether the site is up yet.
     partition: sitePartition(row.siteDir),
@@ -242,14 +242,14 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     desiredState: running ? "running" : "stopped",
     status: running ? "running" : "stopped",
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
-    // started, and before `site-supervisor.js` owned that transition the two were indistinguishable
+    // started, and before `site-supervisor.ts` owned that transition the two were indistinguishable
     // to the renderer (D-06). This is the one place the difference can be told.
     statusDetail: running ? null : describeLastExit(deps.openSites, row.siteDir),
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
-    // and label a button with a consequence that will not happen. See `project-delete-guard.js`.
+    // and label a button with a consequence that will not happen. See `project-delete-guard.ts`.
     deleteErasesFiles: mayEraseSiteDirectory(row as unknown as MayEraseRowLike, { repoRoot: deps.repoRoot }),
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
@@ -307,7 +307,7 @@ async function handleCreate(
   // BEFORE `adoptSiteDir`, because afterwards the answer is gone: it returns the same path whether
   // it ran `tovu init` into an empty folder or simply recognized a site that was already there. Only
   // the first of those is a directory this app made, and only that one may ever be erased again —
-  // see `project-delete-guard.js`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
+  // see `project-delete-guard.ts`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
   // only two classifications that reach `trackSite` are the two this maps.
   const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
   const siteDir = await deps.adoptSiteDir({
@@ -321,7 +321,7 @@ async function handleCreate(
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
-  // at a path, and a path is not an identity. See `project-delete-guard.js`'s test 3.
+  // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
@@ -345,7 +345,7 @@ async function handleCreate(
  * Main owns the dialog, same as `handleCreate`, so the renderer never names a path.
  *
  * The row is recorded `adopted` by `addSitePointer` itself, never `created`, so
- * `project-delete-guard.js` can never let a later delete erase a folder this app did not make.
+ * `project-delete-guard.ts` can never let a later delete erase a folder this app did not make.
  *
  * @throws {Error} when the dialog is cancelled, or `AddSitePointerError` when the folder is not a
  *   complete Tovu site — either way an operator-facing message that names the fix.
@@ -414,7 +414,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * created — erases its install directory.
  *
  * That last word is load-bearing and is the whole reason this function consults
- * `project-delete-guard.js` rather than calling `fs.rm` on whatever id arrives. A tracked row can
+ * `project-delete-guard.ts` rather than calling `fs.rm` on whatever id arrives. A tracked row can
  * point at a folder the app merely adopted (`seedDevFallbackSite` seeds exactly one such row,
  * `<repo>/sites/tovu-com`, someone's real 44 MB site), and for those the delete means "take this
  * card off my Projects screen" — the row goes, every byte stays. The renderer says which of the two
@@ -465,7 +465,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
   // of the app, and nothing prevents one — `main.ts` calls no `requestSingleInstanceLock`, and
-  // `site-process-registry.js` is written throughout on the premise that two instances can run at once.
+  // `site-process-registry.ts` is written throughout on the premise that two instances can run at once.
   // Instance A deleting a site instance B has open recursively erased the directory out from under
   // B's live `tovu serve`, which went on writing into unlinked files.
   //
@@ -496,7 +496,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
   // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
-  // (`site-preview-store.js`'s own doc on why an orphan is otherwise unreachable, not merely
+  // (`site-preview-store.ts`'s own doc on why an orphan is otherwise unreachable, not merely
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview(id);
   if (erasesFiles) {
@@ -508,7 +508,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
  * Whether this row recorded an identity that the directory no longer has.
  *
  * `false` for a row that recorded none — which is every ADOPTED row, since `buildTrackedRow`
- * (`tracked-sites.js`) stamps `siteId` only on a `created` one. That is the deliberate fail-OPEN
+ * (`tracked-sites.ts`) stamps `siteId` only on a `created` one. That is the deliberate fail-OPEN
  * half of {@link handleRename}'s guard, argued in its own doc: a check that cannot run is not the
  * same as a check that failed, and treating it as failure would make rename impossible on every
  * site the operator adopted.
@@ -527,15 +527,15 @@ function identityHasChanged(row: SiteRow): boolean {
  * Change a site's display name — `config.json`'s `name`, the one `readSiteName` reads for every
  * card's `displayName`.
  *
- * **WHY THE GUARD IS NOT `isStillTheRecordedSite`.** That predicate (`project-delete-guard.js`) is
+ * **WHY THE GUARD IS NOT `isStillTheRecordedSite`.** That predicate (`project-delete-guard.ts`) is
  * the right identity test for DELETE and the wrong one here, and the difference is not a judgement
  * call — it returns `false` immediately unless `row.siteId` is a non-empty string, and
- * `buildTrackedRow` (`tracked-sites.js`) stamps `siteId` ONLY on a `created` row. Every site the
+ * `buildTrackedRow` (`tracked-sites.ts`) stamps `siteId` ONLY on a `created` row. Every site the
  * operator adopted — "Add Tovu Website", a rescan, "Open Site…" — has no `siteId` and never will,
  * so gating rename on it would refuse rename on essentially every real site: a feature that fails
  * closed into uselessness.
  *
- * The asymmetry is in what each direction costs, which is exactly how `project-delete-guard.js`'s
+ * The asymmetry is in what each direction costs, which is exactly how `project-delete-guard.ts`'s
  * own header argues its case. Delete's fail-closed direction costs the operator a leftover folder
  * they can remove in Finder, while its wrong direction costs them their content — so it refuses
  * whatever it cannot positively prove. Rename's fail-closed direction costs the whole feature on
@@ -559,7 +559,7 @@ function identityHasChanged(row: SiteRow): boolean {
  *
  * @returns the refreshed `SiteRecord`, so the card re-renders without a second `list` round trip.
  * @throws {Error} operator-facing, for every refusal above and for an invalid name
- *   (`site-config.js`'s own 1..200-after-trim check, which mirrors what `tovu serve` re-applies at
+ *   (`site-config.ts`'s own 1..200-after-trim check, which mirrors what `tovu serve` re-applies at
  *   every boot).
  * @complexity O(n) in the tracked-site count, for the row lookup.
  */
@@ -607,7 +607,7 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
 /**
  * Hands one of a running project's surfaces to the operator's default browser. Refuses a project
  * that is not currently open rather than guessing a port — nothing durable records a stopped
- * project's last-known port today (see `tracked-sites.js`'s header on why status is derived,
+ * project's last-known port today (see `tracked-sites.ts`'s header on why status is derived,
  * not stored), so "not running" and "never had a port to report" are the same state here.
  *
  * @throws {Error} when the project is not open.
@@ -624,11 +624,11 @@ async function handleOpenExternal(input: OpenSiteSurfaceInput, deps: Pick<Projec
 
 /**
  * One site's cached preview as a `data:` URL, fetched ON DEMAND rather than riding along on
- * `buildSiteRecord`'s `previewVersion` field — see that field's own doc, and `site-preview-store.js`'s
+ * `buildSiteRecord`'s `previewVersion` field — see that field's own doc, and `site-preview-store.ts`'s
  * header, on why the polled record and the actual bytes are deliberately two different round trips.
  *
  * No tracked-row check, unlike every other handler here: `id` only ever reaches this as an input to
- * a digest (`site-preview-store.js`'s `previewPath`), never as a filesystem path this function opens
+ * a digest (`site-preview-store.ts`'s `previewPath`), never as a filesystem path this function opens
  * directly, and reading is the only thing it does — there is no write or delete for a stale or
  * foreign id to cause.
  *
@@ -646,7 +646,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * Reuses `openSiteServer` — `main.ts`'s spawn-only counterpart to the `openSiteWindow` "Open
  * Site…"/"Open Recent"/startup already use — through `serializer.run`, so opening the same tab twice
  * fast cannot double-spawn its server (see `main.ts`'s own doc on `openSiteServer`/
- * `keyed-serializer.js`).
+ * `keyed-serializer.ts`).
  *
  * Returns the project's fresh record rather than nothing: the renderer's `<webview>` needs the
  * `port` this call just produced, and re-deriving it would mean a second `list` round trip for
@@ -692,7 +692,7 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
  * clears a dismissal.
  *
  * @param deps.siteScanRoots directories whose immediate children are candidate sites.
- * @param deps.recentSiteDirs `site-dir-store.js`'s recently-opened list, as a thunk — the sites
+ * @param deps.recentSiteDirs `site-dir-store.ts`'s recently-opened list, as a thunk — the sites
  *   own-server mode has been recording all along, which are the operator's by definition and
  *   generally do not live under any scan root.
  * @returns the same records {@link handleList} would return, after the pass.
@@ -714,42 +714,42 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
- *   `site-supervisor.js`'s supervisor, which additionally drops an entry whose child has died and
+ *   `site-supervisor.ts`'s supervisor, which additionally drops an entry whose child has died and
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
- * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.js`).
- * @param deps.projectsPath `tracked-sites.js`'s tracked-project JSON file.
- * @param deps.registryPath crash-safety registry file (`site-process-registry.js`), for
+ * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.ts`).
+ * @param deps.projectsPath `tracked-sites.ts`'s tracked-project JSON file.
+ * @param deps.registryPath crash-safety registry file (`site-process-registry.ts`), for
  *   `recordSiteClosed` on a delete of a running project.
  * @param deps.repoRoot Tovu repo root.
- * @param deps.statePath `site-dir-store.js`'s MRU file, for `adoptSiteDir`.
- * @param deps.cliMode `"source"` or `"compiled"` — see `tovu-server.js`.
+ * @param deps.statePath `site-dir-store.ts`'s MRU file, for `adoptSiteDir`.
+ * @param deps.cliMode `"source"` or `"compiled"` — see `tovu-server.ts`.
  * @param deps.readSiteName `main.ts`'s site-display-name reader.
- * @param deps.writeSiteName `site-config.js`'s validating, atomic `config.json` name
+ * @param deps.writeSiteName `site-config.ts`'s validating, atomic `config.json` name
  *   writer, used by {@link handleRename}. Injected rather than imported for the same reason
  *   `adoptSiteDir` is — every handler in this file stays callable from plain `node --test` against
  *   fakes, and a rename test must never write into a real site directory.
- * @param deps.readPreviewVersion `site-preview-store.js`'s reader, bound to this launch's
+ * @param deps.readPreviewVersion `site-preview-store.ts`'s reader, bound to this launch's
  *   userData at the same call site every other consumer resolves it from — feeds
  *   `buildSiteRecord`'s `previewVersion` field.
- * @param deps.readPreviewDataUrl `site-preview-store.js`'s reader, bound the same way —
+ * @param deps.readPreviewDataUrl `site-preview-store.ts`'s reader, bound the same way —
  *   {@link handleGetPreview}'s on-demand fetch.
- * @param deps.deletePreview `site-preview-store.js`'s remover, bound the same way —
+ * @param deps.deletePreview `site-preview-store.ts`'s remover, bound the same way —
  *   called beside `untrackSite` in {@link deleteProject}.
- * @param deps.adoptSiteDir `site-dir-store.js`'s folder-to-site-dir classifier/initializer.
- * @param deps.addSitePointer `add-site-pointer.js`'s pointer-only adder, used by
+ * @param deps.adoptSiteDir `site-dir-store.ts`'s folder-to-site-dir classifier/initializer.
+ * @param deps.addSitePointer `add-site-pointer.ts`'s pointer-only adder, used by
  *   {@link handleAddSite}. Injected rather than imported for the same reason `adoptSiteDir` is —
  *   every handler in this file stays callable from plain `node --test` against fakes.
- * @param deps.classifySiteDir `site-dir-store.js`'s classifier, called by `handleCreate`
+ * @param deps.classifySiteDir `site-dir-store.ts`'s classifier, called by `handleCreate`
  *   BEFORE `adoptSiteDir` to record whether this app is about to create the directory or is adopting
- *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.js`.
+ *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.ts`.
  * @param deps.openSiteServer `main.ts`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
- * @param deps.recordSiteClosed `site-process-registry.js`'s crash-safety row remover.
- * @param deps.readRegistry `site-process-registry.js`'s crash-safety registry reader, used by
+ * @param deps.recordSiteClosed `site-process-registry.ts`'s crash-safety row remover.
+ * @param deps.readRegistry `site-process-registry.ts`'s crash-safety registry reader, used by
  *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
  *   this process's own memory, cannot.
- * @param deps.isLiveServeRow `site-process-registry.js`'s "is this row's pid still its own live
+ * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
  * @complexity O(1) — nine registrations.

@@ -192,7 +192,7 @@ test("add_site_pointer through the real bridge writes the row the app will read"
 
   const [, added] = parseProtocolLines(stdout);
   assert.equal(added.result.isError, undefined);
-  // Read back through `tracked-sites.js` itself — the same reader the Projects screen uses — so
+  // Read back through `tracked-sites.ts` itself — the same reader the Projects screen uses — so
   // this proves the row is consumable, not merely that the tool claimed success.
   const rows = readTrackedSites(sitesFilePath(userDataDir));
   assert.equal(rows.length, 1);

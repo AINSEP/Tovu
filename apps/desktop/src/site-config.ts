@@ -1,7 +1,7 @@
 /**
  * @file A site's own `config.json` — reading its display name, and the one operation that writes
- * it back. Split out of `project-ipc.js` because the validation and the atomic write are the whole
- * substance of a rename and both deserve direct tests, while `project-ipc.js`'s own handlers are
+ * it back. Split out of `project-ipc.ts` because the validation and the atomic write are the whole
+ * substance of a rename and both deserve direct tests, while `project-ipc.ts`'s own handlers are
  * about IPC shape and registry bookkeeping.
  *
  * **WHY THIS WRITES A FILE `repairSite` REFUSES TO OVERWRITE.** `apps/website`'s `repairSite`
@@ -15,7 +15,7 @@
  *
  * A rename changes one string in `config.json` and never touches `.site-meta.json`, so it cannot
  * cause that harm at all. It is a different operation, not a way around the invariant — and it
- * carries its own guard instead (`project-ipc.js`'s `handleRename`, for identity; this file, for
+ * carries its own guard instead (`project-ipc.ts`'s `handleRename`, for identity; this file, for
  * validity and atomicity).
  *
  * **WHY THE NAME IS VALIDATED HERE AND NOT ONLY IN THE UI.** `tovu serve` re-validates
@@ -26,7 +26,7 @@
  * on this side of the wire too, rather than trusted to a disabled Save button.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js`, `site-dir-store.ts` and `site-process-registry.ts`.
+ * `tracked-sites.ts`, `site-dir-store.ts` and `site-process-registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";

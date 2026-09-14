@@ -14,7 +14,7 @@
  *   process group, so Electron gets the group's copy, then `electron/cli.js` forwards its own, and
  *   npm forwards another. A terminal Ctrl-C reaches the whole foreground group the same way. Electron
  *   died with `exited with signal SIGTERM` before `before-quit` had stopped anything, and
- *   `tovu-server.js` spawns `detached`, so the child was outside every group kill.
+ *   `tovu-server.ts` spawns `detached`, so the child was outside every group kill.
  *
  * A Node `process.on(signal)` listener is persistent, so it absorbs every copy. It only takes effect
  * once the app is READY: Chromium installs its handler after `main.ts` has loaded, which silently

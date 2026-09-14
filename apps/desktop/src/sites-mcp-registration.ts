@@ -9,7 +9,7 @@
  * 1. **The daemon REPLACES an MCP child's environment.** `mcp-federation/adapter.stdio.ts:251-255,339`
  *    spawns with `{...inheritedEnv(), ...spec.env}` where `inheritedEnv()` is exactly `PATH`, `HOME`
  *    and `TMPDIR`. So `ELECTRON_RUN_AS_NODE=1` cannot reach the child — and this shell's only Node is
- *    Electron's own binary (`tovu-server.js`'s `buildCliSpawnPlan` makes the same call for `tovu
+ *    Electron's own binary (`tovu-server.ts`'s `buildCliSpawnPlan` makes the same call for `tovu
  *    serve`, deliberately, so the app does not depend on a system Node install). Naming Electron as
  *    the `command` without that variable launches a second GUI app instead of a script.
  *    Putting the variable in the stored row's `env` block instead routes it through
@@ -416,7 +416,7 @@ async function readSitesMcpEnabled<TSession>(deps: RegistrationDeps<TSession>): 
  * @param deps.session the Electron `Session` whose jar holds this site's admin cookie.
  * @param deps.adminUrl the site's own `tovu serve` admin URL.
  * @param deps.workspaceId the site's workspace id — from `startTovuServer`'s parsed boot line
- *   (`tovu-server.js:29,569`), never a hard-coded `"workspace-local"`: `resolveWorkspace`
+ *   (`tovu-server.ts:29,569`), never a hard-coded `"workspace-local"`: `resolveWorkspace`
  *   (`apps/website/src/platform/site-dir/resolve-workspace.ts`) picks the single or oldest workspace
  *   row and an operator can serve a different one with `--workspace`, so assuming the id would 404
  *   through `guardExternalMcpRequest`'s workspace check on exactly the sites that differ.

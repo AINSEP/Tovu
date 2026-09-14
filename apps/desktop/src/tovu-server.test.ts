@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `tovu-server.js`.
+ * @file Direct tests for `tovu-server.ts`.
  *
  * Self-contained on purpose: the repo's own `npm test` globs are `apps/website/src/**`,
  * `packages/*\/src/**`, `apps/site-chat/src/**` and `development/scripts/**`, so nothing here is
@@ -23,7 +23,7 @@ import type { SpawnOptions } from "node:child_process";
 
 import { parseBootLine, parseCliErrorLine, resolveCliEntry, resolveDevCliEntry, buildCliSpawnPlan, buildServeEnv, allocatePort, startTovuServer } from "./tovu-server.ts";
 
-// The same CommonJS resolution `tovu-server.js` uses, from the same directory, so the expected
+// The same CommonJS resolution `tovu-server.ts` uses, from the same directory, so the expected
 // loader path below is derived exactly the way the code under test derives it.
 const require = createRequire(import.meta.url);
 

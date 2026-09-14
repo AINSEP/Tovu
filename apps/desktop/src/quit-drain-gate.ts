@@ -8,7 +8,7 @@
  * menu, a termination signal, `window-all-closed`'s `app.quit()`. The old guard,
  * `if (nothing to drain || shuttingDown) return;`, returned WITHOUT `preventDefault()` once the drain
  * had started, so the second attempt quit Electron before the `server.stop()` calls finished.
- * `tovu-server.js` spawns `detached`, so those children outlived the app.
+ * `tovu-server.ts` spawns `detached`, so those children outlived the app.
  *
  * **Held, not let through.** An attempt during the drain is prevented and dropped: the drain's own
  * closing `app.quit()` is the one that ends the app. Held whatever the counts say by then:

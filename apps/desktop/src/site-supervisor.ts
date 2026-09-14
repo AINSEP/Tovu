@@ -7,7 +7,7 @@
  * as "what is running". `startTovuServer`'s handle was built for boot-or-fail and discarded the
  * child's exit once ready, so after a crash:
  *
- * - `buildSiteRecord` (`project-ipc.js`) kept reporting `status: "running"` and the old port;
+ * - `buildSiteRecord` (`project-ipc.ts`) kept reporting `status: "running"` and the old port;
  * - `useSitesPolling`'s 4 s re-poll — whose own comment claims it is there to catch a crash —
  *   re-read a map that never changed, so the comment was false;
  * - `openSiteServer` (`main.ts`) returned `already.server`, so "Start site" handed back the corpse
@@ -29,7 +29,7 @@
  * module owns exactly the transition that had no owner: the one nobody asked for.
  *
  * No `electron` import, so all of it is testable under plain `node --test` — same convention as
- * `tracked-sites.js`, `site-process-registry.ts` and `project-delete-guard.ts`.
+ * `tracked-sites.ts`, `site-process-registry.ts` and `project-delete-guard.ts`.
  */
 
 /** How a site's child exited: the `code` and `signal` of Node's own child `exit` event. */

@@ -1,5 +1,5 @@
 /**
- * @file Coverage for `project-ipc.js` — the seven real `runner:sites:*` handlers the Projects
+ * @file Coverage for `project-ipc.ts` — the seven real `runner:sites:*` handlers the Projects
  * screen needs. No real Electron anywhere: `ipcMain`/`dialog`/`shell` are plain fakes, `openSites`
  * is a real `Map` standing in for `main.ts`'s module-level one, and `openSiteServer`/`adoptSiteDir`
  * are spies rather than the real functions — those are covered by `main.ts`'s own doc and by the
@@ -37,7 +37,7 @@ interface SupervisorEntry {
 
 /**
  * A real site directory on disk: both marker files, with `.site-meta.json` carrying `siteId` — the
- * identity `project-delete-guard.js` proves before any `created` row's directory may be erased.
+ * identity `project-delete-guard.ts` proves before any `created` row's directory may be erased.
  */
 function writeSite(dir: string, siteId: string, contents: Record<string, string> = {}): string {
   fs.mkdirSync(dir, { recursive: true });
@@ -810,7 +810,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 });
 
 // D-08. `handleDelete`'s stop-then-erase sequence was safe against THIS process (the serializer) and
-// against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-process-registry.js` is
+// against nothing else. `main.ts` calls no `requestSingleInstanceLock`, and `site-process-registry.ts` is
 // written throughout on the premise that two instances can run at once — its `recordSiteOpened`
 // deliberately RETAINS a sibling's row for the same site. Instance A deleting a site instance B has
 // open recursively erased the directory out from under B's live `tovu serve`.
@@ -935,7 +935,7 @@ test("handleRename refuses a directory that is no longer a complete Tovu site", 
 });
 
 test("handleRename refuses when a CREATED row's recorded identity no longer matches the directory", () => {
-  // `project-delete-guard.js`'s documented trap: the operator moves their site and something else
+  // `project-delete-guard.ts`'s documented trap: the operator moves their site and something else
   // takes the old path. Provable only for a row that recorded an identity, which is why this is the
   // `created` case and the adopted test above is the fail-open one.
   const deps = renameDeps();

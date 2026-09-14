@@ -3,10 +3,10 @@
  * teardown is TRACKED, that `before-quit` waits for it, that the crash-safety row outlives the
  * child, and that an old window's close cannot drop a replacement entry.
  *
- * Source text, for the reason `main-speech-wiring.test.js` documents at length: `main.ts`
+ * Source text, for the reason `main-speech-wiring.test.ts` documents at length: `main.ts`
  * requires `"electron"` at module scope, so `require`-ing it under plain `node --test` crashes
  * before proving anything. The drain's own behaviour is covered where it lives
- * (`shutdown-tracker.test.js`); what only this file can check is that `main.ts` uses it, and in
+ * (`shutdown-tracker.test.ts`); what only this file can check is that `main.ts` uses it, and in
  * the one arrangement where the use is correct.
  */
 import test from "node:test";
@@ -90,7 +90,7 @@ test("a quit attempt during the drain is held until the drain completes, not let
 
 test("the drain arms the force-exit deadline itself, so a held quit cannot outlive a hung drain", () => {
   // Holding a second Cmd+Q removed its accidental escape from a hung drain (endSiteSession's loopback
-  // logout has no timeout of its own). quit-signals.js arms its deadline only for a signal.
+  // logout has no timeout of its own). quit-signals.ts arms its deadline only for a signal.
   const handler = beforeQuitHandler();
   const draining = handler.indexOf('quitPhase = "draining";');
   assert.notEqual(draining, -1, "expected before-quit to enter the draining phase");
@@ -115,7 +115,7 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
 });
 
 test("closing a window only deletes the entry that window still owns", () => {
-  // A crashed server is removed from `openSites` by `site-supervisor.js`, and the operator can
+  // A crashed server is removed from `openSites` by `site-supervisor.ts`, and the operator can
   // re-open the same site from "Open Recent" while the dead window is still on screen. Deleting by
   // site dir alone then dropped that healthy REPLACEMENT the moment the old window was closed. The
   // supervisor's own `handleExit` guards by entry identity; this is its missing sibling.

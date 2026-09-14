@@ -4,7 +4,7 @@
  * in a real registry file on disk.
  *
  * Every other test in this feature covers one link. The hook's tests cover the renderer half, the
- * `project-ipc.test.js` tests call `handleAddSite` directly, and `add-site-pointer.test.js` covers
+ * `project-ipc.test.ts` tests call `handleAddSite` directly, and `add-site-pointer.test.ts` covers
  * the shared implementation. None of them would catch the single most likely wiring defect: the
  * button invoking a channel nothing is registered on. That is a silent failure — `ipcRenderer.invoke`
  * on an unhandled channel rejects with "No handler registered", which the operator sees as a button

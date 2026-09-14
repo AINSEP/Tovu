@@ -14,7 +14,7 @@
  *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this
  *    SAME window, in a `<webview>` (`App.tsx`'s `SiteWorkspace`), rather than popping it into its
  *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was
- *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.js`),
+ *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.ts`),
  *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse
  *    below (the sites-home counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a
  *    throwing stub — no control in the per-project bar calls it yet. See `sitesUiRequested`'s own doc
@@ -32,7 +32,7 @@
  *    serve` is already the packaged single-site entry point — it boots the site dir, opens
  *    `<dir>/content.db`, wires the admin SPA and starts the agent daemon
  *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change to
- *    open a second, third, or Nth site: `src/tovu-server.js`'s `startTovuServer` was already a
+ *    open a second, third, or Nth site: `src/tovu-server.ts`'s `startTovuServer` was already a
  *    pure `{repoRoot, siteDir, port} -> handle` function with no single-instance assumption
  *    anywhere in it. Also bypasses the sites home UI unconditionally, same reasoning as attach mode —
  *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation
@@ -46,12 +46,12 @@
  *   That IS the site switcher: no custom panel was needed, every open site is just another window.
  *   The sites home UI's own switcher is its tab strip instead (`App.tsx`'s `TabStrip`) — one window, N tabs.
  * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites
- *   are already open. "Open Recent" lists `site-dir-store.js`'s existing MRU.
- * - `keyed-serializer.js` serializes opens PER SITE DIR, so a fast double-click on the same recent-
+ *   are already open. "Open Recent" lists `site-dir-store.ts`'s existing MRU.
+ * - `keyed-serializer.ts` serializes opens PER SITE DIR, so a fast double-click on the same recent-
  *   site menu entry cannot double-spawn a `tovu serve` for it (Tovu-Runner's `serializeByProject`
  *   pattern, generalized).
  *
- * **Crash-safety**, now in scope (`site-process-registry.js`): every open site's `{siteDir, port,
+ * **Crash-safety**, now in scope (`site-process-registry.ts`): every open site's `{siteDir, port,
  * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,
  * and removed the moment it is stopped deliberately (a window closed, or the app quit cleanly). If
  * Electron itself is hard-killed (SIGKILL, a crash, a forced logout) before that removal runs, the
@@ -72,7 +72,7 @@
  * `check-no-linked-jini.mjs`, and this checkout deliberately keeps 13 `@jini-ai/*` packages symlinked
  * to a local Jini checkout for active development); running the CLI from source instead — the same
  * way `development/scripts/dev.mjs` already runs `index.ts` under `npx tsx watch` — removes the skew
- * without touching the build or the Jini links. See `tovu-server.js`'s `buildCliSpawnPlan` for the
+ * without touching the build or the Jini links. See `tovu-server.ts`'s `buildCliSpawnPlan` for the
  * mode's own default (unchanged, `"compiled"`, so every existing test keeps its exact prior
  * behavior) versus this file's production default (`"source"`, set here via the env var).
  *
@@ -186,7 +186,7 @@ if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
 
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cjs`'s and
- *  `speech-ipc.js`'s own headers for the wiring gap this closes (both were built and tested with
+ *  `speech-ipc.ts`'s own headers for the wiring gap this closes (both were built and tested with
  *  neither this path nor {@link registerSpeechIpc} ever called from here). */
 const SPEECH_PRELOAD_PATH = path.join(__dirname, "src", "speech", "preload-speech.cjs");
 
@@ -210,7 +210,7 @@ const REPO_ROOT = path.resolve(__dirname, "..", "..");
 
 /**
  * Every root that differs between a checkout and a packaged `.app`, resolved once. See
- * `packaged-paths.js` for what each one means and why the delete-guard containment boundary rides
+ * `packaged-paths.ts` for what each one means and why the delete-guard containment boundary rides
  * along with `payloadRoot`. In dev these are byte-identical to the values this file derived from
  * {@link REPO_ROOT} directly before that module existed.
  *
@@ -230,7 +230,7 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
  * `node_modules` they resolve against. The checkout itself in dev, `Resources/tovu/` when packaged.
  *
  * Replaces {@link REPO_ROOT} at every site that previously passed it downward. Note this is ALSO
- * what `project-delete-guard.js` receives as its containment root — see `packaged-paths.js`.
+ * what `project-delete-guard.ts` receives as its containment root — see `packaged-paths.ts`.
  */
 const PAYLOAD_ROOT = DESKTOP_ROOTS.payloadRoot;
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
@@ -288,8 +288,8 @@ function sitesUiRequested(): boolean {
  * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
  * single-site `tovuServer` variable the shell used before multi-site.
  *
- * A `site-supervisor.js` supervisor rather than a bare `Map` since D-06. The `Map` surface is
- * unchanged — every `get`/`set`/`has`/`delete`/`values`/`size` below and in `project-ipc.js` means
+ * A `site-supervisor.ts` supervisor rather than a bare `Map` since D-06. The `Map` surface is
+ * unchanged — every `get`/`set`/`has`/`delete`/`values`/`size` below and in `project-ipc.ts` means
  * exactly what it did — but it now also watches each entry's child and REMOVES an entry whose
  * `tovu serve` has died. Without that this map answered "was started", never "is alive": a crashed
  * site stayed `running` for the rest of the session, `openSiteServer` handed its dead handle back
@@ -309,18 +309,18 @@ const openSites = createSiteSupervisor<OpenSite>({
 const serializer = createKeyedSerializer();
 
 /** Teardowns a window's `closed` handler has STARTED but not finished, so `before-quit` below can
- *  wait for them — see `shutdown-tracker.js`'s own header for the leak this closes (D-09). */
+ *  wait for them — see `shutdown-tracker.ts`'s own header for the leak this closes (D-09). */
 const pendingTeardowns = createShutdownTracker();
 
 /** Where `before-quit`'s graceful multi-site shutdown is: `"idle"`, `"draining"` (stopping every open
  *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
- *  through). `decideBeforeQuit` reads it — see `quit-drain-gate.js` for why an attempt mid-drain is
+ *  through). `decideBeforeQuit` reads it — see `quit-drain-gate.ts` for why an attempt mid-drain is
  *  held rather than let through. */
 let quitPhase: QuitPhase = "idle";
 
 /**
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
- * (`quit-signals.js`), and so does `before-quit` when its drain starts. The drain stops every open
+ * (`quit-signals.ts`), and so does `before-quit` when its drain starts. The drain stops every open
  * site in parallel, and each `server.stop()` escalates to SIGKILL after one `DEFAULT_STOP_GRACE_MS`,
  * so those stops take about one grace however many sites are open. It then waits on
  * `pendingTeardowns`, whose loopback logout has no timeout of its own, and only this deadline bounds that.
@@ -329,14 +329,14 @@ const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 
 /** `"source"` (default) or `"compiled"` — see this file's own header. Read once at module load,
  *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
- *  plain argument, never read directly by `tovu-server.js`/`site-dir-store.js`). */
+ *  plain argument, never read directly by `tovu-server.ts`/`site-dir-store.ts`). */
 function resolveCliMode(): CliMode {
   const explicit = process.env.TOVU_DESKTOP_CLI_MODE?.trim();
   if (explicit === "compiled") return "compiled";
   if (explicit === "source") return "source";
   // `"source"` in a checkout — unchanged, including for a garbage value, which still falls through
   // to the default exactly as the old ternary did. `"compiled"` when packaged, where no TypeScript
-  // source and no `tsx` ship; see `packaged-paths.js`.
+  // source and no `tsx` ship; see `packaged-paths.ts`.
   return DESKTOP_ROOTS.defaultCliMode;
 }
 
@@ -421,7 +421,7 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
       // One cookie jar per site. Cookies ignore PORT, so without this every own-server site shares
       // `127.0.0.1`'s jar: site A's `tovu_session` would be sent to site B's server, and B's login
       // would overwrite A's. Undefined in attach mode, which is single-site by definition and keeps
-      // the default session it always used. See `desktop-auth.js`'s header, property 2.
+      // the default session it always used. See `desktop-auth.ts`'s header, property 2.
       ...(partition ? { partition } : {}),
     },
   });
@@ -508,7 +508,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
   window.on("page-title-updated", (event) => event.preventDefault());
 
   // The guest gets the shell's OWN speech preload, not none (D-10) — see
-  // `webview-guest-policy.js` for why assigning is strictly stronger than the `delete` this
+  // `webview-guest-policy.ts` for why assigning is strictly stronger than the `delete` this
   // replaced, and for the symptom it fixes: the embedded admin telling the operator that voice
   // input needs the desktop app, from inside the desktop app.
   window.webContents.on("will-attach-webview", (_event, webPreferences) => {
@@ -524,7 +524,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
  * lands in the admin instead of on a login form.
  *
  * The credential is the single-use boot token the child minted at boot and printed on its own
- * stdout — never a password, never anything stored. See `desktop-auth.js`'s header for why the
+ * stdout — never a password, never anything stored. See `desktop-auth.ts`'s header for why the
  * stored-credential approach, and `safeStorage` with it, was removed entirely.
  *
  * Deliberately best-effort and silent-on-success. Every failure path — a child that minted no
@@ -572,7 +572,7 @@ async function authenticateSiteSession(siteDir: string, server: TovuServerHandle
  * say) decides for itself how to unwind the server this just started.
  *
  * A site already authenticated from a previous launch keeps its session cookie in this
- * `persist:`-prefixed partition (see `desktop-auth.js`'s header, property 2) across app restarts.
+ * `persist:`-prefixed partition (see `desktop-auth.ts`'s header, property 2) across app restarts.
  * Minting and redeeming a fresh boot token here TOO was the defect: a brand-new 30-day session on
  * every open, one per launch, none of them ever revoked — 713 live rows found in one site's own
  * database. Skipping the mint when a session cookie is already present is what stops that
@@ -590,7 +590,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   const partition = sitePartition(siteDir);
 
   // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
-  // `desktop-auth.js`'s header for why this replaced a shell-minted, shell-stored password
+  // `desktop-auth.ts`'s header for why this replaced a shell-minted, shell-stored password
   // entirely. It used to be `!alreadyAuthenticated`, decided from the cookie jar BEFORE this spawn,
   // and that ordering is the defect: it is a spawn argument, so there is no server to ask yet, and
   // a wrong guess could never be revised: no token had been minted, so a cookie the server no
@@ -603,7 +603,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   // Resolved per site-start rather than once at boot: a developer routinely starts `npm run dev`
   // after the shell is already open, and a boot-time answer would stay "no Vite" for the rest of
   // the session. Yields `null` when packaged and when nothing is listening, in which case the child
-  // serves `apps/admin/dist` exactly as before — see `admin-dev-proxy.js` for why this is probed
+  // serves `apps/admin/dist` exactly as before — see `admin-dev-proxy.ts` for why this is probed
   // rather than set optimistically.
   const adminDevProxyUrl = await resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env });
 
@@ -625,7 +625,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
 
   // Awaited before returning, so the cookie is already in the jar when the caller's window/guest
   // makes its first navigation — a session applied after the page had loaded would still show the
-  // login form until a reload. The decision itself lives in `desktop-auth.js` so it can be tested
+  // login form until a reload. The decision itself lives in `desktop-auth.ts` so it can be tested
   // against fakes; this file only supplies the per-site inputs and the redeem it owns.
   await ensureSiteSession({
     net,
@@ -712,7 +712,7 @@ const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
  * Every site this process has already captured (or scheduled a capture for) THIS run — see
  * {@link scheduleSitePreview}. Lives for the process, not the site: closing and reopening the same
  * site within one launch does not recapture it, which is the stated design
- * (`site-preview-store.js`'s own header argues staleness is correct behaviour here), not an
+ * (`site-preview-store.ts`'s own header argues staleness is correct behaviour here), not an
  * oversight waiting for a cache-bust.
  */
 const previewCapturedThisRun = new Set<string>();
@@ -782,7 +782,7 @@ function scheduleSitePreview(siteDir: string, port: number, partition: string): 
 
 /**
  * Delete every cached preview no tracked site claims, once at boot. Hygiene, not correctness — see
- * `site-preview-store.js`'s own doc on why an orphaned file can never reach the UI on its own, since
+ * `site-preview-store.ts`'s own doc on why an orphaned file can never reach the UI on its own, since
  * `buildSiteRecord` only ever asks for the preview of a row it is already building.
  *
  * Wrapped rather than left to throw: a hygiene sweep must never be the reason an otherwise-healthy
@@ -848,7 +848,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
   openSites.set(siteDir, { server, window });
   scheduleSitePreview(siteDir, server.port, partition);
   window.on("closed", () => {
-    // Only when the current entry is still THIS window's (D-09). `site-supervisor.js` removes an
+    // Only when the current entry is still THIS window's (D-09). `site-supervisor.ts` removes an
     // entry whose child died, and the operator can re-open the same site from "Open Recent" while
     // this dead window is still on screen — a second `tovu serve`, a second window, a REPLACEMENT
     // entry under the same key. Deleting by site dir alone then dropped that healthy replacement
@@ -867,7 +867,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     // window: dropping it up front — as this did — meant a hard kill during the stop left a
     // `tovu serve` that `reconcileOrphans` could never find. `before-quit` waits on the tracked
     // promise, which is what stops `app.quit()` racing an unfinished `server.stop()` when this is
-    // the last window (see `shutdown-tracker.js`).
+    // the last window (see `shutdown-tracker.ts`).
     pendingTeardowns.track(
       endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
         .catch(() => {})
@@ -883,14 +883,14 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
  * The sites home UI's counterpart to {@link openSiteWindow}: ensure `siteDir`'s own `tovu serve` is
  * running and return its `server` handle, WITHOUT a `BrowserWindow`. The Projects screen embeds the
  * result directly in a `<webview>` tab inside its one window instead (`App.tsx`'s
- * `SiteWorkspace`, reading `port`/`partition` off the `SiteRecord` `project-ipc.js`'s
+ * `SiteWorkspace`, reading `port`/`partition` off the `SiteRecord` `project-ipc.ts`'s
  * `handleStart` returns). Reused, not re-spawned, when already open — same as `openSiteWindow`.
  *
  * Nothing here ever closes what it opens. Unlike a `BrowserWindow`, a `<webview>` tab has no
  * per-tab lifecycle event to hang a stop on: closing a tab is a renderer-only concern
  * (`App.hooks.ts`'s `closeProjectTab`) and deliberately leaves the site running, the same way
  * Tovu-Runner leaves a project running when its tab closes. `app.on("before-quit")` below still
- * stops every entry in `openSites` on quit, sites-home-opened or not, and `project-ipc.js`'s
+ * stops every entry in `openSites` on quit, sites-home-opened or not, and `project-ipc.ts`'s
  * `handleDelete` still stops one explicitly.
  *
  * Callers MUST run this through `serializer.run(siteDir, ...)`, same requirement as
@@ -1011,7 +1011,7 @@ async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> {
  * itself — every open site is a distinctly-titled window, and macOS lists and switches between them
  * for free; nothing custom was built for this. "Open Recent" is rebuilt on every call (see
  * `refreshAppMenu`) so a just-opened site appears there next time.
- * @complexity O(n) in the MRU length (bounded, see `site-dir-store.js`'s `MAX_RECENT_SITE_DIRS`).
+ * @complexity O(n) in the MRU length (bounded, see `site-dir-store.ts`'s `MAX_RECENT_SITE_DIRS`).
  */
 function buildAppMenu(ctx: SiteOpenCtx): Menu {
   const recents = existingRecentSiteDirs(ctx.statePath);
@@ -1097,7 +1097,7 @@ async function reportBootFailure(error: Error): Promise<void> {
 }
 
 /**
- * Wires `selftest-tracker.js`'s pure completion tracking to this process's own reporting/exit
+ * Wires `selftest-tracker.ts`'s pure completion tracking to this process's own reporting/exit
  * effects — the only Electron/process-specific glue that module deliberately leaves out so its own
  * logic is testable without Electron. See that file's own header for the two ordering hazards its
  * `expectedCount`-seeded design closes.
@@ -1205,7 +1205,7 @@ function applyDockIcon(): void {
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
  * launchd before terminating it, and retains the rows of any still-supervised sibling (see
- * `site-process-registry.js`'s `isOrphanedProcess`).
+ * `site-process-registry.ts`'s `isOrphanedProcess`).
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
  *   so a launch can be delayed by up to that grace window per genuine orphan.
@@ -1239,7 +1239,7 @@ async function bootOwnServerMode(): Promise<void> {
   refreshAppMenu(ctx);
 
   const siteDirs = await resolveStartupSiteDirs(ctx);
-  // Seeded with the FULL count before any window opens — see `selftest-tracker.js`'s own header,
+  // Seeded with the FULL count before any window opens — see `selftest-tracker.ts`'s own header,
   // hazard 2, for why an incrementally-built count would settle early on a multi-site launch.
   if (SELFTEST) selftestTracker = buildSelftestTracker(siteDirs.length);
   for (const [index, siteDir] of siteDirs.entries()) {
@@ -1260,7 +1260,7 @@ app
   .then(async () => {
     // First, before anything below can spawn a `tovu serve`: a termination signal must reach
     // `before-quit`'s drain exactly once rather than kill Electron on its second copy. Here and not at
-    // module load, where Chromium's own one-shot handler replaces it. See `quit-signals.js`, and
+    // module load, where Chromium's own one-shot handler replaces it. See `quit-signals.ts`, and
     // `QUIT_DEADLINE_MS` for what the deadline does and does not cover.
     routeQuitSignals({
       processLike: process,
@@ -1297,7 +1297,7 @@ app
       // cannot say whether the dev fallback below is absent because it was never seeded or because
       // the operator deleted its card, and the seed is about to ask exactly that. See
       // `migrateLegacyDismissals`' own doc for why this is the narrow, one-directory conversion it
-      // is, and `main-project-wiring.test.js` for the test that pins this call ahead of the seed.
+      // is, and `main-project-wiring.test.ts` for the test that pins this call ahead of the seed.
       // Both dev-fallback calls are skipped outright when there is no dev fallback (a packaged
       // app). `migrateLegacyDismissals` in particular takes a DIRECTORY and would otherwise record
       // a literal `null` into the `dismissed` array — a corrupt row, not a no-op.
@@ -1336,11 +1336,11 @@ app
         readSiteName,
         // The write counterpart of `readSiteName` right above: validating and atomic, because a
         // torn or empty `config.json.name` does not break the running site — it stops the NEXT
-        // boot, with an error naming a file the operator never edited. See `site-config.js`.
+        // boot, with an error naming a file the operator never edited. See `site-config.ts`.
         writeSiteName,
         // The preview cache's three operations, bound to THIS launch's userData at the same call
         // site every other consumer resolves it from — an independently-resolved userData here
-        // would write E2E previews into the real operator's profile (see `site-preview-store.js`'s
+        // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
         // own header, and `main.ts`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
@@ -1348,7 +1348,7 @@ app
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the
-        // fact `project-delete-guard.js` needs before any delete may erase anything.
+        // fact `project-delete-guard.ts` needs before any delete may erase anything.
         //
         // The SAFE form, because `rescanSites` scans with this same value (D-01). `handleCreate`
         // is unaffected: an unreadable pick classifies `"unreadable"` rather than `"empty"`, so the
@@ -1356,13 +1356,13 @@ app
         // with the throwing form one line later and refuses the folder with its own message.
         classifySiteDir: classifySiteDirSafely,
         // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
-        // empty folder. See `add-site-pointer.js`'s header and `handleAddSite`.
+        // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
         addSitePointer,
         openSiteServer,
         recordSiteClosed,
         // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
         // `openSites` above is this process's own memory and cannot (D-08). See
-        // `project-ipc.js`'s `liveForeignServers`.
+        // `project-ipc.ts`'s `liveForeignServers`.
         readRegistry,
         isLiveServeRow,
         siteScanRoots: SITE_SCAN_ROOTS,
@@ -1372,7 +1372,7 @@ app
         ctx: sitesCtx,
       };
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
-      // real handlers must claim their channels first — see `project-ipc.js`'s own header.
+      // real handlers must claim their channels first — see `project-ipc.ts`'s own header.
       registerSiteIpcHandlers(projectDeps);
       // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
       // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
@@ -1418,19 +1418,19 @@ app
  * ordinary exit.
  *
  * A hard kill of Electron itself (SIGKILL, a crash, a logout) still bypasses this and can strand
- * every open site's child at once. `site-process-registry.js`'s `reconcileOrphans()` — run before any
+ * every open site's child at once. `site-process-registry.ts`'s `reconcileOrphans()` — run before any
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned
-  // `detached`, so it outlives the app. See `shutdown-tracker.js`'s own header.
+  // `detached`, so it outlives the app. See `shutdown-tracker.ts`'s own header.
   const action = decideBeforeQuit({ phase: quitPhase, nothingToDrain: openSites.size === 0 && pendingTeardowns.size === 0 });
   if (action === "proceed") return;
   event.preventDefault();
   // A second Cmd+Q, menu Quit, signal or `app.quit()` during the drain: prevented and dropped, so
-  // only the drain's own closing `app.quit()` below ends the app. See `quit-drain-gate.js`.
+  // only the drain's own closing `app.quit()` below ends the app. See `quit-drain-gate.ts`.
   if (action === "hold") return;
   quitPhase = "draining";
   // Holding removed a repeat quit's escape from a hung drain, so every route gets the deadline here,

@@ -79,7 +79,7 @@ interface AsarVerification {
  * @param prefixes top-level entry names to include, e.g. `["src", "bin", "main.ts"]`. A prefix
  *   absent from the archive is silently skipped — that is a scope decision for the caller, not
  *   something this function should fail on.
- * @returns POSIX-style relative paths, e.g. `"src/tracked-sites.js"`.
+ * @returns POSIX-style relative paths, e.g. `"src/tracked-sites.ts"`.
  * @complexity O(n) in archive entries under the given prefixes.
  */
 export function filesUnderPrefixes(headerFiles: Record<string, AsarHeaderNode> | undefined, prefixes: string[]): string[] {
@@ -136,7 +136,7 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
  * same relative path under `sourceRoot`, byte-for-byte via `Buffer#equals` — never length, never a
  * hash. This is the one impure function in this module: it reads a real archive and a real
  * filesystem. It is kept here anyway (rather than moved into `scripts/`, this repo's usual home for
- * anything that touches disk) specifically so it stays under `src/**\/*.test.js` and can be proven,
+ * anything that touches disk) specifically so it stays under `src/**\/*.test.ts` and can be proven,
  * against a real built-then-corrupted fixture archive, to actually catch the failure it exists for
  * — see `asar-verify.test.ts`.
  *

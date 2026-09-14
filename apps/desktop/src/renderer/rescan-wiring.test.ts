@@ -7,7 +7,7 @@
  * `node --test "src/**\/*.test.cjs"`, so the renderer's `.ts`/`.tsx` has no runner in this package
  * at all. A missing link in this chain does not fail `npm run typecheck` either — an optional
  * bridge method that nothing declares is simply absent at runtime, and the button silently does
- * nothing. The behaviour behind the verb is covered where it lives, in `project-ipc.test.js`'s
+ * nothing. The behaviour behind the verb is covered where it lives, in `project-ipc.test.ts`'s
  * `rescanSites` tests; this file only checks that the click can get there.
  */
 import test from "node:test";

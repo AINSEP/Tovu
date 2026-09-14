@@ -50,12 +50,12 @@ class SiteDirSelectionCancelled extends Error {}
 /** `classifySiteDir`'s four possible verdicts. See that function's own doc. */
 type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
 
-/** `"source"` or `"compiled"` — see `tovu-server.js`'s `buildCliSpawnPlan`. */
+/** `"source"` or `"compiled"` — see `tovu-server.ts`'s `buildCliSpawnPlan`. */
 type CliMode = "source" | "compiled";
 
 /**
  * The subset of Node's `ChildProcess` surface {@link initSiteDir} touches — narrower than
- * `tovu-server.js`'s own `SpawnedChild`, since this caller never kills or polls the child, only
+ * `tovu-server.ts`'s own `SpawnedChild`, since this caller never kills or polls the child, only
  * reads its output and waits for one `exit`.
  */
 interface InitChildLike {
@@ -167,7 +167,7 @@ function classifySiteDir(dir: string): SiteClassification {
  * D-01, and the reason both forms exist. `classifySiteDir` was written for one folder the operator
  * chose in a dialog, where throwing is exactly right: the picker catches it and shows them why
  * their folder cannot be used. It was then reused, unchanged, as the filter predicate of two bulk
- * scans ({@link existingRecentSiteDirs} and `tracked-sites.js`'s `discoverSiteDirs`) — and a
+ * scans ({@link existingRecentSiteDirs} and `tracked-sites.ts`'s `discoverSiteDirs`) — and a
  * predicate that throws turns "one candidate out of forty is unreadable" into "the whole list
  * fails". Both scans run inside `main.ts`'s `app.whenReady()` chain, whose only handler is
  * `reportBootFailure`, and both run BEFORE any window is opened: one plain file where a remembered
@@ -217,7 +217,7 @@ interface InitSiteDirInput {
  * `sites/tovu-com` (own-server mode's actual cwd): "Open Site…"/"Open Recent" onto an empty folder
  * calls this function, and used to die with an uncaught `TypeError` before `runInitCommand` ran.
  *
- * @param input.cliMode `"source"` or `"compiled"` — see `tovu-server.js`'s `buildCliSpawnPlan`;
+ * @param input.cliMode `"source"` or `"compiled"` — see `tovu-server.ts`'s `buildCliSpawnPlan`;
  *   defaults to `"compiled"` when omitted (unchanged prior behavior for any existing caller).
  * @throws {Error} carrying Tovu's own `tovu: <CODE>: <message>` line when init fails.
  * @complexity O(1) beyond `initSite`'s own cost.
@@ -419,7 +419,7 @@ interface ResolveSiteDirInput {
  *   and — for `"incomplete"`/`"occupied"` — exactly which marker file(s) it lacks, so the picker can
  *   say *why* it's asking instead of just asking.
  * @param input.cliMode `"source"` or `"compiled"` — threaded through to `initSiteDir` via
- *   `adoptSiteDir` when the picked folder is empty; see `tovu-server.js`'s `buildCliSpawnPlan`.
+ *   `adoptSiteDir` when the picked folder is empty; see `tovu-server.ts`'s `buildCliSpawnPlan`.
  * @throws {SiteDirSelectionCancelled} when the user dismisses the picker.
  * @throws {Error} see {@link resolveOrInitSiteDir} — when `envDir` is set but is not a usable site
  *   under the declared `onMissingSite` policy.

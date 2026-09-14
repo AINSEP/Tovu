@@ -115,23 +115,23 @@ export const SITE_IPC_CHANNELS = {
   /**
    * A project tab's own answer to "not running yet": ensure the site's `tovu serve` is up
    * (spawning it, or reusing it if another tab already has it open), then return its fresh
-   * `SiteRecord`. Real (`project-ipc.js`'s `handleStart`/`openSiteServer`) — not a stub — as
+   * `SiteRecord`. Real (`project-ipc.ts`'s `handleStart`/`openSiteServer`) — not a stub — as
    * of the embedded-tab model; nothing here creates a `BrowserWindow`.
    */
   start: 'runner:sites:start',
   /**
    * Look for Tovu sites on disk that this shell is not tracking, adopt the ones the operator has
-   * no stored answer about, and return the refreshed list. Real (`project-ipc.js`'s
+   * no stored answer about, and return the refreshed list. Real (`project-ipc.ts`'s
    * `rescanSites`); `main.ts` runs the same pass once at boot.
    *
    * A project the operator REMOVED is never brought back by this, however many times it is
-   * pressed — see `adoptDiscoveredSites` in `tracked-sites.js`. Their way back is the
+   * pressed — see `adoptDiscoveredSites` in `tracked-sites.ts`. Their way back is the
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:sites:rescan',
   /**
    * "Add Tovu Website" — the operator picks ONE folder that already holds a Tovu site, and it
-   * becomes a tracked row. Real (`project-ipc.js`'s `handleAddSite` over
+   * becomes a tracked row. Real (`project-ipc.ts`'s `handleAddSite` over
    * `add-site-pointer.ts`'s `addSitePointer`).
    *
    * **Pointer semantics, and the whole reason this is not `create`.** The folder is never moved,
@@ -152,7 +152,7 @@ export const SITE_IPC_CHANNELS = {
   addSite: 'runner:sites:add-site',
   /**
    * Change a site's display name — `config.json`'s `name`, which is where `readSiteName`
-   * (`main.ts`) gets every card's `displayName`. Real (`project-ipc.js`'s `handleRename`).
+   * (`main.ts`) gets every card's `displayName`. Real (`project-ipc.ts`'s `handleRename`).
    *
    * **Why this writes a file that `repairSite` refuses to overwrite.** `repairSite`
    * (`apps/website/src/platform/site-dir/repair-site.ts`) writes `config.json` too, and refuses

@@ -1,5 +1,5 @@
 /**
- * @file Direct tests for `site-dir-store.js`.
+ * @file Direct tests for `site-dir-store.ts`.
  *
  * The `tovu init` path is exercised against a real CLI in one test and a fake `spawnFn` everywhere
  * else, so the decision logic in `resolveSiteDir` is asserted without paying for a site creation per

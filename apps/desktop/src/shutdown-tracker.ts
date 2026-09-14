@@ -13,7 +13,7 @@
  * - Electron exits, and the pending teardown never resolves — often `server.stop()` is never even
  *   reached.
  *
- * The child survives that: `tovu-server.js` spawns `detached: true`, so it is its own process-group
+ * The child survives that: `tovu-server.ts` spawns `detached: true`, so it is its own process-group
  * leader and outlives its parent. And because the `closed` handler had already dropped the
  * crash-safety row, the NEXT launch's `reconcileOrphans()` has nothing to find — a stranded
  * `tovu serve` holding a site's `content.db` open forever, invisible to the one mechanism built to

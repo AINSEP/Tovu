@@ -270,7 +270,7 @@ function CardConfirmOverlay({
  * that this menu's items sometimes do nothing, which is worse than a shorter menu.
  *
  * **"Stop" is deliberately absent** — `runner:sites:stop` is a throwing stub with no registered
- * handler (`project-ipc.js`), so there is nothing to call. A disabled entry would imply it is
+ * handler (`project-ipc.ts`), so there is nothing to call. A disabled entry would imply it is
  * coming; leaving it out states the truth.
  *
  * @complexity O(1) — one hook, at most three conditional entries.

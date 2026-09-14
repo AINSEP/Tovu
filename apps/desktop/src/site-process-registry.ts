@@ -27,14 +27,14 @@
  * `tovu serve` — never trusted just because a number in a file happens to still name a running
  * process, since the OS could have recycled that pid to something unrelated since the row was
  * written — by checking the live process's argv contains BOTH its install dir and its `--port <n>`
- * flag. That proof is free here with NO new argv marker needed: `tovu-server.js` already spawns
+ * flag. That proof is free here with NO new argv marker needed: `tovu-server.ts` already spawns
  * `tovu serve <siteDir> --port <port>` (via `--import tsx` or the compiled CLI — either way the same
  * two tokens land in argv), unlike the agent-daemon child one level down inside each `tovu serve`,
  * which had no site-specific argv at all until `daemon-supervisor.ts`'s own `--workspace` fix.
  *
  * **What this deliberately does NOT do**: reopen or reattach a reconciled site. This app holds no
  * live `ChildProcess` reference for a process it did not spawn this boot — no stdout/stderr pipe, no
- * handle {@link import("./tovu-server.js").startTovuServer}'s `stop()` could ever use — so
+ * handle {@link import("./tovu-server.ts").startTovuServer}'s `stop()` could ever use — so
  * "reclaiming" it would mean fabricating a fake handle around a process the shell cannot actually
  * supervise. Terminating it and leaving the site closed (findable again through "Open Recent",
  * `site-dir-store.ts`'s existing MRU) is the smaller, honest surface this pass actually verified;
@@ -46,7 +46,7 @@ import { execFileSync } from "node:child_process";
 
 const REGISTRY_FILE_NAME = "open-sites.json";
 
-/** SIGTERM-to-SIGKILL window for a reconciled orphan — matches `tovu-server.js`'s own
+/** SIGTERM-to-SIGKILL window for a reconciled orphan — matches `tovu-server.ts`'s own
  *  `DEFAULT_STOP_GRACE_MS`, the same grace `serve.ts`'s BR-07 drain gets when this app spawned the
  *  child itself this boot. */
 const DEFAULT_TERMINATE_GRACE_MS = 5_000;
@@ -273,7 +273,7 @@ function readProcessParentPid(pid: number): number | null {
  * children of an instance already running from the previous build — the one case that matters most.
  * Parentage is a property of the running process, so it protects rows of every vintage immediately.
  *
- * Measured on macOS 2026-09-06 against `tovu-server.js`'s exact `detached: true` spawn shape:
+ * Measured on macOS 2026-09-06 against `tovu-server.ts`'s exact `detached: true` spawn shape:
  * `detached` makes the child a process-GROUP leader and leaves its parent unchanged, so its ppid is
  * the Electron main pid while that process lives and becomes `1` (launchd) the moment it dies.
  *

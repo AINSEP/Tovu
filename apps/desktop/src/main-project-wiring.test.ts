@@ -2,11 +2,11 @@
  * @file Static-analysis tests for `../main.ts`'s project-discovery wiring — the boot pass that
  * makes a site on disk appear on the Projects screen without hand-registration.
  *
- * Source text, not behaviour, for the reason `main-speech-wiring.test.js` documents at length:
+ * Source text, not behaviour, for the reason `main-speech-wiring.test.ts` documents at length:
  * `main.ts` requires `"electron"` at module scope, which resolves to a path string rather than the
  * real API outside a real Electron process, so `require`-ing it under plain `node --test` crashes
  * before proving anything. The pieces it wires together are behaviourally covered where they live
- * (`tracked-sites.test.js`, `project-ipc.test.js`); what only this file can check is that
+ * (`tracked-sites.test.ts`, `project-ipc.test.ts`); what only this file can check is that
  * `main.ts` actually CALLS them, and in the one order where the call is correct.
  *
  * That order is the whole point of the first two tests. `migrateLegacyDismissals` is what carries
@@ -69,7 +69,7 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   // The classifier argument is pinned by its own test above; this one is about the DIRECTORY, so
   // it matches whichever classifier form is passed rather than restating that decision here.
   assert.match(source, /seedDevFallbackSite\(sitesCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
-  // The definition moved into `packaged-paths.js` (2026-09-11) so a packaged app can have NO dev
+  // The definition moved into `packaged-paths.ts` (2026-09-11) so a packaged app can have NO dev
   // fallback rather than one pointing inside a read-only bundle. Pinned as "main.ts takes it from
   // the one resolver" plus a real-value check on that resolver, instead of re-stating the literal
   // here where it would only ever be a copy of the real definition.
@@ -125,7 +125,7 @@ test("the two bulk site scans in the boot chain use the NON-throwing classifier"
   // a dialog and quit, with no renderer for the Rescan button to live in.
   //
   // Source text rather than behaviour, for this file's stated reason. It is still the check that
-  // matters: `site-dir-store.js` and `tracked-sites.js` are behaviourally covered, and what
+  // matters: `site-dir-store.ts` and `tracked-sites.ts` are behaviourally covered, and what
   // only main.ts can get wrong is handing them the throwing form.
   assert.match(source, /seedDevFallbackSite\(\s*sitesCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
     "seedDevFallbackSite must be given the non-throwing classifier");

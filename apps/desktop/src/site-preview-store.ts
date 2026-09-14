@@ -5,7 +5,7 @@
  *
  * The CAPTURE itself is not here — that needs a `BrowserWindow` and lives in `main.ts`. Splitting
  * at that line is what makes all of this testable under plain `node --test`, same convention as
- * `tracked-sites.js`, `site-dir-store.ts` and `site-config.ts`.
+ * `tracked-sites.ts`, `site-dir-store.ts` and `site-config.ts`.
  *
  * **WHY A FILE KEYED BY A DIGEST, AND NOT A FIELD IN THE REGISTRY.** `desktop-projects.json`'s row
  * keys are frozen (`siteDir`, `origin`, `siteId`, `createdAt`, plus the top-level `dismissed`), and
@@ -152,7 +152,7 @@ function writePreview(userDataDir: string, siteDir: string, bytes: Buffer): numb
 }
 
 /**
- * Drop one site's cached preview. Called where the registry row is unmade (`project-ipc.js`'s
+ * Drop one site's cached preview. Called where the registry row is unmade (`project-ipc.ts`'s
  * `handleDelete`, the single production call site of `untrackSite`).
  *
  * @complexity O(1).

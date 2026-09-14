@@ -2,16 +2,16 @@
  * @file Which sites the operator considers "theirs" — the list the Projects screen renders cards
  * from. A JSON file in `userData`, not a sqlite table: porting Tovu-Runner's `project-registry.ts`
  * wholesale would drag `@jini-ai/sqlite` + `better-sqlite3` into a shell that has twice, in writing,
- * decided not to have them (`site-dir-store.js`'s own header makes the same call for its MRU list).
+ * decided not to have them (`site-dir-store.ts`'s own header makes the same call for its MRU list).
  *
  * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.ts` is ground truth for
  * "running" — a status written to this file would go stale the moment Electron is killed hard,
- * exactly the failure mode `site-process-registry.js`'s crash-safety design exists to avoid for the
+ * exactly the failure mode `site-process-registry.ts`'s crash-safety design exists to avoid for the
  * supervision side of the same problem. `buildSiteRecord` (`main.ts`) is what joins one row here
  * with `openSites` to produce the `SiteRecord` the renderer actually gets.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
- * `site-dir-store.js` and `site-process-registry.js`.
+ * `site-dir-store.ts` and `site-process-registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +20,7 @@ const SITES_FILE_NAME = "desktop-projects.json";
 
 /**
  * A tracked row's PROVENANCE — who made the directory it points at. Recorded because project delete
- * ends in a recursive `fs.rm` (`project-ipc.js`'s `handleDelete`), and that is only ever a correct
+ * ends in a recursive `fs.rm` (`project-ipc.ts`'s `handleDelete`), and that is only ever a correct
  * thing to do to a directory this app itself created.
  *
  * Two values, and the split is exactly `classifySiteDir`'s: `handleCreate` classifies the picked
@@ -31,7 +31,7 @@ const SITES_FILE_NAME = "desktop-projects.json";
  *
  * Not a boolean, because a boolean would have to be named for the CONSEQUENCE ("removable") and
  * would then have to change meaning if the deletion policy ever gains another rule. This records the
- * FACT; `project-delete-guard.js` owns the policy over it.
+ * FACT; `project-delete-guard.ts` owns the policy over it.
  */
 const SITE_ORIGIN = Object.freeze({
   /** This app ran `tovu init` into an empty folder — every byte under it is ours. */
@@ -43,10 +43,10 @@ const SITE_ORIGIN = Object.freeze({
 /** The two values {@link SITE_ORIGIN} can take. See that constant's own doc. */
 type SiteOrigin = (typeof SITE_ORIGIN)[keyof typeof SITE_ORIGIN];
 
-/** What `site-dir-store.js`'s `classifySiteDir` returns — injected, not imported; see {@link discoverSiteDirs}. */
+/** What `site-dir-store.ts`'s `classifySiteDir` returns — injected, not imported; see {@link discoverSiteDirs}. */
 type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
 
-/** Injected classifier shape every function below takes instead of importing `site-dir-store.js`.
+/** Injected classifier shape every function below takes instead of importing `site-dir-store.ts`.
  *  `"unreadable"` is `classifySiteDirSafely`'s extra verdict, which every caller here treats as "not a site". */
 type ClassifySiteDirFn = (dir: string) => SiteClassification | "unreadable";
 
@@ -110,7 +110,7 @@ function readRegistryFile(projectsPath: string): RawRegistryFile | undefined {
 /**
  * Read the tracked project list, treating any unreadable or malformed file as "nothing tracked yet".
  *
- * Deliberately forgiving, the same rule `site-dir-store.js`'s `readDesktopState` follows: this file
+ * Deliberately forgiving, the same rule `site-dir-store.ts`'s `readDesktopState` follows: this file
  * is a convenience list over sites that still exist for real on disk, not the sites themselves, so a
  * truncated or corrupt copy should read as empty rather than crash the Projects screen.
  *
@@ -189,7 +189,7 @@ interface TrackSiteOptions {
  *   handing a stranger's folder to `fs.rm`. Only a caller that positively knows this app created
  *   the directory may pass `created`.
  * @param options.siteId the identity of the site this app just created here — `.site-meta.json`'s
- *   own `siteId`, read by `project-delete-guard.js`'s `readSiteIdentity`. Recorded ONLY alongside
+ *   own `siteId`, read by `project-delete-guard.ts`'s `readSiteIdentity`. Recorded ONLY alongside
  *   `created`, because it exists for exactly one reader: the guard, proving before an `fs.rm` that
  *   the site at this path is still the one whose creation wrote this row (SEC-01/D-04). An
  *   `adopted` row can never erase anything, so stamping one would record a fact nothing reads and
@@ -306,7 +306,7 @@ function migrateLegacyDismissals(projectsPath: string, devFallbackDir: string): 
  * guard bought — a removed project stays removed, because the removal is now a recorded fact rather
  * than an inference from the file's existence.
  *
- * `classifySiteDir` is injected rather than required directly (`site-dir-store.js`) so this
+ * `classifySiteDir` is injected rather than required directly (`site-dir-store.ts`) so this
  * deliberately dependency-light module (see this file's header) stays decoupled from it, and so
  * callers can test the seeding decision without a real directory on disk.
  *
@@ -345,7 +345,7 @@ interface DiscoverSiteDirsInput {
  * Deliberately ONE level deep under each root. A recursive walk would descend into every site's own
  * `uploads/` and `node_modules/`, which is unbounded work at boot for directories that cannot be
  * sites; the flat layout is the convention `devFallbackDir` (`<repo>/sites/tovu-com`) already
- * follows. `knownDirs` covers the sites that do not live under any root — `site-dir-store.js`'s
+ * follows. `knownDirs` covers the sites that do not live under any root — `site-dir-store.ts`'s
  * recently-opened list, which own-server mode has been writing all along.
  *
  * Note this is NOT a port of a Tovu-Runner mechanism: Runner keeps its projects in a SQLite
@@ -356,7 +356,7 @@ interface DiscoverSiteDirsInput {
  * @param deps.scanRoots directories whose immediate children are candidates. Missing roots are
  *   skipped, not an error — `<repo>/sites` does not exist in a packaged app.
  * @param deps.knownDirs candidate directories themselves, already-known paths rather than parents.
- * @param deps.classifySiteDir `site-dir-store.js`'s classifier, injected — see
+ * @param deps.classifySiteDir `site-dir-store.ts`'s classifier, injected — see
  *   {@link seedDevFallbackSite} on why this module takes it rather than requiring it.
  * @returns absolute site dirs, deduped and sorted.
  * @complexity O(n) in the roots' combined child count.
@@ -432,7 +432,7 @@ function classifiesAsSite(dir: string, classifySiteDir: ClassifySiteDirFn): bool
  * the tombstone, because that one IS them asking.
  *
  * Every discovery is recorded `adopted`, never `created`: this app did not make any of these
- * directories, so `project-delete-guard.js` must never let a delete erase one.
+ * directories, so `project-delete-guard.ts` must never let a delete erase one.
  *
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
  * @complexity O(n * m) in the discovered count and the registry size.

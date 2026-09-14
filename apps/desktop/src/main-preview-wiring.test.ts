@@ -3,10 +3,10 @@
  *
  * `main.ts` requires `"electron"` at module scope, which resolves to a path string (not the real
  * API) outside a real Electron process — `require`-ing it under plain `node --test` would crash
- * immediately without proving anything (same constraint `main-speech-wiring.test.js` and
- * `main-project-wiring.test.js` document for their own files). The capture's non-Electron half —
+ * immediately without proving anything (same constraint `main-speech-wiring.test.ts` and
+ * `main-project-wiring.test.ts` document for their own files). The capture's non-Electron half —
  * the path convention, the version token, the two cleanup paths — is behaviourally covered directly
- * in `site-preview-store.test.js`; what only this file can check is that `main.ts` actually calls
+ * in `site-preview-store.test.ts`; what only this file can check is that `main.ts` actually calls
  * that store's functions, from the right places, bound the right way.
  */
 import test from "node:test";

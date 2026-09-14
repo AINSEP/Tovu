@@ -14,7 +14,7 @@
  *
  * ## What ships, and why it keeps its repo-relative shape
  *
- * The shell never imports Tovu — it spawns `tovu serve` as a child (`src/tovu-server.js`), so what
+ * The shell never imports Tovu — it spawns `tovu serve` as a child (`src/tovu-server.ts`), so what
  * must ship is a whole *runnable* tree. It is staged at the SAME relative paths it occupies in the
  * checkout (`dist/`, `apps/admin/dist`, `apps/site-chat/dist`, `package.json`, `node_modules/`),
  * because that is exactly what lets `resolveCliEntry` and `buildServeEnv` keep one `path.join`

@@ -81,7 +81,7 @@ function DatabasePicker({
         {/* D-02. Supabase and Custom were selectable, and choosing either made `computeCanCreate`
             refuse to enable the button until the operator typed a project URL and an API key —
             which `handleCreate` then discarded before reporting a plain SQLite site as success.
-            This app has no hosted-database provisioner (`project-ipc.js`'s `handleCreate` now
+            This app has no hosted-database provisioner (`project-ipc.ts`'s `handleCreate` now
             refuses the choice outright, which is the boundary these two must never reach).
 
             Shown-and-disabled rather than deleted: the options say what this app will be able to

@@ -2,7 +2,7 @@
  * @file The only concrete {@link TranscriptionPort} (see `transcription-port.ts`) that exists
  * today: macOS's own on-device `Speech` framework, reached by spawning
  * `tovu-speech-helper.swift`'s compiled binary as a child process — the same "spawn a small CLI,
- * read its stdout" shape `tovu-server.js` already uses for `tovu serve`.
+ * read its stdout" shape `tovu-server.ts` already uses for `tovu serve`.
  *
  * **Zero downloaded model data.** The helper links `Speech`/`SFSpeechRecognizer` against the
  * speech models macOS ships with the OS; nothing is fetched at install or first run. The owner

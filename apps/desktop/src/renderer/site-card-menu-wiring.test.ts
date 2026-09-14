@@ -2,7 +2,7 @@
  * @file The ⋮ overflow menu's wiring, checked as source text — this repo has no DOM runner for
  * `.tsx` (see `use-add-site.hooks.test.ts`'s own header). The behaviour behind the menu IS covered
  * directly where it lives: `use-site-rename.hooks.ts`'s rule in `site-config.test.ts`, and the
- * whole rename guard in `project-ipc.test.js`. What only this file can check is that the component
+ * whole rename guard in `project-ipc.test.ts`. What only this file can check is that the component
  * actually wires them together, and does not reintroduce the two bugs the card already fixed once.
  *
  * Every assertion runs against COMMENT-STRIPPED source. The doc comments in `SiteGrid.tsx` discuss
@@ -61,7 +61,7 @@ test("the trigger carries the same a11y contract SettingsControl uses", () => {
 });
 
 test("Stop is NOT offered — runner:sites:stop is a throwing stub with no handler", () => {
-  // Not a design preference: `project-ipc.js` registers no handler for it. An entry here, even a
+  // Not a design preference: `project-ipc.ts` registers no handler for it. An entry here, even a
   // disabled one, would imply it is coming.
   assert.doesNotMatch(menuBody(), />\s*Stop\s*</);
 });
