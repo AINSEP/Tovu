@@ -596,6 +596,16 @@ function initialSelectedPath(
   return { path: defaultSelectedPath(files, apiVersion), missed: requested.missed };
 }
 
+/**
+ * The error a failed rename reports: a `NAME_TAKEN` conflict names the taken `name`, any other
+ * `Error` its own message, and anything else a generic fallback. Pulled out of `performRename`'s
+ * `catch` under the complexity ceiling.
+ */
+function renameErrorMessage(e: unknown, name: string): string {
+  if (e instanceof ApiError && e.code === "NAME_TAKEN") return `'${name}' already exists in this theme`;
+  return e instanceof Error ? e.message : "failed to rename file";
+}
+
 export function useThemeExplore(
   themeId: string,
   { port, t }: ThemeExploreDependencies,
@@ -848,13 +858,7 @@ export function useThemeExplore(
         setPreviewNonce((n) => n + 1);
       } catch (e) {
         if (!renameSettlement.isCurrent(generation)) return;
-        setError(
-          e instanceof ApiError && e.code === "NAME_TAKEN"
-            ? `'${name}' already exists in this theme`
-            : e instanceof Error
-              ? e.message
-              : "failed to rename file"
-        );
+        setError(renameErrorMessage(e, name));
       } finally {
         if (!renameSettlement.isCurrent(generation)) return;
         setRenaming(false);
