@@ -258,8 +258,8 @@ test("site_describe_capabilities: the owner gets all three sections, with tools 
   const owner = (await handler(ctxFor(await deps.ownerPrincipalId, {}))) as {
     completeness: string;
     sections: Record<string, { status: string; data?: unknown }> & {
-      tools: { data: { total: number; domains: { domain: string; tools: { id: string }[] }[] } };
-      adminScreens: { data: { screens: unknown[] } };
+      tools: { status: string; data: { total: number; domains: { domain: string; tools: { id: string }[] }[] } };
+      adminScreens: { status: string; data: { screens: unknown[] } };
     };
   };
 
