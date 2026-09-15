@@ -1,7 +1,8 @@
 import { buildAgentPageMap } from "@jini-ai/admin/core";
 import type { DomPageDriverPage } from "@jini-ai/agentic/dom";
 import { ADMIN_PANELS } from "../panels";
-import { navigate } from "./router";
+import { currentRoutePath, navigate } from "./router";
+import { publishContentRefresh } from "./content-refresh-bus";
 
 /**
  * @file Which admin pages an agent may navigate to, and the route path that gets there.
@@ -115,6 +116,12 @@ export function buildAdminAgentPages(): Readonly<Record<string, DomPageDriverPag
       {
         label: labelForPageId(pageId),
         navigate: () => {
+          // Navigating to the route already displayed is a no-op: `useRouteLocation`'s snapshot
+          // string is unchanged, so nothing remounts and the screen keeps rendering what it
+          // fetched at mount. Every other destination mounts fresh and fetches in its own mount
+          // effect, so this is the only case where an agent asking to SEE a screen would otherwise
+          // be shown a stale one.
+          if (currentRoutePath() === routePath) publishContentRefresh();
           navigate(routePath);
         },
       },

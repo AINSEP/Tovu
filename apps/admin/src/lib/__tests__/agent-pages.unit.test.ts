@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildAgentPageMap } from "@jini-ai/admin/core";
 import * as router from "../router";
 import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages } from "../agent-pages";
+import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 
 /**
  * @file `agent-pages.ts` — the allowlist behind `page.navigate` (`buildAdminAgentPages`) and the
@@ -11,6 +12,7 @@ import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages } from "../agent-pages";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetContentRefreshBus();
 });
 
 describe("ADMIN_AGENT_PAGE_PATHS", () => {
@@ -99,5 +101,30 @@ describe("buildAdminAgentPages", () => {
     pages[firstPageId]!.navigate();
 
     expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
+  });
+
+  it("publishes a content refresh when the agent navigates to the route already displayed", () => {
+    vi.spyOn(router, "navigate").mockImplementation(() => {});
+    vi.spyOn(router, "currentRoutePath").mockReturnValue(ADMIN_AGENT_PAGE_PATHS["posts"]!);
+    const seen = vi.fn();
+    subscribeToContentRefresh(seen);
+
+    buildAdminAgentPages()["posts"]!.navigate();
+
+    // Same-route navigate remounts nothing (`router.ts`'s `useSyncExternalStore` snapshot is an
+    // unchanged string), so without this the agent is shown the list as it was at mount.
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(seen).toHaveBeenCalledWith(null);
+  });
+
+  it("does not publish when navigating to a different route, which mounts and fetches on its own", () => {
+    vi.spyOn(router, "navigate").mockImplementation(() => {});
+    vi.spyOn(router, "currentRoutePath").mockReturnValue("/some-other-route");
+    const seen = vi.fn();
+    subscribeToContentRefresh(seen);
+
+    buildAdminAgentPages()["posts"]!.navigate();
+
+    expect(seen).not.toHaveBeenCalled();
   });
 });
