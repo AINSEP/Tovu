@@ -298,7 +298,13 @@ async function writeHostBody(
 /** REQ-44's post/page host arm — writes through the SAME command-gateway + `updatePost` chokepoint
  *  the live TipTap editor's own Save path uses (`routes/posts/update.ts`), so a post/page embed
  *  mutation gets an identical change-set/rollback unit of work (ADR-047 Amendment 6, D2). Only
- *  `bodyJson` actually changes; every other field travels through unchanged from `current`. */
+ *  `bodyJson` actually changes; every other field travels through unchanged from `current`.
+ *
+ *  Unlike the entries arm above — which re-extracts `entry_refs` inside `updateEntry`'s `onWritten`,
+ *  within that chokepoint's own transaction — the refs refresh here runs AFTER `executeCommand` has
+ *  committed, because the command gateway exposes no in-transaction hook. A refs write that fails
+ *  therefore leaves the post saved with stale refs (where-used over-reports, and the non-force purge
+ *  guard fails safe by blocking). Accepted, not overlooked. */
 async function writePostHostBody(
   deps: EmbedServiceDeps,
   workspaceId: UUID,

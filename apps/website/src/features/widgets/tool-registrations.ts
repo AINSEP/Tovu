@@ -142,7 +142,7 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  * ToolInputError` as `errorKind: 'internal'`, and the delegated-tool-call transport SEC-005-
  * redacts an `'internal'` failure into a message-stripped `INTERNAL_ERROR` 500. Unlike Posts,
  * which reclassifies its one conflict type at each call site, this wraps the WHOLE handler map
- * once (see the `buildDomainRegistrations` call below) so all 10 widgets tools get it — including
+ * once (see the `buildDomainRegistrations` call below) so all 12 widgets tools get it — including
  * the 3 embed handlers with the wrong-table host-lookup bug this reclassification was written
  * alongside, and the read/region/instance handlers that had the SAME redaction bug independent of
  * that lookup bug (see the fix plan's §3 sibling-arms table). A code prefix before `:` is prepended
