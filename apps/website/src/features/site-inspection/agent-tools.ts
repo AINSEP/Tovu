@@ -148,7 +148,7 @@ export const siteInspectionAgentToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "site_describe_capabilities",
     description: [
-      "Describes what this site can do, in one call and three sections: 'tools' (every tool registered for you, grouped by domain, each as an id and a one-line summary, with per-domain counts and a total), 'adminScreens' (the admin app's screens as id, label and route path), and 'contentTypes' (each content type's key and label).",
+      "Describes what this site can do, in one call and three sections: 'tools' (every tool registered on this assistant, not filtered by your permissions, grouped by domain, each as an id and a one-line summary, with per-domain counts and a total), 'adminScreens' (the admin app's screens as id, label and route path), and 'contentTypes' (each content type's key and label).",
       "Call this when you or the human need to know what is possible here before choosing where to start.",
       "Do NOT call this to find the tool for a specific task — search_tools ranks tools by what they do. Do NOT treat a one-line summary as a tool's contract — call describe_tool on its id for the full description and input schema. Do NOT call it to learn how the site is configured — use site_get_profile.",
       "Returns: { schemaVersion, capturedAt, completeness: 'complete'|'partial', sections: { <name>: { status: 'ok'|'forbidden'|'unavailable', data?, reason? } } }.",

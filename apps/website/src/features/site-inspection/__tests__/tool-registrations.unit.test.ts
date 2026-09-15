@@ -327,3 +327,14 @@ test("site_describe_capabilities: side-effect free and published read-only", () 
   assert.equal(siteInspectionDerivedRisk.get("site_describe_capabilities"), "none");
   assert.equal(registration.descriptor.readOnly, true);
 });
+
+test("site_describe_capabilities: the description says the tools list is not filtered by the caller's permissions", () => {
+  // `listCatalogTools` reads the composition root's whole registry with no principal in scope, the
+  // same catalog `search_tools` ranks. A description promising tools "registered for you" tells a
+  // model every listed tool is one it may run.
+  const entry = siteInspectionAgentToolCatalog.find((tool) => tool.name === "site_describe_capabilities");
+  assert.ok(entry);
+
+  assert.doesNotMatch(entry.description, /registered for you/);
+  assert.match(entry.description, /not filtered by your permissions/);
+});
