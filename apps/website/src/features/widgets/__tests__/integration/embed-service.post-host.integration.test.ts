@@ -188,9 +188,13 @@ test("REQ-44 post-host fix: removeWidgetEmbed and reorderWidgetEmbeds against a 
   assert.equal(reordered.entry.version, 4);
   assert.deepEqual(embedsIn(reordered.entry.bodyJson).map((e) => e.widgetEntryId), [w2, w1]);
 
+  // `reorderWidgetEmbeds` mints a FRESH placementId per slot (see `reorderEmbedSlots`'s own doc) —
+  // `after1.placementId` no longer exists post-reorder, so the current one must be read back off
+  // the reordered body rather than reused from before the reorder.
+  const reorderedPlacementId = embedsIn(reordered.entry.bodyJson).find((e) => e.widgetEntryId === w1)!.placementId;
   const removed = await removeWidgetEmbed({
     deps: makeDeps(repos),
-    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: post.id, baseVersion: reordered.entry.version, placementId: after1.placementId },
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: post.id, baseVersion: reordered.entry.version, placementId: reorderedPlacementId },
   });
   assert.equal(removed.entry.version, 5);
   assert.equal(embedsIn(removed.entry.bodyJson).length, 1);

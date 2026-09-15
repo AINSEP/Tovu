@@ -32,9 +32,10 @@
  * unchanged.
  */
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
-import type { AuthorizeFn, OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
 import type { EntryListPort, EntryRepoPort } from "../entries/index.js";
+import type { BeforeSaveHookPort, PostRepoPort } from "../post/index.js";
 import type { WidgetRegionBindingRepoPort } from "./ports.js";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */
@@ -48,6 +49,10 @@ export interface WidgetsRouteDeps {
   contentTypeRepo: ContentTypeRepoPort;
   entryRefsRepo: EntryRefsRepoPort;
   widgetBindingRepo: WidgetRegionBindingRepoPort;
+  /** REQ-44 — a post/page embed host writes through the same chokepoint the live editor uses. */
+  postRepo: PostRepoPort;
+  changeSets: ChangeSetRepoPort;
+  pluginBeforeSaveHook: BeforeSaveHookPort;
 }
 
 /** Shared dependency bag for `write-service.ts`/`embed-service.ts` calls — every one of them takes this identical shape. */
@@ -56,6 +61,9 @@ export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps) {
     entryRepo: routeDeps.entryRepo,
     contentTypeRepo: routeDeps.contentTypeRepo,
     entryRefsRepo: routeDeps.entryRefsRepo,
+    postRepo: routeDeps.postRepo,
+    changeSets: routeDeps.changeSets,
+    beforeSaveHook: routeDeps.pluginBeforeSaveHook,
     clock: routeDeps.clock,
     ids: routeDeps.idGen,
     authorize: routeDeps.authorize,

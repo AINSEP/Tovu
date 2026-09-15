@@ -25,6 +25,9 @@ function makeRouteDeps(): WidgetsRouteDeps {
     contentTypeRepo: { marker: "contentTypeRepo" } as unknown as WidgetsRouteDeps["contentTypeRepo"],
     entryRefsRepo: { marker: "entryRefsRepo" } as unknown as WidgetsRouteDeps["entryRefsRepo"],
     widgetBindingRepo: { marker: "widgetBindingRepo" } as unknown as WidgetsRouteDeps["widgetBindingRepo"],
+    postRepo: { marker: "postRepo" } as unknown as WidgetsRouteDeps["postRepo"],
+    changeSets: { marker: "changeSets" } as unknown as WidgetsRouteDeps["changeSets"],
+    pluginBeforeSaveHook: { marker: "pluginBeforeSaveHook" } as unknown as WidgetsRouteDeps["pluginBeforeSaveHook"],
   };
 }
 

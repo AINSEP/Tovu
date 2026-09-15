@@ -8,6 +8,8 @@ import {
   WidgetAreaNotFoundError,
   WidgetConfigValidationError,
   WidgetEmbedGuardrailError,
+  WidgetEmbedHostNotFoundError,
+  WidgetEmbedHostUnsupportedError,
   WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetReferencedError,
@@ -142,6 +144,11 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
   ],
   [WidgetInstanceNotFoundError, (err: WidgetInstanceNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" } })],
   [WidgetAreaNotFoundError, (err: WidgetAreaNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_AREA_NOT_FOUND" } })],
+  [WidgetEmbedHostNotFoundError, (err: WidgetEmbedHostNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_EMBED_HOST_NOT_FOUND" } })],
+  [
+    WidgetEmbedHostUnsupportedError,
+    (err: WidgetEmbedHostUnsupportedError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_EMBED_HOST_UNSUPPORTED", details: { reason: err.reason } } }),
+  ],
   [WidgetForbiddenError, widgetForbiddenToResponse],
 ];
 

@@ -17,6 +17,7 @@
  * identical gate function.
  */
 import {
+  AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
   isRecord,
@@ -423,7 +424,7 @@ export function buildWidgetsRegistrations(
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
-            actor: { principalId: ctx.principal.id },
+            actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
             hostEntryId: requireString(input, "hostEntryId"),
             baseVersion: requireNumber(input, "baseVersion"),
             widgetEntryId: requireString(input, "widgetEntryId"),
@@ -439,7 +440,7 @@ export function buildWidgetsRegistrations(
         deps: buildWidgetsDeps(routeDeps),
         input: {
           workspaceId: routeDeps.workspaceId,
-          actor: { principalId: ctx.principal.id },
+          actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
           hostEntryId: requireString(input, "hostEntryId"),
           baseVersion: requireNumber(input, "baseVersion"),
           placementId: requireString(input, "placementId"),
@@ -465,7 +466,7 @@ export function buildWidgetsRegistrations(
           deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
-            actor: { principalId: ctx.principal.id },
+            actor: { principalId: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
             hostEntryId: requireString(input, "hostEntryId"),
             baseVersion: requireNumber(input, "baseVersion"),
             orderedWidgetEntryIds: input.orderedWidgetEntryIds as string[],

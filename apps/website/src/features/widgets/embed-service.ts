@@ -22,7 +22,8 @@
  * dispatch rather than the earlier domain-layer session, since it composes `updateEntry`'s new
  * `bodyJson` capability which did not exist yet at that time.
  */
-import type { ClockPort, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
+import type { ChangeSetRepoPort, ClockPort, CommandActor, JsonObject, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
+import { ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { ContentTypeRepoPort } from "../content-types/index.js";
@@ -34,6 +35,15 @@ import {
   type EntryRepoPort,
 } from "../entries/index.js";
 import {
+  isTrashed,
+  updatePost,
+  PostNotFoundError,
+  PostVersionConflictError,
+  type BeforeSaveHookPort,
+  type PostRecord,
+  type PostRepoPort,
+} from "../post/index.js";
+import {
   PRE_AUTHORIZED,
   requireWidgetPermission,
   type WidgetsAuthorizeFn,
@@ -43,10 +53,13 @@ import { validateWidgetEmbedMutation } from "./embed-validation.js";
 import { parseWidgetInstancePayload } from "./entry-payload.js";
 import {
   WidgetEmbedGuardrailError,
+  WidgetEmbedHostNotFoundError,
+  WidgetEmbedHostUnsupportedError,
+  WidgetForbiddenError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
 } from "./errors.js";
-import { WIDGET_CONTENT_TYPE } from "./types.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types.js";
 import type { WidgetEmbedNode } from "./types.js";
 
 /** Matches the certified `embed-validation.unit.test.ts` suite's own value — no separate policy
@@ -58,10 +71,18 @@ export interface EmbedServiceDeps {
   entryRepo: EntryRepoPort;
   contentTypeRepo: ContentTypeRepoPort;
   entryRefsRepo: EntryRefsRepoPort;
+  /** REQ-44 — a post/page host is a second, separate table (see `loadEmbedHost`'s doc). */
+  postRepo: PostRepoPort;
+  /** The same command-gateway change-set store the live editor's own post-save route uses, so a
+   *  post/page embed write records an auditable, revertible change set identically (ADR-047
+   *  Amendment 6). */
+  changeSets: ChangeSetRepoPort;
   clock: ClockPort;
   ids: { newId: () => string };
   authorize: WidgetsAuthorizeFn;
   outbox: OutboxPort;
+  /** Same optional "absent = zero-plugin behavior unchanged" contract as `UpdatePostDeps.beforeSaveHook`. */
+  beforeSaveHook?: BeforeSaveHookPort;
   /** REQ-20 — policy-bounded, not hardcoded; defaults to `DEFAULT_MAX_EMBEDS_PER_DOCUMENT`. */
   maxEmbedsPerDocument?: number;
 }
@@ -136,21 +157,63 @@ function reorderEmbedSlots(node: unknown, cursor: { index: number }, newIds: () 
   return node;
 }
 
-async function extractAndStoreEmbedRefs(deps: EmbedServiceDeps, workspaceId: string, entry: EntryRecord): Promise<void> {
+async function extractAndStoreEmbedRefs(
+  deps: EmbedServiceDeps,
+  workspaceId: string,
+  host: { id: UUID; type: string; bodyJson: unknown }
+): Promise<void> {
   const refs = extractEntryRefs({
     workspaceId,
-    sourceEntryId: entry.id,
-    sourceEntryType: entry.type,
-    bodyJson: entry.bodyJson,
+    sourceEntryId: host.id,
+    sourceEntryType: host.type,
+    bodyJson: host.bodyJson,
     fieldsExt: {},
   });
-  await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
+  await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: host.id, refs });
 }
 
-async function loadHostEntry(deps: EmbedServiceDeps, workspaceId: UUID, hostEntryId: UUID): Promise<EntryRecord> {
+/** A `widgetEmbed` host is either a custom content-type `entries` row (the original host table) or
+ *  a `posts` row (REQ-44) — a Post/Page is NOT an `entries` row (`resolver-service.ts:60-67`
+ *  documents this same split for the render-time lookup this mirrors on the write side). Checked
+ *  entries-first so every existing entries-host behavior stays byte-identical (D1); IDs are UUIDs,
+ *  so a same-id collision across the two tables is not a realistic case. */
+type EmbedHost = { kind: "entry"; record: EntryRecord } | { kind: "post"; record: PostRecord };
+
+async function loadEmbedHost(deps: EmbedServiceDeps, workspaceId: UUID, hostEntryId: UUID): Promise<EmbedHost> {
   const entry = await deps.entryRepo.findById({ workspaceId, id: hostEntryId });
-  if (!entry) throw new WidgetInstanceNotFoundError(`host entry '${hostEntryId}' was not found`);
-  return entry;
+  if (entry) {
+    if (entry.type === WIDGET_AREA_CONTENT_TYPE) {
+      // REQ-17 (D4) — a widget_area entry is itself a region's composition document; it must never
+      // also be a widgetEmbed host (no recursion into a region from inside a region).
+      throw new WidgetEmbedHostUnsupportedError(
+        `host '${hostEntryId}' is a widget_area entry, which can never host a widgetEmbed node (REQ-17)`,
+        "widget-area"
+      );
+    }
+    return { kind: "entry", record: entry };
+  }
+
+  const post = await deps.postRepo.findById({ workspaceId, id: hostEntryId });
+  if (!post || isTrashed(post)) {
+    throw new WidgetEmbedHostNotFoundError(
+      `host entry '${hostEntryId}' was not found in workspace '${workspaceId}' (it must be the id of an existing, non-trashed post, page, or content entry)`
+    );
+  }
+  if (post.bodyFormat === "html") {
+    // An html-format Page (SPEC-047) has no Tiptap body — `data-embed-config` markers are its embed
+    // mechanism instead (`html-embeds.ts`), not a `widgetEmbed` node.
+    throw new WidgetEmbedHostUnsupportedError(
+      `host '${hostEntryId}' is an HTML-format page, which has no rich-text body for widgetEmbed nodes; embed widgets in it with a data-embed-config marker of type "widget" via pages_write_region or pages_write_html instead`,
+      "html-page"
+    );
+  }
+  return { kind: "post", record: post };
+}
+
+/** The content/entity type `assertGuardrails` validates against — an entry's registered content
+ *  type for an entries host, or the post/page `kind` for a posts-table host. */
+function hostBodyType(host: EmbedHost): string {
+  return host.kind === "entry" ? host.record.type : host.record.kind;
 }
 
 /**
@@ -232,9 +295,100 @@ async function writeHostBody(
   return result.value.entry;
 }
 
+/** REQ-44's post/page host arm — writes through the SAME command-gateway + `updatePost` chokepoint
+ *  the live TipTap editor's own Save path uses (`routes/posts/update.ts`), so a post/page embed
+ *  mutation gets an identical change-set/rollback unit of work (ADR-047 Amendment 6, D2). Only
+ *  `bodyJson` actually changes; every other field travels through unchanged from `current`. */
+async function writePostHostBody(
+  deps: EmbedServiceDeps,
+  workspaceId: UUID,
+  actor: { principalId: UUID; kind: string },
+  current: PostRecord,
+  baseVersion: number,
+  nextBodyJson: unknown
+): Promise<PostRecord> {
+  let priorPost: PostRecord | null = null;
+  try {
+    const { result } = await executeCommand({
+      deps: {
+        clock: deps.clock,
+        idGen: deps.ids,
+        changeSets: deps.changeSets,
+        outbox: deps.outbox,
+        authorize: deps.authorize,
+      },
+      command: {
+        workspaceId,
+        actor: { id: actor.principalId, kind: actor.kind as CommandActor["kind"] },
+        summary: `Update widgetEmbed placements on post ${current.id}`,
+        permission: "content.write",
+      },
+      mutation: {
+        entityType: "post",
+        entityId: current.id,
+        operation: "update",
+        captureInverse: async () => {
+          priorPost = await deps.postRepo.findById({ workspaceId, id: current.id });
+          if (!priorPost) return null;
+          return {
+            title: priorPost.title,
+            slug: priorPost.slug,
+            bodyJson: priorPost.bodyJson,
+            status: priorPost.status,
+            templateChoice: priorPost.templateChoice ?? null,
+            overridesThemePage: priorPost.overridesThemePage ?? null,
+            ...(priorPost.ext !== undefined ? { ext: priorPost.ext } : {}),
+          };
+        },
+        execute: () =>
+          updatePost({
+            deps: {
+              repo: deps.postRepo,
+              clock: deps.clock,
+              outbox: deps.outbox,
+              beforeSaveHook: deps.beforeSaveHook,
+            },
+            input: {
+              workspaceId,
+              id: current.id,
+              title: current.title,
+              slug: current.slug,
+              status: current.status,
+              bodyJson: nextBodyJson as JsonObject,
+              expectedVersion: baseVersion,
+            },
+          }),
+        captureEntityVersion: (r) => r.post.version,
+        rollback: async () => {
+          if (priorPost) await deps.postRepo.save(priorPost);
+        },
+      },
+    });
+    await extractAndStoreEmbedRefs(deps, workspaceId, { id: result.post.id, type: result.post.kind, bodyJson: result.post.bodyJson });
+    return result.post;
+  } catch (err) {
+    if (err instanceof PostVersionConflictError) {
+      throw new WidgetVersionConflictError(err.message, err.currentVersion);
+    }
+    if (err instanceof PostNotFoundError) {
+      // Trash race between `loadEmbedHost`'s check and this write — same not-found shape either way.
+      throw new WidgetEmbedHostNotFoundError(
+        `host entry '${current.id}' was not found in workspace '${workspaceId}' (it must be the id of an existing, non-trashed post, page, or content entry)`
+      );
+    }
+    if (err instanceof ForbiddenError) {
+      // Reformatted to match `authorize-helper.ts`'s `requireWidgetPermission` wording (not
+      // `executeCommand`'s own message verbatim) so `widgetForbiddenToResponse`'s regex extracts
+      // `permission`/`reason` identically regardless of which of the two gates rejected the caller.
+      throw new WidgetForbiddenError(`principal '${actor.principalId}' lacks permission 'content.write' (${err.reason})`);
+    }
+    throw err;
+  }
+}
+
 export interface InsertWidgetEmbedInput {
   readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
+  readonly actor: { readonly principalId: UUID; readonly kind: string };
   readonly hostEntryId: UUID;
   readonly baseVersion: number;
   readonly widgetEntryId: UUID;
@@ -249,7 +403,7 @@ export interface InsertWidgetEmbedRequired {
  * entry's body — one atomic, version-guarded write through the same chokepoint the live editor's
  * Save uses. Returns the newly-minted `placementId` so the caller (an agent tool, or the
  * server-side embed-mutation routes) can address this exact placement afterward. */
-export async function insertWidgetEmbed(required: InsertWidgetEmbedRequired): Promise<{ entry: EntryRecord; placementId: UUID }> {
+export async function insertWidgetEmbed(required: InsertWidgetEmbedRequired): Promise<{ entry: EntryRecord | PostRecord; placementId: UUID }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -259,19 +413,22 @@ export async function insertWidgetEmbed(required: InsertWidgetEmbedRequired): Pr
   });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
-    const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
+    const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
     await assertEmbedTargetIsLiveWidget(deps, input.workspaceId, input.widgetEntryId);
     const placementId = deps.ids.newId();
-    const nextBodyJson = appendEmbed(current.bodyJson, placementId, input.widgetEntryId);
-    assertGuardrails(deps, current.type, nextBodyJson);
-    const entry = await writeHostBody(deps, input.workspaceId, input.actor, current, input.baseVersion, nextBodyJson);
+    const nextBodyJson = appendEmbed(host.record.bodyJson, placementId, input.widgetEntryId);
+    assertGuardrails(deps, hostBodyType(host), nextBodyJson);
+    const entry =
+      host.kind === "entry"
+        ? await writeHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson)
+        : await writePostHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson);
     return { entry, placementId };
   });
 }
 
 export interface RemoveWidgetEmbedInput {
   readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
+  readonly actor: { readonly principalId: UUID; readonly kind: string };
   readonly hostEntryId: UUID;
   readonly baseVersion: number;
   readonly placementId: UUID;
@@ -284,7 +441,7 @@ export interface RemoveWidgetEmbedRequired {
 
 /** REQ-44/45: removes the `widgetEmbed` node matching `placementId` from the host entry's body —
  * the placement itself is removed (the widget instance it referenced is untouched). */
-export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Promise<{ entry: EntryRecord }> {
+export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Promise<{ entry: EntryRecord | PostRecord }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -294,17 +451,20 @@ export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Pr
   });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
-    const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
-    const nextBodyJson = removeEmbedByPlacementId(current.bodyJson, input.placementId);
-    assertGuardrails(deps, current.type, nextBodyJson);
-    const entry = await writeHostBody(deps, input.workspaceId, input.actor, current, input.baseVersion, nextBodyJson);
+    const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
+    const nextBodyJson = removeEmbedByPlacementId(host.record.bodyJson, input.placementId);
+    assertGuardrails(deps, hostBodyType(host), nextBodyJson);
+    const entry =
+      host.kind === "entry"
+        ? await writeHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson)
+        : await writePostHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson);
     return { entry };
   });
 }
 
 export interface ReorderWidgetEmbedsInput {
   readonly workspaceId: UUID;
-  readonly actor: { readonly principalId: UUID };
+  readonly actor: { readonly principalId: UUID; readonly kind: string };
   readonly hostEntryId: UUID;
   readonly baseVersion: number;
   /** The new widget-entry order, one id per EXISTING embed slot in the host's body, in document
@@ -331,7 +491,7 @@ export class WidgetEmbedReorderCountMismatchError extends Error {
 /** REQ-44/45: reassigns which widget occupies which existing embed slot, in document order — the
  * document's own shape (slot count/position, surrounding content) is unchanged. Rejects a count
  * mismatch before writing anything (the caller must supply exactly one id per existing slot). */
-export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired): Promise<{ entry: EntryRecord }> {
+export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired): Promise<{ entry: EntryRecord | PostRecord }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -341,10 +501,10 @@ export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired)
   });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
-    const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
+    const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId);
 
     const existing: WidgetEmbedNode[] = [];
-    collectEmbeds(current.bodyJson, existing);
+    collectEmbeds(host.record.bodyJson, existing);
     if (existing.length !== input.orderedWidgetEntryIds.length) {
       throw new WidgetEmbedReorderCountMismatchError(
         `reorder must supply exactly one widgetEntryId per existing embed slot (${existing.length} present, ${input.orderedWidgetEntryIds.length} supplied)`,
@@ -367,9 +527,12 @@ export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired)
     }
 
     const cursor = { index: 0 };
-    const nextBodyJson = reorderEmbedSlots(current.bodyJson, cursor, () => deps.ids.newId(), input.orderedWidgetEntryIds);
-    assertGuardrails(deps, current.type, nextBodyJson);
-    const entry = await writeHostBody(deps, input.workspaceId, input.actor, current, input.baseVersion, nextBodyJson);
+    const nextBodyJson = reorderEmbedSlots(host.record.bodyJson, cursor, () => deps.ids.newId(), input.orderedWidgetEntryIds);
+    assertGuardrails(deps, hostBodyType(host), nextBodyJson);
+    const entry =
+      host.kind === "entry"
+        ? await writeHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson)
+        : await writePostHostBody(deps, input.workspaceId, input.actor, host.record, input.baseVersion, nextBodyJson);
     return { entry };
   });
 }

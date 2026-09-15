@@ -119,3 +119,22 @@ export class WidgetForbiddenError extends Error {
     this.name = "WidgetForbiddenError";
   }
 }
+
+/** `WIDGETS_EMBED_HOST_NOT_FOUND` (404) — no post, page, or content entry with that id in this workspace (or it is trashed). */
+export class WidgetEmbedHostNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WidgetEmbedHostNotFoundError";
+  }
+}
+
+/** `WIDGETS_EMBED_HOST_UNSUPPORTED` (400) — the host exists but has no rich-text body a widgetEmbed node can live in. */
+export class WidgetEmbedHostUnsupportedError extends Error {
+  constructor(
+    message: string,
+    public readonly reason: "html-page" | "widget-area"
+  ) {
+    super(message);
+    this.name = "WidgetEmbedHostUnsupportedError";
+  }
+}

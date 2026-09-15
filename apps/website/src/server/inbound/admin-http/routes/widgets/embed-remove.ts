@@ -24,7 +24,7 @@ export const registerAdminWidgetEmbedRemoveRoute: RouteRegistrar = (app, deps) =
         deps: buildWidgetsDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
-          actor: { principalId: principal.id },
+          actor: { principalId: principal.id, kind: "user" },
           hostEntryId: String(req.params.hostEntryId),
           baseVersion: body.baseVersion,
           placementId: String(req.params.placementId),

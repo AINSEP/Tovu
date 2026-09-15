@@ -43,6 +43,9 @@ function makeDeps(options: { allow?: boolean; entryRepo?: InMemoryEntryRepo } = 
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
+    postRepo: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["postRepo"],
+    changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
+    pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize,
   } as WidgetsToolDeps;
 }

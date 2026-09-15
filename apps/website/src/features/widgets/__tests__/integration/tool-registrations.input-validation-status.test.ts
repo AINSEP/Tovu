@@ -4,8 +4,10 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
@@ -41,6 +43,9 @@ function makeDeps(): WidgetsToolDeps {
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
+    postRepo: new InMemoryPostRepo(),
+    changeSets: new InMemoryChangeSetRepo(),
+    pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,
   };
 }

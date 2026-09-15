@@ -41,7 +41,7 @@ type PlaceTarget =
 
 /** Appends `widgetEntryId` to a region's CURRENT placement list (loaded fresh) and writes the
  * whole list back, per REQ-15's whole-document discipline — never a partial patch. */
-async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { principalId: string }, regionKey: string, baseVersion: number, widgetEntryId: string) {
+async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { principalId: string; kind: string }, regionKey: string, baseVersion: number, widgetEntryId: string) {
   const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey });
   // Round-2 external-audit fix (2026-07-21, agy + Opus 4.8, independently converged): a bare Error
   // isn't recognized by widgetErrorToResponse, so an unbound region 500'd instead of the same 404
@@ -58,7 +58,7 @@ async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { pr
   });
 }
 
-async function placeTarget(deps: RouteDeps, workspaceId: string, actor: { principalId: string }, target: PlaceTarget, widgetEntryId: string) {
+async function placeTarget(deps: RouteDeps, workspaceId: string, actor: { principalId: string; kind: string }, target: PlaceTarget, widgetEntryId: string) {
   if (target.kind === "region") {
     return placeIntoRegion(deps, workspaceId, actor, target.regionKey, target.baseVersion, widgetEntryId);
   }
@@ -116,7 +116,7 @@ function parseCreateToolInput(body: Record<string, unknown>): CreateToolInput | 
 async function removeEmbedPlacement(
   deps: RouteDeps,
   workspaceId: string,
-  actor: { principalId: string },
+  actor: { principalId: string; kind: string },
   target: Extract<PlaceTarget, { kind: "embed" }>,
   placementId: string
 ) {
@@ -132,7 +132,7 @@ async function removeEmbedPlacement(
 async function removeRegionPlacement(
   deps: RouteDeps,
   workspaceId: string,
-  actor: { principalId: string },
+  actor: { principalId: string; kind: string },
   target: Extract<PlaceTarget, { kind: "region" }>,
   placementId: string
 ) {
@@ -152,7 +152,7 @@ async function removeRegionPlacement(
 async function removePlacement(
   deps: RouteDeps,
   workspaceId: string,
-  actor: { principalId: string },
+  actor: { principalId: string; kind: string },
   target: PlaceTarget,
   placementId: string
 ) {
@@ -199,7 +199,7 @@ const registerPlaceTool: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const result = await placeTarget(deps, deps.workspaceId, { principalId: principal.id }, target, body.widgetInstanceId);
+      const result = await placeTarget(deps, deps.workspaceId, { principalId: principal.id, kind: "user" }, target, body.widgetInstanceId);
       res.status(200).json({ tool: "widgets.place", result });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
@@ -224,7 +224,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const actor = { principalId: principal.id };
+      const actor = { principalId: principal.id, kind: "user" };
       const { instance } = await createWidgetInstance({
         deps: buildWidgetsDeps(deps),
         input: {
@@ -272,7 +272,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const actor = { principalId: principal.id };
+      const actor = { principalId: principal.id, kind: "user" };
       const result = await removePlacement(deps, deps.workspaceId, actor, target, body.placementId);
       res.status(200).json({ tool: "widgets.remove", result });
     } catch (err) {
