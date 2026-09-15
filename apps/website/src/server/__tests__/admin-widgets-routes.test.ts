@@ -355,6 +355,177 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   assert.equal(removeRes.status, 200, await removeRes.clone().text());
 });
 
+/**
+ * @file T3 (2026-09-15 widgets-insert-embed fix) — RED regression coverage for the bug in
+ * `ADS-memory/.local-artifacts/handoffs/2026-09-15-widgets-insert-embed-bug-EVIDENCE.md`: the
+ * embed-mutation routes only ever looked in the `entries` table for a host, so a real post/page
+ * (a DIFFERENT table, `features/post`) always 404'd. `deps.postRepo` (real `createRouteDeps()`
+ * composition, same as every other test in this file) seeds the host directly, mirroring
+ * `tool-registrations.optimistic-concurrency.test.ts:72-85`'s own `postRepo.save({...} as never)`
+ * pattern rather than depending on the create-post route being wired to this path at all.
+ */
+function seedRouteHostPost(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "post-route-host-1",
+    workspaceId: WORKSPACE_ID,
+    title: "Route Host Post",
+    slug: "route-host-post",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "draft",
+    kind: "post",
+    updatedAt: "2026-09-15T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  };
+}
+
+test("admin widgets embeds: insert -> remove -> reorder against a REAL post host, closing the 2026-09-15 'host entry was not found' bug (SPEC-043 REQ-44/45)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const postId = "post-route-host-1";
+  await deps.postRepo.save(seedRouteHostPost() as never);
+
+  const createW = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Post-embed widget", config: { body: "hi" } }),
+  });
+  const { widget } = (await createW.json()) as { widget: { id: string } };
+
+  const insertRes = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: widget.id }),
+  });
+  assert.equal(insertRes.status, 201, await insertRes.clone().text());
+  const inserted = (await insertRes.json()) as { entry: { version: number }; placementId: string };
+  assert.equal(inserted.entry.version, 2);
+
+  const removeRes = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 2 }),
+  });
+  assert.equal(removeRes.status, 200, await removeRes.clone().text());
+
+  const insertRes2 = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 3, widgetEntryId: widget.id }),
+  });
+  assert.equal(insertRes2.status, 201, await insertRes2.clone().text());
+  const inserted2 = (await insertRes2.json()) as { entry: { version: number } };
+
+  const reorderRes = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: inserted2.entry.version, orderedWidgetEntryIds: [widget.id] }),
+  });
+  assert.equal(reorderRes.status, 200, await reorderRes.clone().text());
+});
+
+test("admin widgets embeds: unknown host is 404 WIDGETS_EMBED_HOST_NOT_FOUND, not the stale WIDGETS_INSTANCE_NOT_FOUND code", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/entries/does-not-exist/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: "whatever" }),
+  });
+  assert.equal(res.status, 404, await res.clone().text());
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "WIDGETS_EMBED_HOST_NOT_FOUND");
+});
+
+test("admin widgets embeds: an HTML-format page host is 400 WIDGETS_EMBED_HOST_UNSUPPORTED (reason 'html-page')", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const pageId = "page-html-host-1";
+  await deps.postRepo.save(
+    seedRouteHostPost({
+      id: pageId,
+      slug: "html-page",
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<main></main>",
+    }) as never
+  );
+
+  const res = await fetch(`${baseUrl}${BASE}/entries/${pageId}/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: "whatever" }),
+  });
+  assert.equal(res.status, 400, await res.clone().text());
+  const body = (await res.json()) as { code: string; details: { reason: string } };
+  assert.equal(body.code, "WIDGETS_EMBED_HOST_UNSUPPORTED");
+  assert.equal(body.details.reason, "html-page");
+});
+
+test("admin widgets embeds: a principal holding widgets.place but NOT content.write is 403 FORBIDDEN on a post host, nothing written", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const postId = "post-forbidden-host-1";
+  await deps.postRepo.save(seedRouteHostPost({ id: postId, slug: "forbidden-host-post" }) as never);
+
+  const createW = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Forbidden test widget", config: { body: "hi" } }),
+  });
+  const { widget } = (await createW.json()) as { widget: { id: string } };
+
+  const limitedCookie = await loginWithPermissions(deps, baseUrl, ["widgets.place"]);
+
+  const res = await fetch(`${baseUrl}${BASE}/entries/${postId}/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: limitedCookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: widget.id }),
+  });
+  assert.equal(res.status, 403, await res.clone().text());
+  const body = (await res.json()) as { code: string; details: { permission: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details.permission, "content.write");
+
+  const after = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+  assert.equal(after?.version, 1);
+});
+
+test("admin widgets agent tools: widgets.place with an embed target against a REAL post host succeeds (closes the 2026-09-15 bug on the AI-tool route too)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const postId = "post-tools-place-host-1";
+  await deps.postRepo.save(seedRouteHostPost({ id: postId, slug: "tools-place-host-post" }) as never);
+
+  const createW = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Tools-place widget", config: { body: "hi" } }),
+  });
+  const { widget } = (await createW.json()) as { widget: { id: string } };
+
+  const placeRes = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetInstanceId: widget.id, target: { kind: "embed", hostEntryId: postId, baseVersion: 1 } }),
+  });
+  assert.equal(placeRes.status, 200, await placeRes.clone().text());
+  const placed = (await placeRes.json()) as { tool: string; result: { entry: { version: number } } };
+  assert.equal(placed.tool, "widgets.place");
+  assert.equal(placed.result.entry.version, 2);
+});
+
 test("admin widgets agent tools: widgets.create places a new instance in one call, widgets.place references an existing one, widgets.diagnose reports where-used, distinct from each other (REQ-35/AC-25)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
