@@ -1,26 +1,34 @@
 import path from "node:path";
 
+import { DESKTOP_APP_NAME } from "./desktop-user-data-dir.ts";
+
+/** A packaged build's `userData` folder name: `electron-builder.yml`'s `productName`, pinned there by
+ *  `packaged-paths.test.ts`. */
+const PACKAGED_APP_DATA_NAME = "Tovu";
+
 /** {@link resolveDesktopRoots}'s input. */
 interface DesktopRootsInput {
   isPackaged: boolean;
   resourcesPath: string;
   repoRoot: string;
   documentsDir: string;
+  appDataDir: string;
 }
 
-/** The four roots {@link resolveDesktopRoots} decides. */
+/** The roots {@link resolveDesktopRoots} decides. */
 interface DesktopRoots {
   payloadRoot: string;
   devFallbackSiteDir: string | null;
   siteScanRoots: string[];
   defaultCliMode: "source" | "compiled";
+  userDataDir: string;
 }
 
 /**
- * The four roots this shell resolves differently in a checkout than in a packaged `.app`, decided
+ * The roots this shell resolves differently in a checkout than in a packaged `.app`, decided
  * in ONE place so the dev and packaged answers cannot drift apart call site by call site.
  *
- * `main.js` used to derive all four from a single `REPO_ROOT = path.resolve(__dirname, "..", "..")`,
+ * `main.js` used to derive the first four from a single `REPO_ROOT = path.resolve(__dirname, "..", "..")`,
  * which is the checkout root in dev and points at `…/Tovu.app/Contents/` in a packaged build —
  * where none of them exist. This function is the seam that fixes that, and it is a PURE function of
  * its inputs precisely so the packaged answers are assertable without building a `.app`.
@@ -51,6 +59,13 @@ interface DesktopRoots {
  * security-relevant and a future reader must not assume a packaged build inherits a protection it
  * does not.
  *
+ * ## The data folder
+ *
+ * Electron's default `userData` is `<appData>/<package.json name>`, and the packaged `package.json`
+ * is the same file dev runs, so without an explicit answer a packaged build shares the dev app's
+ * `tovu-desktop` folder — its projects list, open-sites registry and MRU. The dev answer is that
+ * same default, now stated rather than inherited, so existing dev data keeps working.
+ *
  * @param input
  * @param input.isPackaged Electron's `app.isPackaged`. Available at module load — it is
  *   derived from the executable path, not from `whenReady`.
@@ -58,6 +73,7 @@ interface DesktopRoots {
  *   Read only when `isPackaged`.
  * @param input.repoRoot the checkout root, as `main.ts` derives it from `__dirname`.
  * @param input.documentsDir `app.getPath("documents")`. Read only when `isPackaged`.
+ * @param input.appDataDir `app.getPath("appData")`, the per-user root `userDataDir` is joined under.
  * @complexity O(1).
  */
 function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
@@ -69,6 +85,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
       // `tsx` over current TypeScript: a checkout's `dist/` is only as fresh as its last manual
       // `npm run build`, which is why source mode exists at all (see `resolveDevCliEntry`).
       defaultCliMode: "source",
+      userDataDir: path.join(input.appDataDir, DESKTOP_APP_NAME),
     };
   }
 
@@ -88,6 +105,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
     // `.ts` daemon path and `process.execPath` for a compiled `.js` one, so compiled mode is what
     // removes this app's last dependency on a system Node being installed.
     defaultCliMode: "compiled",
+    userDataDir: path.join(input.appDataDir, PACKAGED_APP_DATA_NAME),
   };
 }
 

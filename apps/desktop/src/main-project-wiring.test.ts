@@ -75,7 +75,7 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   // here where it would only ever be a copy of the real definition.
   assert.match(source, /const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS\.devFallbackSiteDir/);
   assert.equal(
-    resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs" }).devFallbackSiteDir,
+    resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs", appDataDir: "/appdata" }).devFallbackSiteDir,
     path.join("/repo", "sites", "tovu-com"),
   );
 });
@@ -99,14 +99,14 @@ test("the scan root is the sites directory the dev fallback already lives in", (
   assert.match(source, /const SITE_SCAN_ROOTS = DESKTOP_ROOTS\.siteScanRoots/);
   // The RELATIONSHIP, not two literals that happen to agree today: the fallback site must sit
   // directly inside the scanned root, or the seed offers a card the rescan then cannot re-find.
-  const dev = resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs" });
+  const dev = resolveDesktopRoots({ isPackaged: false, resourcesPath: "/unused", repoRoot: "/repo", documentsDir: "/docs", appDataDir: "/appdata" });
   assert.deepEqual(dev.siteScanRoots, [path.dirname(dev.devFallbackSiteDir!)]); // `!`: a checkout always has a dev fallback; only a packaged app has none.
 });
 
 test("a packaged app has no dev fallback, so the seed and the migration are skipped rather than handed null", () => {
   // `migrateLegacyDismissals` takes a DIRECTORY and would write a literal `null` into the
   // `dismissed` array, which is a corrupt row rather than a no-op — so the guard is load-bearing.
-  const packaged = resolveDesktopRoots({ isPackaged: true, resourcesPath: "/res", repoRoot: "/repo", documentsDir: "/docs" });
+  const packaged = resolveDesktopRoots({ isPackaged: true, resourcesPath: "/res", repoRoot: "/repo", documentsDir: "/docs", appDataDir: "/appdata" });
   assert.equal(packaged.devFallbackSiteDir, null);
   assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?migrateLegacyDismissals\(/);
   assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?seedDevFallbackSite\(/);

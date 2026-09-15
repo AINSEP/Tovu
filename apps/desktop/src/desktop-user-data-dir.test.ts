@@ -20,11 +20,9 @@ const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), "..
 test("DESKTOP_APP_NAME is package.json's own name, which is what Electron reads", () => {
   const manifest = JSON.parse(fs.readFileSync(PACKAGE_JSON, "utf8"));
 
-  // Electron's `app.getName()` reads the manifest, and `userData` is `<appData>/<appName>`. The
-  // packaged bundle is called `Tovu` (`electron-builder.yml`'s `productName`) but that names the
-  // .app, NOT this directory — verified against the live signed app, whose every helper process
-  // carries `--user-data-dir=.../tovu-desktop`. Pinned to the manifest so renaming the package
-  // cannot leave this constant behind pointing at an orphaned directory.
+  // Electron's `app.getName()` reads the manifest, and the dev app's `userData` is
+  // `<appData>/<appName>` (a packaged build uses its own `Tovu` folder — `packaged-paths.ts`).
+  // Pinned to the manifest so renaming the package cannot leave this constant behind.
   assert.equal(DESKTOP_APP_NAME, manifest.name);
   assert.equal(manifest.productName, undefined, "a productName in package.json would change app.getName()");
 });
@@ -40,7 +38,7 @@ test("resolveDesktopUserDataDir returns the verified macOS location", () => {
 test("TOVU_DESKTOP_USER_DATA_DIR wins over the platform default", () => {
   const env = { TOVU_DESKTOP_USER_DATA_DIR: "/tmp/elsewhere" };
 
-  // The same override `main.ts:183-184` applies through `app.setPath`. Reused rather than
+  // The same override `main.ts`'s userData `app.setPath` applies. Reused rather than
   // reinvented so one environment cannot point the app and the CLI at two different directories.
   assert.equal(resolveDesktopUserDataDir({ env, platform: "darwin", homedir: "/Users/someone" }), "/tmp/elsewhere");
 });

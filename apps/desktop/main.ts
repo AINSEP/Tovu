@@ -166,24 +166,6 @@ interface SiteOpenOptions {
   port?: number;
 }
 
-/**
- * E2E-only override for `app.getPath("userData")`. Must run before `app.whenReady()` — Electron
- * reads `userData` off whatever `setPath` last set, and every consumer in this file (crash
- * registry, MRU state, tracked projects) calls `app.getPath("userData")` lazily from inside the
- * `whenReady` handler, so this only has to win the race against that, not against `require`.
- *
- * This exists because scoping the E2E harness's own `HOME` env var does NOT isolate this app's
- * on-disk state: `app.getPath("userData")` resolves the macOS path independently of `HOME`
- * (Chromium computes it directly), so every launch that only overrode `HOME` was actually reading
- * and writing the operator's real `~/Library/Application Support/tovu-desktop/` — see
- * `development/e2e/desktop-shell.spec.ts`'s own header for how that was found (six stale
- * `tovu-desktop-e2e-*` MRU entries in the real `desktop-state.json`). `app.setPath` is the
- * documented, supported lever Electron gives for this; unset in every real launch.
- */
-if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) {
-  app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR.trim());
-}
-
 /** Preload for every window this shell creates, regardless of boot mode — see `createWindow`. It
  *  is what makes `window.tovuVoice` exist inside Electron at all; see `preload-speech.cts`'s and
  *  `speech-ipc.ts`'s own headers for the wiring gap this closes (both were built and tested with
@@ -228,7 +210,28 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
   resourcesPath: process.resourcesPath,
   repoRoot: REPO_ROOT,
   documentsDir: app.getPath("documents"),
+  appDataDir: app.getPath("appData"),
 });
+
+/**
+ * This launch's `userData`: the dev app's `tovu-desktop`, or a packaged build's own `Tovu` (see
+ * `packaged-paths.ts`). Set explicitly because Electron's default is `package.json`'s name, which is
+ * `tovu-desktop` in a packaged build too — the first release dmg listed the developer's live site
+ * through it and ran a second server on its databases.
+ *
+ * Must run before `app.whenReady()`: Chromium locks `userData` at ready, and every consumer in this
+ * file (crash registry, MRU state, tracked projects) calls `app.getPath("userData")` lazily from
+ * inside the `whenReady` handler, so this only has to win the race against that, not against `require`.
+ *
+ * `TOVU_DESKTOP_USER_DATA_DIR` is E2E-only and wins over both. It exists because scoping the E2E
+ * harness's own `HOME` env var does NOT isolate this app's on-disk state: `app.getPath("userData")`
+ * resolves the macOS path independently of `HOME` (Chromium computes it directly), so every launch
+ * that only overrode `HOME` was actually reading and writing the operator's real
+ * `~/Library/Application Support/tovu-desktop/` — see `development/e2e/desktop-shell.spec.ts`'s own
+ * header for how that was found (six stale `tovu-desktop-e2e-*` MRU entries in the real
+ * `desktop-state.json`). Unset in every real launch.
+ */
+app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim() || DESKTOP_ROOTS.userDataDir);
 
 /**
  * The runnable Tovu tree: `dist/`'s CLI, `apps/admin/dist`, `apps/site-chat/dist` and the

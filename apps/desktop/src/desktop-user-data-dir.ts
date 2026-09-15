@@ -10,17 +10,16 @@
  * Electron's path convention ever changes, or the app's name changes, this drifts and the CLI
  * silently edits a registry nobody reads. Three things hold it down:
  *
- * 1. The app name is `tovu-desktop` because `package.json`'s `"name"` is — Electron's `app.getName()`
- *    reads the manifest, and `electron-builder.yml`'s `productName: Tovu` names only the packaged
- *    BUNDLE, not this path. Verified against the live signed app: every helper process carries
- *    `--user-data-dir=.../tovu-desktop`, in dev and packaged alike.
+ * 1. This is the DEV app's folder: `main.ts` sets `userData` to `<appData>/tovu-desktop` from this
+ *    same constant (via `packaged-paths.ts`). A packaged build uses its own `Tovu` folder, which this
+ *    checkout CLI does not target — pass `--user-data-dir` for that.
  * 2. {@link DESKTOP_APP_NAME} is asserted against `package.json` by this module's own test, so a
  *    rename of the package cannot leave this constant behind.
  * 3. The CLI PRINTS the directory it resolved on every run (`bin/tovu-desktop.ts`), so a wrong
  *    answer is visible to the operator immediately instead of being discovered as a missing card.
  *
- * `TOVU_DESKTOP_USER_DATA_DIR` is honoured first, which is the same override `main.ts:183-184`
- * applies via `app.setPath` — reused rather than reinvented so the app and the CLI cannot be pointed
+ * `TOVU_DESKTOP_USER_DATA_DIR` is honoured first, which is the same override `main.ts`'s userData
+ * `app.setPath` applies — reused rather than reinvented so the app and the CLI cannot be pointed
  * at two different directories by the same environment.
  */
 import os from "node:os";
