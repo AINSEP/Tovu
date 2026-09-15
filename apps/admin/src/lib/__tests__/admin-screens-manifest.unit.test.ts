@@ -16,6 +16,9 @@ import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages, listAdminAgentScreens, ty
  *
  * After an intentional panel change, regenerate from `apps/admin`:
  *   UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts
+ *
+ * No CI job runs this file while ci.yml is disabled. It runs as the root `npm run
+ * check:admin-screens-drift` script, which `development/scripts/ci-local.sh` includes as a gate.
  */
 
 const MANIFEST_PATH = path.resolve(__dirname, "../../../../website/src/features/site-inspection/admin-screens.generated.ts");

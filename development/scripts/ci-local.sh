@@ -34,15 +34,15 @@
 #
 # ## What it runs, and in what order
 #
-# Default (no flags): 9 BLOCKING gates, each one run even if an earlier one failed --
+# Default (no flags): 10 BLOCKING gates, each one run even if an earlier one failed --
 # see `run_gate` below. That mirrors the "report every gate in one run" behavior
 # ci.yml's own Gate summary step got in commit a4331961, for the same reason: GitHub
 # (and a plain `&&` chain) halts at the first failure, so a run reports exactly one
 # problem even when several exist.
 #
 #   typecheck (root) -> check:boundaries -> check:architecture -> check:inventory ->
-#   check:src-complexity-drift -> check:seed-content-drift -> complexity (eslint) ->
-#   typecheck (admin) -> admin:build
+#   check:src-complexity-drift -> check:seed-content-drift -> check:admin-screens-drift ->
+#   complexity (eslint) -> typecheck (admin) -> admin:build
 #
 # The first 8 mirror the `build-and-test` job in ci.yml, same order. `check:seed-content-
 # drift` (added 2026-08-21, see that script's own header for why -- src/server/seed.ts
@@ -50,6 +50,12 @@
 # between them) does NOT yet exist in ci.yml -- ci.yml was not touched, only this local
 # runner. If ci.yml is ever restored to service, add it there too or this comment goes
 # stale in the other direction.
+#
+# `check:admin-screens-drift` (added 2026-09-15) is in the same position: not in ci.yml. It runs
+# apps/admin's `admin-screens-manifest.unit.test.ts`, which fails when the checked-in
+# `apps/website/src/features/site-inspection/admin-screens.generated.ts` (the admin screen list
+# `site_describe_capabilities` reports) has drifted from `ADMIN_PANELS`. Nothing else ran that
+# test: it lives in the admin vitest suite, and no website test can see the admin panels.
 #
 # `--with-tests` additionally runs `npm run test:ci` (the full repo-wide suite) --
 # SEE THE MEMORY WARNING BELOW before using this flag.
@@ -104,7 +110,7 @@
 # new vs already-known debt.
 #
 # ## Usage
-#   development/scripts/ci-local.sh                    # 8 fast gates only (default)
+#   development/scripts/ci-local.sh                    # 10 fast gates only (default)
 #   development/scripts/ci-local.sh --with-tests        # + full suite (npm run test:ci)
 #   development/scripts/ci-local.sh --route-coverage    # + route-coverage job's 5 gates
 #   development/scripts/ci-local.sh --with-tests --route-coverage   # everything
@@ -127,7 +133,7 @@ for arg in "$@"; do
     -h|--help)
       cat <<'EOF'
 Usage:
-  development/scripts/ci-local.sh                    # 8 fast gates only (default)
+  development/scripts/ci-local.sh                    # 10 fast gates only (default)
   development/scripts/ci-local.sh --with-tests        # + full suite (npm run test:ci)
   development/scripts/ci-local.sh --route-coverage    # + route-coverage job's 5 gates
   development/scripts/ci-local.sh --with-tests --route-coverage   # everything
@@ -164,7 +170,7 @@ postgres_available() {
   command -v pg_isready >/dev/null 2>&1 && pg_isready -h "${PGHOST:-/tmp}" ${PGPORT:+-p "$PGPORT"} >/dev/null 2>&1
 }
 
-# --- build-and-test job: 9 blocking gates ---------------------------------------
+# --- build-and-test job: 10 blocking gates --------------------------------------
 # NOT a faithful mirror of ci.yml, despite what this comment used to claim ("the 8 blocking gates,
 # same order as ci.yml" -- it lists 9). ci.yml additionally has check:coverage-integrity,
 # check:seal-aad and check:default-credential as blocking steps, and none of them runs here. With
@@ -176,6 +182,7 @@ run_gate "check:architecture"          npm run check:architecture
 run_gate "check:inventory"             npm run check:inventory
 run_gate "check:src-complexity-drift"  npm run check:src-complexity-drift
 run_gate "check:seed-content-drift"    npm run check:seed-content-drift
+run_gate "check:admin-screens-drift"   npm run check:admin-screens-drift
 run_gate "complexity (eslint)"         npm run complexity
 run_gate "typecheck (admin)"           npm --prefix apps/admin run typecheck
 run_gate "admin:build"                 npm run admin:build
