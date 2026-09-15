@@ -57,8 +57,10 @@ export const SITE_CAPABILITIES_SECTION_PERMISSIONS: Readonly<Record<SiteCapabili
   contentTypes: "admin.collections.read",
 };
 
-/** Longest tool summary, ellipsis included. The constraint is context tokens: ~170 tools at this cap
- *  is a few thousand tokens, where full descriptions would be tens of thousands. */
+/** Longest tool summary, ellipsis included. The constraint is context tokens. Measured 2026-09-15 on the
+ *  BYOK catalog (181 tools): the tools section is ~27KB of compact JSON at this cap, the whole response
+ *  ~30KB compact and ~45KB pretty-printed (the MCP path pretty-prints tool results), and the same
+ *  entries with full descriptions are ~118KB. The daemon's catalog is larger. */
 export const MAX_TOOL_SUMMARY_CHARS = 120;
 
 /** The `tools` section's `reason` when the composition root supplied no registry reader. */
