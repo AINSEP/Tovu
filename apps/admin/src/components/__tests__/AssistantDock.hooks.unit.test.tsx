@@ -887,6 +887,19 @@ describe("shouldPublishContentOnToolProgress", () => {
       shouldPublishContentOnToolProgress({ messages, publishedToolProgress }),
     ).toEqual({ publish: true, nextPublishedToolProgress: { messageId: "m2", toolResultCount: 1 } });
   });
+
+  it("publishes for a retried run's first tool result, which restarts the count under the SAME message id", () => {
+    // `useConversation`'s `retry` rebuilds the failed assistant message in place — same `id`, with
+    // `events: []` — so a retry's counts restart at 1 under an id whose mark still holds the failed
+    // run's higher count. Keyed on the id alone, every tool call up to that count reads as "already
+    // announced" and the retry's writes are never announced at all: `shouldPublishOnMessagesChange`
+    // cannot cover for it either, because its own `settledRunMessageId` already holds `m1`.
+    const messages = [assistantMessage({ id: "m1", runStatus: "running", events: toolResultEvents(1) })];
+    const publishedToolProgress = { messageId: "m1", toolResultCount: 3 };
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress }),
+    ).toEqual({ publish: true, nextPublishedToolProgress: { messageId: "m1", toolResultCount: 1 } });
+  });
 });
 
 describe("resolveRunContext", () => {

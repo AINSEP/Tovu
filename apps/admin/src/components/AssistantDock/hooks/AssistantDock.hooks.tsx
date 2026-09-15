@@ -1139,8 +1139,8 @@ export interface ToolProgressMark {
  * fetched before the write, since nothing had been published yet. Counting `tool_result` events
  * (rather than matching a tool name) keeps the "ignorance is cheaper than coupling" property this
  * file's own doc argues for — see {@link shouldPublishOnMessagesChange}'s doc comment. The count is
- * monotonic within one message id, and a new run brings a new message id, so a lower count under a
- * different id still publishes rather than being read as "already seen".
+ * monotonic within one RUN, but not within one message id: a retry reuses the failed message's id
+ * with `events` reset, so the mark is superseded by a lower count as well as by a different id.
  *
  * @param input.messages - The full transcript as of this `onMessagesChange` event.
  * @param input.publishedToolProgress - The mark already published for, or `null`.
@@ -1158,8 +1158,14 @@ export function shouldPublishContentOnToolProgress(
     return { publish: false, nextPublishedToolProgress: publishedToolProgress };
   }
   const toolResultCount = (last.events ?? []).filter((event) => event.kind === "tool_result").length;
-  const alreadyPublished =
-    publishedToolProgress?.messageId === last.id ? publishedToolProgress.toolResultCount : 0;
+  // A count BELOW the mark under the same id is a NEW run, not a delta already announced: retrying
+  // a failed run rebuilds that assistant message in place — same `id`, `events` reset to `[]` — so
+  // the retry's counts restart at 1 while the mark still holds the failed run's higher count.
+  // Keyed on the id alone, every retried tool call up to that count reads as "already announced",
+  // and `shouldPublishOnMessagesChange` cannot cover for it because its own `settledRunMessageId`
+  // already holds the same id. Within one run `events` only ever grows, so a decrease is unambiguous.
+  const mark = publishedToolProgress?.messageId === last.id ? publishedToolProgress : null;
+  const alreadyPublished = mark && mark.toolResultCount <= toolResultCount ? mark.toolResultCount : 0;
   if (toolResultCount <= alreadyPublished) {
     return { publish: false, nextPublishedToolProgress: publishedToolProgress };
   }
