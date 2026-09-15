@@ -69,6 +69,9 @@ test("BYOK: site_describe_capabilities lists every tool this surface's describe_
   const ids = (tools.data?.domains ?? []).flatMap((domain) => domain.tools.map((tool) => tool.id));
   assert.equal(ids.length, tools.data?.total);
   assert.ok(ids.includes("site_describe_capabilities"), "the tool must see itself in the registry it reads");
+  // The whole registry, not just ids that resolve: a reader bound to a subset of it passes every
+  // other assertion in this test.
+  assert.deepEqual([...ids].sort(), surface.registry.list().map((descriptor) => descriptor.id).sort());
 
   for (const id of ids) {
     const described = await surface.executeMetaTool(PRINCIPAL, RUN, { name: "describe_tool", input: { id } });
@@ -78,8 +81,13 @@ test("BYOK: site_describe_capabilities lists every tool this surface's describe_
 
 test("BYOK: a caller-supplied listCatalogTools cannot replace the surface's own registry reader", async () => {
   const deps = { ...fakeRouteDeps(), listCatalogTools: () => [] } as unknown as ByokToolSurfaceDeps;
-  const tools = await describeCapabilitiesTools(createByokToolSurface(deps));
+  const surface = createByokToolSurface(deps);
+  const tools = await describeCapabilitiesTools(surface);
 
   assert.equal(tools.status, "ok");
-  assert.ok((tools.data?.total ?? 0) > 0, "the surface must read its own registry, not a reader smuggled in through routeDeps");
+  assert.equal(
+    tools.data?.total,
+    surface.registry.list().length,
+    "the surface must read its own registry, not a reader smuggled in through routeDeps",
+  );
 });
