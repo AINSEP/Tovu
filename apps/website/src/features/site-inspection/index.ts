@@ -8,7 +8,8 @@
  * single declared entry point is what keeps that claim checkable as the module grows. It also keeps
  * `check:architecture`'s "module API surface" cost of this feature at one file instead of three.
  *
- * Internal files (`site-profile.ts`, `published-page.ts`, `deps.ts`, `agent-tools.ts`,
+ * Internal files (`site-profile.ts`, `site-capabilities.ts`, `section-collector.ts`,
+ * `admin-screens.generated.ts`, `published-page.ts`, `deps.ts`, `agent-tools.ts`,
  * `tool-registrations.ts`) import each other by relative path as usual; only crossing the module
  * boundary goes through this file.
  */
@@ -39,6 +40,29 @@ export {
 } from "./site-profile.js";
 
 export {
+  buildSiteCapabilities,
+  MAX_TOOL_SUMMARY_CHARS,
+  SITE_CAPABILITIES_SECTION_NAMES,
+  SITE_CAPABILITIES_SECTION_PERMISSIONS,
+  summarizeToolDescription,
+  TOOLS_NOT_WIRED_REASON,
+  type BuildSiteCapabilitiesOptions,
+  type SiteCapabilities,
+  type SiteCapabilitiesAdminScreens,
+  type SiteCapabilitiesContentTypes,
+  type SiteCapabilitiesDeps,
+  type SiteCapabilitiesSectionName,
+  type SiteCapabilitiesToolDomain,
+  type SiteCapabilitiesTools,
+  type SiteCapabilitiesToolSummary,
+  type SiteCapabilityAdminScreen,
+  type SiteCapabilityContentTypeRow,
+  type SiteCapabilityToolRow,
+} from "./site-capabilities.js";
+
+export { type InspectionSection, type InspectionSectionStatus } from "./section-collector.js";
+
+export {
   DEFAULT_FETCH_TIMEOUT_MS,
   DEFAULT_MAX_BODY_BYTES,
   fetchPublishedPage,
@@ -52,9 +76,18 @@ export {
   type PublishedPageResult,
 } from "./published-page.js";
 
-export { toSiteProfileDeps, type SiteInspectionToolDeps, type SiteProfileSourceDeps } from "./deps.js";
+export {
+  toSiteCapabilitiesDeps,
+  toSiteProfileDeps,
+  type SiteInspectionToolDeps,
+  type SiteProfileSourceDeps,
+} from "./deps.js";
 
-export { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
+export {
+  SITE_CAPABILITIES_VISIBILITY_PERMISSION,
+  SITE_INSPECTION_READ_PERMISSION,
+  siteInspectionAgentToolCatalog,
+} from "./agent-tools.js";
 
 export {
   buildSiteInspectionRegistrations,

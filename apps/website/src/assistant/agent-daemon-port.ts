@@ -63,7 +63,7 @@ export { resolveMcpJsonInjection } from "./mcp-injection.js";
 export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 export { parseRunStartContextRef } from "./run-start-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
-export { buildToolCatalogQuery } from "./tool-catalog-query.js";
+export { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 export { withToolAttemptAudit } from "./tool-executor-audit.js";
 export { withToolFailureRecovery } from "./tool-failure-recovery.js";
 export { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "./read-only-tool-constraint.js";

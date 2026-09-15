@@ -382,6 +382,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
 
   // --- site inspection / evidence -----------------------------------------------------------------------
   site_get_profile: "site overview summary snapshot everything about the site inventory status",
+  // 2026-09-15 — the owner asked for this tool as "describe_site_capabilities"; the id follows
+  // `<domain>_<verb>` instead, so the owner's spelling is folded in here and either name finds it.
+  site_describe_capabilities: "describe_site_capabilities capabilities capability what can this site do features abilities possible available tools admin screens content types",
   site_collect_page_evidence: "evidence audit check compliance verify rendered really does prove tracking consent",
   fetch_published_page: "check live page visitor sees rendered output verify loads works test does it work",
 

@@ -4,6 +4,16 @@
 // literal spelling of "no theme" here is exactly the drift that discipline exists to prevent.
 import { NO_THEME_ID } from "../theme/index.js";
 
+import {
+  authorizeAndCollectSection,
+  DEFAULT_SECTION_TIMEOUT_MS,
+  resolveRequestedSections,
+  type CollectedSection,
+  type InspectionAuthorizeFn,
+  type InspectionSection,
+  type InspectionSectionStatus,
+} from "./section-collector.js";
+
 /**
  * @file `buildSiteProfile()` — the ONE implementation of "what does this site currently look like",
  * shared by the `site_get_profile` agent tool and the `GET /api/admin/v1/workspaces/:workspaceId/
@@ -94,29 +104,13 @@ export const SITE_PROFILE_SECTION_PERMISSIONS: Readonly<Record<SiteProfileSectio
   contentTypes: "admin.collections.read",
 };
 
-/**
- * Why a section carries no data.
- * - `ok` — collected.
- * - `forbidden` — `authorize()` denied THIS section's own permission. Never silent.
- * - `unavailable` — the underlying read threw or timed out. Also never silent: a compliance
- *   consumer must read this as "unable to assess", not as a pass.
- */
-export type SiteProfileSectionStatus = "ok" | "forbidden" | "unavailable";
+/** Why a section carries no data — `section-collector.ts`'s {@link InspectionSectionStatus}, shared
+ *  with `site_describe_capabilities`. A compliance consumer must read `forbidden` and `unavailable`
+ *  as "unable to assess", never as a pass. */
+export type SiteProfileSectionStatus = InspectionSectionStatus;
 
-export interface SiteProfileSection<T> {
-  status: SiteProfileSectionStatus;
-  /** Present if and only if `status === "ok"`. */
-  data?: T;
-  /** `true` when a cap below dropped rows/values from `data` — never inferred from array length. */
-  truncated?: boolean;
-  /**
-   * Machine-readable cause for a non-`ok` status. For `forbidden` this is `authorize()`'s own
-   * `reason`. For `unavailable` it is `"timed-out"` or the thrown error's CLASS NAME — deliberately
-   * not its message: an error message can quote row data this DTO never chose to expose, and this
-   * response is handed to an LLM. The full error is logged server-side instead.
-   */
-  reason?: string;
-}
+/** One profile section — `section-collector.ts`'s {@link InspectionSection}; see its field docs. */
+export type SiteProfileSection<T> = InspectionSection<T>;
 
 /** JSON a setting value can be. Structural, so the DTO stays serializable by construction. */
 export type SiteProfileJsonValue =
@@ -278,18 +272,9 @@ export interface SiteProfileContentTypeRow {
   tombstonedAt?: string | null;
 }
 
-/**
- * `authorize()`'s shape, redeclared structurally rather than imported from `@jini-ai/cms/core` for
- * the same reason every port above is structural: this module names only what it reads.
- * `AuthorizeFn` satisfies it directly.
- */
-export type SiteProfileAuthorizeFn = (params: {
-  principalId: string;
-  permission: string;
-  workspaceId: string;
-  entityType?: string | undefined;
-  entityId?: string | undefined;
-}) => Promise<{ allowed: boolean; reason: string }>;
+/** `authorize()`'s shape — `section-collector.ts`'s structural {@link InspectionAuthorizeFn}, so this
+ *  module still names only what it reads. `AuthorizeFn` satisfies it directly. */
+export type SiteProfileAuthorizeFn = InspectionAuthorizeFn;
 
 /**
  * Every dependency `buildSiteProfile` has. Each field is a narrow read port bound by an ADAPTER
@@ -333,9 +318,9 @@ export const MAX_PAGE_ITEMS = 200;
  *  than inlined. Bounds a single misconfigured JSON setting from dominating the whole snapshot. */
 export const MAX_SETTING_VALUE_CHARS = 2_000;
 
-/** Default per-section wall clock. These are local reads; a section still hanging past this is a
- *  fault, and reporting `unavailable` beats hanging the agent's turn. */
-export const DEFAULT_SECTION_TIMEOUT_MS = 5_000;
+/** Default per-section wall clock. Owned by `section-collector.ts`; re-exported here under the name
+ *  this module has always published. */
+export { DEFAULT_SECTION_TIMEOUT_MS };
 
 /**
  * The inventory-safe settings this profile reports, as an explicit allowlist of `(namespace, key)`
@@ -363,48 +348,12 @@ export const INVENTORY_SAFE_SETTINGS: readonly { namespace: string; key: string 
   { namespace: "site.seo", key: "robots_rules" },
 ];
 
-/** What one section collector produced, before it is wrapped in a {@link SiteProfileSection}. */
-interface CollectedSection<T> {
-  data: T;
-  truncated?: boolean;
-}
-
 /**
- * Rejects after `ms`, so one wedged read cannot hang the whole profile.
+ * Authorizes ONE profile section against {@link SITE_PROFILE_SECTION_PERMISSIONS}, then collects it,
+ * through `section-collector.ts`'s shared mechanism (also used by `site_describe_capabilities`).
  *
- * The timer is always cleared, including on the success path, so nothing here keeps a Node process
- * (or a `node:test` run) alive past the call.
- *
- * @param work - The section read.
- * @param ms - Wall clock before rejection.
- * @returns `work`'s value when it settles first.
- * @throws {Error} Named `SectionTimeoutError` when `ms` elapses first.
- * @complexity O(1) beyond `work`.
- * @example await withTimeout(deps.listPosts(), 5_000);
- */
-async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          const error = new Error(`site profile section timed out after ${ms}ms`);
-          error.name = "SectionTimeoutError";
-          reject(error);
-        }, ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-/**
- * Authorizes ONE section against its own domain permission, then collects it.
- *
- * This is the whole per-section-authorization mechanism, in one place, so no section can be added
- * without going through it. `authorize()` runs BEFORE `collect` is ever called, so a denied section
+ * Every profile section goes through this one binding of the permission map, so no section can be
+ * added without its own gate. `authorize()` runs BEFORE `collect` is ever called, so a denied section
  * performs no read at all.
  *
  * @param deps - The profile's dependency bag (supplies `authorize` and `workspaceId`).
@@ -418,7 +367,7 @@ async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
  * @example
  * await authorizeAndCollect(deps, { principalId: "p1", section: "theme", timeoutMs: 5000, collect: () => collectTheme(deps) });
  */
-async function authorizeAndCollect<T>(
+function authorizeAndCollect<T>(
   deps: SiteProfileDeps,
   spec: {
     principalId: string;
@@ -427,31 +376,17 @@ async function authorizeAndCollect<T>(
     collect: () => Promise<CollectedSection<T>>;
   },
 ): Promise<SiteProfileSection<T>> {
-  const permission = SITE_PROFILE_SECTION_PERMISSIONS[spec.section];
-  const decision = await deps.authorize({
-    principalId: spec.principalId,
-    permission,
+  return authorizeAndCollectSection({
+    authorize: deps.authorize,
     workspaceId: deps.workspaceId,
+    principalId: spec.principalId,
+    section: spec.section,
+    permission: SITE_PROFILE_SECTION_PERMISSIONS[spec.section],
     entityType: "site-profile-section",
-    entityId: spec.section,
+    logLabel: "site-profile",
+    timeoutMs: spec.timeoutMs,
+    collect: spec.collect,
   });
-  if (!decision.allowed) {
-    return { status: "forbidden", reason: decision.reason };
-  }
-
-  try {
-    const collected = await withTimeout(spec.collect(), spec.timeoutMs);
-    return collected.truncated
-      ? { status: "ok", data: collected.data, truncated: true }
-      : { status: "ok", data: collected.data };
-  } catch (err) {
-    // Observability: the FULL error goes to the server log, where a secret in an error message is
-    // no worse off than it already was. Only the class name crosses into the response — see
-    // `SiteProfileSection.reason`'s own doc for why the message deliberately does not.
-    console.error(`[site-profile] section '${spec.section}' failed`, err);
-    const name = err instanceof Error ? err.name : "UnknownError";
-    return { status: "unavailable", reason: name === "SectionTimeoutError" ? "timed-out" : name };
-  }
 }
 
 /** Tally of one field's values across rows — the `countsBy*` maps' single implementation.
@@ -651,14 +586,6 @@ function resolvePageLimit(requested: number | undefined): number {
   return Math.min(requested, MAX_PAGE_ITEMS);
 }
 
-/** De-duplicates and orders the requested sections against the closed vocabulary, so the response's
- *  key order is stable regardless of how the caller ordered its `sections` array. */
-function resolveRequestedSections(requested: readonly SiteProfileSectionName[] | undefined): SiteProfileSectionName[] {
-  if (requested === undefined || requested.length === 0) return [...SITE_PROFILE_SECTION_NAMES];
-  const asked = new Set<string>(requested);
-  return SITE_PROFILE_SECTION_NAMES.filter((name) => asked.has(name));
-}
-
 /**
  * Builds the site profile: every requested section, each authorized against its own domain
  * permission and collected concurrently.
@@ -688,7 +615,8 @@ export async function buildSiteProfile(
   options: BuildSiteProfileOptions = {},
 ): Promise<SiteProfile> {
   const capturedAt = deps.clock.nowIso();
-  const requested = resolveRequestedSections(options.sections);
+  // Key order follows the closed vocabulary, however the caller ordered or repeated `sections`.
+  const requested = resolveRequestedSections({ vocabulary: SITE_PROFILE_SECTION_NAMES, requested: options.sections });
   const pageLimit = resolvePageLimit(options.pageLimit);
   const timeoutMs = options.sectionTimeoutMs ?? DEFAULT_SECTION_TIMEOUT_MS;
   const principalId = input.principalId;

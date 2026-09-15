@@ -1,3 +1,4 @@
+import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
 import { MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
 import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
@@ -7,8 +8,8 @@ import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
  * naming/callability convention (the same shape `features/theme/agent-tools.ts`,
  * `redirects/agent-tools.ts` and every other domain catalog already use).
  *
- * Two tools, deliberately two and not one, because they answer questions on two different evidence
- * planes (2026-08-26 swarm-consensus, agreed 5/5):
+ * `site_get_profile` and `fetch_published_page` are deliberately two tools and not one, because they
+ * answer questions on two different evidence planes (2026-08-26 swarm-consensus, agreed 5/5):
  *
  * - `site_get_profile` — **config truth**. What is configured: pages, active theme, plugins,
  *   inventory-safe settings, content types. Cheap, structured, and secret-free by construction.
@@ -17,6 +18,11 @@ import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
  * The split matters because a configuration snapshot can truthfully report "cookie-consent widget:
  * installed, enabled" while the published page renders nothing of the sort. Merging the two into
  * one tool would let a caller mistake the cheap answer for the expensive one.
+ *
+ * `site_describe_capabilities` (2026-09-15) answers a third question, "what can this site do": the
+ * assistant's tools, the admin screens, and content types, in one call. It is a list, not a search —
+ * see `site-capabilities.ts`'s header for why it reads the live tool registry instead of keeping an
+ * index of its own.
  *
  * ---------------------------------------------------------------------------
  * What `authorization.permission` means here, and what it does NOT mean
@@ -35,6 +41,11 @@ import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
  * exactly the privilege-escalation bypass the design exists to prevent. `content.read` is declared
  * as the visibility floor (a caller who cannot read content has nothing to learn from this tool),
  * and the real authorization stays where it is enforceable.
+ *
+ * `site_describe_capabilities` follows the same rule with three sections
+ * (`site-capabilities.ts`'s `SITE_CAPABILITIES_SECTION_PERMISSIONS`). Its visibility floor is
+ * `admin.assistant.use`, the permission its tools section needs: a list of assistant tools means
+ * nothing to a caller who cannot use the assistant.
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
@@ -47,10 +58,14 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-/** Visibility floor for both tools — see this file's header for why this is not the gate for
- *  `site_get_profile`. Reused rather than invented: `content.read` is what `pages_read_html` and
- *  `content_read.content_post` already require. */
+/** Visibility floor for `site_get_profile` and `fetch_published_page` — see this file's header for
+ *  why this is not the gate for `site_get_profile`. Reused rather than invented: `content.read` is
+ *  what `pages_read_html` and `content_read.content_post` already require. */
 export const SITE_INSPECTION_READ_PERMISSION = "content.read";
+
+/** Visibility floor for `site_describe_capabilities` — not its gate; each section is authorized on
+ *  its own. Reused rather than invented: what `assistant_admin_screen_link` already requires. */
+export const SITE_CAPABILITIES_VISIBILITY_PERMISSION = "admin.assistant.use";
 
 const SITE_PROFILE_INPUT_SCHEMA = {
   type: "object",
@@ -69,6 +84,21 @@ const SITE_PROFILE_INPUT_SCHEMA = {
       minimum: 1,
       maximum: MAX_PAGE_ITEMS,
       description: `How many page/post rows to list in the 'pages' section. Default ${DEFAULT_PAGE_ITEMS}, hard maximum ${MAX_PAGE_ITEMS}. Totals and per-kind/per-status counts always reflect EVERY row regardless of this cap.`,
+    },
+  },
+} as const;
+
+const SITE_CAPABILITIES_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    sections: {
+      type: "array",
+      minItems: 1,
+      uniqueItems: true,
+      items: { type: "string", enum: [...SITE_CAPABILITIES_SECTION_NAMES] },
+      description:
+        "Which sections to return. Omit for all three. The tools section is the large one; ask for only 'adminScreens' or 'contentTypes' when that is all you need.",
     },
   },
 } as const;
@@ -95,7 +125,7 @@ const FETCH_PUBLISHED_PAGE_INPUT_SCHEMA = {
 } as const;
 
 /**
- * Every agent-callable tool this domain exposes. Both entries are wired — there is no
+ * Every agent-callable tool this domain exposes. Every entry is wired — there is no
  * `unwiredToolIds` set in `tool-registrations.ts`, which means any future catalog entry added
  * without a handler is a build failure.
  */
@@ -114,6 +144,20 @@ export const siteInspectionAgentToolCatalog: readonly AgentToolDefinition[] = [
     sideEffects: "none",
     authorization: { permission: SITE_INSPECTION_READ_PERMISSION },
     inputSchema: SITE_PROFILE_INPUT_SCHEMA,
+  },
+  {
+    name: "site_describe_capabilities",
+    description: [
+      "Describes what this site can do, in one call and three sections: 'tools' (every tool registered for you, grouped by domain, each as an id and a one-line summary, with per-domain counts and a total), 'adminScreens' (the admin app's screens as id, label and route path), and 'contentTypes' (each content type's key and label).",
+      "Call this when you or the human need to know what is possible here before choosing where to start.",
+      "Do NOT call this to find the tool for a specific task — search_tools ranks tools by what they do. Do NOT treat a one-line summary as a tool's contract — call describe_tool on its id for the full description and input schema. Do NOT call it to learn how the site is configured — use site_get_profile.",
+      "Returns: { schemaVersion, capturedAt, completeness: 'complete'|'partial', sections: { <name>: { status: 'ok'|'forbidden'|'unavailable', data?, reason? } } }.",
+      "Each section is authorized separately, so one section you may not read (or that fails) never fails the call — read 'forbidden' and 'unavailable' as 'not assessed', never as 'nothing there'.",
+      "A listed tool still checks its own permission when you run it. No side effects; safe to repeat.",
+    ].join(" "),
+    sideEffects: "none",
+    authorization: { permission: SITE_CAPABILITIES_VISIBILITY_PERMISSION },
+    inputSchema: SITE_CAPABILITIES_INPUT_SCHEMA,
   },
   {
     name: "fetch_published_page",

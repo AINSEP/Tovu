@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages, listAdminAgentScreens, type AdminAgentScreen } from "../agent-pages";
@@ -18,7 +18,7 @@ import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages, listAdminAgentScreens, ty
  *   UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts
  */
 
-const MANIFEST_URL = new URL("../../../../website/src/features/site-inspection/admin-screens.generated.ts", import.meta.url);
+const MANIFEST_PATH = path.resolve(__dirname, "../../../../website/src/features/site-inspection/admin-screens.generated.ts");
 
 /** Renders the generated server-side module. Only this test writes it. */
 function renderAdminScreensManifest(screens: readonly AdminAgentScreen[]): string {
@@ -59,13 +59,13 @@ describe("admin-screens.generated.ts (the server-side copy)", () => {
   it("matches listAdminAgentScreens() exactly", async () => {
     const expected = listAdminAgentScreens();
     if (process.env.UPDATE_ADMIN_SCREENS_MANIFEST === "1") {
-      writeFileSync(fileURLToPath(MANIFEST_URL), renderAdminScreensManifest(expected));
+      writeFileSync(MANIFEST_PATH, renderAdminScreensManifest(expected));
     }
 
-    // Imported through a runtime URL, not a literal specifier: Vite resolves a literal at transform
-    // time, which would fail the whole file before the regenerate branch above could create a
-    // missing manifest.
-    const { ADMIN_SCREENS } = (await import(/* @vite-ignore */ MANIFEST_URL.href)) as {
+    // Imported through a computed path, not a literal specifier: Vite resolves a literal at
+    // transform time, which would fail the whole file before the regenerate branch above could
+    // create a missing manifest.
+    const { ADMIN_SCREENS } = (await import(/* @vite-ignore */ MANIFEST_PATH)) as {
       ADMIN_SCREENS: readonly AdminAgentScreen[];
     };
 

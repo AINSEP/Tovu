@@ -48,7 +48,7 @@ import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rat
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
-import { buildToolCatalogQuery } from "./tool-catalog-query.js";
+import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-executor-stack.js";
 
@@ -382,11 +382,13 @@ async function runExecuteDelegatedTool(
  * @overallScore 100
  */
 /** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
- *  field except `magicLinkPerEmailLimiter`, which this function builds itself (see the doc above).
+ *  field except `magicLinkPerEmailLimiter` (see the doc above) and `listCatalogTools` (bound to this
+ *  surface's own registry, so `site_describe_capabilities` lists the catalog this surface serves),
+ *  both of which this function builds itself.
  *  Exported so a caller that must cast into this shape (today: `modules/assistant-byok.ts`, whose own
  *  `routeDeps: RouteDeps` parameter is narrower than what it actually always receives at runtime —
  *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
-export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter">;
+export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools">;
 
 export function createByokToolSurface(
   routeDeps: ByokToolSurfaceDeps,
@@ -410,12 +412,12 @@ export function createByokToolSurface(
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   // `routeDeps`'s declared type (`ByokToolSurfaceDeps`, above) is every field `AssistantToolRegistryDeps`
-  // needs EXCEPT `magicLinkPerEmailLimiter` — the one field this function builds itself rather than
-  // accepting. `.clock` on the line above resolves against this type because several of the domain
-  // slices composing `AssistantToolRegistryDeps` (e.g. `MembersToolDeps`, `PostToolDeps`) already
-  // declare `clock: { nowIso(): string }` themselves, so it is a real member of this parameter's
-  // type, not assumed. No `as` of any kind is needed HERE: the object literal below adds exactly the
-  // one field the parameter type omits, so it is a real, checked `AssistantToolRegistryDeps` rather
+  // needs EXCEPT `magicLinkPerEmailLimiter` and `listCatalogTools` — the two fields this function
+  // builds itself rather than accepting. `.clock` on the line above resolves against this type because
+  // several of the domain slices composing `AssistantToolRegistryDeps` (e.g. `MembersToolDeps`,
+  // `PostToolDeps`) already declare `clock: { nowIso(): string }` themselves, so it is a real member of
+  // this parameter's type, not assumed. No `as` of any kind is needed HERE: the object literal below
+  // adds exactly the two fields the parameter type omits, so it is a real, checked `AssistantToolRegistryDeps` rather
   // than an assertion that one exists — verified empirically (`npx tsc -p tsconfig.json --noEmit`
   // reports zero errors on this file). The double cast this file used to hold (`as unknown as
   // AssistantToolRegistryDeps`) is gone, not relocated to a different line in this file — it moved to
@@ -428,10 +430,17 @@ export function createByokToolSurface(
   // `RouteDeps` declares no relationship to `ByokToolSurfaceDeps`, unlike the `NewsletterRouteDeps
   // extends RouteDeps` precedent it otherwise mirrors), so it keeps the same `unknown` detour — see
   // that call site's own comment for the full trace of why.
-  const deps: AssistantToolRegistryDeps = { ...routeDeps, magicLinkPerEmailLimiter };
+  const registry = createToolRegistry();
+  // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
+  // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
+  // through `routeDeps` cannot replace it.
+  const deps: AssistantToolRegistryDeps = {
+    ...routeDeps,
+    magicLinkPerEmailLimiter,
+    listCatalogTools: () => listToolCatalogEntries(registry),
+  };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore();
 
-  const registry = createToolRegistry();
   for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }

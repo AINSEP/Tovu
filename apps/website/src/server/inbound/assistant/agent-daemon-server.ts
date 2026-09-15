@@ -150,6 +150,7 @@ import {
   parseRunStartContextRef,
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
+  listToolCatalogEntries,
   constrainPrincipalToReadOnlyTools,
   createAssistantToolExecutor,
   withToolCatalogAudit,
@@ -378,7 +379,10 @@ const registry = createToolRegistry();
 // to the already-built `media_upload_asset` registration — see `promote-chat-attachment.ts`'s own
 // header for why reusing that handler, rather than re-implementing its gate, is the whole design.
 const assistantRegistrations = buildAssistantToolRegistrations(
-  { ...routeDeps, magicLinkPerEmailLimiter },
+  // `listCatalogTools` is `site_describe_capabilities`' reader over THIS registry, the one the
+  // `search_tools`/`describe_tool` routes below snapshot. A thunk, read when the tool runs, so it
+  // also lists the agent-plugin, skill and federated tools `start()` registers after this line.
+  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(registry) },
   { surfaceExchanges },
 );
 for (const registration of assistantRegistrations) {

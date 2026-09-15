@@ -2,6 +2,8 @@ import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/cms/settings";
 
+import { ADMIN_SCREENS } from "./admin-screens.generated.js";
+import type { SiteCapabilitiesDeps, SiteCapabilityToolRow } from "./site-capabilities.js";
 import type {
   SiteProfileContentTypeRow,
   SiteProfileDeps,
@@ -13,7 +15,7 @@ import type {
 } from "./site-profile.js";
 
 /**
- * @file The adapter between a composition root's deps bag and the two narrow port bags this domain's
+ * @file The adapter between a composition root's deps bag and the narrow port bags this domain's
  * services actually take.
  *
  * This is the file that makes the secret-safety claim checkable. `buildSiteProfile` cannot reach a
@@ -21,6 +23,7 @@ import type {
  * to turn the real `RouteDeps` into that shape, and this is that something. Keeping the conversion
  * in one named function (rather than inline in the tool handler and again in the HTTP route) means
  * there is exactly one place to audit, and both adapters provably feed the service the same thing.
+ * `toSiteCapabilitiesDeps` does the same for `buildSiteCapabilities`.
  *
  * {@link SiteInspectionToolDeps} is declared STRUCTURALLY rather than as
  * `Pick<RouteDeps, ...>` — the same discipline `features/theme/tool-registrations.ts`'s
@@ -61,7 +64,8 @@ export interface SiteProfileSourceDeps {
 
 /**
  * Everything the AGENT-TOOL adapter needs: the profile's read ports, plus the site's own app
- * factory that `fetch_published_page` renders through.
+ * factory that `fetch_published_page` renders through and the registry reader
+ * `site_describe_capabilities` lists tools from.
  */
 export interface SiteInspectionToolDeps extends SiteProfileSourceDeps {
   /**
@@ -72,6 +76,18 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps {
    * `published-page.ts`'s `FetchPublishedPageDeps` for the full note on both points.
    */
   createSiteApp(routeDeps: unknown): RequestListener;
+  /**
+   * Reads the composition root's live `ToolRegistry` as catalog entries: `assistant/
+   * tool-catalog-query.ts`'s `listToolCatalogEntries(registry)`, bound to the SAME registry that
+   * root's `search_tools`/`describe_tool` serve. Supplied by the two roots that own a registry
+   * (`server/inbound/assistant/agent-daemon-server.ts`, `assistant/byok-tool-surface.ts`), and
+   * injected rather than imported because `features/**` may not import `assistant/**` by value.
+   *
+   * Optional because every other builder of this bag (the admin HTTP routes, tests) has no registry.
+   * Without it `site_describe_capabilities` reports its tools section `unavailable`/`not-wired`,
+   * never an empty catalog.
+   */
+  listCatalogTools?: (() => readonly SiteCapabilityToolRow[]) | undefined;
 }
 
 /**
@@ -113,6 +129,30 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
       // second JSON type into the DTO; it narrows nothing and hides nothing.
       return (resolved?.value ?? null) as SiteProfileJsonValue | null;
     },
+    listContentTypes: () => deps.contentTypeRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
+  };
+}
+
+/**
+ * Binds a composition root's deps bag down to the ports `buildSiteCapabilities` takes.
+ *
+ * `listCatalogTools` passes straight through (absent stays absent, so the service can report it).
+ * `listAdminScreens` returns the generated admin screen list; `listContentTypes` is the same
+ * `contentTypeRepo.listByWorkspace` read `collections_content_type_list` makes.
+ *
+ * @param deps - The agent-tool deps bag.
+ * @returns The narrow port bag. Pure: constructing it performs no I/O.
+ * @throws Nothing. The closures throw whatever their underlying reads throw, when invoked.
+ * @complexity O(1) — closure construction only.
+ * @example const capabilities = await buildSiteCapabilities(toSiteCapabilitiesDeps(routeDeps), { principalId });
+ */
+export function toSiteCapabilitiesDeps(deps: SiteInspectionToolDeps): SiteCapabilitiesDeps {
+  return {
+    workspaceId: deps.workspaceId,
+    authorize: deps.authorize,
+    clock: deps.clock,
+    listCatalogTools: deps.listCatalogTools,
+    listAdminScreens: () => ADMIN_SCREENS,
     listContentTypes: () => deps.contentTypeRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
   };
 }

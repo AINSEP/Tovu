@@ -68,6 +68,34 @@ const PANEL_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
   ADMIN_PANELS.map((panel) => [panel.id, panel.nav?.label ?? humanizeId(panel.id)]),
 );
 
+/** The label an agent sees for a published page id. `PANEL_LABELS` is keyed by panel id; a
+ *  per-route agent page id (`widget-regions`) was never a panel id, so it falls through to
+ *  `humanizeId` here too, not just inside `PANEL_LABELS` itself. */
+function labelForPageId(pageId: string): string {
+  return PANEL_LABELS[pageId] ?? humanizeId(pageId);
+}
+
+/** One agent-navigable admin screen: published page id, label, and route path. */
+export interface AdminAgentScreen {
+  readonly id: string;
+  readonly label: string;
+  readonly path: string;
+}
+
+/**
+ * Every published page id with its label and route path, in {@link ADMIN_AGENT_PAGE_PATHS} order —
+ * the same pairs {@link buildAdminAgentPages} hands `page.navigate`, minus the navigate thunk.
+ *
+ * The source of `apps/website/src/features/site-inspection/admin-screens.generated.ts`, the server's
+ * checked-in copy that `site_describe_capabilities` reports (the server cannot import this browser
+ * bundle). `__tests__/admin-screens-manifest.unit.test.ts` fails when the two disagree.
+ *
+ * @returns One `{id, label, path}` per published page id.
+ */
+export function listAdminAgentScreens(): readonly AdminAgentScreen[] {
+  return Object.entries(ADMIN_AGENT_PAGE_PATHS).map(([id, path]) => ({ id, label: labelForPageId(id), path }));
+}
+
 /**
  * Projects {@link ADMIN_AGENT_PAGE_PATHS} into the `pages` record `createDomPageDriver` takes —
  * each published page id paired with the label `page.find_elements`/`page.navigate` will show for
@@ -85,10 +113,7 @@ export function buildAdminAgentPages(): Readonly<Record<string, DomPageDriverPag
     Object.entries(ADMIN_AGENT_PAGE_PATHS).map(([pageId, routePath]) => [
       pageId,
       {
-        // `PANEL_LABELS` is keyed by panel id; a per-route agent page id (`widget-regions`) was
-        // never a panel id, so it falls through to `humanizeId` here too, not just inside
-        // `PANEL_LABELS` itself.
-        label: PANEL_LABELS[pageId] ?? humanizeId(pageId),
+        label: labelForPageId(pageId),
         navigate: () => {
           navigate(routePath);
         },

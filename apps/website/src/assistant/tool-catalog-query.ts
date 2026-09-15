@@ -93,3 +93,35 @@ export function buildToolCatalogQuery(
     },
   };
 }
+
+/** One registered tool as the catalog presents it: its id, the `source` domain `search_tools`
+ *  reports, and the authored description with folded search vocabulary stripped — what
+ *  `describe_tool` returns for the id, minus the input schema. */
+export interface ToolCatalogEntry {
+  readonly id: string;
+  readonly source: string;
+  readonly description: string;
+}
+
+/**
+ * Reads `registry.list()` NOW and returns every tool as a {@link ToolCatalogEntry} — the reader each
+ * composition root binds to its own registry and hands `site_describe_capabilities`
+ * (`features/site-inspection/deps.ts`'s `listCatalogTools`).
+ *
+ * Deliberately not an index: nothing seeded, ranked or kept. It shares `sourceForToolId` and
+ * `stripSearchKeywords` with {@link buildToolCatalogQuery}, so an entry's `source`/`description` are
+ * exactly what `search_tools`/`describe_tool` report for the same id. Reading the live registry on
+ * every call, it also includes a tool registered after the FTS snapshot was seeded, before that
+ * snapshot is rebound.
+ *
+ * @param registry - The live registry; only `list` is read.
+ * @returns One entry per registered tool, in registration order.
+ * @complexity O(r) in registered tools.
+ */
+export function listToolCatalogEntries(registry: Pick<ToolRegistry, "list">): ToolCatalogEntry[] {
+  return registry.list().map((descriptor) => ({
+    id: descriptor.id,
+    source: sourceForToolId(descriptor.id),
+    description: stripSearchKeywords(descriptor.description ?? ""),
+  }));
+}

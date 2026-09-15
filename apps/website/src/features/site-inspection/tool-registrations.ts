@@ -15,14 +15,16 @@ import {
 import type { ToolContributor } from "#src/assistant/index";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
-import { toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
+import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
 import { fetchPublishedPage, PublishedPagePathError } from "./published-page.js";
-import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES, type SiteProfileSectionName } from "./site-profile.js";
+import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
+import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
 
 /**
- * @file Maps the Site Inspection catalog onto `buildSiteProfile()` / `fetchPublishedPage()`, as
- * `ToolRegistration`s. The entire catalog is wired — there is no `unwiredToolIds` set here, which
- * means any future catalog entry added without a handler is a build failure.
+ * @file Maps the Site Inspection catalog onto `buildSiteProfile()` / `buildSiteCapabilities()` /
+ * `fetchPublishedPage()`, as `ToolRegistration`s. The entire catalog is wired — there is no
+ * `unwiredToolIds` set here, which means any future catalog entry added without a handler is a build
+ * failure.
  *
  * ---------------------------------------------------------------------------
  * Authorization shape — the one thing in this file worth reading carefully
@@ -49,6 +51,9 @@ import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES, type SiteProfileSectionNa
  * down where both this tool AND the admin HTTP route reach it. A principal with no grants at all
  * gets a well-formed response in which every section is `forbidden` — which discloses nothing it
  * could not learn by calling the five underlying tools and being refused by each.
+ *
+ * `site_describe_capabilities` has the same shape for the same reason: three sections, three gates
+ * inside `buildSiteCapabilities`, no blanket check here.
  */
 
 const CATALOG_BY_ID = indexCatalogById(siteInspectionAgentToolCatalog);
@@ -64,50 +69,15 @@ export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   // -> buildSiteProfile(): five concurrent reads (posts, in-memory themes, presentation settings,
   //    plugin discovery + activations, settings, content types). No writes anywhere on the path.
   ["site_get_profile", "none"],
+  // -> buildSiteCapabilities(): the composition root's in-memory tool registry list, the generated
+  //    admin screen constant, and one content-type list read. No writes anywhere on the path.
+  ["site_describe_capabilities", "none"],
   // -> fetchPublishedPage(): boots the site's own Express app on a loopback port and issues one
   //    GET, the same thing `export/site-exporter.ts` does per route. The handler writes nothing.
   //    See the catalog entry's own comment for the one disclosed caveat (a path matching a live
   //    redirect rule records a redirect hit, exactly as a real visit would).
   ["fetch_published_page", "none"],
 ]);
-
-/**
- * Reads and validates the optional `sections` array off a tool input, against the closed vocabulary.
- *
- * Rejects an unknown section name rather than silently dropping it: an agent that asked for
- * `"secrets"` and got a response with no `secrets` key would have no way to tell "that section does
- * not exist" from "that section came back empty", and would likely conclude the latter.
- *
- * @param input - The already-validated tool input record.
- * @returns The requested section names, or `undefined` when the caller did not scope the call.
- * @throws {Error} When `sections` is present but is not an array of known section names. The
- * message names every valid value so the model can correct itself in one turn.
- * @complexity O(S) in the requested-section count, bounded by the closed vocabulary.
- * @example readSections({ sections: ["theme"] }); // => ["theme"]
- */
-function readSections(input: Record<string, unknown>): SiteProfileSectionName[] | undefined {
-  const raw = input["sections"];
-  if (raw === undefined || raw === null) return undefined;
-  if (!Array.isArray(raw)) {
-    throw new Error(`sections must be an array of section names — valid names are: ${SITE_PROFILE_SECTION_NAMES.join(", ")}`);
-  }
-  const known = new Set<string>(SITE_PROFILE_SECTION_NAMES);
-  for (const candidate of raw) {
-    if (typeof candidate !== "string" || !known.has(candidate)) {
-      throw new Error(
-        `unknown section '${String(candidate)}' — valid names are: ${SITE_PROFILE_SECTION_NAMES.join(", ")}`,
-      );
-    }
-  }
-  return raw as SiteProfileSectionName[];
-}
-
-/** Errors a DIFFERENT input would fix, and therefore worth publishing the tool's schema back with.
- *  A timeout or an underlying repo failure is not one of these: retrying with different arguments
- *  would not help, and appending a schema would imply otherwise. */
-function isShapeRejection(error: unknown): boolean {
-  return error instanceof PublishedPagePathError || (error instanceof Error && error.name === "SiteInspectionInputError");
-}
 
 /** Raised for a bad `sections`/`pageLimit` input, so {@link isShapeRejection} can decorate it with
  *  the published schema. A named class rather than a bare `Error` for the same reason
@@ -119,6 +89,45 @@ class SiteInspectionInputError extends Error {
   }
 }
 
+/** Errors a DIFFERENT input would fix, and therefore worth publishing the tool's schema back with.
+ *  A timeout or an underlying repo failure is not one of these: retrying with different arguments
+ *  would not help, and appending a schema would imply otherwise. */
+function isShapeRejection(error: unknown): boolean {
+  return error instanceof PublishedPagePathError || error instanceof SiteInspectionInputError;
+}
+
+/**
+ * Reads and validates the optional `sections` array off a tool input, against one tool's closed
+ * vocabulary.
+ *
+ * Rejects an unknown section name rather than silently dropping it: an agent that asked for
+ * `"secrets"` and got a response with no `secrets` key would have no way to tell "that section does
+ * not exist" from "that section came back empty", and would likely conclude the latter.
+ *
+ * @param input - The already-validated tool input record.
+ * @param vocabulary - The calling tool's own section names.
+ * @returns The requested section names, or `undefined` when the caller did not scope the call.
+ * @throws {SiteInspectionInputError} When `sections` is present but is not an array of known section
+ * names. The message names every valid value so the model can correct itself in one turn.
+ * @complexity O(S) in the requested-section count, bounded by the closed vocabulary.
+ * @example readSections({ sections: ["theme"] }, SITE_PROFILE_SECTION_NAMES); // => ["theme"]
+ */
+function readSections<N extends string>(input: Record<string, unknown>, vocabulary: readonly N[]): N[] | undefined {
+  const raw = input["sections"];
+  if (raw === undefined || raw === null) return undefined;
+  const validNames = vocabulary.join(", ");
+  if (!Array.isArray(raw)) {
+    throw new SiteInspectionInputError(`sections must be an array of section names — valid names are: ${validNames}`);
+  }
+  const known = new Set<string>(vocabulary);
+  for (const candidate of raw) {
+    if (typeof candidate !== "string" || !known.has(candidate)) {
+      throw new SiteInspectionInputError(`unknown section '${String(candidate)}' — valid names are: ${validNames}`);
+    }
+  }
+  return raw as N[];
+}
+
 export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     site_get_profile: async (ctx) => {
@@ -126,21 +135,29 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
 
       // NO blanket `requireToolPermission` here — see this file's header. `buildSiteProfile`
       // authorizes each section against that section's own domain permission.
-      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
-        let sections: SiteProfileSectionName[] | undefined;
-        try {
-          sections = readSections(input);
-        } catch (err) {
-          throw new SiteInspectionInputError(err instanceof Error ? err.message : String(err));
-        }
-        const pageLimit = optionalNumber(input, "pageLimit");
-
-        return buildSiteProfile(
+      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection }, async () =>
+        buildSiteProfile(
           toSiteProfileDeps(routeDeps),
           { principalId: ctx.principal.id },
-          { sections, pageLimit },
-        );
-      });
+          { sections: readSections(input, SITE_PROFILE_SECTION_NAMES), pageLimit: optionalNumber(input, "pageLimit") },
+        ),
+      );
+    },
+
+    site_describe_capabilities: async (ctx) => {
+      const input = requireInputRecord(ctx.input ?? {});
+
+      // NO blanket gate here either — `buildSiteCapabilities` authorizes each of its three sections
+      // against that section's own permission.
+      return withSchemaOnRejection(
+        { toolId: "site_describe_capabilities", catalog: CATALOG_BY_ID, isShapeRejection },
+        async () =>
+          buildSiteCapabilities(
+            toSiteCapabilitiesDeps(routeDeps),
+            { principalId: ctx.principal.id },
+            { sections: readSections(input, SITE_CAPABILITIES_SECTION_NAMES) },
+          ),
+      );
     },
 
     fetch_published_page: async (ctx) => {
