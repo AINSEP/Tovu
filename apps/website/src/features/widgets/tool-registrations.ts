@@ -56,10 +56,15 @@ import {
 } from "./embed-service.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import {
+  WidgetAreaConflictError,
   WidgetAreaNotFoundError,
   WidgetConfigValidationError,
   WidgetEmbedGuardrailError,
+  WidgetEmbedHostNotFoundError,
+  WidgetEmbedHostUnsupportedError,
+  WidgetInstanceNotFoundError,
   WidgetTypeUnregisteredError,
+  WidgetVersionConflictError,
 } from "./errors.js";
 import { getWidgetInstance, listWidgetInstances } from "./read-service.js";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "./region-area-service.js";
@@ -125,6 +130,52 @@ function isWidgetsShapeRejection(error: unknown): boolean {
     error instanceof WidgetEmbedGuardrailError ||
     error instanceof WidgetEmbedReorderCountMismatchError
   );
+}
+
+/**
+ * Re-classifies every typed not-found/conflict domain error this handler map can throw as a
+ * `ToolInputError` on its way to the model, and passes everything else (including a
+ * `WidgetForbiddenError`, which is not caller-input) through untouched.
+ *
+ * Same reasoning as `post/tool-registrations.ts`'s `toModelFacingUpdateError` (lines 222-244
+ * there): `@jini-ai/daemon`'s `ToolExecutor` tags any rejection that is not `instanceof
+ * ToolInputError` as `errorKind: 'internal'`, and the delegated-tool-call transport SEC-005-
+ * redacts an `'internal'` failure into a message-stripped `INTERNAL_ERROR` 500. Unlike Posts,
+ * which reclassifies its one conflict type at each call site, this wraps the WHOLE handler map
+ * once (see the `buildDomainRegistrations` call below) so all 10 widgets tools get it — including
+ * the 3 embed handlers with the wrong-table host-lookup bug this reclassification was written
+ * alongside, and the read/region/instance handlers that had the SAME redaction bug independent of
+ * that lookup bug (see the fix plan's §3 sibling-arms table). A code prefix before `:` is prepended
+ * so the model (and `widgets-error-code-parity.test.ts`) can match the same code the HTTP arm's
+ * `mapWidgetErrorToResponse` returns, without this layer importing that HTTP-only module.
+ *
+ * @complexity O(1).
+ */
+function toModelFacingWidgetsError(err: unknown): unknown {
+  if (err instanceof ToolInputError) return err;
+  if (err instanceof WidgetInstanceNotFoundError) {
+    return new ToolInputError(`WIDGETS_INSTANCE_NOT_FOUND: ${err.message}`);
+  }
+  if (err instanceof WidgetAreaNotFoundError) {
+    return new ToolInputError(`WIDGETS_AREA_NOT_FOUND: ${err.message}`);
+  }
+  if (err instanceof WidgetEmbedHostNotFoundError) {
+    return new ToolInputError(`WIDGETS_EMBED_HOST_NOT_FOUND: ${err.message}`);
+  }
+  if (err instanceof WidgetEmbedHostUnsupportedError) {
+    return new ToolInputError(`WIDGETS_EMBED_HOST_UNSUPPORTED: ${err.message}`);
+  }
+  if (err instanceof WidgetVersionConflictError) {
+    return new ToolInputError(
+      `WIDGETS_VERSION_CONFLICT: ${err.message}. Nothing was written. Re-read the host or instance to get its current version (${err.currentVersion}) and resend with that as baseVersion.`
+    );
+  }
+  if (err instanceof WidgetAreaConflictError) {
+    return new ToolInputError(
+      `WIDGETS_AREA_CONFLICT: ${err.message}. Nothing was written. Call content_read.widget_region to get the current baseVersion (${err.currentVersion}) and resend.`
+    );
+  }
+  return err;
 }
 
 /** What a Widgets instance tool returns to the model — see {@link toWidgetInstanceToolView}. */
@@ -477,12 +528,27 @@ export function buildWidgetsRegistrations(
     },
   };
 
+  // Every handler above gets `toModelFacingWidgetsError` — see that function's doc comment for why
+  // this wraps the whole map once here rather than per call site.
+  const modelFacingHandlers: Record<string, ToolHandler> = Object.fromEntries(
+    Object.entries(handlers).map(([toolId, handler]) => [
+      toolId,
+      async (ctx) => {
+        try {
+          return await handler(ctx);
+        } catch (err) {
+          throw toModelFacingWidgetsError(err);
+        }
+      },
+    ])
+  );
+
   // No `unwiredToolIds`: Widgets wires its ENTIRE catalog, same tripwire discipline as Forms.
   return buildDomainRegistrations({
     domain: "widgets",
     catalogModule: "widgets/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: modelFacingHandlers,
     derivedRisk: widgetsDerivedRisk,
   });
 }

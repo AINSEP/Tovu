@@ -87,7 +87,11 @@ const WIDGET_INSTANCE_ID_SCHEMA = {
 
 const HOST_ENTRY_ID_SCHEMA = {
   type: "string",
-  description: "The id of the entry (e.g. a page or post) whose rich-text body the embed lives in.",
+  description:
+    "The id of the host whose rich-text body holds the embed: a post or page (as returned by content_post_create or " +
+    "content_read.content_post) or a custom content entry. Use that host's own 'version' as baseVersion. An " +
+    "HTML-format page is not a valid host — embed widgets there with a data-embed-config marker via " +
+    "pages_write_region instead.",
 } as const;
 
 const BASE_VERSION_SCHEMA = {
@@ -275,10 +279,12 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "widgets_insert_embed",
     description:
-      "Inserts one new inline widgetEmbed node, referencing an existing widget instance, appended to the end of a host " +
-      "entry's rich-text body. Rejects if the target widget does not exist / is trashed, if the host is itself a " +
-      "widget instance (no widget-in-widget recursion), or if the resulting embed count would exceed the per-document " +
-      "cap. Returns the newly-minted placementId.",
+      "Inserts one new inline widgetEmbed node, referencing an existing widget instance, appended to the end of a " +
+      "host's rich-text body (a post, a page, or a custom content entry). Rejects if the host does not exist, is " +
+      "trashed, or is an HTML-format page; if the target widget does not exist or is trashed; if the host is itself " +
+      "a widget instance (no widget-in-widget recursion); or if the resulting embed count would exceed the " +
+      "per-document cap. Writing into a post or page also requires content.write on it. Returns the newly-minted " +
+      "placementId and the host's new version.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "widgets.place" },
     inputSchema: {
@@ -294,7 +300,10 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "widgets_remove_embed",
-    description: "Removes one inline widgetEmbed node (by placementId) from a host entry's body. The referenced widget instance itself is untouched.",
+    description:
+      "Removes one inline widgetEmbed node (by placementId) from a host entry's body. The referenced widget " +
+      "instance itself is untouched. The host may be a post, a page, or a custom content entry (not an HTML-format " +
+      "page); writing into a post or page also requires content.write.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "widgets.place" },
     inputSchema: {
@@ -313,7 +322,9 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Reassigns which widget occupies which EXISTING inline embed slot, in document order. The document's own shape " +
       "(surrounding content, slot count/position) is unchanged — only each slot's target widget changes. Must supply " +
-      "exactly one widgetEntryId per embed slot currently present, or the call is rejected before writing anything.",
+      "exactly one widgetEntryId per embed slot currently present, or the call is rejected before writing anything. " +
+      "The host may be a post, a page, or a custom content entry (not an HTML-format page); writing into a post or " +
+      "page also requires content.write.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "widgets.place" },
     inputSchema: {

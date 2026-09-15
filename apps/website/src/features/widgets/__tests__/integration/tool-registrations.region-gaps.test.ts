@@ -214,7 +214,9 @@ test("widgets_set_region_placements: an unbound regionKey is rejected with Widge
     wired("widgets_set_region_placements", deps).handler(
       executionContext({ regionKey: "sidebar", baseVersion: 1, placements: [] })
     ),
-    (err: unknown) => err instanceof Error && err.name === "WidgetAreaNotFoundError" && /'sidebar' is not bound/.test(err.message)
+    // Reclassified by `toModelFacingWidgetsError` (`tool-registrations.ts`) so this typed not-found
+    // reaches the model as a 400 rather than a redacted 500 — see that function's doc comment.
+    (err: unknown) => err instanceof Error && err.name === "ToolInputError" && /^WIDGETS_AREA_NOT_FOUND: region 'sidebar' is not bound$/.test(err.message)
   );
 });
 
@@ -341,6 +343,8 @@ test("widgets_get_region: an unbound regionKey is rejected with WidgetAreaNotFou
   const deps = makeDeps();
   await assert.rejects(
     wired("widgets_get_region", deps).handler(executionContext({ regionKey: "nonexistent" })),
-    (err: unknown) => err instanceof Error && err.name === "WidgetAreaNotFoundError" && /'nonexistent' is not bound/.test(err.message)
+    // Reclassified by `toModelFacingWidgetsError` (`tool-registrations.ts`) — see the sibling
+    // `widgets_set_region_placements` test above for why the name/message shape changed.
+    (err: unknown) => err instanceof Error && err.name === "ToolInputError" && /^WIDGETS_AREA_NOT_FOUND: region 'nonexistent' is not bound$/.test(err.message)
   );
 });
