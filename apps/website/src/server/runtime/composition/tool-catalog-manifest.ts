@@ -47,7 +47,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * one's own `contribute<Domain>Tools()` explicitly.
  *
  * Shape: `server composition manifest -> feature contribution installers -> assistant registry ->
- * final tool catalog` (2026-08-17 design, following the `mcp-federation/presets.ts` precedent
+ * final tool catalog` (2026-08-17 design, following the `assistant/mcp-federation/presets.ts` precedent
  * already in this codebase — see `tool-contribution-registry.ts`'s header for the full rationale).
  * This file plays the role `agent-daemon-server.ts` plays for MCP federation presets
  * (`registerSupabaseMcpPreset()`), just for AI-tool contributions and shared by BOTH real
@@ -56,7 +56,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `server` is the right layer for this, not `assistant`: `assistant` must not import a feature by
  * name (that is precisely the edge that used to close the `[assistant, comments, features/plugins,
  * newsletter]` module cycle), but `server` already imports most first-party features by name
- * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
+ * throughout `server/runtime/composition/deps.ts`/`server/runtime/composition/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
  * All 25 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
@@ -74,10 +74,10 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * the full per-domain trace on each; `media` was tried in that same group and reverted too, but was
  * retried in a later, separate pass this session, after `widgets`'s own conversion above had merged
  * and removed the static edge that caused its original revert — see
- * `assistant/tool-registrations.ts`'s header and `media/tool-registrations.ts`'s own header for the
+ * `assistant/tool-registrations.ts`'s header and `features/media/tool-registrations.ts`'s own header for the
  * full before/after trace; it is listed above alongside the other seventeen). `database` was ALSO
  * retried in a later pass, once the specific edge that closed its 16-module SCC (a single value
- * import, `db/sqlite/database-introspection-adapter.sqlite.ts`'s `getDriftStatus` from
+ * import, `platform/db/sqlite/database-introspection-adapter.sqlite.ts`'s `getDriftStatus` from
  * `features/database/drift.ts`) was identified and removed by relocating `drift.ts` into `db/` — see
  * `features/database/tool-registrations.ts`'s own header and
  * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full trace;
@@ -116,7 +116,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `post` above and `deployments`/`source-control` before it used — wired to the real
  * `features/settings` implementations at the composition root
  * (`server/routes/types.ts`'s `RouteDeps.getEffective`/`.set`/`.instructionsNamespace`, populated in
- * both `server/app.ts`/`server/deps.ts`). That removed the real edge entirely, so `settings` now has
+ * both `server/runtime/composition/app.ts`/`server/runtime/composition/deps.ts`). That removed the real edge entirely, so `settings` now has
  * its own `contributeSettingsTools()` below like every other domain, and the inline
  * `registerToolContributor` call plus its explanatory comment are gone.
  *
@@ -128,7 +128,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `site-inspection` (2026-08-26) is a NEW domain rather than a 26th entry in that rollout's count:
  * it did not exist before, so nothing about it was ever wired through `DOMAIN_SLICES`. It ships three
  * tools — `site_get_profile` (a config snapshot aggregated by `features/site-inspection/
- * site-profile.ts`, the same function `server/routes/admin/site/profile.ts` serves to `apps/admin`),
+ * site-profile.ts`, the same function `server/inbound/admin-http/routes/site/profile.ts` serves to `apps/admin`),
  * `fetch_published_page` (one same-origin render of this site's own public surface) and
  * `site_describe_capabilities` (next paragraph). It imports
  * no other feature by name: every read is an injected port bound in `features/site-inspection/
@@ -163,8 +163,8 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  *
  * Real callers (must run this BEFORE their own `buildAssistantToolRegistrations` call, since that
  * function reads whatever is currently registered):
- * - `server/agent-daemon/agent-daemon-server.ts` (the spawned agent daemon's own boot).
- * - `server/modules/assistant-byok.ts`'s `createAssistantByokModule` (the in-process BYOK path).
+ * - `server/inbound/assistant/agent-daemon-server.ts` (the spawned agent daemon's own boot).
+ * - `server/runtime/composition/modules/assistant-byok.ts`'s `createAssistantByokModule` (the in-process BYOK path).
  *
  * NOT third-party plugin tool contributions: those must still enter through this same
  * `registerToolContributor` seam eventually, but gated behind the SPEC-005 plugin runtime's own
@@ -177,7 +177,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * (`assistant/capability-source-registry.ts`), fed by Agent Plugins' Skills. REMOVED 2026-08-26
  * (owner call): every installed Agent Plugin now gets its own real tool, `agent_plugin_<pluginId>`
  * (`features/agent-plugins/tool-registrations.ts`, wired at boot by
- * `server/agent-daemon/agent-daemon-server.ts`), whose description already folds in every one of
+ * `server/inbound/assistant/agent-daemon-server.ts`), whose description already folds in every one of
  * that plugin's skills' vocabulary — so `search_tools` alone finds what `capability_search` used to,
  * with no second index for the agent to guess between. See
  * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md` for the full design that was
