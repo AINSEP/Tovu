@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
+import { ADMIN_SCREENS } from "../admin-screens.generated.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
 import { PublishedPagePathError } from "../published-page.js";
+import { SITE_CAPABILITIES_SECTION_NAMES } from "../site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "../site-profile.js";
 import {
   buildSiteInspectionRegistrations,
@@ -52,7 +56,7 @@ test("site inspection: the catalog wires in full, with a published schema and a 
 
   assert.deepEqual(
     registrations.map((registration) => registration.descriptor.id).sort(),
-    ["fetch_published_page", "site_get_profile"],
+    ["fetch_published_page", "site_describe_capabilities", "site_get_profile"],
   );
   assert.equal(registrations.length, siteInspectionAgentToolCatalog.length, "every catalog entry must be wired");
 
@@ -232,4 +236,76 @@ test("fetch_published_page: a refused path really is a PublishedPagePathError un
     },
     PublishedPagePathError,
   );
+});
+
+/** This domain's registrations over a real composition root, wired to a real registry the way both
+ *  composition roots wire it: `listCatalogTools` reads the same registry the registrations go into. */
+async function capabilitiesHandlerOverRealRegistry() {
+  const deps: RouteDeps = createRouteDeps();
+  await deps.identityReady;
+  await deps.settingsReady;
+  const registry = createToolRegistry();
+  const registrations = buildSiteInspectionRegistrations(
+    Object.assign(deps, { listCatalogTools: () => listToolCatalogEntries(registry) }),
+  );
+  for (const registration of registrations) registry.register(registration);
+  return { deps, registry, handler: registrationFor(registrations, "site_describe_capabilities").handler };
+}
+
+test("site_describe_capabilities: the owner gets all three sections, with tools read from the live registry", async () => {
+  const { deps, registry, handler } = await capabilitiesHandlerOverRealRegistry();
+
+  const owner = (await handler(ctxFor(await deps.ownerPrincipalId, {}))) as {
+    completeness: string;
+    sections: Record<string, { status: string; data?: unknown }> & {
+      tools: { data: { total: number; domains: { domain: string; tools: { id: string }[] }[] } };
+      adminScreens: { data: { screens: unknown[] } };
+    };
+  };
+
+  for (const name of SITE_CAPABILITIES_SECTION_NAMES) {
+    assert.equal(owner.sections[name]?.status, "ok", `${name} should be readable by the owner`);
+  }
+  assert.equal(owner.completeness, "complete");
+  assert.equal(owner.sections.tools.data.total, registry.list().length);
+  const siteDomain = owner.sections.tools.data.domains.find((domain) => domain.domain === "site");
+  assert.ok(siteDomain?.tools.some((tool) => tool.id === "site_describe_capabilities"));
+  assert.deepEqual(owner.sections.adminScreens.data.screens, ADMIN_SCREENS);
+});
+
+test("site_describe_capabilities: no blanket gate — a principal with no grants gets every section forbidden", async () => {
+  const { handler } = await capabilitiesHandlerOverRealRegistry();
+
+  const stranger = (await handler(ctxFor("principal-with-no-grants", {}))) as {
+    completeness: string;
+    sections: Record<string, { status: string }>;
+  };
+
+  for (const name of SITE_CAPABILITIES_SECTION_NAMES) {
+    assert.equal(stranger.sections[name]?.status, "forbidden");
+  }
+  assert.equal(stranger.completeness, "partial");
+});
+
+test("site_describe_capabilities: an unknown section name is refused with the valid names, not silently dropped", async () => {
+  const { handler } = await capabilitiesHandlerOverRealRegistry();
+
+  // `pages` is a real site_get_profile section — the refusal proves each tool validates against its
+  // OWN vocabulary.
+  await assert.rejects(
+    () => handler(ctxFor("anyone", { sections: ["pages"] })),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /unknown section 'pages'/);
+      assert.match(err.message, /tools, adminScreens, contentTypes/);
+      return true;
+    },
+  );
+});
+
+test("site_describe_capabilities: side-effect free and published read-only", () => {
+  const registration = registrationFor(buildSiteInspectionRegistrations(createRouteDeps()), "site_describe_capabilities");
+
+  assert.equal(siteInspectionDerivedRisk.get("site_describe_capabilities"), "none");
+  assert.equal(registration.descriptor.readOnly, true);
 });
