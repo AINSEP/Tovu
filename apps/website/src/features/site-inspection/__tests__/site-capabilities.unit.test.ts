@@ -242,6 +242,19 @@ test("summarizeToolDescription: first sentence, whitespace collapsed, capped at 
   assert.ok(summary.endsWith("…"));
 });
 
+test("summarizeToolDescription: an over-long sentence is cut at the last whole word, not mid-word", () => {
+  // The 120-char cap lands inside "beta" ("alpha bet|a"): a mid-word cut would end "alpha bet…".
+  assert.equal(summarizeToolDescription(`${"alpha beta ".repeat(20)}.`), `${"alpha beta ".repeat(10)}alpha…`);
+});
+
+test("summarizeToolDescription: 'e.g.' and a decimal point do not end the first sentence", () => {
+  assert.equal(
+    summarizeToolDescription("Creates one, e.g. custom_credential_create. Next."),
+    "Creates one, e.g. custom_credential_create.",
+  );
+  assert.equal(summarizeToolDescription("Scales rows by 1.5 at once. Next."), "Scales rows by 1.5 at once.");
+});
+
 test("tools section: a long description is still one capped line in the output", async () => {
   const rows = [{ id: "site_get_profile", source: "site", description: `${"Returns a very long description ".repeat(20)}.` }];
   const result = await buildSiteCapabilities(makeDeps({ tools: rows }), { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
