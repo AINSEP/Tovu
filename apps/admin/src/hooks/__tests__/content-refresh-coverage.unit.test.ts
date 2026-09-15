@@ -64,6 +64,8 @@ const WIRED_HOOKS: readonly string[] = [
   "features/widgets/hooks/use-widget-regions.hooks.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",
   "features/recovery/hooks/use-recovery.hooks.ts",
+  "features/sites/hooks/use-sites.hooks.ts",
+  "features/themes/hooks/use-theme-explore.hooks.ts",
 ];
 
 /** Matches a call to either the shared hook, or `subscribeToContentRefresh` directly — taxonomy
