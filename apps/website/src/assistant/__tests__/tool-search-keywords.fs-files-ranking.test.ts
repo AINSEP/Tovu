@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -42,8 +43,13 @@ async function buildCatalog() {
   installFirstPartyToolContributors();
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
+  // Both boot paths build the limiter themselves and add it to `routeDeps`; `AssistantToolRegistryDeps`
+  // requires it, so passing bare `routeDeps` does not type-check.
+  const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const registry = createToolRegistry();
-  for (const registration of buildAssistantToolRegistrations(routeDeps)) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
+    registry.register(registration);
+  }
   return buildToolCatalogQuery(registry);
 }
 
