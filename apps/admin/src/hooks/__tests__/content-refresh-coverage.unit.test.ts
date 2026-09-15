@@ -49,12 +49,14 @@ const WIRED_HOOKS: readonly string[] = [
   "features/security/hooks/use-access-tokens.hooks.ts",
   // Coverage-extension pass (see this file's own header "Extending coverage" note): Comments,
   // Database, Deployments, Redirects, Members, Widgets, Webhooks (admin's "integrations" feature),
-  // and Recovery. Comments Settings, Deployment's Dockerfile tab, SEO (both screens), Themes, Theme
-  // Explore, and Recovery's own restore-flow wizard were deliberately left OUT of this list — each
-  // either has no agent-writable field this hook exposes, or carries an editable draft/uncontrolled
-  // form a bus-driven reload would clobber. See each excluded hook's own file header (or, for ones
-  // never touched at all, `rules.ts`'s resource-constant doc in the sibling feature) for the specific
-  // reason.
+  // and Recovery. Comments Settings, Deployment's Dockerfile tab, SEO (both screens), Themes (the
+  // non-explore screens), and Recovery's own restore-flow wizard were deliberately left OUT of this
+  // list — each either has no agent-writable field this hook exposes, or carries an editable
+  // draft/uncontrolled form a bus-driven reload would clobber. See each excluded hook's own file
+  // header (or, for ones never touched at all, `rules.ts`'s resource-constant doc in the sibling
+  // feature) for the specific reason. Sites and Theme Explore were on that excluded list too, but
+  // both have since adopted the subscription in source, so they are tripwired below rather than
+  // excluded — the list must describe what the hooks actually do.
   "features/redirects/hooks/use-redirects.hooks.ts",
   "features/comments/hooks/use-comment-queue.hooks.ts",
   "features/database/hooks/use-restore-points-section.hooks.ts",
