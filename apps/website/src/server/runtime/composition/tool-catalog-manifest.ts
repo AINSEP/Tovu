@@ -126,13 +126,30 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * own header).
  *
  * `site-inspection` (2026-08-26) is a NEW domain rather than a 26th entry in that rollout's count:
- * it did not exist before, so nothing about it was ever wired through `DOMAIN_SLICES`. It ships two
+ * it did not exist before, so nothing about it was ever wired through `DOMAIN_SLICES`. It ships three
  * tools — `site_get_profile` (a config snapshot aggregated by `features/site-inspection/
- * site-profile.ts`, the same function `server/routes/admin/site/profile.ts` serves to `apps/admin`)
- * and `fetch_published_page` (one same-origin render of this site's own public surface). It imports
+ * site-profile.ts`, the same function `server/routes/admin/site/profile.ts` serves to `apps/admin`),
+ * `fetch_published_page` (one same-origin render of this site's own public surface) and
+ * `site_describe_capabilities` (next paragraph). It imports
  * no other feature by name: every read is an injected port bound in `features/site-inspection/
  * deps.ts` from the composition root's own bag, which is both what keeps this domain off the module
  * graph and what makes its "cannot reach a credential store" claim checkable from one interface.
+ *
+ * `site_describe_capabilities` (2026-09-15) is that domain's third tool, not a new domain: one call
+ * answering "what can this site do?" with the registered tools grouped by domain, the admin app's
+ * screens, and the content types. Its tools section reads the live `ToolRegistry` through the
+ * `listCatalogTools` dep, which this function cannot supply: it installs contributors process-wide,
+ * while each registry belongs to one composition root. So each registry owner
+ * (`server/inbound/assistant/agent-daemon-server.ts`, `assistant/byok-tool-surface.ts`) binds
+ * `listToolCatalogEntries(registry)` to its OWN registry in the deps it hands
+ * `buildAssistantToolRegistrations`; a caller that binds none gets the tools section reported
+ * `unavailable`/`not-wired`, never an empty list. The screens come from
+ * `features/site-inspection/admin-screens.generated.ts`, a checked-in copy of `apps/admin`'s
+ * `listAdminAgentScreens()` (the server cannot import the admin bundle), which
+ * `apps/admin/src/lib/__tests__/admin-screens-manifest.unit.test.ts` fails on when the two drift
+ * (regenerate with `UPDATE_ADMIN_SCREENS_MANIFEST=1`, see that test's header). It is a list read at
+ * call time, not a second index: nothing is seeded, cached or ranked, so it cannot disagree with
+ * `search_tools` the way the removed `capability_search` below could.
  *
  * Idempotent: `registerToolContributor` — called here, once per domain, on the `ToolContributor`
  * each `contribute<Domain>Tools()` returns (Phase 0 restructure, 2026-08-27: contributors used to

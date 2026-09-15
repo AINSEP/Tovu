@@ -137,9 +137,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   //
   // `site-inspection` (2026-08-26) is present below as a NEW domain, not a 26th entry in that
   // rollout: it never existed before, so nothing about it was ever wired through `DOMAIN_SLICES`
-  // and there is no cycle history to record. It contributes `site_get_profile` and
-  // `fetch_published_page`, and imports no other feature by name — every read is an injected port
-  // bound in `features/site-inspection/deps.ts`, so it adds no runtime edge beyond the
+  // and there is no cycle history to record. It contributes three tools — `site_get_profile`,
+  // `fetch_published_page` and (2026-09-15) `site_describe_capabilities` — and imports no other
+  // feature by name — every read is an injected port bound in `features/site-inspection/deps.ts`
+  // (including `site_describe_capabilities`' registry reader, which each registry-owning root binds
+  // to its own registry), so it adds no runtime edge beyond the
   // `features/site-inspection -> assistant` one every contributor has.
   //
   // "site-evidence" (2026-08-26) is also not part of the 25-domain rollout: it is a genuinely NEW
