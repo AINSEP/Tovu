@@ -1124,6 +1124,48 @@ export function shouldPublishOnMessagesChange(
   return { publish: true, nextSettledRunMessageId: last.id };
 }
 
+/** How far through a run's tool calls the content-refresh publisher has already announced. */
+export interface ToolProgressMark {
+  readonly messageId: string;
+  readonly toolResultCount: number;
+}
+
+/**
+ * Whether a newly-returned tool call should announce a content refresh right now, and what the
+ * next {@link ToolProgressMark} the caller's ref should hold is.
+ *
+ * Exists because {@link shouldPublishOnMessagesChange} only fires at run completion: a run that
+ * writes content and then, in the same turn, navigates to inspect the write is shown a screen that
+ * fetched before the write, since nothing had been published yet. Counting `tool_result` events
+ * (rather than matching a tool name) keeps the "ignorance is cheaper than coupling" property this
+ * file's own doc argues for — see {@link shouldPublishOnMessagesChange}'s doc comment. The count is
+ * monotonic within one message id, and a new run brings a new message id, so a lower count under a
+ * different id still publishes rather than being read as "already seen".
+ *
+ * @param input.messages - The full transcript as of this `onMessagesChange` event.
+ * @param input.publishedToolProgress - The mark already published for, or `null`.
+ * @returns `publish` (whether to announce now) and `nextPublishedToolProgress` (what the caller's
+ *   ref should hold next — unchanged when `publish` is `false`).
+ */
+export function shouldPublishContentOnToolProgress(
+  { messages, publishedToolProgress }: {
+    messages: ChatMessage[];
+    publishedToolProgress: ToolProgressMark | null;
+  },
+): { publish: boolean; nextPublishedToolProgress: ToolProgressMark | null } {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") {
+    return { publish: false, nextPublishedToolProgress: publishedToolProgress };
+  }
+  const toolResultCount = (last.events ?? []).filter((event) => event.kind === "tool_result").length;
+  const alreadyPublished =
+    publishedToolProgress?.messageId === last.id ? publishedToolProgress.toolResultCount : 0;
+  if (toolResultCount <= alreadyPublished) {
+    return { publish: false, nextPublishedToolProgress: publishedToolProgress };
+  }
+  return { publish: true, nextPublishedToolProgress: { messageId: last.id, toolResultCount } };
+}
+
 /**
  * Builds the `onMessagesChange` callback `AssistantDock.tsx` passes to `<ChatPane>`. Pure
  * state/wiring, not I/O of its own — `chats.onMessagesChange` and `publishSettingsRefresh` are
@@ -1162,6 +1204,7 @@ export function useMessagesChangeHandler(
   { chats }: { chats: Pick<UseAssistantChats, "onMessagesChange"> },
 ): (messages: ChatMessage[]) => void {
   const settledRunMessageId = useRef<string | null>(null);
+  const publishedToolProgress = useRef<ToolProgressMark | null>(null);
 
   return useCallback(
     (messages: ChatMessage[]) => {
@@ -1175,10 +1218,20 @@ export function useMessagesChangeHandler(
         settledRunMessageId: settledRunMessageId.current,
       });
       settledRunMessageId.current = nextSettledRunMessageId;
-      if (publish) {
-        publishSettingsRefresh();
-        publishContentRefresh();
-      }
+
+      const toolProgress = shouldPublishContentOnToolProgress({
+        messages,
+        publishedToolProgress: publishedToolProgress.current,
+      });
+      publishedToolProgress.current = toolProgress.nextPublishedToolProgress;
+
+      // Settings stay on run completion: `settings_set_ui_preference` writes are rare, and the
+      // settings tabs hold editable form state a mid-run reload would be more likely to disturb
+      // than to help.
+      if (publish) publishSettingsRefresh();
+      // One publish per delta at most, so a terminal delta that also carries a new tool result
+      // does not announce twice.
+      if (publish || toolProgress.publish) publishContentRefresh();
     },
     [chats],
   );

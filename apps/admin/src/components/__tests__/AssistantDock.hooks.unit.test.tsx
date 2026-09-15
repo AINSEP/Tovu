@@ -96,6 +96,7 @@ vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
 
 import {
   resolveRunContext,
+  shouldPublishContentOnToolProgress,
   shouldPublishOnMessagesChange,
   useAssistantDockChrome,
   useAssistantTransport,
@@ -823,6 +824,68 @@ describe("shouldPublishOnMessagesChange", () => {
       const messages = [assistantMessage({ id: `run-${runStatus}`, runStatus })];
       expect(shouldPublishOnMessagesChange({ messages, settledRunMessageId: null }).publish).toBe(true);
     }
+  });
+});
+
+describe("shouldPublishContentOnToolProgress", () => {
+  function toolResultEvents(count: number) {
+    return Array.from({ length: count }, (_, i) => ({
+      kind: "tool_result" as const,
+      toolUseId: `t${i}`,
+      content: "ok",
+      isError: false,
+    }));
+  }
+
+  it("does not publish on an empty transcript", () => {
+    expect(
+      shouldPublishContentOnToolProgress({ messages: [], publishedToolProgress: null }),
+    ).toEqual({ publish: false, nextPublishedToolProgress: null });
+  });
+
+  it("does not publish while the last message is a user turn", () => {
+    const messages = [assistantMessage({ role: "user" })];
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress: null }),
+    ).toEqual({ publish: false, nextPublishedToolProgress: null });
+  });
+
+  it("does not publish for an assistant message with no tool_result events", () => {
+    const messages = [assistantMessage({ runStatus: "running" })];
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress: null }),
+    ).toEqual({ publish: false, nextPublishedToolProgress: null });
+  });
+
+  it("publishes on the first tool result returned mid-run", () => {
+    const messages = [assistantMessage({ id: "m1", runStatus: "running", events: toolResultEvents(1) })];
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress: null }),
+    ).toEqual({ publish: true, nextPublishedToolProgress: { messageId: "m1", toolResultCount: 1 } });
+  });
+
+  it("does not re-publish when the tool result count for the same message has not grown", () => {
+    const messages = [assistantMessage({ id: "m1", runStatus: "running", events: toolResultEvents(1) })];
+    const publishedToolProgress = { messageId: "m1", toolResultCount: 1 };
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress }),
+    ).toEqual({ publish: false, nextPublishedToolProgress: publishedToolProgress });
+  });
+
+  it("publishes again when the same message's tool result count grows", () => {
+    const messages = [assistantMessage({ id: "m1", runStatus: "running", events: toolResultEvents(2) })];
+    const publishedToolProgress = { messageId: "m1", toolResultCount: 1 };
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress }),
+    ).toEqual({ publish: true, nextPublishedToolProgress: { messageId: "m1", toolResultCount: 2 } });
+  });
+
+  it("publishes for a new run's first tool result even though the previous mark held a higher count", () => {
+    const messages = [assistantMessage({ id: "m2", runStatus: "running", events: toolResultEvents(1) })];
+    const publishedToolProgress = { messageId: "m1", toolResultCount: 3 };
+    expect(
+      shouldPublishContentOnToolProgress({ messages, publishedToolProgress }),
+    ).toEqual({ publish: true, nextPublishedToolProgress: { messageId: "m2", toolResultCount: 1 } });
   });
 });
 

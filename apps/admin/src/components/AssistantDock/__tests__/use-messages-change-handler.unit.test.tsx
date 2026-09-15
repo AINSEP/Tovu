@@ -29,6 +29,22 @@ function settledAssistantMessage(id: string): ChatMessage {
   return { id, role: "assistant", content: "Done. Seasons is created.", runStatus: "succeeded" };
 }
 
+/** A run still in flight whose Nth tool call has just returned. */
+function runningWithToolResults(id: string, count: number): ChatMessage {
+  return {
+    id,
+    role: "assistant",
+    content: "Creating the post…",
+    runStatus: "running",
+    events: Array.from({ length: count }, (_, i) => ({
+      kind: "tool_result" as const,
+      toolUseId: `t${i}`,
+      content: "ok",
+      isError: false,
+    })),
+  };
+}
+
 it("announces a content refresh when a run finishes, not only a settings refresh", () => {
   const content = vi.fn();
   const settings = vi.fn();
@@ -76,4 +92,51 @@ it("still forwards the transcript to the chat store when the run is not terminal
 
   expect(onMessagesChange).toHaveBeenCalledWith(messages);
   expect(content).not.toHaveBeenCalled();
+});
+
+it("announces a content refresh as soon as a tool call returns, not only when the run ends", () => {
+  const content = vi.fn();
+  subscribeToContentRefresh(content);
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+
+  // The 2026-09-15 bug: `content_post_create` returned, and the assistant then navigated to Posts
+  // and read the list — all inside one run. Nothing had been published yet, so the mounted list was
+  // still showing what it fetched at mount.
+  result.current([runningWithToolResults("m1", 1)]);
+
+  expect(content).toHaveBeenCalledTimes(1);
+  expect(content).toHaveBeenCalledWith(null);
+});
+
+it("announces once per returned tool call, not once per streaming delta", () => {
+  const content = vi.fn();
+  subscribeToContentRefresh(content);
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+
+  result.current([runningWithToolResults("m1", 1)]);
+  result.current([runningWithToolResults("m1", 1)]); // text deltas, same tool results
+  expect(content).toHaveBeenCalledTimes(1);
+
+  result.current([runningWithToolResults("m1", 2)]);
+  expect(content).toHaveBeenCalledTimes(2);
+});
+
+it("does not announce a settings refresh mid-run", () => {
+  const settings = vi.fn();
+  subscribeToSettingsRefresh(settings);
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+
+  result.current([runningWithToolResults("m1", 1)]);
+
+  expect(settings).not.toHaveBeenCalled();
+});
+
+it("does not announce twice when the terminal delta also carries a new tool result", () => {
+  const content = vi.fn();
+  subscribeToContentRefresh(content);
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
+
+  result.current([{ ...runningWithToolResults("m1", 1), runStatus: "succeeded" }]);
+
+  expect(content).toHaveBeenCalledTimes(1);
 });
