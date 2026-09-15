@@ -458,8 +458,10 @@ test("site profile: a DELIBERATELY themeless site is not reported as theme drift
   // so without a discriminator a profile reader (human or agent) sees a site whose operator turned
   // the theme off and reports a misconfiguration that does not exist. Two causes, one field, and
   // the reader cannot tell them apart: the profile cries wolf.
-  const disabled = await buildSiteProfile(makeDeps({ activeThemeId: NO_THEME_ID }), {});
-  const stranded = await buildSiteProfile(makeDeps({ activeThemeId: "deleted-theme" }), {});
+  const disabled = await buildSiteProfile(makeDeps({ activeThemeId: NO_THEME_ID }), { principalId: PRINCIPAL_ID });
+  const stranded = await buildSiteProfile(makeDeps({ activeThemeId: "deleted-theme" }), {
+    principalId: PRINCIPAL_ID,
+  });
 
   assert.equal(disabled.sections.theme?.data?.active, null, "control: both states share `active: null`");
   assert.equal(stranded.sections.theme?.data?.active, null, "control: both states share `active: null`");
@@ -469,7 +471,7 @@ test("site profile: a DELIBERATELY themeless site is not reported as theme drift
 });
 
 test("site profile: an ordinary, healthy site is not reported as themeless either", async () => {
-  const profile = await buildSiteProfile(makeDeps(), {});
+  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
   assert.equal(profile.sections.theme?.data?.themeDisabled, false);
   assert.equal(profile.sections.theme?.data?.active?.id, "basic");
 });
