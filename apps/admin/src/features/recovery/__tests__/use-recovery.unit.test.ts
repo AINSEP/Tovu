@@ -415,4 +415,39 @@ describe("useRecovery — content refresh bus", () => {
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
+
+  it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    // Two assistant writes land back to back, each publishing its own content-refresh
+    // notification — two overlapping `load()` calls with no ordering guarantee on their
+    // `listRecoveryRestorePoints()` responses.
+    let resolveFirst!: (v: { items: AdminRestorePoint[] }) => void;
+    let resolveSecond!: (v: { items: AdminRestorePoint[] }) => void;
+    vi.spyOn(port, "listRecoveryRestorePoints")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    act(() => {
+      publishContentRefresh();
+      publishContentRefresh();
+    });
+
+    // The SECOND (more recent) request settles first, with the newer list.
+    const secondPoint: AdminRestorePoint = { ...POINT, id: "rp2" };
+    await act(async () => {
+      resolveSecond({ items: [POINT, secondPoint] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.points).toEqual([POINT, secondPoint]));
+
+    // The FIRST (now-stale) request finally settles. It must not resurrect the older list.
+    await act(async () => {
+      resolveFirst({ items: [POINT] });
+      await Promise.resolve();
+    });
+    expect(result.current.points).toEqual([POINT, secondPoint]);
+  });
 });

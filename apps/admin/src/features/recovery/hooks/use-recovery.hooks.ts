@@ -4,6 +4,7 @@ import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } fr
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -87,6 +88,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
+  const settlement = useSettlementGeneration();
 
   // `t`/`locale` intentionally omitted from this callback's own deps — same pre-existing gap
   // `use-page-editor.hooks.ts` documents (this effect only ever ran off `[]`/`[port]` even when
@@ -95,14 +97,24 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   // also be handed to that hook below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const load = useCallback(() => {
+    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
+    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
+    // see the other's claim. Needed now that a content refresh can fire more than once per run
+    // (mid-run tool progress, see `AssistantDock.hooks.tsx`), so two overlapping `load()` calls have
+    // no ordering guarantee on their responses.
+    const generation = settlement.next();
     setError(null);
     Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
       .then(([statusResult, pointsResult]) => {
+        if (!settlement.isCurrent(generation)) return;
         setStatus(statusResult);
         setPoints(pointsResult.items);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load Recovery"))));
-  }, [port]);
+      .catch((e) => {
+        if (!settlement.isCurrent(generation)) return;
+        setError(describeApiError(e, t(locale, "failed to load Recovery")));
+      });
+  }, [port, settlement]);
 
   // Mount-once by design, matching this file's sibling `useEffect` below.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design.

@@ -4,6 +4,7 @@ import { describeApiError, type AdminWidgetRegionBinding } from "@/lib/api";
 import { navigate as realNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { WIDGETS_REGIONS_RESOURCE } from "../rules";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -59,17 +60,30 @@ export function useWidgetRegions({ port, locale, navigate, t }: WidgetRegionsDep
   const [error, setError] = useState<string | null>(null);
   const [newRegionKey, setNewRegionKey] = useState("");
   const [binding, setBinding] = useState(false);
+  const settlement = useSettlementGeneration();
 
   const load = useCallback(() => {
+    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
+    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
+    // see the other's claim. Needed now that a content refresh can fire more than once per run
+    // (mid-run tool progress, see `AssistantDock.hooks.tsx`), so two overlapping `load()` calls have
+    // no ordering guarantee on their responses.
+    const generation = settlement.next();
     port
       .listWidgetRegions()
-      .then((r) => setRegions(r.regions))
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load regions"))));
-    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
-    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-    // nothing about when this callback's identity changes.
+      .then((r) => {
+        if (!settlement.isCurrent(generation)) return;
+        setRegions(r.regions);
+      })
+      .catch((e) => {
+        if (!settlement.isCurrent(generation)) return;
+        setError(describeApiError(e, translate(locale, "failed to load regions")));
+      });
+    // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: function-
+    // scoped values ESLint's exhaustive-deps rule can see, referentially stable in production, so
+    // this changes nothing about when this callback's identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port]);
+  }, [port, settlement]);
 
   useEffect(load, [load]);
   useContentRefreshSubscription(WIDGETS_REGIONS_RESOURCE, load);

@@ -4,6 +4,7 @@ import type { AdminMember } from "@/lib/api";
 import { MEMBERS_RESOURCE, describeApiError, emptyRowState, type RowActionState } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t } from "../members-i18n";
 import { defaultMembersPort } from "./members-dependencies.hooks";
 import type { MembersPort } from "./members-port.hooks";
@@ -91,17 +92,30 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
   // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
   const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
+  const settlement = useSettlementGeneration();
 
   const load = useCallback(() => {
+    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
+    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
+    // see the other's claim. Needed now that a content refresh can fire more than once per run
+    // (mid-run tool progress, see `AssistantDock.hooks.tsx`), so two overlapping `load()` calls have
+    // no ordering guarantee on their responses.
+    const generation = settlement.next();
     port
       .listMembers()
-      .then((r) => setMembers(r.members))
-      .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load members")));
-    // `port`/`locale` are added — see `use-page-editor.hooks.ts`'s identical note: function-scoped
-    // values ESLint's exhaustive-deps rule can see, referentially stable in production, so this
-    // changes nothing about when this callback's identity changes.
+      .then((r) => {
+        if (!settlement.isCurrent(generation)) return;
+        setMembers(r.members);
+      })
+      .catch((e) => {
+        if (!settlement.isCurrent(generation)) return;
+        setError(e instanceof Error ? e.message : t(locale, "failed to load members"));
+      });
+    // `port`/`locale`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note:
+    // function-scoped values ESLint's exhaustive-deps rule can see, referentially stable in
+    // production, so this changes nothing about when this callback's identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port]);
+  }, [port, settlement]);
 
   useEffect(() => {
     load();

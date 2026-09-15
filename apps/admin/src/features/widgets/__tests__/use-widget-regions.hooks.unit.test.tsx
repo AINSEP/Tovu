@@ -110,4 +110,38 @@ describe("useWidgetRegions — content refresh bus", () => {
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
+
+  it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
+    const port = createFakeWidgetRegionsPort({ regions: [REGION] });
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
+    await waitFor(() => expect(result.current.regions).toEqual([REGION]));
+
+    // Two assistant writes land back to back, each publishing its own content-refresh
+    // notification — two overlapping `listWidgetRegions()` calls with no ordering guarantee on responses.
+    let resolveFirst!: (v: { regions: AdminWidgetRegionBinding[] }) => void;
+    let resolveSecond!: (v: { regions: AdminWidgetRegionBinding[] }) => void;
+    vi.spyOn(port, "listWidgetRegions")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    act(() => {
+      publishContentRefresh();
+      publishContentRefresh();
+    });
+
+    // The SECOND (more recent) request settles first, with the newer list.
+    const sidebar = { ...REGION, regionKey: "sidebar", areaEntryId: "area-2" };
+    await act(async () => {
+      resolveSecond({ regions: [REGION, sidebar] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.regions).toEqual([REGION, sidebar]));
+
+    // The FIRST (now-stale) request finally settles. It must not resurrect the older list.
+    await act(async () => {
+      resolveFirst({ regions: [REGION] });
+      await Promise.resolve();
+    });
+    expect(result.current.regions).toEqual([REGION, sidebar]);
+  });
 });

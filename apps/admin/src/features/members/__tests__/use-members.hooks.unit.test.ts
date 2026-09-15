@@ -119,4 +119,39 @@ describe("useMembers — content refresh bus", () => {
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
+
+  it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    // Two assistant writes land back to back, each publishing its own content-refresh
+    // notification — two overlapping `listMembers()` calls with no ordering guarantee on responses.
+    let resolveFirst!: (v: { members: AdminMember[] }) => void;
+    let resolveSecond!: (v: { members: AdminMember[] }) => void;
+    vi.spyOn(port, "listMembers")
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    act(() => {
+      publishContentRefresh();
+      publishContentRefresh();
+    });
+
+    // The SECOND (more recent) request settles first, with the newer list.
+    const disabled: AdminMember = { ...MEMBER, status: "disabled" };
+    await act(async () => {
+      resolveSecond({ members: [disabled] });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.members).toEqual([disabled]));
+
+    // The FIRST (now-stale) request finally settles. It must not resurrect the older list.
+    await act(async () => {
+      resolveFirst({ members: [MEMBER] });
+      await Promise.resolve();
+    });
+    expect(result.current.members).toEqual([disabled]);
+  });
 });
