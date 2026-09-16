@@ -28,13 +28,17 @@ const HAND_WRITTEN_RULES = [
       // 4-file render/sandbox cluster closing on `import type { SiteRenderContext }`; a barrel loop
       // between `features/media/index.ts` <-> `bootstrap.ts`; `features/theme/theme.ts` <->
       // `theme-files.ts`; and `server/runtime/composition/deps.ts` / `app.ts` /
-      // `deployment-overview.ts` — the last one includes the DELIBERATE `require("./app.js")`
-      // workaround documented at length in `deps.ts` around line 1170 (a static import there would
-      // make the already-real `app.ts` -> `deps.ts` edge mutual, and `app.ts`'s module body ends with
-      // an eager `export const app = createApp()` that a static circular import would run as a
-      // load-time side effect — "a real circular-load crash, not a style preference," in that
-      // comment's own words). This rule WILL flag that edge — correctly. Do not "fix" it by reverting
-      // the `require()` workaround; that comment is the fix.
+      // `deployment-overview.ts`. Until 2026-09-16 that last one closed via a DELIBERATE
+      // `require("./app.js")` workaround in `deps.ts` (a static import there would have made the
+      // already-real `app.ts` -> `deps.ts` edge mutual, and `app.ts`'s module body used to end with
+      // an eager `export const app = createApp()` that a static circular import would have run as a
+      // load-time side effect). As of 2026-09-16 (t91 F4.1-A) it closes via a STATIC `deps.ts` ->
+      // `app.ts` import instead: the eager export is gone, and neither module's top level uses the
+      // other's exports (`deps.ts`'s top level declares only functions), so the static edge carries
+      // none of the load-time hazard the old comment warned about. This rule still WILL flag that
+      // edge — correctly, the cycle itself is unchanged, only how it is closed. It is accepted, not
+      // fixed; dissolving it for real means moving `deps.ts`'s path resolvers into a leaf module
+      // (recorded as a follow-up, not planned — see the F4.1-A plan's rejected option (e)).
       //
       // Type-only handling — INVESTIGATED AND REJECTED, not left untried: the first framing of the
       // above 5 SCCs (from this session's own earlier discussion) was "2 are type-only, zero runtime
@@ -94,8 +98,8 @@ const HAND_WRITTEN_RULES = [
       comment:
         "This dependency is part of a circular relationship. Revise with dependency inversion or a " +
         "narrower shared module. See this rule's own header comment above for the verified 5-SCC " +
-        "baseline, why a type-only exemption was tried and rejected, and why " +
-        "apps/website/src/server/runtime/composition/deps.ts's require() workaround is an intentional exception, not a violation to \"fix\".",
+        "baseline, why a type-only exemption was tried and rejected, and why the " +
+        "apps/website/src/server/runtime/composition/deps.ts <-> app.ts cycle is currently accepted.",
       from: {},
       to: { circular: true },
     },

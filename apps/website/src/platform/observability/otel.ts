@@ -6,12 +6,11 @@
  *
  * Loaded lazily, not statically: `index.ts`'s `createObservabilityPort` only reaches this module
  * via `createRequire(import.meta.url).require("./otel.js")`, gated behind
- * `resolveObservabilityConfig().enabled`. This mirrors an idiom already established twice in this
- * exact composition root — `server/runtime/composition/app.ts`'s `createSiteAppLazily` and
- * `server/runtime/composition/deps.ts`'s `runExportSiteLazily` both use the identical
- * `createRequire(...).require(...)` pattern to avoid an eager module-graph edge — applied here so
- * the OTel SDK is never loaded into a process whose operator hasn't set
- * `OTEL_EXPORTER_OTLP_ENDPOINT`. That is a real resource-budget concern, not tidiness: the
+ * `resolveObservabilityConfig().enabled`. This is the ONE first-party `require()`
+ * `src/__tests__/no-first-party-require.boundary.test.ts` allows (t91 F4.1-A), because this file has
+ * no first-party runtime import and nothing loads it through `import` — so tsx's CommonJS copy is
+ * the only copy, and it stays that way. Applied here so the OTel SDK is never loaded into a process
+ * whose operator hasn't set `OTEL_EXPORTER_OTLP_ENDPOINT`. That is a real resource-budget concern, not tidiness: the
  * groundwork survey this task was built from (`ADS-memory/.local-artifacts/metrics/
  * 2026-08-28-observability-groundwork.md` §5.5) flags that Tovu ships to small, single-process VPS
  * instances and that no measurement of the OTel SDK's own footprint exists yet — an always-loaded

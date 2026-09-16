@@ -1474,11 +1474,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * with the edge present vs 9.43% with only this one edge removed). Mirrors `runExportSite`'s
    * injection precedent immediately above — always the real `createApp` in both `server/app.ts`'s
    * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSqliteRouteDeps()`
-   * (lazily `require`d — `deps.ts`'s `createSiteAppLazily` requires `./app.js` directly, which is
-   * the genuinely load-bearing, still-real `deps.ts` <-> `app.ts` cycle `.dependency-cruiser.mjs`'s
-   * `no-circular` rule documents; do not "fix" that one. This is now a DIFFERENT situation from
-   * `server/app.ts`'s own `runExportSite`, which used to be lazy for a similar-sounding but distinct
-   * reason and, as of 2026-09-05, no longer is — see that const's doc for why).
+   * (a static import since 2026-09-16, t91 F4.1-A; the call-time `require()` it replaced built the
+   * site app from a second tsx module graph that saw none of the live registries — the resulting
+   * `deps.ts` <-> `app.ts` cycle is recorded in `.dependency-cruiser.mjs`'s `no-circular` header).
+   * Both composition roots bind this field statically now — see `server/app.ts`'s own matching
+   * `createSiteApp` field for the identical closure-ordering reasoning.
    *
    * NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — 2026-08-20 RouteDeps-
    * narrowing fix, same shape and same day as `exportSiteBound` below. Before this change,

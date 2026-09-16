@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { createRequire } from "node:module";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
@@ -23,14 +22,6 @@ import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/so
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-// NOT a static import. Until 2026-08-16 this broke a real cycle: `export/site-exporter.ts` imported
-// `createApp` from `app.ts`, and importing here would have closed the loop. That edge is gone now —
-// site-exporter.ts boots via the injected `routeDeps.createSiteApp()` instead — and `app.ts`'s own
-// matching field was converted from a lazy `runExportSiteLazily` to a plain static `runExportSite`
-// on 2026-09-05 once its cycle was verified closed (commit `f7d0b1b4`; see that function's doc for
-// the full historical trace). This file's own `runExportSiteLazily` below has not had the same
-// re-verification, so it stays lazy for now. Resolved at call time.
-import type { ExportEngine } from "#src/features/deployments/export-run";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createChatStoreFactory,
@@ -116,7 +107,6 @@ import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import type { Express } from "express";
 import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "#src/features/origin/index";
@@ -188,6 +178,19 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import { createExternalMcpOAuthService } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
+
+// Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
+// `resolve*RootDir` functions), so `createApp` below closes the `deps.ts` <-> `app.ts` cycle that
+// `.dependency-cruiser.mjs`'s `no-circular` header records. It is safe because neither module's
+// top level uses the other's exports: this file's top level declares only functions. Keeping these
+// last means a process that loads this file first (every `tovu` CLI command) still evaluates every
+// import above in its existing order. Both were call-time `require()`s until 2026-09-16 (t91
+// F4.1-A): under tsx, `require()` of a first-party `.ts` module loads a second, CommonJS-compiled
+// copy of that module and its whole graph, so the site app built here read empty copies of the
+// routing, page-head and event-subscription registries — exports and site inspection served no
+// redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
+import { exportSite } from "#src/platform/export/index";
+import { createApp } from "./app.js";
 
 /**
  * The one site folder this process serves — the root every other runtime path below derives from.
@@ -1565,7 +1568,7 @@ export function createSqliteRouteDeps(
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference).
-    runExportSite: runExportSiteLazily,
+    runExportSite: (options) => exportSite(options),
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s
     // `exportOutputRootDir` doc.
@@ -1573,10 +1576,8 @@ export function createSqliteRouteDeps(
     // 2026-08-20 (RouteDeps-narrowing pass 2) — nullary, closed over the `const routeDeps` binding
     // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
     // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
-    // spread-override is silently inert; mutate the object in place instead). `createSiteAppLazily`
-    // itself is unchanged — still a reusable `(routeDeps) => Express` helper; wrapped here rather
-    // than converted in place, since nothing else calls it.
-    createSiteApp: () => createSiteAppLazily(routeDeps),
+    // spread-override is silently inert; mutate the object in place instead).
+    createSiteApp: () => createApp(routeDeps),
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
     // TEST GOTCHA.
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
@@ -1628,9 +1629,7 @@ export function createSqliteRouteDeps(
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
-    exportSiteBound: (opts) =>
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
-      (require("../../../platform/export/index.js") as typeof import("../../../platform/export/index.js")).exportSite({ ...opts, routeDeps }),
+    exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
   return routeDeps;
 }
@@ -1675,46 +1674,3 @@ export function createSqliteRouteDepsForWorkspace(
   return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
 }
 
-// FEAT-049 (ESM migration) moved this file off CommonJS, so the bare `require` the two doc
-// comments below still describe no longer exists as a global; both `require` calls now resolve
-// through `createRequire(import.meta.url)`, which preserves the exact same synchronous-resolution
-// behavior their cycle-breaks depend on. `app.ts` no longer needs this substitution at all — its
-// own matching `require()` was removed outright on 2026-09-05 once that cycle closed (`f7d0b1b4`);
-// see `runExportSiteLazily`'s doc immediately below for what changed there and why this file's
-// version has not had the same treatment yet.
-const require = createRequire(import.meta.url);
-
-/**
- * `exportSite`, resolved at CALL time rather than at import time — historically the same fix, for
- * the same cycle, as `app.ts`'s former `runExportSiteLazily`. The original trace: `app.ts ->
- * export/index.ts -> export/site-exporter.ts -> app.ts`, which killed the agent daemon on every boot
- * once its entry point started reaching this graph (2026-08-15).
- *
- * That cycle closed for real on 2026-08-16 (site-exporter.ts now boots via the injected
- * `routeDeps.createSiteApp()` instead of importing `createApp` from `app.ts`), and on 2026-09-05
- * commit `f7d0b1b4` verified the closure and converted `app.ts`'s field to a plain static
- * `runExportSite` — see that function's doc for the verification evidence. This file's own copy has
- * not had the same re-verification pass, so it stays lazy until it does.
- */
-const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../../../platform/export/index.js") as typeof import("../../../platform/export/index.js")).exportSite(options);
-
-/**
- * `createApp`, resolved at CALL time rather than at import time — see `routes/types.ts`'s
- * `createSiteApp` doc for why this field exists at all (closing the `export -> server` cycle).
- *
- * Lazy, not a static `import { createApp } from "./app.js"`, even though nothing about `createApp`
- * itself is slow to resolve: `server/app.ts` already imports `builtInThemesDir` FROM this file, so a
- * static import here would make that existing one-directional edge mutual, and `server/app.ts`'s own
- * module body ends with an eager `export const app = createApp();` that runs the whole app-boot
- * graph (transitively reaching `assistant/tool-registrations.ts` via the BYOK execution mode) as a
- * side effect of merely loading that file — the exact hazard `runExportSiteLazily` above already
- * documents for the same file pair. `require`, not `await import`: a synchronous resolution avoids
- * making this call site (and its `ExportEngine`/`createSiteApp` signatures) async, and by the time
- * any caller invokes this (only ever from inside `createSiteApp`'s function body below, never at
- * this module's own top level), `server/app.ts` is fully loaded.
- */
-const createSiteAppLazily = (routeDeps: RouteDeps): Express =>
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("./app.js") as typeof import("./app.js")).createApp(routeDeps);
