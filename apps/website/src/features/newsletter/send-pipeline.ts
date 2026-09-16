@@ -39,11 +39,14 @@ export const SEND_BATCH_CLAIMED_EVENT = "newsletter.send.batch.claimed";
 
 /**
  * How long one run holds a send row while it dispatches it (2026-09-16). Must outlast one row's hooks + `mailer.send`
- * + `recordResult` (the Resend adapter caps a call at 10s). Must stay BELOW the outbox's minimum retry window after a
- * batch first finds a row leased — Σ computeOutboxBackoffMs(2..5, random 0) = 450s — so a row leased by a run that died
- * becomes claimable before the batch event's last attempt. `send-pipeline.test.ts` pins both bounds.
+ * + `recordResult` (the Resend adapter caps a call at 10s). A run that throws after leasing a row keeps the lease, so
+ * the lease must also expire before the batch event's LAST attempt, whichever attempt took it. The tightest case is a
+ * lease taken on attempt `MAX_OUTBOX_ATTEMPTS - 1`: the last attempt can follow after only
+ * computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s. A lease still live then fails that attempt, the
+ * outbox seals the event "failed", and the row stays "pending" forever. Hence 2 minutes, not the first draft's 5
+ * (review fix, 2026-09-16). `send-pipeline.test.ts` pins both bounds.
  */
-export const NEWSLETTER_SEND_ROW_LEASE_MS = 5 * 60 * 1000;
+export const NEWSLETTER_SEND_ROW_LEASE_MS = 2 * 60 * 1000;
 
 export interface SendPipelineDeps {
   campaignRepo: NewsletterCampaignRepoPort;
